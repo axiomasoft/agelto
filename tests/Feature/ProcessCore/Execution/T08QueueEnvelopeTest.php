@@ -12,6 +12,7 @@ use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use App\Repositories\Procurement\Process\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\WorkWakePublisher;
 use App\Services\Procurement\Process\FeederDaemon;
+use App\Services\Procurement\Process\DaemonPolicy;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\QueueWorkWakePublisher;
@@ -289,6 +290,29 @@ test('Redis publish недоступен: claim снят, код ошибки в
     expect([$next->processed, $next->errorCode])->toBe([1, null])
         ->and($recovered->published)->toHaveCount(1)
         ->and([$row->published_at !== null, $row->last_error_code])->toBe([true, null]);
+});
+
+test('relay при недоступном Redis: delayMs даёт backoff по подряд идущим отказам, а не idle-пулинг; успешный tick снимает backoff', function (): void {
+    envelopeAdmitted();
+    envelopePublisher(new RuntimeException('redis refused'));
+    $relay = app(RelayDaemon::class);
+    $policy = app(DaemonPolicy::class);
+
+    // Loop читает паузу сразу после своего tick: счётчик отказов относится к последнему tick.
+    $first = $relay->tick();
+    $firstDelay = $relay->delayMs($first);
+    $second = $relay->tick();
+    $secondDelay = $relay->delayMs($second);
+
+    expect([$first->errorCode, $second->errorCode])->toBe(['redis_publish_failed', 'redis_publish_failed'])
+        ->and($firstDelay)->toBe($policy->backoffMs(1))
+        ->and($secondDelay)->toBe($policy->backoffMs(2));
+
+    envelopePublisher();
+    $recovered = app(RelayDaemon::class)->tick();
+
+    expect([$recovered->processed, $recovered->errorCode])->toBe([1, null])
+        ->and(app(RelayDaemon::class)->delayMs($recovered))->toBe(0);
 });
 
 test('relay не публикует wake неподдерживаемой schema: quarantine с incident, persistent degraded и без потери сообщения', function (): void {

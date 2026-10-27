@@ -244,7 +244,9 @@ ACK-ится, durable scanners восстанавливают; constraint/schema
 `Throwable` различаются: `LeaseLost` (без публикации, work остаётся durable running),
 `SliceExhausted` (устойчивый checkpoint → `StagePartial`, иначе deferred `slice_exhausted`),
 `DependencyUnavailable` (storage/converter/provider → deferred соответствующего reason; database —
-без finalize; неизвестное имя — дефект кода). Только неожиданный programming Throwable идёт в
+без finalize; неизвестное имя — дефект кода). Отмена `CancelWork` во время исполнения приходит как
+`LeaseLost`: heartbeat CAS на новом generation возвращает 0 строк (`ExecutionContext::tick`); отдельного
+типа «cancelled» для runner нет. Только неожиданный programming Throwable идёт в
 `finishHandlerFault` (locked budget execution#handler-fault-budget). Сбой finalizer handler второй
 раз не запускает. Неподдерживаемая `queue_schema_version` не исполняется: incident
 `queue_schema_unsupported`, работа остаётся за scanners.
@@ -468,8 +470,9 @@ connections/процессах и изолированном Redis rig, плюс
 | любое nonterminal | `superseded` | изменившийся input/head под тем же prefix (admit/claim/finalize/recovery) |
 
 Terminal (`succeeded`, `failed_item`, `cancelled`, `superseded`) не переписывается никем. Каждый
-переход — одна `ProcessTransaction` с transition + `project:<event_id>` outbox; group освобождается
-целиком в той же tx.
+переход — одна `ProcessTransaction` с transition + `project:<event_id>` outbox. Group освобождается
+целиком в той же tx только при settle, cancel, recovery, supersede и blocked-release; `CapacityWait` и
+claim группу сохраняют (`dispatch_generation+1`, members остаются).
 
 ### API для owning пакетов
 

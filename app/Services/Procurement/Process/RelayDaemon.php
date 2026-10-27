@@ -33,6 +33,9 @@ final class RelayDaemon implements ProcessDaemon
     /** Quarantined сообщение повторно рассматривается раз в час (после выкладки поддержки схемы). */
     private const int QUARANTINE_RETRY_SECONDS = 3600;
 
+    /** Подряд идущие ticks с redis_publish_failed; сбрасывается ticks без ошибки. */
+    private int $publishFailures = 0;
+
     public function __construct(
         private readonly OutboxRepository $outbox,
         private readonly IncidentRepository $incidents,
@@ -68,6 +71,7 @@ final class RelayDaemon implements ProcessDaemon
                 // Publish не состоялся: сообщение остаётся в outbox, остаток batch не держим claim-ом.
                 ProcessLog::daemonError('relay', 'redis_publish_failed', $failure, ['message_id' => $message->messageId->value]);
                 $this->release(array_slice($messages, $index), 'redis_publish_failed');
+                $this->publishFailures++;
 
                 return new DaemonTick($published, 'redis_publish_failed');
             }
@@ -79,12 +83,20 @@ final class RelayDaemon implements ProcessDaemon
         if ($this->outbox->quarantinedCount(OutboxKind::WorkWake) > 0) {
             $error = 'outbox_quarantined';
         }
+        if ($error === null) {
+            $this->publishFailures = 0;
+        }
 
         return new DaemonTick($published, $error);
     }
 
     public function delayMs(DaemonTick $last): int
     {
+        // Недоступный Redis: backoff, даже если часть batch уже опубликована.
+        if ($last->errorCode === 'redis_publish_failed') {
+            return $this->policy->backoffMs($this->publishFailures);
+        }
+
         return $last->processed > 0 ? 0 : random_int($this->policy->relayIdleMinMs, $this->policy->relayIdleMaxMs);
     }
 

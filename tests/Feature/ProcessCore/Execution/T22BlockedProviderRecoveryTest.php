@@ -147,15 +147,19 @@ test('EXR-03 verified error с неподтверждённой оплатой, 
     $resolver = FixtureProviderRecoveryResolver::install();
     [$work, $unknown] = providerBlocked($resolver);
 
-    // (b) ответ-ошибка без доказательства бесплатности → blocked_unknown finding.
+    // (b) ответ-ошибка без доказательства бесплатности → blocked_unknown finding на том же linkage.
+    $resolver->finding($work, FixtureProviderRecoveryResolver::resolved($unknown, ProviderRecoveryMode::BlockedUnknown));
     providerDue($work);
     $before = providerRow($work);
+    $revokedBefore = $resolver->revoked;
     expect(app(RecoveryReconciler::class)->recoverBlockedProvider())->toBe(0);
     $after = providerRow($work);
     expect([$after->state, $after->reason_code, $after->transition_seq, $after->checkpoint_seq, $after->checkpoint])
         ->toBe([$before->state, $before->reason_code, $before->transition_seq, $before->checkpoint_seq, $before->checkpoint])
-        ->and((float) $after->recovery_in)->toBeGreaterThan(20.0)
-        ->and($resolver->settlements)->toBe([]);
+        ->and([$after->state, $after->reason_code, $after->due_at])->toBe(['blocked', 'provider_result_unknown', null])
+        ->and((float) $after->recovery_in)->toBeGreaterThan(20.0)->toBeLessThanOrEqual(30.0)
+        ->and($resolver->settlements)->toBe([])
+        ->and($resolver->revoked)->toBe($revokedBefore);
 
     // Хранилище receipt недоступно: dependency wait, не разрешение send.
     $resolver->finding($work, FixtureProviderRecoveryResolver::resolved($unknown, ProviderRecoveryMode::ResumeFromReceipt));
