@@ -170,13 +170,8 @@ final class RecoveryReconciler
         $checked = 0;
         foreach ($this->recovery->uncheckedFaults(self::BATCH) as $candidate) {
             $ids = self::ids();
-            try {
-                if ($this->transaction->run(fn (): bool => $this->recovery->detectFault($candidate, $ids))) {
-                    $checked++;
-                }
-            } catch (\Throwable $failure) {
-                // Один кандидат с битым authority не блокирует sweep: остальные проверяются в этом tick.
-                ProcessLog::daemonError('reconcile', 'sweep_handler_faults_failed', $failure);
+            if ($this->transaction->run(fn (): bool => $this->recovery->detectFault($candidate, $ids))) {
+                $checked++;
             }
         }
 
