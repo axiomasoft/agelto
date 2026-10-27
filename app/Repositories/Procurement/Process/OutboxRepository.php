@@ -70,17 +70,21 @@ final readonly class OutboxRepository
         if ($limit < 1 || $claimSeconds < 1) {
             throw new \InvalidArgumentException('Outbox claim needs a positive batch and claim duration.');
         }
+        // Кандидаты материализуются один раз: `UPDATE … WHERE id IN (SELECT … LIMIT n)` пересканирует
+        // подзапрос и под конкуренцией может обновить больше n строк (Halloween/self-modified skip).
         $rows = LedgerRow::all(
-            'UPDATE prc_process_outbox
-             SET claim_token = ?, claim_until = clock_timestamp() + make_interval(secs => ?), attempts = attempts + 1
-             WHERE message_id IN (
+            'WITH picked AS MATERIALIZED (
                  SELECT message_id FROM prc_process_outbox
                  WHERE kind = ? AND published_at IS NULL AND available_at <= clock_timestamp()
                    AND (claim_until IS NULL OR claim_until <= clock_timestamp())
                  ORDER BY available_at, message_id LIMIT ? FOR UPDATE SKIP LOCKED
              )
-             RETURNING message_id, kind, payload::text AS payload, payload_schema_version, attempts, available_at::text AS available_at',
-            [$token->value, $claimSeconds, $kind->value, $limit],
+             UPDATE prc_process_outbox o
+             SET claim_token = ?, claim_until = clock_timestamp() + make_interval(secs => ?), attempts = attempts + 1
+             FROM picked
+             WHERE o.message_id = picked.message_id
+             RETURNING o.message_id, o.kind, o.payload::text AS payload, o.payload_schema_version, o.attempts, o.available_at::text AS available_at',
+            [$kind->value, $limit, $token->value, $claimSeconds],
         );
         usort($rows, static fn (LedgerRow $a, LedgerRow $b): int => [$a->string('available_at'), $a->string('message_id')] <=> [$b->string('available_at'), $b->string('message_id')]);
 
