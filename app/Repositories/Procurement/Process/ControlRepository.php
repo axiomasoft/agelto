@@ -24,6 +24,8 @@ use Illuminate\Support\Str;
  */
 final readonly class ControlRepository
 {
+    private const int REASON_LIMIT = 200;
+
     public function __construct(private TransitionRepository $transitions) {}
 
     /**
@@ -95,8 +97,9 @@ final readonly class ControlRepository
         ProcessUuid $projectionMessageId,
     ): ControlChangeResult {
         CallerTransaction::require('Control mode change');
-        if (trim($reason) === '') {
-            throw new \InvalidArgumentException('Control change requires a reason.');
+        $reason = trim($reason);
+        if ($reason === '' || mb_strlen($reason) > self::REASON_LIMIT || str_contains($reason, "\0")) {
+            throw new \InvalidArgumentException('Control change requires a short nonempty reason.');
         }
         // Topology immutable: unlocked чтение ancestor chain, затем locks в sorted порядке.
         $chain = LedgerRow::all(
@@ -136,6 +139,7 @@ final readonly class ControlRepository
         $this->transitions->recordControl(
             $eventId, $projectionMessageId, new ProcessUuid($target->string('id')), $changed->int('control_version'),
             $previous, $mode->value, 'manual_'.$mode->value, $changedBy === null ? ActorKind::System : ActorKind::Operator, $changedBy,
+            ['reason' => $reason],
         );
 
         return new ControlChangeResult(ControlChangeStatus::Applied, $changed->int('control_version'));

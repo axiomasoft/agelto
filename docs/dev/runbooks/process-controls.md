@@ -88,6 +88,8 @@ admin audit, provenance, dedup) — политика `RetentionService`; FK rece
 `ProcessOperatorCommands`: RBAC по `ProcessControlPermission`, обязательный `reason`, actor из `User`,
 optimistic version, audit transition с actor/before/after/reason. Прямых записей из Filament/Pulse нет
 (`ProcessOperatorBoundaryTest`).
+Причина каждого Pause/Resume сохраняется в `details.reason` неизменяемого transition (`details_schema_version=1`)
+в той же транзакции, что и режим области; последующая смена `change_reason` в области не стирает историю причин.
 
 | Команда | Version fence | Право | Роль по умолчанию |
 |---|---|---|---|
@@ -105,7 +107,8 @@ CLI: `process:control {pause|resume|cancel-work|cancel-run|retry-fault|ack-incid
 (Pause/Resume), «Процессы: инциденты» (Acknowledge), «Процессы: запуски» (учёт required work, полнота discovery,
 `CancelRun`) и «Процессы: работа» (почему ждёт, следующая попытка, число попыток и отказов по объекту,
 `CancelWork`; `RetryHandlerFaultedWork` показывается только на `blocked(handler_fault_limit)` и только при праве
-`retry_handler_fault`). Действие строки сохраняет версию записи (`transition_seq`) при открытии подтверждения в
+`retry_handler_fault`). Действие строки сохраняет версию записи (`control_version` для Pause/Resume,
+`transition_seq` для остальных команд) при открытии подтверждения в
 подписанном токене (привязан к оператору, action и записи; подделка или перенос отклоняются с предупреждением), и
 команда получает именно её: если запись изменилась до подтверждения, шлюз вернёт `version_conflict`, а не применит
 устаревшее намерение. `commandId` retry выводится из подтверждённой версии, поэтому повтор по той же версии

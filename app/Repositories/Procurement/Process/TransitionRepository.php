@@ -51,7 +51,11 @@ final readonly class TransitionRepository
         $this->record($eventId, $projectionMessageId, 'run', $runId, $entitySeq, $previousState, $newState, $reasonCode, $actor, null, $actorId, $details);
     }
 
-    /** Manual control mutation: entity sequence — новый control_version самой scope row. */
+    /**
+     * Manual control mutation: entity sequence — новый control_version самой scope row.
+     *
+     * @param  array<string, int|string>  $details  redacted typed поля audit
+     */
     public function recordControl(
         ProcessUuid $eventId,
         ProcessUuid $projectionMessageId,
@@ -62,8 +66,9 @@ final readonly class TransitionRepository
         ?string $reasonCode,
         ActorKind $actor,
         ?int $actorId,
+        array $details = [],
     ): void {
-        $this->record($eventId, $projectionMessageId, 'control', $controlId, $controlVersion, $previousMode, $newMode, $reasonCode, $actor, null, $actorId);
+        $this->record($eventId, $projectionMessageId, 'control', $controlId, $controlVersion, $previousMode, $newMode, $reasonCode, $actor, null, $actorId, $details);
     }
 
     /** @param array<string, int|string> $details */

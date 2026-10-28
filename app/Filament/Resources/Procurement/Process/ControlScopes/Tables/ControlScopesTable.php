@@ -6,11 +6,13 @@ namespace App\Filament\Resources\Procurement\Process\ControlScopes\Tables;
 
 use App\Dto\Procurement\Process\OperatorCommandResult;
 use App\Enums\Procurement\Process\ControlMode;
+use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Process\ControlScope;
 use App\Models\User;
 use App\Services\Procurement\Process\ProcessOperatorCommands;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -41,9 +43,19 @@ final class ControlScopesTable
             ])
             ->recordActions([
                 self::command('pause', 'Пауза', 'danger', ProcessControlPermission::PauseScope, ControlMode::Enabled)
-                    ->action(fn (ControlScope $record, array $data) => self::report(app(ProcessOperatorCommands::class)->pauseScope(self::actor(), $record->scope_key, (int) $record->control_version, self::reason($data)), 'Область поставлена на паузу')),
+                    ->action(function (Action $action, ControlScope $record, array $data): void {
+                        $version = OperatorActionInput::confirmedVersion($action, 'pause', $record->id, $data);
+                        self::report(OperatorActionInput::attempt($action, fn (): OperatorCommandResult => app(ProcessOperatorCommands::class)->pauseScope(
+                            self::actor(), $record->scope_key, $version, OperatorActionInput::reason($data),
+                        )), 'Область поставлена на паузу');
+                    }),
                 self::command('resume', 'Возобновить', 'success', ProcessControlPermission::ResumeScope, ControlMode::Paused)
-                    ->action(fn (ControlScope $record, array $data) => self::report(app(ProcessOperatorCommands::class)->resumeScope(self::actor(), $record->scope_key, (int) $record->control_version, self::reason($data)), 'Пауза области снята')),
+                    ->action(function (Action $action, ControlScope $record, array $data): void {
+                        $version = OperatorActionInput::confirmedVersion($action, 'resume', $record->id, $data);
+                        self::report(OperatorActionInput::attempt($action, fn (): OperatorCommandResult => app(ProcessOperatorCommands::class)->resumeScope(
+                            self::actor(), $record->scope_key, $version, OperatorActionInput::reason($data),
+                        )), 'Пауза области снята');
+                    }),
             ])
             ->defaultSort('scope_key');
     }
@@ -56,16 +68,14 @@ final class ControlScopesTable
             ->color($color)
             ->authorize(static fn (): bool => self::actor()->hasPermission($permission))
             ->visible(static fn (ControlScope $record): bool => $record->desired_mode === $visibleWhen)
-            ->schema([Textarea::make('reason')->label('Причина')->required()->maxLength(500)])
+            ->schema([
+                // Scope имеет control_version; общий versionField читает transition_seq work/run.
+                Hidden::make(OperatorActionInput::FIELD)->required()->default(
+                    static fn (ControlScope $record): string => OperatorActionInput::issue($name, $record->id, (int) $record->control_version),
+                ),
+                Textarea::make('reason')->label('Причина')->required()->maxLength(OperatorActionInput::REASON_LIMIT),
+            ])
             ->requiresConfirmation();
-    }
-
-    /** @param array<array-key, mixed> $data */
-    private static function reason(array $data): string
-    {
-        $reason = $data['reason'] ?? '';
-
-        return is_string($reason) ? $reason : '';
     }
 
     /** Конфликт версии не ошибка UI: оператор видел устаревшую строку и перечитает таблицу. */
