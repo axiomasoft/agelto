@@ -1,0 +1,159 @@
+"""Isolated loopback fixtures; sequences and receipt log are owned by the server."""
+import gzip
+import http.server
+import json
+import select
+import socket
+import socketserver
+import ssl
+import sys
+import threading
+import time
+from pathlib import Path
+
+root = Path(sys.argv[1])
+lock = threading.Lock()
+sequences = {}
+
+
+def record(data):
+    with lock:
+        with (root / "requests.jsonl").open("a") as output:
+            output.write(json.dumps(data) + "\n")
+
+
+class Http(http.server.BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        with lock:
+            ordinal = sequences.get(self.path, 0) + 1
+            sequences[self.path] = ordinal
+        record({"kind": "http", "path": self.path, "ordinal": ordinal, "headers": dict(self.headers)})
+        if self.path == "/drop" or (self.path == "/sequence" and ordinal <= 2):
+            self.connection.shutdown(socket.SHUT_RDWR)
+            self.connection.close()
+            return
+        if self.path == "/headers-late":
+            time.sleep(2)
+        if self.path == "/stall":
+            time.sleep(60)
+            return
+        if self.path == "/body-stall":
+            self.send_response(200)
+            self.send_header("Content-Length", "100")
+            self.end_headers()
+            self.wfile.flush()
+            time.sleep(60)
+            return
+        if self.path == "/slow45":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", "92")
+            self.end_headers()
+            for _ in range(46):
+                self.wfile.write(b"xx")
+                self.wfile.flush()
+                time.sleep(1)
+            return
+        body = "Привет".encode()
+        status = 200
+        headers = {"Content-Type": "text/plain; charset=utf-8"}
+        if self.path == "/truncated":
+            headers["Content-Length"] = "1000"
+            self.close_connection = True
+        if self.path in ("/gzip", "/gzip-file", "/biggzip", "/badgzip"):
+            body = gzip.compress(body if self.path != "/biggzip" else b"a" * 1000000)
+            if self.path != "/gzip-file":
+                headers["Content-Encoding"] = "gzip"
+            if self.path == "/badgzip":
+                body = b"this is not gzip"
+        if self.path == "/unsupported":
+            headers["Content-Encoding"] = "imaginary"
+        if self.path == "/invalid-utf8":
+            body = b"\xff"
+        if self.path == "/large":
+            body = b"x" * 200000
+        if self.path.startswith("/redirect"):
+            status = 302
+            headers["Location"] = {"/redirect": "/ok", "/redirect-loop": "/redirect-loop",
+                                   "/redirect-cross": f"http://second.test:{http_service.server_address[1]}/ok",
+                                   "/redirect-private": "http://127.0.0.1:1/forbidden",
+                                   "/redirect-downgrade": f"http://fixture.test:{http_service.server_address[1]}/ok"}[self.path]
+        if self.path == "/quota":
+            status = 429
+            headers["Retry-After"] = "120"
+        if self.path == "/quota-long":
+            status = 429
+            headers["Retry-After"] = "86401"
+        if self.path == "/unavailable":
+            status = 503
+        self.send_response(status)
+        for name, value in headers.items():
+            self.send_header(name, value)
+        if "Content-Length" not in headers:
+            self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+        self.wfile.flush()
+
+
+class Proxy(socketserver.StreamRequestHandler):
+    def handle(self):
+        line = self.rfile.readline().decode().strip()
+        while self.rfile.readline().strip():
+            pass
+        record({"kind": "connect", "request": line})
+        if self.server.stall:
+            time.sleep(60)
+            return
+        if self.server.reject:
+            self.wfile.write(b"HTTP/1.1 407 Proxy Authentication Required\r\nContent-Length: 0\r\n\r\n")
+            return
+        method, target, _ = line.split(" ")
+        host, port = target.rsplit(":", 1)
+        if method != "CONNECT" or host != "127.0.0.1":
+            self.wfile.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
+            return
+        with socket.create_connection((host, int(port)), timeout=5) as upstream:
+            self.wfile.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+            self.wfile.flush()
+            sockets = [self.connection, upstream]
+            while True:
+                ready, _, _ = select.select(sockets, [], [], 5)
+                if not ready:
+                    return
+                for source in ready:
+                    data = source.recv(65536)
+                    if not data:
+                        return
+                    (upstream if source is self.connection else self.connection).sendall(data)
+
+
+class Server(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
+http_service = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Http)
+tls = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Http)
+trust = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+trust.load_cert_chain(root / "cert.pem", root / "key.pem")
+tls.socket = trust.wrap_socket(tls.socket, server_side=True)
+proxy = Server(("127.0.0.1", 0), Proxy)
+proxy.reject = False
+proxy.stall = False
+auth = Server(("127.0.0.1", 0), Proxy)
+auth.reject = True
+auth.stall = False
+stall_proxy = Server(("127.0.0.1", 0), Proxy)
+stall_proxy.reject = False
+stall_proxy.stall = True
+for service in (http_service, tls, proxy, auth, stall_proxy):
+    threading.Thread(target=service.serve_forever, daemon=True).start()
+print(json.dumps({"http": http_service.server_address[1], "tls": tls.server_address[1],
+                  "proxy": proxy.server_address[1], "auth": auth.server_address[1], "stall_proxy": stall_proxy.server_address[1]}), flush=True)
+threading.Event().wait()

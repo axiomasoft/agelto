@@ -1,0 +1,212 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Dto\Procurement\Network\AuthorizedHttpRequest;
+use App\Dto\Procurement\Network\BinaryBodyArtifact;
+use App\Dto\Procurement\Network\HttpRequestPayload;
+use App\Dto\Procurement\Network\HttpRouteBinding;
+use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Network\TransferBudget;
+use App\Dto\Procurement\Network\TransportBlocked;
+use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Network\TransportSucceeded;
+use App\Dto\Procurement\Platform\CanonicalOrigin;
+use App\Enums\Procurement\Network\IdempotencyClass;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
+use App\Enums\Procurement\Network\TransportFailure;
+use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
+use App\Services\Procurement\Network\HttpTransport;
+use App\Services\Procurement\Network\OutboundExecutor;
+use App\Services\Procurement\Network\UrlPolicy;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\Http\FixtureAttemptGate;
+use Tests\Support\ProcessCore\Http\TransportFixtures as F;
+use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\LedgerFixtures;
+
+beforeEach(function (): void {
+    // RefreshDatabase's outer test transaction must not surround real external I/O.
+    while (DB::transactionLevel() > 0) {
+        DB::rollBack();
+    }
+    Http::preventStrayRequests();
+    $this->wire = new WireFixture;
+    $this->gate = F::gate();
+    $this->budget = new TransferBudget(5_000_000, 5_000_000);
+    $this->executor = app(OutboundExecutor::class);
+});
+
+afterEach(function (): void {
+    $this->wire?->stop();
+});
+
+test('T03 два connection failures затем document success дают три sends и ноль item writes', function (): void {
+    Storage::fake('local');
+    $before = DB::table('prc_process_work')->count();
+    $profile = F::profile(['response_kind' => 'binary', 'max_text_bytes' => null, 'charset_default' => null]);
+    $result = $this->executor->execute(F::plan($this->wire->url('/sequence'), $profile), F::context(), $this->gate, $this->wire->policy(), $this->budget);
+    expect($result)->toBeInstanceOf(TransportSucceeded::class)
+        ->and($this->gate->requests)->toHaveCount(3)
+        ->and($this->gate->results)->toHaveCount(3)
+        ->and(array_filter($this->gate->results, fn ($r) => $r->response !== null))->toHaveCount(1)
+        ->and($this->wire->receipts())->toHaveCount(3)
+        ->and(array_unique(array_map(fn ($r) => $r->plan->physicalRequestId->value, $this->gate->requests)))->toHaveCount(3)
+        ->and(DB::table('prc_process_work')->count())->toBe($before);
+    $body = $result->response->body;
+    expect($body)->toBeInstanceOf(BinaryBodyArtifact::class)
+        ->and(Storage::disk('local')->get($body->artifact->key))->toBe('Привет')
+        ->and($body->artifact->sha256->hex)->toBe(hash('sha256', 'Привет'));
+})->group('t03');
+
+test('T03 exhaustion deferred и ambiguous write только single send', function (): void {
+    $result = $this->executor->execute(F::plan($this->wire->url('/drop')), F::context(), $this->gate, $this->wire->policy(), $this->budget);
+    expect($result)->toBeInstanceOf(TransportDeferred::class)
+        ->and($result->reason)->toBe(NetworkDeferralReason::AttemptsExhausted)
+        ->and($this->wire->receipts())->toHaveCount(3);
+    $single = F::gate();
+    $result = $this->executor->execute(F::plan($this->wire->url('/drop'), idempotency: IdempotencyClass::AmbiguousWrite), F::context(), $single, $this->wire->policy(), $this->budget);
+    expect($single->requests)->toHaveCount(1)->and($this->wire->receipts())->toHaveCount(4);
+})->group('t03');
+
+test('T04 transport failures выбирают untried B затем B но 503 не меняет egress', function (): void {
+    $a = new HttpRouteBinding(LedgerFixtures::uuid());
+    $b = new HttpRouteBinding(LedgerFixtures::uuid());
+    $gate = new FixtureAttemptGate([$a, $b]);
+    $result = $this->executor->execute(F::plan($this->wire->url('/sequence')), F::context(), $gate, $this->wire->policy(), $this->budget);
+    expect($result)->toBeInstanceOf(TransportSucceeded::class)
+        ->and(array_map(fn ($r) => $r->route->id->value, $gate->requests))->toBe([$a->id->value, $b->id->value, $b->id->value]);
+    $gate = new FixtureAttemptGate([$a, $b]);
+    $this->executor->execute(F::plan($this->wire->url('/unavailable')), F::context(), $gate, $this->wire->policy(), $this->budget);
+    expect(array_map(fn ($r) => $r->route->id->value, $gate->requests))->toBe([$a->id->value, $a->id->value, $a->id->value]);
+})->group('t04');
+
+test('T04 TLS использует только SourceTlsTrust и CONNECT направлен на проверенный IP', function (): void {
+    $url = $this->wire->url('/ok', true);
+    $result = $this->executor->execute(F::plan($url), F::context(), $this->gate, $this->wire->policy(), $this->budget);
+    expect($result)->toBeInstanceOf(TransportBlocked::class)->and($this->gate->results[0]->failure)->toBe(TransportFailure::Tls)
+        ->and($this->gate->requests)->toHaveCount(1);
+    config(['crawler.tls.bundles' => ['fixture.test' => $this->wire->root.'/cert.pem']]);
+    $proxy = F::gate('http://127.0.0.1:'.$this->wire->ports['proxy']);
+    $result = $this->executor->execute(F::plan($url), F::context(), $proxy, $this->wire->policy(), $this->budget);
+    expect($result)->toBeInstanceOf(TransportSucceeded::class);
+    $receipts = $this->wire->receipts();
+    expect(array_values(array_filter($receipts, fn ($r) => $r['kind'] === 'connect'))[0]['request'])
+        ->toContain('CONNECT 127.0.0.1:'.$this->wire->ports['tls'])
+        ->and(array_filter($receipts, fn ($r) => $r['kind'] === 'http'))->toHaveCount(1);
+})->group('t04');
+
+test('T04 proxy 407 не повторяет credential и 429 не обходит cooldown rotation', function (): void {
+    $auth = new FixtureAttemptGate([new HttpRouteBinding(LedgerFixtures::uuid(), 'http://127.0.0.1:'.$this->wire->ports['auth']), new HttpRouteBinding(LedgerFixtures::uuid())]);
+    $result = $this->executor->execute(F::plan($this->wire->url('/ok', true)), F::context(), $auth, $this->wire->policy(), $this->budget);
+    expect($auth->requests)->toHaveCount(1)->and($auth->results[0]->failure)->toBe(TransportFailure::ProxyAuth);
+    $result = $this->executor->execute(F::plan($this->wire->url('/quota')), F::context(), $this->gate, $this->wire->policy(), $this->budget);
+    expect($result)->toBeInstanceOf(TransportDeferred::class)->and($result->reason)->toBe(NetworkDeferralReason::RateLimit)
+        ->and($this->gate->requests)->toHaveCount(1)
+        ->and($this->gate->cooldown->value->getTimestamp())->toBeGreaterThanOrEqual(time() + 119);
+    $result = $this->executor->execute(F::plan($this->wire->url('/quota-long')), F::context(), F::gate(), $this->wire->policy(), $this->budget);
+    expect($result->reason)->toBe(NetworkBlockedReason::PolicyReview);
+})->group('t04');
+
+test('T05 denied gate и повторное использование capability не отправляют bytes', function (): void {
+    $this->gate->deny = new TransportBlocked(NetworkBlockedReason::Paused);
+    $plan = F::plan($this->wire->url('/ok'));
+    $result = $this->executor->execute($plan, F::context(), $this->gate, $this->wire->policy(), $this->budget);
+    expect($result->reason)->toBe(NetworkBlockedReason::Paused)->and($this->wire->receipts())->toBe([]);
+    $capability = new AuthorizedHttpRequest($plan, new HttpRouteBinding(LedgerFixtures::uuid()));
+    $transport = app(HttpTransport::class);
+    $resolved = $this->wire->policy()->resolve($plan->url);
+    $transport->sendOnce($capability, $resolved, new HttpRequestPayload, F::context(), $this->budget);
+    expect(fn () => $transport->sendOnce($capability, $resolved, new HttpRequestPayload, F::context(), $this->budget))->toThrow(LogicException::class)
+        ->and($this->wire->receipts())->toHaveCount(1);
+})->group('t05');
+
+test('T28 full CSV90 timeout при remaining50 не начинает send', function (): void {
+    $profile = F::profile(['total_seconds' => 90, 'low_speed_seconds' => 30, 'connect_seconds' => 5]);
+    $result = $this->executor->execute(F::plan($this->wire->url('/ok'), $profile), F::context(50), $this->gate, $this->wire->policy(), $this->budget);
+    expect($result->reason)->toBe(NetworkDeferralReason::SliceExhausted)
+        ->and($this->gate->requests)->toBe([])->and($this->wire->receipts())->toBe([])
+        ->and($profile->totalSeconds)->toBe(90);
+})->group('t28');
+
+test('T21 redirects имеют отдельные identity и target а cross-origin secrets удалены', function (): void {
+    $payload = new HttpRequestPayload(['Authorization' => 'Bearer fixture-secret', 'Cookie' => 'session=secret', 'X-Api-Key' => 'secret', 'Accept' => 'text/plain']);
+    $result = $this->executor->execute(F::plan($this->wire->url('/redirect-cross')), F::context(), $this->gate, $this->wire->policy(), $this->budget, $payload);
+    expect($result)->toBeInstanceOf(TransportSucceeded::class)->and($this->gate->requests)->toHaveCount(2)
+        ->and($this->gate->requests[0]->plan->targetId->value)->not->toBe($this->gate->requests[1]->plan->targetId->value);
+    $received = $this->wire->receipts();
+    expect($received[0]['headers']['authorization'] ?? null)->toBe('Bearer fixture-secret')
+        ->and(array_change_key_case($received[1]['headers']))->not->toHaveKeys(['authorization', 'cookie', 'x-api-key'])
+        ->and($received[1]['headers']['accept'] ?? null)->toBe('text/plain');
+    foreach (['/redirect-loop', '/redirect-private'] as $path) {
+        $result = $this->executor->execute(F::plan($this->wire->url($path)), F::context(), F::gate(), $this->wire->policy(), $this->budget);
+        expect($result->reason)->toBe(NetworkBlockedReason::UrlPolicyDenied);
+    }
+    expect(fn () => (new UrlPolicy([CanonicalOrigin::fromUrl('http://127.0.0.1')]))->resolve(new SafeUrl('http://127.0.0.1/')))->toThrow(InvalidArgumentException::class);
+})->group('t21');
+
+test('T47 transport decompresses once binary gzip remains binary entity и failures очищают sink', function (): void {
+    Storage::fake('local');
+    $result = $this->executor->execute(F::plan($this->wire->url('/gzip')), F::context(), $this->gate, $this->wire->policy(), $this->budget);
+    expect($result->response->body->utf8)->toBe('Привет')->and($result->response->decodedBytes)->toBe(strlen('Привет'))
+        ->and($result->response->wireBytes)->toBeGreaterThan($result->response->decodedBytes);
+    $binary = F::profile(['response_kind' => 'binary', 'max_text_bytes' => null, 'charset_default' => null]);
+    $result = $this->executor->execute(F::plan($this->wire->url('/gzip-file'), $binary), F::context(), F::gate(), $this->wire->policy(), $this->budget);
+    $artifact = $result->response->body->artifact;
+    expect(gzdecode(Storage::disk('local')->get($artifact->key)))->toBe('Привет');
+    $files = Storage::disk('local')->allFiles('outbound');
+    $spools = glob(sys_get_temp_dir().'/php*');
+    foreach (['/biggzip', '/large', '/badgzip', '/unsupported', '/invalid-utf8'] as $path) {
+        $gate = F::gate();
+        $result = $this->executor->execute(F::plan($this->wire->url($path)), F::context(), $gate, $this->wire->policy(), $this->budget);
+        expect($result)->toBeInstanceOf(TransportBlocked::class)->and($gate->requests)->toHaveCount(1);
+    }
+    expect(Storage::disk('local')->allFiles('outbound'))->toBe($files)->and(glob(sys_get_temp_dir().'/php*'))->toBe($spools);
+})->group('t47');
+
+test('T03 truncated body retries bounded а separate wire budget aborts streaming', function (): void {
+    $result = $this->executor->execute(F::plan($this->wire->url('/truncated')), F::context(), $this->gate, $this->wire->policy(), $this->budget);
+    expect($result->reason)->toBe(NetworkDeferralReason::AttemptsExhausted)->and($this->gate->requests)->toHaveCount(3)
+        ->and($this->gate->results[0]->failure)->toBe(TransportFailure::Truncated);
+    $gate = F::gate();
+    $result = $this->executor->execute(F::plan($this->wire->url('/ok')), F::context(), $gate, $this->wire->policy(), new TransferBudget(1, 1_000_000));
+    expect($result)->toBeInstanceOf(TransportBlocked::class)->and($gate->results[0]->failure)->toBe(TransportFailure::ByteLimit);
+})->group('t03');
+
+test('T25 idle headers-late и body-stall отменяются с cleanup без следующего send', function (): void {
+    foreach (['/stall', '/body-stall', '/headers-late'] as $path) {
+        $started = hrtime(true);
+        $context = F::context(checkpoint: function () use ($started): void {
+            if (hrtime(true) - $started > 300_000_000) {
+                throw new OutboundOwnershipLost('fixture hard cancel');
+            }
+        });
+        $gate = F::gate();
+        $spools = glob(sys_get_temp_dir().'/php*');
+        $result = $this->executor->execute(F::plan($this->wire->url($path)), $context, $gate, $this->wire->policy(), $this->budget);
+        expect($result->reason)->toBe(NetworkBlockedReason::OwnerLost);
+        expect((hrtime(true) - $started) / 1e9)->toBeLessThan(2.5)
+            ->and($gate->requests)->toHaveCount(1)->and($gate->results[0]->failure)->toBe(TransportFailure::Cancelled)
+            ->and(glob(sys_get_temp_dir().'/php*'))->toBe($spools);
+    }
+})->group('t25');
+
+test('T25 actual45s cURL progress renews owner минимум дважды', function (): void {
+    $renewals = 0;
+    $context = F::context(90, renew: function ($handle) use (&$renewals) {
+        $renewals++;
+
+        return $handle;
+    });
+    $profile = F::profile(['total_seconds' => 50, 'low_speed_seconds' => 10]);
+    $started = hrtime(true);
+    $result = $this->executor->execute(F::plan($this->wire->url('/slow45'), $profile), $context, $this->gate, $this->wire->policy(), $this->budget);
+    expect($result)->toBeInstanceOf(TransportSucceeded::class)->and(strlen($result->response->body->utf8))->toBe(92)
+        ->and($renewals)->toBeGreaterThanOrEqual(2)->and((hrtime(true) - $started) / 1e9)->toBeGreaterThanOrEqual(44)
+        ->and($this->wire->receipts())->toHaveCount(1);
+})->group('t25');
+
+pest()->group('p21', 'p22');

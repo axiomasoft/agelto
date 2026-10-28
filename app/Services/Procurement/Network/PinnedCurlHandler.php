@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Procurement\Network;
+
+use GuzzleHttp\Handler\CurlFactory;
+use GuzzleHttp\Promise\PromiseInterface;
+use Psr\Http\Message\RequestInterface;
+
+/** Explicit synchronous cURL pump with deterministic release when an idle callback throws. */
+final class PinnedCurlHandler
+{
+    private CurlFactory $factory;
+
+    public function __construct()
+    {
+        if (! extension_loaded('curl') || ! defined('CURLOPT_CONNECT_TO') || ! defined('CURLOPT_LOW_SPEED_TIME')) {
+            throw new \LogicException('Pinned cURL transport capabilities unavailable.');
+        }
+        $this->factory = new CurlFactory(0);
+    }
+
+    /** @param array<array-key, mixed> $options */
+    public function __invoke(RequestInterface $request, array $options): PromiseInterface
+    {
+        $easy = $this->factory->create($request, $options);
+        if (! $easy->handle instanceof \CurlHandle) {
+            throw new \LogicException('Expected a native cURL handle.');
+        }
+        $finished = false;
+        try {
+            curl_exec($easy->handle);
+            $easy->errno = curl_errno($easy->handle);
+            $finished = true;
+
+            return CurlFactory::finish($this, $easy, $this->factory);
+        } finally {
+            if (! $finished) {
+                $this->factory->release($easy);
+            }
+        }
+    }
+}

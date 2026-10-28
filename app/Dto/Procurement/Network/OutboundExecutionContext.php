@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Network;
 
+use App\Dto\Procurement\Process\Duration;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
 use Closure;
 
@@ -34,6 +35,11 @@ final class OutboundExecutionContext
     public function lease(): OutboundOperationHandle
     {
         return $this->handle;
+    }
+
+    public function canStart(Duration $needed): bool
+    {
+        return ! $this->lost && hrtime(true) + $needed->nanos() + 15_000_000_000 <= $this->deadlineNs;
     }
 
     public function tick(): void

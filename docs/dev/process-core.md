@@ -546,3 +546,49 @@ durable running; lease, истёкший меньше чем на 2 s, recovery 
 за один tick (граница lease + margin + tick). Delivery, зарезервированная до FLUSHALL, приходит
 после redelivery и отвергается по dispatch generation. Revocation в finalize-тестах выполняют
 настоящие `RecoveryReconciler`/`CancelWork`; fixture `FinalizeFixtures::revoke` больше не используется.
+
+## HTTP transport: construction P2.2
+
+`Network/OutboundExecutor` owns the bounded physical-attempt loop. It takes an explicit
+`OutboundAttemptGate`, `UrlPolicy`, operation `TransferBudget` and runtime `HttpRequestPayload`.
+There is no production gate binding or legacy caller cutover here: P2.3 owns scheduled permits,
+P2.4 health/probes, P2.6 switches every caller after P2.5. Existing retry/health consumers remain
+with their current owner until that cutover. Provider ambiguous writes allow one physical send.
+
+The gate must reserve/wait and commit a fresh fenced authorization for every attempt/hop,
+respect the exact route profile and distinct-route bound, and record/release each outcome.
+Cross-origin redirects resolve the catalog target for the new origin; origin quota is never
+reused from the previous target. Transport errors prefer an eligible untried route immediately;
+HTTP 503 repeats the current route, 407 holds credentials, and 429 sets origin cooldown without
+rotation. Retry-After up to 24 hours is retained; longer values require policy review.
+
+`HttpTransport` uses a private Laravel PendingRequest with an explicit synchronous cURL handler.
+Automatic retries, redirects, cookies and environment proxy fallback are disabled. The handler
+releases cURL even when an idle callback throws. The disk-backed sink limits decompressed bytes
+before writing; independent operation budgets include transferred and decompressed bytes across
+retries/hops. Full profile timeout plus finalization reserve must fit; it is never shortened.
+Low-speed means average transfer below 1 B/s for the configured interval. Cancellation/lease loss,
+slice exhaustion and dependency failure preserve typed outcomes and partial byte evidence.
+
+URL policy permits exact canonical scheme/IDNA host/port origins, checks every DNS answer, and
+pins the connection (including CONNECT) to a validated IP while retaining the original TLS name.
+Canonical wire host prevents trailing-dot/case aliases from bypassing the pin. DNS runs in a
+cooperatively polled PHP child under the existing GNU `timeout` utility, bounded by connect timeout;
+there is no alarm/fork heartbeat or unbounded PHP DNS call. Missing resolver support fails closed.
+TLS trust remains solely in `SourceTlsTrust`; insecure fallback is unavailable.
+
+Text is decoded after cURL Content-Encoding decoding: BOM, supported header charset, actual HTML
+meta in the first 4 KiB, endpoint default. Invalid source bytes, unsupported encodings and lossy
+round trips fail explicitly; normalized UTF-8 expansion has its own ceiling. Binary responses
+bypass text decoding and return a staged local `BinaryBodyArtifact`; intermediate artifacts and
+failed spools are removed. The document owner will supply durable storage accounting in P3.2.
+`wireBytes` is cURL's encoded transfer-body counter, excluding headers/TLS; this does not promise
+a retained wire artifact. Artifact hashes describe transport-decompressed bytes.
+
+Transport-only assertions live in `T03HttpTransportTest`, `T04HttpPolicyTest`, and
+`T47ResponseDecoderTest` (groups p22 plus t03/t04/t05/t21/t25/t28/t47). The server owns fault
+sequences and receipts; the fixture gate explicitly does not prove future DB permits or health.
+Real loopback HTTP/CONNECT/TLS, stall/headers-late/45s progress, cancellation, full timeout fit,
+strict encoding, gzip/byte limits, memory ceiling and cleanup are exercised in the isolated rig.
+Local CA/key/ports are generated per test under disposable storage; no hash-pinned fixtures change.
+Acceptance V1/V2 remains with the coordinator.

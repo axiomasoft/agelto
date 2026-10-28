@@ -7,7 +7,8 @@ namespace App\Dto\Procurement\Network;
 /**
  * Полученный HTTP ответ: transport-успех, а не оценка содержимого. 4xx/5xx — тоже envelope;
  * их классификацию выполняют executor (retry/attribution) и adapter ResponseValidator.
- * wireBytes — байты сети, decodedBytes — после transport decompression (разные уровни evidence).
+ * wireBytes — encoded transfer body counter cURL (не headers/TLS и не сохранённый wire artifact);
+ * decodedBytes — после transport decompression, до charset conversion.
  */
 final readonly class ResponseEnvelope
 {
