@@ -9,13 +9,13 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Process\AccountingRole;
 use App\Enums\Procurement\Process\ProcessRunState;
 use App\Enums\Procurement\Process\WorkState;
+use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Process\ProcessRun;
 use App\Models\User;
 use App\Services\Procurement\Process\ProcessOperatorCommands;
 use App\Services\Procurement\Process\RunProjector;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -46,7 +46,9 @@ final class ProcessRunsTable
                 TextColumn::make('kind')->label('Вид')->badge()->formatStateUsing(fn (mixed $state): string => $state instanceof \BackedEnum ? (string) $state->value : '—'),
                 TextColumn::make('status_text')->label('Состояние')->badge()
                     ->state(static fn (ProcessRun $record): string => self::status($record))
-                    ->color(static fn (ProcessRun $record): string => match (self::runState($record)) { ProcessRunState::Completed => 'success', ProcessRunState::CompletedWithIssues, ProcessRunState::Waiting => 'warning', default => 'gray' }),
+                    ->color(static fn (ProcessRun $record): string => match (self::runState($record)) {
+                        ProcessRunState::Completed => 'success', ProcessRunState::CompletedWithIssues, ProcessRunState::Waiting => 'warning', default => 'gray'
+                    }),
                 TextColumn::make('discovery_outcome')->label('Обнаружение')
                     ->formatStateUsing(fn (mixed $state): string => is_string($state) ? (self::DISCOVERY[$state] ?? $state) : '—')
                     ->description(static fn (ProcessRun $record): ?string => $record->discovery_reason_code),
@@ -64,14 +66,14 @@ final class ProcessRunsTable
                     ->color('danger')
                     ->authorize(static fn (): bool => self::actor()->hasPermission(ProcessControlPermission::CancelRun))
                     ->visible(static fn (ProcessRun $record): bool => $record->cancel_requested_at === null)
-                    ->schema([Hidden::make('expected_version')->default(static fn (ProcessRun $record): int => (int) $record->transition_seq)->required()->rules(['integer', 'min:0']), Textarea::make('reason')->label('Причина')->required()->maxLength(200)])
+                    ->schema([OperatorActionInput::versionField('cancel_run'), Textarea::make('reason')->label('Причина')->required()->maxLength(OperatorActionInput::REASON_LIMIT)])
                     ->requiresConfirmation()
                     ->modalDescription('Отменяется намерение запуска. Общая работа, нужная другим запускам, не отменяется.')
-                    ->action(function (ProcessRun $record, array $data): void {
-                        $reason = $data['reason'] ?? '';
-                        self::report(app(ProcessOperatorCommands::class)->cancelRun(
-                            self::actor(), new ProcessUuid($record->id), (int) $data['expected_version'], is_string($reason) ? $reason : '',
-                        ), 'Запуск отменён');
+                    ->action(function (Action $action, ProcessRun $record, array $data): void {
+                        $version = OperatorActionInput::confirmedVersion($action, 'cancel_run', $record->id, $data);
+                        self::report(OperatorActionInput::attempt($action, fn (): OperatorCommandResult => app(ProcessOperatorCommands::class)->cancelRun(
+                            self::actor(), new ProcessUuid($record->id), $version, OperatorActionInput::reason($data),
+                        )), 'Запуск отменён');
                     }),
             ])
             ->defaultSort('requested_at', 'desc');

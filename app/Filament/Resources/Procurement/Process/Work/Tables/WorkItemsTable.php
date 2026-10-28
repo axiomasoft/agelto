@@ -9,12 +9,12 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
+use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Process\WorkItem;
 use App\Models\User;
 use App\Services\Procurement\Process\ProcessOperatorCommands;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -65,27 +65,29 @@ final class WorkItemsTable
                     ->color('danger')
                     ->authorize(static fn (): bool => self::actor()->hasPermission(ProcessControlPermission::CancelWork))
                     ->visible(static fn (WorkItem $record): bool => ! in_array($record->state, [WorkState::Succeeded, WorkState::FailedItem, WorkState::Cancelled, WorkState::Superseded], true))
-                    ->schema([Hidden::make('expected_version')->default(static fn (WorkItem $record): int => (int) $record->transition_seq)->required()->rules(['integer', 'min:0']), Textarea::make('reason')->label('Причина')->required()->maxLength(200)])
+                    ->schema([OperatorActionInput::versionField('cancel_work'), Textarea::make('reason')->label('Причина')->required()->maxLength(OperatorActionInput::REASON_LIMIT)])
                     ->requiresConfirmation()
-                    ->action(function (WorkItem $record, array $data): void {
-                        self::report(app(ProcessOperatorCommands::class)->cancelWork(
-                            self::actor(), new WorkId(new ProcessUuid($record->id)), (int) $data['expected_version'], self::reason($data),
-                        ), 'Работа отменена');
+                    ->action(function (Action $action, WorkItem $record, array $data): void {
+                        $version = OperatorActionInput::confirmedVersion($action, 'cancel_work', $record->id, $data);
+                        self::report(OperatorActionInput::attempt($action, fn (): OperatorCommandResult => app(ProcessOperatorCommands::class)->cancelWork(
+                            self::actor(), new WorkId(new ProcessUuid($record->id)), $version, OperatorActionInput::reason($data),
+                        )), 'Работа отменена');
                     }),
                 Action::make('retry_handler_fault')
                     ->label('Повторить после исправления')
                     ->color('warning')
                     ->authorize(static fn (): bool => self::actor()->hasPermission(ProcessControlPermission::RetryHandlerFault))
                     ->visible(static fn (WorkItem $record): bool => $record->state === WorkState::Blocked && $record->reason_code === self::FAULT_LIMIT)
-                    ->schema([Hidden::make('expected_version')->default(static fn (WorkItem $record): int => (int) $record->transition_seq)->required()->rules(['integer', 'min:0']), Textarea::make('reason')->label('Причина')->required()->maxLength(200)])
+                    ->schema([OperatorActionInput::versionField('retry_handler_fault'), Textarea::make('reason')->label('Причина')->required()->maxLength(OperatorActionInput::REASON_LIMIT)])
                     ->requiresConfirmation()
                     ->modalDescription('Создаётся новая работа со свежим бюджетом ошибок; прежняя заменяется, история сохраняется.')
-                    ->action(function (WorkItem $record, array $data): void {
-                        // Детерминированный commandId: повторное нажатие по той же версии дедуплицируется.
-                        $commandId = new ProcessUuid(Uuid::uuid5(Uuid::NAMESPACE_URL, 'process-retry:'.$record->id.':'.$data['expected_version'])->toString());
-                        self::report(app(ProcessOperatorCommands::class)->retryHandlerFaultedWork(
-                            self::actor(), new WorkId(new ProcessUuid($record->id)), (int) $data['expected_version'], $commandId, self::reason($data),
-                        ), 'Создана новая работа');
+                    ->action(function (Action $action, WorkItem $record, array $data): void {
+                        $version = OperatorActionInput::confirmedVersion($action, 'retry_handler_fault', $record->id, $data);
+                        // Детерминированный commandId от подтверждённой версии: повторное нажатие по той же версии дедуплицируется.
+                        $commandId = new ProcessUuid(Uuid::uuid5(Uuid::NAMESPACE_URL, 'process-retry:'.$record->id.':'.$version)->toString());
+                        self::report(OperatorActionInput::attempt($action, fn (): OperatorCommandResult => app(ProcessOperatorCommands::class)->retryHandlerFaultedWork(
+                            self::actor(), new WorkId(new ProcessUuid($record->id)), $version, $commandId, OperatorActionInput::reason($data),
+                        )), 'Создана новая работа');
                     }),
             ])
             ->defaultSort('updated_at', 'desc');
@@ -106,14 +108,6 @@ final class WorkItemsTable
             WorkState::FailedItem, WorkState::Cancelled, WorkState::Superseded => 'Завершена: '.$reason,
             WorkState::Succeeded => 'Завершена',
         };
-    }
-
-    /** @param array<array-key, mixed> $data */
-    private static function reason(array $data): string
-    {
-        $reason = $data['reason'] ?? '';
-
-        return is_string($reason) ? $reason : '';
     }
 
     private static function report(OperatorCommandResult $result, string $success): void
