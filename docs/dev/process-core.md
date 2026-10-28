@@ -592,3 +592,53 @@ Real loopback HTTP/CONNECT/TLS, stall/headers-late/45s progress, cancellation, f
 strict encoding, gzip/byte limits, memory ceiling and cleanup are exercised in the isolated rig.
 Local CA/key/ports are generated per test under disposable storage; no hash-pinned fixtures change.
 Acceptance V1/V2 remains with the coordinator.
+
+
+## Scheduled network permits (P2.3)
+
+`NetworkPermitRepository` now owns registration, FIFO reserve and a separate fenced `claimSend`.
+It uses the P2.1 baseline tables without DDL changes. Legacy callers, writers and DI bindings
+remain at their existing owner until the P2.6 cutover. P2.4 supplies `OutboundRouteSelector`
+and health/probe reduction; `ScheduledAttemptGate` composes its explicit route selection with
+this permit protocol and the existing single-send transport. No SDK retry is introduced.
+
+A physical UUID keeps one ticket and its sequence across polling. An expired ticket cannot be
+revived; another execution/request identity registers a new ticket. At most 64 live pending
+demands share an origin, with one pending demand per owner. Renewal does not reset the original
+20-second capacity-wait bound. Probes join this same FIFO and add the probe concurrency scope.
+Unknown health requires an owned probe; no ordinary readiness bypass exists.
+
+Reserve and claim lock Process controls, handler authority, all current capacity/subjects/work
+through `AuthorityRepository`; standalone operations use their stored inherited controls and
+live operation token. The network subset locks profile, route, route health, route-target health,
+target, target health, then all budgets in scope-key order. Missing authority fails closed.
+Claim revalidates live ownership after network locks, exact membership, input/ancestor versions,
+route membership, policy/epoch evidence, target retirement, `not_before`, `send_tat`, and full
+profile timeout plus finalization fit. A changed policy releases the reservation for re-evaluation.
+A duplicate claim grants no transport capability. Request intent and sent authorization commit
+atomically before wire; completion records facts/releases capacity without business publication.
+
+Late claim extends permit expiry to at least authorization + FULL timeout + 30-second cleanup.
+Already expired, foreign or revoked permits never extend. Reserved and sent permits both occupy
+inflight slots until completion or their covered expiry. Cleanup and crashes do not refund TAT.
+429 monotonically advances origin `not_before` and TAT, affecting every previously reserved permit.
+Status cap uses configured origin capacity, including reserved future permits and each physical
+retry/redirect exactly once; authorization remains counted for the rolling hour after release.
+Quota deferral reports the actual window/expiry that restores room, including after a rate change.
+
+`claimSendLocked` is the future joint financial/network seam: its caller must hold and validate
+the complete core prefix plus financial rows in the SAME transaction and roll back both claims
+on any denial. Only its committed successful claim may create a single-use prepared transport;
+no separate financial gate or provider retry is activated here.
+
+Current proof files (groups `p23`, mapped to `core-test-network`) are `T23GcraConcurrencyTest`,
+`T34BoundedFifoDemandTest`, `T35ClaimSendFenceTest`, `T36StatusCapacityQuotaTest`, and
+`T37NetworkDemandRecoveryTest`. They use real PostgreSQL locks and local HTTP receipts, including
+8 separate backend PIDs, duplicate claim, reserve→pause/hold/retire/429, all-or-none scope grant,
+64-ticket ordering, quota accounting, stale head/bridge cleanup, and late coverage while HTTP
+is still active. Fixture rate 600/min accelerates timing; defaults stay 15/min. A DB fixture models
+33 seconds of pre-send scheduler delay; the active HTTP/competing-capacity assertion is real.
+These tests establish bounded FIFO grants within a live slice; cross-slice admission fairness
+remains the separate T11 contract. They make no production throughput or p99 latency promise.
+Coordinator runs acceptance V1/V2 on the delivered candidate; targeted executor logs and hashes
+are under `storage/app/testing/process-core/reports/p23-executor-20261029/`.

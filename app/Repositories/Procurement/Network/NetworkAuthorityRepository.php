@@ -1,0 +1,144 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Repositories\Procurement\Network;
+
+use App\Dto\Procurement\Network\NetworkOwnerState;
+use App\Dto\Procurement\Network\NetworkRouteSelection;
+use App\Dto\Procurement\Network\OutboundRequestPlan;
+use App\Dto\Procurement\Network\PermitEvidence;
+use App\Dto\Procurement\Network\TransportBlocked;
+use App\Dto\Procurement\Platform\RequestProfile;
+use App\Enums\Procurement\Network\DemandPurpose;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Repositories\Procurement\Process\CallerTransaction;
+use App\Repositories\Procurement\Process\LedgerRow;
+use App\Services\Procurement\Network\OutboundPolicy;
+
+/**
+ * Tier7 order: profile, route, route health, route-target health, target, target health,
+ * then budgets by scope_key (C ordering). Health writers use the same health-row subset.
+ * No state mutation until the complete set and every predicate have been checked.
+ */
+final readonly class NetworkAuthorityRepository
+{
+    public function __construct(private OutboundPolicy $policy) {}
+
+    public function lock(OutboundRequestPlan $plan, NetworkRouteSelection $selection, NetworkOwnerState $owner): LockedNetwork|TransportBlocked
+    {
+        CallerTransaction::require('Network authorities');
+        $policies = ['scheduling' => $this->policy->policyVersion, 'status_percent' => $this->policy->statusCapacityPercent,
+            'request:'.self::fingerprint($plan) => 1, ...$owner->versions];
+        $epochs = [];
+        // Network tier: profile -> route -> route health -> route-target health -> target -> target health -> budgets.
+        // Catalog/retirement uses system control UPDATE, before this subset; health applies only health rows sorted.
+        if ($selection->profileId !== null) {
+            $profile = LedgerRow::one('SELECT policy_version FROM prc_network_route_profiles WHERE id = ? FOR UPDATE', [$selection->profileId->value]);
+            if ($profile === null || LedgerRow::one('SELECT 1 AS present FROM prc_network_route_profile_members WHERE profile_id = ? AND route_id = ?', [$selection->profileId->value, $selection->routeId->value]) === null) {
+                return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
+            }
+            $policies['profile:'.$selection->profileId->value] = $profile->int('policy_version');
+        }
+        $route = LedgerRow::one('SELECT kind, enabled, credential_version FROM prc_network_routes WHERE id = ? FOR UPDATE', [$selection->routeId->value]);
+        if ($route === null || ! $route->bool('enabled') || ($selection->profileId === null && $route->string('kind') !== 'direct')) {
+            return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
+        }
+        $policies['route:'.$selection->routeId->value] = $route->int('credential_version');
+        $health = [];
+        foreach (['prc_route_health' => ['route_id = ?', [$selection->routeId->value]],
+            'prc_route_target_health' => ['route_id = ? AND target_id = ?', [$selection->routeId->value, $plan->targetId->value]]] as $table => [$where, $bindings]) {
+            $row = LedgerRow::one("SELECT id, state, health_epoch, reason_code, probe_token, probe_until > clock_timestamp() AS probe_live FROM {$table} WHERE {$where} FOR UPDATE", $bindings);
+            if ($row === null) {
+                return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
+            }
+            $health[$table] = $row;
+        }
+        $target = LedgerRow::one('SELECT platform_id, canonical_origin, retired_at::text AS retired_at, policy_version, endpoint_policy::text AS endpoint_policy,
+            endpoint_policy_schema_version FROM prc_source_targets WHERE id = ? FOR UPDATE', [$plan->targetId->value]);
+        if ($target === null) {
+            return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
+        }
+        if ($target->nullableString('retired_at') !== null) {
+            return new TransportBlocked(NetworkBlockedReason::TargetRetired);
+        }
+        if (($owner->platformId !== null && $owner->platformId !== $target->int('platform_id'))
+            || $target->string('canonical_origin') !== $plan->url->origin->value() || ! self::profileMatches($target, $plan->profile)) {
+            return new TransportBlocked(NetworkBlockedReason::PolicyReview);
+        }
+        $policies['target:'.$plan->targetId->value] = $target->int('policy_version');
+        $targetHealth = LedgerRow::one('SELECT id, state, health_epoch, reason_code, probe_token, probe_until > clock_timestamp() AS probe_live
+            FROM prc_target_health WHERE target_id = ? FOR UPDATE', [$plan->targetId->value]);
+        if ($targetHealth === null) {
+            return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
+        }
+        $health['prc_target_health'] = $targetHealth;
+        $ownedProbes = 0;
+        foreach ($health as $table => $row) {
+            $epochs[$table.':'.$row->string('id')] = $row->int('health_epoch');
+            if ($row->string('state') === 'closed') {
+                continue;
+            }
+            if ($owner->purpose !== DemandPurpose::Probe || $owner->probeToken === null
+                || $row->string('state') !== 'half_open' || $row->nullableString('probe_token') !== $owner->probeToken
+                || ! $row->bool('probe_live')) {
+                return new TransportBlocked($row->nullableString('reason_code') === 'credential_hold'
+                    ? NetworkBlockedReason::CredentialHold : NetworkBlockedReason::ConfigurationHold);
+            }
+            $ownedProbes++;
+        }
+        // A probe owner cannot use a foreign token or an empty probe scope set.
+        if ($owner->purpose === DemandPurpose::Probe && $ownedProbes === 0) {
+            return new TransportBlocked(NetworkBlockedReason::OwnerLost);
+        }
+        $origin = $plan->url->origin;
+        $keys = [$origin->budgetScopeKey(), $origin->routeScopeKey($selection->routeId->value)];
+        if ($owner->purpose === DemandPurpose::Probe) {
+            $keys[] = $origin->probeScopeKey();
+        }
+        sort($keys, SORT_STRING);
+        $rows = LedgerRow::all('SELECT id, scope_key, emission_interval_us, burst, max_inflight, policy_version,
+            tat::text AS tat, send_tat::text AS send_tat, not_before::text AS not_before
+            FROM prc_network_budgets WHERE scope_key IN ('.LedgerRow::placeholders(count($keys)).') ORDER BY scope_key COLLATE "C" FOR UPDATE', $keys);
+        $budgets = [];
+        foreach ($rows as $row) {
+            $budgets[$row->string('scope_key')] = $row;
+            $policies['budget:'.$row->string('id')] = $row->int('policy_version');
+        }
+        if (array_keys($budgets) !== $keys) {
+            return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
+        }
+        ksort($policies, SORT_STRING);
+        ksort($epochs, SORT_STRING);
+
+        return new LockedNetwork($budgets, $budgets[$origin->budgetScopeKey()], new PermitEvidence($policies, $epochs));
+    }
+
+    public static function fingerprint(OutboundRequestPlan $plan): string
+    {
+        return hash('sha256', json_encode([$plan->physicalRequestId->value, $plan->targetId->value, $plan->method,
+            hash('sha256', $plan->url->reveal()), $plan->profile->toArray(), $plan->trafficClass->value,
+            $plan->idempotency->value, $plan->bodyHash?->hex], JSON_THROW_ON_ERROR));
+    }
+
+    private static function profileMatches(LedgerRow $target, RequestProfile $profile): bool
+    {
+        if ($target->int('endpoint_policy_schema_version') !== 1) {
+            return false;
+        }
+        $policy = json_decode($target->string('endpoint_policy'), true, flags: JSON_THROW_ON_ERROR);
+        if (! is_array($policy) || ! isset($policy['profiles']) || ! is_array($policy['profiles'])) {
+            throw new \LogicException('Invalid endpoint policy.');
+        }
+        foreach ($policy['profiles'] as $candidate) {
+            if (! is_array($candidate)) {
+                throw new \LogicException('Invalid endpoint profile.');
+            }
+            if (RequestProfile::fromArray($candidate) == $profile) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

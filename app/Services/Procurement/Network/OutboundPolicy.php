@@ -89,6 +89,11 @@ final readonly class OutboundPolicy
             throw new \InvalidArgumentException('Invalid outbound policy: outbound.scheduling.status_capacity_percent');
         }
 
+        if ($this->maxInlineWaitSeconds > 20 || $this->maxPendingDemandsPerOrigin > 64
+            || $this->ticketTtlSeconds !== 5 || $this->ticketRenewSeconds > 1 || $this->permitCleanupReserveSeconds < 30 || $this->statusCapacityPercent > 30) {
+            throw new \InvalidArgumentException('Invalid outbound policy: outbound.scheduling exceeds contract bounds');
+        }
+
         $direct = $root['direct_route'];
         if (! is_array($direct) || array_keys($direct) !== ['egress_id', 'independence_group']) {
             throw new \InvalidArgumentException('Invalid outbound policy: outbound.direct_route');

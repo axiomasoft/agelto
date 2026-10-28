@@ -37,6 +37,11 @@ final class OutboundExecutionContext
         return $this->handle;
     }
 
+    public function remainingSlice(): Duration
+    {
+        return Duration::nanoseconds($this->deadlineNs - hrtime(true));
+    }
+
     public function canStart(Duration $needed): bool
     {
         return ! $this->lost && hrtime(true) + $needed->nanos() + 15_000_000_000 <= $this->deadlineNs;
