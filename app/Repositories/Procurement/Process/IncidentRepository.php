@@ -7,6 +7,7 @@ namespace App\Repositories\Procurement\Process;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Process\ActorKind;
+use App\Enums\Procurement\Process\OperatorCommandStatus;
 
 /**
  * Writer prc_process_incidents: один нерешённый incident на fingerprint (partial unique). Повтор
@@ -43,5 +44,49 @@ final readonly class IncidentRepository
         }
 
         return $id;
+    }
+
+    /**
+     * AcknowledgeIncident: open → acknowledged под row FOR UPDATE с optimistic transition_seq.
+     * Resolved incident не переоткрывается (Terminal), уже acknowledged — Duplicate без второго
+     * transition. Acknowledge не закрывает причину: fingerprint остаётся нерешённым до resolve.
+     */
+    public function acknowledge(
+        ProcessUuid $incidentId,
+        int $expectedTransitionSeq,
+        string $reason,
+        int $actorId,
+        ProcessUuid $eventId,
+        ProcessUuid $projectionMessageId,
+    ): OperatorCommandStatus {
+        CallerTransaction::require('Incident acknowledge');
+        if (trim($reason) === '') {
+            throw new \InvalidArgumentException('Incident acknowledge requires a reason.');
+        }
+        $row = LedgerRow::one('SELECT state, transition_seq FROM prc_process_incidents WHERE id = ? FOR UPDATE', [$incidentId->value]);
+        if ($row === null) {
+            return OperatorCommandStatus::NotFound;
+        }
+        $state = $row->string('state');
+        if ($state === 'resolved') {
+            return OperatorCommandStatus::Terminal;
+        }
+        if ($state === 'acknowledged') {
+            return OperatorCommandStatus::Duplicate;
+        }
+        if ($row->int('transition_seq') !== $expectedTransitionSeq) {
+            return OperatorCommandStatus::VersionConflict;
+        }
+        $changed = LedgerRow::one(
+            "UPDATE prc_process_incidents SET state = 'acknowledged', acknowledged_by = ?, transition_seq = transition_seq + 1
+             WHERE id = ? RETURNING transition_seq",
+            [$actorId, $incidentId->value],
+        ) ?? throw new \LogicException('Incident row vanished under its own lock.');
+        $this->transitions->recordIncident(
+            $eventId, $projectionMessageId, $incidentId, $changed->int('transition_seq'), 'open', 'acknowledged',
+            'manual_acknowledge', ActorKind::Operator, $actorId, ['reason' => $reason],
+        );
+
+        return OperatorCommandStatus::Applied;
     }
 }

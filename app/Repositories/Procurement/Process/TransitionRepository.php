@@ -75,8 +75,10 @@ final readonly class TransitionRepository
         string $newState,
         ?string $reasonCode,
         ActorKind $actor,
+        ?int $actorId = null,
+        array $details = [],
     ): void {
-        $this->record($eventId, $projectionMessageId, 'incident', $incidentId, $entitySeq, $previousState, $newState, $reasonCode, $actor, null);
+        $this->record($eventId, $projectionMessageId, 'incident', $incidentId, $entitySeq, $previousState, $newState, $reasonCode, $actor, null, $actorId, $details);
     }
 
     /** @param array<string, int|string> $details */

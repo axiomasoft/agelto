@@ -13,6 +13,7 @@ use App\Guards\Admin\Permissions\FixturePermission;
 use App\Guards\Admin\Permissions\OperationLogPermission;
 use App\Guards\Admin\Permissions\PlatformCheckPermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
+use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Guards\Admin\Permissions\PromptPermission;
 use App\Guards\Admin\Permissions\PromptSuggestionPermission;
 use App\Guards\Admin\Permissions\ProviderPermission;
@@ -95,6 +96,15 @@ final class OperatorRole extends BaseRole
             StatusMappingPermission::ViewAny,
             StatusMappingPermission::View,
             StatusMappingPermission::Update,
+            // Process-ядро: наблюдение и typed-команды pause/resume/cancel/acknowledge. RetryHandlerFault
+            // (новый budget для дефектного handler) оператору не выдаётся — только суперадмину.
+            ProcessControlPermission::ViewAny,
+            ProcessControlPermission::View,
+            ProcessControlPermission::PauseScope,
+            ProcessControlPermission::ResumeScope,
+            ProcessControlPermission::CancelWork,
+            ProcessControlPermission::CancelRun,
+            ProcessControlPermission::AcknowledgeIncident,
         ];
     }
 
