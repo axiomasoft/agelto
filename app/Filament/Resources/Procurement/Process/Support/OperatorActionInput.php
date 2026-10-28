@@ -26,7 +26,16 @@ final class OperatorActionInput
     public static function versionField(string $actionName): Hidden
     {
         return Hidden::make(self::FIELD)->required()->default(
-            static fn (Model $record): string => self::issue($actionName, (string) $record->getKey(), (int) $record->getAttribute('transition_seq')),
+            static function (Model $record) use ($actionName): string {
+                $key = $record->getKey();
+                $version = $record->getAttribute('transition_seq');
+
+                return self::issue(
+                    $actionName,
+                    is_scalar($key) ? (string) $key : '',
+                    is_numeric($version) ? (int) $version : 0,
+                );
+            },
         );
     }
 
@@ -91,7 +100,12 @@ final class OperatorActionInput
 
     private static function signature(string $actionName, string $recordId, int $version, string $userId): string
     {
-        return hash_hmac('sha256', implode('|', ['process-operator-action', $actionName, $recordId, $version, $userId]), (string) config('app.key'));
+        $key = config('app.key');
+        if (! is_string($key)) {
+            throw new \LogicException('Process control requires app.key to sign operator action tokens.');
+        }
+
+        return hash_hmac('sha256', implode('|', ['process-operator-action', $actionName, $recordId, $version, $userId]), $key);
     }
 
     private static function userId(): string
