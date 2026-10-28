@@ -47,12 +47,33 @@ function committedAdminRouteInventory(): array
     );
 }
 
+/**
+ * Маршруты, добавленные после неизменяемого снимка матрицы (authentic61, D24): исторический fixture
+ * не переписывается, расширения объявляются здесь явно и поштучно.
+ *
+ * @return list<array{method: string, uri: string, name: string, action: string}>
+ */
+function declaredAdminRouteExtensions(): array
+{
+    $routes = [
+        ['procurement/process/control-scopes', 'filament.admin.resources.procurement.process.control-scopes.index', 'App\Filament\Resources\Procurement\Process\ControlScopes\Pages\ListControlScopes'],
+        ['procurement/process/incidents', 'filament.admin.resources.procurement.process.incidents.index', 'App\Filament\Resources\Procurement\Process\Incidents\Pages\ListIncidents'],
+    ];
+
+    return array_map(
+        static fn (array $route): array => ['method' => 'GET|HEAD', 'uri' => 'admin/'.$route[0], 'name' => $route[1], 'action' => $route[2]],
+        $routes,
+    );
+}
+
 test('runtime admin routes exactly match committed resource and role matrix', function (): void {
     $runtimeRoutes = adminRouteInventory();
-    $matrixRoutes = committedAdminRouteInventory();
+    $matrixRoutes = [...committedAdminRouteInventory(), ...declaredAdminRouteExtensions()];
+    usort($matrixRoutes, static fn (array $a, array $b): int => [$a['uri'], $a['name']] <=> [$b['uri'], $b['name']]);
+    usort($runtimeRoutes, static fn (array $a, array $b): int => [$a['uri'], $a['name']] <=> [$b['uri'], $b['name']]);
 
     expect($runtimeRoutes)
-        ->toHaveCount(61)
+        ->toHaveCount(63)
         ->toEqual($matrixRoutes)
         ->and(array_column($runtimeRoutes, 'name'))
         ->toHaveCount(count(array_unique(array_column($runtimeRoutes, 'name'))));

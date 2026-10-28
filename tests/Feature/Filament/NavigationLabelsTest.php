@@ -23,6 +23,8 @@ use App\Filament\Resources\Procurement\OperationLogs\OperationLogResource;
 use App\Filament\Resources\Procurement\Platform\Platforms\PlatformResource;
 use App\Filament\Resources\Procurement\Platform\Registries\RegistryResource;
 use App\Filament\Resources\Procurement\Platform\StatusMappings\StatusMappingResource;
+use App\Filament\Resources\Procurement\Process\ControlScopes\ControlScopeResource;
+use App\Filament\Resources\Procurement\Process\Incidents\IncidentResource;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use Filament\Facades\Filament;
 use Filament\Navigation\NavigationGroup;
@@ -53,6 +55,8 @@ test('назначает всем обнаруженным ресурсам ос
         PromptResource::class => ['Настройка AI', 'Инструкции для AI', 30],
         PromptSuggestionResource::class => ['Настройка AI', 'Предложения по улучшению', 50],
         OperationLogResource::class => ['Система', 'Журнал процессов', 10],
+        ControlScopeResource::class => ['Система', 'Процессы: управление', 20],
+        IncidentResource::class => ['Система', 'Процессы: инциденты', 21],
     ];
 
     expect($resources->all())->toHaveCount(count($expected));

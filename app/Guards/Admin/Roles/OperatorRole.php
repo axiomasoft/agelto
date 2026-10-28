@@ -6,10 +6,12 @@ namespace App\Guards\Admin\Roles;
 
 use App\Guards\Admin\Permissions\AiRoutePermission;
 use App\Guards\Admin\Permissions\AnalysisPermission;
+use App\Guards\Admin\Permissions\ControlScopePermission;
 use App\Guards\Admin\Permissions\CrawlerPermission;
 use App\Guards\Admin\Permissions\DatasetExamplePermission;
 use App\Guards\Admin\Permissions\EstimatePermission;
 use App\Guards\Admin\Permissions\FixturePermission;
+use App\Guards\Admin\Permissions\IncidentPermission;
 use App\Guards\Admin\Permissions\OperationLogPermission;
 use App\Guards\Admin\Permissions\PlatformCheckPermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
@@ -98,6 +100,10 @@ final class OperatorRole extends BaseRole
             StatusMappingPermission::Update,
             // Process-ядро: наблюдение и typed-команды pause/resume/cancel/acknowledge. RetryHandlerFault
             // (новый budget для дефектного handler) оператору не выдаётся — только суперадмину.
+            ControlScopePermission::ViewAny,
+            ControlScopePermission::View,
+            IncidentPermission::ViewAny,
+            IncidentPermission::View,
             ProcessControlPermission::ViewAny,
             ProcessControlPermission::View,
             ProcessControlPermission::PauseScope,

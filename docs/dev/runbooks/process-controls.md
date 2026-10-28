@@ -81,3 +81,32 @@ admin audit, provenance, dedup) — политика `RetentionService`; FK rece
 ## Проверка
 
 `make core-test-observability` (T18/T20/T46). Сброс только isolated test DB.
+
+## Операторские команды (P1.17)
+
+Контракт — `observability#s04`, `execution#handler-fault-budget`. UI и CLI вызывают один шлюз
+`ProcessOperatorCommands`: RBAC по `ProcessControlPermission`, обязательный `reason`, actor из `User`,
+optimistic version, audit transition с actor/before/after/reason. Прямых записей из Filament/Pulse нет
+(`ProcessOperatorBoundaryTest`).
+
+| Команда | Version fence | Право | Роль по умолчанию |
+|---|---|---|---|
+| `pauseScope` / `resumeScope` | `control_version` | `pause_scope` / `resume_scope` | Operator |
+| `cancelWork` | `transition_seq` work | `cancel_work` | Operator |
+| `cancelRun` | `transition_seq` run | `cancel_run` | Operator |
+| `acknowledgeIncident` | `transition_seq` incident | `acknowledge_incident` | Operator |
+| `retryHandlerFaultedWork` | `transition_seq` work + `commandId` | `retry_handler_fault` | только SuperAdmin |
+
+`ResumeScope` снимает только manual pause этой области: `blocked(handler_fault_limit)`, health и handler
+holds он не трогает. Повтор `commandId` возвращает `Duplicate` и прежний successor без второго intent.
+
+CLI: `process:control {pause|resume|cancel-work|cancel-run|retry-fault|ack-incident} {target} --user= --reason= --expected=`
+(код 0 — settled, 1 — отказ без записей, 2 — аргументы или права). UI: «Система → Процессы: управление» и
+«Процессы: инциденты»; расширение drilldown на runs/work остаётся за P1.17.
+
+## Retention transition history (P1.18)
+
+`process:prune-history [--dry-run]` удаляет один bounded batch через `RetentionService`: терминальные work,
+resolved incidents, runs без нетерминального required work, старше `process.retention.transition_days`
+(минимум 365; operator audit — `audit_days`). Хвост истории каждой сущности, активные incidents и события без
+receipt/fanout не удаляются; rebuild в maintenance откладывает batch.
