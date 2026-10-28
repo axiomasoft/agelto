@@ -93,6 +93,14 @@ return [
         'prune_batch' => 500,
     ],
 
+    // Retention history (observability#s07): начальные проектные defaults, не нормативные сроки.
+    // Transitions и operator audit хранятся минимум 365 дней (boot отвергает меньше); активные
+    // incidents, нетерминальные work/runs и последнее состояние каждой сущности не удаляются.
+    'retention' => [
+        'transition_days' => 365,
+        'audit_days' => 365,
+    ],
+
     // Кооперативный heartbeat (bp-heartbeat): CAS не чаще heartbeat_seconds по monotonic clock;
     // finalization reserve входит в каждый canStart; локальный safety deadline = последний
     // успешный renewal + lease − lease_safety. Boot требует lease > slice и lease > 2·heartbeat + safety.
