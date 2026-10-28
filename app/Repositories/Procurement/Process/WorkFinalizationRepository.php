@@ -78,6 +78,7 @@ final readonly class WorkFinalizationRepository
     /**
      * @param  array<string, ProcessUuid>  $ids  precreated stable IDs: event, projection, feed, incident*
      * @param  \Closure(int): array{work: ProcessUuid, event: ProcessUuid, projection: ProcessUuid}  $successorIds
+     * @param  array{state: WorkState, reason: string|null, due_at: string|null, item_increment: int}|null  $accepted
      */
     public function finishLocked(
         AuthoritySnapshot $snapshot,
@@ -86,8 +87,10 @@ final readonly class WorkFinalizationRepository
         array $ids,
         \Closure $successorIds,
         bool &$membershipCorrupt,
+        ?array &$accepted = null,
     ): CompletionResult|PrefixFailure {
         CallerTransaction::require('Work finalize');
+        $accepted = null;
         $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: false);
         if ($prefix === PrefixFailure::WorkMissing) {
             return CompletionResult::invariantViolation();
@@ -122,6 +125,7 @@ final readonly class WorkFinalizationRepository
         if (! $prefix->intentActive || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {
             $this->works->supersedeLocked($snapshot, $prefix, $ids['event'], $ids['projection'], ActorKind::Worker);
             $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($lease->stage));
+            $accepted = $this->acceptedDecision($lease->workId, WorkState::Superseded, 0);
 
             return CompletionResult::applied(WorkState::Superseded);
         }
@@ -179,6 +183,7 @@ final readonly class WorkFinalizationRepository
             WorkState::Running->value, $decision['state']->value, $decision['reason'], ActorKind::Worker, $lease->generation,
         );
         $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($lease->stage));
+        $accepted = $this->acceptedDecision($lease->workId, $decision['state'], $decision['item_increment']);
 
         return CompletionResult::applied($decision['state']);
     }
@@ -321,5 +326,27 @@ final readonly class WorkFinalizationRepository
                 );
             }
         }
+    }
+
+    /**
+     * Принятое решение уже лежит в строке work: reason_code и due_at для envelope.
+     * item_increment — приращение этой tx к item_failures, не накопленный счётчик.
+     *
+     * @return array{state: WorkState, reason: string|null, due_at: string|null, item_increment: int}
+     */
+    private function acceptedDecision(WorkId $workId, WorkState $state, int $itemIncrement): array
+    {
+        $row = LedgerRow::one(
+            'SELECT reason_code, due_at::text AS due_at FROM prc_process_work WHERE id = ?',
+            [$workId->value->value],
+        ) ?? throw new \LogicException('Accepted finalization did not leave a work row.');
+        $due = $row->nullableString('due_at');
+
+        return [
+            'state' => $state,
+            'reason' => $row->nullableString('reason_code'),
+            'due_at' => $due === null ? null : (new \DateTimeImmutable($due))->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z'),
+            'item_increment' => $itemIncrement,
+        ];
     }
 }

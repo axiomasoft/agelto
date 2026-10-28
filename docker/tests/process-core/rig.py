@@ -24,15 +24,16 @@ SERVICES = {"app", "core-postgres", "core-redis", "object-storage", "fixture-htt
 VOLUMES = {"core-postgres", "core-redis", "core-objects", "core-storage", "core-bootstrap", "core-pest",
            "core-prompts", "core-estimate-prompts"}
 RUNTIME_INPUTS = ROOT / "docker/tests/process-core/runtime-inputs"
-FUTURE = {"observability", "network", "platforms", "acquisition",
+FUTURE = {"network", "platforms", "acquisition",
           "documents", "ai", "e2e", "faults", "load"}
-IMPLEMENTED = {"up", "env", "reset", "install", "unit", "execution", "concurrency", "regression", "report", "down"}
+IMPLEMENTED = {"up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "regression", "report", "down"}
 # Domain suites run only the files their owning package filled with real assertions. execution:
 # P1.6 ledger/authority + P1.7 admission/claim/controls + P1.8 lease/checkpoint/finalize on real PG.
 # concurrency: only separate PHP processes/PG connections with deterministic barriers (P1.7 pause/
 # feeder races, P1.8 finalize fence vs controlled revocation, fault budget); real reconciler — P1.11.
 SUITE_PATHS = {"execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
-               "concurrency": ["tests/Integration/ProcessCore/Concurrency"]}
+               "concurrency": ["tests/Integration/ProcessCore/Concurrency"],
+               "observability": ["tests/Feature/ProcessCore/Observability"]}
 
 
 class GuardError(RuntimeError):
@@ -645,7 +646,7 @@ def main(command):
 def execute(command, name):
     folder, result = new_report(command)
     try:
-        if name in {"reset", "install", "execution", "concurrency", "regression"}:
+        if name in {"reset", "install", "execution", "concurrency", "observability", "regression"}:
             clock = install_clock()
             result["install_clock"] = clock
             write_json(folder / "install-clock.json", clock)
@@ -670,8 +671,8 @@ def execute(command, name):
             write_json(folder / "install-comparison.json", {"first": before, "second": after})
             require(before == after, "two clean installs produced different manifests")
             result["manifests"] = after
-        elif name in {"unit", "execution", "concurrency", "regression"}:
-            if name in {"execution", "concurrency", "regression"}:
+        elif name in {"unit", "execution", "concurrency", "observability", "regression"}:
+            if name in {"execution", "concurrency", "observability", "regression"}:
                 reset_folder = folder / "clean-reset"
                 reset_folder.mkdir()
                 reset(reset_folder, clock=clock)

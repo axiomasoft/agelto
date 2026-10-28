@@ -44,6 +44,12 @@ final class ProcessLog
         self::write('error', 'process.daemon_error', ['daemon' => $daemon, 'code' => $code, ...$context, ...($failure === null ? [] : self::failure($failure))]);
     }
 
+    /** Optional sink упал после commit: видимо, но не меняет исход работы и не повторяет handler. */
+    public static function sinkFailed(string $sink, \Throwable $failure): void
+    {
+        self::write('warning', 'process.sink_failed', ['sink' => $sink, ...self::failure($failure)]);
+    }
+
     /** @return array{exception: class-string<\Throwable>, sqlstate?: string} */
     private static function failure(\Throwable $failure): array
     {

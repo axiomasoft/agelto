@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Telemetry\SafeJsonLogProcessor;
 use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
@@ -115,6 +116,9 @@ return [
         | автоматически через Laravel's ContextProcessor, без правки формата вручную).
         | Не default-канал (LOG_CHANNEL не тронут) — включается явно `LOG_CHANNEL=json`
         | (прод-Docker: stdout/stderr — 12-factor) без изменения текущего dev-поведения.
+        |
+        | SafeJsonLogProcessor идёт первым: PsrLogMessageProcessor интерполирует {placeholder}
+        | уже из очищенного context. Обратный порядок копирует сырой prompt в message.
         */
 
         'json' => [
@@ -131,7 +135,7 @@ return [
                 'stream' => storage_path('logs/laravel-json.log'),
             ],
             'formatter' => JsonFormatter::class,
-            'processors' => [PsrLogMessageProcessor::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
         ],
 
         'json_stderr' => [
@@ -142,7 +146,7 @@ return [
                 'stream' => 'php://stderr',
             ],
             'formatter' => JsonFormatter::class,
-            'processors' => [PsrLogMessageProcessor::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
         ],
 
         'syslog' => [

@@ -9,6 +9,7 @@ use App\Dto\Procurement\Process\CompletionResult;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\HandlerFaultEvidence;
+use App\Dto\Procurement\Process\ProcessEventEnvelope;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\StageBlocked;
 use App\Dto\Procurement\Process\StageDeferred;
@@ -19,11 +20,14 @@ use App\Dto\Procurement\Process\StageSucceeded;
 use App\Dto\Procurement\Process\ValidatedStageResult;
 use App\Enums\Procurement\Process\AuthorityGap;
 use App\Enums\Procurement\Process\CompletionStatus;
+use App\Enums\Procurement\Process\EventCode;
 use App\Enums\Procurement\Process\PrefixFailure;
+use App\Enums\Procurement\Process\WorkState;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Repositories\Procurement\Process\AuthorityRepository;
 use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\WorkFinalizationRepository;
+use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Str;
 
 /**
@@ -44,6 +48,7 @@ final readonly class WorkFinalizer
         private WorkFinalizationRepository $finalization,
         private IncidentRepository $incidents,
         private ProcessTransaction $transaction,
+        private PostCommitSinks $sinks,
     ) {}
 
     public function finish(ExecutionLease $lease, StageOutcome $outcome): CompletionResult
@@ -97,23 +102,64 @@ final readonly class WorkFinalizer
             }
             // By-reference флаг: arrow fn захватывает по значению и потеряла бы признак corrupt membership.
             $corrupt = false;
+            /** @var array{state: WorkState, reason: string|null, due_at: string|null, item_increment: int}|null $accepted */
+            $accepted = null;
             $result = $this->transaction->run(
-                function () use ($snapshot, $lease, $outcome, $ids, $successorIds, &$corrupt): CompletionResult|PrefixFailure {
+                function () use ($snapshot, $lease, $outcome, $ids, $successorIds, &$corrupt, &$accepted): CompletionResult|PrefixFailure {
                     $corrupt = false;
+                    $accepted = null;
 
-                    return $this->finalization->finishLocked($snapshot, $lease, $outcome, $ids, $successorIds, $corrupt);
+                    return $this->finalization->finishLocked($snapshot, $lease, $outcome, $ids, $successorIds, $corrupt, $accepted);
                 },
             );
             if ($result instanceof CompletionResult) {
                 if ($corrupt && $result->status === CompletionStatus::InvariantViolation) {
                     $this->openMembershipIncident($snapshot, $lease, $ids);
                 }
+                $this->publishCommitted($lease, $result, $ids['event'], $accepted);
 
                 return $result;
             }
         }
 
         throw new DependencyUnavailable('process_authority');
+    }
+
+    /**
+     * Optional sinks строго после внешнего commit (observability#s03). Envelope берётся из принятого
+     * решения finishLocked (state/reason/due_at/item_increment), а не из исходного outcome:
+     * первые StageFailedItem становятся deferred(item_retry) с расходом budget, а StageDeferred(ItemRetry) — нет.
+     * Сбой envelope/sink остаётся в PostCommitSinks и не меняет CompletionResult.
+     *
+     * @param  array{state: WorkState, reason: string|null, due_at: string|null, item_increment: int}|null  $accepted
+     */
+    private function publishCommitted(ExecutionLease $lease, CompletionResult $result, ProcessUuid $eventId, ?array $accepted): void
+    {
+        if ($result->status !== CompletionStatus::Applied || $accepted === null) {
+            return;
+        }
+        $state = $accepted['state'];
+        $runId = Context::get('run_id');
+        $trace = Context::get('trace_id');
+        $platform = Context::get('platform_code');
+        $this->sinks->afterCommit(function () use ($lease, $accepted, $state, $eventId, $runId, $trace, $platform): ProcessEventEnvelope {
+            $due = $accepted['due_at'];
+
+            return new ProcessEventEnvelope(
+                eventId: $eventId,
+                event: EventCode::forState($state) ?? throw new \LogicException('Applied finalize cannot leave work admitted or running.'),
+                runId: is_string($runId) && preg_match('/^[0-9a-f-]{36}$/D', $runId) === 1 ? new ProcessUuid($runId) : null,
+                workId: $lease->workId,
+                attemptId: $lease->attemptId,
+                stage: $lease->stage,
+                platformCode: is_string($platform) ? $platform : null,
+                reason: $accepted['reason'],
+                retryAt: is_string($due) ? new \DateTimeImmutable($due) : null,
+                itemFailureConsumed: $accepted['item_increment'] > 0,
+                traceId: is_string($trace) && preg_match('/^[0-9a-f]{32}$/D', $trace) === 1 ? $trace : null,
+                occurredAt: new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+            );
+        });
     }
 
     /** @param array<string, ProcessUuid> $ids */

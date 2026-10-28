@@ -741,7 +741,9 @@
     },
     {
       "path": "tests/Feature/Crawler/BudgetExhaustionTest.php",
-      "sha256": "4c9c3f5927d7b70e857db7416da468a5b6bad3de3f36e94cdfa280f6a81e0311",
+      "sha256": "126e1314411f4dc7c167099c0763d03395af6cc415c73ba8664e1ec04ade77ae",
+      "original_sha256": "4c9c3f5927d7b70e857db7416da468a5b6bad3de3f36e94cdfa280f6a81e0311",
+      "change_reason": "P1.14 regression fixture: isolate document budget host from the EIS platform created by ProcurementFactory; preserve all scenario names and assertions and explicitly exercise the competing EIS platform.",
       "scenarios": [
         "исчерпание бюджета листинга завершает срез чекпоинтом без падения прогона",
         "исчерпание бюджета archive сохраняет недренированный день и не переводит run в failed",

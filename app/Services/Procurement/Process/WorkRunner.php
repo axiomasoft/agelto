@@ -60,6 +60,7 @@ final readonly class WorkRunner
         private IncidentRepository $incidents,
         private ProcessTransaction $transaction,
         private ProcessClock $clock,
+        private ExecutionCorrelation $correlation,
     ) {}
 
     public function runDelivery(DeliveryEnvelope $delivery): DeliveryOutcome
@@ -76,7 +77,10 @@ final readonly class WorkRunner
             return DeliveryOutcome::Rejected;
         }
 
-        return $this->execute($claim->lease);
+        $lease = $claim->lease;
+
+        // Context attempt живёт ровно на время работы и восстанавливается в finally (observability#s02).
+        return $this->correlation->scope($lease, fn (): DeliveryOutcome => $this->execute($lease));
     }
 
     private function execute(ExecutionLease $lease): DeliveryOutcome

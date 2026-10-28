@@ -1,5 +1,7 @@
 <?php
 
+use App\Support\Telemetry\SentrySanitizer;
+
 /**
  * Sentry Laravel SDK configuration file.
  *
@@ -49,6 +51,12 @@ return [
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#send_default_pii
     'send_default_pii' => env('SENTRY_SEND_DEFAULT_PII', false),
+
+    // Все исходящие события и breadcrumbs проходят общий TelemetrySanitizer (observability#s05);
+    // static callables, чтобы config оставался кэшируемым.
+    'before_send' => [SentrySanitizer::class, 'beforeSend'],
+    'before_send_transaction' => [SentrySanitizer::class, 'beforeSendTransaction'],
+    'before_breadcrumb' => [SentrySanitizer::class, 'beforeBreadcrumb'],
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#ignore_exceptions
     // 'ignore_exceptions' => [],
