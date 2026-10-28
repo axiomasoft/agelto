@@ -3341,7 +3341,7 @@
     },
     {
       "path": "tests/Unit/Architecture/DomainLayoutTest.php",
-      "sha256": "51422a044287653e0ac5fdd68277779190ae862413603069648634c1cacd4248",
+      "sha256": "e27efe41b565ee59e67f0f6d5647e24621a3bfcc0739ba52bd21b165f9c0cf54",
       "scenarios": [
         "в корне выровненных слоёв раскладки нет файлов сверх реестра root-legal классов",
         "namespace каждого файла выровненных слоёв совпадает с его путём",
@@ -3349,7 +3349,7 @@
       ],
       "original_path": "tests/Unit/Architecture/DomainLayoutTest.php",
       "original_sha256": "01928226c2909b569254785ae9c2f297a44833f7abc076b249cb04637864f381",
-      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved. P1.6 registers the Process repository subarea. P1.8 registers the Process exceptions subarea (typed control exits)."
+      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved. P1.6 registers the Process repository subarea. P1.8 registers the Process exceptions subarea (typed control exits). P2.1 registers neutral Network enums/DTO/repositories/exceptions and Platform DTO subareas; original scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Architecture/HistoryModulePlatformAgnosticTest.php",
@@ -4307,11 +4307,22 @@
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
-      "sha256": "1d0dfa0b99f6b4665b7c37928306175aff8a9bbcdccb45195e1b2c93bdd57002"
+      "sha256": "dfcece59c5797e26784f66fca2463146c33717948a36007a124a910fddc6e6da",
+      "original_path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
+      "original_sha256": "1d0dfa0b99f6b4665b7c37928306175aff8a9bbcdccb45195e1b2c93bdd57002",
+      "change_reason": "P2.1 adds the composite attempt/work unique FK authority required by network demand ownership; legacy consumers remain active."
+    },
+    {
+      "path": "database/migrations/2026_10_25_100000_create_prc_process_network_tables.php",
+      "sha256": "779fbfef82862c65888be42216946f3085a485d0e5db142ef10ba18720d7e0ed",
+      "change_reason": "P2.1 additive baseline network catalog, health, operation owner, demand and permit tables; no consumer activation."
     },
     {
       "path": "database/migrations/2026_10_25_100001_create_prc_request_observation_tables.php",
-      "sha256": "0e5a551bb1776878cbecb28e53799faa4e2264dac8a60dbd9157439226ddcbad"
+      "sha256": "3593545acf54f7aa2bcb66a769d2fb22dbfe6a1d28a9c8c78877154d524dc354",
+      "original_path": "database/migrations/2026_10_25_100001_create_prc_request_observation_tables.php",
+      "original_sha256": "0e5a551bb1776878cbecb28e53799faa4e2264dac8a60dbd9157439226ddcbad",
+      "change_reason": "P2.1 adds real network demand/request references and standalone outbound ownership without fake ProcessAttempt rows; legacy request consumers remain supported."
     }
   ],
   "source_classes": [

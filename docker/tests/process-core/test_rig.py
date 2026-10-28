@@ -226,37 +226,39 @@ class RigGuardsTest(unittest.TestCase):
                 compose.assert_not_called()
 
     def test_execution_suite_runs_only_owned_paths_and_rejects_empty_or_skipped_selection(self):
-        self.assertNotIn("execution", rig.FUTURE)
-        for cases, error in [([], "empty test selection"),
-                             ([{"name": "skipped", "skipped": True}, {"name": "claim", "skipped": False}], "failed/skipped"),
-                             ([{"name": "admission", "skipped": False}], None)]:
-            with self.subTest(error=error), tempfile.TemporaryDirectory() as temp, \
-                    patch.object(rig, "readiness"), patch.object(rig, "stop_workers"), \
-                    patch.object(rig, "verify_fixture_inputs"), patch.object(rig, "prepare_runtime"), \
-                    patch.object(rig, "compose") as compose:
-                folder = Path(temp)
-                commands = []
+        for name in ("execution", "network"):
+            self.assertNotIn(name, rig.FUTURE)
+            for cases, error in [([], "empty test selection"),
+                                 ([{"name": "skipped", "skipped": True}, {"name": "claim", "skipped": False}], "failed/skipped"),
+                                 ([{"name": "unasserted", "skipped": False, "assertions": "0"}], "no assertions"),
+                                 ([{"name": "admission", "skipped": False}], None)]:
+                with self.subTest(suite=name, error=error), tempfile.TemporaryDirectory() as temp, \
+                        patch.object(rig, "readiness"), patch.object(rig, "stop_workers"), \
+                        patch.object(rig, "verify_fixture_inputs"), patch.object(rig, "prepare_runtime"), \
+                        patch.object(rig, "compose") as compose:
+                    folder = Path(temp)
+                    commands = []
 
-                def execute(*args, **kwargs):
-                    commands.append(args)
-                    if args[0] == "cp":
-                        suite = rig.ET.Element("testsuite")
-                        for case in cases:
-                            element = rig.ET.SubElement(suite, "testcase", name=case["name"], assertions="1")
-                            if case["skipped"]:
-                                rig.ET.SubElement(element, "skipped")
-                        rig.ET.ElementTree(suite).write(folder / "junit.xml")
-                    return SimpleNamespace(returncode=0, stdout="", stderr="")
+                    def execute(*args, **kwargs):
+                        commands.append(args)
+                        if args[0] == "cp":
+                            suite = rig.ET.Element("testsuite")
+                            for case in cases:
+                                element = rig.ET.SubElement(suite, "testcase", name=case["name"], assertions=case.get("assertions", "1"))
+                                if case["skipped"]:
+                                    rig.ET.SubElement(element, "skipped")
+                            rig.ET.ElementTree(suite).write(folder / "junit.xml")
+                        return SimpleNamespace(returncode=0, stdout="", stderr="")
 
-                compose.side_effect = execute
-                if error:
-                    with self.assertRaisesRegex(rig.GuardError, error):
-                        rig.suite(folder, "execution")
-                else:
-                    self.assertEqual(rig.suite(folder, "execution"), {"executed": 1, "exit": 0})
-                pest = next(command for command in commands if command[0] == "exec")
-                self.assertEqual(list(pest[-2:]), rig.SUITE_PATHS["execution"])
-                self.assertNotIn("--testsuite=Unit", pest)
+                    compose.side_effect = execute
+                    if error:
+                        with self.assertRaisesRegex(rig.GuardError, error):
+                            rig.suite(folder, name)
+                    else:
+                        self.assertEqual(rig.suite(folder, name), {"executed": 1, "exit": 0})
+                    pest = next(command for command in commands if command[0] == "exec")
+                    self.assertEqual(list(pest[-len(rig.SUITE_PATHS[name]):]), rig.SUITE_PATHS[name])
+                    self.assertNotIn("--testsuite=Unit", pest)
 
     def test_concurrency_suite_runs_after_clean_reset_and_only_multi_process_paths(self):
         self.assertNotIn("concurrency", rig.FUTURE)
@@ -272,6 +274,24 @@ class RigGuardsTest(unittest.TestCase):
                 patch.object(rig, "write_json"), patch("sys.stdout", new=io.StringIO()):
             self.assertEqual(rig.execute("core-test-concurrency", "concurrency"), 0)
         self.assertEqual(calls, [("reset", "clean-reset"), ("suite", "concurrency")])
+
+    def test_network_suite_runs_initial_machinery_after_guarded_clean_reset(self):
+        self.assertIn("network", rig.IMPLEMENTED)
+        self.assertEqual(rig.FUTURE, {"platforms", "acquisition", "documents", "ai", "e2e", "faults", "load"})
+        self.assertEqual(rig.SUITE_PATHS["network"], [
+            "tests/Feature/ProcessCore/Network",
+            "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php",
+        ])
+        calls = []
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "ROOT", Path(temp).parent), \
+                patch.object(rig, "new_report", return_value=(Path(temp), {"command": "core-test-network"})), \
+                patch.object(rig, "install_clock", side_effect=lambda: calls.append("clock") or {"epoch": 1}), \
+                patch.object(rig, "reset", side_effect=lambda folder, clock: calls.append(("reset", folder.name))), \
+                patch.object(rig, "suite", side_effect=lambda folder, name: calls.append(("suite", name)) or {"executed": 1, "exit": 0}), \
+                patch.object(rig, "write_json"), patch("sys.stdout", new=io.StringIO()):
+            self.assertEqual(rig.execute("core-test-network", "network"), 0)
+        self.assertEqual(calls, ["clock", ("reset", "clean-reset"), ("suite", "network")])
 
     def test_fixture_proof_requires_success_nonempty_assertions_and_no_skips(self):
         for code, result in [(1, {"executed": 1, "skipped": 0}),

@@ -198,6 +198,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_10_18_170000_add_eis_identity_to_org_organizations.php` | fold_into_create | Organization | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_10_23_100000_create_org_organization_identifiers_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_10_25_100000_create_prc_process_ledger_tables.php` | create | P1.6 | P1.6 canonical Process ledger bp-ddl-core: control/handler authority, real crawl subjects, intents до work, attempts, groups/members, journal, outbox, daemon heartbeat. |
+| `2026_10_25_100000_create_prc_process_network_tables.php` | create | P2.1 | Network baseline authority; runtime cutover P2.6. |
 | `2026_10_25_100001_create_prc_request_observation_tables.php` | create | P1.6 | P1.6 durable request attempt/observation carriers execution#s04; network FKs добавляет P2.1. |
 | `2026_10_28_100000_create_prc_process_projection_tables.php` | create | P1.15 | P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured. |
 
@@ -517,6 +518,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 
 Constraints:
 - `CONSTRAINT prc_process_attempts_work_generation_unique UNIQUE (work_id, generation)`
+- `CONSTRAINT prc_attempt_work_pair UNIQUE (id, work_id)`
 
 Indexes:
 - `CREATE INDEX prc_process_attempts_fault_idx ON prc_process_attempts (handler_version, fault_signature, finished_at) WHERE fault_signature IS NOT NULL;`
@@ -754,7 +756,6 @@ Constraints:
 - `FOREIGN KEY(attempt_id,work_id) REFERENCES prc_process_attempts(id,work_id)`
 - `CHECK((work_id IS NOT NULL AND attempt_id IS NOT NULL AND work_generation IS NOT NULL AND work_generation>=1 AND operation_id IS NULL AND operation_generation IS NULL) OR (work_id IS NULL AND attempt_id IS NULL AND work_generation IS NULL AND operation_id IS NOT NULL AND operation_generation IS NOT NULL AND operation_generation>=1))`
 - `CHECK(expires_at<=operation_deadline)`
-- `CONSTRAINT prc_attempt_work_pair UNIQUE (id, work_id) on prc_process_attempts, installed before composite attempt/work FK`
 
 Indexes:
 - `CREATE UNIQUE INDEX prc_network_demands_attempt_active ON prc_network_demands(attempt_id) WHERE state='queued' AND attempt_id IS NOT NULL;`
@@ -811,10 +812,11 @@ Create: P1.6; activation boundary: P2.6; owner: `Repositories/Procurement/Networ
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
 | request_id | uuid | no | request_id uuid PRIMARY KEY |
-| attempt_id | uuid | no | attempt_id uuid NOT NULL REFERENCES prc_process_attempts(id) → prc_process_attempts(id) ON DELETE NO ACTION @P1.6 |
+| attempt_id | uuid | yes | attempt_id uuid NULL REFERENCES prc_process_attempts(id) → prc_process_attempts(id) ON DELETE NO ACTION @P1.6 |
+| demand_id | uuid | yes | demand_id uuid NULL UNIQUE REFERENCES prc_network_demands(id) → prc_network_demands(id) ON DELETE NO ACTION @P2.1 |
 | request_seq | bigint | no | request_seq bigint NOT NULL CHECK(request_seq>=1) |
-| target_id | uuid | yes | target_id uuid NULL → prc_source_targets(id) ON DELETE NO ACTION @P2.1 |
-| route_id | uuid | yes | route_id uuid NULL → prc_network_routes(id) ON DELETE NO ACTION @P2.1 |
+| target_id | uuid | yes | target_id uuid NULL REFERENCES prc_source_targets(id) → prc_source_targets(id) ON DELETE NO ACTION @P2.1 |
+| route_id | uuid | yes | route_id uuid NULL REFERENCES prc_network_routes(id) → prc_network_routes(id) ON DELETE NO ACTION @P2.1 |
 | started_at | timestamptz | no | started_at timestamptz NOT NULL |
 | sent_at | timestamptz | yes | sent_at timestamptz NULL |
 | finished_at | timestamptz | yes | finished_at timestamptz NULL |
@@ -833,6 +835,7 @@ Constraints:
 - `CHECK (epochs_schema_version > 0)`
 - `CHECK (artifacts_schema_version > 0)`
 - `CHECK ((artifacts IS NULL) = (artifacts_schema_version IS NULL))`
+- `CHECK ((attempt_id IS NOT NULL) <> (demand_id IS NOT NULL))`
 
 Indexes:
 
@@ -979,7 +982,7 @@ Create: P2.1; activation boundary: P2.6; owner: `Repositories/Procurement/Networ
 | --- | --- | --- | --- |
 | id | uuid | no | id uuid PRIMARY KEY |
 | platform_id | bigint | no | platform_id bigint NOT NULL REFERENCES prc_platforms(id) → prc_platforms(id) ON DELETE NO ACTION @P2.1 |
-| target_key | text | no | target_key text NOT NULL UNIQUE |
+| target_key | text | no | target_key text NOT NULL |
 | canonical_origin | text | no | canonical_origin text NOT NULL |
 | capability | text | no | capability text NOT NULL |
 | endpoint_policy | jsonb | no | endpoint_policy jsonb NOT NULL |
@@ -989,6 +992,7 @@ Create: P2.1; activation boundary: P2.6; owner: `Repositories/Procurement/Networ
 
 Constraints:
 - `CHECK (endpoint_policy_schema_version > 0)`
+- `UNIQUE(platform_id,target_key)`
 
 Indexes:
 
@@ -2127,6 +2131,72 @@ Constraints:
 Indexes:
 - `password_reset_tokens_pkey`: `CREATE UNIQUE INDEX password_reset_tokens_pkey ON public.password_reset_tokens USING btree (email)`
 
+#### prc_adapter_health
+
+Owner: Repositories/Procurement/Network; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| platform_id | bigint / int8 | NO | bigint NOT NULL |
+| capability | text / text | NO | text NOT NULL |
+| adapter_version | text / text | NO | text NOT NULL |
+| contract_version | text / text | NO | text NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| health_epoch | bigint / int8 | NO | bigint NOT NULL |
+| state_version | bigint / int8 | NO | bigint NOT NULL |
+| reason_code | text / text | YES | text |
+| last_success_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| open_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| probe_token | uuid / uuid | YES | uuid |
+| probe_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| stable_since | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| recent_openings | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_adapter_health_health_epoch_check`: `CHECK ((health_epoch >= 1))`
+- `prc_adapter_health_pkey`: `PRIMARY KEY (id)`
+- `prc_adapter_health_platform_id_capability_adapter_version_c_key`: `UNIQUE (platform_id, capability, adapter_version, contract_version)`
+- `prc_adapter_health_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
+- `prc_adapter_health_recent_openings_check`: `CHECK ((recent_openings >= 0))`
+- `prc_adapter_health_state_check`: `CHECK ((state = ANY (ARRAY['healthy'::text, 'suspect'::text, 'held'::text, 'validating'::text])))`
+- `prc_adapter_health_state_version_check`: `CHECK ((state_version >= 1))`
+
+Indexes:
+- `prc_adapter_health_pkey`: `CREATE UNIQUE INDEX prc_adapter_health_pkey ON public.prc_adapter_health USING btree (id)`
+- `prc_adapter_health_platform_id_capability_adapter_version_c_key`: `CREATE UNIQUE INDEX prc_adapter_health_platform_id_capability_adapter_version_c_key ON public.prc_adapter_health USING btree (platform_id, capability, adapter_version, contract_version)`
+
+#### prc_admission_groups
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| work_id | uuid / uuid | NO | uuid NOT NULL |
+| dispatch_generation | bigint / int8 | NO | bigint NOT NULL |
+| required_lane_set_hash | bytea / bytea | NO | bytea NOT NULL |
+| attempt_id | uuid / uuid | YES | uuid |
+| state | text / text | NO | text NOT NULL |
+| version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| admitted_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| released_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| release_reason | text / text | YES | text |
+
+Constraints:
+- `prc_admission_groups_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
+- `prc_admission_groups_dispatch_generation_check`: `CHECK ((dispatch_generation >= 1))`
+- `prc_admission_groups_pkey`: `PRIMARY KEY (id)`
+- `prc_admission_groups_required_lane_set_hash_check`: `CHECK ((octet_length(required_lane_set_hash) = 32))`
+- `prc_admission_groups_state_check`: `CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text, 'released'::text])))`
+- `prc_admission_groups_version_check`: `CHECK ((version >= 1))`
+- `prc_admission_groups_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
+
+Indexes:
+- `prc_admission_groups_active_work_unique`: `CREATE UNIQUE INDEX prc_admission_groups_active_work_unique ON public.prc_admission_groups USING btree (work_id) WHERE (state <> 'released'::text)`
+- `prc_admission_groups_pkey`: `CREATE UNIQUE INDEX prc_admission_groups_pkey ON public.prc_admission_groups USING btree (id)`
+
 #### prc_ai_analyses
 
 Owner: Procurement; retention: business.
@@ -2582,6 +2652,102 @@ Indexes:
 - `prc_clarifications_document_version_id_index`: `CREATE INDEX prc_clarifications_document_version_id_index ON public.prc_clarifications USING btree (document_version_id)`
 - `prc_clarifications_pkey`: `CREATE UNIQUE INDEX prc_clarifications_pkey ON public.prc_clarifications USING btree (id)`
 - `prc_clarifications_procurement_id_index`: `CREATE INDEX prc_clarifications_procurement_id_index ON public.prc_clarifications USING btree (procurement_id)`
+
+#### prc_control_scopes
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| scope_kind | text / text | NO | text NOT NULL |
+| scope_key | text / text | NO | text NOT NULL |
+| parent_id | uuid / uuid | YES | uuid |
+| desired_mode | text / text | NO | text DEFAULT 'enabled'::text NOT NULL |
+| control_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| changed_by | bigint / int8 | YES | bigint |
+| change_reason | text / text | YES | text |
+| changed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `prc_control_scopes_changed_by_fkey`: `FOREIGN KEY (changed_by) REFERENCES users(id)`
+- `prc_control_scopes_control_version_check`: `CHECK ((control_version >= 1))`
+- `prc_control_scopes_desired_mode_check`: `CHECK ((desired_mode = ANY (ARRAY['enabled'::text, 'paused'::text])))`
+- `prc_control_scopes_parent_id_fkey`: `FOREIGN KEY (parent_id) REFERENCES prc_control_scopes(id)`
+- `prc_control_scopes_pkey`: `PRIMARY KEY (id)`
+- `prc_control_scopes_root_check`: `CHECK (((scope_kind = 'system'::text) = (parent_id IS NULL)))`
+- `prc_control_scopes_scope_key_unique`: `UNIQUE (scope_key)`
+- `prc_control_scopes_scope_kind_check`: `CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'cohort'::text, 'stage'::text])))`
+
+Indexes:
+- `prc_control_scopes_pkey`: `CREATE UNIQUE INDEX prc_control_scopes_pkey ON public.prc_control_scopes USING btree (id)`
+- `prc_control_scopes_scope_key_unique`: `CREATE UNIQUE INDEX prc_control_scopes_scope_key_unique ON public.prc_control_scopes USING btree (scope_key)`
+
+#### prc_crawl_blocks
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| crawl_run_id | uuid / uuid | NO | uuid NOT NULL |
+| parent_block_id | uuid / uuid | YES | uuid |
+| block_key | text / text | NO | text NOT NULL |
+| partition_payload | jsonb / jsonb | NO | jsonb NOT NULL |
+| partition_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| filter_hash | bytea / bytea | NO | bytea NOT NULL |
+| head_generation | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| input_revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| cursor | jsonb / jsonb | NO | jsonb DEFAULT '{}'::jsonb NOT NULL |
+| cursor_schema_version | smallint / int2 | NO | smallint DEFAULT 1 NOT NULL |
+| terminal_proof | jsonb / jsonb | YES | jsonb |
+| terminal_proof_schema_version | smallint / int2 | YES | smallint |
+| limitation_reason_code | text / text | YES | text |
+
+Constraints:
+- `prc_crawl_blocks_crawl_run_id_fkey`: `FOREIGN KEY (crawl_run_id) REFERENCES prc_crawl_runs(id)`
+- `prc_crawl_blocks_cursor_schema_version_check`: `CHECK ((cursor_schema_version > 0))`
+- `prc_crawl_blocks_filter_hash_check`: `CHECK ((octet_length(filter_hash) = 32))`
+- `prc_crawl_blocks_head_generation_check`: `CHECK ((head_generation >= 1))`
+- `prc_crawl_blocks_input_revision_check`: `CHECK ((input_revision >= 1))`
+- `prc_crawl_blocks_parent_block_id_fkey`: `FOREIGN KEY (parent_block_id) REFERENCES prc_crawl_blocks(id)`
+- `prc_crawl_blocks_partition_schema_version_check`: `CHECK ((partition_schema_version > 0))`
+- `prc_crawl_blocks_pkey`: `PRIMARY KEY (id)`
+- `prc_crawl_blocks_proof_schema_check`: `CHECK (((terminal_proof IS NULL) = (terminal_proof_schema_version IS NULL)))`
+- `prc_crawl_blocks_run_key_unique`: `UNIQUE (crawl_run_id, block_key)`
+- `prc_crawl_blocks_terminal_proof_schema_version_check`: `CHECK ((terminal_proof_schema_version > 0))`
+
+Indexes:
+- `prc_crawl_blocks_pkey`: `CREATE UNIQUE INDEX prc_crawl_blocks_pkey ON public.prc_crawl_blocks USING btree (id)`
+- `prc_crawl_blocks_run_key_unique`: `CREATE UNIQUE INDEX prc_crawl_blocks_run_key_unique ON public.prc_crawl_blocks USING btree (crawl_run_id, block_key)`
+
+#### prc_crawl_runs
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| process_run_id | uuid / uuid | NO | uuid NOT NULL |
+| listing_kind | text / text | NO | text NOT NULL |
+| filter_payload | jsonb / jsonb | NO | jsonb NOT NULL |
+| filter_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| filter_hash | bytea / bytea | NO | bytea NOT NULL |
+| access_policy_hash | bytea / bytea | NO | bytea NOT NULL |
+| adapter_version | text / text | NO | text NOT NULL |
+
+Constraints:
+- `prc_crawl_runs_access_policy_hash_check`: `CHECK ((octet_length(access_policy_hash) = 32))`
+- `prc_crawl_runs_filter_hash_check`: `CHECK ((octet_length(filter_hash) = 32))`
+- `prc_crawl_runs_filter_schema_version_check`: `CHECK ((filter_schema_version > 0))`
+- `prc_crawl_runs_listing_kind_check`: `CHECK ((listing_kind = ANY (ARRAY['fresh'::text, 'archive'::text, 'delta'::text])))`
+- `prc_crawl_runs_pkey`: `PRIMARY KEY (id)`
+- `prc_crawl_runs_process_run_id_fkey`: `FOREIGN KEY (process_run_id) REFERENCES prc_process_runs(id)`
+- `prc_crawl_runs_process_run_id_unique`: `UNIQUE (process_run_id)`
+
+Indexes:
+- `prc_crawl_runs_pkey`: `CREATE UNIQUE INDEX prc_crawl_runs_pkey ON public.prc_crawl_runs USING btree (id)`
+- `prc_crawl_runs_process_run_id_unique`: `CREATE UNIQUE INDEX prc_crawl_runs_process_run_id_unique ON public.prc_crawl_runs USING btree (process_run_id)`
 
 #### prc_crawler_proxy
 
@@ -3246,6 +3412,252 @@ Indexes:
 - `prc_lots_procurement_id_lot_number_unique`: `CREATE UNIQUE INDEX prc_lots_procurement_id_lot_number_unique ON public.prc_lots USING btree (procurement_id, lot_number)`
 - `prc_lots_procurement_lot_guid_unique`: `CREATE UNIQUE INDEX prc_lots_procurement_lot_guid_unique ON public.prc_lots USING btree (procurement_id, lot_guid) WHERE (lot_guid IS NOT NULL)`
 
+#### prc_network_budgets
+
+Owner: Repositories/Procurement/Network; retention: requests.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| scope_key | text / text | NO | text NOT NULL |
+| emission_interval_us | bigint / int8 | NO | bigint NOT NULL |
+| burst | smallint / int2 | NO | smallint DEFAULT 1 NOT NULL |
+| max_inflight | smallint / int2 | NO | smallint NOT NULL |
+| tat | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT '-infinity'::timestamp with time zone NOT NULL |
+| send_tat | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT '-infinity'::timestamp with time zone NOT NULL |
+| not_before | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT '-infinity'::timestamp with time zone NOT NULL |
+| policy_version | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_network_budgets_burst_check`: `CHECK ((burst >= 1))`
+- `prc_network_budgets_emission_interval_us_check`: `CHECK ((emission_interval_us > 0))`
+- `prc_network_budgets_max_inflight_check`: `CHECK ((max_inflight >= 1))`
+- `prc_network_budgets_pkey`: `PRIMARY KEY (id)`
+- `prc_network_budgets_policy_version_check`: `CHECK ((policy_version >= 1))`
+- `prc_network_budgets_scope_key_key`: `UNIQUE (scope_key)`
+
+Indexes:
+- `prc_network_budgets_pkey`: `CREATE UNIQUE INDEX prc_network_budgets_pkey ON public.prc_network_budgets USING btree (id)`
+- `prc_network_budgets_scope_key_key`: `CREATE UNIQUE INDEX prc_network_budgets_scope_key_key ON public.prc_network_budgets USING btree (scope_key)`
+
+#### prc_network_demands
+
+Owner: Repositories/Procurement/Network; retention: requests.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| physical_request_id | uuid / uuid | NO | uuid NOT NULL |
+| work_id | uuid / uuid | YES | uuid |
+| attempt_id | uuid / uuid | YES | uuid |
+| work_generation | bigint / int8 | YES | bigint |
+| operation_id | uuid / uuid | YES | uuid |
+| operation_generation | bigint / int8 | YES | bigint |
+| origin_budget_id | uuid / uuid | NO | uuid NOT NULL |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| traffic_class | text / text | NO | text NOT NULL |
+| purpose | text / text | NO | text NOT NULL |
+| ticket_seq | bigint / int8 | NO | bigint NOT NULL |
+| registered_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| renewed_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| expires_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| operation_deadline | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| state | text / text | NO | text NOT NULL |
+
+Constraints:
+- `prc_network_demands_attempt_id_work_id_fkey`: `FOREIGN KEY (attempt_id, work_id) REFERENCES prc_process_attempts(id, work_id)`
+- `prc_network_demands_check`: `CHECK ((((work_id IS NOT NULL) AND (attempt_id IS NOT NULL) AND (work_generation IS NOT NULL) AND (work_generation >= 1) AND (operation_id IS NULL) AND (operation_generation IS NULL)) OR ((work_id IS NULL) AND (attempt_id IS NULL) AND (work_generation IS NULL) AND (operation_id IS NOT NULL) AND (operation_generation IS NOT NULL) AND (operation_generation >= 1))))`
+- `prc_network_demands_check1`: `CHECK ((expires_at <= operation_deadline))`
+- `prc_network_demands_operation_id_fkey`: `FOREIGN KEY (operation_id) REFERENCES prc_outbound_operations(id)`
+- `prc_network_demands_origin_budget_id_fkey`: `FOREIGN KEY (origin_budget_id) REFERENCES prc_network_budgets(id)`
+- `prc_network_demands_physical_request_id_key`: `UNIQUE (physical_request_id)`
+- `prc_network_demands_pkey`: `PRIMARY KEY (id)`
+- `prc_network_demands_purpose_check`: `CHECK ((purpose = ANY (ARRAY['ordinary'::text, 'probe'::text, 'diagnostic'::text])))`
+- `prc_network_demands_route_id_fkey`: `FOREIGN KEY (route_id) REFERENCES prc_network_routes(id)`
+- `prc_network_demands_state_check`: `CHECK ((state = ANY (ARRAY['queued'::text, 'granted'::text, 'cancelled'::text, 'expired'::text])))`
+- `prc_network_demands_target_id_fkey`: `FOREIGN KEY (target_id) REFERENCES prc_source_targets(id)`
+- `prc_network_demands_ticket_seq_key`: `UNIQUE (ticket_seq)`
+- `prc_network_demands_traffic_class_check`: `CHECK ((traffic_class = ANY (ARRAY['fresh_listing'::text, 'status_refresh'::text, 'detail'::text, 'archive_listing'::text, 'download'::text, 'reference_sync'::text, 'diagnostic'::text])))`
+- `prc_network_demands_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
+
+Indexes:
+- `prc_network_demands_attempt_active`: `CREATE UNIQUE INDEX prc_network_demands_attempt_active ON public.prc_network_demands USING btree (attempt_id) WHERE ((state = 'queued'::text) AND (attempt_id IS NOT NULL))`
+- `prc_network_demands_class`: `CREATE INDEX prc_network_demands_class ON public.prc_network_demands USING btree (origin_budget_id, traffic_class, id)`
+- `prc_network_demands_fifo`: `CREATE INDEX prc_network_demands_fifo ON public.prc_network_demands USING btree (origin_budget_id, ticket_seq) WHERE (state = 'queued'::text)`
+- `prc_network_demands_operation_active`: `CREATE UNIQUE INDEX prc_network_demands_operation_active ON public.prc_network_demands USING btree (operation_id) WHERE ((state = 'queued'::text) AND (operation_id IS NOT NULL))`
+- `prc_network_demands_physical_request_id_key`: `CREATE UNIQUE INDEX prc_network_demands_physical_request_id_key ON public.prc_network_demands USING btree (physical_request_id)`
+- `prc_network_demands_pkey`: `CREATE UNIQUE INDEX prc_network_demands_pkey ON public.prc_network_demands USING btree (id)`
+- `prc_network_demands_ticket_seq_key`: `CREATE UNIQUE INDEX prc_network_demands_ticket_seq_key ON public.prc_network_demands USING btree (ticket_seq)`
+
+#### prc_network_permit_scopes
+
+Owner: Repositories/Procurement/Network; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| permit_id | uuid / uuid | NO | uuid NOT NULL |
+| budget_id | uuid / uuid | NO | uuid NOT NULL |
+
+Constraints:
+- `prc_network_permit_scopes_budget_id_fkey`: `FOREIGN KEY (budget_id) REFERENCES prc_network_budgets(id)`
+- `prc_network_permit_scopes_permit_id_fkey`: `FOREIGN KEY (permit_id) REFERENCES prc_network_permits(id) ON DELETE CASCADE`
+- `prc_network_permit_scopes_pkey`: `PRIMARY KEY (permit_id, budget_id)`
+
+Indexes:
+- `prc_network_permit_scopes_budget`: `CREATE INDEX prc_network_permit_scopes_budget ON public.prc_network_permit_scopes USING btree (budget_id)`
+- `prc_network_permit_scopes_pkey`: `CREATE UNIQUE INDEX prc_network_permit_scopes_pkey ON public.prc_network_permit_scopes USING btree (permit_id, budget_id)`
+
+#### prc_network_permits
+
+Owner: Repositories/Procurement/Network; retention: requests.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| demand_id | uuid / uuid | NO | uuid NOT NULL |
+| slot_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| expires_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| authorized_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| state | text / text | NO | text NOT NULL |
+| policy_versions | jsonb / jsonb | NO | jsonb NOT NULL |
+| policy_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| health_epochs | jsonb / jsonb | NO | jsonb NOT NULL |
+| health_epochs_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_network_permits_check`: `CHECK ((expires_at > slot_at))`
+- `prc_network_permits_check1`: `CHECK (((state <> 'reserved'::text) OR (authorized_at IS NULL)))`
+- `prc_network_permits_check2`: `CHECK (((state <> 'sent'::text) OR (authorized_at IS NOT NULL)))`
+- `prc_network_permits_demand_id_fkey`: `FOREIGN KEY (demand_id) REFERENCES prc_network_demands(id)`
+- `prc_network_permits_demand_id_key`: `UNIQUE (demand_id)`
+- `prc_network_permits_health_epochs_schema_version_check`: `CHECK ((health_epochs_schema_version >= 1))`
+- `prc_network_permits_pkey`: `PRIMARY KEY (id)`
+- `prc_network_permits_policy_schema_version_check`: `CHECK ((policy_schema_version >= 1))`
+- `prc_network_permits_state_check`: `CHECK ((state = ANY (ARRAY['reserved'::text, 'sent'::text, 'released'::text, 'expired'::text])))`
+
+Indexes:
+- `prc_network_permits_active`: `CREATE INDEX prc_network_permits_active ON public.prc_network_permits USING btree (expires_at) WHERE (state = ANY (ARRAY['reserved'::text, 'sent'::text]))`
+- `prc_network_permits_authorized`: `CREATE INDEX prc_network_permits_authorized ON public.prc_network_permits USING btree (authorized_at) WHERE (authorized_at IS NOT NULL)`
+- `prc_network_permits_demand_id_key`: `CREATE UNIQUE INDEX prc_network_permits_demand_id_key ON public.prc_network_permits USING btree (demand_id)`
+- `prc_network_permits_pkey`: `CREATE UNIQUE INDEX prc_network_permits_pkey ON public.prc_network_permits USING btree (id)`
+
+#### prc_network_route_profile_members
+
+Owner: Repositories/Procurement/Network/RouteRepository; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| profile_id | uuid / uuid | NO | uuid NOT NULL |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+
+Constraints:
+- `prc_network_route_profile_members_pkey`: `PRIMARY KEY (profile_id, route_id)`
+- `prc_network_route_profile_members_profile_id_fkey`: `FOREIGN KEY (profile_id) REFERENCES prc_network_route_profiles(id)`
+- `prc_network_route_profile_members_route_id_fkey`: `FOREIGN KEY (route_id) REFERENCES prc_network_routes(id)`
+
+Indexes:
+- `prc_network_route_profile_members_pkey`: `CREATE UNIQUE INDEX prc_network_route_profile_members_pkey ON public.prc_network_route_profile_members USING btree (profile_id, route_id)`
+
+#### prc_network_route_profiles
+
+Owner: Repositories/Procurement/Network; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| profile_key | text / text | NO | text NOT NULL |
+| policy_version | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_network_route_profiles_pkey`: `PRIMARY KEY (id)`
+- `prc_network_route_profiles_policy_version_check`: `CHECK ((policy_version >= 1))`
+- `prc_network_route_profiles_profile_key_key`: `UNIQUE (profile_key)`
+
+Indexes:
+- `prc_network_route_profiles_pkey`: `CREATE UNIQUE INDEX prc_network_route_profiles_pkey ON public.prc_network_route_profiles USING btree (id)`
+- `prc_network_route_profiles_profile_key_key`: `CREATE UNIQUE INDEX prc_network_route_profiles_profile_key_key ON public.prc_network_route_profiles USING btree (profile_key)`
+
+#### prc_network_routes
+
+Owner: Repositories/Procurement/Network; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| route_key | text / text | NO | text NOT NULL |
+| kind | text / text | NO | text NOT NULL |
+| egress_id | text / text | NO | text NOT NULL |
+| independence_group | text / text | YES | text |
+| enabled | boolean / bool | NO | boolean NOT NULL |
+| disabled_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| disabled_reason | text / text | YES | text |
+| secret_ref | text / text | YES | text |
+| credential_version | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_network_routes_credential_version_check`: `CHECK ((credential_version >= 1))`
+- `prc_network_routes_kind_check`: `CHECK ((kind = ANY (ARRAY['direct'::text, 'proxy'::text])))`
+- `prc_network_routes_pkey`: `PRIMARY KEY (id)`
+- `prc_network_routes_route_key_key`: `UNIQUE (route_key)`
+
+Indexes:
+- `prc_network_routes_pkey`: `CREATE UNIQUE INDEX prc_network_routes_pkey ON public.prc_network_routes USING btree (id)`
+- `prc_network_routes_route_key_key`: `CREATE UNIQUE INDEX prc_network_routes_route_key_key ON public.prc_network_routes USING btree (route_key)`
+
+#### prc_observation_applications
+
+Owner: Repositories/Procurement/Network; retention: requests.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| observation_id | uuid / uuid | NO | uuid NOT NULL |
+| projection_key | text / text | NO | text NOT NULL |
+| reducer_version | bigint / int8 | NO | bigint NOT NULL |
+| applied_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_observation_applications_observation_id_fkey`: `FOREIGN KEY (observation_id) REFERENCES prc_observations(observation_id)`
+- `prc_observation_applications_pkey`: `PRIMARY KEY (observation_id, projection_key)`
+- `prc_observation_applications_reducer_version_check`: `CHECK ((reducer_version >= 1))`
+
+Indexes:
+- `prc_observation_applications_pkey`: `CREATE UNIQUE INDEX prc_observation_applications_pkey ON public.prc_observation_applications USING btree (observation_id, projection_key)`
+
+#### prc_observations
+
+Owner: Repositories/Procurement/Network; retention: requests.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| observation_id | uuid / uuid | NO | uuid NOT NULL |
+| request_id | uuid / uuid | YES | uuid |
+| attempt_id | uuid / uuid | YES | uuid |
+| kind | text / text | NO | text NOT NULL |
+| reason_code | text / text | NO | text NOT NULL |
+| input_hash | bytea / bytea | NO | bytea NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| epochs | jsonb / jsonb | NO | jsonb NOT NULL |
+| epochs_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| stale | boolean / bool | NO | boolean DEFAULT false NOT NULL |
+| details | jsonb / jsonb | YES | jsonb |
+| details_schema_version | smallint / int2 | YES | smallint |
+| occurred_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_observations_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
+- `prc_observations_details_schema_check`: `CHECK (((details IS NULL) = (details_schema_version IS NULL)))`
+- `prc_observations_details_schema_version_check`: `CHECK ((details_schema_version > 0))`
+- `prc_observations_epochs_schema_version_check`: `CHECK ((epochs_schema_version > 0))`
+- `prc_observations_generation_check`: `CHECK ((generation >= 0))`
+- `prc_observations_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
+- `prc_observations_pkey`: `PRIMARY KEY (observation_id)`
+- `prc_observations_request_id_fkey`: `FOREIGN KEY (request_id) REFERENCES prc_request_attempts(request_id)`
+
+Indexes:
+- `prc_observations_pkey`: `CREATE UNIQUE INDEX prc_observations_pkey ON public.prc_observations USING btree (observation_id)`
+
 #### prc_okpd2_nodes
 
 Owner: Procurement; retention: business.
@@ -3274,6 +3686,41 @@ Indexes:
 - `prc_okpd2_nodes_platform_id_code_unique`: `CREATE UNIQUE INDEX prc_okpd2_nodes_platform_id_code_unique ON public.prc_okpd2_nodes USING btree (platform_id, code)`
 - `prc_okpd2_nodes_platform_id_parent_code_index`: `CREATE INDEX prc_okpd2_nodes_platform_id_parent_code_index ON public.prc_okpd2_nodes USING btree (platform_id, parent_code)`
 
+#### prc_operation_intents
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| intent_key | bytea / bytea | NO | bytea NOT NULL |
+| stage | text / text | NO | text NOT NULL |
+| subject_kind | text / text | NO | text NOT NULL |
+| subject_id | text / text | NO | text NOT NULL |
+| semantic_policy_hash | bytea / bytea | NO | bytea NOT NULL |
+| access_policy_hash | bytea / bytea | NO | bytea NOT NULL |
+| cycle_seq | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| expected_head_generation | bigint / int8 | NO | bigint NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| requested_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| next_due_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `prc_operation_intents_access_policy_hash_check`: `CHECK ((octet_length(access_policy_hash) = 32))`
+- `prc_operation_intents_cycle_seq_check`: `CHECK ((cycle_seq >= 1))`
+- `prc_operation_intents_expected_head_generation_check`: `CHECK ((expected_head_generation >= 1))`
+- `prc_operation_intents_intent_key_check`: `CHECK ((octet_length(intent_key) = 32))`
+- `prc_operation_intents_intent_key_unique`: `UNIQUE (intent_key)`
+- `prc_operation_intents_pkey`: `PRIMARY KEY (id)`
+- `prc_operation_intents_semantic_policy_hash_check`: `CHECK ((octet_length(semantic_policy_hash) = 32))`
+- `prc_operation_intents_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
+- `prc_operation_intents_state_check`: `CHECK ((state = ANY (ARRAY['pending'::text, 'active'::text, 'terminal'::text])))`
+
+Indexes:
+- `prc_operation_intents_intent_key_unique`: `CREATE UNIQUE INDEX prc_operation_intents_intent_key_unique ON public.prc_operation_intents USING btree (intent_key)`
+- `prc_operation_intents_one_active_unique`: `CREATE UNIQUE INDEX prc_operation_intents_one_active_unique ON public.prc_operation_intents USING btree (stage, subject_kind, subject_id) WHERE (state = 'active'::text)`
+- `prc_operation_intents_pkey`: `CREATE UNIQUE INDEX prc_operation_intents_pkey ON public.prc_operation_intents USING btree (id)`
+
 #### prc_operation_logs
 
 Owner: Procurement; retention: technical.
@@ -3297,6 +3744,62 @@ Constraints:
 Indexes:
 - `prc_operation_logs_entity_index`: `CREATE INDEX prc_operation_logs_entity_index ON ONLY public.prc_operation_logs USING btree (entity_type, entity_id)`
 - `prc_operation_logs_pkey`: `CREATE UNIQUE INDEX prc_operation_logs_pkey ON ONLY public.prc_operation_logs USING btree (id, created_at)`
+
+#### prc_outbound_operation_controls
+
+Owner: Repositories/Procurement/Network; retention: requests.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| control_scope_id | uuid / uuid | NO | uuid NOT NULL |
+| control_version | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_outbound_operation_controls_control_scope_id_fkey`: `FOREIGN KEY (control_scope_id) REFERENCES prc_control_scopes(id)`
+- `prc_outbound_operation_controls_operation_id_fkey`: `FOREIGN KEY (operation_id) REFERENCES prc_outbound_operations(id)`
+- `prc_outbound_operation_controls_pkey`: `PRIMARY KEY (operation_id, control_scope_id)`
+
+Indexes:
+- `prc_outbound_operation_controls_pkey`: `CREATE UNIQUE INDEX prc_outbound_operation_controls_pkey ON public.prc_outbound_operation_controls USING btree (operation_id, control_scope_id)`
+
+#### prc_outbound_operations
+
+Owner: Repositories/Procurement/Network; retention: requests.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| operation_key | uuid / uuid | NO | uuid NOT NULL |
+| kind | text / text | NO | text NOT NULL |
+| platform_id | bigint / int8 | YES | bigint |
+| caller_code | text / text | NO | text NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| owner_token | uuid / uuid | NO | uuid NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| lease_until | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| deadline_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| finished_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| probe_token | uuid / uuid | YES | uuid |
+| policy_hash | bytea / bytea | NO | bytea NOT NULL |
+
+Constraints:
+- `prc_outbound_operations_check`: `CHECK ((lease_until <= deadline_at))`
+- `prc_outbound_operations_check1`: `CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL)))`
+- `prc_outbound_operations_check2`: `CHECK (((state = 'open'::text) = (finished_at IS NULL)))`
+- `prc_outbound_operations_generation_check`: `CHECK ((generation >= 1))`
+- `prc_outbound_operations_kind_check`: `CHECK ((kind = ANY (ARRAY['legacy_bridge'::text, 'diagnostic'::text, 'probe'::text])))`
+- `prc_outbound_operations_operation_key_key`: `UNIQUE (operation_key)`
+- `prc_outbound_operations_pkey`: `PRIMARY KEY (id)`
+- `prc_outbound_operations_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
+- `prc_outbound_operations_policy_hash_check`: `CHECK ((octet_length(policy_hash) = 32))`
+- `prc_outbound_operations_state_check`: `CHECK ((state = ANY (ARRAY['open'::text, 'closed'::text, 'expired'::text])))`
+
+Indexes:
+- `prc_outbound_operations_operation_key_key`: `CREATE UNIQUE INDEX prc_outbound_operations_operation_key_key ON public.prc_outbound_operations USING btree (operation_key)`
+- `prc_outbound_operations_pkey`: `CREATE UNIQUE INDEX prc_outbound_operations_pkey ON public.prc_outbound_operations USING btree (id)`
+- `prc_outbound_operations_reap`: `CREATE INDEX prc_outbound_operations_reap ON public.prc_outbound_operations USING btree (lease_until) WHERE (state = 'open'::text)`
 
 #### prc_platform_checks
 
@@ -3353,6 +3856,493 @@ Indexes:
 - `prc_platforms_code_unique`: `CREATE UNIQUE INDEX prc_platforms_code_unique ON public.prc_platforms USING btree (code)`
 - `prc_platforms_pkey`: `CREATE UNIQUE INDEX prc_platforms_pkey ON public.prc_platforms USING btree (id)`
 - `prc_platforms_uuid_unique`: `CREATE UNIQUE INDEX prc_platforms_uuid_unique ON public.prc_platforms USING btree (uuid)`
+
+#### prc_process_attempts
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| work_id | uuid / uuid | NO | uuid NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| owner_token_fingerprint | bytea / bytea | NO | bytea NOT NULL |
+| handler_version | text / text | NO | text NOT NULL |
+| fault_signature | bytea / bytea | YES | bytea |
+| fault_policy_checked_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| started_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| finished_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_heartbeat_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_checkpoint_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| terminal_kind | text / text | YES | text |
+| worker_host | text / text | NO | text NOT NULL |
+| worker_pid | integer / int4 | NO | integer NOT NULL |
+
+Constraints:
+- `prc_attempt_work_pair`: `UNIQUE (id, work_id)`
+- `prc_process_attempts_fault_signature_check`: `CHECK (((fault_signature IS NULL) OR (octet_length(fault_signature) = 32)))`
+- `prc_process_attempts_generation_check`: `CHECK ((generation >= 1))`
+- `prc_process_attempts_owner_token_fingerprint_check`: `CHECK ((octet_length(owner_token_fingerprint) = 32))`
+- `prc_process_attempts_pkey`: `PRIMARY KEY (id)`
+- `prc_process_attempts_terminal_kind_check`: `CHECK ((terminal_kind = ANY (ARRAY['succeeded'::text, 'partial'::text, 'deferred'::text, 'blocked'::text, 'failed_item'::text, 'interrupted'::text, 'cancelled'::text, 'superseded'::text, 'lost_ownership'::text])))`
+- `prc_process_attempts_work_generation_unique`: `UNIQUE (work_id, generation)`
+- `prc_process_attempts_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
+
+Indexes:
+- `prc_attempt_work_pair`: `CREATE UNIQUE INDEX prc_attempt_work_pair ON public.prc_process_attempts USING btree (id, work_id)`
+- `prc_process_attempts_fault_idx`: `CREATE INDEX prc_process_attempts_fault_idx ON public.prc_process_attempts USING btree (handler_version, fault_signature, finished_at) WHERE (fault_signature IS NOT NULL)`
+- `prc_process_attempts_fault_policy_pending_idx`: `CREATE INDEX prc_process_attempts_fault_policy_pending_idx ON public.prc_process_attempts USING btree (finished_at, id) WHERE ((fault_signature IS NOT NULL) AND (fault_policy_checked_at IS NULL))`
+- `prc_process_attempts_pkey`: `CREATE UNIQUE INDEX prc_process_attempts_pkey ON public.prc_process_attempts USING btree (id)`
+- `prc_process_attempts_work_fault_idx`: `CREATE INDEX prc_process_attempts_work_fault_idx ON public.prc_process_attempts USING btree (work_id, handler_version) WHERE ((fault_signature IS NOT NULL) AND (finished_at IS NOT NULL))`
+- `prc_process_attempts_work_generation_unique`: `CREATE UNIQUE INDEX prc_process_attempts_work_generation_unique ON public.prc_process_attempts USING btree (work_id, generation)`
+
+#### prc_process_daemon_heartbeats
+
+Owner: Repositories/Procurement/Process; retention: technical.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| instance_id | uuid / uuid | NO | uuid NOT NULL |
+| daemon | text / text | NO | text NOT NULL |
+| host | text / text | NO | text NOT NULL |
+| pid | integer / int4 | NO | integer NOT NULL |
+| started_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| last_tick_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| last_error_code | text / text | YES | text |
+
+Constraints:
+- `prc_process_daemon_heartbeats_daemon_check`: `CHECK ((daemon = ANY (ARRAY['relay'::text, 'reconcile'::text, 'feed'::text, 'project'::text])))`
+- `prc_process_daemon_heartbeats_pkey`: `PRIMARY KEY (instance_id)`
+
+Indexes:
+- `prc_process_daemon_heartbeats_pkey`: `CREATE UNIQUE INDEX prc_process_daemon_heartbeats_pkey ON public.prc_process_daemon_heartbeats USING btree (instance_id)`
+
+#### prc_process_handler_holds
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| stage | text / text | NO | text NOT NULL |
+| handler_version | text / text | NO | text NOT NULL |
+| state | text / text | NO | text DEFAULT 'healthy'::text NOT NULL |
+| version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| fault_signature | bytea / bytea | YES | bytea |
+| incident_id | uuid / uuid | YES | uuid |
+| held_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `prc_process_handler_holds_fault_signature_check`: `CHECK (((fault_signature IS NULL) OR (octet_length(fault_signature) = 32)))`
+- `prc_process_handler_holds_held_check`: `CHECK (((state <> 'held'::text) OR ((fault_signature IS NOT NULL) AND (incident_id IS NOT NULL) AND (held_at IS NOT NULL))))`
+- `prc_process_handler_holds_incident_id_fkey`: `FOREIGN KEY (incident_id) REFERENCES prc_process_incidents(id)`
+- `prc_process_handler_holds_pkey`: `PRIMARY KEY (id)`
+- `prc_process_handler_holds_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
+- `prc_process_handler_holds_stage_version_unique`: `UNIQUE (stage, handler_version)`
+- `prc_process_handler_holds_state_check`: `CHECK ((state = ANY (ARRAY['healthy'::text, 'held'::text])))`
+- `prc_process_handler_holds_version_check`: `CHECK ((version >= 1))`
+
+Indexes:
+- `prc_process_handler_holds_pkey`: `CREATE UNIQUE INDEX prc_process_handler_holds_pkey ON public.prc_process_handler_holds USING btree (id)`
+- `prc_process_handler_holds_stage_version_unique`: `CREATE UNIQUE INDEX prc_process_handler_holds_stage_version_unique ON public.prc_process_handler_holds USING btree (stage, handler_version)`
+
+#### prc_process_incidents
+
+Owner: Repositories/Procurement/Process; retention: incidents.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| fingerprint | bytea / bytea | NO | bytea NOT NULL |
+| scope_key | text / text | NO | text NOT NULL |
+| health_epoch | bigint / int8 | YES | bigint |
+| kind | text / text | NO | text NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| first_seen_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| last_seen_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| occurrences | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| transition_seq | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| evidence | jsonb / jsonb | NO | jsonb NOT NULL |
+| evidence_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| acknowledged_by | bigint / int8 | YES | bigint |
+| resolved_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `prc_process_incidents_acknowledged_by_fkey`: `FOREIGN KEY (acknowledged_by) REFERENCES users(id)`
+- `prc_process_incidents_evidence_schema_version_check`: `CHECK ((evidence_schema_version > 0))`
+- `prc_process_incidents_fingerprint_check`: `CHECK ((octet_length(fingerprint) = 32))`
+- `prc_process_incidents_occurrences_check`: `CHECK ((occurrences >= 1))`
+- `prc_process_incidents_pkey`: `PRIMARY KEY (id)`
+- `prc_process_incidents_state_check`: `CHECK ((state = ANY (ARRAY['open'::text, 'acknowledged'::text, 'resolved'::text])))`
+- `prc_process_incidents_transition_seq_check`: `CHECK ((transition_seq >= 0))`
+
+Indexes:
+- `prc_process_incidents_active_fingerprint_unique`: `CREATE UNIQUE INDEX prc_process_incidents_active_fingerprint_unique ON public.prc_process_incidents USING btree (fingerprint) WHERE (state <> 'resolved'::text)`
+- `prc_process_incidents_pkey`: `CREATE UNIQUE INDEX prc_process_incidents_pkey ON public.prc_process_incidents USING btree (id)`
+
+#### prc_process_lanes
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| lane_key | text / text | NO | text NOT NULL |
+| parent_lane_id | uuid / uuid | YES | uuid |
+| max_outstanding | integer / int4 | NO | integer NOT NULL |
+| max_running | integer / int4 | NO | integer NOT NULL |
+| low_watermark | integer / int4 | NO | integer NOT NULL |
+| refill_max | integer / int4 | NO | integer NOT NULL |
+| policy_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| fairness_cursor | jsonb / jsonb | NO | jsonb DEFAULT '{}'::jsonb NOT NULL |
+| fairness_cursor_schema_version | smallint / int2 | NO | smallint DEFAULT 1 NOT NULL |
+
+Constraints:
+- `prc_process_lanes_check`: `CHECK (((max_running > 0) AND (max_running <= max_outstanding)))`
+- `prc_process_lanes_check1`: `CHECK (((low_watermark >= 0) AND (low_watermark < max_outstanding)))`
+- `prc_process_lanes_check2`: `CHECK (((refill_max > 0) AND (refill_max <= max_outstanding)))`
+- `prc_process_lanes_fairness_cursor_schema_version_check`: `CHECK ((fairness_cursor_schema_version > 0))`
+- `prc_process_lanes_lane_key_unique`: `UNIQUE (lane_key)`
+- `prc_process_lanes_max_outstanding_check`: `CHECK ((max_outstanding > 0))`
+- `prc_process_lanes_parent_lane_id_fkey`: `FOREIGN KEY (parent_lane_id) REFERENCES prc_process_lanes(id)`
+- `prc_process_lanes_pkey`: `PRIMARY KEY (id)`
+- `prc_process_lanes_policy_version_check`: `CHECK ((policy_version >= 1))`
+
+Indexes:
+- `prc_process_lanes_lane_key_unique`: `CREATE UNIQUE INDEX prc_process_lanes_lane_key_unique ON public.prc_process_lanes USING btree (lane_key)`
+- `prc_process_lanes_pkey`: `CREATE UNIQUE INDEX prc_process_lanes_pkey ON public.prc_process_lanes USING btree (id)`
+
+#### prc_process_metric_totals
+
+Owner: Repositories/Procurement/Process; retention: projection.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| projector_key | text / text | NO | text NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| metric_key | text / text | NO | text NOT NULL |
+| dimension_key | text / text | NO | text NOT NULL |
+| value | bigint / int8 | NO | bigint NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_process_metric_totals_generation_check`: `CHECK ((generation > 0))`
+- `prc_process_metric_totals_pkey`: `PRIMARY KEY (projector_key, generation, metric_key, dimension_key)`
+- `prc_process_metric_totals_projector_key_fkey`: `FOREIGN KEY (projector_key) REFERENCES prc_process_projection_states(projector_key)`
+- `prc_process_metric_totals_value_check`: `CHECK ((value >= 0))`
+
+Indexes:
+- `prc_process_metric_totals_pkey`: `CREATE UNIQUE INDEX prc_process_metric_totals_pkey ON public.prc_process_metric_totals USING btree (projector_key, generation, metric_key, dimension_key)`
+
+#### prc_process_outbox
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| message_id | uuid / uuid | NO | uuid NOT NULL |
+| dedup_key | text / text | NO | text NOT NULL |
+| kind | text / text | NO | text NOT NULL |
+| payload | jsonb / jsonb | NO | jsonb NOT NULL |
+| payload_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| available_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| claim_token | uuid / uuid | YES | uuid |
+| claim_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| published_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| attempts | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| last_error_code | text / text | YES | text |
+
+Constraints:
+- `prc_process_outbox_attempts_check`: `CHECK ((attempts >= 0))`
+- `prc_process_outbox_dedup_key_unique`: `UNIQUE (dedup_key)`
+- `prc_process_outbox_kind_check`: `CHECK ((kind = ANY (ARRAY['work_wake'::text, 'feeder_wake'::text, 'projection'::text])))`
+- `prc_process_outbox_payload_schema_version_check`: `CHECK ((payload_schema_version > 0))`
+- `prc_process_outbox_pkey`: `PRIMARY KEY (message_id)`
+
+Indexes:
+- `prc_process_outbox_dedup_key_unique`: `CREATE UNIQUE INDEX prc_process_outbox_dedup_key_unique ON public.prc_process_outbox USING btree (dedup_key)`
+- `prc_process_outbox_pending_idx`: `CREATE INDEX prc_process_outbox_pending_idx ON public.prc_process_outbox USING btree (kind, available_at, message_id) WHERE (published_at IS NULL)`
+- `prc_process_outbox_pkey`: `CREATE UNIQUE INDEX prc_process_outbox_pkey ON public.prc_process_outbox USING btree (message_id)`
+
+#### prc_process_projection_receipts
+
+Owner: Repositories/Procurement/Process; retention: projection.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| projector_key | text / text | NO | text NOT NULL |
+| event_id | uuid / uuid | NO | uuid NOT NULL |
+| applied_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_process_projection_receipts_event_id_fkey`: `FOREIGN KEY (event_id) REFERENCES prc_process_transitions(event_id) ON DELETE RESTRICT`
+- `prc_process_projection_receipts_pkey`: `PRIMARY KEY (projector_key, event_id)`
+- `prc_process_projection_receipts_projector_key_fkey`: `FOREIGN KEY (projector_key) REFERENCES prc_process_projection_states(projector_key)`
+
+Indexes:
+- `prc_process_projection_receipts_event_idx`: `CREATE INDEX prc_process_projection_receipts_event_idx ON public.prc_process_projection_receipts USING btree (event_id)`
+- `prc_process_projection_receipts_pkey`: `CREATE UNIQUE INDEX prc_process_projection_receipts_pkey ON public.prc_process_projection_receipts USING btree (projector_key, event_id)`
+
+#### prc_process_projection_states
+
+Owner: Repositories/Procurement/Process; retention: projection.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| projector_key | text / text | NO | text NOT NULL |
+| mode | text / text | NO | text NOT NULL |
+| active_generation | bigint / int8 | NO | bigint NOT NULL |
+| catalog_hash | bytea / bytea | NO | bytea NOT NULL |
+| history_complete | boolean / bool | NO | boolean DEFAULT true NOT NULL |
+| history_pruned_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| maintenance_token | uuid / uuid | YES | uuid |
+| maintenance_started_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| rebuilt_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `prc_process_projection_states_active_generation_check`: `CHECK ((active_generation > 0))`
+- `prc_process_projection_states_catalog_hash_check`: `CHECK ((octet_length(catalog_hash) = 32))`
+- `prc_process_projection_states_history_check`: `CHECK ((history_complete = (history_pruned_at IS NULL)))`
+- `prc_process_projection_states_maintenance_started_check`: `CHECK (((mode = 'maintenance'::text) = (maintenance_started_at IS NOT NULL)))`
+- `prc_process_projection_states_maintenance_token_check`: `CHECK (((mode = 'maintenance'::text) = (maintenance_token IS NOT NULL)))`
+- `prc_process_projection_states_mode_check`: `CHECK ((mode = ANY (ARRAY['active'::text, 'maintenance'::text])))`
+- `prc_process_projection_states_pkey`: `PRIMARY KEY (projector_key)`
+
+Indexes:
+- `prc_process_projection_states_pkey`: `CREATE UNIQUE INDEX prc_process_projection_states_pkey ON public.prc_process_projection_states USING btree (projector_key)`
+
+#### prc_process_reservations
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| admission_group_id | uuid / uuid | NO | uuid NOT NULL |
+| lane_id | uuid / uuid | NO | uuid NOT NULL |
+| work_id | uuid / uuid | NO | uuid NOT NULL |
+| stage | text / text | NO | text NOT NULL |
+| state | text / text | NO | text NOT NULL |
+
+Constraints:
+- `prc_process_reservations_admission_group_id_fkey`: `FOREIGN KEY (admission_group_id) REFERENCES prc_admission_groups(id) ON DELETE CASCADE`
+- `prc_process_reservations_lane_id_fkey`: `FOREIGN KEY (lane_id) REFERENCES prc_process_lanes(id)`
+- `prc_process_reservations_pkey`: `PRIMARY KEY (admission_group_id, lane_id)`
+- `prc_process_reservations_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
+- `prc_process_reservations_state_check`: `CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text])))`
+- `prc_process_reservations_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
+
+Indexes:
+- `prc_process_reservations_lane_state_idx`: `CREATE INDEX prc_process_reservations_lane_state_idx ON public.prc_process_reservations USING btree (lane_id, state)`
+- `prc_process_reservations_pkey`: `CREATE UNIQUE INDEX prc_process_reservations_pkey ON public.prc_process_reservations USING btree (admission_group_id, lane_id)`
+
+#### prc_process_run_work
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| run_id | uuid / uuid | NO | uuid NOT NULL |
+| work_id | uuid / uuid | NO | uuid NOT NULL |
+| relation | text / text | NO | text NOT NULL |
+| accounting_role | text / text | NO | text NOT NULL |
+
+Constraints:
+- `prc_process_run_work_accounting_role_check`: `CHECK ((accounting_role = ANY (ARRAY['required'::text, 'observes'::text])))`
+- `prc_process_run_work_pkey`: `PRIMARY KEY (run_id, work_id)`
+- `prc_process_run_work_relation_check`: `CHECK ((relation = ANY (ARRAY['created'::text, 'discovered'::text, 'observes'::text])))`
+- `prc_process_run_work_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_process_runs(id)`
+- `prc_process_run_work_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
+
+Indexes:
+- `prc_process_run_work_pkey`: `CREATE UNIQUE INDEX prc_process_run_work_pkey ON public.prc_process_run_work USING btree (run_id, work_id)`
+
+#### prc_process_runs
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| kind | text / text | NO | text NOT NULL |
+| trigger_key | text / text | YES | text |
+| profile_id | bigint / int8 | YES | bigint |
+| configuration_snapshot | jsonb / jsonb | NO | jsonb NOT NULL |
+| configuration_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| configuration_hash | bytea / bytea | NO | bytea NOT NULL |
+| requested_by | bigint / int8 | YES | bigint |
+| requested_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| started_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| finished_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| discovery_closed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| cancel_requested_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| discovery_outcome | text / text | NO | text DEFAULT 'collecting'::text NOT NULL |
+| discovery_reason_code | text / text | YES | text |
+| transition_seq | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| projection_version | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+
+Constraints:
+- `prc_process_runs_configuration_hash_check`: `CHECK ((octet_length(configuration_hash) = 32))`
+- `prc_process_runs_configuration_schema_version_check`: `CHECK ((configuration_schema_version > 0))`
+- `prc_process_runs_discovery_closed_check`: `CHECK (((discovery_outcome = 'collecting'::text) = (discovery_closed_at IS NULL)))`
+- `prc_process_runs_discovery_outcome_check`: `CHECK ((discovery_outcome = ANY (ARRAY['collecting'::text, 'complete'::text, 'incomplete'::text])))`
+- `prc_process_runs_discovery_reason_check`: `CHECK (((discovery_outcome = 'incomplete'::text) = (discovery_reason_code IS NOT NULL)))`
+- `prc_process_runs_kind_check`: `CHECK ((kind = ANY (ARRAY['profile'::text, 'schedule'::text, 'manual'::text, 'recovery'::text, 'eval'::text])))`
+- `prc_process_runs_pkey`: `PRIMARY KEY (id)`
+- `prc_process_runs_profile_id_fkey`: `FOREIGN KEY (profile_id) REFERENCES prc_crawlers(id)`
+- `prc_process_runs_projection_version_check`: `CHECK ((projection_version >= 0))`
+- `prc_process_runs_requested_by_fkey`: `FOREIGN KEY (requested_by) REFERENCES users(id)`
+- `prc_process_runs_transition_seq_check`: `CHECK ((transition_seq >= 0))`
+- `prc_process_runs_trigger_key_unique`: `UNIQUE (trigger_key)`
+
+Indexes:
+- `prc_process_runs_pkey`: `CREATE UNIQUE INDEX prc_process_runs_pkey ON public.prc_process_runs USING btree (id)`
+- `prc_process_runs_trigger_key_unique`: `CREATE UNIQUE INDEX prc_process_runs_trigger_key_unique ON public.prc_process_runs USING btree (trigger_key)`
+
+#### prc_process_transitions
+
+Owner: Repositories/Procurement/Process; retention: journal.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| event_id | uuid / uuid | NO | uuid NOT NULL |
+| entity_kind | text / text | NO | text NOT NULL |
+| work_id | uuid / uuid | YES | uuid |
+| run_id | uuid / uuid | YES | uuid |
+| control_id | uuid / uuid | YES | uuid |
+| incident_id | uuid / uuid | YES | uuid |
+| entity_seq | bigint / int8 | NO | bigint NOT NULL |
+| previous_state | text / text | YES | text |
+| new_state | text / text | NO | text NOT NULL |
+| reason_code | text / text | YES | text |
+| actor_kind | text / text | NO | text NOT NULL |
+| actor_id | bigint / int8 | YES | bigint |
+| generation | bigint / int8 | YES | bigint |
+| details | jsonb / jsonb | YES | jsonb |
+| details_schema_version | smallint / int2 | YES | smallint |
+| occurred_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| schema_version | smallint / int2 | NO | smallint NOT NULL |
+
+Constraints:
+- `prc_process_transitions_actor_kind_check`: `CHECK ((actor_kind = ANY (ARRAY['system'::text, 'operator'::text, 'worker'::text, 'reconciler'::text])))`
+- `prc_process_transitions_control_id_fkey`: `FOREIGN KEY (control_id) REFERENCES prc_control_scopes(id)`
+- `prc_process_transitions_details_schema_check`: `CHECK (((details IS NULL) = (details_schema_version IS NULL)))`
+- `prc_process_transitions_details_schema_version_check`: `CHECK ((details_schema_version > 0))`
+- `prc_process_transitions_entity_check`: `CHECK (((num_nonnulls(work_id, run_id, control_id, incident_id) = 1) AND (((entity_kind = 'work'::text) AND (work_id IS NOT NULL)) OR ((entity_kind = 'run'::text) AND (run_id IS NOT NULL)) OR ((entity_kind = 'control'::text) AND (control_id IS NOT NULL)) OR ((entity_kind = 'incident'::text) AND (incident_id IS NOT NULL)))))`
+- `prc_process_transitions_entity_kind_check`: `CHECK ((entity_kind = ANY (ARRAY['work'::text, 'run'::text, 'control'::text, 'incident'::text])))`
+- `prc_process_transitions_entity_seq_check`: `CHECK ((entity_seq >= 1))`
+- `prc_process_transitions_incident_id_fkey`: `FOREIGN KEY (incident_id) REFERENCES prc_process_incidents(id)`
+- `prc_process_transitions_pkey`: `PRIMARY KEY (event_id)`
+- `prc_process_transitions_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_process_runs(id)`
+- `prc_process_transitions_schema_version_check`: `CHECK ((schema_version > 0))`
+- `prc_process_transitions_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
+
+Indexes:
+- `prc_process_transitions_control_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_control_seq_unique ON public.prc_process_transitions USING btree (control_id, entity_seq) WHERE (control_id IS NOT NULL)`
+- `prc_process_transitions_incident_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_incident_seq_unique ON public.prc_process_transitions USING btree (incident_id, entity_seq) WHERE (incident_id IS NOT NULL)`
+- `prc_process_transitions_pkey`: `CREATE UNIQUE INDEX prc_process_transitions_pkey ON public.prc_process_transitions USING btree (event_id)`
+- `prc_process_transitions_run_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_run_seq_unique ON public.prc_process_transitions USING btree (run_id, entity_seq) WHERE (run_id IS NOT NULL)`
+- `prc_process_transitions_run_time_idx`: `CREATE INDEX prc_process_transitions_run_time_idx ON public.prc_process_transitions USING btree (run_id, occurred_at, event_id)`
+- `prc_process_transitions_work_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_work_seq_unique ON public.prc_process_transitions USING btree (work_id, entity_seq) WHERE (work_id IS NOT NULL)`
+- `prc_process_transitions_work_time_idx`: `CREATE INDEX prc_process_transitions_work_time_idx ON public.prc_process_transitions USING btree (work_id, occurred_at, event_id)`
+
+#### prc_process_work
+
+Owner: Repositories/Procurement/Process; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| stage | text / text | NO | text NOT NULL |
+| work_key | bytea / bytea | NO | bytea NOT NULL |
+| work_identity | jsonb / jsonb | NO | jsonb NOT NULL |
+| work_identity_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| intent_id | uuid / uuid | YES | uuid |
+| input_revision | bigint / int8 | NO | bigint NOT NULL |
+| input_hash | bytea / bytea | NO | bytea NOT NULL |
+| input_payload | jsonb / jsonb | NO | jsonb NOT NULL |
+| input_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| reason_code | text / text | YES | text |
+| due_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| provider_recovery_due_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| priority | smallint / int2 | NO | smallint DEFAULT 100 NOT NULL |
+| platform_id | bigint / int8 | YES | bigint |
+| cohort_key | text / text | NO | text NOT NULL |
+| origin_run_id | uuid / uuid | YES | uuid |
+| crawl_block_id | uuid / uuid | YES | uuid |
+| procurement_id | bigint / int8 | YES | bigint |
+| document_id | bigint / int8 | YES | bigint |
+| document_version_id | bigint / int8 | YES | bigint |
+| analysis_window_id | uuid / uuid | YES | uuid |
+| analysis_run_id | uuid / uuid | YES | uuid |
+| generation | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| owner_token | uuid / uuid | YES | uuid |
+| lease_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| heartbeat_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| dispatch_generation | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| dispatch_claim_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| checkpoint | jsonb / jsonb | YES | jsonb |
+| checkpoint_schema_version | smallint / int2 | YES | smallint |
+| checkpoint_seq | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| execution_attempts | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| transport_attempts | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| semantic_reasks | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| item_failures | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
+| infrastructure_interruptions | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| transition_seq | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_process_work_admitted_claim_check`: `CHECK (((state = 'admitted'::text) = (dispatch_claim_until IS NOT NULL)))`
+- `prc_process_work_checkpoint_schema_check`: `CHECK (((checkpoint IS NULL) = (checkpoint_schema_version IS NULL)))`
+- `prc_process_work_checkpoint_schema_version_check`: `CHECK ((checkpoint_schema_version > 0))`
+- `prc_process_work_checkpoint_seq_check`: `CHECK ((checkpoint_seq >= 0))`
+- `prc_process_work_crawl_block_id_fkey`: `FOREIGN KEY (crawl_block_id) REFERENCES prc_crawl_blocks(id)`
+- `prc_process_work_deferred_due_check`: `CHECK (((state <> 'deferred'::text) OR (due_at IS NOT NULL)))`
+- `prc_process_work_dispatch_generation_check`: `CHECK ((dispatch_generation >= 0))`
+- `prc_process_work_document_id_fkey`: `FOREIGN KEY (document_id) REFERENCES prc_documents(id)`
+- `prc_process_work_due_state_check`: `CHECK (((due_at IS NULL) OR (state = 'deferred'::text)))`
+- `prc_process_work_execution_attempts_check`: `CHECK ((execution_attempts >= 0))`
+- `prc_process_work_generation_check`: `CHECK ((generation >= 0))`
+- `prc_process_work_infrastructure_interruptions_check`: `CHECK ((infrastructure_interruptions >= 0))`
+- `prc_process_work_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
+- `prc_process_work_input_revision_check`: `CHECK ((input_revision >= 1))`
+- `prc_process_work_input_schema_version_check`: `CHECK ((input_schema_version > 0))`
+- `prc_process_work_intent_id_fkey`: `FOREIGN KEY (intent_id) REFERENCES prc_operation_intents(id)`
+- `prc_process_work_item_failures_check`: `CHECK (((item_failures >= 0) AND (item_failures <= 3)))`
+- `prc_process_work_origin_run_id_fkey`: `FOREIGN KEY (origin_run_id) REFERENCES prc_process_runs(id)`
+- `prc_process_work_owner_check`: `CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))`
+- `prc_process_work_pkey`: `PRIMARY KEY (id)`
+- `prc_process_work_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
+- `prc_process_work_procurement_id_fkey`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
+- `prc_process_work_provider_recovery_due_check`: `CHECK ((((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text)) = (provider_recovery_due_at IS NOT NULL)))`
+- `prc_process_work_reason_check`: `CHECK (((state <> ALL (ARRAY['deferred'::text, 'blocked'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])) OR (reason_code IS NOT NULL)))`
+- `prc_process_work_running_lease_check`: `CHECK ((((state = 'running'::text) AND (owner_token IS NOT NULL) AND (lease_until IS NOT NULL)) OR ((state <> 'running'::text) AND (owner_token IS NULL) AND (lease_until IS NULL))))`
+- `prc_process_work_semantic_reasks_check`: `CHECK ((semantic_reasks >= 0))`
+- `prc_process_work_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
+- `prc_process_work_state_check`: `CHECK ((state = ANY (ARRAY['ready'::text, 'admitted'::text, 'running'::text, 'deferred'::text, 'blocked'::text, 'succeeded'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])))`
+- `prc_process_work_transition_seq_check`: `CHECK ((transition_seq >= 0))`
+- `prc_process_work_transport_attempts_check`: `CHECK ((transport_attempts >= 0))`
+- `prc_process_work_work_identity_schema_version_check`: `CHECK ((work_identity_schema_version > 0))`
+- `prc_process_work_work_key_check`: `CHECK ((octet_length(work_key) = 32))`
+- `prc_process_work_work_key_unique`: `UNIQUE (work_key)`
+
+Indexes:
+- `prc_process_work_analysis_run_idx`: `CREATE INDEX prc_process_work_analysis_run_idx ON public.prc_process_work USING btree (analysis_run_id) WHERE (analysis_run_id IS NOT NULL)`
+- `prc_process_work_analysis_window_idx`: `CREATE INDEX prc_process_work_analysis_window_idx ON public.prc_process_work USING btree (analysis_window_id) WHERE (analysis_window_id IS NOT NULL)`
+- `prc_process_work_claim_idx`: `CREATE INDEX prc_process_work_claim_idx ON public.prc_process_work USING btree (dispatch_claim_until, id) WHERE (state = 'admitted'::text)`
+- `prc_process_work_crawl_block_idx`: `CREATE INDEX prc_process_work_crawl_block_idx ON public.prc_process_work USING btree (crawl_block_id) WHERE (crawl_block_id IS NOT NULL)`
+- `prc_process_work_document_idx`: `CREATE INDEX prc_process_work_document_idx ON public.prc_process_work USING btree (document_id) WHERE (document_id IS NOT NULL)`
+- `prc_process_work_document_version_idx`: `CREATE INDEX prc_process_work_document_version_idx ON public.prc_process_work USING btree (document_version_id) WHERE (document_version_id IS NOT NULL)`
+- `prc_process_work_due_idx`: `CREATE INDEX prc_process_work_due_idx ON public.prc_process_work USING btree (due_at, priority, id) WHERE (state = ANY (ARRAY['ready'::text, 'deferred'::text]))`
+- `prc_process_work_fairness_idx`: `CREATE INDEX prc_process_work_fairness_idx ON public.prc_process_work USING btree (stage, cohort_key, created_at, id) WHERE (state = ANY (ARRAY['ready'::text, 'deferred'::text]))`
+- `prc_process_work_lease_idx`: `CREATE INDEX prc_process_work_lease_idx ON public.prc_process_work USING btree (lease_until, id) WHERE (state = 'running'::text)`
+- `prc_process_work_pkey`: `CREATE UNIQUE INDEX prc_process_work_pkey ON public.prc_process_work USING btree (id)`
+- `prc_process_work_procurement_idx`: `CREATE INDEX prc_process_work_procurement_idx ON public.prc_process_work USING btree (procurement_id) WHERE (procurement_id IS NOT NULL)`
+- `prc_process_work_provider_recovery_due_idx`: `CREATE INDEX prc_process_work_provider_recovery_due_idx ON public.prc_process_work USING btree (provider_recovery_due_at, id) WHERE ((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text))`
+- `prc_process_work_run_idx`: `CREATE INDEX prc_process_work_run_idx ON public.prc_process_work USING btree (origin_run_id, stage, state)`
+- `prc_process_work_work_key_unique`: `CREATE UNIQUE INDEX prc_process_work_work_key_unique ON public.prc_process_work USING btree (work_key)`
 
 #### prc_procurement_parties
 
@@ -3623,6 +4613,52 @@ Indexes:
 - `prc_registries_platform_id_code_unique`: `CREATE UNIQUE INDEX prc_registries_platform_id_code_unique ON public.prc_registries USING btree (platform_id, code)`
 - `prc_registries_uuid_unique`: `CREATE UNIQUE INDEX prc_registries_uuid_unique ON public.prc_registries USING btree (uuid)`
 
+#### prc_request_attempts
+
+Owner: Repositories/Procurement/Network; retention: requests.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| request_id | uuid / uuid | NO | uuid NOT NULL |
+| attempt_id | uuid / uuid | YES | uuid |
+| demand_id | uuid / uuid | YES | uuid |
+| request_seq | bigint / int8 | NO | bigint NOT NULL |
+| target_id | uuid / uuid | YES | uuid |
+| route_id | uuid / uuid | YES | uuid |
+| started_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| sent_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| finished_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| phase | text / text | NO | text NOT NULL |
+| outcome | text / text | YES | text |
+| bytes | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| status | smallint / int2 | YES | smallint |
+| duration_ms | bigint / int8 | YES | bigint |
+| epochs | jsonb / jsonb | NO | jsonb NOT NULL |
+| epochs_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| artifacts | jsonb / jsonb | YES | jsonb |
+| artifacts_schema_version | smallint / int2 | YES | smallint |
+
+Constraints:
+- `prc_request_attempts_artifacts_schema_check`: `CHECK (((artifacts IS NULL) = (artifacts_schema_version IS NULL)))`
+- `prc_request_attempts_artifacts_schema_version_check`: `CHECK ((artifacts_schema_version > 0))`
+- `prc_request_attempts_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
+- `prc_request_attempts_attempt_seq_unique`: `UNIQUE (attempt_id, request_seq)`
+- `prc_request_attempts_bytes_check`: `CHECK ((bytes >= 0))`
+- `prc_request_attempts_check`: `CHECK (((attempt_id IS NOT NULL) <> (demand_id IS NOT NULL)))`
+- `prc_request_attempts_demand_id_fkey`: `FOREIGN KEY (demand_id) REFERENCES prc_network_demands(id)`
+- `prc_request_attempts_demand_id_key`: `UNIQUE (demand_id)`
+- `prc_request_attempts_duration_ms_check`: `CHECK ((duration_ms >= 0))`
+- `prc_request_attempts_epochs_schema_version_check`: `CHECK ((epochs_schema_version > 0))`
+- `prc_request_attempts_pkey`: `PRIMARY KEY (request_id)`
+- `prc_request_attempts_request_seq_check`: `CHECK ((request_seq >= 1))`
+- `prc_request_attempts_route_id_fkey`: `FOREIGN KEY (route_id) REFERENCES prc_network_routes(id)`
+- `prc_request_attempts_target_id_fkey`: `FOREIGN KEY (target_id) REFERENCES prc_source_targets(id)`
+
+Indexes:
+- `prc_request_attempts_attempt_seq_unique`: `CREATE UNIQUE INDEX prc_request_attempts_attempt_seq_unique ON public.prc_request_attempts USING btree (attempt_id, request_seq)`
+- `prc_request_attempts_demand_id_key`: `CREATE UNIQUE INDEX prc_request_attempts_demand_id_key ON public.prc_request_attempts USING btree (demand_id)`
+- `prc_request_attempts_pkey`: `CREATE UNIQUE INDEX prc_request_attempts_pkey ON public.prc_request_attempts USING btree (request_id)`
+
 #### prc_revisions
 
 Owner: Procurement; retention: business.
@@ -3651,6 +4687,78 @@ Indexes:
 - `prc_revisions_pkey`: `CREATE UNIQUE INDEX prc_revisions_pkey ON ONLY public.prc_revisions USING btree (id, detected_at)`
 - `prc_revisions_procurement_id_index`: `CREATE INDEX prc_revisions_procurement_id_index ON ONLY public.prc_revisions USING btree (procurement_id)`
 - `prc_revisions_procurement_revision_detected_unique`: `CREATE UNIQUE INDEX prc_revisions_procurement_revision_detected_unique ON ONLY public.prc_revisions USING btree (procurement_id, revision_number, detected_at)`
+
+#### prc_route_health
+
+Owner: Repositories/Procurement/Network; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| health_epoch | bigint / int8 | NO | bigint NOT NULL |
+| state_version | bigint / int8 | NO | bigint NOT NULL |
+| reason_code | text / text | YES | text |
+| last_success_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| open_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| probe_token | uuid / uuid | YES | uuid |
+| probe_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| stable_since | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| recent_openings | bigint / int8 | NO | bigint NOT NULL |
+| consecutive_failures | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_route_health_consecutive_failures_check`: `CHECK ((consecutive_failures >= 0))`
+- `prc_route_health_health_epoch_check`: `CHECK ((health_epoch >= 1))`
+- `prc_route_health_pkey`: `PRIMARY KEY (id)`
+- `prc_route_health_recent_openings_check`: `CHECK ((recent_openings >= 0))`
+- `prc_route_health_route_id_fkey`: `FOREIGN KEY (route_id) REFERENCES prc_network_routes(id)`
+- `prc_route_health_route_id_key`: `UNIQUE (route_id)`
+- `prc_route_health_state_check`: `CHECK ((state = ANY (ARRAY['unknown'::text, 'closed'::text, 'open'::text, 'half_open'::text])))`
+- `prc_route_health_state_version_check`: `CHECK ((state_version >= 1))`
+
+Indexes:
+- `prc_route_health_pkey`: `CREATE UNIQUE INDEX prc_route_health_pkey ON public.prc_route_health USING btree (id)`
+- `prc_route_health_route_id_key`: `CREATE UNIQUE INDEX prc_route_health_route_id_key ON public.prc_route_health USING btree (route_id)`
+
+#### prc_route_target_health
+
+Owner: Repositories/Procurement/Network; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| health_epoch | bigint / int8 | NO | bigint NOT NULL |
+| state_version | bigint / int8 | NO | bigint NOT NULL |
+| reason_code | text / text | YES | text |
+| last_success_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| open_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| probe_token | uuid / uuid | YES | uuid |
+| probe_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| stable_since | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| recent_openings | bigint / int8 | NO | bigint NOT NULL |
+| consecutive_failures | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_route_target_health_consecutive_failures_check`: `CHECK ((consecutive_failures >= 0))`
+- `prc_route_target_health_health_epoch_check`: `CHECK ((health_epoch >= 1))`
+- `prc_route_target_health_pkey`: `PRIMARY KEY (id)`
+- `prc_route_target_health_recent_openings_check`: `CHECK ((recent_openings >= 0))`
+- `prc_route_target_health_route_id_fkey`: `FOREIGN KEY (route_id) REFERENCES prc_network_routes(id)`
+- `prc_route_target_health_route_id_target_id_key`: `UNIQUE (route_id, target_id)`
+- `prc_route_target_health_state_check`: `CHECK ((state = ANY (ARRAY['unknown'::text, 'closed'::text, 'open'::text, 'half_open'::text])))`
+- `prc_route_target_health_state_version_check`: `CHECK ((state_version >= 1))`
+- `prc_route_target_health_target_id_fkey`: `FOREIGN KEY (target_id) REFERENCES prc_source_targets(id)`
+
+Indexes:
+- `prc_route_target_health_pkey`: `CREATE UNIQUE INDEX prc_route_target_health_pkey ON public.prc_route_target_health USING btree (id)`
+- `prc_route_target_health_route_id_target_id_key`: `CREATE UNIQUE INDEX prc_route_target_health_route_id_target_id_key ON public.prc_route_target_health USING btree (route_id, target_id)`
 
 #### prc_settings
 
@@ -3743,6 +4851,33 @@ Indexes:
 - `prc_source_incidents_run_id_index`: `CREATE INDEX prc_source_incidents_run_id_index ON public.prc_source_incidents USING btree (run_id)`
 - `prc_source_incidents_type_created_at_index`: `CREATE INDEX prc_source_incidents_type_created_at_index ON public.prc_source_incidents USING btree (type, created_at)`
 
+#### prc_source_targets
+
+Owner: Repositories/Procurement/Network; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| platform_id | bigint / int8 | NO | bigint NOT NULL |
+| target_key | text / text | NO | text NOT NULL |
+| canonical_origin | text / text | NO | text NOT NULL |
+| capability | text / text | NO | text NOT NULL |
+| endpoint_policy | jsonb / jsonb | NO | jsonb NOT NULL |
+| endpoint_policy_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| policy_version | bigint / int8 | NO | bigint NOT NULL |
+| retired_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `prc_source_targets_endpoint_policy_schema_version_check`: `CHECK ((endpoint_policy_schema_version > 0))`
+- `prc_source_targets_pkey`: `PRIMARY KEY (id)`
+- `prc_source_targets_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
+- `prc_source_targets_platform_id_target_key_key`: `UNIQUE (platform_id, target_key)`
+- `prc_source_targets_policy_version_check`: `CHECK ((policy_version >= 1))`
+
+Indexes:
+- `prc_source_targets_pkey`: `CREATE UNIQUE INDEX prc_source_targets_pkey ON public.prc_source_targets USING btree (id)`
+- `prc_source_targets_platform_id_target_key_key`: `CREATE UNIQUE INDEX prc_source_targets_platform_id_target_key_key ON public.prc_source_targets USING btree (platform_id, target_key)`
+
 #### prc_status_mappings
 
 Owner: Procurement; retention: business.
@@ -3767,6 +4902,41 @@ Indexes:
 - `prc_status_mappings_pkey`: `CREATE UNIQUE INDEX prc_status_mappings_pkey ON public.prc_status_mappings USING btree (id)`
 - `prc_status_mappings_platform_source_stage_unique`: `CREATE UNIQUE INDEX prc_status_mappings_platform_source_stage_unique ON public.prc_status_mappings USING btree (platform_id, source_stage) WHERE (platform_id IS NOT NULL)`
 - `prc_status_mappings_registry_source_stage_unique`: `CREATE UNIQUE INDEX prc_status_mappings_registry_source_stage_unique ON public.prc_status_mappings USING btree (registry_id, source_stage) WHERE (registry_id IS NOT NULL)`
+
+#### prc_target_health
+
+Owner: Repositories/Procurement/Network; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| availability | text / text | NO | text NOT NULL |
+| health_epoch | bigint / int8 | NO | bigint NOT NULL |
+| state_version | bigint / int8 | NO | bigint NOT NULL |
+| reason_code | text / text | YES | text |
+| last_success_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| open_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| probe_token | uuid / uuid | YES | uuid |
+| probe_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| stable_since | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| recent_openings | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_target_health_availability_check`: `CHECK ((availability = ANY (ARRAY['unknown'::text, 'available'::text, 'suspect'::text, 'unavailable'::text])))`
+- `prc_target_health_health_epoch_check`: `CHECK ((health_epoch >= 1))`
+- `prc_target_health_pkey`: `PRIMARY KEY (id)`
+- `prc_target_health_recent_openings_check`: `CHECK ((recent_openings >= 0))`
+- `prc_target_health_state_check`: `CHECK ((state = ANY (ARRAY['unknown'::text, 'closed'::text, 'open'::text, 'half_open'::text])))`
+- `prc_target_health_state_version_check`: `CHECK ((state_version >= 1))`
+- `prc_target_health_target_id_fkey`: `FOREIGN KEY (target_id) REFERENCES prc_source_targets(id)`
+- `prc_target_health_target_id_key`: `UNIQUE (target_id)`
+
+Indexes:
+- `prc_target_health_pkey`: `CREATE UNIQUE INDEX prc_target_health_pkey ON public.prc_target_health USING btree (id)`
+- `prc_target_health_target_id_key`: `CREATE UNIQUE INDEX prc_target_health_target_id_key ON public.prc_target_health USING btree (target_id)`
 
 #### pulse_aggregates
 
@@ -4010,743 +5180,6 @@ Constraints:
 Indexes:
 - `users_email_unique`: `CREATE UNIQUE INDEX users_email_unique ON public.users USING btree (email)`
 - `users_pkey`: `CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)`
-
-#### prc_control_scopes
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| scope_kind | text / text | NO | text NOT NULL |
-| scope_key | text / text | NO | text NOT NULL |
-| parent_id | uuid / uuid | YES | uuid |
-| desired_mode | text / text | NO | text DEFAULT 'enabled'::text NOT NULL |
-| control_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| changed_by | bigint / int8 | YES | bigint |
-| change_reason | text / text | YES | text |
-| changed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-
-Constraints:
-- `prc_control_scopes_changed_by_fkey`: `FOREIGN KEY (changed_by) REFERENCES users(id)`
-- `prc_control_scopes_control_version_check`: `CHECK ((control_version >= 1))`
-- `prc_control_scopes_desired_mode_check`: `CHECK ((desired_mode = ANY (ARRAY['enabled'::text, 'paused'::text])))`
-- `prc_control_scopes_parent_id_fkey`: `FOREIGN KEY (parent_id) REFERENCES prc_control_scopes(id)`
-- `prc_control_scopes_pkey`: `PRIMARY KEY (id)`
-- `prc_control_scopes_root_check`: `CHECK (((scope_kind = 'system'::text) = (parent_id IS NULL)))`
-- `prc_control_scopes_scope_key_unique`: `UNIQUE (scope_key)`
-- `prc_control_scopes_scope_kind_check`: `CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'cohort'::text, 'stage'::text])))`
-
-Indexes:
-- `prc_control_scopes_pkey`: `CREATE UNIQUE INDEX prc_control_scopes_pkey ON public.prc_control_scopes USING btree (id)`
-- `prc_control_scopes_scope_key_unique`: `CREATE UNIQUE INDEX prc_control_scopes_scope_key_unique ON public.prc_control_scopes USING btree (scope_key)`
-
-#### prc_process_lanes
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| lane_key | text / text | NO | text NOT NULL |
-| parent_lane_id | uuid / uuid | YES | uuid |
-| max_outstanding | integer / int4 | NO | integer NOT NULL |
-| max_running | integer / int4 | NO | integer NOT NULL |
-| low_watermark | integer / int4 | NO | integer NOT NULL |
-| refill_max | integer / int4 | NO | integer NOT NULL |
-| policy_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| fairness_cursor | jsonb / jsonb | NO | jsonb DEFAULT '{}'::jsonb NOT NULL |
-| fairness_cursor_schema_version | smallint / int2 | NO | smallint DEFAULT 1 NOT NULL |
-
-Constraints:
-- `prc_process_lanes_check`: `CHECK (((max_running > 0) AND (max_running <= max_outstanding)))`
-- `prc_process_lanes_check1`: `CHECK (((low_watermark >= 0) AND (low_watermark < max_outstanding)))`
-- `prc_process_lanes_check2`: `CHECK (((refill_max > 0) AND (refill_max <= max_outstanding)))`
-- `prc_process_lanes_fairness_cursor_schema_version_check`: `CHECK ((fairness_cursor_schema_version > 0))`
-- `prc_process_lanes_lane_key_unique`: `UNIQUE (lane_key)`
-- `prc_process_lanes_max_outstanding_check`: `CHECK ((max_outstanding > 0))`
-- `prc_process_lanes_parent_lane_id_fkey`: `FOREIGN KEY (parent_lane_id) REFERENCES prc_process_lanes(id)`
-- `prc_process_lanes_pkey`: `PRIMARY KEY (id)`
-- `prc_process_lanes_policy_version_check`: `CHECK ((policy_version >= 1))`
-
-Indexes:
-- `prc_process_lanes_lane_key_unique`: `CREATE UNIQUE INDEX prc_process_lanes_lane_key_unique ON public.prc_process_lanes USING btree (lane_key)`
-- `prc_process_lanes_pkey`: `CREATE UNIQUE INDEX prc_process_lanes_pkey ON public.prc_process_lanes USING btree (id)`
-
-#### prc_process_runs
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| kind | text / text | NO | text NOT NULL |
-| trigger_key | text / text | YES | text |
-| profile_id | bigint / int8 | YES | bigint |
-| configuration_snapshot | jsonb / jsonb | NO | jsonb NOT NULL |
-| configuration_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| configuration_hash | bytea / bytea | NO | bytea NOT NULL |
-| requested_by | bigint / int8 | YES | bigint |
-| requested_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| started_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| finished_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| discovery_closed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| cancel_requested_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| discovery_outcome | text / text | NO | text DEFAULT 'collecting'::text NOT NULL |
-| discovery_reason_code | text / text | YES | text |
-| transition_seq | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| projection_version | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-
-Constraints:
-- `prc_process_runs_configuration_hash_check`: `CHECK ((octet_length(configuration_hash) = 32))`
-- `prc_process_runs_configuration_schema_version_check`: `CHECK ((configuration_schema_version > 0))`
-- `prc_process_runs_discovery_closed_check`: `CHECK (((discovery_outcome = 'collecting'::text) = (discovery_closed_at IS NULL)))`
-- `prc_process_runs_discovery_outcome_check`: `CHECK ((discovery_outcome = ANY (ARRAY['collecting'::text, 'complete'::text, 'incomplete'::text])))`
-- `prc_process_runs_discovery_reason_check`: `CHECK (((discovery_outcome = 'incomplete'::text) = (discovery_reason_code IS NOT NULL)))`
-- `prc_process_runs_kind_check`: `CHECK ((kind = ANY (ARRAY['profile'::text, 'schedule'::text, 'manual'::text, 'recovery'::text, 'eval'::text])))`
-- `prc_process_runs_pkey`: `PRIMARY KEY (id)`
-- `prc_process_runs_profile_id_fkey`: `FOREIGN KEY (profile_id) REFERENCES prc_crawlers(id)`
-- `prc_process_runs_projection_version_check`: `CHECK ((projection_version >= 0))`
-- `prc_process_runs_requested_by_fkey`: `FOREIGN KEY (requested_by) REFERENCES users(id)`
-- `prc_process_runs_transition_seq_check`: `CHECK ((transition_seq >= 0))`
-- `prc_process_runs_trigger_key_unique`: `UNIQUE (trigger_key)`
-
-Indexes:
-- `prc_process_runs_pkey`: `CREATE UNIQUE INDEX prc_process_runs_pkey ON public.prc_process_runs USING btree (id)`
-- `prc_process_runs_trigger_key_unique`: `CREATE UNIQUE INDEX prc_process_runs_trigger_key_unique ON public.prc_process_runs USING btree (trigger_key)`
-
-#### prc_process_incidents
-
-Owner: Repositories/Procurement/Process; retention: incidents.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| fingerprint | bytea / bytea | NO | bytea NOT NULL |
-| scope_key | text / text | NO | text NOT NULL |
-| health_epoch | bigint / int8 | YES | bigint |
-| kind | text / text | NO | text NOT NULL |
-| state | text / text | NO | text NOT NULL |
-| first_seen_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| last_seen_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| occurrences | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| transition_seq | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| evidence | jsonb / jsonb | NO | jsonb NOT NULL |
-| evidence_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| acknowledged_by | bigint / int8 | YES | bigint |
-| resolved_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-
-Constraints:
-- `prc_process_incidents_acknowledged_by_fkey`: `FOREIGN KEY (acknowledged_by) REFERENCES users(id)`
-- `prc_process_incidents_evidence_schema_version_check`: `CHECK ((evidence_schema_version > 0))`
-- `prc_process_incidents_fingerprint_check`: `CHECK ((octet_length(fingerprint) = 32))`
-- `prc_process_incidents_occurrences_check`: `CHECK ((occurrences >= 1))`
-- `prc_process_incidents_pkey`: `PRIMARY KEY (id)`
-- `prc_process_incidents_state_check`: `CHECK ((state = ANY (ARRAY['open'::text, 'acknowledged'::text, 'resolved'::text])))`
-- `prc_process_incidents_transition_seq_check`: `CHECK ((transition_seq >= 0))`
-
-Indexes:
-- `prc_process_incidents_active_fingerprint_unique`: `CREATE UNIQUE INDEX prc_process_incidents_active_fingerprint_unique ON public.prc_process_incidents USING btree (fingerprint) WHERE (state <> 'resolved'::text)`
-- `prc_process_incidents_pkey`: `CREATE UNIQUE INDEX prc_process_incidents_pkey ON public.prc_process_incidents USING btree (id)`
-
-#### prc_process_handler_holds
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| stage | text / text | NO | text NOT NULL |
-| handler_version | text / text | NO | text NOT NULL |
-| state | text / text | NO | text DEFAULT 'healthy'::text NOT NULL |
-| version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| fault_signature | bytea / bytea | YES | bytea |
-| incident_id | uuid / uuid | YES | uuid |
-| held_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-
-Constraints:
-- `prc_process_handler_holds_fault_signature_check`: `CHECK (((fault_signature IS NULL) OR (octet_length(fault_signature) = 32)))`
-- `prc_process_handler_holds_held_check`: `CHECK (((state <> 'held'::text) OR ((fault_signature IS NOT NULL) AND (incident_id IS NOT NULL) AND (held_at IS NOT NULL))))`
-- `prc_process_handler_holds_incident_id_fkey`: `FOREIGN KEY (incident_id) REFERENCES prc_process_incidents(id)`
-- `prc_process_handler_holds_pkey`: `PRIMARY KEY (id)`
-- `prc_process_handler_holds_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
-- `prc_process_handler_holds_stage_version_unique`: `UNIQUE (stage, handler_version)`
-- `prc_process_handler_holds_state_check`: `CHECK ((state = ANY (ARRAY['healthy'::text, 'held'::text])))`
-- `prc_process_handler_holds_version_check`: `CHECK ((version >= 1))`
-
-Indexes:
-- `prc_process_handler_holds_pkey`: `CREATE UNIQUE INDEX prc_process_handler_holds_pkey ON public.prc_process_handler_holds USING btree (id)`
-- `prc_process_handler_holds_stage_version_unique`: `CREATE UNIQUE INDEX prc_process_handler_holds_stage_version_unique ON public.prc_process_handler_holds USING btree (stage, handler_version)`
-
-#### prc_crawl_runs
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| process_run_id | uuid / uuid | NO | uuid NOT NULL |
-| listing_kind | text / text | NO | text NOT NULL |
-| filter_payload | jsonb / jsonb | NO | jsonb NOT NULL |
-| filter_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| filter_hash | bytea / bytea | NO | bytea NOT NULL |
-| access_policy_hash | bytea / bytea | NO | bytea NOT NULL |
-| adapter_version | text / text | NO | text NOT NULL |
-
-Constraints:
-- `prc_crawl_runs_access_policy_hash_check`: `CHECK ((octet_length(access_policy_hash) = 32))`
-- `prc_crawl_runs_filter_hash_check`: `CHECK ((octet_length(filter_hash) = 32))`
-- `prc_crawl_runs_filter_schema_version_check`: `CHECK ((filter_schema_version > 0))`
-- `prc_crawl_runs_listing_kind_check`: `CHECK ((listing_kind = ANY (ARRAY['fresh'::text, 'archive'::text, 'delta'::text])))`
-- `prc_crawl_runs_pkey`: `PRIMARY KEY (id)`
-- `prc_crawl_runs_process_run_id_fkey`: `FOREIGN KEY (process_run_id) REFERENCES prc_process_runs(id)`
-- `prc_crawl_runs_process_run_id_unique`: `UNIQUE (process_run_id)`
-
-Indexes:
-- `prc_crawl_runs_pkey`: `CREATE UNIQUE INDEX prc_crawl_runs_pkey ON public.prc_crawl_runs USING btree (id)`
-- `prc_crawl_runs_process_run_id_unique`: `CREATE UNIQUE INDEX prc_crawl_runs_process_run_id_unique ON public.prc_crawl_runs USING btree (process_run_id)`
-
-#### prc_crawl_blocks
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| crawl_run_id | uuid / uuid | NO | uuid NOT NULL |
-| parent_block_id | uuid / uuid | YES | uuid |
-| block_key | text / text | NO | text NOT NULL |
-| partition_payload | jsonb / jsonb | NO | jsonb NOT NULL |
-| partition_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| filter_hash | bytea / bytea | NO | bytea NOT NULL |
-| head_generation | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| input_revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| cursor | jsonb / jsonb | NO | jsonb DEFAULT '{}'::jsonb NOT NULL |
-| cursor_schema_version | smallint / int2 | NO | smallint DEFAULT 1 NOT NULL |
-| terminal_proof | jsonb / jsonb | YES | jsonb |
-| terminal_proof_schema_version | smallint / int2 | YES | smallint |
-| limitation_reason_code | text / text | YES | text |
-
-Constraints:
-- `prc_crawl_blocks_crawl_run_id_fkey`: `FOREIGN KEY (crawl_run_id) REFERENCES prc_crawl_runs(id)`
-- `prc_crawl_blocks_cursor_schema_version_check`: `CHECK ((cursor_schema_version > 0))`
-- `prc_crawl_blocks_filter_hash_check`: `CHECK ((octet_length(filter_hash) = 32))`
-- `prc_crawl_blocks_head_generation_check`: `CHECK ((head_generation >= 1))`
-- `prc_crawl_blocks_input_revision_check`: `CHECK ((input_revision >= 1))`
-- `prc_crawl_blocks_parent_block_id_fkey`: `FOREIGN KEY (parent_block_id) REFERENCES prc_crawl_blocks(id)`
-- `prc_crawl_blocks_partition_schema_version_check`: `CHECK ((partition_schema_version > 0))`
-- `prc_crawl_blocks_pkey`: `PRIMARY KEY (id)`
-- `prc_crawl_blocks_proof_schema_check`: `CHECK (((terminal_proof IS NULL) = (terminal_proof_schema_version IS NULL)))`
-- `prc_crawl_blocks_run_key_unique`: `UNIQUE (crawl_run_id, block_key)`
-- `prc_crawl_blocks_terminal_proof_schema_version_check`: `CHECK ((terminal_proof_schema_version > 0))`
-
-Indexes:
-- `prc_crawl_blocks_pkey`: `CREATE UNIQUE INDEX prc_crawl_blocks_pkey ON public.prc_crawl_blocks USING btree (id)`
-- `prc_crawl_blocks_run_key_unique`: `CREATE UNIQUE INDEX prc_crawl_blocks_run_key_unique ON public.prc_crawl_blocks USING btree (crawl_run_id, block_key)`
-
-#### prc_operation_intents
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| intent_key | bytea / bytea | NO | bytea NOT NULL |
-| stage | text / text | NO | text NOT NULL |
-| subject_kind | text / text | NO | text NOT NULL |
-| subject_id | text / text | NO | text NOT NULL |
-| semantic_policy_hash | bytea / bytea | NO | bytea NOT NULL |
-| access_policy_hash | bytea / bytea | NO | bytea NOT NULL |
-| cycle_seq | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| expected_head_generation | bigint / int8 | NO | bigint NOT NULL |
-| state | text / text | NO | text NOT NULL |
-| requested_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| next_due_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-
-Constraints:
-- `prc_operation_intents_access_policy_hash_check`: `CHECK ((octet_length(access_policy_hash) = 32))`
-- `prc_operation_intents_cycle_seq_check`: `CHECK ((cycle_seq >= 1))`
-- `prc_operation_intents_expected_head_generation_check`: `CHECK ((expected_head_generation >= 1))`
-- `prc_operation_intents_intent_key_check`: `CHECK ((octet_length(intent_key) = 32))`
-- `prc_operation_intents_intent_key_unique`: `UNIQUE (intent_key)`
-- `prc_operation_intents_pkey`: `PRIMARY KEY (id)`
-- `prc_operation_intents_semantic_policy_hash_check`: `CHECK ((octet_length(semantic_policy_hash) = 32))`
-- `prc_operation_intents_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
-- `prc_operation_intents_state_check`: `CHECK ((state = ANY (ARRAY['pending'::text, 'active'::text, 'terminal'::text])))`
-
-Indexes:
-- `prc_operation_intents_intent_key_unique`: `CREATE UNIQUE INDEX prc_operation_intents_intent_key_unique ON public.prc_operation_intents USING btree (intent_key)`
-- `prc_operation_intents_one_active_unique`: `CREATE UNIQUE INDEX prc_operation_intents_one_active_unique ON public.prc_operation_intents USING btree (stage, subject_kind, subject_id) WHERE (state = 'active'::text)`
-- `prc_operation_intents_pkey`: `CREATE UNIQUE INDEX prc_operation_intents_pkey ON public.prc_operation_intents USING btree (id)`
-
-#### prc_process_work
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| stage | text / text | NO | text NOT NULL |
-| work_key | bytea / bytea | NO | bytea NOT NULL |
-| work_identity | jsonb / jsonb | NO | jsonb NOT NULL |
-| work_identity_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| intent_id | uuid / uuid | YES | uuid |
-| input_revision | bigint / int8 | NO | bigint NOT NULL |
-| input_hash | bytea / bytea | NO | bytea NOT NULL |
-| input_payload | jsonb / jsonb | NO | jsonb NOT NULL |
-| input_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| state | text / text | NO | text NOT NULL |
-| reason_code | text / text | YES | text |
-| due_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| provider_recovery_due_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| priority | smallint / int2 | NO | smallint DEFAULT 100 NOT NULL |
-| platform_id | bigint / int8 | YES | bigint |
-| cohort_key | text / text | NO | text NOT NULL |
-| origin_run_id | uuid / uuid | YES | uuid |
-| crawl_block_id | uuid / uuid | YES | uuid |
-| procurement_id | bigint / int8 | YES | bigint |
-| document_id | bigint / int8 | YES | bigint |
-| document_version_id | bigint / int8 | YES | bigint |
-| analysis_window_id | uuid / uuid | YES | uuid |
-| analysis_run_id | uuid / uuid | YES | uuid |
-| generation | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| owner_token | uuid / uuid | YES | uuid |
-| lease_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| heartbeat_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| dispatch_generation | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| dispatch_claim_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| checkpoint | jsonb / jsonb | YES | jsonb |
-| checkpoint_schema_version | smallint / int2 | YES | smallint |
-| checkpoint_seq | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| execution_attempts | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| transport_attempts | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| semantic_reasks | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| item_failures | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| infrastructure_interruptions | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| transition_seq | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-
-Constraints:
-- `prc_process_work_admitted_claim_check`: `CHECK (((state = 'admitted'::text) = (dispatch_claim_until IS NOT NULL)))`
-- `prc_process_work_checkpoint_schema_check`: `CHECK (((checkpoint IS NULL) = (checkpoint_schema_version IS NULL)))`
-- `prc_process_work_checkpoint_schema_version_check`: `CHECK ((checkpoint_schema_version > 0))`
-- `prc_process_work_checkpoint_seq_check`: `CHECK ((checkpoint_seq >= 0))`
-- `prc_process_work_crawl_block_id_fkey`: `FOREIGN KEY (crawl_block_id) REFERENCES prc_crawl_blocks(id)`
-- `prc_process_work_deferred_due_check`: `CHECK (((state <> 'deferred'::text) OR (due_at IS NOT NULL)))`
-- `prc_process_work_dispatch_generation_check`: `CHECK ((dispatch_generation >= 0))`
-- `prc_process_work_document_id_fkey`: `FOREIGN KEY (document_id) REFERENCES prc_documents(id)`
-- `prc_process_work_due_state_check`: `CHECK (((due_at IS NULL) OR (state = 'deferred'::text)))`
-- `prc_process_work_execution_attempts_check`: `CHECK ((execution_attempts >= 0))`
-- `prc_process_work_generation_check`: `CHECK ((generation >= 0))`
-- `prc_process_work_infrastructure_interruptions_check`: `CHECK ((infrastructure_interruptions >= 0))`
-- `prc_process_work_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
-- `prc_process_work_input_revision_check`: `CHECK ((input_revision >= 1))`
-- `prc_process_work_input_schema_version_check`: `CHECK ((input_schema_version > 0))`
-- `prc_process_work_intent_id_fkey`: `FOREIGN KEY (intent_id) REFERENCES prc_operation_intents(id)`
-- `prc_process_work_item_failures_check`: `CHECK (((item_failures >= 0) AND (item_failures <= 3)))`
-- `prc_process_work_origin_run_id_fkey`: `FOREIGN KEY (origin_run_id) REFERENCES prc_process_runs(id)`
-- `prc_process_work_owner_check`: `CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))`
-- `prc_process_work_pkey`: `PRIMARY KEY (id)`
-- `prc_process_work_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
-- `prc_process_work_procurement_id_fkey`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
-- `prc_process_work_provider_recovery_due_check`: `CHECK ((((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text)) = (provider_recovery_due_at IS NOT NULL)))`
-- `prc_process_work_reason_check`: `CHECK (((state <> ALL (ARRAY['deferred'::text, 'blocked'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])) OR (reason_code IS NOT NULL)))`
-- `prc_process_work_running_lease_check`: `CHECK ((((state = 'running'::text) AND (owner_token IS NOT NULL) AND (lease_until IS NOT NULL)) OR ((state <> 'running'::text) AND (owner_token IS NULL) AND (lease_until IS NULL))))`
-- `prc_process_work_semantic_reasks_check`: `CHECK ((semantic_reasks >= 0))`
-- `prc_process_work_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
-- `prc_process_work_state_check`: `CHECK ((state = ANY (ARRAY['ready'::text, 'admitted'::text, 'running'::text, 'deferred'::text, 'blocked'::text, 'succeeded'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])))`
-- `prc_process_work_transition_seq_check`: `CHECK ((transition_seq >= 0))`
-- `prc_process_work_transport_attempts_check`: `CHECK ((transport_attempts >= 0))`
-- `prc_process_work_work_identity_schema_version_check`: `CHECK ((work_identity_schema_version > 0))`
-- `prc_process_work_work_key_check`: `CHECK ((octet_length(work_key) = 32))`
-- `prc_process_work_work_key_unique`: `UNIQUE (work_key)`
-
-Indexes:
-- `prc_process_work_analysis_run_idx`: `CREATE INDEX prc_process_work_analysis_run_idx ON public.prc_process_work USING btree (analysis_run_id) WHERE (analysis_run_id IS NOT NULL)`
-- `prc_process_work_analysis_window_idx`: `CREATE INDEX prc_process_work_analysis_window_idx ON public.prc_process_work USING btree (analysis_window_id) WHERE (analysis_window_id IS NOT NULL)`
-- `prc_process_work_claim_idx`: `CREATE INDEX prc_process_work_claim_idx ON public.prc_process_work USING btree (dispatch_claim_until, id) WHERE (state = 'admitted'::text)`
-- `prc_process_work_crawl_block_idx`: `CREATE INDEX prc_process_work_crawl_block_idx ON public.prc_process_work USING btree (crawl_block_id) WHERE (crawl_block_id IS NOT NULL)`
-- `prc_process_work_document_idx`: `CREATE INDEX prc_process_work_document_idx ON public.prc_process_work USING btree (document_id) WHERE (document_id IS NOT NULL)`
-- `prc_process_work_document_version_idx`: `CREATE INDEX prc_process_work_document_version_idx ON public.prc_process_work USING btree (document_version_id) WHERE (document_version_id IS NOT NULL)`
-- `prc_process_work_due_idx`: `CREATE INDEX prc_process_work_due_idx ON public.prc_process_work USING btree (due_at, priority, id) WHERE (state = ANY (ARRAY['ready'::text, 'deferred'::text]))`
-- `prc_process_work_fairness_idx`: `CREATE INDEX prc_process_work_fairness_idx ON public.prc_process_work USING btree (stage, cohort_key, created_at, id) WHERE (state = ANY (ARRAY['ready'::text, 'deferred'::text]))`
-- `prc_process_work_lease_idx`: `CREATE INDEX prc_process_work_lease_idx ON public.prc_process_work USING btree (lease_until, id) WHERE (state = 'running'::text)`
-- `prc_process_work_pkey`: `CREATE UNIQUE INDEX prc_process_work_pkey ON public.prc_process_work USING btree (id)`
-- `prc_process_work_procurement_idx`: `CREATE INDEX prc_process_work_procurement_idx ON public.prc_process_work USING btree (procurement_id) WHERE (procurement_id IS NOT NULL)`
-- `prc_process_work_provider_recovery_due_idx`: `CREATE INDEX prc_process_work_provider_recovery_due_idx ON public.prc_process_work USING btree (provider_recovery_due_at, id) WHERE ((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text))`
-- `prc_process_work_run_idx`: `CREATE INDEX prc_process_work_run_idx ON public.prc_process_work USING btree (origin_run_id, stage, state)`
-- `prc_process_work_work_key_unique`: `CREATE UNIQUE INDEX prc_process_work_work_key_unique ON public.prc_process_work USING btree (work_key)`
-
-#### prc_process_attempts
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| work_id | uuid / uuid | NO | uuid NOT NULL |
-| generation | bigint / int8 | NO | bigint NOT NULL |
-| owner_token_fingerprint | bytea / bytea | NO | bytea NOT NULL |
-| handler_version | text / text | NO | text NOT NULL |
-| fault_signature | bytea / bytea | YES | bytea |
-| fault_policy_checked_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| started_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| finished_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| last_heartbeat_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| last_checkpoint_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| terminal_kind | text / text | YES | text |
-| worker_host | text / text | NO | text NOT NULL |
-| worker_pid | integer / int4 | NO | integer NOT NULL |
-
-Constraints:
-- `prc_process_attempts_fault_signature_check`: `CHECK (((fault_signature IS NULL) OR (octet_length(fault_signature) = 32)))`
-- `prc_process_attempts_generation_check`: `CHECK ((generation >= 1))`
-- `prc_process_attempts_owner_token_fingerprint_check`: `CHECK ((octet_length(owner_token_fingerprint) = 32))`
-- `prc_process_attempts_pkey`: `PRIMARY KEY (id)`
-- `prc_process_attempts_terminal_kind_check`: `CHECK ((terminal_kind = ANY (ARRAY['succeeded'::text, 'partial'::text, 'deferred'::text, 'blocked'::text, 'failed_item'::text, 'interrupted'::text, 'cancelled'::text, 'superseded'::text, 'lost_ownership'::text])))`
-- `prc_process_attempts_work_generation_unique`: `UNIQUE (work_id, generation)`
-- `prc_process_attempts_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
-
-Indexes:
-- `prc_process_attempts_fault_idx`: `CREATE INDEX prc_process_attempts_fault_idx ON public.prc_process_attempts USING btree (handler_version, fault_signature, finished_at) WHERE (fault_signature IS NOT NULL)`
-- `prc_process_attempts_fault_policy_pending_idx`: `CREATE INDEX prc_process_attempts_fault_policy_pending_idx ON public.prc_process_attempts USING btree (finished_at, id) WHERE ((fault_signature IS NOT NULL) AND (fault_policy_checked_at IS NULL))`
-- `prc_process_attempts_pkey`: `CREATE UNIQUE INDEX prc_process_attempts_pkey ON public.prc_process_attempts USING btree (id)`
-- `prc_process_attempts_work_fault_idx`: `CREATE INDEX prc_process_attempts_work_fault_idx ON public.prc_process_attempts USING btree (work_id, handler_version) WHERE ((fault_signature IS NOT NULL) AND (finished_at IS NOT NULL))`
-- `prc_process_attempts_work_generation_unique`: `CREATE UNIQUE INDEX prc_process_attempts_work_generation_unique ON public.prc_process_attempts USING btree (work_id, generation)`
-
-#### prc_admission_groups
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | uuid / uuid | NO | uuid NOT NULL |
-| work_id | uuid / uuid | NO | uuid NOT NULL |
-| dispatch_generation | bigint / int8 | NO | bigint NOT NULL |
-| required_lane_set_hash | bytea / bytea | NO | bytea NOT NULL |
-| attempt_id | uuid / uuid | YES | uuid |
-| state | text / text | NO | text NOT NULL |
-| version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
-| admitted_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| released_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| release_reason | text / text | YES | text |
-
-Constraints:
-- `prc_admission_groups_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
-- `prc_admission_groups_dispatch_generation_check`: `CHECK ((dispatch_generation >= 1))`
-- `prc_admission_groups_pkey`: `PRIMARY KEY (id)`
-- `prc_admission_groups_required_lane_set_hash_check`: `CHECK ((octet_length(required_lane_set_hash) = 32))`
-- `prc_admission_groups_state_check`: `CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text, 'released'::text])))`
-- `prc_admission_groups_version_check`: `CHECK ((version >= 1))`
-- `prc_admission_groups_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
-
-Indexes:
-- `prc_admission_groups_active_work_unique`: `CREATE UNIQUE INDEX prc_admission_groups_active_work_unique ON public.prc_admission_groups USING btree (work_id) WHERE (state <> 'released'::text)`
-- `prc_admission_groups_pkey`: `CREATE UNIQUE INDEX prc_admission_groups_pkey ON public.prc_admission_groups USING btree (id)`
-
-#### prc_process_reservations
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| admission_group_id | uuid / uuid | NO | uuid NOT NULL |
-| lane_id | uuid / uuid | NO | uuid NOT NULL |
-| work_id | uuid / uuid | NO | uuid NOT NULL |
-| stage | text / text | NO | text NOT NULL |
-| state | text / text | NO | text NOT NULL |
-
-Constraints:
-- `prc_process_reservations_admission_group_id_fkey`: `FOREIGN KEY (admission_group_id) REFERENCES prc_admission_groups(id) ON DELETE CASCADE`
-- `prc_process_reservations_lane_id_fkey`: `FOREIGN KEY (lane_id) REFERENCES prc_process_lanes(id)`
-- `prc_process_reservations_pkey`: `PRIMARY KEY (admission_group_id, lane_id)`
-- `prc_process_reservations_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
-- `prc_process_reservations_state_check`: `CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text])))`
-- `prc_process_reservations_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
-
-Indexes:
-- `prc_process_reservations_lane_state_idx`: `CREATE INDEX prc_process_reservations_lane_state_idx ON public.prc_process_reservations USING btree (lane_id, state)`
-- `prc_process_reservations_pkey`: `CREATE UNIQUE INDEX prc_process_reservations_pkey ON public.prc_process_reservations USING btree (admission_group_id, lane_id)`
-
-#### prc_process_run_work
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| run_id | uuid / uuid | NO | uuid NOT NULL |
-| work_id | uuid / uuid | NO | uuid NOT NULL |
-| relation | text / text | NO | text NOT NULL |
-| accounting_role | text / text | NO | text NOT NULL |
-
-Constraints:
-- `prc_process_run_work_accounting_role_check`: `CHECK ((accounting_role = ANY (ARRAY['required'::text, 'observes'::text])))`
-- `prc_process_run_work_pkey`: `PRIMARY KEY (run_id, work_id)`
-- `prc_process_run_work_relation_check`: `CHECK ((relation = ANY (ARRAY['created'::text, 'discovered'::text, 'observes'::text])))`
-- `prc_process_run_work_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_process_runs(id)`
-- `prc_process_run_work_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
-
-Indexes:
-- `prc_process_run_work_pkey`: `CREATE UNIQUE INDEX prc_process_run_work_pkey ON public.prc_process_run_work USING btree (run_id, work_id)`
-
-#### prc_process_transitions
-
-Owner: Repositories/Procurement/Process; retention: journal.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| event_id | uuid / uuid | NO | uuid NOT NULL |
-| entity_kind | text / text | NO | text NOT NULL |
-| work_id | uuid / uuid | YES | uuid |
-| run_id | uuid / uuid | YES | uuid |
-| control_id | uuid / uuid | YES | uuid |
-| incident_id | uuid / uuid | YES | uuid |
-| entity_seq | bigint / int8 | NO | bigint NOT NULL |
-| previous_state | text / text | YES | text |
-| new_state | text / text | NO | text NOT NULL |
-| reason_code | text / text | YES | text |
-| actor_kind | text / text | NO | text NOT NULL |
-| actor_id | bigint / int8 | YES | bigint |
-| generation | bigint / int8 | YES | bigint |
-| details | jsonb / jsonb | YES | jsonb |
-| details_schema_version | smallint / int2 | YES | smallint |
-| occurred_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
-| schema_version | smallint / int2 | NO | smallint NOT NULL |
-
-Constraints:
-- `prc_process_transitions_actor_kind_check`: `CHECK ((actor_kind = ANY (ARRAY['system'::text, 'operator'::text, 'worker'::text, 'reconciler'::text])))`
-- `prc_process_transitions_control_id_fkey`: `FOREIGN KEY (control_id) REFERENCES prc_control_scopes(id)`
-- `prc_process_transitions_details_schema_check`: `CHECK (((details IS NULL) = (details_schema_version IS NULL)))`
-- `prc_process_transitions_details_schema_version_check`: `CHECK ((details_schema_version > 0))`
-- `prc_process_transitions_entity_check`: `CHECK (((num_nonnulls(work_id, run_id, control_id, incident_id) = 1) AND (((entity_kind = 'work'::text) AND (work_id IS NOT NULL)) OR ((entity_kind = 'run'::text) AND (run_id IS NOT NULL)) OR ((entity_kind = 'control'::text) AND (control_id IS NOT NULL)) OR ((entity_kind = 'incident'::text) AND (incident_id IS NOT NULL)))))`
-- `prc_process_transitions_entity_kind_check`: `CHECK ((entity_kind = ANY (ARRAY['work'::text, 'run'::text, 'control'::text, 'incident'::text])))`
-- `prc_process_transitions_entity_seq_check`: `CHECK ((entity_seq >= 1))`
-- `prc_process_transitions_incident_id_fkey`: `FOREIGN KEY (incident_id) REFERENCES prc_process_incidents(id)`
-- `prc_process_transitions_pkey`: `PRIMARY KEY (event_id)`
-- `prc_process_transitions_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_process_runs(id)`
-- `prc_process_transitions_schema_version_check`: `CHECK ((schema_version > 0))`
-- `prc_process_transitions_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
-
-Indexes:
-- `prc_process_transitions_control_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_control_seq_unique ON public.prc_process_transitions USING btree (control_id, entity_seq) WHERE (control_id IS NOT NULL)`
-- `prc_process_transitions_incident_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_incident_seq_unique ON public.prc_process_transitions USING btree (incident_id, entity_seq) WHERE (incident_id IS NOT NULL)`
-- `prc_process_transitions_pkey`: `CREATE UNIQUE INDEX prc_process_transitions_pkey ON public.prc_process_transitions USING btree (event_id)`
-- `prc_process_transitions_run_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_run_seq_unique ON public.prc_process_transitions USING btree (run_id, entity_seq) WHERE (run_id IS NOT NULL)`
-- `prc_process_transitions_run_time_idx`: `CREATE INDEX prc_process_transitions_run_time_idx ON public.prc_process_transitions USING btree (run_id, occurred_at, event_id)`
-- `prc_process_transitions_work_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_work_seq_unique ON public.prc_process_transitions USING btree (work_id, entity_seq) WHERE (work_id IS NOT NULL)`
-- `prc_process_transitions_work_time_idx`: `CREATE INDEX prc_process_transitions_work_time_idx ON public.prc_process_transitions USING btree (work_id, occurred_at, event_id)`
-
-#### prc_process_outbox
-
-Owner: Repositories/Procurement/Process; retention: authority.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| message_id | uuid / uuid | NO | uuid NOT NULL |
-| dedup_key | text / text | NO | text NOT NULL |
-| kind | text / text | NO | text NOT NULL |
-| payload | jsonb / jsonb | NO | jsonb NOT NULL |
-| payload_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| available_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| claim_token | uuid / uuid | YES | uuid |
-| claim_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| published_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| attempts | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| last_error_code | text / text | YES | text |
-
-Constraints:
-- `prc_process_outbox_attempts_check`: `CHECK ((attempts >= 0))`
-- `prc_process_outbox_dedup_key_unique`: `UNIQUE (dedup_key)`
-- `prc_process_outbox_kind_check`: `CHECK ((kind = ANY (ARRAY['work_wake'::text, 'feeder_wake'::text, 'projection'::text])))`
-- `prc_process_outbox_payload_schema_version_check`: `CHECK ((payload_schema_version > 0))`
-- `prc_process_outbox_pkey`: `PRIMARY KEY (message_id)`
-
-Indexes:
-- `prc_process_outbox_dedup_key_unique`: `CREATE UNIQUE INDEX prc_process_outbox_dedup_key_unique ON public.prc_process_outbox USING btree (dedup_key)`
-- `prc_process_outbox_pending_idx`: `CREATE INDEX prc_process_outbox_pending_idx ON public.prc_process_outbox USING btree (kind, available_at, message_id) WHERE (published_at IS NULL)`
-- `prc_process_outbox_pkey`: `CREATE UNIQUE INDEX prc_process_outbox_pkey ON public.prc_process_outbox USING btree (message_id)`
-
-#### prc_process_daemon_heartbeats
-
-Owner: Repositories/Procurement/Process; retention: technical.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| instance_id | uuid / uuid | NO | uuid NOT NULL |
-| daemon | text / text | NO | text NOT NULL |
-| host | text / text | NO | text NOT NULL |
-| pid | integer / int4 | NO | integer NOT NULL |
-| started_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| last_tick_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| last_error_code | text / text | YES | text |
-
-Constraints:
-- `prc_process_daemon_heartbeats_daemon_check`: `CHECK ((daemon = ANY (ARRAY['relay'::text, 'reconcile'::text, 'feed'::text, 'project'::text])))`
-- `prc_process_daemon_heartbeats_pkey`: `PRIMARY KEY (instance_id)`
-
-Indexes:
-- `prc_process_daemon_heartbeats_pkey`: `CREATE UNIQUE INDEX prc_process_daemon_heartbeats_pkey ON public.prc_process_daemon_heartbeats USING btree (instance_id)`
-
-#### prc_request_attempts
-
-Owner: Repositories/Procurement/Network; retention: requests.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| request_id | uuid / uuid | NO | uuid NOT NULL |
-| attempt_id | uuid / uuid | NO | uuid NOT NULL |
-| request_seq | bigint / int8 | NO | bigint NOT NULL |
-| target_id | uuid / uuid | YES | uuid |
-| route_id | uuid / uuid | YES | uuid |
-| started_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| sent_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| finished_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| phase | text / text | NO | text NOT NULL |
-| outcome | text / text | YES | text |
-| bytes | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
-| status | smallint / int2 | YES | smallint |
-| duration_ms | bigint / int8 | YES | bigint |
-| epochs | jsonb / jsonb | NO | jsonb NOT NULL |
-| epochs_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| artifacts | jsonb / jsonb | YES | jsonb |
-| artifacts_schema_version | smallint / int2 | YES | smallint |
-
-Constraints:
-- `prc_request_attempts_artifacts_schema_check`: `CHECK (((artifacts IS NULL) = (artifacts_schema_version IS NULL)))`
-- `prc_request_attempts_artifacts_schema_version_check`: `CHECK ((artifacts_schema_version > 0))`
-- `prc_request_attempts_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
-- `prc_request_attempts_attempt_seq_unique`: `UNIQUE (attempt_id, request_seq)`
-- `prc_request_attempts_bytes_check`: `CHECK ((bytes >= 0))`
-- `prc_request_attempts_duration_ms_check`: `CHECK ((duration_ms >= 0))`
-- `prc_request_attempts_epochs_schema_version_check`: `CHECK ((epochs_schema_version > 0))`
-- `prc_request_attempts_pkey`: `PRIMARY KEY (request_id)`
-- `prc_request_attempts_request_seq_check`: `CHECK ((request_seq >= 1))`
-
-Indexes:
-- `prc_request_attempts_attempt_seq_unique`: `CREATE UNIQUE INDEX prc_request_attempts_attempt_seq_unique ON public.prc_request_attempts USING btree (attempt_id, request_seq)`
-- `prc_request_attempts_pkey`: `CREATE UNIQUE INDEX prc_request_attempts_pkey ON public.prc_request_attempts USING btree (request_id)`
-
-#### prc_observations
-
-Owner: Repositories/Procurement/Network; retention: requests.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| observation_id | uuid / uuid | NO | uuid NOT NULL |
-| request_id | uuid / uuid | YES | uuid |
-| attempt_id | uuid / uuid | YES | uuid |
-| kind | text / text | NO | text NOT NULL |
-| reason_code | text / text | NO | text NOT NULL |
-| input_hash | bytea / bytea | NO | bytea NOT NULL |
-| generation | bigint / int8 | NO | bigint NOT NULL |
-| epochs | jsonb / jsonb | NO | jsonb NOT NULL |
-| epochs_schema_version | smallint / int2 | NO | smallint NOT NULL |
-| stale | boolean / bool | NO | boolean DEFAULT false NOT NULL |
-| details | jsonb / jsonb | YES | jsonb |
-| details_schema_version | smallint / int2 | YES | smallint |
-| occurred_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-
-Constraints:
-- `prc_observations_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
-- `prc_observations_details_schema_check`: `CHECK (((details IS NULL) = (details_schema_version IS NULL)))`
-- `prc_observations_details_schema_version_check`: `CHECK ((details_schema_version > 0))`
-- `prc_observations_epochs_schema_version_check`: `CHECK ((epochs_schema_version > 0))`
-- `prc_observations_generation_check`: `CHECK ((generation >= 0))`
-- `prc_observations_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
-- `prc_observations_pkey`: `PRIMARY KEY (observation_id)`
-- `prc_observations_request_id_fkey`: `FOREIGN KEY (request_id) REFERENCES prc_request_attempts(request_id)`
-
-Indexes:
-- `prc_observations_pkey`: `CREATE UNIQUE INDEX prc_observations_pkey ON public.prc_observations USING btree (observation_id)`
-
-#### prc_observation_applications
-
-Owner: Repositories/Procurement/Network; retention: requests.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| observation_id | uuid / uuid | NO | uuid NOT NULL |
-| projection_key | text / text | NO | text NOT NULL |
-| reducer_version | bigint / int8 | NO | bigint NOT NULL |
-| applied_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-
-Constraints:
-- `prc_observation_applications_observation_id_fkey`: `FOREIGN KEY (observation_id) REFERENCES prc_observations(observation_id)`
-- `prc_observation_applications_pkey`: `PRIMARY KEY (observation_id, projection_key)`
-- `prc_observation_applications_reducer_version_check`: `CHECK ((reducer_version >= 1))`
-
-Indexes:
-- `prc_observation_applications_pkey`: `CREATE UNIQUE INDEX prc_observation_applications_pkey ON public.prc_observation_applications USING btree (observation_id, projection_key)`
-
-#### prc_process_projection_states
-
-Owner: Repositories/Procurement/Process; retention: projection.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| projector_key | text / text | NO | text NOT NULL |
-| mode | text / text | NO | text NOT NULL |
-| active_generation | bigint / int8 | NO | bigint NOT NULL |
-| catalog_hash | bytea / bytea | NO | bytea NOT NULL |
-| history_complete | boolean / bool | NO | boolean DEFAULT true NOT NULL |
-| history_pruned_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| maintenance_token | uuid / uuid | YES | uuid |
-| maintenance_started_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| rebuilt_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-
-Constraints:
-- `prc_process_projection_states_active_generation_check`: `CHECK ((active_generation > 0))`
-- `prc_process_projection_states_catalog_hash_check`: `CHECK ((octet_length(catalog_hash) = 32))`
-- `prc_process_projection_states_history_check`: `CHECK ((history_complete = (history_pruned_at IS NULL)))`
-- `prc_process_projection_states_maintenance_started_check`: `CHECK (((mode = 'maintenance'::text) = (maintenance_started_at IS NOT NULL)))`
-- `prc_process_projection_states_maintenance_token_check`: `CHECK (((mode = 'maintenance'::text) = (maintenance_token IS NOT NULL)))`
-- `prc_process_projection_states_mode_check`: `CHECK ((mode = ANY (ARRAY['active'::text, 'maintenance'::text])))`
-- `prc_process_projection_states_pkey`: `PRIMARY KEY (projector_key)`
-
-Indexes:
-- `prc_process_projection_states_pkey`: `CREATE UNIQUE INDEX prc_process_projection_states_pkey ON public.prc_process_projection_states USING btree (projector_key)`
-
-#### prc_process_projection_receipts
-
-Owner: Repositories/Procurement/Process; retention: projection.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| projector_key | text / text | NO | text NOT NULL |
-| event_id | uuid / uuid | NO | uuid NOT NULL |
-| applied_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-
-Constraints:
-- `prc_process_projection_receipts_event_id_fkey`: `FOREIGN KEY (event_id) REFERENCES prc_process_transitions(event_id) ON DELETE RESTRICT`
-- `prc_process_projection_receipts_pkey`: `PRIMARY KEY (projector_key, event_id)`
-- `prc_process_projection_receipts_projector_key_fkey`: `FOREIGN KEY (projector_key) REFERENCES prc_process_projection_states(projector_key)`
-
-Indexes:
-- `prc_process_projection_receipts_event_idx`: `CREATE INDEX prc_process_projection_receipts_event_idx ON public.prc_process_projection_receipts USING btree (event_id)`
-- `prc_process_projection_receipts_pkey`: `CREATE UNIQUE INDEX prc_process_projection_receipts_pkey ON public.prc_process_projection_receipts USING btree (projector_key, event_id)`
-
-#### prc_process_metric_totals
-
-Owner: Repositories/Procurement/Process; retention: projection.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| projector_key | text / text | NO | text NOT NULL |
-| generation | bigint / int8 | NO | bigint NOT NULL |
-| metric_key | text / text | NO | text NOT NULL |
-| dimension_key | text / text | NO | text NOT NULL |
-| value | bigint / int8 | NO | bigint NOT NULL |
-| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-
-Constraints:
-- `prc_process_metric_totals_generation_check`: `CHECK ((generation > 0))`
-- `prc_process_metric_totals_pkey`: `PRIMARY KEY (projector_key, generation, metric_key, dimension_key)`
-- `prc_process_metric_totals_projector_key_fkey`: `FOREIGN KEY (projector_key) REFERENCES prc_process_projection_states(projector_key)`
-- `prc_process_metric_totals_value_check`: `CHECK ((value >= 0))`
-
-Indexes:
-- `prc_process_metric_totals_pkey`: `CREATE UNIQUE INDEX prc_process_metric_totals_pkey ON public.prc_process_metric_totals USING btree (projector_key, generation, metric_key, dimension_key)`
 
 <!-- schema-inventory:end -->
 

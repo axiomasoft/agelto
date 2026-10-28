@@ -31,7 +31,8 @@ function alignedDomainLayoutLayers(): array
                 'ProcurementStatus', 'ProtocolType', 'OperationLogLevel', 'StatusMappingApplicability',
                 'DetailSnapshotStatus',
             ],
-            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Process', 'Proxy'],
+            // P2.1: подобласть `Network` — typed network authority/transport enums (structure#s01).
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Network', 'Process', 'Proxy'],
         ],
         // P3.3, Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
         // `InvalidEvalDiffPayload` обслуживает корневой estimate CLI-контур, а не отдельную подобласть.
@@ -40,21 +41,25 @@ function alignedDomainLayoutLayers(): array
         // P1.8: Process — typed control exits handler (LeaseLost/SliceExhausted/DependencyUnavailable).
         'App\Exceptions\Procurement' => [
             'root' => ['OperationFailed', 'UnknownReportFormat', 'InvalidEvalDiffPayload'],
-            'subareas' => ['Ai', 'Crawler', 'Health', 'Prepare', 'Process', 'Proxy'],
+            // P2.1: Network — typed outbound control exits, без переключения legacy callers.
+            'subareas' => ['Ai', 'Crawler', 'Health', 'Network', 'Prepare', 'Process', 'Proxy'],
         ],
         // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [
             'root' => ['ProcurementDetails', 'ProcurementSnapshotData', 'StatusResolution'],
-            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Health', 'History', 'Prepare', 'Process', 'Proxy'],
+            // P2.1: `Network` — outbound plan/result/owner DTO; `Platform` — нейтральные части Definition
+            // (RequestProfile, CanonicalOrigin, SourceTargetDefinitions) без кода конкретной площадки.
+            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Health', 'History', 'Network', 'Platform', 'Prepare', 'Process', 'Proxy'],
         ],
         // P3.3, Completion Notes: три ядровых репозитория закупки остаются в корне.
         // P2.1 (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
         // (`Okpd2NodeReadRepository`) — зеркалит уже существующую подобласть `App\Models\Procurement\Platform`.
         // Crawler: RunStoreRepository зеркалит существующую Models\Procurement\Crawler.
         // P1.6: подобласть `Process` — writers Process ledger (structure#s01).
+        // P2.1: подобласть `Network` — единственный writer network authority rows.
         'App\Repositories\Procurement' => [
             'root' => ['ProcurementDetailStoreRepository', 'ProcurementReadRepository', 'ProcurementStoreRepository'],
-            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Health', 'History', 'Platform', 'Process', 'Proxy'],
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Health', 'History', 'Network', 'Platform', 'Process', 'Proxy'],
         ],
     ];
 }

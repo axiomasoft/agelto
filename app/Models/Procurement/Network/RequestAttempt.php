@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Один фактический внешний send внутри work attempt (execution#s01). Writer и route/target FK
- * добавляет P2.1–P2.6; до этого carrier существует без активного writer.
+ * Один фактический внешний send внутри work attempt (execution#s01). Route/target FK на реальные
+ * network rows установлены P2.1; writer активирует P2.2–P2.6, до этого carrier без writer.
  *
  * @property string $request_id
- * @property string $attempt_id
+ * @property string|null $attempt_id
+ * @property string|null $demand_id
  * @property int $request_seq
  * @property string|null $target_id
  * @property string|null $route_id
@@ -31,7 +32,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $epochs_schema_version
  * @property array<string, mixed>|null $artifacts
  * @property int|null $artifacts_schema_version
- * @property-read WorkAttempt $attempt
+ * @property-read WorkAttempt|null $attempt
  */
 #[Table(name: 'prc_request_attempts', key: 'request_id', keyType: 'string', incrementing: false, timestamps: false)]
 final class RequestAttempt extends Model

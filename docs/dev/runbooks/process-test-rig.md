@@ -50,7 +50,18 @@ PostgreSQL rig — ledger/authority, admission/claim/controls, lease/checkpoint/
 порядках, cancel/new head, lost checkpoint CAS и handler fault budget. Revocation — fixture под тем
 же full prefix; настоящий RecoveryReconciler и полные recovery races добавляют P1.11/P1.12.
 
-`core-test-observability`, `core-test-network`, `core-test-platforms`,
+`make core-test-network` с P2.1 запускает INITIAL machinery subset после guarded clean reset:
+`tests/Feature/ProcessCore/Network` и отдельный
+`tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php`. На реальном PostgreSQL
+проверяются typed contracts, owner all-or-none/FK/CHECK, bounded bridge cleanup и T45:
+идемпотентный sync, общий canonical origin aliases, сохранение overrides/rate debt/health epoch,
+version fence, retirement tombstone и config-only registry без DB/HTTP I/O. Конкурентный T45
+использует отдельные PHP processes/PG connections. Raw fixture demands/permits проверяют DDL,
+но не являются работающим actual-send gate. Transport, permit scheduling, health reducers и
+переключение старых consumers здесь не объявляются проверенными; их добавляют owning P2.2–P2.7.
+JUnit/evidence capture отвергает пустую выборку, skips и отсутствие assertions.
+
+`core-test-observability`, `core-test-platforms`,
 `core-test-acquisition`, `core-test-documents`, `core-test-ai`,
 `core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
 с exit 78 и JSON `suite_not_implemented`. Их реализуют owning P1/P2/P3 packages. Это не green skip.

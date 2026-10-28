@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * P1.6: durable факты фактических внешних запросов attempt и их observations
- * (execution#s04). Writer/readers и FK target/route на `prc_source_targets`/`prc_network_routes`
- * добавляет P2.1–P2.6 в этот же файл; до этого колонки без FK, а не placeholder таблицы.
+ * (execution#s04). P2.1 добавил FK target/route на реальные `prc_source_targets`/`prc_network_routes`
+ * (их создаёт предыдущая по порядку network migration); writer/readers активирует P2.2–P2.6.
  * `prc_observation_applications` — dedup записи reducer в одной tx с projection.
  */
 return new class extends Migration
@@ -34,10 +34,11 @@ return new class extends Migration
             <<<'SQL'
             CREATE TABLE prc_request_attempts (
               request_id uuid PRIMARY KEY,
-              attempt_id uuid NOT NULL REFERENCES prc_process_attempts(id),
+              attempt_id uuid NULL REFERENCES prc_process_attempts(id),
+              demand_id uuid NULL UNIQUE REFERENCES prc_network_demands(id),
               request_seq bigint NOT NULL CHECK (request_seq >= 1),
-              target_id uuid NULL,
-              route_id uuid NULL,
+              target_id uuid NULL REFERENCES prc_source_targets(id),
+              route_id uuid NULL REFERENCES prc_network_routes(id),
               started_at timestamptz NOT NULL,
               sent_at timestamptz NULL,
               finished_at timestamptz NULL,
@@ -50,6 +51,7 @@ return new class extends Migration
               epochs_schema_version smallint NOT NULL,
               artifacts jsonb NULL,
               artifacts_schema_version smallint NULL,
+              CHECK ((attempt_id IS NOT NULL) <> (demand_id IS NOT NULL)),
               CONSTRAINT prc_request_attempts_attempt_seq_unique UNIQUE (attempt_id, request_seq),
               CONSTRAINT prc_request_attempts_artifacts_schema_check CHECK ((artifacts IS NULL) = (artifacts_schema_version IS NULL)),
               CHECK (epochs_schema_version > 0),

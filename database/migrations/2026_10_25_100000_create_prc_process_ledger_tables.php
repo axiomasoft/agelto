@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\DB;
  * owners prepare/screening/extraction/publication и их FK добавляют P3.1/P3.8 в этот же файл.
  * Время только `timestamptz`; lease/due решения принимаются по `clock_timestamp()`. Nullable
  * JSON/version pairs и положительные schema_version закрыты CHECK (общее правило inventory).
+ * P2.1: `prc_attempt_work_pair` — цель составного FK network demand (attempt_id, work_id),
+ * поэтому demand не может сослаться на attempt чужой work.
  */
 return new class extends Migration
 {
@@ -279,7 +281,8 @@ return new class extends Migration
               terminal_kind text NULL CHECK (terminal_kind IN ('succeeded','partial','deferred','blocked','failed_item','interrupted','cancelled','superseded','lost_ownership')),
               worker_host text NOT NULL,
               worker_pid integer NOT NULL,
-              CONSTRAINT prc_process_attempts_work_generation_unique UNIQUE (work_id, generation)
+              CONSTRAINT prc_process_attempts_work_generation_unique UNIQUE (work_id, generation),
+              CONSTRAINT prc_attempt_work_pair UNIQUE (id, work_id)
             )
             SQL,
             'CREATE INDEX prc_process_attempts_fault_idx ON prc_process_attempts (handler_version, fault_signature, finished_at) WHERE fault_signature IS NOT NULL',

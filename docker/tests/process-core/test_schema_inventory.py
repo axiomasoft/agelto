@@ -132,11 +132,11 @@ class SchemaInventoryTest(unittest.TestCase):
                 self.assertRejected(error, actual=actual)
 
     def test_complete_inventory_and_full_document_pass(self):
-        # P1.15: P1.6 baseline plus projection state, totals and receipt tables.
-        self.assertEqual(self.inventory["current_item"], "P1.15")
-        self.assertEqual(len(self.inventory["migrations"]), 84)
-        self.assertEqual(len(self.inventory["baseline"]["tables"]), 97)
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1199)
+        # P2.1: additive network owners/catalog/health/demand/permit baseline; legacy stays active.
+        self.assertEqual(self.inventory["current_item"], "P2.1")
+        self.assertEqual(len(self.inventory["migrations"]), 85)
+        self.assertEqual(len(self.inventory["baseline"]["tables"]), 111)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1340)
         self.assertEqual(self.violations(document=(ROOT / "docs/dev/process-schema.md").read_text()), [])
         self.assertEqual(self.violations(actual=self.baseline_actual()), [])
 
@@ -151,8 +151,8 @@ class SchemaInventoryTest(unittest.TestCase):
         del self.inventory["baseline"]["tables"]["prc_process_work"]
         self.assertRejected("created carrier missing from installed baseline: prc_process_work")
         self.inventory = copy.deepcopy(self.original)
-        self.inventory["baseline"]["tables"]["prc_network_demands"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
-        self.assertRejected("future carrier activated in P1.15 baseline: prc_network_demands")
+        self.inventory["baseline"]["tables"]["prc_analysis_windows"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
+        self.assertRejected("future carrier activated in P2.1 baseline: prc_analysis_windows")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["current_item"] = "P1.1"
         self.assertRejected("future carrier activated in P1.1 baseline: prc_process_work")
@@ -275,7 +275,7 @@ class SchemaInventoryTest(unittest.TestCase):
         actual["catalog"]["indexes"].pop()
         self.assertRejected("real index inventory differs", actual=actual)
         actual = self.baseline_actual()
-        actual["schema"] += "\nCREATE TABLE public.prc_network_demands (\n id uuid NOT NULL\n);"
+        actual["schema"] += "\nCREATE TABLE public.prc_unexpected_catalog_fixture (\n id uuid NOT NULL\n);"
         self.assertRejected("real catalog root table set differs", actual=actual)
 
     def test_exact_ddl_precision_and_nullability_drift_fail(self):
