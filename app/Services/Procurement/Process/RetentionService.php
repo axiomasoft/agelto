@@ -8,6 +8,7 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\PruneResult;
 use App\Repositories\Procurement\Process\LedgerRow;
 use DateTimeImmutable;
+use DateTimeZone;
 
 /**
  * Политика выбора устаревших transition events (observability#s07); удаляет только
@@ -27,6 +28,8 @@ final readonly class RetentionService
     public function candidates(DateTimeImmutable $now, ?int $limit = null): array
     {
         $limit ??= $this->projection->pruneBatch;
+        // Срок — ровно N суток по 24 ч от момента now (UTC), а не календарные месяцы и не wall-clock зоны с DST.
+        $now = $now->setTimezone(new DateTimeZone('UTC'));
         $cutoff = $now->modify('-'.$this->policy->transitionDays.' days')->format('Y-m-d H:i:sP');
         $auditCutoff = $now->modify('-'.$this->policy->auditDays.' days')->format('Y-m-d H:i:sP');
         $terminalWork = self::TERMINAL_WORK;

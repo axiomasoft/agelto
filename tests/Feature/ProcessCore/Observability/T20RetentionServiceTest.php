@@ -120,3 +120,87 @@ test('T20 retention: prune удаляет только подтверждённ�
         expect(fn () => new RetentionPolicy(config()))->toThrow(InvalidArgumentException::class);
     }
 });
+
+function setEventTime(ProcessUuid $event, string $utc): void
+{
+    DB::table('prc_process_transitions')->where('event_id', $event->value)->update(['occurred_at' => $utc.'+00']);
+}
+
+/** @return list<string> */
+function candidateIdsAt(DateTimeImmutable $now): array
+{
+    return array_map(static fn (ProcessUuid $id): string => $id->value, app(RetentionService::class)->candidates($now));
+}
+
+test('T20 month boundary: срок — ровно 365 суток; граница строгая, високосный год и конец месяца не сдвигают её', function (): void {
+    $work = cancelledWork();
+    $before = Fixture::transition($work, 'ready');
+    $atCutoff = Fixture::transition($work, 'ready');
+    // Хвост сущности — максимальный entity_seq, поэтому делаем его последним.
+    $last = Fixture::transition($work, 'cancelled', 'cancelled', 'ready');
+    setEventTime($last, '2000-01-01 00:00:00');
+
+    // Не високосный интервал: 2027-03-01 − 365 суток = 2026-03-01.
+    setEventTime($before, '2026-02-28 23:59:59');
+    setEventTime($atCutoff, '2026-03-01 00:00:00');
+    expect(candidateIdsAt(new DateTimeImmutable('2027-03-01 00:00:00', new DateTimeZone('UTC'))))
+        ->toContain($before->value)->not->toContain($atCutoff->value);
+
+    // Через 29 февраля 2028: 2028-03-01 − 365 суток = 2027-03-02 (календарный «минус год» дал бы 2027-03-01).
+    setEventTime($before, '2027-03-01 23:59:59');
+    setEventTime($atCutoff, '2027-03-02 00:00:00');
+    expect(candidateIdsAt(new DateTimeImmutable('2028-03-01 00:00:00', new DateTimeZone('UTC'))))
+        ->toContain($before->value)->not->toContain($atCutoff->value);
+
+    // Конец месяца и граница года: 2027-12-31 − 365 суток = 2026-12-31.
+    setEventTime($before, '2026-12-30 23:59:59');
+    setEventTime($atCutoff, '2026-12-31 00:00:00');
+    expect(candidateIdsAt(new DateTimeImmutable('2027-12-31 00:00:00', new DateTimeZone('UTC'))))
+        ->toContain($before->value)->not->toContain($atCutoff->value);
+});
+
+test('T20 month boundary: тот же момент в другой зоне, в том числе с DST, даёт тот же cutoff', function (): void {
+    $work = cancelledWork();
+    $old = Fixture::transition($work, 'ready');
+    Fixture::transition($work, 'cancelled', 'cancelled', 'ready');
+    // now = 2027-03-14 06:30 UTC — 01:30 EST в Нью-Йорке за 30 минут до перехода на DST; ровно 365 суток
+    // назад — 2026-03-14 06:30 UTC. Wall-clock арифметика в зоне с DST сдвинула бы cutoff на час.
+    $instant = '2027-03-14 06:30:00';
+    setEventTime($old, '2026-03-14 06:29:59');
+
+    foreach (['UTC', 'Europe/Moscow', 'America/New_York', 'Pacific/Auckland'] as $zone) {
+        $now = (new DateTimeImmutable($instant, new DateTimeZone('UTC')))->setTimezone(new DateTimeZone($zone));
+        expect(candidateIdsAt($now))->toBe([$old->value], $zone);
+    }
+
+    setEventTime($old, '2026-03-14 06:30:00');
+    foreach (['UTC', 'America/New_York', 'Pacific/Auckland'] as $zone) {
+        $now = (new DateTimeImmutable($instant, new DateTimeZone('UTC')))->setTimezone(new DateTimeZone($zone));
+        expect(candidateIdsAt($now))->toBe([], $zone);
+    }
+});
+
+test('T20 process:prune-history: --dry-run ничего не удаляет; реальный запуск удаляет только подтверждённое и сообщает полноту истории', function (): void {
+    $work = cancelledWork();
+    $old = Fixture::transition($work, 'ready');
+    Fixture::transition($work, 'cancelled', 'cancelled', 'ready');
+    ageEvent($old, 400);
+    app(MetricProjector::class)->ensureStates();
+    app(MetricProjector::class)->apply($old);
+    DB::table('prc_process_outbox')->where('dedup_key', 'project:'.$old->value)->update(['published_at' => DB::raw('clock_timestamp()')]);
+
+    $this->artisan('process:prune-history', ['--dry-run' => true])
+        ->expectsOutputToContain('Кандидатов в этом batch: 1.')
+        ->expectsOutputToContain('История всех projectors полна')
+        ->assertSuccessful();
+    expect(DB::table('prc_process_transitions')->where('event_id', $old->value)->exists())->toBeTrue();
+
+    // Архив не лжёт о полноте: после prune команда явно говорит, что rebuild больше недоступен.
+    $this->artisan('process:prune-history')
+        ->expectsOutputToContain('Удалено 1, оставлено до подтверждения projections 0.')
+        ->expectsOutputToContain('История неполна, rebuild недоступен (history_unavailable): work_transitions')
+        ->assertSuccessful();
+    expect(DB::table('prc_process_transitions')->where('event_id', $old->value)->exists())->toBeFalse();
+
+    $this->artisan('process:prune-history')->expectsOutputToContain('Удалено 0, оставлено до подтверждения projections 0.')->assertSuccessful();
+});

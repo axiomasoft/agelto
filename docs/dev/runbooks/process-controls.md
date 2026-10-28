@@ -121,3 +121,19 @@ required work и неполного discovery). Legacy sidebar-раздел ис
 resolved incidents, runs без нетерминального required work, старше `process.retention.transition_days`
 (минимум 365; operator audit — `audit_days`). Хвост истории каждой сущности, активные incidents и события без
 receipt/fanout не удаляются; rebuild в maintenance откладывает batch.
+
+Срок считается в сутках по 24 ч от `now` в UTC (граница строгая: событие ровно на cutoff остаётся), не в календарных
+месяцах и не по wall-clock зоны с DST. `--dry-run` и реальный запуск после каждого batch сообщают полноту истории:
+если хотя бы один projector стал `history_complete=false`, команда пишет, что rebuild недоступен
+(`history_unavailable`), — архив не выдаёт урезанную историю за полную; live totals при этом не уменьшаются.
+
+Crash evidence (T20, реальные PostgreSQL connections): SIGKILL процесса после первого `DELETE` ledger event, сбой при
+пометке `history_complete` и гонка `prune`↔`apply` откатывают batch целиком (источник, receipts и
+`history_complete` не тронуты); повтор завершает batch и затем no-op. Новый receipt, появившийся одновременно с
+удалением, оставляет событие, пока fanout не подтверждён. Eligibility кандидата вычисляется до locks по монотонным
+предикатам (терминальная work, resolved incident, закрытый discovery, не последнее transition); authority rows
+retention не трогает.
+
+Границы пункта: двухфазный GC storage-объектов (raw artifacts, `PruneCrawlerHistory`) принадлежит P3.1 — он не часть
+Process ledger. Запись `process:prune-history` в расписание (`routes/console.php`, hourly по bp-daemons) выполняется при
+cutover P3.16–P3.19: до него команда запускается оператором вручную.

@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\PruneResult;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ProjectionApplyStatus;
 use App\Enums\Procurement\Process\RebuildStatus;
 use App\Services\Procurement\Process\MetricProjector;
 use App\Services\Procurement\Process\ProjectionRebuilder;
+use App\Services\Procurement\Process\ProjectionRetention;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\ProcessCore\Observability\ProjectionFixtures as Fixture;
@@ -46,6 +48,8 @@ function projConcClean(): void
 
 function projConcDropTrigger(): void
 {
+    DB::unprepared('DROP TRIGGER IF EXISTS prc_test_prune_trigger ON prc_process_projection_states');
+    DB::unprepared('DROP FUNCTION IF EXISTS prc_test_prune_trigger()');
     DB::unprepared('DROP TRIGGER IF EXISTS prc_test_projection_trigger ON prc_process_metric_totals');
     DB::unprepared('DROP FUNCTION IF EXISTS prc_test_projection_trigger()');
 }
@@ -725,5 +729,95 @@ test('cleanup неактивных generation ждёт идущий apply под
         ->and(DB::table('prc_process_metric_totals')->where('projector_key', 'work_transitions')->where('generation', 1)->count())->toBe(0)
         ->and(Fixture::generation('work_transitions'))->toBe(2)
         ->and(Fixture::total('work_transitions', 'work_transition_total', Fixture::workDimension('listing', 'superseded')))->toBe(1)
+        ->and(Fixture::total('work_transitions', 'work_transition_total', Fixture::workDimension('listing', 'succeeded')))->toBe(1);
+});
+
+/** Prune двух событий в отдельном процессе; first DELETE ledger event уже выполнен, когда listener убивает процесс. */
+function projConcKillDuringPruneCode(string $marker, ProcessUuid $first, ProcessUuid $second): string
+{
+    return str_replace('__KILL__', projConcSelfKill($marker, 'during-prune'), <<<'PHP'
+        \Illuminate\Support\Facades\DB::listen(static function ($query): void {
+            if (str_starts_with($query->sql, 'DELETE FROM prc_process_transitions')) {
+                __KILL__
+            }
+        });
+        PHP)." \$result = app(\\App\\Services\\Procurement\\Process\\ProjectionRetention::class)->prune([new \\App\\Dto\\Procurement\\Process\\ProcessUuid('{$first->value}'), new \\App\\Dto\\Procurement\\Process\\ProcessUuid('{$second->value}')]); return ['pruned' => \$result->pruned];";
+}
+
+/** @return array{first: ProcessUuid, second: ProcessUuid} события с receipt и подтверждённым fanout, готовые к prune */
+function projConcPrunable(): array
+{
+    $scenario = projConcScenario();
+    foreach ([$scenario['running'], $scenario['succeeded']] as $event) {
+        app(MetricProjector::class)->apply($event);
+        projConcPublishFanout($event);
+    }
+
+    return ['first' => $scenario['running'], 'second' => $scenario['succeeded']];
+}
+
+test('retention: SIGKILL после первого DELETE ledger event откатывает весь batch; история полна; повтор prune завершает, затем no-op', function (): void {
+    $events = projConcPrunable();
+    $marker = (string) tempnam(sys_get_temp_dir(), 'p118-kill-');
+
+    try {
+        expect(fn () => ConcurrentTransactions::execute(projConcKillDuringPruneCode($marker, $events['first'], $events['second'])))
+            ->toThrow(RuntimeException::class, 'PostgreSQL worker failed');
+        $phase = (string) file_get_contents($marker);
+    } finally {
+        @unlink($marker);
+    }
+
+    // finally процесса не выполнился; PostgreSQL откатил tx при потере соединения: ничего не удалено, history_complete не тронут.
+    expect($phase)->toBe('during-prune')
+        ->and(DB::table('prc_process_transitions')->whereIn('event_id', [$events['first']->value, $events['second']->value])->count())->toBe(2)
+        ->and(DB::table('prc_process_projection_receipts')->whereIn('event_id', [$events['first']->value, $events['second']->value])->count())->toBe(2)
+        ->and((bool) projConcState()->history_complete)->toBeTrue()
+        ->and(projConcState()->history_pruned_at)->toBeNull()
+        ->and(projConcState()->mode)->toBe('active');
+
+    $retry = app(ProjectionRetention::class)->prune([$events['first'], $events['second']]);
+    expect([$retry->pruned, $retry->ineligible])->toBe([2, 0])
+        ->and(DB::table('prc_process_transitions')->whereIn('event_id', [$events['first']->value, $events['second']->value])->count())->toBe(0)
+        ->and((bool) projConcState()->history_complete)->toBeFalse()
+        // Live totals не уменьшились; replay уже удалённого события безопасен.
+        ->and(Fixture::total('work_transitions', 'work_transition_total', Fixture::workDimension('listing', 'succeeded')))->toBe(1)
+        ->and(app(ProjectionRetention::class)->prune([$events['first'], $events['second']]))->toEqual(new PruneResult(0, 0, false));
+});
+
+test('retention: сбой при пометке history_complete откатывает удаления целиком; повтор после устранения проходит', function (): void {
+    $events = projConcPrunable();
+    DB::unprepared("CREATE FUNCTION prc_test_prune_trigger() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'injected crash before history mark'; END \$\$");
+    DB::unprepared('CREATE TRIGGER prc_test_prune_trigger BEFORE UPDATE ON prc_process_projection_states FOR EACH ROW EXECUTE FUNCTION prc_test_prune_trigger()');
+
+    try {
+        expect(fn () => app(ProjectionRetention::class)->prune([$events['first'], $events['second']]))->toThrow(QueryException::class);
+    } finally {
+        projConcDropTrigger();
+    }
+
+    expect(DB::table('prc_process_transitions')->whereIn('event_id', [$events['first']->value, $events['second']->value])->count())->toBe(2)
+        ->and(DB::table('prc_process_projection_receipts')->whereIn('event_id', [$events['first']->value, $events['second']->value])->count())->toBe(2)
+        ->and((bool) projConcState()->history_complete)->toBeTrue();
+
+    expect(app(ProjectionRetention::class)->prune([$events['first'], $events['second']])->pruned)->toBe(2)
+        ->and((bool) projConcState()->history_complete)->toBeFalse();
+});
+
+test('retention: apply события держит state FOR SHARE, prune ждёт и после появления receipt видит неподтверждённый fanout — источник остаётся', function (): void {
+    $scenario = projConcScenario();
+    $prune = "\$result = app(\\App\\Services\\Procurement\\Process\\ProjectionRetention::class)->prune([new \\App\\Dto\\Procurement\\Process\\ProcessUuid('{$scenario['succeeded']->value}')]); return ['pruned' => \$result->pruned, 'ineligible' => \$result->ineligible];";
+
+    // Новая «ссылка» (receipt) появляется одновременно с удалением; fanout ещё не подтверждён relay/projector.
+    $results = ConcurrentTransactions::concurrently([
+        'apply' => projConcHold(projConcApplyCode($scenario['succeeded'])),
+        'prune' => projConcAfter($prune),
+    ]);
+
+    expect($results['apply'])->toBe(['work_transitions' => 'applied'])
+        ->and($results['prune'])->toBe(['pruned' => 0, 'ineligible' => 1])
+        ->and(DB::table('prc_process_transitions')->where('event_id', $scenario['succeeded']->value)->exists())->toBeTrue()
+        ->and(DB::table('prc_process_projection_receipts')->where('event_id', $scenario['succeeded']->value)->exists())->toBeTrue()
+        ->and((bool) projConcState()->history_complete)->toBeTrue()
         ->and(Fixture::total('work_transitions', 'work_transition_total', Fixture::workDimension('listing', 'succeeded')))->toBe(1);
 });
