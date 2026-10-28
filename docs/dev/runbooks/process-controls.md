@@ -105,7 +105,7 @@ CLI: `process:control {pause|resume|cancel-work|cancel-run|retry-fault|ack-incid
 (Pause/Resume), «Процессы: инциденты» (Acknowledge), «Процессы: запуски» (учёт required work, полнота discovery,
 `CancelRun`) и «Процессы: работа» (почему ждёт, следующая попытка, число попыток и отказов по объекту,
 `CancelWork`; `RetryHandlerFaultedWork` показывается только на `blocked(handler_fault_limit)` и только при праве
-`retry_handler_fault`). Действие строки читает актуальную версию записи при вызове; повтор клика по тому же
+`retry_handler_fault`). Действие строки сохраняет версию записи при открытии подтверждения; повтор клика по тому же
 `transition_seq` даёт тот же детерминированный `commandId`. Legacy sidebar-раздел источников и его badge
 остаются до P3.16–P3.19; `T17ProcessControlResourcesTest` проверяет полный sidebar на промежуточном baseline.
 

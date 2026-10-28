@@ -14,6 +14,7 @@ use App\Models\Procurement\Process\WorkItem;
 use App\Models\User;
 use App\Services\Procurement\Process\ProcessOperatorCommands;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -64,11 +65,11 @@ final class WorkItemsTable
                     ->color('danger')
                     ->authorize(static fn (): bool => self::actor()->hasPermission(ProcessControlPermission::CancelWork))
                     ->visible(static fn (WorkItem $record): bool => ! in_array($record->state, [WorkState::Succeeded, WorkState::FailedItem, WorkState::Cancelled, WorkState::Superseded], true))
-                    ->schema([Textarea::make('reason')->label('Причина')->required()->maxLength(500)])
+                    ->schema([Hidden::make('expected_version')->default(static fn (WorkItem $record): int => (int) $record->transition_seq)->required()->rules(['integer', 'min:0']), Textarea::make('reason')->label('Причина')->required()->maxLength(200)])
                     ->requiresConfirmation()
                     ->action(function (WorkItem $record, array $data): void {
                         self::report(app(ProcessOperatorCommands::class)->cancelWork(
-                            self::actor(), new WorkId(new ProcessUuid($record->id)), (int) $record->transition_seq, self::reason($data),
+                            self::actor(), new WorkId(new ProcessUuid($record->id)), (int) $data['expected_version'], self::reason($data),
                         ), 'Работа отменена');
                     }),
                 Action::make('retry_handler_fault')
@@ -76,14 +77,14 @@ final class WorkItemsTable
                     ->color('warning')
                     ->authorize(static fn (): bool => self::actor()->hasPermission(ProcessControlPermission::RetryHandlerFault))
                     ->visible(static fn (WorkItem $record): bool => $record->state === WorkState::Blocked && $record->reason_code === self::FAULT_LIMIT)
-                    ->schema([Textarea::make('reason')->label('Причина')->required()->maxLength(500)])
+                    ->schema([Hidden::make('expected_version')->default(static fn (WorkItem $record): int => (int) $record->transition_seq)->required()->rules(['integer', 'min:0']), Textarea::make('reason')->label('Причина')->required()->maxLength(200)])
                     ->requiresConfirmation()
                     ->modalDescription('Создаётся новая работа со свежим бюджетом ошибок; прежняя заменяется, история сохраняется.')
                     ->action(function (WorkItem $record, array $data): void {
                         // Детерминированный commandId: повторное нажатие по той же версии дедуплицируется.
-                        $commandId = new ProcessUuid(Uuid::uuid5(Uuid::NAMESPACE_URL, 'process-retry:'.$record->id.':'.$record->transition_seq)->toString());
+                        $commandId = new ProcessUuid(Uuid::uuid5(Uuid::NAMESPACE_URL, 'process-retry:'.$record->id.':'.$data['expected_version'])->toString());
                         self::report(app(ProcessOperatorCommands::class)->retryHandlerFaultedWork(
-                            self::actor(), new WorkId(new ProcessUuid($record->id)), (int) $record->transition_seq, $commandId, self::reason($data),
+                            self::actor(), new WorkId(new ProcessUuid($record->id)), (int) $data['expected_version'], $commandId, self::reason($data),
                         ), 'Создана новая работа');
                     }),
             ])
