@@ -12,6 +12,7 @@ use App\Services\Procurement\Process\DaemonLoop;
 use App\Services\Procurement\Process\DaemonReadiness;
 use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ProcessAuthoritySync;
+use App\Services\Procurement\Process\ProjectorDaemon;
 use App\Services\Procurement\Process\ReconcileDaemon;
 use App\Services\Procurement\Process\RecoveryReconciler;
 use App\Services\Procurement\Process\RelayDaemon;
@@ -22,15 +23,15 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
 /**
- * Долгоживущий Process daemon (bp-daemons): `process:daemon relay|reconcile|feed`, свой instance
- * UUID на каждый start; docker перезапускает процесс после SIGTERM/max runtime/memory limit.
- * Режим project принадлежит P1.14–P1.18: до его активации команда project не запускает и не
- * считает готовым (registered command не равен activated projector). `--health` печатает readiness
- * daemon по тому же правилу, что ApplicationReadiness (liveness: свежий heartbeat, readiness: нет
- * текущей ошибки) и завершается кодом 0 только при Healthy — это healthcheck compose-сервиса.
+ * Долгоживущий Process daemon (bp-daemons): `process:daemon relay|reconcile|feed|project`, свой
+ * instance UUID на каждый start; docker перезапускает процесс после SIGTERM/max runtime/memory limit.
+ * Project (P1.15) активирован вместе с registry reducers, receipts и totals: он claim-ит только
+ * kind projection. `--health` печатает readiness daemon по тому же правилу, что ApplicationReadiness
+ * (liveness: свежий heartbeat, readiness: нет текущей ошибки) и завершается кодом 0 только при
+ * Healthy — это healthcheck compose-сервиса.
  */
-#[Description('Запускает Process daemon (relay, reconcile, feed) либо печатает его readiness (--health)')]
-#[Signature('process:daemon {daemon : relay|reconcile|feed} {--health : Показать readiness daemon и выйти}')]
+#[Description('Запускает Process daemon (relay, reconcile, feed, project) либо печатает его readiness (--health)')]
+#[Signature('process:daemon {daemon : relay|reconcile|feed|project} {--health : Показать readiness daemon и выйти}')]
 final class ProcessDaemonCommand extends Command
 {
     private bool $stopping = false;
@@ -42,11 +43,6 @@ final class ProcessDaemonCommand extends Command
             $this->error('Неизвестный daemon. Допустимо: '.implode(', ', array_map(static fn (DaemonKind $case): string => $case->value, DaemonKind::activeKinds())).'.');
 
             return self::INVALID;
-        }
-        if (! $kind->activated()) {
-            $this->error("Daemon {$kind->value} не активирован: его reducers и receipts вводит P1.14–P1.18.");
-
-            return self::FAILURE;
         }
         if ($this->option('health')) {
             $health = $readiness->of($kind);
@@ -78,7 +74,7 @@ final class ProcessDaemonCommand extends Command
             DaemonKind::Relay => app(RelayDaemon::class),
             DaemonKind::Reconcile => $this->reconcileDaemon(),
             DaemonKind::Feed => app(FeederDaemon::class),
-            DaemonKind::Project => throw new \LogicException('Project daemon is not activated before P1.14–P1.18.'),
+            DaemonKind::Project => app(ProjectorDaemon::class),
         };
     }
 

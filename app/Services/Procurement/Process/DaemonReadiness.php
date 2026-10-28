@@ -10,8 +10,8 @@ use App\Repositories\Procurement\Process\DaemonHeartbeatRepository;
 
 /**
  * Единое правило health для `process:daemon --health` и ApplicationReadiness (bp-daemons): нужен
- * хотя бы один instance КАЖДОГО активированного daemon со свежим last_tick_at. Daemon, чья
- * активация принадлежит будущему пункту (project до P1.15), в readiness не входит.
+ * хотя бы один instance КАЖДОГО активированного daemon со свежим last_tick_at (с P1.15 это и
+ * project: его отсутствие, stale heartbeat или постоянная ошибка делают readiness красным).
  */
 final readonly class DaemonReadiness
 {

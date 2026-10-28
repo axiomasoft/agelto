@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P1.6",
+  "current_item": "P1.15",
   "conventions": {
     "work_states": [
       "ready",
@@ -218,6 +218,20 @@
         "schema_sha256": "c3795c4a05a495a93d6f32f82ef66d365a84a008cc7248262b648deba072c539",
         "catalog_sha256": "f928648dbb727f1694dcfd8f45635b88bf157ff38ca7a3d07d883948e7c4628f",
         "note": "Rows/DDL of the listed tables captured from the P1.6 migrations on a disposable PostgreSQL 17 pg_dump/catalog.sql projection (FK targets present). The isolated core-test-install compares the complete real catalog against them."
+      },
+      {
+        "item": "P1.15",
+        "kind": "local_pg17_catalog_projection",
+        "tables": [
+          "prc_process_projection_states",
+          "prc_process_projection_receipts",
+          "prc_process_metric_totals"
+        ],
+        "schema_sha256": "577de80935f28b92dc802e9c74e575fae329cac59b390fd35a132ecdba5c8b63",
+        "catalog_sha256": "fd25ea164df4d4ad33779ca886370dae013697d9737c100b0e8fa443582ee7c4",
+        "report": "20261028T050912.940443Z-1348025",
+        "candidate_input_tree_sha256": "934dd469739cf97c7ba34b1e26d77ede9323be9430417feb79a39fdf112f6c19",
+        "note": "Real isolated clean-reset catalog, captured before schema inventory gate; original P1.6 provenance retained. Raw artifact retention deferred to its document/storage owner P3.1."
       }
     ]
   },
@@ -802,6 +816,13 @@
       "action": "create",
       "owner_item": "P1.6",
       "reason": "P1.6 durable request attempt/observation carriers execution#s04; network FKs добавляет P2.1."
+    },
+    {
+      "path": "database/migrations/2026_10_28_100000_create_prc_process_projection_tables.php",
+      "sha256": "075391378f0eee4a2e16390775213bf70ed8ab48f4912690ba2a13544a4467f9",
+      "action": "create",
+      "owner_item": "P1.15",
+      "reason": "P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured."
     }
   ],
   "baseline": {
@@ -18470,6 +18491,341 @@
           }
         ],
         "definition": "CREATE TABLE public.prc_observation_applications (\n    observation_id uuid NOT NULL,\n    projection_key text NOT NULL,\n    reducer_version bigint NOT NULL,\n    applied_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_observation_applications_reducer_version_check CHECK ((reducer_version >= 1))\n);"
+      },
+      "prc_process_projection_states": {
+        "owner": "Repositories/Procurement/Process",
+        "retention": "projection",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "projector_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_process_projection_states",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "mode",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_process_projection_states",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "active_generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_process_projection_states",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "catalog_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_process_projection_states",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": "true",
+            "column_name": "history_complete",
+            "data_type": "boolean",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_process_projection_states",
+            "table_schema": "public",
+            "udt_name": "bool"
+          },
+          {
+            "column_default": null,
+            "column_name": "history_pruned_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 6,
+            "table_name": "prc_process_projection_states",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "maintenance_token",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 7,
+            "table_name": "prc_process_projection_states",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "maintenance_started_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 8,
+            "table_name": "prc_process_projection_states",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "rebuilt_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 9,
+            "table_name": "prc_process_projection_states",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK ((active_generation > 0))",
+            "name": "prc_process_projection_states_active_generation_check",
+            "schema": "public",
+            "table_name": "prc_process_projection_states",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(catalog_hash) = 32))",
+            "name": "prc_process_projection_states_catalog_hash_check",
+            "schema": "public",
+            "table_name": "prc_process_projection_states",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((history_complete = (history_pruned_at IS NULL)))",
+            "name": "prc_process_projection_states_history_check",
+            "schema": "public",
+            "table_name": "prc_process_projection_states",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((mode = 'maintenance'::text) = (maintenance_started_at IS NOT NULL)))",
+            "name": "prc_process_projection_states_maintenance_started_check",
+            "schema": "public",
+            "table_name": "prc_process_projection_states",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((mode = 'maintenance'::text) = (maintenance_token IS NOT NULL)))",
+            "name": "prc_process_projection_states_maintenance_token_check",
+            "schema": "public",
+            "table_name": "prc_process_projection_states",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((mode = ANY (ARRAY['active'::text, 'maintenance'::text])))",
+            "name": "prc_process_projection_states_mode_check",
+            "schema": "public",
+            "table_name": "prc_process_projection_states",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (projector_key)",
+            "name": "prc_process_projection_states_pkey",
+            "schema": "public",
+            "table_name": "prc_process_projection_states",
+            "type": "p"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_process_projection_states_pkey ON public.prc_process_projection_states USING btree (projector_key)",
+            "indexname": "prc_process_projection_states_pkey",
+            "schemaname": "public",
+            "tablename": "prc_process_projection_states"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_process_projection_states (\n    projector_key text NOT NULL,\n    mode text NOT NULL,\n    active_generation bigint NOT NULL,\n    catalog_hash bytea NOT NULL,\n    history_complete boolean DEFAULT true NOT NULL,\n    history_pruned_at timestamp with time zone,\n    maintenance_token uuid,\n    maintenance_started_at timestamp with time zone,\n    rebuilt_at timestamp with time zone,\n    CONSTRAINT prc_process_projection_states_active_generation_check CHECK ((active_generation > 0)),\n    CONSTRAINT prc_process_projection_states_catalog_hash_check CHECK ((octet_length(catalog_hash) = 32)),\n    CONSTRAINT prc_process_projection_states_history_check CHECK ((history_complete = (history_pruned_at IS NULL))),\n    CONSTRAINT prc_process_projection_states_maintenance_started_check CHECK (((mode = 'maintenance'::text) = (maintenance_started_at IS NOT NULL))),\n    CONSTRAINT prc_process_projection_states_maintenance_token_check CHECK (((mode = 'maintenance'::text) = (maintenance_token IS NOT NULL))),\n    CONSTRAINT prc_process_projection_states_mode_check CHECK ((mode = ANY (ARRAY['active'::text, 'maintenance'::text])))\n);"
+      },
+      "prc_process_projection_receipts": {
+        "owner": "Repositories/Procurement/Process",
+        "retention": "projection",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "projector_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_process_projection_receipts",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "event_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_process_projection_receipts",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "applied_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_process_projection_receipts",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "FOREIGN KEY (event_id) REFERENCES prc_process_transitions(event_id) ON DELETE RESTRICT",
+            "name": "prc_process_projection_receipts_event_id_fkey",
+            "schema": "public",
+            "table_name": "prc_process_projection_receipts",
+            "type": "f"
+          },
+          {
+            "definition": "PRIMARY KEY (projector_key, event_id)",
+            "name": "prc_process_projection_receipts_pkey",
+            "schema": "public",
+            "table_name": "prc_process_projection_receipts",
+            "type": "p"
+          },
+          {
+            "definition": "FOREIGN KEY (projector_key) REFERENCES prc_process_projection_states(projector_key)",
+            "name": "prc_process_projection_receipts_projector_key_fkey",
+            "schema": "public",
+            "table_name": "prc_process_projection_receipts",
+            "type": "f"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE INDEX prc_process_projection_receipts_event_idx ON public.prc_process_projection_receipts USING btree (event_id)",
+            "indexname": "prc_process_projection_receipts_event_idx",
+            "schemaname": "public",
+            "tablename": "prc_process_projection_receipts"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_process_projection_receipts_pkey ON public.prc_process_projection_receipts USING btree (projector_key, event_id)",
+            "indexname": "prc_process_projection_receipts_pkey",
+            "schemaname": "public",
+            "tablename": "prc_process_projection_receipts"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_process_projection_receipts (\n    projector_key text NOT NULL,\n    event_id uuid NOT NULL,\n    applied_at timestamp with time zone NOT NULL\n);"
+      },
+      "prc_process_metric_totals": {
+        "owner": "Repositories/Procurement/Process",
+        "retention": "projection",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "projector_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_process_metric_totals",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_process_metric_totals",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "metric_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_process_metric_totals",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "dimension_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_process_metric_totals",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "value",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_process_metric_totals",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "updated_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "prc_process_metric_totals",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK ((generation > 0))",
+            "name": "prc_process_metric_totals_generation_check",
+            "schema": "public",
+            "table_name": "prc_process_metric_totals",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (projector_key, generation, metric_key, dimension_key)",
+            "name": "prc_process_metric_totals_pkey",
+            "schema": "public",
+            "table_name": "prc_process_metric_totals",
+            "type": "p"
+          },
+          {
+            "definition": "FOREIGN KEY (projector_key) REFERENCES prc_process_projection_states(projector_key)",
+            "name": "prc_process_metric_totals_projector_key_fkey",
+            "schema": "public",
+            "table_name": "prc_process_metric_totals",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((value >= 0))",
+            "name": "prc_process_metric_totals_value_check",
+            "schema": "public",
+            "table_name": "prc_process_metric_totals",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_process_metric_totals_pkey ON public.prc_process_metric_totals USING btree (projector_key, generation, metric_key, dimension_key)",
+            "indexname": "prc_process_metric_totals_pkey",
+            "schemaname": "public",
+            "tablename": "prc_process_metric_totals"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_process_metric_totals (\n    projector_key text NOT NULL,\n    generation bigint NOT NULL,\n    metric_key text NOT NULL,\n    dimension_key text NOT NULL,\n    value bigint NOT NULL,\n    updated_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_process_metric_totals_generation_check CHECK ((generation > 0)),\n    CONSTRAINT prc_process_metric_totals_value_check CHECK ((value >= 0))\n);"
       }
     },
     "extensions": [
@@ -20984,7 +21340,7 @@
       "contract": "execution#s04"
     },
     "prc_process_projection_states": {
-      "create_at": "P1.14",
+      "create_at": "P1.15",
       "activate_at": "P1.15",
       "owner": "Repositories/Procurement/Process",
       "retention": "projection",
@@ -21044,7 +21400,7 @@
       "contract": "observability#s08"
     },
     "prc_process_metric_totals": {
-      "create_at": "P1.14",
+      "create_at": "P1.15",
       "activate_at": "P1.15",
       "owner": "Repositories/Procurement/Process",
       "retention": "projection",
@@ -21059,7 +21415,7 @@
               "projector_key"
             ],
             "on_delete": "NO ACTION",
-            "at": "P1.14"
+            "at": "P1.15"
           }
         },
         "generation": {
@@ -21095,7 +21451,7 @@
       "contract": "observability#s08"
     },
     "prc_process_projection_receipts": {
-      "create_at": "P1.14",
+      "create_at": "P1.15",
       "activate_at": "P1.15",
       "owner": "Repositories/Procurement/Process",
       "retention": "projection",
@@ -21110,20 +21466,20 @@
               "projector_key"
             ],
             "on_delete": "NO ACTION",
-            "at": "P1.14"
+            "at": "P1.15"
           }
         },
         "event_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "event_id uuid NOT NULL REFERENCES prc_process_transitions(event_id) ON DELETE RESTRICT",
+          "definition": "event_id uuid NOT NULL REFERENCES prc_process_transitions(event_id) ON DELETE RESTRICT ON DELETE RESTRICT",
           "references": {
             "table": "prc_process_transitions",
             "columns": [
               "event_id"
             ],
-            "on_delete": "NO ACTION",
-            "at": "P1.14"
+            "on_delete": "RESTRICT",
+            "at": "P1.15"
           }
         },
         "applied_at": {
@@ -21135,7 +21491,9 @@
       "constraints": [
         "PRIMARY KEY(projector_key,event_id)"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE INDEX prc_process_projection_receipts_event_idx ON prc_process_projection_receipts(event_id)"
+      ],
       "contract": "observability#s08"
     },
     "prc_network_routes": {
@@ -23538,7 +23896,7 @@
     },
     {
       "table": "prc_raw_artifacts",
-      "at": "P1.14",
+      "at": "P3.1",
       "columns": {
         "deletion_generation": {
           "type": "bigint",
@@ -23553,7 +23911,7 @@
       },
       "drop_columns": [],
       "constraints": [],
-      "note": "Двухфазная retention, pending/pinned/ref gate; object I/O вне tx."
+      "note": "Двухфазная retention, pending/pinned/ref gate; object I/O вне tx. Отложено к owning document/storage cutover P3.1: закрытый P1.14 не менял raw artifacts, P1.15 ограничен projection retention."
     }
   ],
   "legacy": {

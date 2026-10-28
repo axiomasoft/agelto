@@ -47,10 +47,16 @@ final readonly class DaemonPolicy
 
     public int $feedClaimSeconds;
 
+    public int $projectTickSeconds;
+
+    public int $projectBatch;
+
+    public int $projectClaimSeconds;
+
     public function __construct(Repository $config)
     {
         $daemons = $config->get('process.daemons');
-        self::closed($daemons, ['heartbeat_seconds', 'live_seconds', 'max_runtime_seconds', 'memory_limit_mb', 'error_backoff_min_seconds', 'error_backoff_max_seconds', 'relay', 'reconcile', 'feed'], 'process.daemons');
+        self::closed($daemons, ['heartbeat_seconds', 'live_seconds', 'max_runtime_seconds', 'memory_limit_mb', 'error_backoff_min_seconds', 'error_backoff_max_seconds', 'relay', 'reconcile', 'feed', 'project'], 'process.daemons');
         $this->heartbeatSeconds = self::positive($daemons['heartbeat_seconds'], 'process.daemons.heartbeat_seconds');
         $this->liveSeconds = self::positive($daemons['live_seconds'], 'process.daemons.live_seconds');
         $this->maxRuntimeSeconds = self::positive($daemons['max_runtime_seconds'], 'process.daemons.max_runtime_seconds');
@@ -87,6 +93,12 @@ final readonly class DaemonPolicy
         $this->feedPollMs = self::positive($feed['poll_ms'], 'process.daemons.feed.poll_ms');
         $this->feedWakeBatch = self::positive($feed['wake_batch'], 'process.daemons.feed.wake_batch');
         $this->feedClaimSeconds = self::positive($feed['claim_seconds'], 'process.daemons.feed.claim_seconds');
+
+        $project = $daemons['project'];
+        self::closed($project, ['tick_seconds', 'batch', 'claim_seconds'], 'process.daemons.project');
+        $this->projectTickSeconds = self::positive($project['tick_seconds'], 'process.daemons.project.tick_seconds');
+        $this->projectBatch = self::positive($project['batch'], 'process.daemons.project.batch');
+        $this->projectClaimSeconds = self::positive($project['claim_seconds'], 'process.daemons.project.claim_seconds');
     }
 
     /**

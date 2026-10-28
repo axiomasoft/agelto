@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Process\DaemonKind;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\User;
@@ -90,23 +91,26 @@ test('readiness приложения и CLI не скрывают отсутст
         ->expectsOutput($kind->value.': '.(in_array($failure, ['missing', 'stale'], true) ? 'down' : 'degraded'))
         ->assertExitCode(1);
     $this->artisan('app:readiness', ['--format' => 'json'])->expectsOutput($payload)->assertExitCode(1);
-})->with([DaemonKind::Relay, DaemonKind::Reconcile, DaemonKind::Feed])
+})->with([DaemonKind::Relay, DaemonKind::Reconcile, DaemonKind::Feed, DaemonKind::Project])
     ->with(['missing', 'stale', 'redis_publish_failed', 'tick_failed']);
 
-test('будущий projector не входит в readiness ни отсутствующим, ни degraded, ни stale', function (): void {
+test('активированный projector входит в readiness: degraded по неизвестному codec и stale делают её красной', function (): void {
     $readiness = app(ApplicationReadiness::class);
     expect($readiness->isGreen())->toBeTrue();
 
-    $heartbeats = app(DaemonHeartbeatRepository::class);
-    $project = LedgerFixtures::uuid();
-    $heartbeats->register($project, DaemonKind::Project);
-    $heartbeats->beat($project, 'projection_codec_unknown');
-    expect($readiness->isGreen())->toBeTrue();
+    $project = DB::table('prc_process_daemon_heartbeats')->where('daemon', 'project')->value('instance_id');
+    app(DaemonHeartbeatRepository::class)->beat(new ProcessUuid((string) $project), 'projection_codec_unknown');
+    expect($readiness->isGreen())->toBeFalse();
+    $this->artisan('process:daemon', ['daemon' => 'project', '--health' => true])
+        ->expectsOutput('project: degraded')
+        ->assertExitCode(1);
 
-    DB::table('prc_process_daemon_heartbeats')->where('instance_id', $project->value)
-        ->update(['last_tick_at' => DB::raw("clock_timestamp() - interval '31 seconds'")]);
-    expect($readiness->isGreen())->toBeTrue();
-    $this->artisan('process:daemon', ['daemon' => 'project', '--health' => true])->assertExitCode(1);
+    DB::table('prc_process_daemon_heartbeats')->where('instance_id', $project)
+        ->update(['last_tick_at' => DB::raw("clock_timestamp() - interval '31 seconds'"), 'last_error_code' => null]);
+    expect($readiness->isGreen())->toBeFalse();
+    $this->artisan('process:daemon', ['daemon' => 'project', '--health' => true])
+        ->expectsOutput('project: down')
+        ->assertExitCode(1);
 });
 
 test('возвращает стабильный redacted код при stale scheduler heartbeat', function (): void {

@@ -318,6 +318,15 @@ final class ProcessPayloadCodec
         return $laneKey;
     }
 
+    /** Projection payload (`project:<event_id>`): только event_id, источником факта остаётся ledger event. */
+    public function decodeProjection(VersionedPayload $payload): ProcessUuid
+    {
+        $reader = $this->required($payload);
+        $reader->keys(['event_id']);
+
+        return new ProcessUuid($reader->string('event_id'));
+    }
+
     /** @param array<string, mixed> $fields */
     private function payload(array $fields): VersionedPayload
     {

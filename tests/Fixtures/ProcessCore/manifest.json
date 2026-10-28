@@ -15,7 +15,11 @@
         "assessment": "local_wire_only",
         "schema_version": 1
       },
-      "scenario_ids": ["T03", "T13", "T22"],
+      "scenario_ids": [
+        "T03",
+        "T13",
+        "T22"
+      ],
       "coverage": "fixture_wire_only"
     },
     {
@@ -1777,16 +1781,24 @@
     },
     {
       "path": "tests/Feature/Health/ApplicationReadinessTest.php",
-      "sha256": "48203c7001d644cfa93c570353c586e67a3b4e350359231f17cbf584fe8b0512",
+      "sha256": "e7dd090b8baf609af3647d04e4653ff293ac3035b93bb496c53de289d1d6635f",
       "scenarios": [
         "возвращает упорядоченный green readiness и убирает активные probes",
         "возвращает стабильный redacted код при stale scheduler heartbeat",
         "запись heartbeat отклоняет нетипизированный ttl"
       ],
       "original_sha256": "b7d887f293e1089c1c2125d1e926f26afb648bb7d67a5849d5d5c73795fda29a",
-      "accepted_change_item": "P1.10",
-      "accepted_change_decision": "D45",
-      "change_reason": "D45 P1.10 supplemental mandatory ApplicationReadiness daemon integration: isolated active-daemon heartbeat fixtures and appended readiness assertions; preserve all three original scenario names, seven legacy check semantics/redaction and original SHA provenance."
+      "accepted_change_item": "P1.15",
+      "accepted_change_decision": "P1.15 project daemon readiness",
+      "change_reason": "P1.15 activates project daemon readiness; original scenario names and earlier P1.10 provenance remain preserved.",
+      "prior_accepted_changes": [
+        {
+          "sha256": "48203c7001d644cfa93c570353c586e67a3b4e350359231f17cbf584fe8b0512",
+          "accepted_change_item": "P1.10",
+          "accepted_change_decision": "D45",
+          "change_reason": "D45 P1.10 supplemental mandatory ApplicationReadiness daemon integration: isolated active-daemon heartbeat fixtures and appended readiness assertions; preserve all three original scenario names, seven legacy check semantics/redaction and original SHA provenance."
+        }
+      ]
     },
     {
       "path": "tests/Feature/Health/CardAnchorProbeTest.php",

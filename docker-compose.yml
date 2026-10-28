@@ -227,6 +227,16 @@ services:
       retries: 3
       start_period: 40s
 
+  process-projector:
+    <<: *process_daemon
+    command: ["php", "artisan", "process:daemon", "project"]
+    healthcheck:
+      test: ["CMD", "php", "artisan", "process:daemon", "project", "--health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   vite:
     image: node:24-bookworm
     working_dir: /var/www/html

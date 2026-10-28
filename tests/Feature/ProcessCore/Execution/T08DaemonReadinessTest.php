@@ -118,22 +118,23 @@ test('heartbeat readiness: свежий instance без ошибки — healthy
         ->and($heartbeats->beat($instance, null))->toBeFalse();
 });
 
-test('readiness требует по живому instance КАЖДОГО активированного daemon; project до его пункта не участвует и не запускается', function (): void {
+test('readiness требует по живому instance КАЖДОГО активированного daemon, включая project (P1.15)', function (): void {
     $heartbeats = app(DaemonHeartbeatRepository::class);
     $readiness = app(DaemonReadiness::class);
     $instances = [];
-    foreach ([DaemonKind::Relay, DaemonKind::Reconcile] as $kind) {
+    foreach ([DaemonKind::Relay, DaemonKind::Reconcile, DaemonKind::Feed] as $kind) {
         $instances[$kind->value] = LedgerFixtures::uuid();
         $heartbeats->register($instances[$kind->value], $kind);
     }
 
-    expect(array_keys($readiness->all()))->toBe(['relay', 'reconcile', 'feed'])
+    // Без живого projector readiness красный: он больше не «будущий» daemon.
+    expect(array_keys($readiness->all()))->toBe(['relay', 'reconcile', 'feed', 'project'])
         ->and($readiness->ready())->toBeFalse();
 
-    $heartbeats->register(LedgerFixtures::uuid(), DaemonKind::Feed);
+    $heartbeats->register(LedgerFixtures::uuid(), DaemonKind::Project);
     expect($readiness->ready())->toBeTrue()
-        ->and(DaemonKind::Project->activated())->toBeFalse()
-        ->and(DaemonKind::activeKinds())->toBe([DaemonKind::Relay, DaemonKind::Reconcile, DaemonKind::Feed]);
+        ->and(DaemonKind::Project->activated())->toBeTrue()
+        ->and(DaemonKind::activeKinds())->toBe([DaemonKind::Relay, DaemonKind::Reconcile, DaemonKind::Feed, DaemonKind::Project]);
 
     // Один instance второго экземпляра той же роли не заменяет упавший: пока жив хоть один без ошибки — healthy.
     $second = LedgerFixtures::uuid();
@@ -280,9 +281,9 @@ test('DaemonPolicy boot-validated: противоречивый config отве�
     expect(fn () => new DaemonPolicy(app('config')))->toThrow(InvalidArgumentException::class, 'Invalid daemon policy: process.daemons.feed');
 });
 
-test('process:daemon: неизвестный и неактивированный daemon не запускаются, --health отражает readiness exit-кодом', function (): void {
+test('process:daemon: неизвестный daemon не запускается, --health отражает readiness exit-кодом (project активирован P1.15)', function (): void {
     $this->artisan('process:daemon', ['daemon' => 'nonsense'])->assertExitCode(2);
-    $this->artisan('process:daemon', ['daemon' => 'project'])->assertExitCode(1);
+    // Без живого instance projector health красный (down); сам daemon в тесте не запускается — это бесконечный loop.
     $this->artisan('process:daemon', ['daemon' => 'project', '--health' => true])->assertExitCode(1);
 
     $this->artisan('process:daemon', ['daemon' => 'relay', '--health' => true])->assertExitCode(1);

@@ -77,6 +77,20 @@ return [
         'relay' => ['batch' => 100, 'claim_seconds' => 30, 'idle_min_ms' => 250, 'idle_max_ms' => 500],
         'reconcile' => ['tick_seconds' => 5, 'jitter_percent' => 20],
         'feed' => ['tick_seconds' => 2, 'jitter_percent' => 20, 'poll_ms' => 500, 'wake_batch' => 100, 'claim_seconds' => 30],
+        // Projector claim-ит только kind projection; tick 1 s (bp-daemons), batch ограничивает claim.
+        'project' => ['tick_seconds' => 1, 'batch' => 100, 'claim_seconds' => 30],
+    ],
+
+    // Projection (observability#s08): bounded maintenance rebuild — не SLA для большого архива.
+    // rebuild_max_events/deadline ограничивают одну REPEATABLE READ транзакцию; превышение — отказ
+    // без смены generation. Quarantined/maintenance сообщения откладываются, а не теряются.
+    'projection' => [
+        'rebuild_max_events' => 100000,
+        'rebuild_deadline_seconds' => 30,
+        'rebuild_page' => 1000,
+        'quarantine_retry_seconds' => 3600,
+        'maintenance_defer_seconds' => 5,
+        'prune_batch' => 500,
     ],
 
     // Кооперативный heartbeat (bp-heartbeat): CAS не чаще heartbeat_seconds по monotonic clock;

@@ -8,7 +8,7 @@ use Symfony\Component\Yaml\Yaml;
 
 pest()->group('t08', 'p110');
 
-test('dev и prod разрешают три core daemon services на образе app с собственными командами и healthchecks', function (string $file, string $image, array $volumes): void {
+test('dev и prod разрешают четыре core daemon services на образе app с собственными командами и healthchecks', function (string $file, string $image, array $volumes): void {
     // Разрешаем YAML aliases/merge и image/project placeholders фиксированными fixture values.
     // Ни .env, ни Docker socket, ни запуск dev/prod services этому контрактному тесту не нужны.
     $source = file_get_contents(base_path($file));
@@ -21,7 +21,7 @@ test('dev и prod разрешают три core daemon services на образ
     ]));
     $services = $compose['services'];
     $app = $services['app'];
-    $roles = ['process-relay' => 'relay', 'process-reconciler' => 'reconcile', 'process-feeder' => 'feed'];
+    $roles = ['process-relay' => 'relay', 'process-reconciler' => 'reconcile', 'process-feeder' => 'feed', 'process-projector' => 'project'];
 
     expect(array_values(array_filter(array_keys($services), fn (string $name): bool => str_starts_with($name, 'process-'))))
         ->toBe(array_keys($roles))
@@ -56,8 +56,7 @@ test('dev и prod разрешают три core daemon services на образ
     $policy = app(DaemonPolicy::class);
     expect([$policy->maxRuntimeSeconds, $policy->memoryLimitMb, $policy->heartbeatSeconds, $policy->liveSeconds])
         ->toBe([3600, 256, 10, 30])
-        ->and((int) rtrim($services['horizon']['stop_grace_period'], 's'))->toBeGreaterThanOrEqual(370)
-        ->and($services)->not->toHaveKey('process-projector');
+        ->and((int) rtrim($services['horizon']['stop_grace_period'], 's'))->toBeGreaterThanOrEqual(370);
 })->with([
     'development' => ['docker-compose.yml', 'agelto_daemon_contract-app', [
         './:/var/www/html',

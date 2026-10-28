@@ -9,6 +9,7 @@ function processCoreBaselineFixture(): string
     $root = sys_get_temp_dir().'/core-baseline-entrypoint-'.bin2hex(random_bytes(8));
     $manifest = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/manifest.json')), true, flags: JSON_THROW_ON_ERROR);
     $runtime = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/runtime-inputs.json')), true, flags: JSON_THROW_ON_ERROR);
+    $schema = json_decode(file_get_contents(base_path('tests/Support/ProcessCore/schema-inventory.json')), true, flags: JSON_THROW_ON_ERROR);
     $paths = [
         'tests/Support/ProcessCore/verify-baseline.php',
         'tests/Support/ProcessCore/BaselineVerifier.php',
@@ -19,6 +20,7 @@ function processCoreBaselineFixture(): string
         'docs/dev/process-schema.md',
         'docs/dev/runbooks/process-test-rig.md',
         ...array_column([...$manifest['files'], ...$manifest['migrations'], ...$manifest['source_classes'], ...$manifest['contract_fixtures']], 'path'),
+        ...array_column($schema['migrations'], 'path'),
         ...array_column($runtime['files'], 'source'),
     ];
 

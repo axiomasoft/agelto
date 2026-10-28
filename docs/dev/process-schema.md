@@ -199,6 +199,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_10_23_100000_create_org_organization_identifiers_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_10_25_100000_create_prc_process_ledger_tables.php` | create | P1.6 | P1.6 canonical Process ledger bp-ddl-core: control/handler authority, real crawl subjects, intents до work, attempts, groups/members, journal, outbox, daemon heartbeat. |
 | `2026_10_25_100001_create_prc_request_observation_tables.php` | create | P1.6 | P1.6 durable request attempt/observation carriers execution#s04; network FKs добавляет P2.1. |
+| `2026_10_28_100000_create_prc_process_projection_tables.php` | create | P1.15 | P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured. |
 
 ### Legacy lifecycle
 
@@ -880,7 +881,7 @@ Indexes:
 
 #### prc_process_projection_states
 
-Create: P1.14; activation boundary: P1.15; owner: `Repositories/Procurement/Process`; retention: projection. Contract: observability#s08.
+Create: P1.15; activation boundary: P1.15; owner: `Repositories/Procurement/Process`; retention: projection. Contract: observability#s08.
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
@@ -903,11 +904,11 @@ Indexes:
 
 #### prc_process_metric_totals
 
-Create: P1.14; activation boundary: P1.15; owner: `Repositories/Procurement/Process`; retention: projection. Contract: observability#s08.
+Create: P1.15; activation boundary: P1.15; owner: `Repositories/Procurement/Process`; retention: projection. Contract: observability#s08.
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
-| projector_key | text | no | projector_key text NOT NULL REFERENCES prc_process_projection_states(projector_key) → prc_process_projection_states(projector_key) ON DELETE NO ACTION @P1.14 |
+| projector_key | text | no | projector_key text NOT NULL REFERENCES prc_process_projection_states(projector_key) → prc_process_projection_states(projector_key) ON DELETE NO ACTION @P1.15 |
 | generation | bigint | no | generation bigint NOT NULL CHECK(generation>0) |
 | metric_key | text | no | metric_key text NOT NULL |
 | dimension_key | text | no | dimension_key text NOT NULL |
@@ -921,18 +922,19 @@ Indexes:
 
 #### prc_process_projection_receipts
 
-Create: P1.14; activation boundary: P1.15; owner: `Repositories/Procurement/Process`; retention: projection. Contract: observability#s08.
+Create: P1.15; activation boundary: P1.15; owner: `Repositories/Procurement/Process`; retention: projection. Contract: observability#s08.
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
-| projector_key | text | no | projector_key text NOT NULL REFERENCES prc_process_projection_states(projector_key) → prc_process_projection_states(projector_key) ON DELETE NO ACTION @P1.14 |
-| event_id | uuid | no | event_id uuid NOT NULL REFERENCES prc_process_transitions(event_id) ON DELETE RESTRICT → prc_process_transitions(event_id) ON DELETE NO ACTION @P1.14 |
+| projector_key | text | no | projector_key text NOT NULL REFERENCES prc_process_projection_states(projector_key) → prc_process_projection_states(projector_key) ON DELETE NO ACTION @P1.15 |
+| event_id | uuid | no | event_id uuid NOT NULL REFERENCES prc_process_transitions(event_id) ON DELETE RESTRICT ON DELETE RESTRICT → prc_process_transitions(event_id) ON DELETE RESTRICT @P1.15 |
 | applied_at | timestamptz | no | applied_at timestamptz NOT NULL |
 
 Constraints:
 - `PRIMARY KEY(projector_key,event_id)`
 
 Indexes:
+- `CREATE INDEX prc_process_projection_receipts_event_idx ON prc_process_projection_receipts(event_id)`
 
 #### prc_network_routes
 
@@ -1711,9 +1713,9 @@ Remove at this cutover: locked_by, locked_until, attempts, last_error, last_erro
 
 Constraints:
 
-#### prc_raw_artifacts @P1.14
+#### prc_raw_artifacts @P3.1
 
-Двухфазная retention, pending/pinned/ref gate; object I/O вне tx.
+Двухфазная retention, pending/pinned/ref gate; object I/O вне tx. Отложено к owning document/storage cutover P3.1: закрытый P1.14 не менял raw artifacts, P1.15 ограничен projection retention.
 
 | Column | Type | Nullable | Target declaration |
 | --- | --- | --- | --- |
@@ -4676,6 +4678,75 @@ Constraints:
 
 Indexes:
 - `prc_observation_applications_pkey`: `CREATE UNIQUE INDEX prc_observation_applications_pkey ON public.prc_observation_applications USING btree (observation_id, projection_key)`
+
+#### prc_process_projection_states
+
+Owner: Repositories/Procurement/Process; retention: projection.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| projector_key | text / text | NO | text NOT NULL |
+| mode | text / text | NO | text NOT NULL |
+| active_generation | bigint / int8 | NO | bigint NOT NULL |
+| catalog_hash | bytea / bytea | NO | bytea NOT NULL |
+| history_complete | boolean / bool | NO | boolean DEFAULT true NOT NULL |
+| history_pruned_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| maintenance_token | uuid / uuid | YES | uuid |
+| maintenance_started_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| rebuilt_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `prc_process_projection_states_active_generation_check`: `CHECK ((active_generation > 0))`
+- `prc_process_projection_states_catalog_hash_check`: `CHECK ((octet_length(catalog_hash) = 32))`
+- `prc_process_projection_states_history_check`: `CHECK ((history_complete = (history_pruned_at IS NULL)))`
+- `prc_process_projection_states_maintenance_started_check`: `CHECK (((mode = 'maintenance'::text) = (maintenance_started_at IS NOT NULL)))`
+- `prc_process_projection_states_maintenance_token_check`: `CHECK (((mode = 'maintenance'::text) = (maintenance_token IS NOT NULL)))`
+- `prc_process_projection_states_mode_check`: `CHECK ((mode = ANY (ARRAY['active'::text, 'maintenance'::text])))`
+- `prc_process_projection_states_pkey`: `PRIMARY KEY (projector_key)`
+
+Indexes:
+- `prc_process_projection_states_pkey`: `CREATE UNIQUE INDEX prc_process_projection_states_pkey ON public.prc_process_projection_states USING btree (projector_key)`
+
+#### prc_process_projection_receipts
+
+Owner: Repositories/Procurement/Process; retention: projection.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| projector_key | text / text | NO | text NOT NULL |
+| event_id | uuid / uuid | NO | uuid NOT NULL |
+| applied_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_process_projection_receipts_event_id_fkey`: `FOREIGN KEY (event_id) REFERENCES prc_process_transitions(event_id) ON DELETE RESTRICT`
+- `prc_process_projection_receipts_pkey`: `PRIMARY KEY (projector_key, event_id)`
+- `prc_process_projection_receipts_projector_key_fkey`: `FOREIGN KEY (projector_key) REFERENCES prc_process_projection_states(projector_key)`
+
+Indexes:
+- `prc_process_projection_receipts_event_idx`: `CREATE INDEX prc_process_projection_receipts_event_idx ON public.prc_process_projection_receipts USING btree (event_id)`
+- `prc_process_projection_receipts_pkey`: `CREATE UNIQUE INDEX prc_process_projection_receipts_pkey ON public.prc_process_projection_receipts USING btree (projector_key, event_id)`
+
+#### prc_process_metric_totals
+
+Owner: Repositories/Procurement/Process; retention: projection.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| projector_key | text / text | NO | text NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| metric_key | text / text | NO | text NOT NULL |
+| dimension_key | text / text | NO | text NOT NULL |
+| value | bigint / int8 | NO | bigint NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_process_metric_totals_generation_check`: `CHECK ((generation > 0))`
+- `prc_process_metric_totals_pkey`: `PRIMARY KEY (projector_key, generation, metric_key, dimension_key)`
+- `prc_process_metric_totals_projector_key_fkey`: `FOREIGN KEY (projector_key) REFERENCES prc_process_projection_states(projector_key)`
+- `prc_process_metric_totals_value_check`: `CHECK ((value >= 0))`
+
+Indexes:
+- `prc_process_metric_totals_pkey`: `CREATE UNIQUE INDEX prc_process_metric_totals_pkey ON public.prc_process_metric_totals USING btree (projector_key, generation, metric_key, dimension_key)`
 
 <!-- schema-inventory:end -->
 

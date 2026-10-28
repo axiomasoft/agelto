@@ -10,6 +10,8 @@ PostgreSQL — authority исполнения (D2): work, intents, attempts, adm
 живут в `prc_*` таблицах Process ledger; Redis/Horizon только доставляют. Точный DDL,
 staging и ownership каждой колонки — [Process schema](process-schema.md).
 
+Обслуживание проекций и управление run описаны в [runbook process controls](runbooks/process-controls.md).
+
 ## Состав baseline P1.6
 
 | Слой | Таблицы | Назначение |
@@ -286,7 +288,9 @@ wake; wake помечается после принятого tick. Coalescing w
 `ON CONFLICT DO NOTHING` (0 вставленных строк, даже если существующий wake уже published, — успех).
 `ReconcileDaemon` — цикл tick 5 s ±20% с зарегистрированными `ReconcileCategory`; категории recovery
 регистрирует P1.11, без них daemon ничего не восстанавливает и этого не заявляет.
-`ProjectorDaemon` не создан: `DaemonKind::Project` не активирован до P1.14–P1.18.
+`ProjectorDaemon` (P1.15, `process:daemon project`) claim-ит только `projection`, применяет событие
+всем registered reducers (`ProjectionRegistry`) и подтверждает сообщение после receipts всех получателей;
+подробности — `docs/dev/runbooks/process-controls.md`.
 
 **Daemons и readiness.** `php artisan process:daemon relay|reconcile|feed` (`DaemonLoop`): свой instance
 UUID на старт, TERM/INT ставят stop-флаг (graceful exit 0), recycle по `max_runtime_seconds` 3600 и
@@ -417,11 +421,12 @@ V1/V3, а не наличие этих assertions в исходниках.
 
 `ApplicationReadiness` и `app:readiness` теперь обязательно включают восьмой check
 `process_daemons` после прежних семи. Он делегирует `DaemonReadiness::ready()` без отдельного
-health state: для каждой активной роли `relay`, `reconcile`, `feed` требуется хотя бы один
+health state: для каждой активной роли `relay`, `reconcile`, `feed` (и `project` с P1.15) требуется хотя бы один
 instance со свежим heartbeat (не старше 30 s по DB clock) без текущей ошибки. Свежий heartbeat
 с сохраняющимся `last_error_code` остаётся degraded; missing/stale — down. Результат общего
 check — прежний redacted формат `ready`/`unavailable`, без внутренних ошибок или exception text.
-Projector пока исключён из общего readiness и не получает Compose service.
+С P1.15 четвёртая роль `project` входит в readiness наравне с остальными и получает Compose service
+`process-projector` (команда `process:daemon project`, healthcheck `--health`).
 
 В `docker-compose.yml` и `docker-compose.prod.yml` объявлены `process-relay`,
 `process-reconciler`, `process-feeder`. Каждый использует образ app, собственную команду

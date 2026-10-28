@@ -40,8 +40,9 @@ test('P1.6 baseline создаёт весь ledger в порядке FK и не 
         'prc_admission_groups', 'prc_process_reservations', 'prc_process_run_work', 'prc_process_transitions',
         'prc_process_outbox', 'prc_process_daemon_heartbeats', 'prc_request_attempts', 'prc_observations', 'prc_observation_applications',
     )
+        ->and($tables)->toContain('prc_process_projection_states', 'prc_process_metric_totals', 'prc_process_projection_receipts')
         // Нет отдельной prc_process_controls; carriers следующих owners не создаются заранее (schema-staging).
-        ->and($tables->intersect(['prc_process_controls', 'prc_network_demands', 'prc_analysis_windows', 'prc_process_projection_receipts'])->all())->toBe([]);
+        ->and($tables->intersect(['prc_process_controls', 'prc_network_demands', 'prc_analysis_windows'])->all())->toBe([]);
 
     $foreignKeys = collect(DB::select(
         "SELECT c.relname AS child, f.relname AS parent, k.confdeltype AS on_delete FROM pg_constraint k

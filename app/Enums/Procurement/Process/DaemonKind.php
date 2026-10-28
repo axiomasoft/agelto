@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Process;
 
 /**
- * Process daemons (bp-daemons). Project существует как значение контракта, но его reducer registry
- * и receipts появляются в P1.14–P1.18: до тех пор команда его не запускает и readiness не ждёт.
+ * Process daemons (bp-daemons). Все четыре активированы: relay/reconcile/feed — P1.10/P1.11, project —
+ * P1.15 (registry reducers, receipts и totals существуют). `activated()` сохранён как единая точка,
+ * через которую readiness и команда решают, какой daemon обязан быть живым.
  */
 enum DaemonKind: string
 {
@@ -17,7 +18,9 @@ enum DaemonKind: string
 
     public function activated(): bool
     {
-        return $this !== self::Project;
+        return match ($this) {
+            self::Relay, self::Reconcile, self::Feed, self::Project => true,
+        };
     }
 
     /** @return list<self> */

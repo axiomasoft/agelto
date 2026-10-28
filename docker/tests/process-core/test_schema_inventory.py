@@ -132,11 +132,11 @@ class SchemaInventoryTest(unittest.TestCase):
                 self.assertRejected(error, actual=actual)
 
     def test_complete_inventory_and_full_document_pass(self):
-        # P1.6: +2 ledger migrations, +19 Process tables, +7 subject head/cycle columns.
-        self.assertEqual(self.inventory["current_item"], "P1.6")
-        self.assertEqual(len(self.inventory["migrations"]), 83)
-        self.assertEqual(len(self.inventory["baseline"]["tables"]), 94)
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1181)
+        # P1.15: P1.6 baseline plus projection state, totals and receipt tables.
+        self.assertEqual(self.inventory["current_item"], "P1.15")
+        self.assertEqual(len(self.inventory["migrations"]), 84)
+        self.assertEqual(len(self.inventory["baseline"]["tables"]), 97)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1199)
         self.assertEqual(self.violations(document=(ROOT / "docs/dev/process-schema.md").read_text()), [])
         self.assertEqual(self.violations(actual=self.baseline_actual()), [])
 
@@ -152,7 +152,7 @@ class SchemaInventoryTest(unittest.TestCase):
         self.assertRejected("created carrier missing from installed baseline: prc_process_work")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["baseline"]["tables"]["prc_network_demands"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
-        self.assertRejected("future carrier activated in P1.6 baseline: prc_network_demands")
+        self.assertRejected("future carrier activated in P1.15 baseline: prc_network_demands")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["current_item"] = "P1.1"
         self.assertRejected("future carrier activated in P1.1 baseline: prc_process_work")

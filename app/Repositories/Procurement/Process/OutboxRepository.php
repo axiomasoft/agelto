@@ -134,6 +134,20 @@ final readonly class OutboxRepository
         ) === 1;
     }
 
+    /**
+     * Временная отсрочка без quarantine (например maintenance projector): claim снимается, сообщение
+     * снова становится доступным через $delaySeconds по DB clock; readiness degraded не вызывает.
+     */
+    public function defer(ClaimedOutboxMessage $message, string $code, int $delaySeconds): bool
+    {
+        return DB::update(
+            'UPDATE prc_process_outbox
+             SET claim_token = NULL, claim_until = NULL, last_error_code = ?, available_at = clock_timestamp() + make_interval(secs => ?)
+             WHERE message_id = ? AND kind = ? AND published_at IS NULL AND claim_token = ?',
+            [$code, $delaySeconds, $message->messageId->value, $message->kind->value, $message->claimToken->value],
+        ) === 1;
+    }
+
     /** Код ошибки quarantine всегда начинается с этого префикса: retry publish его не использует. */
     public const string QUARANTINE_PREFIX = 'quarantined_';
 
