@@ -1417,10 +1417,12 @@
     },
     {
       "path": "tests/Feature/Filament/AdminRouteInventoryTest.php",
-      "sha256": "ab43e9fc7aa9c0ffe0dd4ae75bfbc49f83221b2c0157485783b8bf7df87bdcb6",
+      "sha256": "c5972363e11a44a1f610ef3e936b335e50e654060caf51cfd82fc91c45981b54",
       "scenarios": [
         "runtime admin routes exactly match committed resource and role matrix"
-      ]
+      ],
+      "original_sha256": "ab43e9fc7aa9c0ffe0dd4ae75bfbc49f83221b2c0157485783b8bf7df87bdcb6",
+      "change_reason": "P1.17 declare additional Process drilldown routes and navigation labels; existing scenarios and assertions retained."
     },
     {
       "path": "tests/Feature/Filament/AnalysisResourceTest.php",
@@ -1661,11 +1663,13 @@
     },
     {
       "path": "tests/Feature/Filament/NavigationLabelsTest.php",
-      "sha256": "6fba9167bb547c818abc910c6985ba24052ba654374420601abf1330cc385c07",
+      "sha256": "f5769cf4287df0d5dfabe3d43d0ed2e1b60ed181cef18d42c6b11d9e7924fcac",
       "scenarios": [
         "назначает всем обнаруженным ресурсам осмысленные русские navigation labels",
         "фиксирует точный порядок групп и application pages"
-      ]
+      ],
+      "original_sha256": "6fba9167bb547c818abc910c6985ba24052ba654374420601abf1330cc385c07",
+      "change_reason": "P1.17 declare additional Process drilldown routes and navigation labels; existing scenarios and assertions retained."
     },
     {
       "path": "tests/Feature/Filament/OperationLogResourceTest.php",

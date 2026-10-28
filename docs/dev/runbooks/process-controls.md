@@ -101,8 +101,13 @@ optimistic version, audit transition с actor/before/after/reason. Прямых 
 holds он не трогает. Повтор `commandId` возвращает `Duplicate` и прежний successor без второго intent.
 
 CLI: `process:control {pause|resume|cancel-work|cancel-run|retry-fault|ack-incident} {target} --user= --reason= --expected=`
-(код 0 — settled, 1 — отказ без записей, 2 — аргументы или права). UI: «Система → Процессы: управление» и
-«Процессы: инциденты»; расширение drilldown на runs/work остаётся за P1.17.
+(код 0 — settled, 1 — отказ без записей, 2 — аргументы или права). UI, раздел «Система»: «Процессы: управление»
+(Pause/Resume), «Процессы: инциденты» (Acknowledge), «Процессы: запуски» (учёт required work, полнота discovery,
+`CancelRun`) и «Процессы: работа» (почему ждёт, следующая попытка, число попыток и отказов по объекту,
+`CancelWork`; `RetryHandlerFaultedWork` показывается только на `blocked(handler_fault_limit)` и только при праве
+`retry_handler_fault`). Действие строки читает актуальную версию записи при вызове; повтор клика по тому же
+`transition_seq` даёт тот же детерминированный `commandId`. Legacy sidebar-раздел источников и его badge
+остаются до P3.16–P3.19; `T17ProcessControlResourcesTest` проверяет полный sidebar на промежуточном baseline.
 
 ## Retention transition history (P1.18)
 

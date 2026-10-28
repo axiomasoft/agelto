@@ -58,6 +58,8 @@ function declaredAdminRouteExtensions(): array
     $routes = [
         ['procurement/process/control-scopes', 'filament.admin.resources.procurement.process.control-scopes.index', 'App\Filament\Resources\Procurement\Process\ControlScopes\Pages\ListControlScopes'],
         ['procurement/process/incidents', 'filament.admin.resources.procurement.process.incidents.index', 'App\Filament\Resources\Procurement\Process\Incidents\Pages\ListIncidents'],
+        ['procurement/process/runs/process-runs', 'filament.admin.resources.procurement.process.runs.process-runs.index', 'App\Filament\Resources\Procurement\Process\Runs\Pages\ListProcessRuns'],
+        ['procurement/process/work/work-items', 'filament.admin.resources.procurement.process.work.work-items.index', 'App\Filament\Resources\Procurement\Process\Work\Pages\ListWorkItems'],
     ];
 
     return array_map(
@@ -73,7 +75,7 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     usort($runtimeRoutes, static fn (array $a, array $b): int => [$a['uri'], $a['name']] <=> [$b['uri'], $b['name']]);
 
     expect($runtimeRoutes)
-        ->toHaveCount(63)
+        ->toHaveCount(65)
         ->toEqual($matrixRoutes)
         ->and(array_column($runtimeRoutes, 'name'))
         ->toHaveCount(count(array_unique(array_column($runtimeRoutes, 'name'))));

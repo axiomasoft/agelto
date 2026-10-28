@@ -16,6 +16,7 @@ use App\Guards\Admin\Permissions\OperationLogPermission;
 use App\Guards\Admin\Permissions\PlatformCheckPermission;
 use App\Guards\Admin\Permissions\PlatformPermission;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
+use App\Guards\Admin\Permissions\ProcessRunPermission;
 use App\Guards\Admin\Permissions\PromptPermission;
 use App\Guards\Admin\Permissions\PromptSuggestionPermission;
 use App\Guards\Admin\Permissions\ProviderPermission;
@@ -25,6 +26,7 @@ use App\Guards\Admin\Permissions\RunPermission;
 use App\Guards\Admin\Permissions\SourceCircuitPermission;
 use App\Guards\Admin\Permissions\SourceIncidentPermission;
 use App\Guards\Admin\Permissions\StatusMappingPermission;
+use App\Guards\Admin\Permissions\WorkItemPermission;
 use AzGuard\Roles\BaseRole;
 use UnitEnum;
 
@@ -104,6 +106,10 @@ final class OperatorRole extends BaseRole
             ControlScopePermission::View,
             IncidentPermission::ViewAny,
             IncidentPermission::View,
+            ProcessRunPermission::ViewAny,
+            ProcessRunPermission::View,
+            WorkItemPermission::ViewAny,
+            WorkItemPermission::View,
             ProcessControlPermission::ViewAny,
             ProcessControlPermission::View,
             ProcessControlPermission::PauseScope,

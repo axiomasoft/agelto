@@ -66,6 +66,7 @@ final readonly class TransitionRepository
         $this->record($eventId, $projectionMessageId, 'control', $controlId, $controlVersion, $previousMode, $newMode, $reasonCode, $actor, null, $actorId);
     }
 
+    /** @param array<string, int|string> $details */
     public function recordIncident(
         ProcessUuid $eventId,
         ProcessUuid $projectionMessageId,
