@@ -100,9 +100,12 @@ test('T04 TLS использует только SourceTlsTrust и CONNECT нап
 })->group('t04');
 
 test('T04 proxy 407 не повторяет credential и 429 не обходит cooldown rotation', function (): void {
+    config(['crawler.tls.bundles' => ['fixture.test' => $this->wire->root.'/cert.pem']]);
     $auth = new FixtureAttemptGate([new HttpRouteBinding(LedgerFixtures::uuid(), 'http://127.0.0.1:'.$this->wire->ports['auth']), new HttpRouteBinding(LedgerFixtures::uuid())]);
     $result = $this->executor->execute(F::plan($this->wire->url('/ok', true)), F::context(), $auth, $this->wire->policy(), $this->budget);
-    expect($auth->requests)->toHaveCount(1)->and($auth->results[0]->failure)->toBe(TransportFailure::ProxyAuth);
+    expect($auth->requests)->toHaveCount(2)->and($auth->results[0]->failure)->toBe(TransportFailure::ProxyAuth)
+        ->and($auth->requests[1]->route->id->value)->not->toBe($auth->requests[0]->route->id->value)
+        ->and($result)->toBeInstanceOf(TransportSucceeded::class);
     $result = $this->executor->execute(F::plan($this->wire->url('/quota')), F::context(), $this->gate, $this->wire->policy(), $this->budget);
     expect($result)->toBeInstanceOf(TransportDeferred::class)->and($result->reason)->toBe(NetworkDeferralReason::RateLimit)
         ->and($this->gate->requests)->toHaveCount(1)

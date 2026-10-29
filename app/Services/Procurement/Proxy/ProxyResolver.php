@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxy;
 
+use App\Dto\Procurement\Network\ProbeClaim;
 use App\Dto\Procurement\Proxy\ProxyCandidate;
 use App\Dto\Procurement\Proxy\ProxyLease;
 use App\Dto\Procurement\Proxy\ProxyOutcome;
@@ -14,7 +15,9 @@ use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Exceptions\Procurement\Proxy\ProxyPolicyMisconfiguredException;
 use App\Models\Procurement\Crawler\ProxyTarget;
+use App\Repositories\Procurement\Network\HealthRepository;
 use App\Repositories\Procurement\Proxy\ProxyHealthStoreRepository;
+use App\Services\Procurement\Network\Contracts\OutboundRouteSelector;
 use App\Services\Procurement\OperationLogWriter;
 use Closure;
 use Illuminate\Database\Query\Builder;
@@ -42,6 +45,12 @@ final readonly class ProxyResolver
         private ?Closure $randomSource = null,
         private ?OperationLogWriter $operationLogs = null,
     ) {}
+
+    /** New network seam; legacy resolve/reportOutcome consumers switch atomically in P2.6. */
+    public function outboundRoutes(RoutePolicy $policy, ?ProbeClaim $probe = null): OutboundRouteSelector
+    {
+        return new RouteSelector($policy, app(HealthRepository::class), $probe);
+    }
 
     /**
      * @throws NoProxyAvailableException пул кандидатов пуст либо весь пул занят пробой

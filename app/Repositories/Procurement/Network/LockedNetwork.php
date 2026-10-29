@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Network;
 
+use App\Dto\Procurement\Network\HealthAuthorization;
 use App\Dto\Procurement\Network\PermitEvidence;
 use App\Repositories\Procurement\Process\LedgerRow;
 
@@ -11,5 +12,5 @@ use App\Repositories\Procurement\Process\LedgerRow;
 final readonly class LockedNetwork
 {
     /** @param array<string, LedgerRow> $budgets keyed by scope_key */
-    public function __construct(public array $budgets, public LedgerRow $origin, public PermitEvidence $evidence) {}
+    public function __construct(public array $budgets, public LedgerRow $origin, public PermitEvidence $evidence, public HealthAuthorization $healthAuthorization) {}
 }

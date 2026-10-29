@@ -14,7 +14,7 @@ use Illuminate\Contracts\Config\Repository;
  */
 final readonly class OutboundPolicy
 {
-    private const array ROOT_KEYS = ['policy_version', 'origin_budget', 'route_origin_budget', 'probe_budget', 'override_bounds', 'scheduling', 'direct_route', 'legacy_bridge', 'catalog_providers'];
+    private const array ROOT_KEYS = ['policy_version', 'origin_budget', 'route_origin_budget', 'probe_budget', 'override_bounds', 'scheduling', 'direct_route', 'legacy_bridge', 'catalog_providers', 'health'];
 
     private const array SCHEDULING_KEYS = ['max_inline_wait_seconds', 'max_pending_demands_per_origin', 'ticket_ttl_seconds', 'ticket_renew_seconds', 'permit_cleanup_reserve_seconds', 'status_capacity_percent'];
 
@@ -58,6 +58,7 @@ final readonly class OutboundPolicy
         if (! is_array($root) || array_keys($root) !== self::ROOT_KEYS) {
             throw new \InvalidArgumentException('Invalid outbound policy: outbound');
         }
+        new HealthPolicy($config);
         $this->policyVersion = self::positive($root['policy_version'], 'outbound.policy_version');
         $this->originBudget = self::budget($root['origin_budget'], 'outbound.origin_budget');
         $this->routeOriginBudget = self::budget($root['route_origin_budget'], 'outbound.route_origin_budget');

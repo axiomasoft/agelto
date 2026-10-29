@@ -129,7 +129,8 @@ final readonly class OutboundExecutor
                         return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
                     }
                     if ($result->failure === TransportFailure::ProxyAuth) {
-                        return new TransportBlocked(NetworkBlockedReason::CredentialHold);
+                        $preferUntried = true;
+                        break;
                     }
                     if (! $result->failure->retryable()) {
                         return new TransportBlocked($result->failure === TransportFailure::Tls
@@ -153,7 +154,8 @@ final readonly class OutboundExecutor
                     return new TransportDeferred(NetworkDeferralReason::RateLimit, $retry);
                 }
                 if ($response->status === 407) {
-                    return new TransportBlocked(NetworkBlockedReason::CredentialHold);
+                    $preferUntried = true;
+                    break;
                 }
                 if (in_array($response->status, [502, 503, 504], true)) {
                     $preferUntried = false;

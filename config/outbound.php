@@ -59,4 +59,12 @@ return [
     // Config-only провайдеры source catalog (class strings): actual Definitions подключает
     // P2.9–P2.12. Boot их не вызывает; читает только явный platform:sync-catalog.
     'catalog_providers' => [],
+
+    'health' => [
+        'global_consecutive' => 5, 'global_base_seconds' => 1800, 'global_cap_seconds' => 21600,
+        'route_target_consecutive' => 5, 'route_target_min_sample' => 10, 'route_target_failure_percent' => 60,
+        'route_target_window_seconds' => 600, 'route_target_base_seconds' => 300, 'route_target_cap_seconds' => 3600,
+        'stable_decay_seconds' => 600, 'corroboration_window_seconds' => 300,
+        'origin_cooldown_seconds' => 900, 'probe_reserve_seconds' => 30,
+    ],
 ];

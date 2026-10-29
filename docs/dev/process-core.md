@@ -642,3 +642,58 @@ These tests establish bounded FIFO grants within a live slice; cross-slice admis
 remains the separate T11 contract. They make no production throughput or p99 latency promise.
 Coordinator runs acceptance V1/V2 on the delivered candidate; targeted executor logs and hashes
 are under `storage/app/testing/process-core/reports/p23-executor-20261029/`.
+
+## Route health and owned probes (P2.4)
+
+The new construction seam is `ProxyResolver::outboundRoutes(RoutePolicy, ?ProbeClaim)`.
+`RoutePolicy` contains exact runtime bindings and the profile identity, or one explicit direct
+binding. There is no fallback to another profile or to direct. Selection checks administrative
+eligibility and all three health scopes; the existing scheduled gate rechecks them under locks.
+Untried eligible routes take precedence after a retryable transport failure. Once the distinct
+route budget is exhausted, the current eligible route may repeat. Origin 429 never rotates;
+502/503/504 keep the current route. Least-recent actual authorization orders fresh selections.
+A disabled route stays disabled after success.
+
+`RequestClassifier` consumes typed transport facts. Proven proxy connect failures affect route
+global health; 407 holds its credential version until replacement and permits an allowed alternate
+route. Origin TLS, cancellation, byte/decode limits, storage and database failures do not become
+proxy failures. A parser failure after a received response cannot rewrite its transport success.
+`HttpRouteBinding` and selection pin the credential version through reserve/send. Send-time route
+kind, independence group, credential version and probe token are validated by `HealthAuthorization`
+and stored in the request's versioned metadata. Late outcomes use this immutable metadata.
+
+`HealthRepository` commits request completion, observation, three dedup applications, health
+reductions and permit release in one transaction. It locks the same route/health/target subset as
+network authorization. Duplicate physical outcomes apply once. An epoch mismatch or expired/foreign
+probe token retains a stale observation and leaves all current counters unchanged. No business work
+state is published by health application; the existing legacy writers remain active only for their
+legacy consumers until P2.6. New construction fixtures do not activate those consumers.
+
+Defaults in `outbound.health` are boot-validated: global five proven consecutive failures,
+1800s ×2 capped at21600s; route-target five consecutive or >=60% of >=10 eligible outcomes in
+rolling600s, 300s ×2 capped at3600s. Success resets its own consecutive series; openings decay by
+one only after600s of stability, with a new stability interval before another decay. Ignored
+outcomes do not enter the denominator. Target availability is separate: unknown independence
+leaves suspect and permits another route. Target opens only on fresh failures of at least two
+explicit distinct independence groups within300s, or explicit adapter-confirmed maintenance
+passed to `HealthRepository::record`; cooldown is at least900s and preserves longer Retry-After.
+
+A typed bounded probe operation supplies its unique token to `ProbeScheduler::claim`. It checks
+the complete route-global/route-target/target set before changing any row. Unknown, due-open and
+expired-probe scopes become half-open together with a new epoch and exact token scope set.
+Ordinary sends remain denied until readiness is proven; due probes return target_cooldown rather
+than no_route. A failed second scope leaves the first untouched. The probe lease covers the full
+request plus inline wait and cleanup reserve. The claimed operation then uses the same scheduled
+FIFO/GCRA and origin/probe capacity budgets through `ScheduledAttemptGate`. The send fence checks
+the exact token footprint again. Expired tokens cannot reclaim themselves; the next operation
+gets a fresh token. Cancellation releases the complete probe set without failure penalties.
+
+Scoped proof files (group `p24`, existing `core-test-network` mapping): `T04RouteHealthTest`,
+`T05ProbeOwnershipTest`, `T29HealthReducerTest`. They inspect real PostgreSQL facts, actual local
+HTTP/CONNECT receipts,20 independent backend contenders for one actual probe, duplicate outcome
+races, stale owner fencing, observation-insert rollback, deterministic thresholds and600s decay.
+Synthetic typed outcomes test reducer policy; they do not substitute for the real wire/concurrency
+cases. The existing T03 credential test now verifies auth failure on A followed by allowed B,
+with no retry of A's credential. No schema change or install/reset is required by this slice.
+Executor logs and candidate hashes: `storage/app/testing/process-core/reports/p24-executor-20261029/`.
+Full acceptance and runtime/old-writer cutover remain coordinator/P2.6 responsibilities.

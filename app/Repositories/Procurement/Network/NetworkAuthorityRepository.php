@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Network;
 
+use App\Dto\Procurement\Network\HealthAuthorization;
 use App\Dto\Procurement\Network\NetworkOwnerState;
 use App\Dto\Procurement\Network\NetworkRouteSelection;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
@@ -12,9 +13,11 @@ use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Platform\RequestProfile;
 use App\Enums\Procurement\Network\DemandPurpose;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Enums\Procurement\Network\RouteKind;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Network\OutboundPolicy;
+use App\Services\Procurement\Network\ProbeScheduler;
 
 /**
  * Tier7 order: profile, route, route health, route-target health, target, target health,
@@ -40,8 +43,8 @@ final readonly class NetworkAuthorityRepository
             }
             $policies['profile:'.$selection->profileId->value] = $profile->int('policy_version');
         }
-        $route = LedgerRow::one('SELECT kind, enabled, credential_version FROM prc_network_routes WHERE id = ? FOR UPDATE', [$selection->routeId->value]);
-        if ($route === null || ! $route->bool('enabled') || ($selection->profileId === null && $route->string('kind') !== 'direct')) {
+        $route = LedgerRow::one('SELECT kind, enabled, credential_version, independence_group FROM prc_network_routes WHERE id = ? FOR UPDATE', [$selection->routeId->value]);
+        if ($route === null || $route->int('credential_version') !== $selection->credentialVersion || ! $route->bool('enabled') || ($selection->profileId === null && $route->string('kind') !== 'direct')) {
             return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
         }
         $policies['route:'.$selection->routeId->value] = $route->int('credential_version');
@@ -73,7 +76,7 @@ final readonly class NetworkAuthorityRepository
             return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
         }
         $health['prc_target_health'] = $targetHealth;
-        $ownedProbes = 0;
+        $ownedProbes = [];
         foreach ($health as $table => $row) {
             $epochs[$table.':'.$row->string('id')] = $row->int('health_epoch');
             if ($row->string('state') === 'closed') {
@@ -85,11 +88,17 @@ final readonly class NetworkAuthorityRepository
                 return new TransportBlocked($row->nullableString('reason_code') === 'credential_hold'
                     ? NetworkBlockedReason::CredentialHold : NetworkBlockedReason::ConfigurationHold);
             }
-            $ownedProbes++;
+            $ownedProbes[] = $table.':'.$row->string('id');
         }
         // A probe owner cannot use a foreign token or an empty probe scope set.
-        if ($owner->purpose === DemandPurpose::Probe && $ownedProbes === 0) {
+        if ($owner->purpose === DemandPurpose::Probe && $ownedProbes === []) {
             return new TransportBlocked(NetworkBlockedReason::OwnerLost);
+        }
+        if ($owner->purpose === DemandPurpose::Probe) {
+            sort($ownedProbes, SORT_STRING);
+            if ($owner->probeToken === null || ProbeScheduler::tokenScopes($owner->probeToken) !== $ownedProbes) {
+                return new TransportBlocked(NetworkBlockedReason::OwnerLost);
+            }
         }
         $origin = $plan->url->origin;
         $keys = [$origin->budgetScopeKey(), $origin->routeScopeKey($selection->routeId->value)];
@@ -111,7 +120,9 @@ final readonly class NetworkAuthorityRepository
         ksort($policies, SORT_STRING);
         ksort($epochs, SORT_STRING);
 
-        return new LockedNetwork($budgets, $budgets[$origin->budgetScopeKey()], new PermitEvidence($policies, $epochs));
+        return new LockedNetwork($budgets, $budgets[$origin->budgetScopeKey()], new PermitEvidence($policies, $epochs),
+            new HealthAuthorization(RouteKind::from($route->string('kind')),
+                $route->int('credential_version'), $route->nullableString('independence_group'), $owner->probeToken));
     }
 
     public static function fingerprint(OutboundRequestPlan $plan): string
@@ -121,7 +132,7 @@ final readonly class NetworkAuthorityRepository
             $plan->idempotency->value, $plan->bodyHash?->hex], JSON_THROW_ON_ERROR));
     }
 
-    private static function profileMatches(LedgerRow $target, RequestProfile $profile): bool
+    public static function profileMatches(LedgerRow $target, RequestProfile $profile): bool
     {
         if ($target->int('endpoint_policy_schema_version') !== 1) {
             return false;

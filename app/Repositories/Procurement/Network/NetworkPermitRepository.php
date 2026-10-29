@@ -41,7 +41,7 @@ use Illuminate\Support\Str;
 final readonly class NetworkPermitRepository
 {
     public function __construct(private NetworkOwnerFence $owners, private NetworkAuthorityRepository $network,
-        private ProcessTransaction $transaction, private OutboundPolicy $policy) {}
+        private ProcessTransaction $transaction, private OutboundPolicy $policy, private HealthRepository $health) {}
 
     public function register(OutboundRequestPlan $plan, ExecutionContext|OutboundExecutionContext $context, NetworkRouteSelection $route): NetworkDemandTicket|TransportDeferred|TransportBlocked
     {
@@ -283,9 +283,9 @@ final readonly class NetworkPermitRepository
         foreach ($network->budgets as $budget) {
             DB::update("UPDATE prc_network_budgets SET send_tat = greatest(send_tat, ?::timestamptz) + emission_interval_us * interval '1 microsecond' WHERE id = ?", [self::date($now), $budget->string('id')]);
         }
-        DB::insert("INSERT INTO prc_request_attempts (request_id, demand_id, request_seq, target_id, route_id, started_at, sent_at, phase, epochs, epochs_schema_version)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'authorized', ?::jsonb, 1)", [$ticket->plan->physicalRequestId->value, $ticket->id->value, $ticket->ticketSeq,
-            $ticket->plan->targetId->value, $ticket->route->routeId->value, self::date($now), self::date($now), json_encode($network->evidence->epochs, JSON_THROW_ON_ERROR)]);
+        DB::insert("INSERT INTO prc_request_attempts (request_id, demand_id, request_seq, target_id, route_id, started_at, sent_at, phase, epochs, epochs_schema_version, artifacts, artifacts_schema_version)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'authorized', ?::jsonb, 1, ?::jsonb, 1)", [$ticket->plan->physicalRequestId->value, $ticket->id->value, $ticket->ticketSeq,
+            $ticket->plan->targetId->value, $ticket->route->routeId->value, self::date($now), self::date($now), json_encode($network->evidence->epochs, JSON_THROW_ON_ERROR), json_encode($network->healthAuthorization->toArray(), JSON_THROW_ON_ERROR)]);
 
         return new NetworkSendClaim(true, self::instant($now), self::instant($expires));
     }
@@ -295,18 +295,10 @@ final readonly class NetworkPermitRepository
         $this->transaction->run(fn () => $this->cancelOwned($ticket, $context->lease()));
     }
 
-    /** Factual completion, including late/stale owners. Does not update work or health. */
+    /** Factual completion, epoch/probe reduction, dedup and release are one short transaction. */
     public function record(ProcessUuid $requestId, HttpAttemptResult $result): void
     {
-        $this->transaction->run(function () use ($requestId, $result): void {
-            $row = LedgerRow::one('SELECT demand_id FROM prc_request_attempts WHERE request_id = ? FOR UPDATE', [$requestId->value]);
-            if ($row === null) {
-                throw new \LogicException('No durable request authorization.');
-            }
-            DB::update("UPDATE prc_request_attempts SET finished_at = clock_timestamp(), phase = 'finished', outcome = ?, status = ?, duration_ms = ceil(extract(epoch FROM (clock_timestamp() - started_at)) * 1000)::bigint, bytes = ? WHERE request_id = ? AND finished_at IS NULL",
-                [$result->failure === null ? 'response' : $result->failure->value, $result->response?->status, $result->entityBytes, $requestId->value]);
-            DB::update("UPDATE prc_network_permits SET state = 'released' WHERE demand_id = ? AND state = 'sent'", [$row->string('demand_id')]);
-        });
+        $this->health->record($requestId, $result);
     }
 
     /** 429 applies to every alias/route and to already reserved permits; no debt refund. */

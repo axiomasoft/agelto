@@ -14,7 +14,11 @@ final readonly class HttpRouteBinding
         private ?string $proxy = null,
         private ?string $username = null,
         private ?string $password = null,
+        public int $credentialVersion = 1,
     ) {
+        if ($credentialVersion < 1) {
+            throw new \InvalidArgumentException('Invalid credential version.');
+        }
         if ($proxy !== null) {
             $parts = parse_url($proxy);
             if (! is_array($parts) || ($parts['scheme'] ?? '') !== 'http' || ! isset($parts['host'], $parts['port'])
