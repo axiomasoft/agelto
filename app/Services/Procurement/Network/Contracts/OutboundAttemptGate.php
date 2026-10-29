@@ -25,8 +25,8 @@ interface OutboundAttemptGate
 {
     public function authorize(OutboundRequestPlan $plan, ExecutionContext|OutboundExecutionContext $context, RetryRoutePreference $routes): AuthorizedHttpRequest|TransportDeferred|TransportBlocked;
 
-    /** Factual outcome/observation/release, separate from any work or domain finalization. */
-    public function record(AuthorizedHttpRequest $request, HttpAttemptResult $result): void;
+    /** Receipt/observation/release and any 429 decision commit atomically; return the durable quota decision. */
+    public function record(AuthorizedHttpRequest $request, HttpAttemptResult $result): TransportDeferred|TransportBlocked|null;
 
     /** Cross-origin hops must use the catalog target/budget of their new origin. */
     public function targetForRedirect(OutboundRequestPlan $from, SafeUrl $to): ProcessUuid|TransportBlocked;

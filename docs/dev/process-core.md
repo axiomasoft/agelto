@@ -697,3 +697,33 @@ cases. The existing T03 credential test now verifies auth failure on A followed 
 with no retry of A's credential. No schema change or install/reset is required by this slice.
 Executor logs and candidate hashes: `storage/app/testing/process-core/reports/p24-executor-20261029/`.
 Full acceptance and runtime/old-writer cutover remain coordinator/P2.6 responsibilities.
+
+
+### Atomic quota receipts (P25-01 / P25-02)
+
+`OutboundAttemptGate::record` returns the durable quota decision. `HealthRepository::record`
+uses the DB clock to parse Retry-After and locks health/target authorities, then the demand-pinned canonical
+origin budget, then the request/permit. The same short transaction updates origin `not_before`
+and TAT, receipt status/outcome, observation/dedup and permit release. Duplicate recording returns
+the original RetryAt without extending cooldown. Reserved permits and new requests recheck the
+origin fence before sending. Network I/O remains outside this transaction.
+
+`HttpResponseHead` captures received status/headers in the cURL headers callback before entity
+transfer, decompression, byte limits, text decoding or storage can fail. CONNECT handshake headers
+are suppressed here; their status remains proxy-phase evidence in cURL stats. A malformed 429 still
+returns the durable rate-limit decision; request outcome and observation retain the separate
+body failure. Observation details store HTTP status, bounded printable Retry-After plus its hash,
+and the quota decision/RetryAt. Quota responses do not increase proxy failure counters.
+
+P25-01 regression: `T35ClaimSendFenceTest` kills a real PHP/PostgreSQL worker immediately before
+receipt commit and immediately after `record` returns. It checks rollback/all-or-none state,
+idempotent retry, unchanged RetryAt and zero additional local-server receipts from reserved or
+fresh callers. Its pre-commit replay uses a test-owned copy of the received response; a production
+crash before factual commit can still leave an unknown request.
+
+P25-02 regressions in `T04HttpPolicyTest` and `T35ClaimSendFenceTest` combine HTTP 429/Retry-After
+with invalid UTF-8, invalid gzip, unsupported encoding, gzip expansion and plain entity overflow.
+They assert both HTTP/body facts and the durable origin fence. The tests retain sanitized SQL and
+local-server evidence under test storage `app/testing/process-core/quota-evidence/<process>/`.
+Legacy caller/health-writer activation remains owned by P2.6. These assertions do not close the
+independent P2.5 review or replace coordinator acceptance.

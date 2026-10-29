@@ -120,7 +120,14 @@ final readonly class OutboundExecutor
                     $gate->record($authorized, $exit->result);
                     throw $exit->interruption;
                 }
-                $gate->record($authorized, $result);
+                $quota = $gate->record($authorized, $result);
+                if ($result->response?->body instanceof BinaryBodyArtifact
+                    && in_array($result->response->status, [301, 302, 303, 307, 308, 407, 429, 502, 503, 504], true)) {
+                    Storage::disk($result->response->body->artifact->disk)->delete($result->response->body->artifact->key);
+                }
+                if ($quota !== null) {
+                    return $quota;
+                }
                 if ($result->failure !== null) {
                     if ($result->failure === TransportFailure::Storage) {
                         return $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
@@ -140,19 +147,6 @@ final readonly class OutboundExecutor
                     break;
                 }
                 $response = $result->response ?? throw new \LogicException('Missing physical response.');
-                if ($response->body instanceof BinaryBodyArtifact
-                    && (in_array($response->status, [301, 302, 303, 307, 308, 407, 429, 502, 503, 504], true))) {
-                    Storage::disk($response->body->artifact->disk)->delete($response->body->artifact->key);
-                }
-                if ($response->status === 429) {
-                    $retry = $this->retryPolicy->retryAfter($response->header('retry-after'), new \DateTimeImmutable);
-                    if ($retry === null) {
-                        return new TransportBlocked(NetworkBlockedReason::PolicyReview);
-                    }
-                    $gate->cooldown($physical, $retry);
-
-                    return new TransportDeferred(NetworkDeferralReason::RateLimit, $retry);
-                }
                 if ($response->status === 407) {
                     $preferUntried = true;
                     break;

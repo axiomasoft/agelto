@@ -8,6 +8,7 @@ use App\Dto\Procurement\Network\HttpRouteBinding;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportBlocked;
+use App\Dto\Procurement\Network\TransportDeferred;
 use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
@@ -189,3 +190,31 @@ test('T21 bounded resolver использует real isolated Docker DNS и за
     $url = new SafeUrl('http://core-postgres:5432/');
     expect(fn () => (new UrlPolicy([$url->origin]))->resolve($url, $context, 2))->toThrow(InvalidArgumentException::class);
 })->group('t21');
+
+test('P25-02 HTTP head survives malformed quota entity independently of body outcome', function (string $path, TransportFailure $failure): void {
+    while (DB::transactionLevel() > 0) {
+        DB::rollBack();
+    }
+    $wire = new WireFixture;
+    try {
+        $gate = F::gate();
+        $outcome = app(OutboundExecutor::class)->execute(F::plan($wire->url($path)), F::context(), $gate,
+            $wire->policy(), new TransferBudget(1_000_000, 1_000_000));
+        expect($outcome)->toBeInstanceOf(TransportDeferred::class)
+            ->and($outcome->reason)->toBe(NetworkDeferralReason::RateLimit)
+            ->and($gate->results)->toHaveCount(1)
+            ->and($gate->results[0]->failure)->toBe($failure)
+            ->and($gate->results[0]->response)->toBeNull()
+            ->and($gate->results[0]->head->status)->toBe(429)
+            ->and($gate->results[0]->head->header('Retry-After'))->toBe('120')
+            ->and($wire->receipts())->toHaveCount(1);
+    } finally {
+        $wire->stop();
+    }
+})->with([
+    'invalid UTF8' => ['/quota-invalid-utf8', TransportFailure::Decode],
+    'invalid gzip' => ['/quota-badgzip', TransportFailure::Decode],
+    'unsupported encoding' => ['/quota-unsupported', TransportFailure::Decode],
+    'decompressed entity limit' => ['/quota-biggzip', TransportFailure::ByteLimit],
+    'plain entity limit' => ['/quota-large', TransportFailure::ByteLimit],
+])->group('t04', 't47');

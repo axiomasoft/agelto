@@ -16,7 +16,10 @@ use App\Dto\Procurement\Network\TransportDeferred;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\RetryAt;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Services\Procurement\Network\Contracts\OutboundAttemptGate;
+use App\Services\Procurement\Network\RetryPolicy;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
 /** Transport-only gate. Does not claim to prove the future DB permit/health protocol. */
@@ -70,10 +73,18 @@ final class FixtureAttemptGate implements OutboundAttemptGate
         return $request;
     }
 
-    public function record(AuthorizedHttpRequest $request, HttpAttemptResult $result): void
+    public function record(AuthorizedHttpRequest $request, HttpAttemptResult $result): TransportDeferred|TransportBlocked|null
     {
         $this->results[] = $result;
         $this->afterRecord?->__invoke($this);
+        if ($result->head?->status === 429) {
+            $this->cooldown = (new RetryPolicy)->retryAfter($result->head->header('retry-after'), new \DateTimeImmutable);
+
+            return $this->cooldown === null ? new TransportBlocked(NetworkBlockedReason::PolicyReview)
+                : new TransportDeferred(NetworkDeferralReason::RateLimit, $this->cooldown);
+        }
+
+        return null;
     }
 
     public function targetForRedirect(OutboundRequestPlan $from, SafeUrl $to): ProcessUuid|TransportBlocked

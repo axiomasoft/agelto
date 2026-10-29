@@ -83,7 +83,15 @@ class Http(http.server.BaseHTTPRequestHandler):
                                    "/redirect-cross": f"http://second.test:{http_service.server_address[1]}/ok",
                                    "/redirect-private": "http://127.0.0.1:1/forbidden",
                                    "/redirect-downgrade": f"http://fixture.test:{http_service.server_address[1]}/ok"}[self.path]
-        if self.path == "/quota":
+        if self.path.startswith("/quota-") and self.path != "/quota-long":
+            body = {"/quota-invalid-utf8": b"\xff", "/quota-badgzip": b"this is not gzip",
+                    "/quota-biggzip": gzip.compress(b"a" * 1000000), "/quota-large": b"x" * 200000,
+                    "/quota-unsupported": b"encoded"}[self.path]
+            if self.path in ("/quota-badgzip", "/quota-biggzip"):
+                headers["Content-Encoding"] = "gzip"
+            if self.path == "/quota-unsupported":
+                headers["Content-Encoding"] = "imaginary"
+        if self.path == "/quota" or (self.path.startswith("/quota-") and self.path != "/quota-long"):
             status = 429
             headers["Retry-After"] = "120"
         if self.path == "/quota-long":

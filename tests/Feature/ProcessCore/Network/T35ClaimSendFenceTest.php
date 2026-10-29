@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Network\DecodedTextBody;
+use App\Dto\Procurement\Network\HttpAttemptResult;
+use App\Dto\Procurement\Network\HttpResponseHead;
 use App\Dto\Procurement\Network\NetworkPermitWait;
 use App\Dto\Procurement\Network\NetworkSendClaim;
+use App\Dto\Procurement\Network\ResponseEnvelope;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
@@ -18,10 +22,13 @@ use App\Services\Procurement\Network\OutboundExecutor;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Process\Process;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
+use Tests\Support\ProcessCore\Http\QuotaReceiptBoundary;
 use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\TestFilesystemIsolation;
 
 beforeEach(function (): void {
     F::clean();
@@ -163,4 +170,142 @@ test('stored demand deadline не продлевается новым context и
     DB::table('prc_network_demands')->where('id', $permit->ticket->id->value)->update(['operation_deadline' => DB::raw("clock_timestamp() + interval '10 seconds'")]);
     expect($f->send($permit, $context, $this->wire))->toBeFalse()
         ->and($this->wire->receipts())->toHaveCount(0)->and(DB::table('prc_request_attempts')->count())->toBe(0);
+});
+
+test('P25-01 SIGKILL at receipt commit boundary preserves atomic quota release and replay', function (string $boundary): void {
+    $f = $this->f;
+    DB::table('prc_network_budgets')->update(['emission_interval_us' => 1, 'max_inflight' => 2]);
+    $other = $f->context();
+    $reserved = $f->reserve($other);
+    $context = $f->context();
+    $permit = $f->reserve($context, $f->plan(url: $this->wire->url('/quota')));
+    $marker = sys_get_temp_dir().'/quota-boundary-'.bin2hex(random_bytes(6));
+    $token = 'runtime-p24-quota-'.bin2hex(random_bytes(6));
+    $root = TestFilesystemIsolation::prepare($token);
+    $code = 'require "vendor/autoload.php"; $app = require "bootstrap/app.php";'
+        .'$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();'
+        .'\Tests\Support\TestFilesystemIsolation::configure($app);'
+        .'\Tests\Support\ProcessCore\Http\QuotaReceiptBoundary::run(';
+    $args = [$permit->ticket->id->value, $permit->ticket->plan->url->reveal(), $marker, $boundary];
+    $code .= implode(',', array_map(fn (string $arg): string => var_export($arg, true), $args)).');';
+    $worker = new Process(['php', '-r', $code], base_path(), [
+        'PROCESS_CORE_PROCESS' => $token, 'TMPDIR' => $root.'/tmp', 'TMP' => $root.'/tmp', 'TEMP' => $root.'/tmp',
+    ]);
+    $worker->setTimeout(15)->start();
+    try {
+        $until = hrtime(true) + 8_000_000_000;
+        while (! is_file($marker) && $worker->isRunning() && hrtime(true) < $until) {
+            usleep(10_000);
+        }
+        expect(is_file($marker))->toBeTrue($worker->getErrorOutput().$worker->getOutput());
+        $point = json_decode(file_get_contents($marker), true, flags: JSON_THROW_ON_ERROR);
+        expect($point['transaction_level'])->toBe($boundary === 'before_commit' ? 1 : 0)
+            ->and($point['backend_pid'])->not->toBe(DB::selectOne('SELECT pg_backend_pid() AS pid')->pid);
+        if ($boundary === 'after_commit') {
+            // The exact old record-return/before-cooldown seam: the other reserved send is already fenced.
+            expect($f->send($reserved, $other, $this->wire))->toBeFalse()
+                ->and(DB::table('prc_request_attempts')->sole()->status)->toBe(429)
+                ->and(DB::table('prc_network_permits')->where('id', $permit->id->value)->sole()->state)->toBe('released');
+        } else {
+            expect(DB::table('prc_request_attempts')->sole()->finished_at)->toBeNull()
+                ->and(DB::table('prc_observations')->count())->toBe(0)
+                ->and(DB::table('prc_network_budgets')->where('scope_key', $f->url->origin->budgetScopeKey())->sole()->not_before)->toBe('-infinity');
+        }
+        $worker->signal(9);
+        $worker->wait();
+        expect($worker->hasBeenSignaled())->toBeTrue()->and($worker->getTermSignal())->toBe(9);
+        if ($boundary === 'before_commit') {
+            expect(DB::table('prc_request_attempts')->sole()->finished_at)->toBeNull()
+                ->and(DB::table('prc_network_permits')->where('id', $permit->id->value)->sole()->state)->toBe('sent')
+                ->and(DB::table('prc_observations')->count())->toBe(0)
+                ->and(DB::table('prc_network_budgets')->where('scope_key', $f->url->origin->budgetScopeKey())->sole()->not_before)->toBe('-infinity');
+        }
+        $result = unserialize(file_get_contents($marker.'.result'), ['allowed_classes' => [
+            HttpAttemptResult::class, HttpResponseHead::class,
+            ResponseEnvelope::class, DecodedTextBody::class,
+        ]]);
+        expect($result)->toBeInstanceOf(HttpAttemptResult::class);
+        $decision = $f->repo->record($permit->ticket->plan->physicalRequestId, $result);
+        $before = DB::table('prc_network_budgets')->where('scope_key', $f->url->origin->budgetScopeKey())->sole();
+        $duplicate = $f->repo->record($permit->ticket->plan->physicalRequestId, $result);
+        expect($decision)->toBeInstanceOf(TransportDeferred::class)
+            ->and($duplicate->retryAt->value)->toEqual($decision->retryAt->value)
+            ->and(DB::table('prc_network_budgets')->where('id', $before->id)->sole()->not_before)->toBe($before->not_before)
+            ->and(new DateTimeImmutable($before->not_before))->toEqual($decision->retryAt->value)
+            ->and(new DateTimeImmutable($before->tat))->toBeGreaterThanOrEqual($decision->retryAt->value)
+            ->and(DB::table('prc_observations')->count())->toBe(1)
+            ->and(DB::table('prc_observation_applications')->count())->toBe(3);
+        if ($boundary === 'before_commit') {
+            expect($f->send($reserved, $other, $this->wire))->toBeFalse();
+        }
+        $next = app(OutboundExecutor::class)->execute($f->plan(), $f->context(), $f->gate(), $this->wire->policy(), new TransferBudget(1_000_000, 1_000_000));
+        expect($next)->toBeInstanceOf(TransportDeferred::class)->and($next->reason)->toBe(NetworkDeferralReason::RateLimit)
+            ->and($next->retryAt->value)->toBeGreaterThanOrEqual($decision->retryAt->value)
+            ->and(array_column($this->wire->receipts(), 'path'))->toBe(['/quota'])
+            ->and(DB::table('prc_request_attempts')->count())->toBe(1);
+        QuotaReceiptBoundary::evidence($boundary, $this->wire, $decision, ['signal' => 9, ...$point]);
+    } finally {
+        $worker->stop(0.1, 9);
+        foreach ([$marker, $marker.'.result'] as $path) {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+        TestFilesystemIsolation::cleanup($token);
+    }
+})->with(['before_commit', 'after_commit']);
+
+test('P25-02 malformed 429 commits both quota and body failure and fences reserved and fresh sends', function (string $path, string $failure): void {
+    $f = $this->f;
+    DB::table('prc_network_budgets')->update(['emission_interval_us' => 1, 'max_inflight' => 2]);
+    $other = $f->context();
+    $reserved = $f->reserve($other);
+    $outcome = app(OutboundExecutor::class)->execute($f->plan(url: $this->wire->url($path)), $f->context(), $f->gate(),
+        $this->wire->policy(), new TransferBudget(1_000_000, 1_000_000));
+    expect($outcome)->toBeInstanceOf(TransportDeferred::class)->and($outcome->reason)->toBe(NetworkDeferralReason::RateLimit);
+    $request = DB::table('prc_request_attempts')->sole();
+    $details = json_decode(DB::table('prc_observations')->sole()->details, true, flags: JSON_THROW_ON_ERROR);
+    $budget = DB::table('prc_network_budgets')->where('scope_key', $f->url->origin->budgetScopeKey())->sole();
+    expect($request->status)->toBe(429)->and($request->outcome)->toBe($failure)->and($request->finished_at)->not->toBeNull()
+        ->and($details['http_status'])->toBe(429)->and($details['retry_after'])->toBe('120')
+        ->and($details['quota']['decision'])->toBe('rate_limit')
+        ->and(new DateTimeImmutable($details['quota']['retry_at']))->toEqual($outcome->retryAt->value)
+        ->and(new DateTimeImmutable($budget->not_before))->toEqual($outcome->retryAt->value)
+        ->and($outcome->retryAt->value->getTimestamp() - (new DateTimeImmutable($request->finished_at))->getTimestamp())->toBe(120)
+        ->and(DB::table('prc_network_permits')->where('demand_id', $request->demand_id)->sole()->state)->toBe('released');
+    foreach (['prc_route_health', 'prc_route_target_health'] as $table) {
+        expect(DB::table($table)->sole()->consecutive_failures)->toBe(0)->and(DB::table($table)->sole()->state)->toBe('closed');
+    }
+    expect($f->send($reserved, $other, $this->wire))->toBeFalse();
+    $next = app(OutboundExecutor::class)->execute($f->plan(), $f->context(), $f->gate(), $this->wire->policy(), new TransferBudget(1_000_000, 1_000_000));
+    expect($next)->toBeInstanceOf(TransportDeferred::class)->and($next->reason)->toBe(NetworkDeferralReason::RateLimit)
+        ->and($next->retryAt->value)->toBeGreaterThanOrEqual($outcome->retryAt->value)
+        ->and(array_column($this->wire->receipts(), 'path'))->toBe([$path])
+        ->and(DB::table('prc_request_attempts')->count())->toBe(1);
+    QuotaReceiptBoundary::evidence(str_replace('-', '_', ltrim($path, '/')), $this->wire, $outcome);
+})->with([
+    'invalid UTF8' => ['/quota-invalid-utf8', 'decode'],
+    'invalid gzip' => ['/quota-badgzip', 'decode'],
+    'unsupported encoding' => ['/quota-unsupported', 'decode'],
+    'gzip expansion' => ['/quota-biggzip', 'byte_limit'],
+    'entity overflow' => ['/quota-large', 'byte_limit'],
+]);
+
+test('P25-01 receipt keeps the authorized origin when catalog metadata changes after send', function (): void {
+    $f = $this->f;
+    $armed = true;
+    DB::listen(function (QueryExecuted $query) use ($f, &$armed): void {
+        if ($armed && str_contains($query->sql, 'SELECT a.route_id, a.target_id, d.origin_budget_id')) {
+            $armed = false;
+            DB::table('prc_source_targets')->where('id', $f->target->value)->update(['canonical_origin' => 'https://moved.test']);
+        }
+    });
+    $outcome = app(OutboundExecutor::class)->execute($f->plan(url: $this->wire->url('/quota')), $f->context(), $f->gate(),
+        $this->wire->policy(), new TransferBudget(1_000_000, 1_000_000));
+    expect($armed)->toBeFalse()->and($outcome)->toBeInstanceOf(TransportDeferred::class)
+        ->and($outcome->reason)->toBe(NetworkDeferralReason::RateLimit)
+        ->and(DB::table('prc_request_attempts')->sole()->status)->toBe(429)
+        ->and(new DateTimeImmutable(DB::table('prc_network_budgets')->where('scope_key', $f->url->origin->budgetScopeKey())->sole()->not_before))->toEqual($outcome->retryAt->value)
+        ->and(array_column($this->wire->receipts(), 'path'))->toBe(['/quota']);
+    QuotaReceiptBoundary::evidence('pinned_origin', $this->wire, $outcome);
 });

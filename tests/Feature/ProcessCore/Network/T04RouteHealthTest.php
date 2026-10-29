@@ -45,6 +45,7 @@ test('два ConnectionException затем200 сохраняют три request
     expect($result)->toBeInstanceOf(TransportSucceeded::class)->and($rows)->toHaveCount(3)
         ->and($rows->pluck('route_id')->all())->toBe([$a->id->value, $b->id->value, $b->id->value])
         ->and($rows->where('status', 200))->toHaveCount(1)
+        ->and($rows->where('outcome', '!=', 'response')->pluck('status')->all())->toBe([null, null])
         ->and(array_filter($this->wire->receipts(), fn ($r) => $r['kind'] === 'http'))->toHaveCount(3)
         ->and(DB::table('prc_process_work')->sum('item_failures'))->toBe($before)
         ->and(DB::table('prc_route_health')->where('state', 'open')->count())->toBe(0)

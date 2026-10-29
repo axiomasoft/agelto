@@ -13,12 +13,20 @@ final class PinnedCurlHandler
 {
     private CurlFactory $factory;
 
+    private int $connectStatus = 0;
+
     public function __construct()
     {
         if (! extension_loaded('curl') || ! defined('CURLOPT_CONNECT_TO') || ! defined('CURLOPT_LOW_SPEED_TIME')) {
             throw new \LogicException('Pinned cURL transport capabilities unavailable.');
         }
         $this->factory = new CurlFactory(0);
+    }
+
+    /** PHP's aggregate curl_getinfo array does not expose CURLINFO_HTTP_CONNECTCODE. */
+    public function proxyConnectStatus(): int
+    {
+        return $this->connectStatus;
     }
 
     /** @param array<array-key, mixed> $options */
@@ -32,6 +40,7 @@ final class PinnedCurlHandler
         try {
             curl_exec($easy->handle);
             $easy->errno = curl_errno($easy->handle);
+            $this->connectStatus = curl_getinfo($easy->handle, CURLINFO_HTTP_CONNECTCODE);
             $finished = true;
 
             return CurlFactory::finish($this, $easy, $this->factory);

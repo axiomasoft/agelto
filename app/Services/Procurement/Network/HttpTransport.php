@@ -8,6 +8,7 @@ use App\Dto\Procurement\Network\AuthorizedHttpRequest;
 use App\Dto\Procurement\Network\BinaryBodyArtifact;
 use App\Dto\Procurement\Network\HttpAttemptResult;
 use App\Dto\Procurement\Network\HttpRequestPayload;
+use App\Dto\Procurement\Network\HttpResponseHead;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\ResolvedUrl;
 use App\Dto\Procurement\Network\ResponseEnvelope;
@@ -55,6 +56,7 @@ final readonly class HttpTransport
         $sink = new BoundedSink($plan->profile->maxEntityBytes, fn () => $context->tick(), $budget);
         $artifactKey = null;
         $keepArtifact = false;
+        $head = null;
         try {
             $context->tick();
             $version = curl_version();
@@ -72,6 +74,8 @@ final readonly class HttpTransport
                 CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
                 CURLOPT_CONNECT_TO => [$connectHost.':'.$port.':'.$ip.':'.$port],
                 CURLOPT_HTTPPROXYTUNNEL => $authorized->route->proxy() !== '',
+                // CONNECT status is proxy-phase evidence (on_stats), never an origin response head.
+                CURLOPT_SUPPRESS_CONNECT_HEADERS => true,
             ];
             if ($authorized->route->credentials() !== null) {
                 $curl[CURLOPT_PROXYUSERPWD] = $authorized->route->credentials();
@@ -98,7 +102,16 @@ final readonly class HttpTransport
                     $wireBytes = max($wireBytes, $downloaded);
                     $budget->wire($delta);
                 },
-                'on_headers' => static function (ResponseInterface $response) use ($encoding): void {
+                'on_headers' => static function (ResponseInterface $response) use ($encoding, &$head): void {
+                    // Capture before decompression, sink limits or text decoding can fail.
+                    $headers = [];
+                    foreach ($response->getHeaders() as $name => $values) {
+                        if (! is_string($name)) {
+                            throw new \LogicException('Expected a response header name.');
+                        }
+                        $headers[$name] = array_values($values);
+                    }
+                    $head = new HttpResponseHead($response->getStatusCode(), $headers);
                     $contentEncoding = strtolower(trim($response->getHeaderLine('Content-Encoding')));
                     if ($contentEncoding !== '' && $contentEncoding !== 'identity' && ! in_array($contentEncoding, explode(', ', $encoding), true)) {
                         throw new ResponseDecodeFailed('Unsupported Content-Encoding.');
@@ -111,11 +124,10 @@ final readonly class HttpTransport
                         throw new ResponseLimitExceeded('Response header limit exceeded.');
                     }
                 },
-                'on_stats' => static function (TransferStats $stats) use (&$code, &$wireBytes, &$connectStatus, $budget): void {
+                'on_stats' => static function (TransferStats $stats) use (&$code, &$wireBytes, &$connectStatus, $budget, $handler): void {
                     $errorData = $stats->getHandlerErrorData();
                     $code = is_int($errorData) ? $errorData : 0;
-                    $connect = $stats->getHandlerStats()['http_connectcode'] ?? 0;
-                    $connectStatus = is_int($connect) ? $connect : 0;
+                    $connectStatus = $handler->proxyConnectStatus();
                     $download = $stats->getHandlerStats()['size_download'] ?? 0;
                     $size = is_int($download) || is_float($download) ? (int) $download : 0;
                     $delta = max(0, $size - $wireBytes);
@@ -152,7 +164,7 @@ final readonly class HttpTransport
                 } catch (OutboundOwnershipLost|ExecutionInterrupted $exit) {
                     throw $exit;
                 } catch (\Throwable) {
-                    return new HttpAttemptResult(null, TransportFailure::Storage, $wireBytes, $sink->bytes(), $code);
+                    return new HttpAttemptResult(null, TransportFailure::Storage, $wireBytes, $sink->bytes(), $code, $head);
                 }
             }
             $headers = [];
@@ -167,21 +179,21 @@ final readonly class HttpTransport
 
             return new HttpAttemptResult($envelope, null, $wireBytes, $sink->bytes());
         } catch (ResponseLimitExceeded) {
-            return new HttpAttemptResult(null, TransportFailure::ByteLimit, $wireBytes, $sink->bytes(), $code);
+            return new HttpAttemptResult(null, TransportFailure::ByteLimit, $wireBytes, $sink->bytes(), $code, $head);
         } catch (ResponseDecodeFailed) {
-            return new HttpAttemptResult(null, TransportFailure::Decode, $wireBytes, $sink->bytes(), $code);
+            return new HttpAttemptResult(null, TransportFailure::Decode, $wireBytes, $sink->bytes(), $code, $head);
         } catch (OutboundOwnershipLost|ExecutionInterrupted $exit) {
             throw new TransportInterrupted(
-                new HttpAttemptResult(null, TransportFailure::Cancelled, $wireBytes, $sink->bytes(), $code), $exit,
+                new HttpAttemptResult(null, TransportFailure::Cancelled, $wireBytes, $sink->bytes(), $code, $head), $exit,
             );
         } catch (ConnectionException|RequestException|ClientRequestException $error) {
             if ($error instanceof ClientRequestException && $error->response->status() === 407) {
-                return new HttpAttemptResult(null, TransportFailure::ProxyAuth, $wireBytes, $sink->bytes(), $code);
+                return new HttpAttemptResult(null, TransportFailure::ProxyAuth, $wireBytes, $sink->bytes(), $code, $head);
             }
             $previous = $error;
             do {
                 if ($previous instanceof ResponseDecodeFailed || $previous instanceof ResponseLimitExceeded) {
-                    return new HttpAttemptResult(null, $previous instanceof ResponseLimitExceeded ? TransportFailure::ByteLimit : TransportFailure::Decode, $wireBytes, $sink->bytes(), $code);
+                    return new HttpAttemptResult(null, $previous instanceof ResponseLimitExceeded ? TransportFailure::ByteLimit : TransportFailure::Decode, $wireBytes, $sink->bytes(), $code, $head);
                 }
                 $previous = $previous->getPrevious();
             } while ($previous !== null);
@@ -199,7 +211,7 @@ final readonly class HttpTransport
                 },
             };
 
-            return new HttpAttemptResult(null, $failure, $wireBytes, $sink->bytes(), $code);
+            return new HttpAttemptResult(null, $failure, $wireBytes, $sink->bytes(), $code, $head);
         } finally {
             $sink->close();
             if ($artifactKey !== null && ! $keepArtifact) {

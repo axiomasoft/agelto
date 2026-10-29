@@ -16,7 +16,11 @@ final readonly class RequestClassifier
     public function classify(HttpAttemptResult $result, RouteKind $route): HealthClassification
     {
         $failure = $result->failure;
-        if ($route === RouteKind::Proxy && ($failure === F::ProxyAuth || $result->response?->status === 407)) {
+        $status = $result->head?->status;
+        if ($status === 429) {
+            return new HealthClassification(S::Ignored, S::Ignored, S::Ignored, $failure === null ? 'http_429' : $failure->value);
+        }
+        if ($route === RouteKind::Proxy && ($failure === F::ProxyAuth || $status === 407)) {
             return new HealthClassification(S::CredentialHold, S::Ignored, S::Ignored, 'credential_hold');
         }
         if ($route === RouteKind::Proxy && $failure === F::ProxyConnect) {
@@ -28,8 +32,7 @@ final readonly class RequestClassifier
         if ($failure !== null) {
             return new HealthClassification(S::Ignored, S::Ignored, S::Ignored, $failure->value);
         }
-        $status = $result->response?->status;
-        if ($status === 429 || $status === 407) {
+        if ($status === 407) {
             return new HealthClassification(S::Ignored, S::Ignored, S::Ignored, 'http_'.$status);
         }
 

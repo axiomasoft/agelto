@@ -8,16 +8,23 @@ use App\Dto\Procurement\Network\HealthAuthorization;
 use App\Dto\Procurement\Network\HealthSnapshot;
 use App\Dto\Procurement\Network\HttpAttemptResult;
 use App\Dto\Procurement\Network\PermitEvidence;
+use App\Dto\Procurement\Network\TransportBlocked;
+use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Platform\CanonicalOrigin;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\RetryAt;
 use App\Enums\Procurement\Network\CircuitState;
 use App\Enums\Procurement\Network\HealthScope;
 use App\Enums\Procurement\Network\HealthSignal;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\TargetAvailability;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Network\HealthPolicy;
 use App\Services\Procurement\Network\HealthReducer;
 use App\Services\Procurement\Network\RequestClassifier;
+use App\Services\Procurement\Network\RetryPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 
@@ -27,7 +34,7 @@ use Illuminate\Support\Facades\DB;
 final readonly class HealthRepository
 {
     public function __construct(private ProcessTransaction $transaction, private RequestClassifier $classifier,
-        private HealthReducer $reducer, private HealthPolicy $policy) {}
+        private HealthReducer $reducer, private HealthPolicy $policy, private RetryPolicy $retryPolicy = new RetryPolicy) {}
 
     /** @return array<string, HealthSnapshot> Exact three-row set (empty if missing), in the same tier7 order as grants. */
     public function snapshots(string $routeId, string $targetId, bool $lock = false): array
@@ -77,25 +84,61 @@ final readonly class HealthRepository
     }
 
     /** Optional maintenance evidence is adapter-confirmed, never inferred from generic HTTP 503. */
-    public function record(ProcessUuid $requestId, HttpAttemptResult $result, ?\DateTimeImmutable $maintenanceUntil = null): void
+    public function record(ProcessUuid $requestId, HttpAttemptResult $result, ?\DateTimeImmutable $maintenanceUntil = null): TransportDeferred|TransportBlocked|null
     {
-        $identity = LedgerRow::one('SELECT route_id, target_id FROM prc_request_attempts WHERE request_id = ?', [$requestId->value])
+        $identity = LedgerRow::one('SELECT a.route_id, a.target_id, d.origin_budget_id FROM prc_request_attempts a
+            LEFT JOIN prc_network_demands d ON d.id = a.demand_id WHERE a.request_id = ?', [$requestId->value])
             ?? throw new \LogicException('No durable request authorization.');
-        $this->transaction->run(function () use ($identity, $requestId, $result, $maintenanceUntil): void {
+
+        return $this->transaction->run(function () use ($identity, $requestId, $result, $maintenanceUntil): TransportDeferred|TransportBlocked|null {
             $rows = $this->snapshots($identity->string('route_id'), $identity->string('target_id'), true);
             if ($rows === []) {
                 throw new \LogicException('Missing materialized health authority.');
             }
+            // Same tier7 order as grants: route/health -> target/health -> origin budget -> request/permit.
+            // In particular, no committed 429 receipt/release can precede its origin send fence.
+            $origin = null;
+            if ($result->head?->status === 429) {
+                if ($identity->nullableString('origin_budget_id') !== null) {
+                    // The authorized demand pins the actual origin even if its catalog target changes later.
+                    $origin = LedgerRow::one('SELECT id FROM prc_network_budgets WHERE id = ? FOR UPDATE', [$identity->string('origin_budget_id')]);
+                } else {
+                    $target = LedgerRow::one('SELECT canonical_origin FROM prc_source_targets WHERE id = ?', [$identity->string('target_id')])
+                        ?? throw new \LogicException('Missing source target.');
+                    $origin = LedgerRow::one('SELECT id FROM prc_network_budgets WHERE scope_key = ? FOR UPDATE',
+                        [CanonicalOrigin::fromUrl($target->string('canonical_origin'))->budgetScopeKey()]);
+                }
+                if ($origin === null) {
+                    throw new \LogicException('Missing origin budget.');
+                }
+            }
             $request = LedgerRow::one('SELECT a.*, d.operation_id, coalesce(d.operation_generation, d.work_generation, 0) AS generation
                 FROM prc_request_attempts a LEFT JOIN prc_network_demands d ON d.id = a.demand_id
                 WHERE a.request_id = ? FOR UPDATE OF a', [$requestId->value]) ?? throw new \LogicException('Request disappeared.');
-            if (LedgerRow::one('SELECT observation_id FROM prc_observations WHERE observation_id = ?', [$requestId->value]) !== null) {
-                return;
+            $previous = LedgerRow::one("SELECT details->'quota'->>'decision' AS decision, details->'quota'->>'retry_at' AS retry_at
+                FROM prc_observations WHERE observation_id = ?", [$requestId->value]);
+            if ($previous !== null) {
+                return match ($previous->nullableString('decision')) {
+                    null => null,
+                    'rate_limit' => new TransportDeferred(NetworkDeferralReason::RateLimit, new RetryAt(new \DateTimeImmutable($previous->string('retry_at')))),
+                    'policy_review' => new TransportBlocked(NetworkBlockedReason::PolicyReview),
+                    default => throw new \LogicException('Invalid durable quota decision.'),
+                };
             }
             $authorization = HealthAuthorization::decode($request->string('artifacts'), $request->int('artifacts_schema_version'));
             $classification = $this->classifier->classify($result, $authorization->kind);
             $epochs = PermitEvidence::decode($request->string('epochs'), $request->int('epochs_schema_version'));
             $now = self::now();
+            $quota = null;
+            if ($origin !== null) {
+                $retry = $this->retryPolicy->retryAfter($result->head->header('retry-after'), $now);
+                $quota = $retry === null ? new TransportBlocked(NetworkBlockedReason::PolicyReview)
+                    : new TransportDeferred(NetworkDeferralReason::RateLimit, $retry);
+                if ($retry !== null) {
+                    DB::update('UPDATE prc_network_budgets SET not_before = greatest(not_before, ?::timestamptz), tat = greatest(tat, ?::timestamptz) WHERE id = ?',
+                        [$retry->value->format('Y-m-d H:i:s.uP'), $retry->value->format('Y-m-d H:i:s.uP'), $origin->string('id')]);
+                }
+            }
             $stale = false;
             foreach ($rows as $key => $row) {
                 if (($epochs[$key] ?? null) !== $row->epoch || ($row->state === CircuitState::HalfOpen
@@ -107,11 +150,16 @@ final readonly class HealthRepository
                 'route_target' => $classification->routeTarget->value,
                 'target' => ($maintenanceUntil === null ? $classification->target : HealthSignal::Maintenance)->value,
                 'independence_group' => $authorization->independenceGroup,
-                'credential_version' => $authorization->credentialVersion, 'probe_token' => $authorization->probeToken];
+                'credential_version' => $authorization->credentialVersion, 'probe_token' => $authorization->probeToken,
+                'http_status' => $result->head?->status,
+                'retry_after' => ($header = $result->head?->header('retry-after')) !== null && strlen($header) <= 256 && preg_match('/^[\x20-\x7e]*$/D', $header) === 1 ? $header : null,
+                'retry_after_sha256' => $header === null ? null : hash('sha256', $header),
+                'quota' => $quota === null ? null : ['decision' => $quota->reason->value,
+                    'retry_at' => $quota instanceof TransportDeferred ? $quota->retryAt->value->format('Y-m-d H:i:s.uP') : null]];
             DB::update("UPDATE prc_request_attempts SET finished_at = ?, phase = 'finished', outcome = ?, status = ?,
                 duration_ms = greatest(0, ceil(extract(epoch FROM (?::timestamptz - started_at)) * 1000))::bigint, bytes = ?
                 WHERE request_id = ? AND finished_at IS NULL", [$now->format('Y-m-d H:i:s.uP'), $result->failure === null ? 'response' : $result->failure->value,
-                $result->response?->status, $now->format('Y-m-d H:i:s.uP'), $result->entityBytes, $requestId->value]);
+                $result->head?->status, $now->format('Y-m-d H:i:s.uP'), $result->entityBytes, $requestId->value]);
             DB::insert("INSERT INTO prc_observations (observation_id, request_id, kind, reason_code, input_hash, generation, epochs,
                 epochs_schema_version, stale, details, details_schema_version, occurred_at)
                 VALUES (?, ?, 'network_transport', ?, decode(?, 'hex'), ?, ?::jsonb, 1, ?, ?::jsonb, 1, ?)",
@@ -150,6 +198,8 @@ final readonly class HealthRepository
             if ($request->nullableString('demand_id') !== null) {
                 DB::update("UPDATE prc_network_permits SET state = 'released' WHERE demand_id = ? AND state = 'sent'", [$request->string('demand_id')]);
             }
+
+            return $quota;
         });
     }
 

@@ -90,10 +90,10 @@ final readonly class ScheduledAttemptGate implements OutboundAttemptGate
         }
     }
 
-    public function record(AuthorizedHttpRequest $request, HttpAttemptResult $result): void
+    public function record(AuthorizedHttpRequest $request, HttpAttemptResult $result): TransportDeferred|TransportBlocked|null
     {
         try {
-            $this->permits->record($request->plan->physicalRequestId, $result);
+            return $this->permits->record($request->plan->physicalRequestId, $result);
         } catch (QueryException $exception) {
             throw DatabaseFailureClassifier::isTransient($exception) ? new DependencyUnavailable('database', $exception) : $exception;
         }

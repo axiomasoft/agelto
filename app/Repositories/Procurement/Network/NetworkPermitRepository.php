@@ -296,9 +296,9 @@ final readonly class NetworkPermitRepository
     }
 
     /** Factual completion, epoch/probe reduction, dedup and release are one short transaction. */
-    public function record(ProcessUuid $requestId, HttpAttemptResult $result): void
+    public function record(ProcessUuid $requestId, HttpAttemptResult $result): TransportDeferred|TransportBlocked|null
     {
-        $this->health->record($requestId, $result);
+        return $this->health->record($requestId, $result);
     }
 
     /** 429 applies to every alias/route and to already reserved permits; no debt refund. */
