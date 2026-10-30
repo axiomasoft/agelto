@@ -729,7 +729,10 @@ Legacy caller/health-writer activation remains owned by P2.6. These assertions d
 independent P2.5 review or replace coordinator acceptance.
 
 
-## P2.6 partial candidate (2026-10-29, request 6)
+## Historical P2.6 partial candidate (2026-10-29, request 6)
+
+The following records the incomplete request-6 snapshot. Current code and acceptance are described
+in the current network cutover section below; this historical status does not describe the current tree.
 
 This candidate has **not completed the all-caller network cutover**. The legacy transport loops,
 proxy/source writers, request budget and binding schema still require their coordinated replacement.
@@ -758,3 +761,28 @@ last remaining item attempt. Its existing physical retry/health path still await
 Current commands, red history and candidate hashes are in the five assigned
 `.swissknifeman/orch-artifacts/p26-cutover-20261029/` evidence files. No acceptance, clean-install,
 full regression, deployment or paid application execution is claimed.
+
+## Current network cutover: P2.6 and P2.7 (2026-10-30)
+
+P2.6 routes every existing CSV/card, document, OKPD2, document-UID and Llm SDK/cache/file
+caller through one physical executor with an owned operation, PostgreSQL permits, exact route
+profile membership and `SourceTlsTrust`. Legacy proxy/source health writers, the Redis request
+budget and their obsolete commands/schedules have been removed. Surviving domain schedulers
+remain in place until their own cutovers; historical source circuits are read-only evidence.
+
+D49 binds a versioned adapter contract to full capability validation. One owner covers all tabs
+and pure parsers; HTTP success alone cannot validate the adapter. Distinct-input corroboration,
+local input budgets, stale-result fencing, audited reset and gradual capacity recovery are proved
+separately from transport health. A terminal HTTP error retains bounded decoded evidence without
+restoring a second retry loop. Existing waiting runs preserve their absolute retry time and cursor;
+failed queue publication releases the exact SQL and unique claims.
+
+P2.7 acceptance evidence records clean installs, real local HTTP/proxy/TLS fault assertions,
+PostgreSQL concurrency, maximum-level static analysis and full no-TIA regression. The frozen
+2,014 original executed scenarios retain their exact identities. Native Planner owns the precise
+check results and candidate references for `PLAN1.P2.6` and `PLAN1.P2.7`; the five evidence carriers
+are under `.swissknifeman/orch-artifacts/p26-cutover-20261029/`. Formal independent review remains
+owned by P2.8. This records repository acceptance; production deployment is a separate operation.
+
+Diagnostic and operator recovery commands are documented in
+[the process rig runbook](runbooks/process-test-rig.md#p26-диагностика-и-восстановление-после-переключения-сети).
