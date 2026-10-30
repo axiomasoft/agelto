@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Providers;
 
 use App\Doctor\Diagnostics\ApplicationReadinessIsGreen;
@@ -7,7 +9,6 @@ use App\Doctor\Diagnostics\BaseDataIsReady;
 use App\Doctor\Diagnostics\InitialAdminIsReady;
 use App\Doctor\Diagnostics\PrivatePackagesArePinned;
 use App\Doctor\Diagnostics\SecretContractIsReady;
-use App\Dto\Procurement\Crawler\SourceControlPolicy;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
@@ -17,6 +18,11 @@ use App\Services\Llm\TrackingUsageSource;
 use App\Services\Procurement\Analyzers\Estimate\ChunkSource;
 use App\Services\Procurement\Analyzers\Estimate\RowRangeChunkSource;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use App\Services\Procurement\Network\Contracts\LegacyOutbound;
+use App\Services\Procurement\Network\LegacyOutboundClient;
+use App\Services\Procurement\Network\NetworkProbeReconcileCategory;
+use App\Services\Procurement\Network\NetworkReconcileCategory;
+use App\Services\Procurement\Process\ReconcileDaemon;
 use App\Services\Procurement\Proxy\PoolOutboundProxy;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Context;
@@ -37,6 +43,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(LegacyOutbound::class, LegacyOutboundClient::class);
+        $this->app->afterResolving(ReconcileDaemon::class,
+            static function (ReconcileDaemon $daemon): void {
+                $daemon->register(app(NetworkReconcileCategory::class));
+                $daemon->register(app(NetworkProbeReconcileCategory::class));
+            });
         // Единственная реализация листинг-маппера в проекте (только ЕИС, `01-database.md`/`02-crawling.md`
         // не заводят второй источник в этом плане) — прямой bind без config-driven реестра (YAGNI).
 
@@ -61,7 +73,6 @@ class AppServiceProvider extends ServiceProvider
 
         // Правила реакции краулера на отказы: типизированный разбор `crawler.source_control`
         // один раз на процесс; резолвится в `boot()`, чтобы ошибка конфига валила старт.
-        $this->app->singleton(SourceControlPolicy::class, static fn (): SourceControlPolicy => SourceControlPolicy::fromConfig(config('crawler.source_control')));
     }
 
     /**
@@ -69,7 +80,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->app->make(SourceControlPolicy::class);
 
         if ($this->app->environment('testing')) {
             ParallelTesting::setUpProcess(function (string $token): void {

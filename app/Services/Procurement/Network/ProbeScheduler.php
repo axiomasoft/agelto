@@ -17,6 +17,7 @@ use App\Enums\Procurement\Network\DemandPurpose;
 use App\Enums\Procurement\Network\HealthScope;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
+use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\Network\HealthRepository;
 use App\Repositories\Procurement\Network\NetworkAuthorityRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
@@ -27,7 +28,8 @@ use Illuminate\Support\Facades\DB;
 final readonly class ProbeScheduler
 {
     public function __construct(private ProcessTransaction $transaction, private NetworkOwnerFence $owners,
-        private HealthRepository $health, private HealthPolicy $policy, private OutboundPolicy $outbound) {}
+        private HealthRepository $health, private HealthPolicy $policy, private OutboundPolicy $outbound,
+        private AdapterHealthRepository $adapters) {}
 
     public function claim(OutboundRequestPlan $plan, OutboundExecutionContext $context, NetworkRouteSelection $selection): ProbeClaim|TransportBlocked|TransportDeferred
     {
@@ -52,10 +54,11 @@ final readonly class ProbeScheduler
                 return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
             }
             $route = LedgerRow::one('SELECT enabled, kind, credential_version FROM prc_network_routes WHERE id = ?', [$selection->routeId->value]);
-            $target = LedgerRow::one('SELECT platform_id, retired_at::text AS retired_at, canonical_origin, endpoint_policy, endpoint_policy_schema_version FROM prc_source_targets WHERE id = ?', [$plan->targetId->value]);
+            $target = LedgerRow::one('SELECT platform_id, provider_key, capability, retired_at::text AS retired_at, canonical_origin, endpoint_policy, endpoint_policy_schema_version FROM prc_source_targets WHERE id = ?', [$plan->targetId->value]);
             if ($route === null || $route->int('credential_version') !== $selection->credentialVersion || ! $route->bool('enabled') || ($selection->profileId === null && $route->string('kind') !== 'direct')
                 || $target === null || $target->nullableString('retired_at') !== null || $target->string('canonical_origin') !== $plan->url->origin->value()
-                || ($owner->platformId !== null && $owner->platformId !== $target->int('platform_id'))
+                || ($owner->platformId !== null && $owner->platformId !== $target->nullableInt('platform_id'))
+                || ($owner->providerKey?->value !== $target->nullableString('provider_key'))
                 || ! NetworkAuthorityRepository::profileMatches($target, $plan->profile)) {
                 return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
             }
@@ -90,12 +93,21 @@ final readonly class ProbeScheduler
                 }
                 $needed[$key] = $row;
             }
-            if ($needed === []) {
+            $adapter = $this->adapters->lockForSend($target, $plan, $owner);
+            if ($adapter instanceof TransportBlocked) {
+                return $adapter;
+            }
+            $adapterKey = $plan->adapterClaim?->canary === true && $adapter !== null
+                ? $plan->adapterClaim->epochKey() : null;
+            if ($adapterKey !== null) {
+                $until = min($until, new \DateTimeImmutable($adapter->string('probe_until')));
+            }
+            if ($needed === [] && $adapterKey === null) {
                 return new TransportBlocked(NetworkBlockedReason::OwnerLost);
             }
             $owned = self::tokenScopes($owner->probeToken);
             foreach ($owned as $key) {
-                if (! isset($needed[$key])) {
+                if (! isset($needed[$key]) && $key !== $adapterKey) {
                     return new TransportBlocked(NetworkBlockedReason::OwnerLost);
                 }
             }
@@ -103,7 +115,7 @@ final readonly class ProbeScheduler
             if ($owned === [] && LedgerRow::one('SELECT id FROM prc_network_demands WHERE operation_id = ? LIMIT 1', [$context->lease()->id->value]) !== null) {
                 return new TransportBlocked(NetworkBlockedReason::OwnerLost);
             }
-            $epochs = [];
+            $epochs = $adapterKey === null ? [] : [$adapterKey => $plan->adapterClaim->epoch];
             foreach ($needed as $key => $row) {
                 $epoch = $row->epoch + ($row->probeToken === $owner->probeToken && $row->probeUntil !== null && $row->probeUntil > $now ? 0 : 1);
                 DB::update('UPDATE '.$row->scope->value." SET state = 'half_open', health_epoch = ?, state_version = state_version + 1,
@@ -125,6 +137,9 @@ final readonly class ProbeScheduler
             foreach (LedgerRow::all('SELECT id FROM '.$scope->value.' WHERE probe_token = ?', [$token]) as $row) {
                 $keys[] = $scope->value.':'.$row->string('id');
             }
+        }
+        foreach (LedgerRow::all('SELECT id FROM prc_adapter_health WHERE probe_token = ?', [$token]) as $row) {
+            $keys[] = 'prc_adapter_health:'.$row->string('id');
         }
         sort($keys, SORT_STRING);
 

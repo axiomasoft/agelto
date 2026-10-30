@@ -17,7 +17,7 @@ final class PlatformFactory extends Factory
     public function definition(): array
     {
         return [
-            'code' => fake()->unique()->slug(nbWords: 2),
+            'code' => str_replace('-', '_', fake()->unique()->slug(nbWords: 2)),
             'name' => fake()->company(),
             'base_url' => fake()->url(),
             'is_active' => true,

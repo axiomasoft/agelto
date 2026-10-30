@@ -9,11 +9,14 @@ use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Exceptions\Procurement\Crawler\ArchiveWindowMissing;
+use App\Exceptions\Procurement\Crawler\CrawlerInputRecoveryRequired;
 use App\Exceptions\Procurement\Crawler\CrawlerRunAlreadyActive;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Services\Procurement\CrawlerRunManager;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Единственный носитель правила «можно ли запускать» (P3.4, Implementation Rules п. 3):
@@ -49,20 +52,10 @@ final readonly class StartCrawlerRunAction
         ?CrawlerMode $mode = null,
         ?CarbonInterface $from = null,
         ?CarbonInterface $to = null,
+        ?int $actorId = null,
+        ?string $reason = null,
     ): void {
-        $this->guardNoActiveRun($crawler);
-
-        $resumable = $this->resumableRun($crawler);
-
-        if ($resumable !== null) {
-            $stats = $resumable->stats?->toArray() ?? [];
-            unset($stats['execution_context'], $stats['automatic_recovery_pending']);
-            $resumable->update([
-                'cursor' => (new ListingCursor)->toArray(),
-                'stats' => $stats,
-            ]);
-        }
-
+        $this->prepareRecovery($crawler, true, $actorId, $reason);
         $this->dispatch($crawler, $mode, $from, $to);
     }
 
@@ -71,9 +64,35 @@ final readonly class StartCrawlerRunAction
         ?CrawlerMode $mode = null,
         ?CarbonInterface $from = null,
         ?CarbonInterface $to = null,
+        ?int $actorId = null,
+        ?string $reason = null,
     ): void {
-        $this->guardNoActiveRun($crawler);
+        $this->prepareRecovery($crawler, false, $actorId, $reason);
         $this->dispatch($crawler, $mode, $from, $to);
+    }
+
+    private function prepareRecovery(Crawler $crawler, bool $restart, ?int $actorId, ?string $reason): void
+    {
+        DB::transaction(function () use ($crawler, $restart, $actorId, $reason): void {
+            Crawler::query()->whereKey($crawler->id)->lockForUpdate()->firstOrFail();
+            $this->guardNoActiveRun($crawler);
+            $run = Run::query()->where('crawler_id', $crawler->id)->where('status', RunStatus::Paused)
+                ->latest('id')->lockForUpdate()->first();
+            if ($run === null) {
+                return;
+            }
+            if ($run->stats?->has('input_failure')) {
+                if ($actorId === null || $reason === null || trim($reason) === '') {
+                    throw new CrawlerInputRecoveryRequired('Укажите причину возобновления повреждённого входа.');
+                }
+                app(CrawlerRunManager::class)->resetInputFailure($run, $actorId, $reason);
+            }
+            if ($restart) {
+                $stats = $run->stats?->toArray() ?? [];
+                unset($stats['execution_context'], $stats['automatic_recovery_pending']);
+                $run->update(['cursor' => (new ListingCursor)->toArray(), 'stats' => $stats]);
+            }
+        });
     }
 
     private function guardNoActiveRun(Crawler $crawler): void
@@ -90,15 +109,6 @@ final readonly class StartCrawlerRunAction
         return Run::query()
             ->where('crawler_id', $crawler->id)
             ->where('status', RunStatus::Running)
-            ->latest('id')
-            ->first();
-    }
-
-    private function resumableRun(Crawler $crawler): ?Run
-    {
-        return Run::query()
-            ->where('crawler_id', $crawler->id)
-            ->where('status', RunStatus::Paused)
             ->latest('id')
             ->first();
     }

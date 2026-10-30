@@ -4,28 +4,20 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
-use App\Dto\Procurement\Crawler\StageSettings;
-use App\Dto\Procurement\Proxy\ProxyLease;
-use App\Dto\Procurement\Proxy\ProxyOutcome;
-use App\Dto\Procurement\Proxy\ProxyRequirements;
-use App\Enums\Procurement\Crawler\CrawlStage;
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
-use App\Enums\Procurement\Proxy\ProxyFailureReason;
-use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Dto\Procurement\Network\HttpRequestPayload;
+use App\Dto\Procurement\Network\SafeUrl;
+use App\Enums\Procurement\Network\TrafficClass;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Platforms\Eis\Card\DocumentsParser;
 use App\Services\Platforms\Eis\Card\EisCardUrlBuilder;
-use App\Services\Procurement\CrawlSettingsResolver;
-use App\Services\Procurement\PlatformRequestBudget;
+use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Proxy\ProxyResolver;
-use App\Services\Procurement\SourceTlsTrust;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 use Symfony\Component\Process\Process;
 
@@ -37,9 +29,7 @@ final class VerifyDocumentUid extends Command
         private readonly EisCardUrlBuilder $urls,
         private readonly DocumentsParser $documents,
         private readonly ProxyResolver $proxies,
-        private readonly PlatformRequestBudget $budget,
-        private readonly CrawlSettingsResolver $crawlSettings,
-        private readonly SourceTlsTrust $tlsTrust,
+        private readonly LegacyOutbound $outbound,
     ) {
         parent::__construct();
     }
@@ -154,7 +144,7 @@ final class VerifyDocumentUid extends Command
                         if ($snapshot !== null) {
                             break;
                         }
-                    } catch (ConnectionException $exception) {
+                    } catch (OutboundUnavailable $exception) {
                         $consecutiveErrors++;
                         $captures[] = [
                             'evidence_id' => $evidenceId,
@@ -162,7 +152,7 @@ final class VerifyDocumentUid extends Command
                             'procedure_url_type' => $procedureType,
                             'request_url' => $this->sanitizeUrl($url, ['regNumber']),
                             'collected_at' => now()->toIso8601String(),
-                            'transport_error' => $this->connectionFailureReason($exception)->value,
+                            'transport_error' => $exception->outcome->reason->value,
                             'documents' => [],
                         ];
                         $evidenceIds[] = $evidenceId;
@@ -214,68 +204,22 @@ final class VerifyDocumentUid extends Command
     /** @return array{0: Response, 1: array{duration_ms: int, wait_ms: int, proxy_source: string|null}} */
     private function request(Registry $registry, string $url): array
     {
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-        $lease = $this->proxies->resolve(
-            scope: ProxyScope::CrawlDetail,
-            target: $host,
-            requirements: new ProxyRequirements(crawlerMode: CrawlerProxyMode::Default),
-        );
         $platform = $registry->platform()->firstOrFail();
-        $settings = $this->crawlSettings->forStage(stage: CrawlStage::Detail, platform: $platform);
         $startedAt = hrtime(true);
-        $waitMs = $this->budget->acquire(host: $host, stage: CrawlStage::Detail);
-
-        try {
-            $response = $this->httpRequest(url: $url, lease: $lease, settings: $settings);
-        } catch (ConnectionException $exception) {
-            $this->proxies->reportOutcome($lease, ProxyOutcome::failure($this->connectionFailureReason($exception)));
-
-            throw $exception;
+        $platformCode = $platform->getAttribute('code');
+        if (! is_string($platformCode)) {
+            throw new \LogicException('Platform code is unavailable.');
         }
+        $response = $this->outbound->request(callerCode: 'legacy.uid_verification', platformId: $platform->id,
+            providerKey: null, capability: 'detail', url: new SafeUrl($url),
+            trafficClass: TrafficClass::Diagnostic, routePolicy: $this->proxies->profile(),
+            controls: ['system', 'acquisition', 'acquisition:platform:'.$platformCode], deadlineSeconds: 90,
+            payload: new HttpRequestPayload([
+                'user-agent' => config()->string('outbound.http.user_agent'), 'referer' => 'https://zakupki.gov.ru/',
+            ]), sendLimit: 1);
 
-        $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
-        $this->proxies->reportOutcome($lease, $this->outcome(response: $response, latencyMs: $durationMs));
-
-        return [$response, [
-            'duration_ms' => $durationMs,
-            'wait_ms' => $waitMs,
-            'proxy_source' => $lease->source?->value,
-        ]];
-    }
-
-    private function httpRequest(string $url, ProxyLease $lease, StageSettings $settings): Response
-    {
-        $userAgent = config('crawler.user_agent');
-
-        if (! is_string($userAgent) || $userAgent === '') {
-            throw new \UnexpectedValueException('crawler.user_agent must be a non-empty string.');
-        }
-
-        return Http::withOptions([...$lease->httpOptions(), ...$this->tlsTrust->optionsFor((string) parse_url($url, PHP_URL_HOST))])
-            ->withUserAgent($userAgent)
-            ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
-            ->timeout($settings->timeoutSeconds ?? 30)
-            ->get($url);
-    }
-
-    private function outcome(Response $response, int $latencyMs): ProxyOutcome
-    {
-        return match (true) {
-            $response->status() === 403 => ProxyOutcome::failure(ProxyFailureReason::Http403),
-            $response->status() === 429 => ProxyOutcome::failure(ProxyFailureReason::Http429),
-            $response->status() === 407 => ProxyOutcome::failure(ProxyFailureReason::ProxyAuthFailed),
-            $response->status() === 200 && trim($response->body()) === '' => ProxyOutcome::failure(ProxyFailureReason::EmptyBody),
-            default => ProxyOutcome::success(latencyMs: $latencyMs),
-        };
-    }
-
-    private function connectionFailureReason(ConnectionException $exception): ProxyFailureReason
-    {
-        return match (true) {
-            str_contains($exception->getMessage(), 'SSL') => ProxyFailureReason::TlsError,
-            str_contains($exception->getMessage(), 'timed out'), str_contains($exception->getMessage(), 'Timeout') => ProxyFailureReason::NetworkTimeout,
-            default => ProxyFailureReason::ConnectFailed,
-        };
+        return [$response, ['duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
+            'wait_ms' => 0, 'proxy_source' => null]];
     }
 
     /** @return list<string> */

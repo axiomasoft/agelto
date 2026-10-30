@@ -230,7 +230,7 @@ test('relay при недоступном Redis: liveness свежий, readines
 });
 
 test('reconcile daemon: категории изолированы, сбой одной — degraded код, дубликат имени и пустой набор честны', function (): void {
-    $daemon = app(ReconcileDaemon::class);
+    $daemon = new ReconcileDaemon(app(DaemonPolicy::class));
 
     expect($daemon->kind())->toBe(DaemonKind::Reconcile)
         ->and($daemon->categories())->toBe([])

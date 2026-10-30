@@ -22,9 +22,9 @@ use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\CsvBlockIngestor;
 use App\Services\Procurement\ListingRunCheckpoint;
+use App\Services\Procurement\Network\LegacyAcquisitionControl;
 use App\Services\Procurement\PlatformAdapterRegistry;
 use App\Services\Procurement\RunStopGate;
-use App\Services\Procurement\SourceControl\SourceRunControl;
 use App\Services\Procurement\SourceMethodFactory;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -45,13 +45,17 @@ final readonly class FreshRunProcessor
         private CrawlerRunManager $runs,
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
-        private SourceRunControl $sourceControl,
+        private LegacyAcquisitionControl $sourceControl,
         private ListingRunCheckpoint $listingCheckpoint,
     ) {}
 
     public function run(Crawler $crawler, ?Run $run = null): Run
     {
         $run ??= $this->runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
+        if ($run->status !== RunStatus::Running || $run->failed_permanently
+            || ($run->next_retry_at !== null && $run->next_retry_at->isFuture())) {
+            return $run;
+        }
         $cursor = ListingCursor::fromArray(cursor: $run->cursor?->toArray() ?? []);
 
         if ($cursor->recoveryScope === null) {
@@ -187,7 +191,7 @@ final readonly class FreshRunProcessor
                 } catch (ListingRequestStopped) {
                     return $run;
                 } catch (InvalidListingResponse $exception) {
-                    $this->runs->withinExecutionLease(run: $run, callback: fn () => $this->ingestor->recordRejectedBatch($crawler, $run, $exception->batch, $exception->reason));
+                    $this->ingestor->recordRejectedBatch($crawler, $run, $exception->batch, $exception->reason);
                     $this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $cursor->toArray());
 
                     return $run;
@@ -279,8 +283,7 @@ final readonly class FreshRunProcessor
             'platform_base_url' => $crawler->registry?->platform?->getAttribute('base_url'),
             'source_method' => $crawler->source_method,
             'fallback_method' => $crawler->fallback_method,
-            'proxy_mode' => $crawler->getAttribute('proxy_mode'),
-            'proxy_country' => $crawler->getAttribute('proxy_country'),
+            'route_profile_id' => $crawler->route_profile_id,
             'execution_lane' => $crawler->getAttribute('execution_lane'),
             'stop_policy' => $crawler->stop_policy,
         ], JSON_THROW_ON_ERROR));

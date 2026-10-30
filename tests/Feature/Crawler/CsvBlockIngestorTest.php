@@ -8,6 +8,7 @@ use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\IgnoredItem;
+use App\Models\Procurement\Crawler\RawArtifact;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Registry;
@@ -123,9 +124,8 @@ test('неизменившаяся строка считается распар�
         ->and($result->rowsErrors)->toBe(0)
         ->and(Procurement::query()->count())->toBe(1);
 
-    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->latest('id')->firstOrFail();
-    expect($fetch->rows_parsed)->toBe(1)
-        ->and($fetch->rows_errors)->toBe(0);
+    expect(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0)
+        ->and($result->rowsParsed)->toBe(1)->and($result->rowsErrors)->toBe(0);
 });
 
 test('crw_fetches создаётся с dedup_signature, счётчиками и artifact_ref', function () {
@@ -138,18 +138,17 @@ test('crw_fetches создаётся с dedup_signature, счётчиками и
         ingestorCsvRow('0173200001234000001'),
     ], from: '501');
 
-    app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
+    $result = app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->first();
+    $artifact = RawArtifact::query()->where('path', 'like', "raw/csv/{$crawler->id}/{$run->id}/%")->sole();
 
-    expect($fetch)->not->toBeNull()
-        ->and($fetch->dedup_signature)->toBe('0173200001234000001')
-        ->and($fetch->rows_total)->toBe(1)
-        ->and($fetch->rows_new)->toBe(1)
-        ->and($fetch->rows_updated)->toBe(0)
-        ->and($fetch->rows_parsed)->toBe(1)
-        ->and($fetch->rows_errors)->toBe(0)
-        ->and($fetch->artifact_ref)->toMatch("#^raw/csv/{$crawler->id}/{$run->id}/[a-f0-9]{64}/[a-f0-9]{64}\\.csv$#");
+    expect(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0)
+        ->and($result->rowsTotal)->toBe(1)
+        ->and($result->rowsNew)->toBe(1)
+        ->and($result->rowsUpdated)->toBe(0)
+        ->and($result->rowsParsed)->toBe(1)
+        ->and($result->rowsErrors)->toBe(0)
+        ->and($artifact->path)->toMatch("#^raw/csv/{$crawler->id}/{$run->id}/[a-f0-9]{64}/[a-f0-9]{64}\\.csv$#");
 });
 
 test('сырой CSV сохраняется по immutable content-addressed пути', function () {
@@ -164,7 +163,7 @@ test('сырой CSV сохраняется по immutable content-addressed п�
 
     app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-    $path = Fetch::query()->where('crawler_run_id', $run->id)->sole()->artifact_ref;
+    $path = RawArtifact::query()->where('path', 'like', "raw/csv/{$crawler->id}/{$run->id}/%")->sole()->path;
 
     expect($path)->toMatch("#^raw/csv/{$crawler->id}/{$run->id}/[a-f0-9]{64}/[a-f0-9]{64}\\.csv$#");
     Storage::disk('s3')->assertExists($path);
@@ -207,7 +206,7 @@ test('битая строка без номера оставляет блок н
     expect($result->failure)->toBe(SourceFailureKind::RowErrors)
         ->and($result->rowsErrors)->toBe(1);
 
-    expect(Fetch::query()->where('crawler_run_id', $run->id)->sole()->rows_errors)->toBe(1)
+    expect(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0)
         ->and(Procurement::query()->count())->toBe(1)
         ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
 });
@@ -263,7 +262,7 @@ test('битая строка с неверной датой оставляет 
     expect($result->failure)->toBe(SourceFailureKind::RowErrors)
         ->and($result->rowsErrors)->toBe(1);
 
-    expect(Fetch::query()->where('crawler_run_id', $run->id)->sole()->rows_errors)->toBe(1)
+    expect(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0)
         ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
 });
 
@@ -281,12 +280,12 @@ test('ошибка маппера записывается отдельно от
         ingestorCsvRow('0173200001234000001'),
     ]));
 
-    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->firstOrFail();
-    expect($fetch->rows_parsed)->toBe(0)
-        ->and($fetch->rows_errors)->toBe(1)
+    expect(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0)
+        ->and($result->rowsParsed)->toBe(0)
+        ->and($result->rowsErrors)->toBe(1)
         // Ни одна запись не стала снимком — блок остаётся для повторной обработки.
         ->and($result->failure)->toBe(SourceFailureKind::InvalidContent)
-        ->and($result->fetchId)->toBe($fetch->id);
+        ->and($result->fetchId)->toBeNull();
 });
 
 test('битые CSV-записи учитываются в результате и журнале, блок остаётся неполным', function (): void {
@@ -307,13 +306,13 @@ test('битые CSV-записи учитываются в результате
         rowsMalformed: 1,
     ));
 
-    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+    expect(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0);
 
     expect($result->rowsErrors)->toBe(1)
         ->and($result->failure)->toBe(SourceFailureKind::RowErrors)
         ->and($result->rowsParsed)->toBe(1)
-        ->and($fetch->rows_total)->toBe(2)
-        ->and($fetch->rows_errors)->toBe(1);
+        ->and($result->rowsTotal)->toBe(2)
+        ->and($result->rowsErrors)->toBe(1);
 });
 
 test('страница ошибки источника не инжестится; ингестор только классифицирует, инцидент пишет вызывающий', function (): void {
@@ -332,12 +331,12 @@ test('страница ошибки источника не инжестится
         requestParams: ['from' => '1', 'to' => '500'],
     ));
 
-    $fetch = Fetch::query()->where('crawler_run_id', $run->id)->sole();
+    expect(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0);
 
     expect(Procurement::query()->count())->toBe(0)
-        ->and($fetch->http_status)->toBe(403)
+        ->and($result->httpStatus)->toBe(403)
         ->and($result->failure)->toBe(SourceFailureKind::SourceBlocked)
-        ->and($result->fetchId)->toBe($fetch->id)
+        ->and($result->fetchId)->toBeNull()
         ->and(SourceIncident::query()->count())->toBe(0);
 });
 

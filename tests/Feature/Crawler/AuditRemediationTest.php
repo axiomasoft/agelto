@@ -6,6 +6,7 @@ use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\SkippedListingRow;
 use App\Dto\Procurement\Crawler\WindowFilter;
+use App\Dto\Procurement\Network\ProxyNodeConfiguration;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
 use App\Enums\Procurement\Crawler\CrawlerMode;
@@ -18,7 +19,6 @@ use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\RawArtifact;
 use App\Models\Procurement\Crawler\Run;
-use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
@@ -27,16 +27,16 @@ use App\Services\PartitionCoverage;
 use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
 use App\Services\Platforms\Eis\EisSourceClock;
 use App\Services\Procurement\ArchiveWindowScanner;
-use App\Services\Procurement\BoundedResponseReader;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Contracts\SourceMethod;
+use App\Services\Procurement\Crawler\ResumeWaitingRuns;
 use App\Services\Procurement\CsvBlockIngestor;
 use App\Services\Procurement\DetailRefetchSelector;
 use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Modes\FreshRunProcessor;
+use App\Services\Procurement\Network\BoundedResponseReader;
 use App\Services\Procurement\ProcurementIngestProcessor;
-use App\Services\Procurement\Proxy\LegacyProxyPasswordUpgrade;
-use App\Services\Procurement\SourceControl\SuspendedRunResumer;
+use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Support\SecretRedactor;
 use GuzzleHttp\Psr7\Response as PsrResponse;
 use GuzzleHttp\Psr7\Utils;
@@ -48,12 +48,16 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Crawler\SourceControlScenario as S;
 use Tests\Support\Doubles\Crawler\ScriptedSourceMethod;
 use Tests\Support\Postgres\ConcurrentTransactions;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 beforeEach(function (): void {
+    LegacyBusinessNetwork::install();
     Storage::fake('s3');
     $this->realQueue = Queue::getFacadeRoot();
     Queue::fake();
@@ -90,34 +94,40 @@ test('карточки маленькой площадки получают до
 });
 
 test('plaintext прокси обновляется идемпотентно без изменения уже зашифрованного пароля', function (): void {
-    $old = Proxy::factory()->create();
-    $new = Proxy::factory()->create(['password' => 'already-encrypted']);
-    DB::table($old->getTable())->where('id', $old->id)->update(['password' => 'legacy-value']);
-    $ciphertext = $new->getRawOriginal('password');
-    $upgrade = app(LegacyProxyPasswordUpgrade::class);
-    expect($upgrade->run())->toBe(['encrypted' => 1, 'plaintext' => 1]);
-    $upgrade->run(apply: true);
-    expect($old->refresh()->password)->toBe('legacy-value')
-        ->and($new->refresh()->getRawOriginal('password'))->toBe($ciphertext)
-        ->and($upgrade->run(apply: true))->toBe(['encrypted' => 2, 'plaintext' => 0]);
+    $proxy = Proxy::factory()->create(['username' => 'user']);
+    DB::table('prc_network_routes')->where('id', $proxy->route_id)->update(['secret_ref' => 'AUDIT_PROXY_SECRET']);
+    $crawler = Crawler::factory()->withProxies($proxy)->create();
+    putenv('AUDIT_PROXY_SECRET=first');
+    try {
+        $resolver = app(ProxyBindingResolver::class);
+        expect(array_values($resolver->forCrawler($crawler)->bindings)[0]->credentials())->toBe('user:first');
+        putenv('AUDIT_PROXY_SECRET=second');
+        expect(array_values($resolver->forCrawler($crawler)->bindings)[0]->credentials())->toBe('user:second')
+            ->and(Schema::hasColumn('prc_proxies', 'password'))->toBeFalse()
+            ->and($proxy->fresh()->load('route')->toJson())->not->toContain('first', 'second');
+    } finally {
+        putenv('AUDIT_PROXY_SECRET');
+    }
 });
 
 test('повреждённый ciphertext блокирует весь upgrade без частичной перезаписи', function (): void {
-    $old = Proxy::factory()->create();
-    $broken = Proxy::factory()->create();
-    DB::table($old->getTable())->where('id', $old->id)->update(['password' => 'legacy-value']);
-    DB::table($broken->getTable())->where('id', $broken->id)->update(['password' => 'eyJdamaged']);
-    expect(fn () => app(LegacyProxyPasswordUpgrade::class)->run(apply: true))->toThrow(RuntimeException::class, 'No changes applied');
-    expect(DB::table($old->getTable())->where('id', $old->id)->value('password'))->toBe('legacy-value');
+    $proxy = Proxy::factory()->create();
+    $before = $proxy->fresh()->load('route')->toArray();
+    expect(fn () => ProxyNodeConfiguration::fromArray([
+        'service' => 'audit', 'host' => 'proxy.test', 'port' => 8080, 'secret_ref' => 'eyJdamaged',
+    ]))->toThrow(InvalidArgumentException::class);
+    expect($proxy->fresh()->load('route')->toArray())->toBe($before);
 });
 
 test('чужой APP_KEY не превращает ciphertext в новый plaintext', function (): void {
     $proxy = Proxy::factory()->create();
     $foreign = new Encrypter(random_bytes(32), 'AES-256-CBC');
     $value = $foreign->encryptString('private');
-    DB::table($proxy->getTable())->where('id', $proxy->id)->update(['password' => $value]);
-    expect(fn () => app(LegacyProxyPasswordUpgrade::class)->run(apply: true))->toThrow(RuntimeException::class)
-        ->and(DB::table($proxy->getTable())->where('id', $proxy->id)->value('password'))->toBe($value);
+    $before = $proxy->fresh()->load('route')->toArray();
+    expect(fn () => ProxyNodeConfiguration::fromArray([
+        'service' => 'audit', 'host' => 'proxy.test', 'port' => 8080, 'secret_ref' => $value,
+    ]))->toThrow(InvalidArgumentException::class);
+    expect($proxy->fresh()->load('route')->toArray())->toBe($before);
 });
 
 test('граница суток хранит 23 и 25 часов в зоне с DST', function (string $date, int $hours): void {
@@ -236,7 +246,6 @@ test('осознанный пропуск строки отличается от
 
 test('невалидные первые contexts не голодают последующие due прогоны и burst ограничен', function (): void {
     $registry = Registry::factory()->eis()->create();
-    SourceCircuit::factory()->create(['platform_id' => $registry->platform_id]);
     for ($i = 0; $i < 12; $i++) {
         $crawler = Crawler::factory()->create(['registry_id' => $registry->id]);
         Run::factory()->for($crawler)->create(['status' => RunStatus::Paused, 'stats' => ['source_suspended' => true]]);
@@ -245,15 +254,14 @@ test('невалидные первые contexts не голодают посл�
     $valid = Run::factory()->for($crawler)->create(['status' => RunStatus::Paused, 'stats' => [
         'source_suspended' => true, 'execution_context' => ['mode' => 'fresh', 'execution_lane' => 'standard'],
     ]]);
-    $resumer = app(SuspendedRunResumer::class);
-    expect($resumer->resumeDue())->toBe(0)->and($resumer->resumeDue())->toBe(1)->and($resumer->resumeDue())->toBe(0);
+    $resumer = app(ResumeWaitingRuns::class);
+    expect($resumer->resumeDue(limit: 10))->toBe(0)->and($resumer->resumeDue(limit: 10))->toBe(1)->and($resumer->resumeDue(limit: 10))->toBe(0);
     Queue::assertPushed(CrawlRunJob::class, 1);
     expect($valid->refresh()->stats->get('source_suspended'))->toBeTrue();
 });
 
 test('реальный отказ Redis не теряет due прогон и не оставляет dispatch claim', function (): void {
     $crawler = Crawler::factory()->create();
-    SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id]);
     $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Paused, 'stats' => [
         'source_suspended' => true, 'execution_context' => ['mode' => 'fresh', 'execution_lane' => 'standard'],
     ]]);
@@ -262,7 +270,7 @@ test('реальный отказ Redis не теряет due прогон и н
     config(['database.redis.default.port' => 1, 'database.redis.default.timeout' => 0.1]);
     Redis::purge('default');
     try {
-        expect(fn () => app(SuspendedRunResumer::class)->resumeDue())->toThrow(RedisException::class);
+        expect(fn () => app(ResumeWaitingRuns::class)->resumeDue())->toThrow(RedisException::class);
         expect($run->refresh()->stats->get('source_suspended'))->toBeTrue()
             ->and($run->getAttribute('source_resume_claimed_until'))->toBeNull();
     } finally {
@@ -270,7 +278,7 @@ test('реальный отказ Redis не теряет due прогон и н
         Redis::purge('default');
         Queue::fake();
     }
-    expect(app(SuspendedRunResumer::class)->resumeDue())->toBe(1);
+    expect(app(ResumeWaitingRuns::class)->resumeDue())->toBe(1);
     Queue::assertPushed(CrawlRunJob::class, 1);
 });
 
@@ -281,18 +289,33 @@ test('монитор обнаруживает старую паузу несмо
 });
 
 test('четыре процесса не расходуют больше одного общего HTTP слота', function (): void {
-    $host = 'audit-'.bin2hex(random_bytes(8)).'.test';
-    $code = <<<PHP
-config(['cache.default' => 'redis', 'cache.limiter' => 'redis', 'crawler.budget.requests_per_minute_base' => 1, 'crawler.budget.requests_per_minute_per_proxy' => 0, 'crawler.budget.max_wait_seconds' => 0, 'crawler.stages.listing.min_pause_ms' => 0, 'crawler.stages.listing.max_pause_ms' => 0]);
-try {
-    app(\App\Services\Procurement\PlatformRequestBudget::class)->acquire('{$host}', \App\Enums\Procurement\Crawler\CrawlStage::Listing);
-    return ['admitted' => true];
-} catch (\App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException) {
-    return ['admitted' => false];
-}
+    PermitFixtures::clean();
+    try {
+        $f = new PermitFixtures;
+        DB::table('prc_network_budgets')->update(['max_inflight' => 1, 'emission_interval_us' => 60_000_000]);
+        $workers = [];
+        foreach (range(1, 4) as $index) {
+            $context = $f->context();
+            $ticket = $f->ticket($context);
+            $id = var_export($ticket->id->value, true);
+            $owner = var_export($context->lease()->id->value, true);
+            $url = var_export($f->url->reveal(), true);
+            $workers[(string) $index] = <<<PHP
+\$context = \Tests\Support\ProcessCore\Http\PermitFixtures::importContext({$owner});
+\$ticket = \Tests\Support\ProcessCore\Http\PermitFixtures::importTicket({$id}, {$url});
+\$permit = app(\App\Repositories\Procurement\Network\NetworkPermitRepository::class)->reserve(\$ticket, \$context);
+return ['admitted' => \$permit instanceof \App\Dto\Procurement\Network\ScheduledNetworkPermit,
+    'backend_pid' => \Illuminate\Support\Facades\DB::scalar('select pg_backend_pid()')];
 PHP;
-    $results = ConcurrentTransactions::concurrently(array_fill(0, 4, $code));
-    expect(array_sum(array_column($results, 'admitted')))->toBe(1);
+        }
+        $results = ConcurrentTransactions::concurrently($workers);
+        expect(array_sum(array_column($results, 'admitted')))->toBe(1)
+            ->and(array_unique(array_column($results, 'backend_pid')))->toHaveCount(4)
+            ->and(DB::table('prc_network_permits')->count())->toBe(1);
+    } finally {
+        PermitFixtures::clean();
+    }
+
 });
 
 test('backfill raw каталога сохраняет новейшее использование повторяющегося пути', function (): void {

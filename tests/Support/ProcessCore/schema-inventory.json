@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P2.1",
+  "current_item": "P2.6",
   "conventions": {
     "work_states": [
       "ready",
@@ -239,6 +239,30 @@
       "schema_sha256": "c5c991cda2988fe085624800a888b4cacfe822582d8ae203a03d84eda2d8ef58",
       "evidence": "storage/app/testing/process-core/reports/p21-executor",
       "note": "Captured after scoped PG tests; double reset acceptance remains coordinator-owned."
+    },
+    "p26_catalog": {
+      "kind": "observed_isolated_candidate_not_yet_accepted",
+      "evidence": "storage/app/testing/process-core/reports/20261030T124258.620261Z-1598296",
+      "candidate": {
+        "dirty_digest": "9619302f0cfa0370408b803c1efb0689464c1d0eebc9c34bb33e7f8074f0c657",
+        "head": "c09929e245f3250168dc8d17d534373fe49d0330",
+        "input_tree_sha256": "e0531669f9fa83d2500634c1067bb5467f1187070307ee814e948df46c4fa13a"
+      },
+      "schema_sha256": "2854c236d5b176d4aba914d6b836ba740b8d0228c88722133547e194f1100c01",
+      "catalog_sha256": "c842d734faa4b5dd983764790952b4506c3bf3211f8a3d5f0a9627aca0167b1a",
+      "note": "Actual guarded PostgreSQL schema; failure was stale descriptive inventory. Acceptance requires two completed resets on the final unchanged candidate."
+    },
+    "p26_d49_catalog": {
+      "kind": "observed_isolated_candidate_not_yet_accepted",
+      "evidence": "storage/app/testing/process-core/reports/20261030T172831.806090Z-4173352",
+      "candidate": {
+        "dirty_digest": "67bdb0ef40a7ffc60bb944cc8f4f5ab04c2576a210bc455ff710d47a01f4dd5b",
+        "head": "c09929e245f3250168dc8d17d534373fe49d0330",
+        "input_tree_sha256": "b994cff1c98e7380085762230529b7f778167a1f3029699e44cacca4d6cc308a"
+      },
+      "schema_sha256": "150ee3836b43c821ced0ebce9acd842c3af2705851d7eeb684e125f6ca53ca9d",
+      "catalog_sha256": "3ca84ce11d173ca9fbd84d25e8d64933acc897a25a55a7bac2daed68828f2c1f",
+      "note": "D49 adds only2 nullable operation attachment columns plus their CHECK/FK/index; no new carrier, counter table or workflow. Final unchanged candidate still needs two clean resets."
     }
   },
   "migrations": [
@@ -517,10 +541,11 @@
     },
     {
       "path": "database/migrations/2026_07_04_100038_create_prc_crawlers_table.php",
-      "sha256": "c714c432418bf62e77fcd3218467b0ee52d73190364b7d394da34ddd67fe52b7",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "sha256": "e20b64a96dc2ead3edf83ad68b11f879e2e7127341df86637980c58767c95ffd",
+      "action": "adapt",
+      "owner_item": "P2.6",
+      "reason": "Atomic network consumer, provider ownership and route configuration cutover.",
+      "original_sha256": "c714c432418bf62e77fcd3218467b0ee52d73190364b7d394da34ddd67fe52b7"
     },
     {
       "path": "database/migrations/2026_07_04_100039_create_prc_crawler_runs_table.php",
@@ -531,21 +556,15 @@
     },
     {
       "path": "database/migrations/2026_07_04_100040_create_prc_proxies_table.php",
-      "sha256": "66b30d1a3b134be076af6727aa748cb4b98e731be0d3fc8501cfd36840affb1f",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "sha256": "088b8e8f74cd200d89d36cd5fbb7657ffb229871d02a9d34dd335ff2feb272e7",
+      "action": "adapt",
+      "owner_item": "P2.6",
+      "reason": "Atomic network consumer, provider ownership and route configuration cutover.",
+      "original_sha256": "66b30d1a3b134be076af6727aa748cb4b98e731be0d3fc8501cfd36840affb1f"
     },
     {
       "path": "database/migrations/2026_07_04_100041_create_prc_fetches_table.php",
       "sha256": "0bd546c4fdf2b14f67da4c387c4fdc4a6bcae5c89d2e5472141e8e24c7269279",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
-    },
-    {
-      "path": "database/migrations/2026_07_04_100042_create_prc_proxy_checks_table.php",
-      "sha256": "b434dbdd41841cd8e93fd5ae312c9a3ce915e8d799bc1226d5a1c92dc0fc35a1",
       "action": "keep",
       "owner_item": "baseline",
       "reason": "Существующий CREATE, без изменений в P1.1."
@@ -635,13 +654,6 @@
       "reason": "Существующий CREATE, без изменений в P1.1."
     },
     {
-      "path": "database/migrations/2026_07_31_100062_create_prc_proxy_targets_table.php",
-      "sha256": "fefbc5eb5dbd1139409b81cc213c8e8f0c7e2e7742a9d9be5e7252fa95901e1e",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
-    },
-    {
       "path": "database/migrations/2026_08_05_100068_enable_db_observability_extensions.php",
       "sha256": "279af1e27db9deabd833f98a1b9817aff72cc0c1f1d3f1ad387f63fbf54ae2e6",
       "action": "keep_infrastructure",
@@ -670,13 +682,6 @@
       "reason": "Существующий CREATE, без изменений в P1.1."
     },
     {
-      "path": "database/migrations/2026_08_08_100082_create_prc_crawler_proxy_table.php",
-      "sha256": "33e6f457b6abdf0996d60f694aca8eb627fd325fb503250bb21ea26faad53498",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
-    },
-    {
       "path": "database/migrations/2026_08_08_100085_create_prc_platform_checks_table.php",
       "sha256": "338f1de3c003b2e154c16d39c91636bbf647b6410e01ffe84d7b5f1a4ecce9fc",
       "action": "keep",
@@ -689,13 +694,6 @@
       "action": "keep",
       "owner_item": "baseline",
       "reason": "Существующий CREATE, без изменений в P1.1."
-    },
-    {
-      "path": "database/migrations/2026_08_09_100087_replace_crawler_use_proxy_with_mode.php",
-      "sha256": "aefda0919ce01f0fb5a9c938ca4b880f708caf67f8fffecbf6787f98921e71b3",
-      "action": "fold_into_create",
-      "owner_item": "P2.14",
-      "reason": "Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL."
     },
     {
       "path": "database/migrations/2026_08_09_100088_add_proxy_source_to_prc_fetches.php",
@@ -811,17 +809,20 @@
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
-      "sha256": "dfcece59c5797e26784f66fca2463146c33717948a36007a124a910fddc6e6da",
-      "action": "create",
-      "owner_item": "P1.6",
-      "reason": "P1.6 canonical Process ledger bp-ddl-core: control/handler authority, real crawl subjects, intents до work, attempts, groups/members, journal, outbox, daemon heartbeat."
+      "sha256": "a29630c1121207edbc9948e621f24e68028cd5bea7b5326759652ca5e08eaec8",
+      "action": "adapt",
+      "owner_item": "P2.6",
+      "reason": "Atomic network consumer, provider ownership and route configuration cutover.",
+      "original_sha256": "dfcece59c5797e26784f66fca2463146c33717948a36007a124a910fddc6e6da"
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_network_tables.php",
-      "sha256": "779fbfef82862c65888be42216946f3085a485d0e5db142ef10ba18720d7e0ed",
-      "action": "create",
-      "owner_item": "P2.1",
-      "reason": "Network baseline authority; runtime cutover P2.6."
+      "sha256": "0db045f6b5f9e9d9f3d2f4e6b0c316d10e3b5f9b74266e597be23ba0fdce0e7a",
+      "action": "adapt",
+      "owner_item": "P2.6",
+      "reason": "Atomic network consumer, provider ownership and route configuration cutover.",
+      "original_sha256": "779fbfef82862c65888be42216946f3085a485d0e5db142ef10ba18720d7e0ed",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "database/migrations/2026_10_25_100001_create_prc_request_observation_tables.php",
@@ -6329,7 +6330,7 @@
             "type": "u"
           },
           {
-            "definition": "CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'cohort'::text, 'stage'::text])))",
+            "definition": "CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'provider'::text, 'cohort'::text, 'stage'::text])))",
             "name": "prc_control_scopes_scope_kind_check",
             "schema": "public",
             "table_name": "prc_control_scopes",
@@ -6350,7 +6351,7 @@
             "tablename": "prc_control_scopes"
           }
         ],
-        "definition": "CREATE TABLE public.prc_control_scopes (\n    id uuid NOT NULL,\n    scope_kind text NOT NULL,\n    scope_key text NOT NULL,\n    parent_id uuid,\n    desired_mode text DEFAULT 'enabled'::text NOT NULL,\n    control_version bigint DEFAULT 1 NOT NULL,\n    changed_by bigint,\n    change_reason text,\n    changed_at timestamp with time zone,\n    CONSTRAINT prc_control_scopes_control_version_check CHECK ((control_version >= 1)),\n    CONSTRAINT prc_control_scopes_desired_mode_check CHECK ((desired_mode = ANY (ARRAY['enabled'::text, 'paused'::text]))),\n    CONSTRAINT prc_control_scopes_root_check CHECK (((scope_kind = 'system'::text) = (parent_id IS NULL))),\n    CONSTRAINT prc_control_scopes_scope_kind_check CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'cohort'::text, 'stage'::text])))\n);"
+        "definition": "CREATE TABLE public.prc_control_scopes (\n    id uuid NOT NULL,\n    scope_kind text NOT NULL,\n    scope_key text NOT NULL,\n    parent_id uuid,\n    desired_mode text DEFAULT 'enabled'::text NOT NULL,\n    control_version bigint DEFAULT 1 NOT NULL,\n    changed_by bigint,\n    change_reason text,\n    changed_at timestamp with time zone,\n    CONSTRAINT prc_control_scopes_control_version_check CHECK ((control_version >= 1)),\n    CONSTRAINT prc_control_scopes_desired_mode_check CHECK ((desired_mode = ANY (ARRAY['enabled'::text, 'paused'::text]))),\n    CONSTRAINT prc_control_scopes_root_check CHECK (((scope_kind = 'system'::text) = (parent_id IS NULL))),\n    CONSTRAINT prc_control_scopes_scope_kind_check CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'provider'::text, 'cohort'::text, 'stage'::text])))\n);"
       },
       "prc_crawl_blocks": {
         "owner": "Repositories/Procurement/Process",
@@ -6743,64 +6744,6 @@
           }
         ],
         "definition": "CREATE TABLE public.prc_crawl_runs (\n    id uuid NOT NULL,\n    process_run_id uuid NOT NULL,\n    listing_kind text NOT NULL,\n    filter_payload jsonb NOT NULL,\n    filter_schema_version smallint NOT NULL,\n    filter_hash bytea NOT NULL,\n    access_policy_hash bytea NOT NULL,\n    adapter_version text NOT NULL,\n    CONSTRAINT prc_crawl_runs_access_policy_hash_check CHECK ((octet_length(access_policy_hash) = 32)),\n    CONSTRAINT prc_crawl_runs_filter_hash_check CHECK ((octet_length(filter_hash) = 32)),\n    CONSTRAINT prc_crawl_runs_filter_schema_version_check CHECK ((filter_schema_version > 0)),\n    CONSTRAINT prc_crawl_runs_listing_kind_check CHECK ((listing_kind = ANY (ARRAY['fresh'::text, 'archive'::text, 'delta'::text])))\n);"
-      },
-      "prc_crawler_proxy": {
-        "owner": "Procurement",
-        "retention": "business",
-        "columns": [
-          {
-            "column_default": null,
-            "column_name": "crawler_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "prc_crawler_proxy",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "proxy_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "prc_crawler_proxy",
-            "table_schema": "public",
-            "udt_name": "int8"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "FOREIGN KEY (crawler_id) REFERENCES prc_crawlers(id) ON DELETE CASCADE",
-            "name": "prc_crawler_proxy_crawler_id_foreign",
-            "schema": "public",
-            "table_name": "prc_crawler_proxy",
-            "type": "f"
-          },
-          {
-            "definition": "UNIQUE (crawler_id, proxy_id)",
-            "name": "prc_crawler_proxy_crawler_id_proxy_id_unique",
-            "schema": "public",
-            "table_name": "prc_crawler_proxy",
-            "type": "u"
-          },
-          {
-            "definition": "FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id) ON DELETE CASCADE",
-            "name": "prc_crawler_proxy_proxy_id_foreign",
-            "schema": "public",
-            "table_name": "prc_crawler_proxy",
-            "type": "f"
-          }
-        ],
-        "indexes": [
-          {
-            "indexdef": "CREATE UNIQUE INDEX prc_crawler_proxy_crawler_id_proxy_id_unique ON public.prc_crawler_proxy USING btree (crawler_id, proxy_id)",
-            "indexname": "prc_crawler_proxy_crawler_id_proxy_id_unique",
-            "schemaname": "public",
-            "tablename": "prc_crawler_proxy"
-          }
-        ],
-        "definition": "CREATE TABLE public.prc_crawler_proxy (\n    crawler_id bigint NOT NULL,\n    proxy_id bigint NOT NULL\n);"
       },
       "prc_crawler_runs": {
         "owner": "Procurement",
@@ -7210,20 +7153,20 @@
           },
           {
             "column_default": null,
-            "column_name": "proxy_country",
-            "data_type": "character",
+            "column_name": "route_profile_id",
+            "data_type": "uuid",
             "is_nullable": "YES",
-            "ordinal_position": 11,
+            "ordinal_position": 10,
             "table_name": "prc_crawlers",
             "table_schema": "public",
-            "udt_name": "bpchar"
+            "udt_name": "uuid"
           },
           {
             "column_default": "'default'::text",
             "column_name": "stop_policy",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 12,
+            "ordinal_position": 11,
             "table_name": "prc_crawlers",
             "table_schema": "public",
             "udt_name": "text"
@@ -7233,7 +7176,7 @@
             "column_name": "execution_lane",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 13,
+            "ordinal_position": 12,
             "table_name": "prc_crawlers",
             "table_schema": "public",
             "udt_name": "text"
@@ -7243,7 +7186,7 @@
             "column_name": "is_active",
             "data_type": "boolean",
             "is_nullable": "NO",
-            "ordinal_position": 14,
+            "ordinal_position": 13,
             "table_name": "prc_crawlers",
             "table_schema": "public",
             "udt_name": "bool"
@@ -7253,7 +7196,7 @@
             "column_name": "created_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 15,
+            "ordinal_position": 14,
             "table_name": "prc_crawlers",
             "table_schema": "public",
             "udt_name": "timestamp"
@@ -7263,20 +7206,10 @@
             "column_name": "updated_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 16,
+            "ordinal_position": 15,
             "table_name": "prc_crawlers",
             "table_schema": "public",
             "udt_name": "timestamp"
-          },
-          {
-            "column_default": "'default'::text",
-            "column_name": "proxy_mode",
-            "data_type": "text",
-            "is_nullable": "NO",
-            "ordinal_position": 17,
-            "table_name": "prc_crawlers",
-            "table_schema": "public",
-            "udt_name": "text"
           }
         ],
         "constraints": [
@@ -7290,6 +7223,13 @@
           {
             "definition": "FOREIGN KEY (registry_id) REFERENCES prc_registries(id)",
             "name": "prc_crawlers_registry_id_foreign",
+            "schema": "public",
+            "table_name": "prc_crawlers",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (route_profile_id) REFERENCES prc_network_route_profiles(id)",
+            "name": "prc_crawlers_route_profile_id_foreign",
             "schema": "public",
             "table_name": "prc_crawlers",
             "type": "f"
@@ -7309,7 +7249,7 @@
             "tablename": "prc_crawlers"
           }
         ],
-        "definition": "CREATE TABLE public.prc_crawlers (\n    id bigint NOT NULL,\n    registry_id bigint NOT NULL,\n    name text NOT NULL,\n    mode text NOT NULL,\n    source_method text NOT NULL,\n    fallback_method text,\n    filter jsonb,\n    schedule text,\n    options jsonb,\n    proxy_country character(2),\n    stop_policy text DEFAULT 'default'::text NOT NULL,\n    execution_lane text DEFAULT 'standard'::text NOT NULL,\n    is_active boolean DEFAULT true NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    proxy_mode text DEFAULT 'default'::text NOT NULL\n);"
+        "definition": "CREATE TABLE public.prc_crawlers (\n    id bigint NOT NULL,\n    registry_id bigint NOT NULL,\n    name text NOT NULL,\n    mode text NOT NULL,\n    source_method text NOT NULL,\n    fallback_method text,\n    filter jsonb,\n    schedule text,\n    options jsonb,\n    route_profile_id uuid,\n    stop_policy text DEFAULT 'default'::text NOT NULL,\n    execution_lane text DEFAULT 'standard'::text NOT NULL,\n    is_active boolean DEFAULT true NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
       },
       "prc_document_representations": {
         "owner": "Procurement",
@@ -11155,7 +11095,7 @@
       "prc_network_demands": {
         "owner": "Repositories/Procurement/Network",
         "retention": "requests",
-        "definition": "CREATE TABLE public.prc_network_demands (\n    id uuid NOT NULL,\n    physical_request_id uuid NOT NULL,\n    work_id uuid,\n    attempt_id uuid,\n    work_generation bigint,\n    operation_id uuid,\n    operation_generation bigint,\n    origin_budget_id uuid NOT NULL,\n    route_id uuid NOT NULL,\n    target_id uuid NOT NULL,\n    traffic_class text NOT NULL,\n    purpose text NOT NULL,\n    ticket_seq bigint NOT NULL,\n    registered_at timestamp with time zone NOT NULL,\n    renewed_at timestamp with time zone NOT NULL,\n    expires_at timestamp with time zone NOT NULL,\n    operation_deadline timestamp with time zone NOT NULL,\n    state text NOT NULL,\n    CONSTRAINT prc_network_demands_check CHECK ((((work_id IS NOT NULL) AND (attempt_id IS NOT NULL) AND (work_generation IS NOT NULL) AND (work_generation >= 1) AND (operation_id IS NULL) AND (operation_generation IS NULL)) OR ((work_id IS NULL) AND (attempt_id IS NULL) AND (work_generation IS NULL) AND (operation_id IS NOT NULL) AND (operation_generation IS NOT NULL) AND (operation_generation >= 1)))),\n    CONSTRAINT prc_network_demands_check1 CHECK ((expires_at <= operation_deadline)),\n    CONSTRAINT prc_network_demands_purpose_check CHECK ((purpose = ANY (ARRAY['ordinary'::text, 'probe'::text, 'diagnostic'::text]))),\n    CONSTRAINT prc_network_demands_state_check CHECK ((state = ANY (ARRAY['queued'::text, 'granted'::text, 'cancelled'::text, 'expired'::text]))),\n    CONSTRAINT prc_network_demands_traffic_class_check CHECK ((traffic_class = ANY (ARRAY['fresh_listing'::text, 'status_refresh'::text, 'detail'::text, 'archive_listing'::text, 'download'::text, 'reference_sync'::text, 'diagnostic'::text])))\n);",
+        "definition": "CREATE TABLE public.prc_network_demands (\n    id uuid NOT NULL,\n    physical_request_id uuid NOT NULL,\n    work_id uuid,\n    attempt_id uuid,\n    work_generation bigint,\n    operation_id uuid,\n    operation_generation bigint,\n    origin_budget_id uuid NOT NULL,\n    route_id uuid NOT NULL,\n    target_id uuid NOT NULL,\n    traffic_class text NOT NULL,\n    purpose text NOT NULL,\n    ticket_seq bigint NOT NULL,\n    registered_at timestamp with time zone NOT NULL,\n    renewed_at timestamp with time zone NOT NULL,\n    expires_at timestamp with time zone NOT NULL,\n    operation_deadline timestamp with time zone NOT NULL,\n    state text NOT NULL,\n    CONSTRAINT prc_network_demands_check CHECK ((((work_id IS NOT NULL) AND (attempt_id IS NOT NULL) AND (work_generation IS NOT NULL) AND (work_generation >= 1) AND (operation_id IS NULL) AND (operation_generation IS NULL)) OR ((work_id IS NULL) AND (attempt_id IS NULL) AND (work_generation IS NULL) AND (operation_id IS NOT NULL) AND (operation_generation IS NOT NULL) AND (operation_generation >= 1)))),\n    CONSTRAINT prc_network_demands_check1 CHECK ((expires_at <= operation_deadline)),\n    CONSTRAINT prc_network_demands_purpose_check CHECK ((purpose = ANY (ARRAY['ordinary'::text, 'probe'::text, 'diagnostic'::text]))),\n    CONSTRAINT prc_network_demands_state_check CHECK ((state = ANY (ARRAY['queued'::text, 'granted'::text, 'cancelled'::text, 'expired'::text]))),\n    CONSTRAINT prc_network_demands_traffic_class_check CHECK ((traffic_class = ANY (ARRAY['fresh_listing'::text, 'status_refresh'::text, 'detail'::text, 'archive_listing'::text, 'download'::text, 'reference_sync'::text, 'diagnostic'::text, 'provider'::text])))\n);",
         "columns": [
           {
             "column_default": null,
@@ -11424,7 +11364,7 @@
             "type": "u"
           },
           {
-            "definition": "CHECK ((traffic_class = ANY (ARRAY['fresh_listing'::text, 'status_refresh'::text, 'detail'::text, 'archive_listing'::text, 'download'::text, 'reference_sync'::text, 'diagnostic'::text])))",
+            "definition": "CHECK ((traffic_class = ANY (ARRAY['fresh_listing'::text, 'status_refresh'::text, 'detail'::text, 'archive_listing'::text, 'download'::text, 'reference_sync'::text, 'diagnostic'::text, 'provider'::text])))",
             "name": "prc_network_demands_traffic_class_check",
             "schema": "public",
             "table_name": "prc_network_demands",
@@ -12888,7 +12828,7 @@
       "prc_outbound_operations": {
         "owner": "Repositories/Procurement/Network",
         "retention": "requests",
-        "definition": "CREATE TABLE public.prc_outbound_operations (\n    id uuid NOT NULL,\n    operation_key uuid NOT NULL,\n    kind text NOT NULL,\n    platform_id bigint,\n    caller_code text NOT NULL,\n    state text NOT NULL,\n    owner_token uuid NOT NULL,\n    generation bigint NOT NULL,\n    lease_until timestamp with time zone NOT NULL,\n    deadline_at timestamp with time zone NOT NULL,\n    created_at timestamp with time zone NOT NULL,\n    finished_at timestamp with time zone,\n    probe_token uuid,\n    policy_hash bytea NOT NULL,\n    CONSTRAINT prc_outbound_operations_check CHECK ((lease_until <= deadline_at)),\n    CONSTRAINT prc_outbound_operations_check1 CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL))),\n    CONSTRAINT prc_outbound_operations_check2 CHECK (((state = 'open'::text) = (finished_at IS NULL))),\n    CONSTRAINT prc_outbound_operations_generation_check CHECK ((generation >= 1)),\n    CONSTRAINT prc_outbound_operations_kind_check CHECK ((kind = ANY (ARRAY['legacy_bridge'::text, 'diagnostic'::text, 'probe'::text]))),\n    CONSTRAINT prc_outbound_operations_policy_hash_check CHECK ((octet_length(policy_hash) = 32)),\n    CONSTRAINT prc_outbound_operations_state_check CHECK ((state = ANY (ARRAY['open'::text, 'closed'::text, 'expired'::text])))\n);",
+        "definition": "CREATE TABLE public.prc_outbound_operations (\n    id uuid NOT NULL,\n    operation_key uuid NOT NULL,\n    kind text NOT NULL,\n    platform_id bigint,\n    provider_key text,\n    adapter_health_id uuid,\n    adapter_health_epoch bigint,\n    caller_code text NOT NULL,\n    state text NOT NULL,\n    owner_token uuid NOT NULL,\n    generation bigint NOT NULL,\n    lease_until timestamp with time zone NOT NULL,\n    deadline_at timestamp with time zone NOT NULL,\n    created_at timestamp with time zone NOT NULL,\n    finished_at timestamp with time zone,\n    probe_token uuid,\n    policy_hash bytea NOT NULL,\n    CONSTRAINT prc_outbound_operations_adapter_health_epoch_check CHECK (((adapter_health_epoch IS NULL) OR (adapter_health_epoch >= 1))),\n    CONSTRAINT prc_outbound_operations_check CHECK (((platform_id IS NULL) OR (provider_key IS NULL))),\n    CONSTRAINT prc_outbound_operations_check1 CHECK (((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL))),\n    CONSTRAINT prc_outbound_operations_check2 CHECK ((lease_until <= deadline_at)),\n    CONSTRAINT prc_outbound_operations_check3 CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL))),\n    CONSTRAINT prc_outbound_operations_check4 CHECK (((state = 'open'::text) = (finished_at IS NULL))),\n    CONSTRAINT prc_outbound_operations_generation_check CHECK ((generation >= 1)),\n    CONSTRAINT prc_outbound_operations_kind_check CHECK ((kind = ANY (ARRAY['legacy_bridge'::text, 'diagnostic'::text, 'probe'::text]))),\n    CONSTRAINT prc_outbound_operations_policy_hash_check CHECK ((octet_length(policy_hash) = 32)),\n    CONSTRAINT prc_outbound_operations_provider_key_check CHECK (((provider_key IS NULL) OR (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text))),\n    CONSTRAINT prc_outbound_operations_state_check CHECK ((state = ANY (ARRAY['open'::text, 'closed'::text, 'expired'::text])))\n);",
         "columns": [
           {
             "column_default": null,
@@ -12932,10 +12872,40 @@
           },
           {
             "column_default": null,
+            "column_name": "provider_key",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 5,
+            "table_name": "prc_outbound_operations",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "adapter_health_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 6,
+            "table_name": "prc_outbound_operations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "adapter_health_epoch",
+            "data_type": "bigint",
+            "is_nullable": "YES",
+            "ordinal_position": 7,
+            "table_name": "prc_outbound_operations",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
             "column_name": "caller_code",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 5,
+            "ordinal_position": 8,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "text"
@@ -12945,7 +12915,7 @@
             "column_name": "state",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 6,
+            "ordinal_position": 9,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "text"
@@ -12955,7 +12925,7 @@
             "column_name": "owner_token",
             "data_type": "uuid",
             "is_nullable": "NO",
-            "ordinal_position": 7,
+            "ordinal_position": 10,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "uuid"
@@ -12965,7 +12935,7 @@
             "column_name": "generation",
             "data_type": "bigint",
             "is_nullable": "NO",
-            "ordinal_position": 8,
+            "ordinal_position": 11,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "int8"
@@ -12975,7 +12945,7 @@
             "column_name": "lease_until",
             "data_type": "timestamp with time zone",
             "is_nullable": "NO",
-            "ordinal_position": 9,
+            "ordinal_position": 12,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "timestamptz"
@@ -12985,7 +12955,7 @@
             "column_name": "deadline_at",
             "data_type": "timestamp with time zone",
             "is_nullable": "NO",
-            "ordinal_position": 10,
+            "ordinal_position": 13,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "timestamptz"
@@ -12995,7 +12965,7 @@
             "column_name": "created_at",
             "data_type": "timestamp with time zone",
             "is_nullable": "NO",
-            "ordinal_position": 11,
+            "ordinal_position": 14,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "timestamptz"
@@ -13005,7 +12975,7 @@
             "column_name": "finished_at",
             "data_type": "timestamp with time zone",
             "is_nullable": "YES",
-            "ordinal_position": 12,
+            "ordinal_position": 15,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "timestamptz"
@@ -13015,7 +12985,7 @@
             "column_name": "probe_token",
             "data_type": "uuid",
             "is_nullable": "YES",
-            "ordinal_position": 13,
+            "ordinal_position": 16,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "uuid"
@@ -13025,7 +12995,7 @@
             "column_name": "policy_hash",
             "data_type": "bytea",
             "is_nullable": "NO",
-            "ordinal_position": 14,
+            "ordinal_position": 17,
             "table_name": "prc_outbound_operations",
             "table_schema": "public",
             "udt_name": "bytea"
@@ -13033,22 +13003,50 @@
         ],
         "constraints": [
           {
-            "definition": "CHECK ((lease_until <= deadline_at))",
+            "definition": "CHECK (((adapter_health_epoch IS NULL) OR (adapter_health_epoch >= 1)))",
+            "name": "prc_outbound_operations_adapter_health_epoch_check",
+            "schema": "public",
+            "table_name": "prc_outbound_operations",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (adapter_health_id) REFERENCES prc_adapter_health(id)",
+            "name": "prc_outbound_operations_adapter_health_id_fkey",
+            "schema": "public",
+            "table_name": "prc_outbound_operations",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK (((platform_id IS NULL) OR (provider_key IS NULL)))",
             "name": "prc_outbound_operations_check",
             "schema": "public",
             "table_name": "prc_outbound_operations",
             "type": "c"
           },
           {
-            "definition": "CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL)))",
+            "definition": "CHECK (((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL)))",
             "name": "prc_outbound_operations_check1",
             "schema": "public",
             "table_name": "prc_outbound_operations",
             "type": "c"
           },
           {
-            "definition": "CHECK (((state = 'open'::text) = (finished_at IS NULL)))",
+            "definition": "CHECK ((lease_until <= deadline_at))",
             "name": "prc_outbound_operations_check2",
+            "schema": "public",
+            "table_name": "prc_outbound_operations",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL)))",
+            "name": "prc_outbound_operations_check3",
+            "schema": "public",
+            "table_name": "prc_outbound_operations",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((state = 'open'::text) = (finished_at IS NULL)))",
+            "name": "prc_outbound_operations_check4",
             "schema": "public",
             "table_name": "prc_outbound_operations",
             "type": "c"
@@ -13096,6 +13094,13 @@
             "type": "c"
           },
           {
+            "definition": "CHECK (((provider_key IS NULL) OR (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text)))",
+            "name": "prc_outbound_operations_provider_key_check",
+            "schema": "public",
+            "table_name": "prc_outbound_operations",
+            "type": "c"
+          },
+          {
             "definition": "CHECK ((state = ANY (ARRAY['open'::text, 'closed'::text, 'expired'::text])))",
             "name": "prc_outbound_operations_state_check",
             "schema": "public",
@@ -13104,6 +13109,12 @@
           }
         ],
         "indexes": [
+          {
+            "indexdef": "CREATE INDEX prc_outbound_operations_adapter_live ON public.prc_outbound_operations USING btree (adapter_health_id, adapter_health_epoch, lease_until) WHERE ((state = 'open'::text) AND (adapter_health_id IS NOT NULL))",
+            "indexname": "prc_outbound_operations_adapter_live",
+            "schemaname": "public",
+            "tablename": "prc_outbound_operations"
+          },
           {
             "indexdef": "CREATE UNIQUE INDEX prc_outbound_operations_operation_key_key ON public.prc_outbound_operations USING btree (operation_key)",
             "indexname": "prc_outbound_operations_operation_key_key",
@@ -17411,20 +17422,10 @@
           },
           {
             "column_default": null,
-            "column_name": "password",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 6,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
             "column_name": "country",
             "data_type": "character",
             "is_nullable": "YES",
-            "ordinal_position": 7,
+            "ordinal_position": 6,
             "table_name": "prc_proxies",
             "table_schema": "public",
             "udt_name": "bpchar"
@@ -17434,107 +17435,17 @@
             "column_name": "scopes",
             "data_type": "jsonb",
             "is_nullable": "NO",
-            "ordinal_position": 8,
+            "ordinal_position": 7,
             "table_name": "prc_proxies",
             "table_schema": "public",
             "udt_name": "jsonb"
           },
           {
             "column_default": null,
-            "column_name": "open_until",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 9,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": "'0'::smallint",
-            "column_name": "open_count",
-            "data_type": "smallint",
-            "is_nullable": "NO",
-            "ordinal_position": 10,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "int2"
-          },
-          {
-            "column_default": null,
-            "column_name": "last_failure_reason",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 11,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "last_success_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 12,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "last_failure_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 13,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": "true",
-            "column_name": "is_active",
-            "data_type": "boolean",
-            "is_nullable": "NO",
-            "ordinal_position": 14,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "bool"
-          },
-          {
-            "column_default": "0",
-            "column_name": "fails_count",
-            "data_type": "integer",
-            "is_nullable": "NO",
-            "ordinal_position": 15,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "disabled_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 16,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "disabled_reason",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 17,
-            "table_name": "prc_proxies",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
             "column_name": "created_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 18,
+            "ordinal_position": 8,
             "table_name": "prc_proxies",
             "table_schema": "public",
             "udt_name": "timestamp"
@@ -17544,10 +17455,20 @@
             "column_name": "updated_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 19,
+            "ordinal_position": 9,
             "table_name": "prc_proxies",
             "table_schema": "public",
             "udt_name": "timestamp"
+          },
+          {
+            "column_default": null,
+            "column_name": "route_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 10,
+            "table_name": "prc_proxies",
+            "table_schema": "public",
+            "udt_name": "uuid"
           }
         ],
         "constraints": [
@@ -17557,12 +17478,26 @@
             "schema": "public",
             "table_name": "prc_proxies",
             "type": "p"
+          },
+          {
+            "definition": "FOREIGN KEY (route_id) REFERENCES prc_network_routes(id)",
+            "name": "prc_proxies_route_id_fkey",
+            "schema": "public",
+            "table_name": "prc_proxies",
+            "type": "f"
+          },
+          {
+            "definition": "UNIQUE (route_id)",
+            "name": "prc_proxies_route_id_key",
+            "schema": "public",
+            "table_name": "prc_proxies",
+            "type": "u"
           }
         ],
         "indexes": [
           {
-            "indexdef": "CREATE INDEX prc_proxies_is_active_country_index ON public.prc_proxies USING btree (is_active, country)",
-            "indexname": "prc_proxies_is_active_country_index",
+            "indexdef": "CREATE INDEX prc_proxies_country_index ON public.prc_proxies USING btree (country)",
+            "indexname": "prc_proxies_country_index",
             "schemaname": "public",
             "tablename": "prc_proxies"
           },
@@ -17573,294 +17508,19 @@
             "tablename": "prc_proxies"
           },
           {
+            "indexdef": "CREATE UNIQUE INDEX prc_proxies_route_id_key ON public.prc_proxies USING btree (route_id)",
+            "indexname": "prc_proxies_route_id_key",
+            "schemaname": "public",
+            "tablename": "prc_proxies"
+          },
+          {
             "indexdef": "CREATE INDEX prc_proxies_scopes_gin ON public.prc_proxies USING gin (scopes)",
             "indexname": "prc_proxies_scopes_gin",
             "schemaname": "public",
             "tablename": "prc_proxies"
           }
         ],
-        "definition": "CREATE TABLE public.prc_proxies (\n    id bigint NOT NULL,\n    service text NOT NULL,\n    host text NOT NULL,\n    port integer,\n    username text,\n    password text,\n    country character(2),\n    scopes jsonb DEFAULT '[]'::jsonb NOT NULL,\n    open_until timestamp(0) with time zone,\n    open_count smallint DEFAULT '0'::smallint NOT NULL,\n    last_failure_reason text,\n    last_success_at timestamp(0) with time zone,\n    last_failure_at timestamp(0) with time zone,\n    is_active boolean DEFAULT true NOT NULL,\n    fails_count integer DEFAULT 0 NOT NULL,\n    disabled_at timestamp(0) with time zone,\n    disabled_reason text,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
-      },
-      "prc_proxy_checks": {
-        "owner": "Procurement",
-        "retention": "business",
-        "columns": [
-          {
-            "column_default": "nextval('prc_proxy_checks_id_seq'::regclass)",
-            "column_name": "id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "prc_proxy_checks",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "proxy_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "prc_proxy_checks",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "checked_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "NO",
-            "ordinal_position": 3,
-            "table_name": "prc_proxy_checks",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "success",
-            "data_type": "boolean",
-            "is_nullable": "NO",
-            "ordinal_position": 4,
-            "table_name": "prc_proxy_checks",
-            "table_schema": "public",
-            "udt_name": "bool"
-          },
-          {
-            "column_default": null,
-            "column_name": "latency_ms",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 5,
-            "table_name": "prc_proxy_checks",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "error",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 6,
-            "table_name": "prc_proxy_checks",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "created_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 7,
-            "table_name": "prc_proxy_checks",
-            "table_schema": "public",
-            "udt_name": "timestamp"
-          },
-          {
-            "column_default": null,
-            "column_name": "updated_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 8,
-            "table_name": "prc_proxy_checks",
-            "table_schema": "public",
-            "udt_name": "timestamp"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "PRIMARY KEY (id)",
-            "name": "prc_proxy_checks_pkey",
-            "schema": "public",
-            "table_name": "prc_proxy_checks",
-            "type": "p"
-          },
-          {
-            "definition": "FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id)",
-            "name": "prc_proxy_checks_proxy_id_foreign",
-            "schema": "public",
-            "table_name": "prc_proxy_checks",
-            "type": "f"
-          }
-        ],
-        "indexes": [
-          {
-            "indexdef": "CREATE UNIQUE INDEX prc_proxy_checks_pkey ON public.prc_proxy_checks USING btree (id)",
-            "indexname": "prc_proxy_checks_pkey",
-            "schemaname": "public",
-            "tablename": "prc_proxy_checks"
-          },
-          {
-            "indexdef": "CREATE INDEX prc_proxy_checks_proxy_id_index ON public.prc_proxy_checks USING btree (proxy_id)",
-            "indexname": "prc_proxy_checks_proxy_id_index",
-            "schemaname": "public",
-            "tablename": "prc_proxy_checks"
-          }
-        ],
-        "definition": "CREATE TABLE public.prc_proxy_checks (\n    id bigint NOT NULL,\n    proxy_id bigint NOT NULL,\n    checked_at timestamp(0) with time zone NOT NULL,\n    success boolean NOT NULL,\n    latency_ms integer,\n    error text,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
-      },
-      "prc_proxy_targets": {
-        "owner": "Procurement",
-        "retention": "business",
-        "columns": [
-          {
-            "column_default": "nextval('prc_proxy_targets_id_seq'::regclass)",
-            "column_name": "id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "proxy_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "target",
-            "data_type": "text",
-            "is_nullable": "NO",
-            "ordinal_position": 3,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": "'1'::double precision",
-            "column_name": "success_ratio",
-            "data_type": "double precision",
-            "is_nullable": "NO",
-            "ordinal_position": 4,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "float8"
-          },
-          {
-            "column_default": null,
-            "column_name": "latency_ms_avg",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 5,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": "0",
-            "column_name": "consecutive_failures",
-            "data_type": "integer",
-            "is_nullable": "NO",
-            "ordinal_position": 6,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "open_until",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 7,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": "'0'::smallint",
-            "column_name": "open_count",
-            "data_type": "smallint",
-            "is_nullable": "NO",
-            "ordinal_position": 8,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "int2"
-          },
-          {
-            "column_default": null,
-            "column_name": "last_failure_reason",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 9,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "last_outcome_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 10,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "created_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 11,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "timestamp"
-          },
-          {
-            "column_default": null,
-            "column_name": "updated_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 12,
-            "table_name": "prc_proxy_targets",
-            "table_schema": "public",
-            "udt_name": "timestamp"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "PRIMARY KEY (id)",
-            "name": "prc_proxy_targets_pkey",
-            "schema": "public",
-            "table_name": "prc_proxy_targets",
-            "type": "p"
-          },
-          {
-            "definition": "FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id) ON DELETE CASCADE",
-            "name": "prc_proxy_targets_proxy_id_foreign",
-            "schema": "public",
-            "table_name": "prc_proxy_targets",
-            "type": "f"
-          },
-          {
-            "definition": "UNIQUE (proxy_id, target)",
-            "name": "prc_proxy_targets_proxy_id_target_unique",
-            "schema": "public",
-            "table_name": "prc_proxy_targets",
-            "type": "u"
-          }
-        ],
-        "indexes": [
-          {
-            "indexdef": "CREATE UNIQUE INDEX prc_proxy_targets_pkey ON public.prc_proxy_targets USING btree (id)",
-            "indexname": "prc_proxy_targets_pkey",
-            "schemaname": "public",
-            "tablename": "prc_proxy_targets"
-          },
-          {
-            "indexdef": "CREATE UNIQUE INDEX prc_proxy_targets_proxy_id_target_unique ON public.prc_proxy_targets USING btree (proxy_id, target)",
-            "indexname": "prc_proxy_targets_proxy_id_target_unique",
-            "schemaname": "public",
-            "tablename": "prc_proxy_targets"
-          }
-        ],
-        "definition": "CREATE TABLE public.prc_proxy_targets (\n    id bigint NOT NULL,\n    proxy_id bigint NOT NULL,\n    target text NOT NULL,\n    success_ratio double precision DEFAULT '1'::double precision NOT NULL,\n    latency_ms_avg integer,\n    consecutive_failures integer DEFAULT 0 NOT NULL,\n    open_until timestamp(0) with time zone,\n    open_count smallint DEFAULT '0'::smallint NOT NULL,\n    last_failure_reason text,\n    last_outcome_at timestamp(0) with time zone,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
+        "definition": "CREATE TABLE public.prc_proxies (\n    id bigint NOT NULL,\n    service text NOT NULL,\n    host text NOT NULL,\n    port integer,\n    username text,\n    country character(2),\n    scopes jsonb DEFAULT '[]'::jsonb NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    route_id uuid NOT NULL\n);"
       },
       "prc_raw_artifacts": {
         "owner": "Procurement",
@@ -19561,7 +19221,7 @@
       "prc_source_targets": {
         "owner": "Repositories/Procurement/Network",
         "retention": "authority",
-        "definition": "CREATE TABLE public.prc_source_targets (\n    id uuid NOT NULL,\n    platform_id bigint NOT NULL,\n    target_key text NOT NULL,\n    canonical_origin text NOT NULL,\n    capability text NOT NULL,\n    endpoint_policy jsonb NOT NULL,\n    endpoint_policy_schema_version smallint NOT NULL,\n    policy_version bigint NOT NULL,\n    retired_at timestamp with time zone,\n    CONSTRAINT prc_source_targets_endpoint_policy_schema_version_check CHECK ((endpoint_policy_schema_version > 0)),\n    CONSTRAINT prc_source_targets_policy_version_check CHECK ((policy_version >= 1))\n);",
+        "definition": "CREATE TABLE public.prc_source_targets (\n    id uuid NOT NULL,\n    platform_id bigint,\n    provider_key text,\n    target_key text NOT NULL,\n    canonical_origin text NOT NULL,\n    capability text NOT NULL,\n    endpoint_policy jsonb NOT NULL,\n    endpoint_policy_schema_version smallint NOT NULL,\n    policy_version bigint NOT NULL,\n    retired_at timestamp with time zone,\n    CONSTRAINT prc_source_targets_check CHECK ((((platform_id IS NOT NULL) AND (provider_key IS NULL)) OR ((platform_id IS NULL) AND (provider_key IS NOT NULL) AND (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text)))),\n    CONSTRAINT prc_source_targets_endpoint_policy_schema_version_check CHECK ((endpoint_policy_schema_version > 0)),\n    CONSTRAINT prc_source_targets_policy_version_check CHECK ((policy_version >= 1))\n);",
         "columns": [
           {
             "column_default": null,
@@ -19577,7 +19237,7 @@
             "column_default": null,
             "column_name": "platform_id",
             "data_type": "bigint",
-            "is_nullable": "NO",
+            "is_nullable": "YES",
             "ordinal_position": 2,
             "table_name": "prc_source_targets",
             "table_schema": "public",
@@ -19585,9 +19245,9 @@
           },
           {
             "column_default": null,
-            "column_name": "target_key",
+            "column_name": "provider_key",
             "data_type": "text",
-            "is_nullable": "NO",
+            "is_nullable": "YES",
             "ordinal_position": 3,
             "table_name": "prc_source_targets",
             "table_schema": "public",
@@ -19595,7 +19255,7 @@
           },
           {
             "column_default": null,
-            "column_name": "canonical_origin",
+            "column_name": "target_key",
             "data_type": "text",
             "is_nullable": "NO",
             "ordinal_position": 4,
@@ -19605,7 +19265,7 @@
           },
           {
             "column_default": null,
-            "column_name": "capability",
+            "column_name": "canonical_origin",
             "data_type": "text",
             "is_nullable": "NO",
             "ordinal_position": 5,
@@ -19615,10 +19275,20 @@
           },
           {
             "column_default": null,
+            "column_name": "capability",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "prc_source_targets",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
             "column_name": "endpoint_policy",
             "data_type": "jsonb",
             "is_nullable": "NO",
-            "ordinal_position": 6,
+            "ordinal_position": 7,
             "table_name": "prc_source_targets",
             "table_schema": "public",
             "udt_name": "jsonb"
@@ -19628,7 +19298,7 @@
             "column_name": "endpoint_policy_schema_version",
             "data_type": "smallint",
             "is_nullable": "NO",
-            "ordinal_position": 7,
+            "ordinal_position": 8,
             "table_name": "prc_source_targets",
             "table_schema": "public",
             "udt_name": "int2"
@@ -19638,7 +19308,7 @@
             "column_name": "policy_version",
             "data_type": "bigint",
             "is_nullable": "NO",
-            "ordinal_position": 8,
+            "ordinal_position": 9,
             "table_name": "prc_source_targets",
             "table_schema": "public",
             "udt_name": "int8"
@@ -19648,13 +19318,20 @@
             "column_name": "retired_at",
             "data_type": "timestamp with time zone",
             "is_nullable": "YES",
-            "ordinal_position": 9,
+            "ordinal_position": 10,
             "table_name": "prc_source_targets",
             "table_schema": "public",
             "udt_name": "timestamptz"
           }
         ],
         "constraints": [
+          {
+            "definition": "CHECK ((((platform_id IS NOT NULL) AND (provider_key IS NULL)) OR ((platform_id IS NULL) AND (provider_key IS NOT NULL) AND (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text))))",
+            "name": "prc_source_targets_check",
+            "schema": "public",
+            "table_name": "prc_source_targets",
+            "type": "c"
+          },
           {
             "definition": "CHECK ((endpoint_policy_schema_version > 0))",
             "name": "prc_source_targets_endpoint_policy_schema_version_check",
@@ -19689,6 +19366,13 @@
             "schema": "public",
             "table_name": "prc_source_targets",
             "type": "c"
+          },
+          {
+            "definition": "UNIQUE (provider_key, target_key)",
+            "name": "prc_source_targets_provider_key_target_key_key",
+            "schema": "public",
+            "table_name": "prc_source_targets",
+            "type": "u"
           }
         ],
         "indexes": [
@@ -19701,6 +19385,12 @@
           {
             "indexdef": "CREATE UNIQUE INDEX prc_source_targets_platform_id_target_key_key ON public.prc_source_targets USING btree (platform_id, target_key)",
             "indexname": "prc_source_targets_platform_id_target_key_key",
+            "schemaname": "public",
+            "tablename": "prc_source_targets"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_source_targets_provider_key_target_key_key ON public.prc_source_targets USING btree (provider_key, target_key)",
+            "indexname": "prc_source_targets_provider_key_target_key_key",
             "schemaname": "public",
             "tablename": "prc_source_targets"
           }
@@ -21585,7 +21275,7 @@
         "scope_kind": {
           "type": "text",
           "nullable": false,
-          "definition": "scope_kind text NOT NULL CHECK (scope_kind IN ('system','acquisition','documents','platform','cohort','stage'))"
+          "definition": "scope_kind text NOT NULL CHECK (scope_kind IN ('system','acquisition','documents','platform','provider','cohort','stage'))"
         },
         "scope_key": {
           "type": "text",
@@ -21640,10 +21330,19 @@
         }
       },
       "constraints": [
+        "CONSTRAINT prc_control_scopes_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES users(id)",
+        "CONSTRAINT prc_control_scopes_control_version_check CHECK ((control_version >= 1))",
+        "CONSTRAINT prc_control_scopes_desired_mode_check CHECK ((desired_mode = ANY (ARRAY['enabled'::text, 'paused'::text])))",
+        "CONSTRAINT prc_control_scopes_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES prc_control_scopes(id)",
+        "CONSTRAINT prc_control_scopes_pkey PRIMARY KEY (id)",
+        "CONSTRAINT prc_control_scopes_root_check CHECK (((scope_kind = 'system'::text) = (parent_id IS NULL)))",
         "CONSTRAINT prc_control_scopes_scope_key_unique UNIQUE (scope_key)",
-        "CONSTRAINT prc_control_scopes_root_check CHECK ((scope_kind = 'system') = (parent_id IS NULL))"
+        "CONSTRAINT prc_control_scopes_scope_kind_check CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'provider'::text, 'cohort'::text, 'stage'::text])))"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE UNIQUE INDEX prc_control_scopes_pkey ON public.prc_control_scopes USING btree (id)",
+        "CREATE UNIQUE INDEX prc_control_scopes_scope_key_unique ON public.prc_control_scopes USING btree (scope_key)"
+      ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
     "prc_process_lanes": {
@@ -23123,6 +22822,29 @@
             "at": "P2.1"
           }
         },
+        "provider_key": {
+          "type": "text",
+          "nullable": true,
+          "definition": "provider_key text NULL CHECK(provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$')"
+        },
+        "adapter_health_id": {
+          "type": "uuid",
+          "nullable": true,
+          "definition": "adapter_health_id uuid NULL REFERENCES prc_adapter_health(id)",
+          "references": {
+            "table": "prc_adapter_health",
+            "columns": [
+              "id"
+            ],
+            "on_delete": "NO ACTION",
+            "at": "P2.6"
+          }
+        },
+        "adapter_health_epoch": {
+          "type": "bigint",
+          "nullable": true,
+          "definition": "adapter_health_epoch bigint NULL CHECK(adapter_health_epoch >= 1)"
+        },
         "caller_code": {
           "type": "text",
           "nullable": false,
@@ -23175,12 +22897,27 @@
         }
       },
       "constraints": [
-        "CHECK(lease_until<=deadline_at)",
-        "CHECK((kind='probe') = (probe_token IS NOT NULL))",
-        "CHECK((state='open') = (finished_at IS NULL))"
+        "CONSTRAINT prc_outbound_operations_adapter_health_epoch_check CHECK (((adapter_health_epoch IS NULL) OR (adapter_health_epoch >= 1)))",
+        "CONSTRAINT prc_outbound_operations_adapter_health_id_fkey FOREIGN KEY (adapter_health_id) REFERENCES prc_adapter_health(id)",
+        "CONSTRAINT prc_outbound_operations_check CHECK (((platform_id IS NULL) OR (provider_key IS NULL)))",
+        "CONSTRAINT prc_outbound_operations_check1 CHECK (((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL)))",
+        "CONSTRAINT prc_outbound_operations_check2 CHECK ((lease_until <= deadline_at))",
+        "CONSTRAINT prc_outbound_operations_check3 CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL)))",
+        "CONSTRAINT prc_outbound_operations_check4 CHECK (((state = 'open'::text) = (finished_at IS NULL)))",
+        "CONSTRAINT prc_outbound_operations_generation_check CHECK ((generation >= 1))",
+        "CONSTRAINT prc_outbound_operations_kind_check CHECK ((kind = ANY (ARRAY['legacy_bridge'::text, 'diagnostic'::text, 'probe'::text])))",
+        "CONSTRAINT prc_outbound_operations_operation_key_key UNIQUE (operation_key)",
+        "CONSTRAINT prc_outbound_operations_pkey PRIMARY KEY (id)",
+        "CONSTRAINT prc_outbound_operations_platform_id_fkey FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)",
+        "CONSTRAINT prc_outbound_operations_policy_hash_check CHECK ((octet_length(policy_hash) = 32))",
+        "CONSTRAINT prc_outbound_operations_provider_key_check CHECK (((provider_key IS NULL) OR (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text)))",
+        "CONSTRAINT prc_outbound_operations_state_check CHECK ((state = ANY (ARRAY['open'::text, 'closed'::text, 'expired'::text])))"
       ],
       "indexes": [
-        "CREATE INDEX prc_outbound_operations_reap ON prc_outbound_operations(lease_until)\n WHERE state='open';"
+        "CREATE INDEX prc_outbound_operations_adapter_live ON public.prc_outbound_operations USING btree (adapter_health_id, adapter_health_epoch, lease_until) WHERE ((state = 'open'::text) AND (adapter_health_id IS NOT NULL))",
+        "CREATE UNIQUE INDEX prc_outbound_operations_operation_key_key ON public.prc_outbound_operations USING btree (operation_key)",
+        "CREATE UNIQUE INDEX prc_outbound_operations_pkey ON public.prc_outbound_operations USING btree (id)",
+        "CREATE INDEX prc_outbound_operations_reap ON public.prc_outbound_operations USING btree (lease_until) WHERE (state = 'open'::text)"
       ],
       "contract": "platform-transport#s06; implementation-blueprint#bp-ddl-network"
     },
@@ -23422,15 +23159,29 @@
         }
       },
       "constraints": [
-        "FOREIGN KEY(attempt_id,work_id) REFERENCES prc_process_attempts(id,work_id)",
-        "CHECK((work_id IS NOT NULL AND attempt_id IS NOT NULL AND work_generation IS NOT NULL AND work_generation>=1 AND operation_id IS NULL AND operation_generation IS NULL)\n    OR (work_id IS NULL AND attempt_id IS NULL AND work_generation IS NULL AND operation_id IS NOT NULL AND operation_generation IS NOT NULL AND operation_generation>=1))",
-        "CHECK(expires_at<=operation_deadline)"
+        "CONSTRAINT prc_network_demands_attempt_id_work_id_fkey FOREIGN KEY (attempt_id, work_id) REFERENCES prc_process_attempts(id, work_id)",
+        "CONSTRAINT prc_network_demands_check CHECK ((((work_id IS NOT NULL) AND (attempt_id IS NOT NULL) AND (work_generation IS NOT NULL) AND (work_generation >= 1) AND (operation_id IS NULL) AND (operation_generation IS NULL)) OR ((work_id IS NULL) AND (attempt_id IS NULL) AND (work_generation IS NULL) AND (operation_id IS NOT NULL) AND (operation_generation IS NOT NULL) AND (operation_generation >= 1))))",
+        "CONSTRAINT prc_network_demands_check1 CHECK ((expires_at <= operation_deadline))",
+        "CONSTRAINT prc_network_demands_operation_id_fkey FOREIGN KEY (operation_id) REFERENCES prc_outbound_operations(id)",
+        "CONSTRAINT prc_network_demands_origin_budget_id_fkey FOREIGN KEY (origin_budget_id) REFERENCES prc_network_budgets(id)",
+        "CONSTRAINT prc_network_demands_physical_request_id_key UNIQUE (physical_request_id)",
+        "CONSTRAINT prc_network_demands_pkey PRIMARY KEY (id)",
+        "CONSTRAINT prc_network_demands_purpose_check CHECK ((purpose = ANY (ARRAY['ordinary'::text, 'probe'::text, 'diagnostic'::text])))",
+        "CONSTRAINT prc_network_demands_route_id_fkey FOREIGN KEY (route_id) REFERENCES prc_network_routes(id)",
+        "CONSTRAINT prc_network_demands_state_check CHECK ((state = ANY (ARRAY['queued'::text, 'granted'::text, 'cancelled'::text, 'expired'::text])))",
+        "CONSTRAINT prc_network_demands_target_id_fkey FOREIGN KEY (target_id) REFERENCES prc_source_targets(id)",
+        "CONSTRAINT prc_network_demands_ticket_seq_key UNIQUE (ticket_seq)",
+        "CONSTRAINT prc_network_demands_traffic_class_check CHECK ((traffic_class = ANY (ARRAY['fresh_listing'::text, 'status_refresh'::text, 'detail'::text, 'archive_listing'::text, 'download'::text, 'reference_sync'::text, 'diagnostic'::text, 'provider'::text])))",
+        "CONSTRAINT prc_network_demands_work_id_fkey FOREIGN KEY (work_id) REFERENCES prc_process_work(id)"
       ],
       "indexes": [
-        "CREATE UNIQUE INDEX prc_network_demands_attempt_active ON prc_network_demands(attempt_id) WHERE state='queued' AND attempt_id IS NOT NULL;",
-        "CREATE UNIQUE INDEX prc_network_demands_operation_active ON prc_network_demands(operation_id) WHERE state='queued' AND operation_id IS NOT NULL;",
-        "CREATE INDEX prc_network_demands_fifo ON prc_network_demands(origin_budget_id,ticket_seq) WHERE state='queued';",
-        "CREATE INDEX prc_network_demands_class ON prc_network_demands(origin_budget_id,traffic_class,id);"
+        "CREATE UNIQUE INDEX prc_network_demands_attempt_active ON public.prc_network_demands USING btree (attempt_id) WHERE ((state = 'queued'::text) AND (attempt_id IS NOT NULL))",
+        "CREATE INDEX prc_network_demands_class ON public.prc_network_demands USING btree (origin_budget_id, traffic_class, id)",
+        "CREATE INDEX prc_network_demands_fifo ON public.prc_network_demands USING btree (origin_budget_id, ticket_seq) WHERE (state = 'queued'::text)",
+        "CREATE UNIQUE INDEX prc_network_demands_operation_active ON public.prc_network_demands USING btree (operation_id) WHERE ((state = 'queued'::text) AND (operation_id IS NOT NULL))",
+        "CREATE UNIQUE INDEX prc_network_demands_physical_request_id_key ON public.prc_network_demands USING btree (physical_request_id)",
+        "CREATE UNIQUE INDEX prc_network_demands_pkey ON public.prc_network_demands USING btree (id)",
+        "CREATE UNIQUE INDEX prc_network_demands_ticket_seq_key ON public.prc_network_demands USING btree (ticket_seq)"
       ],
       "contract": "platform-transport#s06; implementation-blueprint#bp-ddl-network"
     },
@@ -24089,8 +23840,8 @@
         },
         "platform_id": {
           "type": "bigint",
-          "nullable": false,
-          "definition": "platform_id bigint NOT NULL REFERENCES prc_platforms(id)",
+          "nullable": true,
+          "definition": "platform_id bigint NULL REFERENCES prc_platforms(id)",
           "references": {
             "table": "prc_platforms",
             "columns": [
@@ -24099,6 +23850,11 @@
             "on_delete": "NO ACTION",
             "at": "P2.1"
           }
+        },
+        "provider_key": {
+          "type": "text",
+          "nullable": true,
+          "definition": "provider_key text NULL CHECK(provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$')"
         },
         "target_key": {
           "type": "text",
@@ -24137,10 +23893,19 @@
         }
       },
       "constraints": [
-        "CHECK (endpoint_policy_schema_version > 0)",
-        "UNIQUE(platform_id,target_key)"
+        "CONSTRAINT prc_source_targets_check CHECK ((((platform_id IS NOT NULL) AND (provider_key IS NULL)) OR ((platform_id IS NULL) AND (provider_key IS NOT NULL) AND (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text))))",
+        "CONSTRAINT prc_source_targets_endpoint_policy_schema_version_check CHECK ((endpoint_policy_schema_version > 0))",
+        "CONSTRAINT prc_source_targets_pkey PRIMARY KEY (id)",
+        "CONSTRAINT prc_source_targets_platform_id_fkey FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)",
+        "CONSTRAINT prc_source_targets_platform_id_target_key_key UNIQUE (platform_id, target_key)",
+        "CONSTRAINT prc_source_targets_policy_version_check CHECK ((policy_version >= 1))",
+        "CONSTRAINT prc_source_targets_provider_key_target_key_key UNIQUE (provider_key, target_key)"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE UNIQUE INDEX prc_source_targets_pkey ON public.prc_source_targets USING btree (id)",
+        "CREATE UNIQUE INDEX prc_source_targets_platform_id_target_key_key ON public.prc_source_targets USING btree (platform_id, target_key)",
+        "CREATE UNIQUE INDEX prc_source_targets_provider_key_target_key_key ON public.prc_source_targets USING btree (provider_key, target_key)"
+      ],
       "contract": "platform-transport#s06; implementation-blueprint#bp-ddl-network"
     },
     "prc_route_health": {
@@ -26090,13 +25855,8 @@
     },
     {
       "table": "prc_crawlers",
-      "at": "P2.18",
+      "at": "P2.6",
       "columns": {
-        "listing_kind": {
-          "type": "text",
-          "nullable": false,
-          "definition": "listing_kind text NOT NULL CHECK(listing_kind IN ('fresh','archive','delta'))"
-        },
         "route_profile_id": {
           "type": "uuid",
           "nullable": true,
@@ -26107,8 +25867,25 @@
               "id"
             ],
             "on_delete": "NO ACTION",
-            "at": "P2.18"
+            "at": "P2.6"
           }
+        }
+      },
+      "drop_columns": [
+        "proxy_mode",
+        "proxy_country"
+      ],
+      "constraints": [],
+      "note": "Atomic network binding cutover; acquisition execution remains on existing owners until P2.18."
+    },
+    {
+      "table": "prc_crawlers",
+      "at": "P2.18",
+      "columns": {
+        "listing_kind": {
+          "type": "text",
+          "nullable": false,
+          "definition": "listing_kind text NOT NULL CHECK(listing_kind IN ('fresh','archive','delta'))"
         },
         "capability_selection": {
           "type": "jsonb",
@@ -26125,8 +25902,6 @@
         "mode",
         "source_method",
         "fallback_method",
-        "proxy_country",
-        "proxy_mode",
         "execution_lane",
         "stop_policy"
       ],
@@ -26160,7 +25935,8 @@
         "fails_count",
         "is_active",
         "disabled_at",
-        "disabled_reason"
+        "disabled_reason",
+        "password"
       ],
       "constraints": [
         "UNIQUE(route_id)"
@@ -26459,5 +26235,39 @@
       "drop_at": "P3.13",
       "replacement": "llm_provider_calls; existing LlmCall FQCN mapping прежний до atomic swap"
     }
-  }
+  },
+  "retired_migrations": [
+    {
+      "path": "database/migrations/2026_07_04_100042_create_prc_proxy_checks_table.php",
+      "sha256": "b434dbdd41841cd8e93fd5ae312c9a3ce915e8d799bc1226d5a1c92dc0fc35a1",
+      "action": "keep",
+      "owner_item": "baseline",
+      "reason": "Network binding/health table replaced atomically by canonical routes and health authority.",
+      "retired_at": "P2.6"
+    },
+    {
+      "path": "database/migrations/2026_07_31_100062_create_prc_proxy_targets_table.php",
+      "sha256": "fefbc5eb5dbd1139409b81cc213c8e8f0c7e2e7742a9d9be5e7252fa95901e1e",
+      "action": "keep",
+      "owner_item": "baseline",
+      "reason": "Network binding/health table replaced atomically by canonical routes and health authority.",
+      "retired_at": "P2.6"
+    },
+    {
+      "path": "database/migrations/2026_08_08_100082_create_prc_crawler_proxy_table.php",
+      "sha256": "33e6f457b6abdf0996d60f694aca8eb627fd325fb503250bb21ea26faad53498",
+      "action": "keep",
+      "owner_item": "baseline",
+      "reason": "Network binding/health table replaced atomically by canonical routes and health authority.",
+      "retired_at": "P2.6"
+    },
+    {
+      "path": "database/migrations/2026_08_09_100087_replace_crawler_use_proxy_with_mode.php",
+      "sha256": "aefda0919ce01f0fb5a9c938ca4b880f708caf67f8fffecbf6787f98921e71b3",
+      "action": "fold_into_create",
+      "owner_item": "P2.14",
+      "reason": "Network binding/health table replaced atomically by canonical routes and health authority.",
+      "retired_at": "P2.6"
+    }
+  ]
 }

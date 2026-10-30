@@ -2,59 +2,55 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\SourceControlPolicy;
-use App\Enums\Procurement\Crawler\SourceFailureKind;
-use App\Enums\Procurement\Crawler\SourceFailureReaction;
-use App\Enums\Procurement\Crawler\SourceStage;
-use App\Exceptions\Procurement\Crawler\SourceControlConfigurationException;
+use App\Services\Procurement\Network\HealthPolicy;
+use App\Services\Procurement\Network\OutboundPolicy;
+use Illuminate\Config\Repository;
 
-/** @return array<string, mixed> */
+/** Historical scenario identities; canonical policy replaces retired crawler.source_control. */
 function sourceControlConfig(): array
 {
-    $config = require base_path('config/crawler.php');
-
-    return $config['source_control'];
+    return require base_path('config/outbound.php');
 }
 
 test('конфиг проекта разбирается: статусы и реакции по умолчанию', function (): void {
-    $policy = SourceControlPolicy::fromConfig(sourceControlConfig());
-
-    expect($policy->kindForStatus(404))->toBe(SourceFailureKind::NotFound)
-        ->and($policy->kindForStatus(503))->toBe(SourceFailureKind::SourceUnavailable)
-        ->and($policy->kindForStatus(418))->toBe(SourceFailureKind::UnexpectedStatus)
-        ->and($policy->stage(SourceStage::Listing)->reactionFor(SourceFailureKind::NotFound))->toBe(SourceFailureReaction::LogOnly)
-        ->and($policy->stage(SourceStage::Detail)->reactionFor(SourceFailureKind::LayoutDrift))->toBe(SourceFailureReaction::CountTowardHold)
-        ->and($policy->stage(SourceStage::Detail)->reactionFor(SourceFailureKind::CodeError))->toBe(SourceFailureReaction::Record);
+    $config = new Repository(['outbound' => sourceControlConfig()]);
+    $policy = new OutboundPolicy($config);
+    $health = new HealthPolicy($config);
+    expect($policy->originBudget->ratePerMinute)->toBe(15)
+        ->and($policy->originBudget->burst)->toBe(1)
+        ->and($policy->defaultRouteProfile)->toBe('default')
+        ->and($policy->providerRouteProfile)->toBe('llm')
+        ->and($health->globalFailures)->toBe(5)->and($health->targetFailures)->toBe(5)
+        ->and($health->globalBase)->toBe(1800)->and($health->targetBase)->toBe(300);
 });
 
 test('ошибка конфига валит разбор с адресом ошибки', function (Closure $break, string $message): void {
     $config = sourceControlConfig();
     $break($config);
-
-    expect(fn () => SourceControlPolicy::fromConfig($config))->toThrow(SourceControlConfigurationException::class, $message);
+    expect(fn () => new OutboundPolicy(new Repository(['outbound' => $config])))->toThrow(InvalidArgumentException::class, $message);
 })->with([
     'не все виды' => [function (array &$c): void {
-        unset($c['stages']['detail']['reactions'][SourceFailureKind::NotFound->value]);
-    }, 'stages.detail.reactions: не задана реакция для «not_found»'],
+        unset($c['health']['global_consecutive']);
+    }, 'outbound.health'],
     'опечатка в виде' => [function (array &$c): void {
-        $c['stages']['listing']['reactions']['not_fund'] = SourceFailureReaction::LogOnly;
-    }, 'stages.listing.reactions.not_fund: неизвестный вид отказа'],
+        $c['health']['global_consecutiv'] = 5;
+    }, 'outbound.health'],
     'строка вместо enum' => [function (array &$c): void {
-        $c['stages']['listing']['reactions']['not_found'] = 'log_only';
-    }, 'stages.listing.reactions.not_found: значение должно быть SourceFailureReaction'],
+        $c['health']['global_consecutive'] = '5';
+    }, 'outbound.health.global_consecutive'],
     'нет этапа' => [function (array &$c): void {
-        unset($c['stages']['detail']);
-    }, 'stages: нет этапа «detail»'],
+        unset($c['routing']['provider_profile']);
+    }, 'outbound.routing'],
     'лишний этап' => [function (array &$c): void {
-        $c['stages']['documents'] = [];
-    }, 'stages.documents: неизвестный этап'],
+        $c['routing']['unknown_profile'] = 'x';
+    }, 'outbound.routing'],
     'порог 0' => [function (array &$c): void {
-        $c['stages']['listing']['layout_threshold'] = 0;
-    }, 'stages.listing.layout_threshold: ожидалось целое ≥ 1'],
+        $c['health']['route_target_consecutive'] = 0;
+    }, 'outbound.health.route_target_consecutive'],
     'статус-строка' => [function (array &$c): void {
-        $c['http_status_kinds'][404] = 'not_found';
-    }, 'http_status_kinds.404: значение должно быть SourceFailureKind'],
+        $c['scheduling']['status_capacity_percent'] = '30';
+    }, 'outbound.scheduling.status_capacity_percent'],
     'не статус' => [function (array &$c): void {
-        $c['http_status_kinds'][200] = SourceFailureKind::NotFound;
-    }, 'http_status_kinds.200: ключ — HTTP-статус 300–599'],
+        $c['scheduling']['status_capacity_percent'] = 101;
+    }, 'outbound.scheduling.status_capacity_percent'],
 ]);

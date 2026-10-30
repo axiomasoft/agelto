@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network\Contracts;
 
+use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 
 /**
@@ -13,5 +14,5 @@ use App\Dto\Procurement\Platform\SourceTargetDefinitions;
  */
 interface SourceCatalogProvider
 {
-    public function sourceTargets(): SourceTargetDefinitions;
+    public function sourceTargets(): SourceTargetDefinitions|ProviderTargetDefinitions;
 }

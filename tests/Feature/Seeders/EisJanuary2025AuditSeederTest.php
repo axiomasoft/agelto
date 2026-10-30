@@ -2,16 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod;
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\Run;
+use App\Repositories\Procurement\Network\RouteRepository;
 use Database\Seeders\Platforms\Eis\EisCrawlerProxySeeder;
 use Database\Seeders\Platforms\Eis\EisJanuary2025AuditSeeder;
 use Database\Seeders\Platforms\Eis\EisPlatformSeeder;
@@ -66,22 +67,25 @@ test('сид прокси декодирует реквизиты и разре�
     expect($proxy->host)->toBe('proxy.invalid')
         ->and($proxy->port)->toBe(8080)
         ->and($proxy->username)->toBe('audit@user')
-        ->and($proxy->password)->toBe('p:ss+word')
+        ->and(app(RouteRepository::class)->bindings(app(RouteRepository::class)->profile(null, 'eis.audit'))[0]->credentials())->toBe('audit@user:p:ss+word')
+        ->and($proxy->fresh()->load('route')->toJson())->not->toContain('p:ss+word')
         ->and($proxy->country)->toBe('RU')
-        ->and($proxy->is_active)->toBeTrue()
+        ->and($proxy->route->enabled)->toBeTrue()
         ->and($proxy->scopes->all())->toBe([ProxyScope::CrawlListing]);
 });
 
 test('повторный сид обновляет пароль существующего прокси без дубля', function (): void {
     $this->seed(EisCrawlerProxySeeder::class);
     $proxyId = Proxy::query()->sole()->id;
+    $version = Proxy::query()->sole()->route->credential_version;
 
     setEisAuditProxyEnvironment('http://audit%40user:rotated%3Apassword@proxy.invalid:8080');
     $this->seed(EisCrawlerProxySeeder::class);
 
     $proxy = Proxy::query()->sole();
     expect($proxy->id)->toBe($proxyId)
-        ->and($proxy->password)->toBe('rotated:password')
+        ->and($proxy->route->credential_version)->toBe($version + 1)
+        ->and(app(RouteRepository::class)->bindings(app(RouteRepository::class)->profile(null, 'eis.audit'))[0]->credentials())->toBe('audit@user:rotated:password')
         ->and($proxy->scopes->all())->toBe([ProxyScope::CrawlListing]);
 });
 
@@ -103,9 +107,8 @@ test('сид аудита создаёт отдельный январский C
         ->and($audit->fallback_method)->toBeNull()
         ->and($audit->schedule)->toBeNull()
         ->and($audit->is_active)->toBeTrue()
-        ->and($audit->proxy_mode)->toBe(CrawlerProxyMode::Profile)
-        ->and($audit->proxy_country)->toBe('RU')
-        ->and($audit->proxies()->pluck('prc_proxies.id')->all())->toBe([$proxy->id])
+        ->and($audit->route_profile_id)->not->toBeNull()
+        ->and(array_values(app(RouteRepository::class)->bindings(new ProcessUuid($audit->route_profile_id)))[0]->id->value)->toBe($proxy->route_id)
         ->and($audit->filter->publishedFrom->toDateString())->toBe('2025-01-01')
         ->and($audit->filter->publishedTo->toDateString())->toBe('2025-01-31')
         ->and($audit->filter->sortField)->toBe(ListingSortField::Published)
@@ -129,8 +132,8 @@ test('повторный январский сид сохраняет идент
     $audit = Crawler::query()->where('name', EisJanuary2025AuditSeeder::NAME)->sole();
     expect($audit->id)->toBe($crawlerId)
         ->and(Proxy::query()->sole()->id)->toBe($proxyId)
-        ->and($audit->proxies()->pluck('prc_proxies.id')->all())->toBe([$proxyId])
-        ->and(DB::table('prc_crawler_proxy')->where('crawler_id', $crawlerId)->count())->toBe(1)
+        ->and(app(RouteRepository::class)->bindings(new ProcessUuid($audit->route_profile_id)))->toHaveCount(1)
+        ->and(DB::table('prc_network_route_profile_members')->where('profile_id', $audit->route_profile_id)->count())->toBe(1)
         ->and(Crawler::query()->count())->toBe(3);
 });
 
@@ -141,7 +144,7 @@ test('активный прогон запрещает перезапись ян
     $filter->priceTo = 12_000_000;
     $audit->update(['filter' => $filter]);
     $before = $audit->refresh()->getRawOriginal();
-    $proxyIds = $audit->proxies()->pluck('prc_proxies.id')->all();
+    $profileId = $audit->route_profile_id;
     $proxy = Proxy::query()->sole();
     $proxyBefore = $proxy->getRawOriginal();
     $run = Run::factory()->create(['crawler_id' => $audit->id, 'status' => RunStatus::Running]);
@@ -151,7 +154,7 @@ test('активный прогон запрещает перезапись ян
         ->toThrow(RuntimeException::class, 'Pause the audit run');
 
     expect($audit->refresh()->getRawOriginal())->toBe($before)
-        ->and($audit->proxies()->pluck('prc_proxies.id')->all())->toBe($proxyIds)
+        ->and($audit->route_profile_id)->toBe($profileId)
         ->and($proxy->refresh()->getRawOriginal())->toBe($proxyBefore)
         ->and($run->refresh()->status)->toBe(RunStatus::Running);
 });

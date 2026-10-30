@@ -1,28 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Crawler\Proxies\Schemas;
 
 use App\Enums\Procurement\Proxy\ProxyScope;
-use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
-class ProxyForm
+final class ProxyForm
 {
-    /**
-     * Коды стран, которыми сегодня реально размечены прокси-провайдеры проекта (ISO 3166-1
-     * alpha-2) — закрытый список вместо свободного текста (research/02 §3.1: гейт P1.5 сравнивает
-     * `country` буквально, опечатка в свободном поле обходит гейт запрещённых стран).
-     *
-     * Публичный — переиспользуется `CrawlerForm` для поля `proxy_country` (то же требование
-     * закрытого списка, тот же источник факта).
-     *
-     * @var array<string, string>
-     */
     public const array COUNTRIES = [
         'RU' => 'Россия',
         'NL' => 'Нидерланды',
@@ -38,97 +29,17 @@ class ProxyForm
 
     public static function configure(Schema $schema): Schema
     {
-        return $schema
-            ->components([
-                Section::make('Подключение прокси')
-                    ->description('Укажите технические параметры узла. Учётные данные не выводятся после сохранения.')
-                    ->schema([
-                        TextInput::make('service')
-                            ->label('Сервис')
-                            ->required(),
-                        TextInput::make('host')
-                            ->label('Хост')
-                            ->required(),
-                        TextInput::make('port')
-                            ->label('Порт')
-                            ->numeric(),
-                        TextInput::make('username')
-                            ->label('Имя пользователя'),
-                        // Креды прокси маскируются (admin-panel §2.1): скрытый ввод с
-                        // возможностью показать; пустое значение при правке не перетирает пароль.
-                        TextInput::make('password')
-                            ->label('Пароль')
-                            ->password()
-                            ->revealable()
-                            ->dehydrated(fn (?string $state): bool => filled($state)),
-                        Select::make('country')
-                            ->label('Страна')
-                            ->options(self::COUNTRIES)
-                            ->searchable(),
-                    ])
-                    ->columns(3),
-                Section::make('Разрешённое использование')
-                    ->description('Скоупы ограничивают, для каких запросов краулер может использовать этот узел.')
-                    ->schema([
-                        Select::make('scopes')
-                            ->label('Назначение запросов')
-                            ->options(ProxyScope::class)
-                            ->multiple()
-                            ->columnSpanFull(),
-                        Toggle::make('is_active')
-                            ->label('Активен')
-                            ->required(),
-                    ])
-                    ->columns(2),
-                Section::make('Состояние и здоровье')
-                    ->description('Эти поля обновляет мониторинг; изменение формы не может записать их в хранилище.')
-                    ->schema([
-                        TextInput::make('fails_count')
-                            ->label('Количество ошибок')
-                            ->required()
-                            ->numeric()
-                            ->default(0),
-                        // Здоровье — рантайм-состояние автомата breaker'а (research/02 §7), не настройка
-                        // оператора: правка руками ломает автомат P1.4, поля только читаются.
-                        Fieldset::make('Здоровье (только чтение)')
-                            ->columnSpanFull()
-                            ->schema([
-                                TextInput::make('open_count')
-                                    ->label('Количество открытий breaker')
-                                    ->disabled()
-                                    ->dehydrated(false),
-                                TextInput::make('open_until')
-                                    ->label('Breaker открыт до')
-                                    ->disabled()
-                                    ->dehydrated(false),
-                                TextInput::make('last_failure_reason')
-                                    ->label('Последняя причина ошибки')
-                                    ->disabled()
-                                    ->dehydrated(false),
-                                TextInput::make('last_success_at')
-                                    ->label('Последний успешный запрос')
-                                    ->disabled()
-                                    ->dehydrated(false),
-                                TextInput::make('last_failure_at')
-                                    ->label('Последняя ошибка')
-                                    ->disabled()
-                                    ->dehydrated(false),
-                            ]),
-                        Repeater::make('targets')
-                            ->label('Здоровье по хостам')
-                            ->relationship()
-                            ->disabled()
-                            ->addable(false)
-                            ->deletable(false)
-                            ->reorderable(false)
-                            ->schema([
-                                TextInput::make('target')->label('Хост')->disabled(),
-                                TextInput::make('consecutive_failures')->label('Серия отказов')->disabled(),
-                                TextInput::make('open_until')->label('Закрыт до')->disabled(),
-                                TextInput::make('last_failure_reason')->label('Причина')->disabled(),
-                                TextInput::make('last_outcome_at')->label('Последний исход')->disabled(),
-                            ]),
-                    ]),
-            ]);
+        return $schema->components([Section::make('Параметры маршрута')->schema([
+            TextInput::make('service')->label('Сервис')->required(),
+            TextInput::make('host')->label('Хост')->required(),
+            TextInput::make('port')->label('Порт')->integer()->minValue(1)->maxValue(65535)->required(),
+            TextInput::make('username')->label('Имя пользователя'),
+            TextInput::make('secret_ref')->label('Имя секрета')->regex('/^[A-Z][A-Z0-9_]{0,127}$/D')
+                ->helperText('Имя переменной окружения или mounted secret с учётными данными узла.'),
+            Select::make('country')->label('Страна')->options(self::COUNTRIES),
+            Select::make('scopes')->label('Назначение запросов')->options(ProxyScope::class)->multiple(),
+            Toggle::make('enabled')->label('Маршрут включён')->default(true),
+            Textarea::make('reason')->label('Причина изменения')->required()->maxLength(200),
+        ])->columns(2)->columnSpanFull()]);
     }
 }

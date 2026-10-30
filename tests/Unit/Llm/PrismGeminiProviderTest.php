@@ -31,7 +31,7 @@ function nullOutboundProxy(): OutboundProxy
 {
     return new class implements OutboundProxy
     {
-        public function optionsFor(string $host): array
+        public function optionsFor(string $host, ?string $providerKey = null): array
         {
             return [];
         }

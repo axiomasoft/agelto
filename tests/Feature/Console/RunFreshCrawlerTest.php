@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\Crawler\BrokenSourceMethod;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * Один «полностью известный» блок (rowsNew=0, rowsUpdated=0) — самый быстрый способ
@@ -40,6 +41,8 @@ beforeEach(function () {
     // чтобы проверять команду и доменный результат без запущенного Redis worker.
     config(['queue.connections.redis.driver' => 'sync']);
 });
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Fresh)', function () {
     $crawler = Crawler::factory()->create(['source_method' => SourceMethodEnum::Csv]);

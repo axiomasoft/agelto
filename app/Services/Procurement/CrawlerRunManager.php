@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Crawler\SourceEvent;
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunPurpose;
@@ -13,6 +15,7 @@ use App\Exceptions\Procurement\Crawler\CrawlerRunBusyException;
 use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
+use App\Services\Procurement\SourceControl\SourceEventReporter;
 use Closure;
 use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Database\Eloquent\Builder;
@@ -67,6 +70,9 @@ final class CrawlerRunManager
                 ->first();
 
             if ($paused !== null) {
+                if ($paused->failed_permanently || ($paused->next_retry_at !== null && $paused->next_retry_at->isFuture())) {
+                    return $paused;
+                }
                 Run::query()->whereKey($paused->getKey())->update([
                     'status' => RunStatus::Running,
                     'last_heartbeat_at' => DB::raw('CURRENT_TIMESTAMP'),
@@ -107,6 +113,53 @@ final class CrawlerRunManager
         });
     }
 
+    /** Existing run retry owner bounds a poisoned input without opening a platform circuit. */
+    public function recordInputFailure(Run $run, string $fingerprint, int $limit): void
+    {
+        if (preg_match('/^[a-f0-9]{64}$/D', $fingerprint) !== 1 || $limit < 1 || $limit > 100) {
+            throw new \InvalidArgumentException('Invalid run input retry budget.');
+        }
+        $this->withinExecutionLease($run, function () use ($run, $fingerprint, $limit): void {
+            $run->refresh();
+            $stats = $run->stats?->toArray() ?? [];
+            $previous = $stats['input_failure'] ?? null;
+            $attempts = is_array($previous) && ($previous['fingerprint'] ?? null) === $fingerprint ? $run->attempts + 1 : 1;
+            $stats['input_failure'] = ['fingerprint' => $fingerprint, 'limit' => $limit];
+            $changed = $this->ownedRunningQuery($run)->update(['attempts' => $attempts, 'failed_permanently' => $attempts >= $limit,
+                'next_retry_at' => $attempts >= $limit ? null : now()->addSeconds(min(3600, 30 * $attempts)), 'stats' => $stats]);
+            $run->refresh();
+            if ($changed !== 1 || ! $this->pause($run, $attempts >= $limit ? 'input_held' : 'input_retry',
+                ['source_suspended' => true])) {
+                throw ExecutionLeaseLost::noLongerOwned();
+            }
+        });
+    }
+
+    /** Explicit resume/restart is the only recovery of an exhausted unchanged input. */
+    public function resetInputFailure(Run $run, int $actorId, string $reason): void
+    {
+        if ($actorId < 1 || trim($reason) === '') {
+            throw new \InvalidArgumentException('Input recovery requires an actor and reason.');
+        }
+        DB::transaction(function () use ($run, $actorId, $reason): void {
+            Crawler::query()->whereKey($run->crawler_id)->lockForUpdate()->firstOrFail();
+            $locked = Run::query()->whereKey($run->id)->lockForUpdate()->firstOrFail();
+            if ($locked->status !== RunStatus::Paused || $locked->execution_owner_token !== null) {
+                throw new \LogicException('Only a paused unowned input can be recovered.');
+            }
+            $stats = $locked->stats?->toArray() ?? [];
+            unset($stats['input_failure']);
+            $stats['input_recovery'] = ['actor_id' => $actorId, 'reason' => $reason, 'at' => now()->toIso8601String()];
+            $locked->update(['attempts' => 0, 'next_retry_at' => null, 'failed_permanently' => false, 'stats' => $stats]);
+            app(SourceEventReporter::class)->report(new SourceEvent(
+                code: CrawlerEventCode::RunResumed, platformId: $locked->crawler?->registry->platform_id
+                    ?? throw new \LogicException('Input recovery platform is missing.'),
+                message: 'Оператор разрешил повтор сохранённого входа: '.$reason, crawlerId: $locked->crawler_id, runId: $locked->id,
+                context: ['actor_id' => $actorId, 'reason' => $reason, 'input_recovery' => true], actor: 'operator'));
+            $run->refresh();
+        });
+    }
+
     private function ownerMatches(Run $run, RunPurpose $purpose, ?string $subjectKey): bool
     {
         return $run->purpose === $purpose && $run->subject_key === $subjectKey;
@@ -119,6 +172,8 @@ final class CrawlerRunManager
         $acquired = Run::query()
             ->whereKey($run->getKey())
             ->where('status', RunStatus::Running)
+            ->where('failed_permanently', false)
+            ->where(fn (Builder $query) => $query->whereNull('next_retry_at')->orWhere('next_retry_at', '<=', now()))
             ->where(function (Builder $query): void {
                 $query
                     ->whereNull('execution_owner_token')
@@ -197,6 +252,12 @@ final class CrawlerRunManager
     public function updateCursor(Run $run, ListingCursor $cursor): bool
     {
         $values = ['cursor' => $cursor->toArray()];
+        if ($run->cursor?->toArray() !== $cursor->toArray() && $run->stats?->has('input_failure')) {
+            $stats = $run->stats->toArray();
+            unset($stats['input_failure']);
+            $run->stats = collect($stats);
+            $values += ['attempts' => 0, 'next_retry_at' => null, 'failed_permanently' => false];
+        }
 
         if ($run->isDirty('stats')) {
             $values['stats'] = $run->stats?->toArray();
@@ -321,8 +382,22 @@ final class CrawlerRunManager
      *
      * @param  array<string, mixed>  $extraStats  метки причины паузы (например, `source_suspended`)
      */
-    public function pause(Run $run, string $reason, array $extraStats = [], ?string $error = null): bool
+    public function pause(Run $run, string $reason, array $extraStats = [], ?string $error = null, ?\DateTimeInterface $retryAt = null): bool
     {
+        if ($retryAt !== null) {
+            return DB::transaction(function () use ($run, $reason, $extraStats, $error, $retryAt): bool {
+                if ($this->ownedRunningQuery($run)->lockForUpdate()->first(['id']) === null) {
+                    $run->refresh();
+                    $this->forgetExecutionOwnerToken($run);
+
+                    return false;
+                }
+                DB::update('UPDATE prc_crawler_runs SET next_retry_at = greatest(next_retry_at, ?::timestamptz) WHERE id = ?',
+                    [$retryAt->format('Y-m-d H:i:s.uP'), $run->id]);
+
+                return $this->pause($run, $reason, $extraStats, $error);
+            });
+        }
         $updated = $this->ownedRunningQuery(run: $run)->update([
             ...($error === null ? [] : ['last_error' => $error, 'last_error_at' => now()]),
             'status' => RunStatus::Paused,
@@ -662,6 +737,57 @@ final class CrawlerRunManager
         }
 
         return $recovered;
+    }
+
+    /** @param list<int> $excludedPlatforms
+     * @return Collection<int,Run>
+     */
+    public function waitingProfileRuns(array $excludedPlatforms, int $limit = 100): Collection
+    {
+        if ($limit < 1 || $limit > 100) {
+            throw new \InvalidArgumentException('Invalid waiting-run scan bound.');
+        }
+
+        return Run::query()->where('status', RunStatus::Paused)->where('purpose', RunPurpose::Profile)
+            ->where('stats->source_suspended', true)->where('failed_permanently', false)
+            ->where(fn (Builder $query) => $query->whereNull('stats->automatic_recovery_pending')->orWhere('stats->automatic_recovery_pending', false))
+            ->whereRaw('(next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP)')
+            ->whereRaw('(source_resume_claimed_until IS NULL OR source_resume_claimed_until <= CURRENT_TIMESTAMP)')
+            ->whereHas('crawler', fn (Builder $query) => $query->where('is_active', true)
+                ->whereHas('registry', fn (Builder $registry) => $registry->whereNotIn('platform_id', $excludedPlatforms)))
+            ->orderBy('id')->limit($limit)->get();
+    }
+
+    /** One enqueue claim on the existing paused owner; leaves source_suspended until admission. */
+    public function claimWaitingProfileRun(Run $candidate): ?Run
+    {
+        return DB::transaction(function () use ($candidate): ?Run {
+            Crawler::query()->whereKey($candidate->crawler_id)->lockForUpdate()->firstOrFail();
+            if (Run::query()->where('crawler_id', $candidate->crawler_id)->where('status', RunStatus::Running)->exists()) {
+                return null;
+            }
+            $run = Run::query()->whereKey($candidate->id)->where('status', RunStatus::Paused)->where('purpose', RunPurpose::Profile)
+                ->whereNull('execution_owner_token')->where('stats->source_suspended', true)->where('failed_permanently', false)
+                ->where(fn (Builder $query) => $query->whereNull('stats->automatic_recovery_pending')->orWhere('stats->automatic_recovery_pending', false))
+                ->whereRaw('(next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP)')
+                ->whereRaw('(source_resume_claimed_until IS NULL OR source_resume_claimed_until <= CURRENT_TIMESTAMP)')
+                ->lockForUpdate()->first();
+            if ($run === null) {
+                return null;
+            }
+            Run::query()->whereKey($run->id)->update(['source_resume_claimed_until' => DB::raw("CURRENT_TIMESTAMP + interval '120 seconds'")]);
+
+            return $run->refresh();
+        });
+    }
+
+    /** Failed enqueue releases only the exact claim acquired by this dispatcher. */
+    public function releaseWaitingProfileClaim(Run $claimed): void
+    {
+        Run::query()->whereKey($claimed->id)->where('status', RunStatus::Paused)
+            ->whereNull('execution_owner_token')
+            ->where('source_resume_claimed_until', $claimed->getRawOriginal('source_resume_claimed_until'))
+            ->update(['source_resume_claimed_until' => null]);
     }
 
     /** @return Collection<int, Run> */

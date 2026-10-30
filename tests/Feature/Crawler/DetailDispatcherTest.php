@@ -6,6 +6,9 @@ use App\Jobs\Procurement\FetchProcurementDetailJob;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\DetailDispatcher;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('диспетчер подаёт не больше лимита за тик', function (): void {
     Queue::fake();

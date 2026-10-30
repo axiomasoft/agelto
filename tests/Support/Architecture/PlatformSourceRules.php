@@ -83,6 +83,23 @@ final class PlatformSourceRules
     public static function rolePermissions(): array
     {
         return [
+            'config/outbound.php' => [
+                'App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod',
+            ],
+            'app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php' => [
+                'App\\Services\\Procurement\\Network\\Contracts\\DiagnosticCheck',
+            ],
+            'app/Services/Platforms/Eis/Csv/EisCsvParser.php' => [
+                'App\\Services\\Procurement\\Network\\BoundedResponseReader',
+            ],
+            'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php' => [
+                'App\\Services\\Procurement\\Network\\Contracts\\SourceCatalogProvider',
+                'App\\Services\\Procurement\\Contracts\\DiagnosticSourceMethod',
+                'App\\Services\\Procurement\\Network\\AdapterInputInspector',
+                'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',
+                'App\\Services\\Procurement\\Proxy\\ProxyBindingResolver',
+                'App\\Services\\Procurement\\Proxy\\RoutePolicy',
+            ],
             'app/Models/Platforms/Eis/EisDetails.php' => [
                 'App\Models\Procurement\Procurement',
             ],
@@ -95,6 +112,9 @@ final class PlatformSourceRules
                 'App\Repositories\Procurement\Platform\Okpd2NodeReadRepository',
             ],
             'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php' => [
+                'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',
+                'App\\Services\\Procurement\\Proxy\\ProxyResolver',
+                'App\\Services\\Procurement\\Proxy\\RoutePolicy',
                 'App\Models\Procurement\Platform\Platform',
                 'App\Models\Procurement\Platform\Okpd2Node',
                 'App\Repositories\Procurement\Platform\Okpd2NodeReadRepository',
@@ -108,9 +128,13 @@ final class PlatformSourceRules
                 'App\Models\Procurement\Platform\Registry',
             ],
             'database/seeders/Platforms/Eis/EisCrawlerProxySeeder.php' => [
+                'App\\Services\\Procurement\\Process\\ProcessTransaction',
+                'App\\Repositories\\Procurement\\Process\\ControlRepository',
+                'App\\Repositories\\Procurement\\Network\\RouteRepository',
                 'App\Models\Procurement\Crawler\Proxy',
             ],
             'database/seeders/Platforms/Eis/EisJanuary2025AuditSeeder.php' => [
+                'App\\Repositories\\Procurement\\Network\\RouteRepository',
                 'App\Models\Procurement\Crawler\Crawler',
                 'App\Models\Procurement\Crawler\Proxy',
                 'App\Models\Procurement\Crawler\Run',

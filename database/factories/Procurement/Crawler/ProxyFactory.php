@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Database\Factories\Procurement\Crawler;
 
-use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Proxy;
+use App\Repositories\Procurement\Network\RouteRepository;
+use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Proxy>
@@ -23,16 +26,11 @@ final class ProxyFactory extends Factory
             'host' => fake()->domainName(),
             'port' => fake()->numberBetween(int1: 1024, int2: 65535),
             'username' => fake()->userName(),
-            'password' => fake()->password(),
             'country' => null,
             'scopes' => [],
-            'is_active' => true,
-            'fails_count' => 0,
-            'open_until' => null,
-            'open_count' => 0,
-            'last_failure_reason' => null,
-            'last_success_at' => null,
-            'last_failure_at' => null,
+            'route_id' => static fn (): string => app(ProcessTransaction::class)->run(
+                fn (): string => app(RouteRepository::class)->createProxyRoute('fixture:'.Str::uuid(), null),
+            ),
         ];
     }
 
@@ -58,11 +56,12 @@ final class ProxyFactory extends Factory
      */
     public function open(): static
     {
-        return $this->state(fn (array $attributes): array => [
-            'open_until' => now()->addMinutes(30),
-            'open_count' => 1,
-            'last_failure_reason' => ProxyFailureReason::NetworkTimeout->value,
-            'last_failure_at' => now(),
-        ]);
+        return $this->afterCreating(static function (Proxy $proxy): void {
+            DB::table('prc_route_health')->insert([
+                'id' => (string) Str::uuid(), 'route_id' => $proxy->route_id, 'state' => 'open',
+                'health_epoch' => 1, 'state_version' => 1, 'reason_code' => 'proxy_connect', 'open_until' => now()->addMinutes(30),
+                'recent_openings' => 1, 'consecutive_failures' => 0,
+            ]);
+        });
     }
 }

@@ -7,6 +7,7 @@ namespace App\Console\Commands\Procurement;
 use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Jobs\Procurement\CrawlRunJob;
+use App\Services\Procurement\Crawler\ResumeWaitingRuns;
 use App\Services\Procurement\CrawlerRunManager;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -22,7 +23,7 @@ use Illuminate\Console\Command;
 #[Signature('crawler:recover-stale')]
 final class RecoverStaleRuns extends Command
 {
-    public function handle(CrawlerRunManager $runs): int
+    public function handle(CrawlerRunManager $runs, ResumeWaitingRuns $waiting): int
     {
         $recovered = $runs->recoverStale();
         $dispatched = 0;
@@ -51,6 +52,8 @@ final class RecoverStaleRuns extends Command
             $dispatched++;
         }
 
+        $resumed = $waiting->resumeDue();
+        $this->info("Поставлено продолжений ожидающих прогонов: {$resumed}.");
         $this->info("Поднято зависших прогонов: {$recovered}.");
         $this->info("Поставлено archive-продолжений: {$dispatched}.");
 

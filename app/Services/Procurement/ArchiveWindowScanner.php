@@ -19,7 +19,7 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\Contracts\CooperativeListingSourceMethod;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
-use App\Services\Procurement\SourceControl\SourceRunControl;
+use App\Services\Procurement\Network\LegacyAcquisitionControl;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -43,7 +43,7 @@ final readonly class ArchiveWindowScanner
         private CrawlerRunManager $runs,
         private CsvBlockIngestor $ingestor,
         private RunStopGate $stopGate,
-        private SourceRunControl $sourceControl,
+        private LegacyAcquisitionControl $sourceControl,
         private ListingRunCheckpoint $listingCheckpoint,
     ) {}
 
@@ -150,8 +150,8 @@ final readonly class ArchiveWindowScanner
             $executionCrawler = clone $crawler;
             $executionCrawler->filter = $profileFilter;
             $executionCrawler = $recoveryScope?->applyTo(runtimeCrawler: $executionCrawler) ?? $executionCrawler;
-            // Источник на паузе (брейкер открыт или пауза оператора): прогон приостановлен с тем
-            // же курсором; его поднимет `crawler:source-circuits` или оператор.
+            // Canonical admission denial preserves the same cursor. The existing recovery
+            // scheduler or an explicit operator action resumes the surviving run owner.
             if (! $this->sourceControl->admit(crawler: $crawler, run: $run)) {
                 return ArchiveWindowScanResult::Stopped;
             }
@@ -167,7 +167,7 @@ final readonly class ArchiveWindowScanner
             } catch (ListingRequestStopped) {
                 return ArchiveWindowScanResult::Stopped;
             } catch (InvalidListingResponse $exception) {
-                $this->runs->withinExecutionLease(run: $run, callback: fn () => $this->ingestor->recordRejectedBatch($crawler, $run, $exception->batch, $exception->reason));
+                $this->ingestor->recordRejectedBatch($crawler, $run, $exception->batch, $exception->reason);
                 $this->sourceControl->onBlockException(crawler: $crawler, run: $run, exception: $exception, requestParams: $iterationCursor->toArray());
 
                 return ArchiveWindowScanResult::Stopped;

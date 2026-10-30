@@ -6,13 +6,12 @@ use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceMethod;
-use App\Enums\Procurement\Crawler\SourceStage;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Crawler\Proxy;
-use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Platform\Registry;
@@ -20,16 +19,17 @@ use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
-use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
 use App\Services\Procurement\DetailRefetchSelector;
 use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Modes\DetailAnalysisProcessor;
-use App\Services\Procurement\SourceControl\SourceCircuitBreaker;
+use App\Services\Procurement\Network\AcquisitionEligibility;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\CardHtmlFixture;
 use Tests\Support\Doubles\Crawler\FakeSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * Активные узлы скоупов `crawl_detail` и `document_download` (research/02 §9.1, P1.6) —
@@ -69,6 +69,8 @@ function detailAnalysisSupplierResultsHtml(): string
     return CardHtmlFixture::supplierResults();
 }
 
+beforeEach(fn () => LegacyBusinessNetwork::install());
+
 test('supplier-results mismatch остаётся retryable и следующий полный проход сходится', function (): void {
     Sleep::fake();
     Storage::fake('s3');
@@ -96,7 +98,7 @@ test('supplier-results mismatch остаётся retryable и следующий
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse()
         ->and($procurement->fresh()->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(1)
+        ->and($procurement->detail_attempts)->toBe(0)
         ->and($procurement->detail_next_retry_at)->not->toBeNull();
 
     $this->travel((int) config('crawler.detail_retry_backoff_minutes', 15) + 1)->minutes();
@@ -293,7 +295,7 @@ test('common-info вернул страницу без запрошенного 
     $procurement->refresh();
 
     expect($procurement->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(1)
+        ->and($procurement->detail_attempts)->toBe(0)
         ->and($procurement->detail_last_error)->not->toBeNull();
 
     expect(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse();
@@ -343,6 +345,8 @@ test('страница-заглушка без базовых селекторо
         ->and($procurement->detail_attempts)->toBe(0)
         ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardLayoutDrift)->count())->toBe(1);
 
+    expect(app(DetailRefetchSelector::class)->due(limit: 10)->pluck('id')->all())->not->toContain($procurement->id);
+    $this->travel(31)->seconds();
     expect(app(DetailRefetchSelector::class)->due(limit: 10)->pluck('id')->all())
         ->toContain($procurement->id);
 });
@@ -408,7 +412,8 @@ test('нет базовых селекторов на любой вкладке 
         ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardLayoutDrift)->sole()->context['missing_selectors'])
         ->toHaveKey('event-journal')
         // дрейф считается отдельным счётчиком структуры, сетевой счётчик не трогается
-        ->and(app(SourceCircuitRepository::class)->forStage($procurement->registry->platform_id, SourceStage::Detail)->consecutive_layout_failures)->toBe(1);
+        ->and($procurement->detail_parse_outcome['input_validation']['failures'])->toBe(1)
+        ->and($procurement->detail_attempts)->toBe(0);
 });
 
 test('недоступный эталон не позволяет подтверждать успешный разбор карточки', function (): void {
@@ -420,10 +425,11 @@ test('недоступный эталон не позволяет подтвер
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse()
         ->and($procurement->refresh()->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(1)
-        ->and($procurement->detail_next_retry_at)->not->toBeNull()
+        ->and($procurement->detail_attempts)->toBe(0)
+        ->and($procurement->detail_next_retry_at)->toBeNull()
         ->and(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardCodeError)->count())->toBe(1);
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardCodeError)->count())->toBe(0);
+    Http::assertNothingSent();
 });
 
 test('якоря, зависящие от данных (нет участников, нет вложений), базовыми не считаются', function (): void {
@@ -435,14 +441,16 @@ test('якоря, зависящие от данных (нет участник�
 test('этап карточек в ожидании — карточка не запрашивается и остаётся в очереди; листинг не затронут', function (): void {
     $procurement = detailAnalysisProcurement();
     $platformId = $procurement->registry->platform_id;
-    SourceCircuit::factory()->create(['platform_id' => $platformId, 'stage' => SourceStage::Detail, 'retry_at' => now()->addMinutes(10)]);
+    $target = DB::table('prc_source_targets')->where('platform_id', $platformId)->where('capability', 'detail')->sole();
+    DB::table('prc_target_health')->where('target_id', $target->id)->update([
+        'state' => 'open', 'open_until' => DB::raw("clock_timestamp() + interval '10 minutes'")]);
     Http::fake();
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
 
     Http::assertNothingSent();
     expect($procurement->refresh()->detail_attempts)->toBe(0)
-        ->and(app(SourceCircuitBreaker::class)->admits($platformId, SourceStage::Listing))->toBeTrue();
+        ->and(app(AcquisitionEligibility::class)->excludedPlatforms(StageCode::Listing))->not->toContain($platformId);
 });
 
 test('отказ скачивания карточки учитывается брейкером этапа карточек, карточка — в штатный повтор', function (): void {
@@ -452,8 +460,9 @@ test('отказ скачивания карточки учитывается б
 
     app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
 
-    expect($procurement->refresh()->detail_attempts)->toBe(1)
-        ->and(app(SourceCircuitRepository::class)->forStage($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(1);
+    expect($procurement->refresh()->detail_attempts)->toBe(0)
+        ->and($procurement->detail_failed)->toBeFalse()
+        ->and(DB::table('prc_source_circuits')->count())->toBe(0);
 });
 
 test('ошибка нашего кода при обработке карточки: брейкер не считает, событие ERROR, карточка в штатный повтор', function (): void {
@@ -481,5 +490,5 @@ test('ошибка нашего кода при обработке карточ�
     expect($procurement->refresh()->detail_attempts)->toBe(1)
         ->and($incident->type)->toBe(CrawlerEventCode::CardCodeError)
         ->and($incident->failure_kind)->toBe(SourceFailureKind::CodeError)
-        ->and(app(SourceCircuitRepository::class)->forStage($procurement->registry->platform_id, SourceStage::Detail)->consecutive_failures)->toBe(0);
+        ->and(DB::table('prc_source_circuits')->count())->toBe(0);
 });

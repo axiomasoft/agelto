@@ -26,6 +26,9 @@ final readonly class SourceTargetDefinitions
         $byKey = [];
         $budgets = [];
         foreach ($targets as $target) {
+            if ($target->adapterContract !== null && $target->adapterContract->platformCode !== $platformCode) {
+                throw new \InvalidArgumentException('Adapter contract belongs to another platform.');
+            }
             if (isset($byKey[$target->key])) {
                 throw new \InvalidArgumentException('Duplicate source target key: '.$target->key);
             }

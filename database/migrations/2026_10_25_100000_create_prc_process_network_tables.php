@@ -37,6 +37,8 @@ return new class extends Migration
 
     public function down(): void
     {
+        DB::statement('ALTER TABLE prc_crawlers DROP CONSTRAINT prc_crawlers_route_profile_id_foreign');
+        DB::statement('ALTER TABLE prc_proxies DROP COLUMN route_id');
         foreach (array_reverse(self::TABLES) as $table) {
             DB::statement('DROP TABLE IF EXISTS '.$table);
         }
@@ -79,7 +81,8 @@ return new class extends Migration
             <<<'SQL'
             CREATE TABLE prc_source_targets (
               id uuid PRIMARY KEY,
-              platform_id bigint NOT NULL REFERENCES prc_platforms(id),
+              platform_id bigint NULL REFERENCES prc_platforms(id),
+              provider_key text NULL,
               target_key text NOT NULL,
               canonical_origin text NOT NULL,
               capability text NOT NULL,
@@ -88,6 +91,8 @@ return new class extends Migration
               policy_version bigint NOT NULL CHECK(policy_version>=1),
               retired_at timestamptz NULL,
               UNIQUE(platform_id,target_key),
+              UNIQUE(provider_key,target_key),
+              CHECK ((platform_id IS NOT NULL AND provider_key IS NULL) OR (platform_id IS NULL AND provider_key IS NOT NULL AND provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$')),
               CHECK (endpoint_policy_schema_version > 0)
             )
             SQL,
@@ -175,6 +180,11 @@ return new class extends Migration
               operation_key uuid NOT NULL UNIQUE,
               kind text NOT NULL CHECK(kind IN ('legacy_bridge','diagnostic','probe')),
               platform_id bigint NULL REFERENCES prc_platforms(id),
+              provider_key text NULL CHECK(provider_key IS NULL OR provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'),
+              CHECK (platform_id IS NULL OR provider_key IS NULL),
+              adapter_health_id uuid NULL REFERENCES prc_adapter_health(id),
+              adapter_health_epoch bigint NULL CHECK(adapter_health_epoch IS NULL OR adapter_health_epoch >= 1),
+              CHECK((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL)),
               caller_code text NOT NULL,
               state text NOT NULL CHECK(state IN ('open','closed','expired')),
               owner_token uuid NOT NULL,
@@ -191,6 +201,7 @@ return new class extends Migration
             )
             SQL,
             "CREATE INDEX prc_outbound_operations_reap ON prc_outbound_operations(lease_until) WHERE state='open'",
+            "CREATE INDEX prc_outbound_operations_adapter_live ON prc_outbound_operations(adapter_health_id, adapter_health_epoch, lease_until) WHERE state='open' AND adapter_health_id IS NOT NULL",
             <<<'SQL'
             CREATE TABLE prc_outbound_operation_controls (
               operation_id uuid NOT NULL REFERENCES prc_outbound_operations(id),
@@ -225,7 +236,7 @@ return new class extends Migration
               origin_budget_id uuid NOT NULL REFERENCES prc_network_budgets(id),
               route_id uuid NOT NULL REFERENCES prc_network_routes(id),
               target_id uuid NOT NULL REFERENCES prc_source_targets(id),
-              traffic_class text NOT NULL CHECK(traffic_class IN ('fresh_listing','status_refresh','detail','archive_listing','download','reference_sync','diagnostic')),
+              traffic_class text NOT NULL CHECK(traffic_class IN ('fresh_listing','status_refresh','detail','archive_listing','download','reference_sync','diagnostic','provider')),
               purpose text NOT NULL CHECK(purpose IN ('ordinary','probe','diagnostic')),
               ticket_seq bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
               registered_at timestamptz NOT NULL,
@@ -272,6 +283,8 @@ return new class extends Migration
             )
             SQL,
             'CREATE INDEX prc_network_permit_scopes_budget ON prc_network_permit_scopes(budget_id)',
+            'ALTER TABLE prc_proxies ADD COLUMN route_id uuid NOT NULL UNIQUE REFERENCES prc_network_routes(id)',
+            'ALTER TABLE prc_crawlers ADD CONSTRAINT prc_crawlers_route_profile_id_foreign FOREIGN KEY (route_profile_id) REFERENCES prc_network_route_profiles(id)',
         ];
     }
 };

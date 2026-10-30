@@ -14,6 +14,7 @@ use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\Modes\DetailAnalysisProcessor;
 use Illuminate\Support\Carbon;
 use Tests\Support\Doubles\Crawler\CardHtmlFixture;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 final class DetailParseOutcomeSourceMethod implements SourceMethod
 {
@@ -45,6 +46,8 @@ final class DetailParseOutcomeSourceMethod implements SourceMethod
         return true;
     }
 }
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('репозиторий перезаписывает последний исход разбора', function (): void {
     $procurement = Procurement::factory()->create();
@@ -84,12 +87,11 @@ test('отсутствие эталона откладывает разбор, �
 
     expect($result)->toBeFalse()
         ->and($procurement->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(3)
+        ->and($procurement->detail_attempts)->toBe(2)
         ->and($procurement->detail_failed)->toBeFalse()
-        ->and($procurement->detail_next_retry_at)->not->toBeNull();
+        ->and($procurement->detail_next_retry_at)->toBeNull();
 
     config(['crawler.platforms.eis.baseline_path' => 'resources/crawler/health/eis-baseline.json']);
-    $this->travelTo($procurement->detail_next_retry_at->copy()->addSecond());
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeTrue()
         ->and($procurement->refresh()->detail_fetched_at)->not->toBeNull()

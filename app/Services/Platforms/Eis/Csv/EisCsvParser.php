@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Platforms\Eis\Csv;
 
 use App\Exceptions\Procurement\Crawler\SourceResponseLimitExceeded;
-use App\Services\Procurement\BoundedResponseReader;
+use App\Services\Procurement\Network\BoundedResponseReader;
 
 /** Strict CSV records: quoted newlines and doubled quotes are data, never record boundaries. */
 final readonly class EisCsvParser

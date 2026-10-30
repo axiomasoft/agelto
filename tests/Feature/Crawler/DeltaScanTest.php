@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
 use Tests\Support\Postgres\ConcurrentTransactions;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * П-3 (`research/05-change-tracking.md` §3.1): плановый delta-scan окна
@@ -124,6 +126,8 @@ beforeEach(function () {
         'crawler.tracking.window_overlap_days' => 2,
     ]);
 });
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('нет активного archive-профиля реестра — warning, run не создаётся', function () {
     $registry = Registry::factory()->eis()->create();
@@ -254,6 +258,7 @@ PHP);
 });
 
 test('delta processor после expiry продолжает точный checkpoint прежнего owner', function () {
+    PermitFixtures::clean();
     $fixture = ConcurrentTransactions::execute(<<<'PHP'
 $registry = \App\Models\Procurement\Platform\Registry::factory()->eis()->create();
 $freshCrawler = \App\Models\Procurement\Crawler\Crawler::factory()
@@ -338,6 +343,7 @@ config([
         return true;
     }
 };
+\Tests\Support\ProcessCore\LegacyBusinessNetwork::install();
 app()->instance(\$source::class, \$source);
 config(['crawler.platforms.eis.source_methods' => [
     \App\Enums\Procurement\Crawler\SourceMethod::Csv->value => \$source::class,
@@ -367,6 +373,7 @@ PHP);
             ->and($state['status'])->toBe(RunStatus::Completed->value)
             ->and($state['cursor']['day'])->toBe('2026-09-02');
     } finally {
+        PermitFixtures::clean();
         ConcurrentTransactions::execute(<<<PHP
 \Illuminate\Support\Facades\DB::table('prc_fetches')->where('crawler_run_id', {$fixture['run_id']})->delete();
 \App\Models\Procurement\Crawler\Run::query()->whereKey({$fixture['run_id']})->delete();

@@ -19,7 +19,7 @@ final readonly class CatalogSyncReport
      * @param  list<string>  $retiredDeclared  target keys
      */
     public function __construct(
-        public string $platformCode,
+        public ?string $platformCode,
         public int $targetsCreated,
         public int $targetsUpdated,
         public int $targetsRetired,
@@ -28,6 +28,7 @@ final readonly class CatalogSyncReport
         public array $driftedBudgets,
         public int $healthRowsCreated,
         public array $retiredDeclared,
+        public ?ProviderKey $providerKey = null,
     ) {}
 
     public function changed(): bool

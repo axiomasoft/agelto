@@ -10,11 +10,11 @@ use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Platform\Platform;
-use App\Services\Procurement\Health\Contracts\HealthCheck;
 use App\Services\Procurement\Health\HealthCheckResultFactory;
+use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
 use Carbon\CarbonInterface;
 
-final readonly class ListingShapeCheck implements HealthCheck
+final readonly class ListingShapeCheck implements DiagnosticCheck
 {
     public function __construct(private HealthCheckResultFactory $results) {}
 

@@ -2,37 +2,51 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Dto\Procurement\Process\ProcessUuid;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
+use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
-use App\Services\Procurement\Proxy\ProxyResolver;
-use Illuminate\Support\Facades\Crypt;
+use App\Repositories\Procurement\Network\RouteRepository;
+use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+
+beforeEach(fn () => LegacyBusinessNetwork::install(fakeResponses: false));
+afterEach(fn () => putenv('P26_PROXY_TEST_SECRET'));
+
+function secretReferenceProxy(): Proxy
+{
+    $proxy = Proxy::factory()->create(['username' => 'user']);
+    DB::table('prc_network_routes')->where('id', $proxy->route_id)->update(['secret_ref' => 'P26_PROXY_TEST_SECRET']);
+    putenv('P26_PROXY_TEST_SECRET=p@ss:word');
+
+    return $proxy;
+}
 
 test('пароль прокси хранится в БД зашифрованным, а модель читает открытое значение', function (): void {
-    $proxy = Proxy::factory()->create(['password' => 'p@ss:word']);
-
-    $stored = DB::table('prc_proxies')->where('id', $proxy->id)->value('password');
-
-    expect($stored)->not->toBe('p@ss:word')
-        ->and(Crypt::decryptString($stored))->toBe('p@ss:word')
-        ->and($proxy->fresh()->password)->toBe('p@ss:word');
+    // P2.6 replacement is stricter: only a secret reference is persisted, never its value.
+    $proxy = secretReferenceProxy();
+    expect(Schema::hasColumn('prc_proxies', 'password'))->toBeFalse()
+        ->and(DB::table('prc_network_routes')->where('id', $proxy->route_id)->value('secret_ref'))->toBe('P26_PROXY_TEST_SECRET')
+        ->and(json_encode((array) DB::table('prc_proxies')->find($proxy->id)))->not->toContain('p@ss:word');
 });
 
 test('пароль прокси не сериализуется моделью', function (): void {
-    $proxy = Proxy::factory()->create(['password' => 'secret-value']);
-
+    $proxy = secretReferenceProxy();
     expect($proxy->fresh()->toArray())->not->toHaveKey('password')
-        ->and($proxy->fresh()->toJson())->not->toContain('secret-value');
+        ->and($proxy->fresh()->load('route')->toJson())->not->toContain('p@ss:word');
 });
 
 test('резолвер выдаёт лизу с расшифрованными учётными данными узла', function (): void {
-    Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create([
-        'username' => 'user',
-        'password' => 'p@ss:word',
-    ]);
-
-    $lease = app(ProxyResolver::class)->resolve(scope: ProxyScope::CrawlListing, target: 'zakupki.gov.ru');
-
-    expect($lease->password)->toBe('p@ss:word')
-        ->and($lease->httpOptions()['proxy'])->toContain('user:p%40ss%3Aword@');
+    $proxy = secretReferenceProxy();
+    $crawler = Crawler::factory()->withProxies($proxy)->create();
+    $policy = app(ProxyBindingResolver::class)->forCrawler($crawler);
+    $binding = array_values($policy->bindings)[0];
+    expect($binding->credentials())->toBe('user:p@ss:word')
+        ->and($binding->proxy())->toBe('http://'.$proxy->host.':'.$proxy->port)
+        ->and(fn () => serialize($binding))->toThrow(LogicException::class);
+    putenv('P26_PROXY_TEST_SECRET');
+    expect(fn () => app(RouteRepository::class)->bindings(new ProcessUuid($crawler->route_profile_id)))
+        ->toThrow(OutboundUnavailable::class, 'configuration_hold');
 });

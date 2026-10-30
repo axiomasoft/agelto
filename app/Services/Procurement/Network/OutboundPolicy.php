@@ -14,7 +14,7 @@ use Illuminate\Contracts\Config\Repository;
  */
 final readonly class OutboundPolicy
 {
-    private const array ROOT_KEYS = ['policy_version', 'origin_budget', 'route_origin_budget', 'probe_budget', 'override_bounds', 'scheduling', 'direct_route', 'legacy_bridge', 'catalog_providers', 'health'];
+    private const array ROOT_KEYS = ['policy_version', 'origin_budget', 'route_origin_budget', 'probe_budget', 'override_bounds', 'scheduling', 'direct_route', 'legacy_bridge', 'catalog_providers', 'routing', 'http', 'health', 'adapter_health'];
 
     private const array SCHEDULING_KEYS = ['max_inline_wait_seconds', 'max_pending_demands_per_origin', 'ticket_ttl_seconds', 'ticket_renew_seconds', 'permit_cleanup_reserve_seconds', 'status_capacity_percent'];
 
@@ -52,6 +52,12 @@ final readonly class OutboundPolicy
     /** @var list<string> */
     public array $catalogProviders;
 
+    public string $defaultRouteProfile;
+
+    public string $providerRouteProfile;
+
+    public string $userAgent;
+
     public function __construct(Repository $config)
     {
         $root = $config->get('outbound');
@@ -59,6 +65,19 @@ final readonly class OutboundPolicy
             throw new \InvalidArgumentException('Invalid outbound policy: outbound');
         }
         new HealthPolicy($config);
+        new AdapterHealthPolicy($config);
+        $routing = $root['routing'];
+        if (! is_array($routing) || array_keys($routing) !== ['default_profile', 'provider_profile']) {
+            throw new \InvalidArgumentException('Invalid outbound.routing');
+        }
+        $this->defaultRouteProfile = self::label($routing['default_profile'], 'outbound.routing.default_profile');
+        $this->providerRouteProfile = self::label($routing['provider_profile'], 'outbound.routing.provider_profile');
+        $http = $root['http'];
+        if (! is_array($http) || array_keys($http) !== ['user_agent', 'tls_bundles'] || ! is_string($http['user_agent'])
+            || $http['user_agent'] === '' || preg_match('/[\r\n\x00]/', $http['user_agent']) || ! is_array($http['tls_bundles'])) {
+            throw new \InvalidArgumentException('Invalid outbound.http');
+        }
+        $this->userAgent = $http['user_agent'];
         $this->policyVersion = self::positive($root['policy_version'], 'outbound.policy_version');
         $this->originBudget = self::budget($root['origin_budget'], 'outbound.origin_budget');
         $this->routeOriginBudget = self::budget($root['route_origin_budget'], 'outbound.route_origin_budget');

@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * @return array<string, string>
@@ -123,6 +124,8 @@ beforeEach(function () {
         'crawler.archive.max_blocks_per_window' => 50,
     ]);
 });
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('период из 2 дней — scan вызван на каждый день, курсор прошёл оба дня, run completed', function () {
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);

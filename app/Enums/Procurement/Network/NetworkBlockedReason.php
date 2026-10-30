@@ -11,6 +11,7 @@ namespace App\Enums\Procurement\Network;
 enum NetworkBlockedReason: string
 {
     case Paused = 'paused';
+    case AdapterHeld = 'adapter_held';
     case TargetRetired = 'target_retired';
     case CredentialHold = 'credential_hold';
     case ConfigurationHold = 'configuration_hold';

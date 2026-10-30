@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Procurement\Network;
 
 use App\Dto\Procurement\Network\OutboundOperationHandle;
+use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Network\OutboundOperationKind;
@@ -38,6 +39,7 @@ final readonly class OutboundOperationRepository
         int $leaseSeconds,
         int $deadlineSeconds,
         ?ProcessUuid $probeToken = null,
+        ?ProviderKey $providerKey = null,
     ): OutboundOperationHandle {
         CallerTransaction::require('Outbound operation open');
         if ($leaseSeconds < 1 || $deadlineSeconds < 1 || $controlScopeKeys === []) {
@@ -49,18 +51,21 @@ final readonly class OutboundOperationRepository
         if (($kind === OutboundOperationKind::Probe) !== ($probeToken !== null)) {
             throw new \InvalidArgumentException('Only a probe operation carries a probe token.');
         }
+        if ($providerKey !== null && ($platformId !== null || ! in_array('provider:'.$providerKey->value, $controlScopeKeys, true))) {
+            throw new \InvalidArgumentException('Provider operation requires its exact provider control.');
+        }
         $controls = self::lockControlClosure($controlScopeKeys);
 
         $row = LedgerRow::one(
             "INSERT INTO prc_outbound_operations
-               (id, operation_key, kind, platform_id, caller_code, state, owner_token, generation, lease_until, deadline_at, created_at, probe_token, policy_hash)
-             SELECT ?, ?, ?, ?, ?, 'open', ?, 1, least(n.t + make_interval(secs => ?), n.t + make_interval(secs => ?)),
+               (id, operation_key, kind, platform_id, provider_key, caller_code, state, owner_token, generation, lease_until, deadline_at, created_at, probe_token, policy_hash)
+             SELECT ?, ?, ?, ?, ?, ?, 'open', ?, 1, least(n.t + make_interval(secs => ?), n.t + make_interval(secs => ?)),
                     n.t + make_interval(secs => ?), n.t, ?, decode(?, 'hex')
              FROM (SELECT clock_timestamp() AS t) n
              RETURNING floor(extract(epoch FROM lease_until) * 1000000)::bigint AS lease_us,
                        floor(extract(epoch FROM deadline_at) * 1000000)::bigint AS deadline_us",
             [
-                $id->value, $id->value, $kind->value, $platformId, $callerCode, $ownerToken->value,
+                $id->value, $id->value, $kind->value, $platformId, $providerKey?->value, $callerCode, $ownerToken->value,
                 $leaseSeconds, $deadlineSeconds, $deadlineSeconds, $probeToken?->value, $policyHash->hex,
             ],
         ) ?? throw new \LogicException('Outbound operation insert returned no row.');

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Network;
 
 use App\Dto\Procurement\Network\BinaryBodyArtifact;
+use App\Dto\Procurement\Network\DecodedTextBody;
+use App\Dto\Procurement\Network\FinalHttpResponseEvidence;
 use App\Dto\Procurement\Network\HttpAttemptResult;
 use App\Dto\Procurement\Network\HttpRequestPayload;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
@@ -22,6 +24,7 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\RetryAt;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
+use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Network\TransportFailure;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
 use App\Exceptions\Procurement\Network\TransportInterrupted;
@@ -35,25 +38,33 @@ use GuzzleHttp\Psr7\UriResolver;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
-/** One physical-attempt loop. No activation/binding of legacy callers before P2.6. */
+/** Sole physical-attempt loop for Process, bounded probes and surviving legacy callers. */
 final readonly class OutboundExecutor
 {
     public function __construct(private HttpTransport $transport, private RetryPolicy $retryPolicy = new RetryPolicy) {}
 
     public function execute(OutboundRequestPlan $plan, ExecutionContext|OutboundExecutionContext $context, OutboundAttemptGate $gate, UrlPolicy $policy, TransferBudget $budget, HttpRequestPayload $payload = new HttpRequestPayload): TransportOutcome
     {
+        $lastRequestId = null;
+        $finalResponse = null;
         try {
-            return $this->run($plan, $context, $gate, $policy, $budget, $payload);
+            $outcome = $this->run($plan, $context, $gate, $policy, $budget, $payload, $lastRequestId, $finalResponse);
         } catch (OutboundOwnershipLost|LeaseLost) {
-            return new TransportBlocked(NetworkBlockedReason::OwnerLost);
+            $outcome = new TransportBlocked(NetworkBlockedReason::OwnerLost);
         } catch (SliceExhausted) {
-            return $this->deferred(NetworkDeferralReason::SliceExhausted, 1);
+            $outcome = $this->deferred(NetworkDeferralReason::SliceExhausted, 1);
         } catch (DependencyUnavailable) {
-            return $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
+            $outcome = $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
         }
+
+        return match (true) {
+            $outcome instanceof TransportDeferred => new TransportDeferred($outcome->reason, $outcome->retryAt, $finalResponse, $lastRequestId),
+            $outcome instanceof TransportBlocked => new TransportBlocked($outcome->reason, $lastRequestId),
+            default => $outcome,
+        };
     }
 
-    private function run(OutboundRequestPlan $plan, ExecutionContext|OutboundExecutionContext $context, OutboundAttemptGate $gate, UrlPolicy $policy, TransferBudget $budget, HttpRequestPayload $payload): TransportOutcome
+    private function run(OutboundRequestPlan $plan, ExecutionContext|OutboundExecutionContext $context, OutboundAttemptGate $gate, UrlPolicy $policy, TransferBudget $budget, HttpRequestPayload $payload, ?ProcessUuid &$lastRequestId, ?FinalHttpResponseEvidence &$finalResponse): TransportOutcome
     {
         if (($plan->bodyHash?->hex) !== ($payload->body === null ? null : hash('sha256', $payload->body))) {
             throw new \InvalidArgumentException('Request body does not match pinned hash.');
@@ -65,8 +76,14 @@ final readonly class OutboundExecutor
         $preferUntried = false;
         $hops = 0;
         $sends = 0;
-        for ($attempt = 1; $attempt <= $plan->maxAttempts(); $attempt++) {
+        // One transport attempt per adapter canary; redirects remain bounded, individually
+        // authorized physical sends within that one logical read.
+        $maxAttempts = $plan->adapterClaim?->canary === true || $plan->trafficClass === TrafficClass::Diagnostic ? 1 : $plan->maxAttempts();
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             while (true) {
+                if ($plan->sendLimit !== null && $sends >= $plan->sendLimit) {
+                    return new TransportBlocked(NetworkBlockedReason::PolicyReview);
+                }
                 $context->tick();
                 if (! $context->canStart(Duration::seconds($plan->profile->totalSeconds))) {
                     return $this->deferred(NetworkDeferralReason::SliceExhausted, 1);
@@ -86,7 +103,7 @@ final readonly class OutboundExecutor
                 }
                 $physical = new OutboundRequestPlan(
                     $sends === 0 ? $plan->physicalRequestId : new ProcessUuid((string) Str::uuid()),
-                    $targetId, $plan->method, $url, $plan->profile, $plan->trafficClass, $plan->idempotency, $plan->bodyHash,
+                    $targetId, $plan->method, $url, $plan->profile, $plan->trafficClass, $plan->idempotency, $plan->bodyHash, $plan->sendLimit, $plan->adapterClaim,
                 );
                 $authorized = $gate->authorize($physical, $context, new RetryRoutePreference($tried, $current, $preferUntried, $plan->profile->distinctRoutes));
                 if ($authorized instanceof TransportDeferred || $authorized instanceof TransportBlocked) {
@@ -114,6 +131,8 @@ final readonly class OutboundExecutor
                     throw $exit;
                 }
                 $sends++;
+                $lastRequestId = $physical->physicalRequestId;
+                $finalResponse = null;
                 try {
                     $result = $this->transport->sendOnce($authorized, $resolved, $payload, $context, $budget);
                 } catch (TransportInterrupted $exit) {
@@ -121,6 +140,10 @@ final readonly class OutboundExecutor
                     throw $exit->interruption;
                 }
                 $quota = $gate->record($authorized, $result);
+                $finalResponse = $result->failure === null && $result->response !== null
+                    && $result->response->status >= 400 && $result->response->body instanceof DecodedTextBody
+                    ? new FinalHttpResponseEvidence($physical->physicalRequestId, $result->response->status, $result->response->body)
+                    : null;
                 if ($result->response?->body instanceof BinaryBodyArtifact
                     && in_array($result->response->status, [301, 302, 303, 307, 308, 407, 429, 502, 503, 504], true)) {
                     Storage::disk($result->response->body->artifact->disk)->delete($result->response->body->artifact->key);
@@ -156,7 +179,7 @@ final readonly class OutboundExecutor
                     break;
                 }
                 if (in_array($response->status, [301, 302, 303, 307, 308], true)) {
-                    if ($hops >= $plan->profile->redirects || $plan->method === 'POST') {
+                    if ($hops >= $plan->profile->redirects || ! in_array($plan->method, ['GET', 'HEAD'], true)) {
                         return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
                     }
                     $location = $response->header('location');
@@ -193,9 +216,9 @@ final readonly class OutboundExecutor
                     continue;
                 }
 
-                return new TransportSucceeded($response);
+                return new TransportSucceeded($response, $physical->physicalRequestId);
             }
-            if ($attempt < $plan->maxAttempts() && ! $preferUntried) {
+            if ($attempt < $maxAttempts && ! $preferUntried) {
                 $delay = random_int(0, $plan->profile->delaysMs[$attempt - 1]);
                 if (! $context->canStart(new Duration($delay + $plan->profile->totalSeconds * 1000))) {
                     return $this->deferred(NetworkDeferralReason::SliceExhausted, 1);

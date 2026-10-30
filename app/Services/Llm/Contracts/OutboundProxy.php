@@ -12,8 +12,8 @@ namespace App\Services\Llm\Contracts;
 interface OutboundProxy
 {
     /**
-     * @return array{proxy?: string} вход `Http::withOptions()`/`withClientOptions()`; `[]` —
-     *                               прокси для этого хоста не требуется/не назначено
+     * @return array<string, mixed> Runtime HTTP handler options. The handler delegates every
+     *                              physical send to the canonical owner/permit transport.
      */
-    public function optionsFor(string $host): array;
+    public function optionsFor(string $host, ?string $providerKey = null): array;
 }

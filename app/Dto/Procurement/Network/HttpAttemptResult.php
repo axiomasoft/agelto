@@ -17,6 +17,7 @@ final readonly class HttpAttemptResult
         public int $entityBytes,
         public int $curlCode = 0,
         ?HttpResponseHead $head = null,
+        public ?TransportMetrics $metrics = null,
     ) {
         if (($response === null) === ($failure === null) || min($wireBytes, $entityBytes) < 0) {
             throw new \InvalidArgumentException('A physical attempt has exactly one result.');

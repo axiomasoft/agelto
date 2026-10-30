@@ -18,4 +18,5 @@ enum TrafficClass: string
     case Download = 'download';
     case ReferenceSync = 'reference_sync';
     case Diagnostic = 'diagnostic';
+    case Provider = 'provider';
 }

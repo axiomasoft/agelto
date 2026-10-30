@@ -13,25 +13,28 @@ use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Jobs\Procurement\CrawlRunJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
-use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\Contracts\SourceMethod;
+use App\Services\Procurement\Crawler\ResumeWaitingRuns;
 use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\Modes\ArchiveRunProcessor;
 use App\Services\Procurement\Modes\FreshRunProcessor;
-use App\Services\Procurement\SourceControl\SourceCircuitBreaker;
-use App\Services\Procurement\SourceControl\SuspendedRunResumer;
 use Illuminate\Bus\Dispatcher;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Crawler\SourceControlScenario as S;
 use Tests\Support\Doubles\Crawler\ScriptedSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 beforeEach(function (): void {
+    LegacyBusinessNetwork::install();
     Storage::fake('s3');
     Queue::fake();
 });
@@ -86,7 +89,7 @@ test('архив не начинает новый бюджет времени п
 test('единичный отказ листинга сохраняет курсор и повторяет тот же блок после backoff', function (string $failure): void {
     $crawler = Crawler::factory()->create();
     $step = match ($failure) {
-        '503' => S::status(503),
+        '503' => S::network(),
         'empty' => S::emptyBody(),
         'code' => S::bug(),
         'row' => new ListingBatch(
@@ -135,7 +138,6 @@ test('fresh-ответ бывшего владельца не записывае
 
 test('сбой очереди не теряет автоматическое возобновление прогона', function (): void {
     $crawler = Crawler::factory()->create();
-    SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'retry_at' => now()->subMinute()]);
     $run = Run::factory()->for($crawler)->create([
         'status' => RunStatus::Paused,
         'stats' => [
@@ -145,7 +147,7 @@ test('сбой очереди не теряет автоматическое в�
     ]);
     Bus::shouldReceive('dispatch')->once()->andThrow(new RuntimeException('Redis unavailable'));
     try {
-        app(SuspendedRunResumer::class)->resumeDue();
+        app(ResumeWaitingRuns::class)->resumeDue();
     } catch (RuntimeException $exception) {
         expect($exception->getMessage())->toBe('Redis unavailable');
     }
@@ -153,18 +155,17 @@ test('сбой очереди не теряет автоматическое в�
     expect($run->fresh()->stats->get('source_suspended'))->toBeTrue();
     Bus::swap(app(Dispatcher::class));
     $this->travel(11)->minutes(); // TTL unique-lock после неудачного dispatch — 600 секунд.
-    app(SuspendedRunResumer::class)->resumeDue();
+    app(ResumeWaitingRuns::class)->resumeDue();
     Queue::assertPushed(CrawlRunJob::class);
 });
 
 test('устаревший тик не снимает новое ожидание брейкера', function (): void {
-    $circuit = SourceCircuit::factory()->create(['retry_at' => now()->subMinute()]);
+    $crawler = Crawler::factory()->create();
+    $target = DB::table('prc_source_targets')->where('platform_id', $crawler->registry->platform_id)->where('capability', 'detail')->sole();
     $newRetryAt = now()->addMinutes(10)->startOfSecond();
-    $circuit->fresh()->update(['retry_at' => $newRetryAt]);
-
-    app(SourceCircuitBreaker::class)->finishWaiting($circuit);
-
-    expect($circuit->fresh()->retry_at->eq($newRetryAt))->toBeTrue();
+    DB::table('prc_target_health')->where('target_id', $target->id)->update(['state' => 'open', 'open_until' => $newRetryAt]);
+    Artisan::call('crawler:recover-stale');
+    expect(Carbon::parse(DB::table('prc_target_health')->where('target_id', $target->id)->value('open_until'))->eq($newRetryAt))->toBeTrue();
 });
 
 test('повторная job при активном владельце завершается без ошибки и запросов', function (): void {

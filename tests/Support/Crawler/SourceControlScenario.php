@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Tests\Support\Crawler;
 
 use App\Dto\Procurement\Crawler\ListingBatch;
+use App\Dto\Procurement\Network\TransportBlocked;
+use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Process\RetryAt;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Enums\Procurement\Proxy\ProxyScope;
-use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Services\Procurement\Exceptions\CardPageMismatchException;
-use Illuminate\Http\Client\ConnectionException;
 use LogicException;
 use Tests\Support\Doubles\Crawler\CardHtmlFixture;
 use Tests\Support\Doubles\Crawler\ScriptedSourceMethod;
@@ -90,14 +93,14 @@ final class SourceControlScenario
         return self::batch([$row], 200, 'drift '.$seed, header: array_keys($row));
     }
 
-    public static function noProxy(): NoProxyAvailableException
+    public static function noProxy(): OutboundUnavailable
     {
-        return new NoProxyAvailableException(ProxyScope::CrawlListing, 'zakupki.gov.ru', 'пул пуст');
+        return new OutboundUnavailable(new TransportBlocked(NetworkBlockedReason::ConfigurationHold));
     }
 
-    public static function network(): ConnectionException
+    public static function network(): OutboundUnavailable
     {
-        return new ConnectionException('cURL error 28: timed out');
+        return new OutboundUnavailable(new TransportDeferred(NetworkDeferralReason::TargetCooldown, new RetryAt(new \DateTimeImmutable('+1 minute'))));
     }
 
     public static function bug(): LogicException

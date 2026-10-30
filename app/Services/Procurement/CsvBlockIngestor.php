@@ -9,24 +9,25 @@ use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\SkippedListingRow;
 use App\Dto\Procurement\ProcurementSnapshotData;
-use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Exceptions\Procurement\Crawler\ExecutionLeaseLost;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
+use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Contracts\ListingSchemaAware;
-use App\Services\Procurement\SourceControl\SourceFailureClassifier;
+use App\Services\Procurement\Network\LegacyResponseAssessment;
 use App\Support\SecretRedactor;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
  * Агностик-инжест одного блока листинга (`02-crawling.md` §3.4): denylist-фильтр →
  * `ProcurementIngestProcessor` на каждую строку → метрики блока → сырой CSV в storage →
- * запись `prc_fetches`. Площадко-специфичая раскладка колонок — только в инжектированном
- * `ListingRowMapper` (в этом классе нет ЕИС-строк).
+ * retained raw artifact. Раскладка колонок площадки — только в инжектированном
+ * `ListingRowMapper` (в этом классе нет ЕИС-строк). Физические попытки учитывает network ledger.
  */
 final readonly class CsvBlockIngestor
 {
@@ -34,14 +35,24 @@ final readonly class CsvBlockIngestor
         private ProcurementIngestProcessor $ingestProcessor,
         private ProcurementReadRepository $procurements,
         private PlatformAdapterRegistry $adapters,
-        private FetchLogger $fetches,
         private CrawlerRunManager $runs,
         private StoreRawFetchArtifactAction $rawArtifacts,
         private OperationLogWriter $operationLogs,
-        private SourceFailureClassifier $failures,
+        private LegacyResponseAssessment $failures,
     ) {}
 
     public function ingest(Crawler $crawler, Run $run, ListingBatch $batch, ?string $artifactRef = null): FetchResult
+    {
+        return DB::transaction(function () use ($crawler, $run, $batch, $artifactRef): FetchResult {
+            if ($batch->validation !== null) {
+                app(AdapterHealthRepository::class)->assertReceipt($batch->validation);
+            }
+
+            return $this->ingestValidated($crawler, $run, $batch, $artifactRef);
+        });
+    }
+
+    private function ingestValidated(Crawler $crawler, Run $run, ListingBatch $batch, ?string $artifactRef): FetchResult
     {
         $rowMapper = $this->adapters->listingMapper(registry: $crawler->registry ?? throw new \LogicException('Crawler registry is missing.'));
         $skipped = 0;
@@ -57,7 +68,14 @@ final readonly class CsvBlockIngestor
         $missingColumns = $httpRejected ? [] : $this->missingRequiredColumns(batch: $batch, rowMapper: $rowMapper);
         $preflightRejected = $httpRejected || $missingColumns !== [];
 
-        foreach ($preflightRejected ? [] : $batch->rows as $row) {
+        if (! $preflightRejected && $batch->mapping !== null) {
+            $snapshots = $batch->mapping->snapshots;
+            $intentionalSkips = $batch->mapping->intentionalSkips;
+            $unmapped = $batch->mapping->unmapped;
+            $skipped = $intentionalSkips + $unmapped;
+            $rowsErrors = $batch->mapping->errors;
+        }
+        foreach ($preflightRejected || $batch->mapping !== null ? [] : $batch->rows as $row) {
             try {
                 $snapshot = $rowMapper->map(row: $row, crawler: $crawler);
             } catch (\Throwable $exception) {
@@ -139,26 +157,6 @@ final readonly class CsvBlockIngestor
 
         $artifactRef ??= $this->stageArtifact(crawler: $crawler, run: $run, batch: $batch);
 
-        $fetch = $this->fetches->log(stage: CrawlStage::Listing, run: $run, procurementId: null, attributes: [
-            'crawler_run_id' => $run->id,
-            'method' => $crawler->source_method->value,
-            'request_params' => $batch->requestParams,
-            'artifact_ref' => $artifactRef,
-            'http_status' => $batch->httpStatus,
-            'duration_ms' => $batch->durationMs,
-            'rows_total' => $batch->rowsTotal,
-            'rows_new' => $new,
-            'rows_updated' => $updated,
-            'rows_parsed' => $rowsParsed,
-            // Битые CSV-записи видны в telemetry и делают блок неполным:
-            // вызывающий сохраняет курсор, пока формат не исправлен.
-            'rows_errors' => $rowsErrors + $batch->rowsMalformed,
-            'dedup_signature' => $batch->dedupSignature,
-            'proxy_id' => $batch->proxyId,
-            'proxy_source' => $batch->proxySource?->value,
-            'wait_ms' => $batch->waitMs,
-        ]);
-
         // Отказ только классифицируется; в `SourceFailureReporter` его передаёт вызывающий ПОСЛЕ
         // транзакции блока (`SourceRunControl::afterBlock`), чтобы откат не стёр запись о проблеме.
         $rowFailures = $rowsErrors + $unmapped + $batch->rowsMalformed;
@@ -202,7 +200,7 @@ final readonly class CsvBlockIngestor
             failureDetail: $failure === null ? null
                 : "HTTP {$batch->httpStatus}, записей {$batch->rowsTotal}, распознано {$mappedRows}, ошибок строк {$rowFailures}."
                     .($missingColumns === [] ? '' : ' Нет колонок: '.implode(', ', $missingColumns).'.'),
-            fetchId: $fetch->id,
+            fetchId: null,
             httpStatus: $batch->httpStatus,
         );
     }
@@ -210,19 +208,10 @@ final readonly class CsvBlockIngestor
     /** Rejected responses retain evidence without entering the ingestion/cursor transaction. */
     public function recordRejectedBatch(Crawler $crawler, Run $run, ListingBatch $batch, string $reason): void
     {
-        $artifactRef = $this->stageArtifact(crawler: $crawler, run: $run, batch: $batch);
-        $this->fetches->log(stage: CrawlStage::Listing, run: $run, procurementId: null, attributes: [
-            'method' => $crawler->source_method->value,
-            'request_params' => [...$batch->requestParams, '_rejection_reason' => $reason],
-            'artifact_ref' => $artifactRef,
-            'http_status' => $batch->httpStatus,
-            'duration_ms' => $batch->durationMs,
-            'rows_total' => $batch->rowsTotal,
-            'rows_parsed' => 0,
-            'rows_errors' => 1,
-            'proxy_id' => $batch->proxyId,
-            'proxy_source' => $batch->proxySource?->value,
-            'wait_ms' => $batch->waitMs,
+        $artifact = $this->stageArtifact(crawler: $crawler, run: $run, batch: $batch);
+        Log::warning('listing_response_rejected', [
+            'crawler_id' => $crawler->id, 'run_id' => $run->id, 'reason' => $reason,
+            'http_status' => $batch->httpStatus, 'artifact_ref' => $artifact,
         ]);
     }
 

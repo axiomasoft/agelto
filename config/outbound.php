@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 
 /*
  * Versioned outbound policy v1 (platform-transport#defaults, implementation-blueprint#bp-rate-gcra,
@@ -58,7 +59,17 @@ return [
 
     // Config-only провайдеры source catalog (class strings): actual Definitions подключает
     // P2.9–P2.12. Boot их не вызывает; читает только явный platform:sync-catalog.
-    'catalog_providers' => [],
+    'catalog_providers' => [
+        CsvSourceMethod::class,
+    ],
+
+    'routing' => ['default_profile' => 'default', 'provider_profile' => 'llm'],
+
+    'http' => [
+        'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+            .'(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'tls_bundles' => ['zakupki.gov.ru' => '/etc/ssl/certs/russian-trusted-ca.pem'],
+    ],
 
     'health' => [
         'global_consecutive' => 5, 'global_base_seconds' => 1800, 'global_cap_seconds' => 21600,
@@ -67,4 +78,10 @@ return [
         'stable_decay_seconds' => 600, 'corroboration_window_seconds' => 300,
         'origin_cooldown_seconds' => 900, 'probe_reserve_seconds' => 30,
     ],
+    'adapter_health' => [
+        'policy_version' => 1, 'distinct_inputs' => 3, 'window_seconds' => 300,
+        'ramp_successes' => 3, 'normal_concurrency' => 8,
+        'input_layout_attempts' => 3, 'input_fault_attempts' => 50,
+    ],
+
 ];

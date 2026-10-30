@@ -86,170 +86,90 @@ return [
     ],
     16 => [
         'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'App\\Services\\Procurement\\BoundedResponseReader',
-        'owner' => 'P2.6',
-    ],
-    17 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
         'import' => 'App\\Services\\Procurement\\Contracts\\CooperativeListingSourceMethod',
         'owner' => 'P2.12',
     ],
-    18 => [
+    17 => [
         'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
         'import' => 'App\\Services\\Procurement\\Contracts\\DeadlineAwareSourceMethod',
         'owner' => 'P2.12',
     ],
-    19 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'App\\Services\\Procurement\\CrawlSettingsResolver',
-        'owner' => 'P2.6',
-    ],
-    20 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'App\\Services\\Procurement\\Exceptions\\CardPageMismatchException',
-        'owner' => 'P2.6',
-    ],
-    21 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'App\\Services\\Procurement\\FetchLogger',
-        'owner' => 'P2.6',
-    ],
-    22 => [
+    18 => [
         'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
         'import' => 'App\\Services\\Procurement\\PlatformAdapterRegistry',
         'owner' => 'P2.6',
     ],
-    23 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'App\\Services\\Procurement\\PlatformRequestBudget',
-        'owner' => 'P2.6',
-    ],
-    24 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'App\\Services\\Procurement\\Proxy\\ProxyBindingResolver',
-        'owner' => 'P2.6',
-    ],
-    25 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'App\\Services\\Procurement\\Proxy\\ProxyResolver',
-        'owner' => 'P2.6',
-    ],
-    26 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'App\\Services\\Procurement\\SourceTlsTrust',
-        'owner' => 'P2.6',
-    ],
-    27 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'GuzzleHttp\\Exception\\ConnectException',
-        'owner' => 'P2.6',
-    ],
-    28 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'GuzzleHttp\\Psr7\\Utils',
-        'owner' => 'P2.6',
-    ],
-    29 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php',
-        'import' => 'Illuminate\\Support\\Facades\\Http',
-        'owner' => 'P2.6',
-    ],
-    30 => [
-        'file' => 'app/Services/Platforms/Eis/Csv/EisCsvParser.php',
-        'import' => 'App\\Services\\Procurement\\BoundedResponseReader',
-        'owner' => 'P2.6',
-    ],
-    31 => [
+    19 => [
         'file' => 'app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php',
         'import' => 'App\\Models\\Procurement\\Crawler\\Crawler',
         'owner' => 'P2.18',
     ],
-    32 => [
+    20 => [
         'file' => 'app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php',
         'import' => 'App\\Services\\Procurement\\Contracts\\ListingRowMapper',
         'owner' => 'P2.12',
     ],
-    33 => [
+    21 => [
         'file' => 'app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php',
         'import' => 'App\\Services\\Procurement\\Contracts\\ListingSchemaAware',
         'owner' => 'P2.12',
     ],
-    34 => [
+    22 => [
         'file' => 'app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php',
         'import' => 'App\\Models\\Procurement\\Crawler\\Crawler',
         'owner' => 'P2.18',
     ],
-    35 => [
+    23 => [
         'file' => 'app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php',
         'import' => 'App\\Models\\Procurement\\Platform\\Registry',
         'owner' => 'P2.18',
     ],
-    36 => [
+    24 => [
         'file' => 'app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php',
         'import' => 'App\\Repositories\\Procurement\\Platform\\Okpd2NodeReadRepository',
         'owner' => 'P2.6',
     ],
-    37 => [
+    25 => [
         'file' => 'app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php',
         'import' => 'App\\Models\\Procurement\\Crawler\\Crawler',
         'owner' => 'P2.18',
     ],
-    38 => [
+    26 => [
         'file' => 'app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php',
         'import' => 'App\\Models\\Procurement\\Platform\\Platform',
         'owner' => 'P2.18',
     ],
-    39 => [
-        'file' => 'app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php',
-        'import' => 'App\\Services\\Procurement\\Health\\Contracts\\HealthCheck',
-        'owner' => 'P2.12',
-    ],
-    40 => [
+    27 => [
         'file' => 'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php',
         'import' => 'App\\Models\\Procurement\\Crawler\\Crawler',
         'owner' => 'P2.18',
     ],
-    41 => [
+    28 => [
         'file' => 'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php',
         'import' => 'App\\Services\\Procurement\\CrawlSettingsResolver',
         'owner' => 'P2.6',
     ],
-    42 => [
-        'file' => 'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php',
-        'import' => 'App\\Services\\Procurement\\PlatformRequestBudget',
-        'owner' => 'P2.6',
-    ],
-    43 => [
-        'file' => 'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php',
-        'import' => 'App\\Services\\Procurement\\Proxy\\ProxyResolver',
-        'owner' => 'P2.6',
-    ],
-    44 => [
+    29 => [
         'file' => 'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php',
         'import' => 'App\\Services\\Procurement\\SourceTlsTrust',
         'owner' => 'P2.6',
     ],
-    45 => [
-        'file' => 'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php',
-        'import' => 'Illuminate\\Support\\Facades\\Http',
-        'owner' => 'P2.6',
-    ],
-    46 => [
+    30 => [
         'file' => 'app/Services/Procurement/Detail/CommonInfoProcessor.php',
         'import' => 'App\\Services\\Platforms\\Eis\\Card\\CommonInfoParser',
         'owner' => 'P2.18',
     ],
-    47 => [
+    31 => [
         'file' => 'app/Services/Procurement/Health/PlatformHealthChecker.php',
         'import' => 'App\\Services\\Platforms\\Eis\\Diagnostics\\ListingFilterCheck',
         'owner' => 'P2.18',
     ],
-    48 => [
+    32 => [
         'file' => 'database/factories/Procurement/Crawler/CrawlerFactory.php',
         'import' => 'App\\Dto\\Platforms\\Eis\\EisSearchFilter',
         'owner' => 'P2.12',
     ],
-    49 => [
+    33 => [
         'file' => 'database/seeders/Procurement/CrawlerProfileSeeder.php',
         'import' => 'App\\Dto\\Platforms\\Eis\\EisSearchFilter',
         'owner' => 'P2.18',

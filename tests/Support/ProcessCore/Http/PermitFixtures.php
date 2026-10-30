@@ -64,7 +64,8 @@ final class PermitFixtures
         app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($this->code, [
             new SourceTargetDefinition('card', 'detail', $this->url->origin, [$this->profile], new OriginBudgetPolicy(600, 1, 2)),
         ]));
-        $this->target = new ProcessUuid(DB::table('prc_source_targets')->where('canonical_origin', $this->url->origin->value())->sole()->id);
+        $this->target = new ProcessUuid(DB::table('prc_source_targets')->where('target_key', 'card')->whereNull('retired_at')
+            ->where('platform_id', DB::table('prc_platforms')->where('code', $this->code)->value('id'))->sole()->id);
         $this->route = new NetworkRouteSelection(new ProcessUuid(DB::table('prc_network_routes')->sole()->id));
         foreach (['prc_route_health', 'prc_route_target_health', 'prc_target_health'] as $table) {
             DB::table($table)->update(['state' => 'closed']);
@@ -83,8 +84,10 @@ final class PermitFixtures
         while (DB::transactionLevel() > 0) {
             DB::rollBack();
         }
-        DB::statement('TRUNCATE prc_network_routes, prc_source_targets, prc_outbound_operations CASCADE');
-        DB::table('prc_control_scopes')->where('scope_key', 'system')->update(['desired_mode' => 'enabled']);
+        DB::table('prc_observation_applications')->whereIn('observation_id', DB::table('prc_observations')->select('observation_id')->whereIn('kind', ['adapter_validation', 'adapter_validation_reset']))->delete();
+        DB::table('prc_observations')->whereIn('kind', ['adapter_validation', 'adapter_validation_reset'])->delete();
+        DB::statement('TRUNCATE prc_adapter_health, prc_network_routes, prc_network_route_profiles, prc_source_targets, prc_outbound_operations CASCADE');
+        DB::table('prc_control_scopes')->whereIn('scope_key', ['system', 'monitoring'])->update(['desired_mode' => 'enabled']);
     }
 
     public function context(?\Closure $checkpoint = null, OutboundOperationKind $kind = OutboundOperationKind::LegacyBridge, ?ProcessUuid $probeToken = null): OutboundExecutionContext
@@ -173,6 +176,15 @@ final class PermitFixtures
             new SafeUrl($url), TransportFixtures::profile(), TrafficClass::from($row->traffic_class), IdempotencyClass::ReadOnly);
 
         return new NetworkDemandTicket(new ProcessUuid($id), (int) $row->ticket_seq, $plan, new NetworkRouteSelection(new ProcessUuid($row->route_id)));
+    }
+
+    /** Replays an already-issued reservation identity; claimSend remains the authorization. */
+    public static function importPermit(NetworkDemandTicket $ticket): ScheduledNetworkPermit
+    {
+        $row = DB::table('prc_network_permits')->where('demand_id', $ticket->id->value)->sole();
+
+        return new ScheduledNetworkPermit(new ProcessUuid($row->id), $ticket,
+            new \DateTimeImmutable($row->slot_at), new \DateTimeImmutable($row->expires_at));
     }
 
     public static function importContext(string $operationId): OutboundExecutionContext

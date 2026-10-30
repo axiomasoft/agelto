@@ -5,13 +5,16 @@ declare(strict_types=1);
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\RecoveryScope;
+use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Process\RetryAt;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Crawler\DeltaScanOutcome;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Document\Document;
@@ -25,11 +28,12 @@ use App\Services\Procurement\Modes\BacklogRescanProcessor;
 use App\Services\Procurement\Modes\DeltaScanProcessor;
 use App\Services\Procurement\Modes\DetailAnalysisProcessor;
 use App\Services\Procurement\Modes\FreshRunProcessor;
-use App\Services\Procurement\PlatformRequestBudget;
+use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 uses(RefreshDatabase::class);
 
@@ -56,6 +60,8 @@ function useExhaustedPlatformBudgetSourceMethod(): void
     app()->instance(ExhaustedPlatformBudgetSourceMethod::class, new ExhaustedPlatformBudgetSourceMethod);
     config(['crawler.platforms.eis.source_methods.'.SourceMethodEnum::Csv->value => ExhaustedPlatformBudgetSourceMethod::class]);
 }
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('исчерпание бюджета листинга завершает срез чекпоинтом без падения прогона', function (): void {
     Sleep::fake();
@@ -203,7 +209,11 @@ test('исчерпание бюджета документа не записыв
     ]);
     Http::fake();
 
-    app(PlatformRequestBudget::class)->acquire(host: 'budget-document.test', stage: CrawlStage::Document);
+    $network = Mockery::mock(LegacyOutbound::class);
+    $network->shouldReceive('request')->once()->andThrow(new OutboundUnavailable(
+        new TransportDeferred(NetworkDeferralReason::RateLimit,
+            new RetryAt(new DateTimeImmutable('+1 minute')))));
+    app()->instance(LegacyOutbound::class, $network);
     $version = app(DocumentDownloader::class)->download(document: $document);
 
     $document->refresh();

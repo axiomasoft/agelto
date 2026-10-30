@@ -18,7 +18,7 @@ use App\Enums\Procurement\Network\TrafficClass;
  */
 final readonly class OutboundRequestPlan
 {
-    private const array METHODS = ['GET', 'HEAD', 'POST'];
+    private const array METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
     public function __construct(
         public ProcessUuid $physicalRequestId,
@@ -29,12 +29,17 @@ final readonly class OutboundRequestPlan
         public TrafficClass $trafficClass,
         public IdempotencyClass $idempotency,
         public ?ContentHash $bodyHash = null,
+        public ?int $sendLimit = null,
+        public ?AdapterValidationClaim $adapterClaim = null,
     ) {
         if (! in_array($method, self::METHODS, true)) {
             throw new \InvalidArgumentException('Unsupported outbound method.');
         }
-        if ($method !== 'POST' && $bodyHash !== null) {
-            throw new \InvalidArgumentException('Only POST requests carry a body hash.');
+        if (in_array($method, ['GET', 'HEAD'], true) && $bodyHash !== null) {
+            throw new \InvalidArgumentException('Read methods cannot carry a body hash.');
+        }
+        if ($sendLimit !== null && ($sendLimit < 1 || $sendLimit > $profile->attempts * ($profile->redirects + 1))) {
+            throw new \InvalidArgumentException('Caller send bound exceeds the endpoint policy.');
         }
         if ($method === 'POST' && $idempotency === IdempotencyClass::ReadOnly && $bodyHash === null) {
             throw new \InvalidArgumentException('A read-only POST must pin its body hash.');

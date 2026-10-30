@@ -89,7 +89,7 @@ test('T04 TLS использует только SourceTlsTrust и CONNECT нап
     $result = $this->executor->execute(F::plan($url), F::context(), $this->gate, $this->wire->policy(), $this->budget);
     expect($result)->toBeInstanceOf(TransportBlocked::class)->and($this->gate->results[0]->failure)->toBe(TransportFailure::Tls)
         ->and($this->gate->requests)->toHaveCount(1);
-    config(['crawler.tls.bundles' => ['fixture.test' => $this->wire->root.'/cert.pem']]);
+    config(['outbound.http.tls_bundles' => ['fixture.test' => $this->wire->root.'/cert.pem']]);
     $proxy = F::gate('http://127.0.0.1:'.$this->wire->ports['proxy']);
     $result = $this->executor->execute(F::plan($url), F::context(), $proxy, $this->wire->policy(), $this->budget);
     expect($result)->toBeInstanceOf(TransportSucceeded::class);
@@ -100,7 +100,7 @@ test('T04 TLS использует только SourceTlsTrust и CONNECT нап
 })->group('t04');
 
 test('T04 proxy 407 не повторяет credential и 429 не обходит cooldown rotation', function (): void {
-    config(['crawler.tls.bundles' => ['fixture.test' => $this->wire->root.'/cert.pem']]);
+    config(['outbound.http.tls_bundles' => ['fixture.test' => $this->wire->root.'/cert.pem']]);
     $auth = new FixtureAttemptGate([new HttpRouteBinding(LedgerFixtures::uuid(), 'http://127.0.0.1:'.$this->wire->ports['auth']), new HttpRouteBinding(LedgerFixtures::uuid())]);
     $result = $this->executor->execute(F::plan($this->wire->url('/ok', true)), F::context(), $auth, $this->wire->policy(), $this->budget);
     expect($auth->requests)->toHaveCount(2)->and($auth->results[0]->failure)->toBe(TransportFailure::ProxyAuth)

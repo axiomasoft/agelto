@@ -42,7 +42,7 @@ test('complete() уходит на OpenAI-совместимый endpoint и м�
         ),
     ]);
 
-    $provider = new OpenAiCompatibleProvider;
+    $provider = app(OpenAiCompatibleProvider::class);
     $response = $provider->complete(new LlmPrompt(systemPart: 'система', userParts: ['вопрос']), vllmOptions());
 
     expect($response->data)->toBe('привет')
@@ -68,7 +68,7 @@ test('completeStructured() шлёт RawSchema как есть (без Gemini-а�
     ]);
 
     $schema = new JsonSchema(['type' => 'object', '$defs' => ['X' => ['type' => 'object']], 'properties' => ['a' => ['$ref' => '#/$defs/X']]]);
-    $provider = new OpenAiCompatibleProvider;
+    $provider = app(OpenAiCompatibleProvider::class);
 
     $response = $provider->completeStructured(new LlmPrompt(systemPart: 's'), $schema, vllmOptions());
 
@@ -84,7 +84,7 @@ test('completeStructured() шлёт RawSchema как есть (без Gemini-а�
 });
 
 test('complete() бросает исключение, если у маршрута не задан base_url', function (): void {
-    $provider = new OpenAiCompatibleProvider;
+    $provider = app(OpenAiCompatibleProvider::class);
 
     $options = new LlmOptions(provider: 'local-vllm', model: 'Qwen3-4B', temperature: 0.0, maxTokens: 100, baseUrl: null);
 
@@ -93,7 +93,7 @@ test('complete() бросает исключение, если у маршрут
 });
 
 test('complete() бросает исключение при непустых fileRefs — Files API не поддержан', function (): void {
-    $provider = new OpenAiCompatibleProvider;
+    $provider = app(OpenAiCompatibleProvider::class);
 
     $prompt = new LlmPrompt(
         systemPart: 's',
@@ -111,7 +111,7 @@ test('complete() fail-closed, когда настроенный api_key_env не
     unset($_ENV[$envName], $_ENV["{$envName}_FILE"], $_SERVER[$envName], $_SERVER["{$envName}_FILE"]);
 
     $fake = Prism::fake();
-    $provider = new OpenAiCompatibleProvider;
+    $provider = app(OpenAiCompatibleProvider::class);
     $options = new LlmOptions(
         provider: 'protected-vllm',
         model: 'Qwen3-4B-Instruct',

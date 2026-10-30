@@ -17,7 +17,7 @@ use Illuminate\Console\Command;
  * configuration hold вместо сотен failed works.
  */
 #[Description('Идемпотентная синхронизация source catalog (targets, origin budgets, health rows) зарегистрированных площадок')]
-#[Signature('platform:sync-catalog {--platform=* : код площадки; по умолчанию все зарегистрированные catalogs}')]
+#[Signature('platform:sync-catalog {--platform=* : код площадки} {--provider=* : provider key; без фильтров синхронизировать все catalogs}')]
 final class SyncPlatformCatalogCommand extends Command
 {
     public function handle(SourceCatalogSync $sync): int
@@ -26,7 +26,14 @@ final class SyncPlatformCatalogCommand extends Command
         $codes = $platforms !== [] ? array_values(array_map(strval(...), $platforms)) : null;
 
         try {
-            $reports = $sync->syncRegistered($codes);
+            $providerKeys = array_values(array_map(strval(...), $this->option('provider')));
+            $reports = $providerKeys === [] ? $sync->syncRegistered($codes) : [];
+            if ($codes === null) {
+                $reports = [...$reports, ...$sync->syncProviders($providerKeys === [] ? null : $providerKeys)];
+            }
+            if ($codes !== null && $providerKeys !== []) {
+                $reports = [...$sync->syncRegistered($codes), ...$sync->syncProviders($providerKeys)];
+            }
         } catch (\InvalidArgumentException $exception) {
             $this->error('Source catalog отклонён: '.$exception->getMessage());
 
@@ -42,7 +49,7 @@ final class SyncPlatformCatalogCommand extends Command
         foreach ($reports as $report) {
             $this->line(sprintf(
                 '%s: targets +%d ~%d -%d =%d; budgets +%d; health +%d',
-                $report->platformCode, $report->targetsCreated, $report->targetsUpdated, $report->targetsRetired,
+                $report->platformCode ?? 'provider:'.$report->providerKey?->value, $report->targetsCreated, $report->targetsUpdated, $report->targetsRetired,
                 $report->targetsUnchanged, $report->budgetsCreated, $report->healthRowsCreated,
             ));
             if ($report->driftedBudgets !== []) {

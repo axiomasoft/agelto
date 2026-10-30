@@ -30,12 +30,15 @@ use App\Services\Procurement\PipelineRecoveryReconciler;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 beforeEach(function () {
     config(['crawler.downstream_enabled' => false, 'ai.screening.enabled' => true, 'ai.extraction.enabled' => true]);
     Queue::fake();
     Http::fake();
 });
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('CSV-only запрещает прямой и пакетный detail, backlog, retry и revalidation без claims', function () {
     $procurement = Procurement::factory()->create(['detail_fetched_at' => null]);

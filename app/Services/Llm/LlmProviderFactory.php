@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Llm;
 
 use App\Exceptions\Llm\UnknownProviderDriver;
+use App\Repositories\Llm\LlmProviderReadRepository;
 use App\Services\Llm\Contracts\LlmProvider;
+use App\Services\Llm\Contracts\OutboundEndpoints;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use Illuminate\Contracts\Container\Container;
@@ -18,7 +20,22 @@ use Illuminate\Contracts\Container\Container;
  */
 final readonly class LlmProviderFactory
 {
-    public function __construct(private Container $container) {}
+    public function __construct(private Container $container, private LlmProviderReadRepository $configured) {}
+
+    /** @return array<string, list<string>> Invoked only by explicit catalog synchronization. */
+    public function networkOrigins(): array
+    {
+        $origins = [];
+        foreach ($this->configured->active() as $configuration) {
+            $provider = $this->forDriver($configuration->driver);
+            if (! $provider instanceof OutboundEndpoints) {
+                throw new \LogicException('Configured provider has no declared network endpoints: '.$configuration->code);
+            }
+            $origins[$configuration->code] = $provider->outboundOrigins($configuration->base_url);
+        }
+
+        return $origins;
+    }
 
     public function forDriver(string $driver): LlmProvider
     {

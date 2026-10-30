@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * Один «частичный» блок (`rowsTotal < block_size=2`) — самый быстрый способ довести
@@ -42,6 +43,8 @@ beforeEach(function () {
     // чтобы проверять команду и доменный результат без запущенного Redis worker.
     config(['queue.connections.redis.driver' => 'sync']);
 });
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Archive) с окном from/to', function () {
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);

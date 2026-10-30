@@ -1,90 +1,44 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Crawler\Proxies\Tables;
 
+use App\Filament\Resources\Procurement\Crawler\Proxies\ProxyResource;
 use App\Models\Procurement\Crawler\Proxy;
-use App\Repositories\Procurement\Proxy\ProxyHealthStoreRepository;
+use App\Models\User;
+use App\Services\Procurement\Network\NetworkRouteCommands;
 use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Textarea;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
-class ProxiesTable
+final class ProxiesTable
 {
     public static function configure(Table $table): Table
     {
-        return $table
-            ->columns([
-                TextColumn::make('port')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('country')
-                    ->sortable()
-                    ->wrapHeader(),
-                TextColumn::make('scopes')
-                    ->badge()
-                    ->wrapHeader()
-                    ->visibleFrom('md'),
-                IconColumn::make('is_active')
-                    ->boolean(),
-                TextColumn::make('fails_count')
-                    ->numeric()
-                    ->sortable(),
-                TextColumn::make('disabled_reason')
-                    ->label('Причина отключения')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->wrap()
-                    ->lineClamp(2)
-                    ->tooltip(fn (?string $state): ?string => $state),
-                TextColumn::make('disabled_at')
-                    ->label('Отключён')
-                    ->dateTime()
-                    ->sortable()
-                    ->visibleFrom('md'),
-                // Состояние breaker'а — выводится, не хранится третьей колонкой (research/02 §7):
-                // `open_until` в будущем → узел временно выведен из выдачи.
-                IconColumn::make('open_until')
-                    ->label('В breaker\'е')
-                    ->getStateUsing(fn (Proxy $record): bool => $record->open_until !== null && $record->open_until->isFuture())
-                    ->boolean(),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                TernaryFilter::make('disabled')
-                    ->label('Отключённые')
-                    ->queries(
-                        true: static fn (Builder $query): Builder => $query->whereNotNull('disabled_at'),
-                        false: static fn (Builder $query): Builder => $query->whereNull('disabled_at'),
-                    ),
-            ])
-            ->recordActions([
-                EditAction::make(),
-                Action::make('reactivate')
-                    ->label('Включить обратно')
-                    ->color('success')
-                    ->authorize('update')
-                    ->requiresConfirmation()
-                    ->visible(fn (Proxy $record): bool => ! $record->is_active)
-                    ->action(function (Proxy $record): void {
-                        app(ProxyHealthStoreRepository::class)->reactivate($record);
-                    }),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
+        return $table->columns([
+            TextColumn::make('service')->label('Сервис'),
+            TextColumn::make('host')->label('Хост'),
+            TextColumn::make('port')->label('Порт'),
+            TextColumn::make('country')->label('Страна')->visibleFrom('md'),
+            IconColumn::make('route.enabled')->label('Включён')->boolean(),
+            TextColumn::make('route.health.state')->label('Здоровье маршрута'),
+            TextColumn::make('route.health.reason_code')->label('Причина состояния'),
+            TextColumn::make('route.disabled_reason')->label('Причина отключения')->wrap(),
+        ])->recordActions([
+            EditAction::make()->url(fn (Proxy $record): string => ProxyResource::getUrl('edit', ['record' => $record])),
+            Action::make('reactivate')->label('Включить обратно')->authorize('update')
+                ->schema([Textarea::make('reason')->label('Причина включения')->required()->maxLength(200)])
+                ->visible(fn (Proxy $record): bool => $record->route?->enabled === false)
+                ->action(function (Proxy $record, array $data): void {
+                    $actor = Auth::user();
+                    abort_unless($actor instanceof User, 403);
+                    app(NetworkRouteCommands::class)->reactivate($actor, $record, is_string($data['reason'] ?? null) ? $data['reason'] : '');
+                }),
+        ]);
     }
 }

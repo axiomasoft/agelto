@@ -9,18 +9,21 @@ use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
+use App\Repositories\Procurement\Network\RouteRepository;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\Modes\FreshRunProcessor;
+use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
-use Illuminate\Validation\ValidationException;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * Одна валидная строка CSV-блока (набор колонок, которые понимает `EisCsvRowMapper`).
@@ -68,7 +71,7 @@ final class ProxySettingsRecordingSourceMethod implements SourceMethod
 
     public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
     {
-        $this->observed[] = ['proxy_mode' => $crawler->proxy_mode->value, 'proxy_country' => $crawler->proxy_country];
+        $this->observed[] = ['route_profile_id' => $crawler->route_profile_id];
 
         $batch = $this->batches[$this->cursorIndex];
 
@@ -108,13 +111,15 @@ function useProxySettingsSourceMethod(array $batches, ?Closure $beforeReturn = n
 }
 
 beforeEach(function () {
+    LegacyBusinessNetwork::install();
     Sleep::fake();
     Storage::fake('s3');
 });
 
 test('FreshRunProcessor останавливается при изменении proxy маршрута между блоками', function () {
-    $crawler = Crawler::factory()->withProxies(Proxy::factory()->create())->create(['proxy_country' => null]);
+    $crawler = Crawler::factory()->withProxies(Proxy::factory()->create())->create();
 
+    $initialProfile = $crawler->route_profile_id;
     $sourceMethod = useProxySettingsSourceMethod(
         batches: [
             new ListingBatch(rows: [proxySettingsCsvRow('0173200001234000001')], rawBody: 'raw', dedupSignature: 'sig-1', rowsTotal: 1, httpStatus: 200, durationMs: 1, requestParams: []),
@@ -122,14 +127,14 @@ test('FreshRunProcessor останавливается при изменении
         ],
         beforeReturn: function (int $index) use ($crawler): void {
             if ($index === 0) {
-                Crawler::query()->whereKey($crawler->id)->update(['proxy_mode' => CrawlerProxyMode::Direct->value, 'proxy_country' => 'DE']);
+                Crawler::query()->whereKey($crawler->id)->update(['route_profile_id' => canonicalSettingsDirectProfile()]);
             }
         },
     );
 
     $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
     expect($sourceMethod->observed)->toBe([
-        ['proxy_mode' => 'profile', 'proxy_country' => null],
+        ['route_profile_id' => $initialProfile],
     ])->and($run->status)->toBe(RunStatus::Paused)
         ->and($run->stats->get('stop_reason'))->toContain('между блоками');
 });
@@ -144,9 +149,10 @@ test('ArchiveWindowScanner перечитывает proxy_mode/proxy_country п�
 
     $crawler = Crawler::factory()
         ->withProxies(Proxy::factory()->create())
-        ->create(['mode' => CrawlerMode::Archive, 'proxy_country' => null]);
+        ->create(['mode' => CrawlerMode::Archive]);
     $run = Run::factory()->for($crawler)->create(['cursor' => null]);
 
+    $initialProfile = $crawler->route_profile_id;
     $sourceMethod = useProxySettingsSourceMethod(
         batches: [
             new ListingBatch(rows: [proxySettingsCsvRow('0173200001234000010')], rawBody: 'raw', dedupSignature: 'sig-1', rowsTotal: 1, httpStatus: 200, durationMs: 1, requestParams: []),
@@ -154,7 +160,7 @@ test('ArchiveWindowScanner перечитывает proxy_mode/proxy_country п�
         ],
         beforeReturn: function (int $index) use ($crawler): void {
             if ($index === 0) {
-                Crawler::query()->whereKey($crawler->id)->update(['proxy_mode' => CrawlerProxyMode::Direct->value, 'proxy_country' => 'DE']);
+                Crawler::query()->whereKey($crawler->id)->update(['route_profile_id' => canonicalSettingsDirectProfile()]);
             }
         },
     );
@@ -164,9 +170,9 @@ test('ArchiveWindowScanner перечитывает proxy_mode/proxy_country п�
     app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: $filter);
 
     expect($sourceMethod->observed)->toBe([
-        ['proxy_mode' => 'profile', 'proxy_country' => null],
-        ['proxy_mode' => 'direct', 'proxy_country' => 'DE'],
-        ['proxy_mode' => 'direct', 'proxy_country' => 'DE'],
+        ['route_profile_id' => $initialProfile],
+        ['route_profile_id' => canonicalSettingsDirectProfile()],
+        ['route_profile_id' => canonicalSettingsDirectProfile()],
     ]);
 });
 
@@ -175,11 +181,23 @@ test('фабрика по умолчанию сохраняет default-проф
     $proxy = Proxy::factory()->create();
     $proxyCrawler = Crawler::factory()->withProxies($proxy)->create();
 
-    expect($directCrawler->proxy_mode)->toBe(CrawlerProxyMode::Default)
-        ->and($proxyCrawler->proxy_mode)->toBe(CrawlerProxyMode::Profile)
-        ->and($proxyCrawler->proxies()->pluck('prc_proxies.id')->all())->toBe([$proxy->id]);
+    expect($directCrawler->route_profile_id)->toBeNull()
+        ->and($proxyCrawler->route_profile_id)->not->toBeNull()
+        ->and(array_values(app(ProxyBindingResolver::class)->forCrawler($proxyCrawler)->bindings)[0]->id->value)->toBe($proxy->route_id);
 });
 
 test('профиль с включёнными прокси без явной привязки не сохраняется', function (): void {
-    Crawler::factory()->create(['proxy_mode' => CrawlerProxyMode::Profile]);
-})->throws(ValidationException::class, 'привяжите');
+    app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile('settings.empty'));
+    $profile = DB::table('prc_network_route_profiles')->where('profile_key', 'settings.empty')->sole();
+    $crawler = Crawler::factory()->create(['route_profile_id' => $profile->id]);
+    expect(app(ProxyBindingResolver::class)->forCrawler($crawler)->bindings)->toBe([])
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
+});
+
+function canonicalSettingsDirectProfile(): string
+{
+    $route = DB::table('prc_network_routes')->where('kind', 'direct')->sole();
+    app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile('settings.direct', $route->id));
+
+    return DB::table('prc_network_route_profiles')->where('profile_key', 'settings.direct')->sole()->id;
+}

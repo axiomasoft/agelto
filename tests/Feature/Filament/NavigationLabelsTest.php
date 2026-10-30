@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Filament\Pages\CrawlerProxySettingsPage;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Pages\NetworkRouteProfilesPage;
 use App\Filament\Pages\PromptCompositionPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\DatasetExamples\DatasetExampleResource;
@@ -48,7 +48,7 @@ test('назначает всем обнаруженным ресурсам ос
         CrawlerResource::class => ['Сбор данных', 'Задания сбора', 10],
         RunResource::class => ['Сбор данных', 'Запуски сбора', 20],
         ProxyResource::class => ['Сбор данных', 'Прокси-серверы', 30],
-        SourceCircuitResource::class => ['Сбор данных', 'Источники: состояние', 40],
+        SourceCircuitResource::class => ['Сбор данных', 'Источники: история', 40],
         SourceIncidentResource::class => ['Сбор данных', 'Источники: инциденты', 41],
         FixtureResource::class => ['Качество анализа', 'Эталонные документы', 10],
         DatasetExampleResource::class => ['Качество анализа', 'Проверенные примеры', 20],
@@ -93,9 +93,9 @@ test('фиксирует точный порядок групп и application p
         'Система',
     ])->and(Dashboard::getNavigationLabel())->toBe('Обзор')
         ->and(Dashboard::getNavigationSort())->toBe(-100)
-        ->and(CrawlerProxySettingsPage::getNavigationGroup())->toBe('Сбор данных')
-        ->and(CrawlerProxySettingsPage::getNavigationLabel())->toBe('Прокси по умолчанию')
-        ->and(CrawlerProxySettingsPage::getNavigationSort())->toBe(40)
+        ->and(NetworkRouteProfilesPage::getNavigationGroup())->toBe('Сбор данных')
+        ->and(NetworkRouteProfilesPage::getNavigationLabel())->toBe('Профили маршрутов')
+        ->and(NetworkRouteProfilesPage::getNavigationSort())->toBe(40)
         ->and(PromptCompositionPage::getNavigationGroup())->toBe('Настройка AI')
         ->and(PromptCompositionPage::getNavigationLabel())->toBe('Сборка инструкции')
         ->and(PromptCompositionPage::getNavigationSort())->toBe(40);

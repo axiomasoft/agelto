@@ -6,6 +6,7 @@ namespace App\Services\Procurement;
 
 use App\Contracts\Procurement\Crawler\CrawlerPlatformForm;
 use App\Dto\Procurement\Crawler\PlatformAdapterDefinition;
+use App\Dto\Procurement\Network\AdapterContractRef;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterConfigurationException;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
@@ -58,6 +59,13 @@ final readonly class PlatformAdapterRegistry
         }
 
         $this->definitions = $definitions;
+    }
+
+    public function adapterContract(string $platformCode, string $capability): AdapterContractRef
+    {
+        $definition = $this->definitions[$platformCode] ?? throw PlatformAdapterUnavailableException::forPlatform($platformCode);
+
+        return $definition->adapterContract($capability);
     }
 
     public function forRegistry(Registry $registry): PlatformAdapterDefinition

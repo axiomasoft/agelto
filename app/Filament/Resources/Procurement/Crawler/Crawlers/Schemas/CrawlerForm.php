@@ -9,8 +9,6 @@ use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
-use App\Filament\Resources\Procurement\Crawler\Proxies\Schemas\ProxyForm;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\PlatformAdapterRegistry;
 use Cron\CronExpression;
@@ -78,32 +76,12 @@ final class CrawlerForm
                     Toggle::make('is_active')->label('Активно')->required(),
                 ])
                 ->columns(2),
-            Section::make('Маршрут через прокси')
-                ->description('Профиль использует перечисленные узлы, режим по умолчанию наследует настройку краулера, прямой режим отключает прокси.')
+            Section::make('Сетевой маршрут')
                 ->schema([
-                    Select::make('proxy_mode')
-                        ->label('Режим прокси')
-                        ->options([
-                            CrawlerProxyMode::Profile->value => 'Профиль: использовать привязанные узлы',
-                            CrawlerProxyMode::Default->value => 'По умолчанию: наследовать настройку краулера',
-                            CrawlerProxyMode::Direct->value => 'Напрямую: не использовать прокси',
-                        ])
-                        ->default(CrawlerProxyMode::Default->value)
-                        ->live()
-                        ->required(),
-                    Select::make('proxies')
-                        ->label('Разрешённые прокси')
-                        ->relationship('proxies', 'host')
-                        ->multiple()
-                        ->searchable()
-                        ->preload()
-                        ->visible(fn (Get $get): bool => $get('proxy_mode') === CrawlerProxyMode::Profile->value),
-                    Select::make('proxy_country')
-                        ->label('Предпочитаемая страна прокси')
-                        ->options(ProxyForm::COUNTRIES)
-                        ->visible(fn (Get $get): bool => $get('proxy_mode') === CrawlerProxyMode::Profile->value),
-                ])
-                ->columns(2),
+                    Select::make('route_profile_id')->label('Профиль маршрутов')
+                        ->relationship('routeProfile', 'profile_key')->searchable()->preload()->nullable()
+                        ->helperText('Пустое поле наследует настроенный профиль по умолчанию. Недоступный профиль останавливает отправку.'),
+                ]),
         ]);
     }
 

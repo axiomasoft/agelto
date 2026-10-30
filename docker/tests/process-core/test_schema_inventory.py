@@ -132,11 +132,16 @@ class SchemaInventoryTest(unittest.TestCase):
                 self.assertRejected(error, actual=actual)
 
     def test_complete_inventory_and_full_document_pass(self):
-        # P2.1: additive network owners/catalog/health/demand/permit baseline; legacy stays active.
-        self.assertEqual(self.inventory["current_item"], "P2.1")
-        self.assertEqual(len(self.inventory["migrations"]), 85)
-        self.assertEqual(len(self.inventory["baseline"]["tables"]), 111)
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1340)
+        # P2.6: canonical network owners/routes are active; obsolete binding/health tables are absent.
+        self.assertEqual(self.inventory["current_item"], "P2.6")
+        self.assertEqual(len(self.inventory["migrations"]), 81)
+        self.assertEqual(len(self.inventory["baseline"]["tables"]), 108)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1312)
+        adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
+                           for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]
+                           if c["column_name"] in ("adapter_health_id", "adapter_health_epoch")}
+        self.assertEqual(adapter_columns, {"adapter_health_id": ("uuid", "YES"),
+                                          "adapter_health_epoch": ("int8", "YES")})
         self.assertEqual(self.violations(document=(ROOT / "docs/dev/process-schema.md").read_text()), [])
         self.assertEqual(self.violations(actual=self.baseline_actual()), [])
 
@@ -152,7 +157,7 @@ class SchemaInventoryTest(unittest.TestCase):
         self.assertRejected("created carrier missing from installed baseline: prc_process_work")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["baseline"]["tables"]["prc_analysis_windows"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
-        self.assertRejected("future carrier activated in P2.1 baseline: prc_analysis_windows")
+        self.assertRejected("future carrier activated in P2.6 baseline: prc_analysis_windows")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["current_item"] = "P1.1"
         self.assertRejected("future carrier activated in P1.1 baseline: prc_process_work")

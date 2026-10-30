@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Http;
 test('команда записывает по строке на каждую проверку', function (): void {
     Platform::factory()->create(['code' => 'eis']);
 
-    $this->artisan('crawler:health-check')->assertExitCode(0);
+    $this->artisan('process:diagnose', ['platform' => 'eis'])->assertExitCode(0);
 
     expect(PlatformCheck::query()->count())->toBe(4)
         ->and(PlatformCheck::query()->get()->pluck('check_kind')->map->value->sort()->values()->all())->toBe([
@@ -25,7 +25,7 @@ test('команда записывает по строке на каждую п
 test('dry-run команды не записывает историю', function (): void {
     Platform::factory()->create(['code' => 'eis']);
 
-    $this->artisan('crawler:health-check', ['--dry-run' => true])->assertExitCode(0);
+    $this->artisan('process:diagnose', ['platform' => 'eis', '--dry-run' => true])->assertExitCode(0);
 
     expect(PlatformCheck::query()->count())->toBe(0);
 });
@@ -34,7 +34,7 @@ test('выключенный healthcheck не читает площадку, н�
     config(['crawler.health.enabled' => false]);
     Http::fake();
 
-    $this->artisan('crawler:health-check')->assertExitCode(0);
+    $this->artisan('process:diagnose', ['platform' => 'eis'])->assertExitCode(0);
 
     expect(PlatformCheck::query()->count())->toBe(0);
     Http::assertNothingSent();

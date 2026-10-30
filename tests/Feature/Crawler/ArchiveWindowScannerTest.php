@@ -14,7 +14,6 @@ use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
@@ -22,12 +21,14 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\Contracts\SourceMethod;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 final class ArchiveContinuationSourceMethod implements SourceMethod
 {
@@ -135,6 +136,8 @@ function archiveWindowFilter(): WindowFilter
 {
     return new WindowFilter(dateField: 'publish', dateFrom: Carbon::parse('2024-01-01'), dateTo: Carbon::parse('2024-01-01'));
 }
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('окно дренируется на частичном блоке, стек опустошён', function () {
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
@@ -335,12 +338,14 @@ test('ошибка записи блока откатывает транзакц
         archiveScannerBatch(['0173200001234000003', '0173200001234000004'], dedupSignature: 'sig-2'),
         archiveScannerBatch(['0173200001234000005'], dedupSignature: 'sig-3'),
     ]);
-    // Отказ уровня блока ПОСЛЕ записи его строк (журнал fetch'а второго блока): строки блока
-    // должны откатиться вместе с транзакцией, а не остаться наполовину.
-    $fetches = 0;
-    Fetch::creating(function () use (&$fetches): void {
-        if (++$fetches === 2) {
-            throw new LogicException('bug');
+    // Fail after the second block's SQL checkpoint, inside the same transaction as its rows.
+    DB::listen(function (QueryExecuted $query): void {
+        if (str_starts_with($query->sql, 'update "prc_crawler_runs" set "cursor"')) {
+            foreach ($query->bindings as $binding) {
+                if (is_string($binding) && str_contains($binding, '"blockFrom":5')) {
+                    throw new LogicException('bug after block checkpoint');
+                }
+            }
         }
     });
 

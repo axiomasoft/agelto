@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
@@ -13,6 +12,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Tests\Support\Platforms\Eis\EisCsvFixture;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /** @return array{input: string, output: string} */
 function freshBoundaryCarriers(): array
@@ -54,6 +54,8 @@ function freshBoundaryCarriers(): array
     return ['input' => $scopePath, 'output' => $outputPath];
 }
 
+beforeEach(fn () => LegacyBusinessNetwork::install());
+
 test('live A1 command uses bounded listing route and writes the exact sanitized schema', function () {
     Sleep::fake();
     $this->seed(EisPlatformSeeder::class);
@@ -61,7 +63,7 @@ test('live A1 command uses bounded listing route and writes the exact sanitized 
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
     Crawler::factory()->for($registry)->create([
         'mode' => CrawlerMode::Fresh,
-        'proxy_mode' => CrawlerProxyMode::Direct,
+        'route_profile_id' => null,
     ]);
     Http::fake([
         config('crawler.eis.csv_endpoint').'*' => Http::sequence()
@@ -91,7 +93,7 @@ test('непроверенный CSV в bounded probe фиксирует отк�
     $this->seed(EisPlatformSeeder::class);
     $registry = Registry::query()->where('code', 'fz44')->firstOrFail();
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
-    Crawler::factory()->for($registry)->create(['mode' => CrawlerMode::Fresh, 'proxy_mode' => CrawlerProxyMode::Direct]);
+    Crawler::factory()->for($registry)->create(['mode' => CrawlerMode::Fresh, 'route_profile_id' => null]);
     Http::fake(['*' => static fn () => Http::response('<html>Access denied</html>', 200)]);
     $paths = freshBoundaryCarriers();
 

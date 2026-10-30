@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Database\Seeders\Platforms\Eis;
 
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\Run;
+use App\Repositories\Procurement\Network\RouteRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -53,11 +53,13 @@ final class EisJanuary2025AuditSeeder extends Seeder
                 'options' => json_decode($source->getRawOriginal('options'), associative: true, flags: JSON_THROW_ON_ERROR),
                 'schedule' => null,
                 'is_active' => true,
-                'proxy_mode' => CrawlerProxyMode::Default,
-                'proxy_country' => 'RU',
+                'route_profile_id' => null,
             ])->save();
-            $crawler->proxies()->sync([$proxy->id]);
-            $crawler->update(['proxy_mode' => CrawlerProxyMode::Profile]);
+            $profile = app(RouteRepository::class)->profile(id: null, key: 'eis.audit');
+            if ($profile === null) {
+                throw new RuntimeException('EIS audit route profile is not installed.');
+            }
+            $crawler->update(['route_profile_id' => $profile->value]);
         });
     }
 }

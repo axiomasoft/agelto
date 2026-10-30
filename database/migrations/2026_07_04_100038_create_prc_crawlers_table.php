@@ -35,8 +35,7 @@ return new class extends Migration
             $table->text('schedule')->nullable()->comment('cron-выражение');
             $table->jsonb('options')->nullable()->comment('recordsPerPage, лимиты дробления, колонки CSV');
 
-            $table->boolean('use_proxy')->default(true)->comment('прямой запрос при false — намеренный режим, не отказ');
-            $table->char('proxy_country', 2)->nullable()->comment('ISO 3166-1 alpha-2; NULL = профиль страну не ограничивает');
+            $table->uuid('route_profile_id')->nullable();
             $table->text('stop_policy')->default('default');
             $table->text('execution_lane')->default('standard');
 

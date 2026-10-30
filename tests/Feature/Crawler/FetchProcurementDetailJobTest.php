@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\CardHtmlFixture;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 final class DetailJobBudgetExhaustedSourceMethod implements SourceMethod
 {
@@ -79,6 +80,8 @@ function fakeDetailJobHttp(): void
         '*filestore*' => Http::response(body: 'binary-content', status: 200),
     ]);
 }
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('job вызывает детальный процессор и мост в pipeline после успеха', function (): void {
     Queue::fake();

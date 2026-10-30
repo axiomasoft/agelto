@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Crawler;
 
 use App\Contracts\Procurement\Crawler\CrawlerPlatformForm;
+use App\Dto\Procurement\Network\AdapterContractRef;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterConfigurationException;
 use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
@@ -77,6 +78,18 @@ final readonly class PlatformAdapterDefinition
 
         $this->sourceMethods = $normalizedSourceMethods;
         $this->registryFilters = $normalizedRegistryFilters;
+    }
+
+    public function adapterContract(string $capability): AdapterContractRef
+    {
+        $adapterVersion = $this->capabilities['adapter_version'] ?? null;
+        $contracts = $this->capabilities['contract_versions'] ?? null;
+        $contractVersion = is_array($contracts) ? ($contracts[$capability] ?? null) : null;
+        if (! is_string($adapterVersion) || ! is_string($contractVersion)) {
+            throw new PlatformAdapterConfigurationException("Explicit adapter/contract versions are required for {$this->platformCode}:{$capability}.");
+        }
+
+        return new AdapterContractRef($this->platformCode, $capability, $adapterVersion, $contractVersion);
     }
 
     /** @return class-string<SourceMethodContract> */

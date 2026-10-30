@@ -24,24 +24,11 @@ return new class extends Migration
             $table->text('host');
             $table->integer('port')->nullable();
             $table->text('username')->nullable();
-            // Шифруется cast'ом 'encrypted' модели Proxy (Crypt, APP_KEY); text вмещает шифртекст.
-            $table->text('password')->nullable();
             $table->char('country', 2)->nullable()->comment('ISO 3166-1 alpha-2, верхний регистр; единственный носитель гео (D5)');
             $table->jsonb('scopes')->default('[]')->comment('список значений App\Enums\Procurement\Proxy\ProxyScope; пустой = узел не выдаётся ни для одного скоупа');
-            $table->timestampTz('open_until')->nullable()->comment('breaker: момент, до которого узел глобально выведен из выдачи; NULL/прошлое = доступен');
-            $table->smallInteger('open_count')->default(0)->comment('число открытий breaker без успешной пробы');
-            $table->text('last_failure_reason')->nullable()->comment('последний глобальный App\Enums\Procurement\Proxy\ProxyFailureReason');
-            $table->timestampTz('last_success_at')->nullable();
-            $table->timestampTz('last_failure_at')->nullable();
-
-            $table->boolean('is_active')->default(true);
-            $table->integer('fails_count')->default(0);
-            $table->timestampTz('disabled_at')->nullable();
-            $table->text('disabled_reason')->nullable();
-
             $table->timestamps();
 
-            $table->index(['is_active', 'country']);
+            $table->index('country');
         });
 
         DB::statement("CREATE INDEX prc_proxies_scopes_gin ON {$this->table()} USING GIN (scopes)");

@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * «Полностью известный»/«дренированный» блок — самый быстрый способ довести прогон до
@@ -69,6 +70,8 @@ beforeEach(function () {
     Sleep::fake();
     Storage::fake('s3');
 });
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('job резолвит fresh-режим и вызывает FreshRunProcessor', function () {
     $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Fresh, 'source_method' => SourceMethodEnum::Csv]);

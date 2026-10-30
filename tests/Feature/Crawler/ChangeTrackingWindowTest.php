@@ -16,6 +16,7 @@ use App\Services\Procurement\Modes\BacklogRescanProcessor;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * Регрессия П-2/Ц-4 (`research/05-change-tracking.md` §1): окно рескана простоя обязано
@@ -67,6 +68,8 @@ beforeEach(function () {
         'crawler.tracking.window_overlap_days' => 2,
     ]);
 });
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('обновление, попавшее в стык окон, не теряется — перекрытие расширяет рескан назад', function () {
     $registry = Registry::factory()->eis()->create();

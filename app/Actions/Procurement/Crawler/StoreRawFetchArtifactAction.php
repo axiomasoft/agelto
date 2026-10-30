@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions\Procurement\Crawler;
 
+use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Models\Procurement\Crawler\RawArtifact;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\FilesystemException;
 
 /** Stores one content-addressed raw fetch object without allowing an overwrite. */
 final readonly class StoreRawFetchArtifactAction
@@ -23,6 +25,15 @@ final readonly class StoreRawFetchArtifactAction
         DB::table((new RawArtifact)->getTable())->upsert([
             ['id' => hash('sha256', $disk.':'.$path), 'disk' => $disk, 'path' => $path, 'last_seen_at' => now()],
         ], ['id'], ['last_seen_at']);
+        try {
+            return $this->write($disk, $path, $contents, $contentHash);
+        } catch (FilesystemException $failure) {
+            throw new DependencyUnavailable('raw_artifact_storage', $failure);
+        }
+    }
+
+    private function write(string $disk, string $path, string $contents, string $contentHash): string
+    {
         $storage = Storage::disk($disk);
 
         if ($storage->exists($path)) {
@@ -32,7 +43,7 @@ final readonly class StoreRawFetchArtifactAction
         }
 
         if ($storage->put($path, $contents) !== true) {
-            throw new \RuntimeException("Unable to persist raw fetch artifact at [{$path}].");
+            throw new DependencyUnavailable('raw_artifact_storage');
         }
 
         $this->verifyStoredContents(storage: $storage, path: $path, contentHash: $contentHash);
@@ -66,13 +77,13 @@ final readonly class StoreRawFetchArtifactAction
     private function verifyStoredContents(FilesystemAdapter $storage, string $path, string $contentHash): void
     {
         if (! $storage->exists($path)) {
-            throw new \RuntimeException("Raw fetch artifact verification failed at [{$path}].");
+            throw new DependencyUnavailable('raw_artifact_storage');
         }
 
         $contents = $storage->get($path);
 
         if (! is_string($contents) || hash('sha256', $contents) !== $contentHash) {
-            throw new \RuntimeException("Raw fetch artifact verification failed at [{$path}].");
+            throw new DependencyUnavailable('raw_artifact_storage');
         }
     }
 }

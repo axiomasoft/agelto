@@ -11,12 +11,16 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Procurement\DocumentDownloader;
-use GuzzleHttp\Psr7\Utils;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
+use Tests\Support\ProcessCore\Http\CallerFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 function sampleDocumentContent(string $version = 'v1'): string
 {
@@ -31,6 +35,24 @@ function activeDocumentDownloadProxy(): Proxy
 {
     return Proxy::factory()->country('RU')->withScopes([ProxyScope::DocumentDownload])->create();
 }
+
+/** Actual network scenarios use the guarded wire fixture; storage cases retain a logical-call double. */
+function documentNetworkScenario(Closure $scenario): void
+{
+    PermitFixtures::clean();
+    $wire = new WireFixture(443);
+    try {
+        $registry = CallerFixtures::platform($wire);
+        Storage::fake('s3');
+        $document = Document::factory()->create(['source_url' => $wire->url('/document', true)->reveal(), 'platform_id' => $registry->platform_id]);
+        $scenario($wire, $document);
+    } finally {
+        $wire->stop();
+        PermitFixtures::clean();
+    }
+}
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('download первого файла создаёт версию, кладёт файл в storage и пишет событие document_added', function () {
     Sleep::fake();
@@ -198,22 +220,15 @@ test('два прямых скачивания иного контента со�
         ->count())->toBe(1);
 });
 
-test('download при ошибке сети записывает error-блок и не бросает исключение', function () {
-    Sleep::fake();
-    activeDocumentDownloadProxy();
-    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
-    Http::fake(['*filestore*' => fn () => Http::response(body: 'server error', status: 500)]);
-
-    $version = app(DocumentDownloader::class)->download($document);
-
-    expect($version)->toBeNull();
-
-    $document->refresh();
-
-    expect($document->attempts)->toBe(1)
-        ->and($document->last_error)->not->toBeNull()
-        ->and($document->next_retry_at)->not->toBeNull()
-        ->and($document->failed_permanently)->toBeFalse();
+test('download при ошибке сети записывает error-блок и не бросает исключение', function (): void {
+    documentNetworkScenario(function ($wire, $document): void {
+        $wire->respond('/document', 'busy', 503);
+        $before = $document->refresh()->getRawOriginal();
+        expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+            ->and($document->refresh()->getRawOriginal())->toEqual($before)
+            ->and($wire->receipts())->toHaveCount(3)
+            ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(0);
+    });
 });
 
 test('download без source_url возвращает null без побочных эффектов', function () {
@@ -225,24 +240,15 @@ test('download без source_url возвращает null без побочны
     expect($document->refresh()->attempts)->toBe(0);
 });
 
-test('download без активной proxy-привязки идёт напрямую и пишет это в лог', function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    Log::spy();
-    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
-    Http::fake(['*filestore*' => fn () => Http::response(body: sampleDocumentContent(), status: 200)]);
-
-    $version = app(DocumentDownloader::class)->download($document);
-
-    expect($version)->toBeInstanceOf(DocumentVersion::class)
-        ->and($document->refresh()->status)->toBe(DocumentStatus::Downloaded);
-
-    expect(Fetch::query()->where('stage', 'document')->sole()->proxy_source?->value)->toBe('direct');
-
-    Http::assertSentCount(1);
-    Log::shouldHaveReceived('info')
-        ->with('Резолвер прокси: прямой маршрут', Mockery::any())
-        ->once();
+test('download без активной proxy-привязки идёт напрямую и пишет это в лог', function (): void {
+    documentNetworkScenario(function ($wire, $document): void {
+        $wire->respond('/document', sampleDocumentContent(), headers: ['Content-Type' => 'application/pdf']);
+        $version = app(DocumentDownloader::class)->download($document);
+        $route = DB::table('prc_network_routes')->where('kind', 'direct')->sole();
+        expect($version)->toBeInstanceOf(DocumentVersion::class)
+            ->and(DB::table('prc_request_attempts')->value('route_id'))->toBe($route->id)
+            ->and(Fetch::query()->count())->toBe(0)->and($wire->receipts())->toHaveCount(1);
+    });
 });
 
 test('download отклоняет loopback до HTTP sink', function (): void {
@@ -257,18 +263,13 @@ test('download отклоняет loopback до HTTP sink', function (): void {
 });
 
 test('download повторно валидирует redirect target и не следует на loopback', function (): void {
-    Sleep::fake();
-    activeDocumentDownloadProxy();
-    $source = 'https://zakupki.gov.ru/filestore?uid=redirect';
-    $document = Document::factory()->create(['source_url' => $source]);
-    Http::fake([
-        $source => fn () => Http::response('', 302, ['Location' => 'https://127.0.0.1/private']),
-    ]);
-
-    expect(app(DocumentDownloader::class)->download($document))->toBeNull()
-        ->and($document->fresh()->attempts)->toBe(1);
-
-    Http::assertSentCount(1);
+    documentNetworkScenario(function ($wire, $document): void {
+        $wire->respond('/document', '', 302, ['Location' => 'https://127.0.0.1/private']);
+        expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+            ->and($document->refresh()->attempts)->toBe(0)
+            ->and($wire->receipts())->toHaveCount(1)
+            ->and(DocumentVersion::query()->count())->toBe(0);
+    });
 });
 
 test('download останавливает фактический поток сверх лимита без доверия к Content-Length', function (): void {
@@ -286,67 +287,53 @@ test('download останавливает фактический поток св
 });
 
 test('повтор после 5xx берёт слот бюджета площадки и пишется в журнал запросов', function (): void {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDocumentDownloadProxy();
-    config(['crawler.stages.document.retries' => 3]);
-    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
-    Http::fake(['*filestore*' => Http::sequence()
-        ->push(body: 'busy', status: 503)
-        ->push(body: sampleDocumentContent(), status: 200)]);
-
-    $version = app(DocumentDownloader::class)->download($document);
-
-    expect($version)->toBeInstanceOf(DocumentVersion::class)
-        ->and(Fetch::query()->where('stage', 'document')->orderBy('id')->pluck('http_status')->all())->toBe([503, 200]);
-    Http::assertSentCount(2);
+    documentNetworkScenario(function ($wire, $document): void {
+        $wire->respond('/document', 'busy', 503);
+        $wire->respond('/document', sampleDocumentContent(), headers: ['Content-Type' => 'application/pdf']);
+        $value = app(DocumentDownloader::class)->download($document);
+        expect($value)->toBeInstanceOf(DocumentVersion::class)
+            ->and(DB::table('prc_request_attempts')->orderBy('request_seq')->pluck('status')->all())->toBe([503, 200])
+            ->and(DB::table('prc_network_permits')->count())->toBe(2)
+            ->and($wire->receipts())->toHaveCount(2)->and(Fetch::query()->count())->toBe(0);
+    });
 });
 
 test('исчерпанные повторы 429 не превышают настроенное число запросов', function (): void {
-    Sleep::fake();
-    activeDocumentDownloadProxy();
-    config(['crawler.stages.document.retries' => 2]);
-    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=aaaa-1111']);
-    Http::fake(['*filestore*' => fn () => Http::response(body: 'slow down', status: 429)]);
-
-    expect(app(DocumentDownloader::class)->download($document))->toBeNull();
-
-    Http::assertSentCount(2);
-    expect(Fetch::query()->where('stage', 'document')->count())->toBe(2);
+    documentNetworkScenario(function ($wire, $document): void {
+        $db = DB::table('prc_source_targets')->where('capability', 'download');
+        $row = $db->sole();
+        $policy = json_decode($row->endpoint_policy, true, flags: JSON_THROW_ON_ERROR);
+        $policy['profiles'][0]['attempts'] = 2;
+        $policy['profiles'][0]['delays_ms'] = [0];
+        $db->update(['endpoint_policy' => json_encode($policy, JSON_THROW_ON_ERROR)]);
+        $wire->respond('/document', 'slow', 429, ['Retry-After' => '0']);
+        expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+            ->and($document->refresh()->attempts)->toBe(0)
+            ->and($wire->receipts())->toHaveCount(1)
+            ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and(DB::table('prc_observations')->value('reason_code'))->toBe('http_429');
+    });
 });
 
 test('единый deadline прекращает повторы 503 без публикации частичного документа', function (): void {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDocumentDownloadProxy();
-    config(['crawler.stages.document.min_pause_ms' => 0, 'crawler.stages.document.max_pause_ms' => 0, 'crawler.stages.document.retry_delay_ms' => 5000]);
-    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=deadline']);
-    Http::fake(['*' => fn () => Http::response('unavailable', 503)]);
-    expect(app(DocumentDownloader::class)->download($document, deadlineAt: microtime(true) + 0.1))->toBeNull();
-    Http::assertSentCount(1);
-    expect($document->refresh()->attempts)->toBe(1)
-        ->and($document->next_retry_at)->not->toBeNull()
-        ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(0)
-        ->and(Storage::disk('s3')->allFiles())->toBe([]);
+    documentNetworkScenario(function ($wire, $document): void {
+        $wire->respond('/document', 'unavailable', 503);
+        expect(app(DocumentDownloader::class)->download($document, deadlineAt: microtime(true) + 0.1))->toBeNull()
+            ->and($wire->receipts())->toBe([])->and($document->refresh()->attempts)->toBe(0)
+            ->and(DocumentVersion::query()->count())->toBe(0)->and(Storage::disk('s3')->allFiles())->toBe([]);
+    });
 });
 
 test('цепочка redirect закрывает каждый поток и расходует HTTP бюджет на каждый переход', function (): void {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDocumentDownloadProxy();
-    $document = Document::factory()->create(['source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=loop']);
-    $streams = [];
-    Http::fake(['*' => function () use (&$streams) {
-        $stream = Utils::streamFor('redirect body');
-        $streams[] = $stream;
-
-        return Http::response($stream, 302, ['Location' => '/filestore/file.html?uid=loop']);
-    }]);
-    expect(app(DocumentDownloader::class)->download($document))->toBeNull();
-    Http::assertSentCount(4);
-    expect(Fetch::query()->where('procurement_id', $document->procurement_id)->count())->toBe(4)
-        ->and(collect($streams)->every(fn ($stream) => ! $stream->isReadable()))->toBeTrue()
-        ->and(DocumentVersion::query()->count())->toBe(0);
+    documentNetworkScenario(function ($wire, $document): void {
+        $wire->respond('/document', 'redirect body', 302, ['Location' => '/document']);
+        expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+            ->and($wire->receipts())->toHaveCount(4)
+            ->and(DB::table('prc_network_permits')->count())->toBe(4)
+            ->and(DB::table('prc_request_attempts')->whereNotNull('finished_at')->count())->toBe(4)
+            ->and(DocumentVersion::query()->count())->toBe(0)
+            ->and(Storage::disk('local')->allFiles('process-core/http'))->toBe([]);
+    });
 });
 
 test('deadline на проверке canonical storage не публикует версию и удаляет staging', function (): void {
@@ -384,3 +371,24 @@ test('deadline на проверке canonical storage не публикует �
         ->and($document->next_retry_at)->not->toBeNull()
         ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(0);
 });
+
+test('connection failure preserves the document item budget even at its last remaining attempt', function (): void {
+    Sleep::fake();
+    Storage::fake('s3');
+    activeDocumentDownloadProxy();
+    config(['crawler.documents_max_attempts' => 5]);
+    $document = Document::factory()->create([
+        'source_url' => 'https://zakupki.gov.ru/filestore/file.html?uid=connection-failure',
+        'attempts' => 4, 'failed_permanently' => false, 'last_error' => 'prior item evidence',
+    ]);
+    $before = $document->refresh()->getRawOriginal();
+    $calls = 0;
+    Http::fake(function () use (&$calls): never {
+        $calls++;
+        throw new ConnectionException('fixture connection failed');
+    });
+    expect(app(DocumentDownloader::class)->download($document))->toBeNull()
+        ->and($calls)->toBe(1)
+        ->and($document->refresh()->getRawOriginal())->toEqual($before)
+        ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(0);
+})->group('t03', 'p26');

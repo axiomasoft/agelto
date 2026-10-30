@@ -727,3 +727,34 @@ They assert both HTTP/body facts and the durable origin fence. The tests retain 
 local-server evidence under test storage `app/testing/process-core/quota-evidence/<process>/`.
 Legacy caller/health-writer activation remains owned by P2.6. These assertions do not close the
 independent P2.5 review or replace coordinator acceptance.
+
+
+## P2.6 partial candidate (2026-10-29, request 6)
+
+This candidate has **not completed the all-caller network cutover**. The legacy transport loops,
+proxy/source writers, request budget and binding schema still require their coordinated replacement.
+Do not activate this partial tree or start P2.7 on its narrow test results. V1–V4 remain conductor-owned.
+
+The retained SourceCircuits UI displays historical rows only: canonical Process controls own pause/resume
+and audit; direct legacy edit/save is denied. DetailDispatcher now reads canonical acquisition controls
+and target cooldown/retirement eligibility before applying its batch limit. Excluded procurements remain
+due; a historical circuit row does not exclude another platform. This projection never authorizes HTTP.
+The locked owner/permit gate remains the authority for an actual send.
+
+The existing ReconcileDaemon now registers bounded expired outbound-owner cleanup. It invalidates
+reserved permits through LegacyBridge without queueing a business retry or erasing request evidence.
+Probe dispatch and all remaining caller wiring are unfinished.
+
+Provider catalogs use an exclusive provider identity rather than a fabricated procurement platform.
+Narrow PostgreSQL tests cover shared origin debt, idempotent isolated sync, conflicting defaults,
+negative ownership/uniqueness constraints, and canonical provider pause/resume with audit. Malformed
+catalog profiles produce a configuration hold before operations or requests are created. These checks
+do not yet prove an actual Llm caller through the complete transport bridge.
+
+ConnectionException and typed outbound dependency/control exits no longer consume DocumentDownloader's
+item budget. The affected downloader file passes 20 cases/97 assertions, including preservation at the
+last remaining item attempt. Its existing physical retry/health path still awaits the common executor.
+
+Current commands, red history and candidate hashes are in the five assigned
+`.swissknifeman/orch-artifacts/p26-cutover-20261029/` evidence files. No acceptance, clean-install,
+full regression, deployment or paid application execution is claimed.

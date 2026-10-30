@@ -6,25 +6,22 @@ namespace App\Services\Platforms\Eis\Filters;
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Crawler\StageSettings;
-use App\Dto\Procurement\Proxy\ProxyLease;
-use App\Dto\Procurement\Proxy\ProxyRequirements;
+use App\Dto\Procurement\Network\HttpRequestPayload;
+use App\Dto\Procurement\Network\SafeUrl;
 use App\Enums\Procurement\Crawler\CrawlStage;
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
-use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Enums\Procurement\Network\TrafficClass;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
 use App\Repositories\Procurement\Platform\Okpd2NodeStoreRepository;
 use App\Services\Procurement\CrawlSettingsResolver;
-use App\Services\Procurement\PlatformRequestBudget;
+use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxy\RoutePolicy;
 use App\Services\Procurement\SourceTlsTrust;
-use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
-use Illuminate\Support\Facades\Http;
 use RuntimeException;
-use Throwable;
 
 /**
  * Пересборка карты «код ОКПД2 → внутренний id НСИ» обходом `children.html` вширь и сверка
@@ -37,7 +34,7 @@ use Throwable;
  * на КОДЫ, при этом не страдают, ради чего код и хранится вместо id (D9).
  *
  * Канал к площадке — те же три сейма, что у боевого `CsvSourceMethod`: лиза
- * `ProxyResolver::resolve()` → общий `PlatformRequestBudget` → запрос с `verify` из `SourceTlsTrust`.
+ * `ProxyResolver` → canonical owner/permit/executor → TLS trust из `SourceTlsTrust`.
  * Второго канала не заводится (гэп G7, Implementation Rules P2.5 п. 1).
  */
 final readonly class Okpd2NodeSynchronizer
@@ -52,9 +49,8 @@ final readonly class Okpd2NodeSynchronizer
         private Okpd2NodeReadRepository $nodes,
         private Okpd2NodeStoreRepository $store,
         private ProxyResolver $proxyResolver,
-        private PlatformRequestBudget $requestBudget,
+        private LegacyOutbound $outbound,
         private CrawlSettingsResolver $crawlSettings,
-        private SourceTlsTrust $tlsTrust,
     ) {}
 
     /**
@@ -157,11 +153,7 @@ final readonly class Okpd2NodeSynchronizer
     private function traverse(string $rootId, int $rootLevel, int $limit, Platform $platform): array
     {
         $endpoint = $this->configString('crawler.okpd2.children_endpoint');
-        $lease = $this->proxyResolver->resolve(
-            scope: ProxyScope::CrawlListing,
-            target: $this->canonicalHost($endpoint),
-            requirements: new ProxyRequirements(crawlerMode: CrawlerProxyMode::Default),
-        );
+        $lease = $this->proxyResolver->profile();
         $settings = $this->crawlSettings->forStage(stage: CrawlStage::Listing, platform: $platform);
 
         // Корень поддерева в карту НЕ пишется: его `parent_code` неизвестен, а дети получают
@@ -182,10 +174,6 @@ final readonly class Okpd2NodeSynchronizer
                 continue;
             }
 
-            $this->requestBudget->acquire(
-                host: $this->canonicalHost($endpoint),
-                stage: CrawlStage::Listing,
-            );
             $children = $this->fetchChildren(lease: $lease, endpoint: $endpoint, parentId: $current['external_id'], settings: $settings);
             $requests++;
             $expandedCodes[] = $current['code'];
@@ -321,7 +309,7 @@ final readonly class Okpd2NodeSynchronizer
     /**
      * @return list<array<string, mixed>>
      */
-    private function fetchChildren(ProxyLease $lease, string $endpoint, string $parentId, StageSettings $settings): array
+    private function fetchChildren(RoutePolicy $lease, string $endpoint, string $parentId, StageSettings $settings): array
     {
         $response = $this->request(lease: $lease, endpoint: $endpoint, parentId: $parentId, settings: $settings);
 
@@ -361,22 +349,23 @@ final readonly class Okpd2NodeSynchronizer
         return $children;
     }
 
-    private function request(ProxyLease $lease, string $endpoint, string $parentId, StageSettings $settings): Response
+    private function request(RoutePolicy $lease, string $endpoint, string $parentId, StageSettings $settings): Response
     {
-        $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
+        $platform = $this->requirePlatform();
+        $url = $endpoint.(str_contains($endpoint, '?') ? '&' : '?').http_build_query(['parentId' => $parentId]);
 
-        return Http::withOptions([...$lease->httpOptions(), ...$tlsOptions])
-            ->withUserAgent($this->configString('crawler.user_agent'))
-            ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
-            ->timeout($settings->timeoutSeconds ?? 30)
-            ->retry(
-                times: $settings->retries ?? 5,
-                sleepMilliseconds: $settings->retryDelayMs ?? 500,
-                when: static fn (Throwable $exception): bool => $exception instanceof RequestException
-                    && ($exception->response->status() === 429 || $exception->response->status() >= 500),
-                throw: false,
-            )
-            ->get($endpoint, ['parentId' => $parentId]);
+        $platformCode = $platform->getAttribute('code');
+        if (! is_string($platformCode)) {
+            throw new \LogicException('Platform code is unavailable.');
+        }
+
+        return $this->outbound->request(callerCode: 'legacy.reference_sync', platformId: $platform->id, providerKey: null,
+            capability: 'reference_sync', url: new SafeUrl($url),
+            trafficClass: TrafficClass::ReferenceSync, routePolicy: $lease,
+            controls: ['system', 'acquisition', 'acquisition:platform:'.$platformCode], deadlineSeconds: 90,
+            payload: new HttpRequestPayload([
+                'user-agent' => config()->string('outbound.http.user_agent'), 'referer' => 'https://zakupki.gov.ru/',
+            ]));
     }
 
     private function requirePlatform(): Platform
@@ -391,17 +380,6 @@ final readonly class Okpd2NodeSynchronizer
         }
 
         return $platform;
-    }
-
-    private function canonicalHost(string $url): string
-    {
-        $host = parse_url($url, PHP_URL_HOST);
-
-        if (! is_string($host) || $host === '') {
-            throw new RuntimeException("URL EIS не содержит host: {$url}.");
-        }
-
-        return strtolower($host);
     }
 
     private function configString(string $key): string

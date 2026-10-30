@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
+use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\CrawlerMode;
@@ -12,9 +13,10 @@ use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Enums\Procurement\Proxy\ProxyScope;
-use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Models\Procurement\Crawler\RawArtifact;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Crawler\SourceIncident;
@@ -29,6 +31,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 final class FreshContinuationSourceMethod implements SourceMethod
 {
@@ -140,6 +143,8 @@ afterEach(function () {
     Carbon::setTestNow();
 });
 
+beforeEach(fn () => LegacyBusinessNetwork::install());
+
 test('нераспознанный блок сохраняет evidence и курсор для повторной обработки', function (): void {
     $crawler = Crawler::factory()->create();
     useQueueSourceMethod([
@@ -152,16 +157,16 @@ test('нераспознанный блок сохраняет evidence и ку�
     app()->instance(ListingRowMapper::class, $mapper);
 
     $run = app(FreshRunProcessor::class)->run($crawler);
-    $fetch = $run->fetches()->orderBy('id')->first();
+    $artifact = RawArtifact::query()->where('path', 'like', "raw/csv/{$crawler->id}/{$run->id}/%")->sole();
     $incident = SourceIncident::query()->where('type', CrawlerEventCode::CsvInvalidContent)->sole();
 
     expect($run->status)->toBe(RunStatus::Paused)
         ->and($run->cursor['blockFrom'])->toBe(1)
-        ->and($fetch?->rows_errors)->toBe(1)
-        ->and($fetch?->artifact_ref)->not->toBeNull()
+        ->and(Storage::disk('s3')->exists($artifact->path))->toBeTrue()
+        ->and($run->fetches()->count())->toBe(0)
         ->and($incident->type)->toBe(CrawlerEventCode::CsvInvalidContent)
         ->and($incident->failure_kind)->toBe(SourceFailureKind::InvalidContent)
-        ->and($incident->fetch_id)->toBe($fetch?->id)
+        ->and($incident->fetch_id)->toBeNull()
         ->and($incident->run_id)->toBe($run->id);
     $log = OperationLog::query()->where('stage', 'listing')->sole();
     expect($log->entity_id)->toBe($run->id)
@@ -197,15 +202,14 @@ test('массовые отказы уводят листинг в ожидан�
 
     expect($run->status)->toBe(RunStatus::Paused)
         ->and($run->stats['source_suspended'] ?? null)->toBeTrue()
-        ->and($run->stats['stop_reason'] ?? null)->toBe('source_circuit_open')
+        ->and($run->stats['stop_reason'] ?? null)->toBe('outbound_dependency')
         ->and($run->cursor['blockFrom'])->toBe(1)
-        ->and(SourceCircuit::query()->sole()->retry_at)->not->toBeNull()
+        ->and(SourceCircuit::query()->sole()->retry_at)->toBeNull()
         ->and(SourceIncident::query()->orderBy('id')->pluck('type')->all())->toBe([
             CrawlerEventCode::CsvSourceUnavailable,
             CrawlerEventCode::RunSuspended,
             CrawlerEventCode::RunResumed,
             CrawlerEventCode::CsvSourceUnavailable,
-            CrawlerEventCode::StageWaiting,
             CrawlerEventCode::RunSuspended,
         ]);
 });
@@ -213,6 +217,7 @@ test('массовые отказы уводят листинг в ожидан�
 test('ожидание или пауза оператора: fresh не делает ни одного запроса и встаёт на паузу', function (): void {
     $crawler = Crawler::factory()->create();
     SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'manually_paused' => true]);
+    LegacyBusinessNetwork::pausePlatform($crawler->registry->platform_id);
     useQueueSourceMethod([]);
 
     $run = app(FreshRunProcessor::class)->run($crawler);
@@ -229,7 +234,7 @@ test('нет прокси: отказ транспорта считается б
     {
         public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
         {
-            throw new NoProxyAvailableException(ProxyScope::CrawlListing, 'zakupki.gov.ru', 'пул пуст');
+            throw new OutboundUnavailable(new TransportBlocked(NetworkBlockedReason::ConfigurationHold));
         }
 
         public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
@@ -248,7 +253,7 @@ test('нет прокси: отказ транспорта считается б
 
     expect($run->status)->toBe(RunStatus::Paused)
         ->and($run->cursor['blockFrom'] ?? 1)->toBe(1)
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::StageWaiting)->sole()->failure_kind)
+        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvProxyUnavailable)->sole()->failure_kind)
         ->toBe(SourceFailureKind::ProxyUnavailable);
 });
 

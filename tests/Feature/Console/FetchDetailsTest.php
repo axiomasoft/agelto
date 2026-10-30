@@ -6,6 +6,9 @@ use App\Jobs\Procurement\FetchProcurementDetailJob;
 use App\Models\Procurement\Procurement;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('явный id ставит одну детальную закупку в очередь', function (): void {
     Queue::fake();

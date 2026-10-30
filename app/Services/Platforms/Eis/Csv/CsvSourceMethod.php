@@ -9,47 +9,57 @@ use App\Dto\Platforms\Eis\EisListingQueryOverrides;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\ListingExecutionContext;
-use App\Dto\Procurement\Crawler\StageSettings;
+use App\Dto\Procurement\Crawler\ListingMapping;
+use App\Dto\Procurement\Crawler\SkippedListingRow;
+use App\Dto\Procurement\Network\AdapterInspection;
+use App\Dto\Procurement\Network\AdapterValidationCall;
+use App\Dto\Procurement\Network\HttpRequestPayload;
+use App\Dto\Procurement\Network\OutboundExecutionContext;
+use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Platform\CanonicalOrigin;
+use App\Dto\Procurement\Platform\RequestProfile;
+use App\Dto\Procurement\Platform\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\RetryAt;
 use App\Dto\Procurement\ProcurementDetails;
-use App\Dto\Procurement\Proxy\ProxyLease;
-use App\Dto\Procurement\Proxy\ProxyOutcome;
-use App\Dto\Procurement\Proxy\ProxyRequirements;
+use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Enums\Procurement\Network\AdapterVerdict;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
+use App\Enums\Procurement\Network\ResponseKind;
+use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\ProcurementStatus;
-use App\Enums\Procurement\Proxy\ProxyFailureReason;
-use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
+use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Platforms\Eis\Card\EisCardUrlBuilder;
-use App\Services\Procurement\BoundedResponseReader;
 use App\Services\Procurement\Contracts\CooperativeListingSourceMethod;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
-use App\Services\Procurement\CrawlSettingsResolver;
-use App\Services\Procurement\Exceptions\CardPageMismatchException;
-use App\Services\Procurement\FetchLogger;
+use App\Services\Procurement\Contracts\DiagnosticSourceMethod;
+use App\Services\Procurement\Network\AdapterInputInspector;
+use App\Services\Procurement\Network\Contracts\LegacyOutbound;
+use App\Services\Procurement\Network\Contracts\SourceCatalogProvider;
 use App\Services\Procurement\PlatformAdapterRegistry;
-use App\Services\Procurement\PlatformRequestBudget;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
-use App\Services\Procurement\Proxy\ProxyResolver;
-use App\Services\Procurement\SourceTlsTrust;
-use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Psr7\Utils;
-use Illuminate\Http\Client\ConnectionException;
+use App\Services\Procurement\Proxy\RoutePolicy;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\Response;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Sleep;
 
 /**
  * Основной метод забора данных ЕИС — CSV-экспорт реестра закупок
  * (`02-crawling.md` §3). Кодировка источника — Windows-1251, конвертация
  * в UTF-8 обязательна до парсинга; иначе закупки с кириллицей тихо теряются.
  */
-final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, DeadlineAwareSourceMethod
+final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, DeadlineAwareSourceMethod, DiagnosticSourceMethod, SourceCatalogProvider
 {
     /**
      * Заголовок колонки «Реестровый номер закупки» в CSV-экспорте ЕИС
@@ -78,14 +88,53 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
     public function __construct(
         private EisCsvUrlBuilder $urlBuilder,
         private EisCardUrlBuilder $cardUrlBuilder,
-        private ProxyResolver $proxyResolver,
+        private LegacyOutbound $outbound,
         private ProxyBindingResolver $proxyBindingResolver,
-        private PlatformRequestBudget $requestBudget,
-        private CrawlSettingsResolver $crawlSettings,
-        private SourceTlsTrust $tlsTrust,
-        private FetchLogger $fetches,
         private StoreRawFetchArtifactAction $rawArtifacts,
     ) {}
+
+    /** Config-only network catalog; the full platform Definition remains owned by P2.9–P2.12. */
+    public function sourceTargets(): SourceTargetDefinitions
+    {
+        $csv = CanonicalOrigin::fromUrl(config()->string('crawler.eis.csv_endpoint'));
+        $targets = [
+            new SourceTargetDefinition('csv', 'listing', $csv, [
+                new RequestProfile('eis.csv_export', 5, 30, 90, 16_777_216, 50_331_648, 3, 3, 2, [200, 600], ResponseKind::Text, 'Windows-1251', 1),
+            ], adapterContract: app(PlatformAdapterRegistry::class)->adapterContract('eis', 'listing')),
+            new SourceTargetDefinition('card', 'detail', $csv, [
+                new RequestProfile('eis.card_tab', 5, 15, 30, 8_388_608, 25_165_824, 3, 3, 2, [200, 600], ResponseKind::Text, 'Windows-1251', 1),
+            ], adapterContract: app(PlatformAdapterRegistry::class)->adapterContract('eis', 'detail')),
+            new SourceTargetDefinition('okpd2', 'reference_sync',
+                CanonicalOrigin::fromUrl(config()->string('crawler.okpd2.children_endpoint')), [
+                    new RequestProfile('eis.reference', 5, 10, 20, 2_097_152, 6_291_456, 3, 2, 2, [200], ResponseKind::Text, 'UTF-8', 1),
+                ]),
+        ];
+        $hosts = config('crawler.documents_allowed_hosts');
+        if (! is_array($hosts) || $hosts === []) {
+            throw new \InvalidArgumentException('Document source origins are not configured.');
+        }
+        foreach ($hosts as $host) {
+            if (! is_string($host) || $host === '') {
+                throw new \InvalidArgumentException('Document source host is invalid.');
+            }
+            $origin = CanonicalOrigin::of('https', $host);
+            $targets[] = new SourceTargetDefinition('document.'.substr($origin->hash()->hex, 0, 16), 'download', $origin, [
+                new RequestProfile('eis.document', 5, 30, 240, 268_435_456, null, 3, 3, 2, [200, 600], ResponseKind::Binary, null, 1),
+            ]);
+        }
+
+        return new SourceTargetDefinitions('eis', $targets);
+    }
+
+    public function diagnoseListing(Crawler $crawler, ListingCursor $cursor, float $deadlineAt): ListingBatch
+    {
+        return $this->collectListingInternal($crawler, $cursor, null, null, $deadlineAt, true);
+    }
+
+    public function diagnoseDetails(string $registryNumber, Registry $registry, float $deadlineAt): ProcurementDetails
+    {
+        return $this->collectDetailsInternal($registryNumber, $registry, $deadlineAt, true);
+    }
 
     public function collectListingWithinDeadline(Crawler $crawler, ListingCursor $cursor, float $deadlineAt): ListingBatch
     {
@@ -106,9 +155,8 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
         return $this->collectListingInternal($crawler, $cursor, null, $context, $context->deadlineAt);
     }
 
-    private function collectListingInternal(Crawler $crawler, ListingCursor $cursor, ?EisListingQueryOverrides $queryOverrides, ?ListingExecutionContext $context, ?float $deadlineAt): ListingBatch
+    private function collectListingInternal(Crawler $crawler, ListingCursor $cursor, ?EisListingQueryOverrides $queryOverrides, ?ListingExecutionContext $context, ?float $deadlineAt, bool $diagnostic = false): ListingBatch
     {
-        $retryEmpty = $queryOverrides === null || $queryOverrides->retryOnEmptyResponse;
         ($context?->checkpoint)?->__invoke();
         $blockSize = app(PlatformAdapterRegistry::class)->blockSize(registry: $crawler->registry()->firstOrFail());
         $from = $cursor->blockFrom;
@@ -123,83 +171,165 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
             overrides: $queryOverrides,
         );
 
-        $host = $this->canonicalHost($endpoint);
-        $lease = $this->listingLease($crawler, $host);
-        $settings = $this->crawlSettings->forStage(
-            stage: CrawlStage::Listing,
-            platform: $this->platformForId($crawler->registry()->firstOrFail()->getAttribute('platform_id')),
-            crawler: $crawler,
-        );
-        $settings = $this->withRequestAttempts(settings: $settings, attempts: $queryOverrides?->requestAttempts);
-
+        $lease = $this->listingLease($crawler);
         $observedAt = now();
         $startedAt = hrtime(true);
 
-        $request = $this->requestWithRetries(
-            lease: $lease,
-            endpoint: $endpoint,
-            queryParams: $queryParams,
-            settings: $settings,
-            stage: CrawlStage::Listing,
-            host: $host,
-            crawler: $crawler,
-            deadlineAt: $deadlineAt,
-            execution: $context,
-            retryEmpty: $retryEmpty,
-        );
-        $response = $request['response'];
-        $waitMs = $request['wait_ms'];
+        $platform = $this->platformForId($crawler->registry()->firstOrFail()->platform_id);
+        $traffic = $diagnostic || $queryOverrides !== null ? TrafficClass::Diagnostic
+            : ($crawler->mode === CrawlerMode::Archive ? TrafficClass::ArchiveListing : TrafficClass::FreshListing);
+        $call = new AdapterValidationCall('legacy.csv_listing', $platform->id,
+            app(PlatformAdapterRegistry::class)->adapterContract($this->platformCode($platform), 'listing'),
+            new ContentHash(hash('sha256', json_encode([$crawler->registry_id, $queryParams], JSON_THROW_ON_ERROR))),
+            new SafeUrl($endpoint), $traffic, $lease,
+            $diagnostic || $queryOverrides !== null ? ['system', 'monitoring'] : ['system', 'acquisition', 'acquisition:platform:'.$this->platformCode($platform)],
+            $this->deadlineSeconds($deadlineAt, 240));
+        $validated = $this->outbound->validated($call,
+            function (OutboundExecutionContext $networkContext) use ($lease, $endpoint, $queryParams,
+                $crawler, $deadlineAt, $context, $queryOverrides, $observedAt, $startedAt, $from, $traffic): AdapterInspection {
+                try {
+                    $request = $this->request(
+                        lease: $lease,
+                        endpoint: $endpoint,
+                        queryParams: $queryParams,
+                        stage: CrawlStage::Listing,
+                        crawler: $crawler,
+                        deadlineAt: $deadlineAt,
+                        execution: $context,
+                        sendLimit: $queryOverrides?->requestAttempts,
+                        outboundContext: $networkContext,
+                        trafficClass: $traffic,
+                    );
+                } catch (OutboundUnavailable $failure) {
+                    if ($context !== null && $failure->outcome instanceof TransportDeferred
+                        && $failure->outcome->finalResponse !== null) {
+                        $evidence = $failure->outcome->finalResponse;
+                        $this->retainListingHttpFailure($crawler, $context, $evidence->requestId, $evidence->status, $evidence->body->utf8);
+                    }
+                    throw $failure;
+                }
+                $response = $request['response'];
+                $waitMs = $request['wait_ms'];
 
-        $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
-        $utf8Body = mb_convert_encoding($response->body(), 'UTF-8', 'Windows-1251');
-        $reason = match (true) {
-            ! $response->successful() => 'http_error',
-            trim($utf8Body) === '' => 'empty_body',
-            str_contains(strtolower($response->header('Content-Type')), 'text/html') => 'html_response',
-            default => null,
-        };
-        $parsed = ['rows' => [], 'records' => 0, 'malformed' => 0, 'header' => null];
-        if ($reason === null) {
-            try {
-                $parsed = $this->parseCsv(body: $utf8Body, deadlineAt: $deadlineAt);
-            } catch (\UnexpectedValueException) {
-                $reason = 'invalid_csv';
-            }
-        }
-        ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header] = $parsed;
-        if ($reason === null && ($header === null || array_diff(['Реестровый номер закупки', 'Дата размещения', 'Дата обновления'], $header) !== [])) {
-            $reason = 'invalid_csv_header';
-        }
-        if ($malformed > 0) {
-            Log::warning(message: 'CsvSourceMethod: CSV-записи листинга не совпали с заголовком по числу полей.', context: [
-                'crawler_id' => $crawler->id, 'block_from' => $from, 'records' => $records, 'malformed' => $malformed,
-            ]);
+                $durationMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
+                $utf8Body = $response->body();
+                if (! $response->successful()) {
+                    $ids = $networkContext->successfulRequestIds();
+                    $lastId = $ids === [] ? null : $ids[array_key_last($ids)];
+                    if ($context !== null && $lastId !== null) {
+                        $this->retainListingHttpFailure($crawler, $context, $lastId, $response->status(), $utf8Body);
+                    }
+                    throw new OutboundUnavailable(new TransportDeferred(
+                        NetworkDeferralReason::DependencyUnavailable,
+                        new RetryAt(new \DateTimeImmutable('+30 seconds')), lastRequestId: $lastId));
+                }
+                $reason = match (true) {
+                    trim($utf8Body) === '' => 'empty_body',
+                    str_contains(strtolower($response->header('Content-Type')), 'text/html') => 'html_response',
+                    default => null,
+                };
+                $parsed = ['rows' => [], 'records' => 0, 'malformed' => 0, 'header' => null];
+                if ($reason === null) {
+                    try {
+                        $parsed = $this->parseCsv(body: $utf8Body, deadlineAt: $deadlineAt);
+                    } catch (\UnexpectedValueException) {
+                        $reason = 'invalid_csv';
+                    }
+                }
+                ['rows' => $rows, 'records' => $records, 'malformed' => $malformed, 'header' => $header] = $parsed;
+                if ($reason === null && ($header === null || array_diff(['Реестровый номер закупки', 'Дата размещения', 'Дата обновления'], $header) !== [])) {
+                    $reason = 'invalid_csv_header';
+                }
+                if ($malformed > 0) {
+                    Log::warning(message: 'CsvSourceMethod: CSV-записи листинга не совпали с заголовком по числу полей.', context: [
+                        'crawler_id' => $crawler->id, 'block_from' => $from, 'records' => $records, 'malformed' => $malformed,
+                    ]);
+                }
+
+                $snapshots = [];
+                $intentionalSkips = $unmapped = $errors = 0;
+                $handlerFault = null;
+                if ($reason === null) {
+                    $mapper = app(PlatformAdapterRegistry::class)->listingMapper($crawler->registry()->firstOrFail());
+                    foreach ($rows as $row) {
+                        $networkContext->tick();
+                        try {
+                            $snapshot = $mapper->map($row, $crawler);
+                            if ($snapshot instanceof SkippedListingRow) {
+                                $intentionalSkips++;
+                            } elseif ($snapshot === null) {
+                                $unmapped++;
+                            } else {
+                                $snapshots[] = $snapshot;
+                            }
+                        } catch (\UnexpectedValueException) {
+                            $errors++;
+                        } catch (\Throwable $failure) {
+                            if ($failure instanceof QueryException
+                                || $failure instanceof DependencyUnavailable) {
+                                throw OutboundUnavailable::dependency();
+                            }
+                            $handlerFault = $failure;
+                            break;
+                        }
+                    }
+                }
+                if ($reason === null && ($malformed + $unmapped + $errors) > 0) {
+                    $reason = 'invalid_csv_row';
+                }
+
+                $batch = new ListingBatch(
+                    observedAt: $observedAt,
+                    mapping: new ListingMapping($snapshots, $intentionalSkips, $unmapped, $errors),
+                    rows: $rows,
+                    rawBody: $utf8Body,
+                    dedupSignature: $rows[0][self::REGISTRY_NUMBER_COLUMN] ?? null,
+                    rowsTotal: $records,
+                    httpStatus: $response->status(),
+                    durationMs: $durationMs,
+                    requestParams: $queryParams,
+                    proxyId: null,
+                    proxySource: null,
+                    waitMs: $waitMs,
+                    rowsMalformed: $malformed,
+                    header: $header,
+                    // У ЕИС даже пустая выдача содержит строку заголовка; тело без единого символа —
+                    // аномалия (`CRAWLER_CSV_EMPTY`), а не конец данных.
+                    emptyBody: trim($utf8Body) === '',
+                );
+
+                if ($handlerFault !== null) {
+                    return new AdapterInspection($handlerFault,
+                        AdapterVerdict::HandlerFault, 'listing.mapper_exception');
+                }
+
+                $partial = $reason === 'invalid_csv_row';
+
+                return new AdapterInspection(
+                    $reason === null || $partial ? $batch : new InvalidListingResponse(batch: $batch, reason: $reason),
+                    $reason === null ? AdapterVerdict::Accepted : ($partial ? AdapterVerdict::Partial : AdapterVerdict::ContractFailure),
+                    $reason === null ? 'listing.full_contract' : 'listing.'.$reason,
+                    $reason === null || $partial ? null : new ContentHash(hash('sha256', 'listing.'.$reason)));
+            }, $context?->checkpoint);
+        if ($validated->value instanceof \Throwable) {
+            throw $validated->value;
         }
 
-        $batch = new ListingBatch(
-            observedAt: $observedAt,
-            rows: $rows,
-            rawBody: $utf8Body,
-            dedupSignature: $rows[0][self::REGISTRY_NUMBER_COLUMN] ?? null,
-            rowsTotal: $records,
-            httpStatus: $response->status(),
-            durationMs: $durationMs,
-            requestParams: $queryParams,
-            proxyId: $lease->proxyId,
-            proxySource: $lease->source,
-            waitMs: $waitMs,
-            rowsMalformed: $malformed,
-            header: $header,
-            // У ЕИС даже пустая выдача содержит строку заголовка; тело без единого символа —
-            // аномалия (`CRAWLER_CSV_EMPTY`), а не конец данных.
-            emptyBody: trim($utf8Body) === '',
-        );
+        $batch = $validated->value;
 
-        if ($reason !== null) {
-            throw new InvalidListingResponse(batch: $batch, reason: $reason);
-        }
+        return $batch->withValidation($validated->receipt);
+    }
 
-        return $batch;
+    /** HTTP dependency evidence is retained outside domain transactions, never parsed as a listing. */
+    private function retainListingHttpFailure(Crawler $crawler, ListingExecutionContext $context,
+        ProcessUuid $requestId, int $status, string $body): void
+    {
+        $disk = config()->string('crawler.raw_disk');
+        $this->rawArtifacts->execute($disk, "raw/csv/{$crawler->id}/{$context->run->id}", [
+            'crawler_id' => $crawler->id, 'run_id' => $context->run->id,
+            'physical_request_id' => $requestId->value, 'http_status' => $status,
+            'representation' => 'decoded_utf8',
+        ], $body, 'csv');
     }
 
     /**
@@ -207,33 +337,9 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
      * единственного `ProxyResolver`. Поэтому direct-лиза и наблюдаемый source создаются только там,
      * а configured source никогда не становится неявным fallback.
      */
-    private function listingLease(Crawler $crawler, string $host): ProxyLease
+    private function listingLease(Crawler $crawler): RoutePolicy
     {
-        return $this->proxyResolver->resolve(
-            scope: ProxyScope::CrawlListing,
-            target: $host,
-            requirements: new ProxyRequirements(
-                country: $crawler->proxy_country,
-                proxyIds: $this->proxyBindingResolver->forCrawler($crawler),
-                crawlerMode: $crawler->proxy_mode,
-            ),
-        );
-    }
-
-    private function withRequestAttempts(StageSettings $settings, ?int $attempts): StageSettings
-    {
-        if ($attempts === null) {
-            return $settings;
-        }
-
-        return new StageSettings(
-            minPauseMs: $settings->minPauseMs,
-            maxPauseMs: $settings->maxPauseMs,
-            retries: $attempts,
-            retryDelayMs: $settings->retryDelayMs,
-            timeoutSeconds: $settings->timeoutSeconds,
-            dispatchBatchLimit: $settings->dispatchBatchLimit,
-        );
+        return $this->proxyBindingResolver->forCrawler($crawler);
     }
 
     public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
@@ -246,7 +352,7 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
         return $this->collectDetailsInternal(registryNumber: $registryNumber, registry: $registry, deadlineAt: $deadlineAt);
     }
 
-    private function collectDetailsInternal(string $registryNumber, Registry $registry, ?float $deadlineAt): ProcurementDetails
+    private function collectDetailsInternal(string $registryNumber, Registry $registry, ?float $deadlineAt, bool $diagnostic = false): ProcurementDetails
     {
         $procurement = Procurement::query()
             ->where('registry_id', $registry->id)
@@ -258,46 +364,71 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
             procedureTypeRaw: $procurement->procedure_type_raw,
         );
 
-        $html = [];
+        $inspector = app(AdapterInputInspector::class);
+        $baseline = $inspector->prepare($registry);
+        $platform = $this->platformForId($registry->platform_id);
+        $first = $this->cardUrlBuilder->buildUrl($registry, $procedureUrlType, 'common-info', $registryNumber)
+            ?? throw new \LogicException('Detail adapter must declare a common-info URL.');
+        $call = new AdapterValidationCall('legacy.card_details', $platform->id,
+            app(PlatformAdapterRegistry::class)->adapterContract($this->platformCode($platform), 'detail'),
+            new ContentHash(hash('sha256', json_encode([$registry->id, $registryNumber], JSON_THROW_ON_ERROR))),
+            new SafeUrl($first), $diagnostic ? TrafficClass::Diagnostic : TrafficClass::Detail, $this->detailLease($procurement),
+            $diagnostic ? ['system', 'monitoring'] : ['system', 'acquisition', 'acquisition:platform:'.$this->platformCode($platform)], $this->deadlineSeconds($deadlineAt, 300));
+        $validated = $this->outbound->validated($call,
+            function (OutboundExecutionContext $networkContext) use ($procurement, $registry,
+                $procedureUrlType, $registryNumber, $deadlineAt, $diagnostic, $inspector, $baseline): AdapterInspection {
+                $html = [];
 
-        foreach ($this->stringList(config('crawler.eis.card_tabs', []), 'crawler.eis.card_tabs') as $tab) {
-            if ($tab === self::SUPPLIER_RESULTS_TAB && ! in_array($procurement->status, self::FINALIZING_STATUSES, strict: true)) {
-                $html[$tab] = null;
+                foreach ($this->stringList(config('crawler.eis.card_tabs', []), 'crawler.eis.card_tabs') as $tab) {
+                    if ($tab === self::SUPPLIER_RESULTS_TAB && ! in_array($procurement->status, self::FINALIZING_STATUSES, strict: true)) {
+                        $html[$tab] = null;
 
-                continue;
-            }
+                        continue;
+                    }
 
-            $url = $this->cardUrlBuilder->buildUrl(
-                registry: $registry,
-                procedureUrlType: $procedureUrlType,
-                tab: $tab,
-                registryNumber: $registryNumber,
-            );
+                    $url = $this->cardUrlBuilder->buildUrl(
+                        registry: $registry,
+                        procedureUrlType: $procedureUrlType,
+                        tab: $tab,
+                        registryNumber: $registryNumber,
+                    );
 
-            if ($url === null) {
-                $html[$tab] = null;
+                    if ($url === null) {
+                        $html[$tab] = null;
 
-                continue;
-            }
+                        continue;
+                    }
 
-            $html[$tab] = $this->collectTab(
-                procurement: $procurement,
-                registry: $registry,
-                tab: $tab,
-                registryNumber: $registryNumber,
-                url: $url,
-                deadlineAt: $deadlineAt,
-            );
+                    $html[$tab] = $this->collectTab(
+                        procurement: $procurement,
+                        registry: $registry,
+                        tab: $tab,
+                        registryNumber: $registryNumber,
+                        url: $url,
+                        deadlineAt: $deadlineAt,
+                        outboundContext: $networkContext,
+                        traffic: $diagnostic ? TrafficClass::Diagnostic : TrafficClass::Detail,
+                    );
+                }
+
+                $details = new ProcurementDetails(
+                    registryNumber: $registryNumber,
+                    procedureUrlType: $procedureUrlType,
+                    commonInfoHtml: $html['common-info'] ?? null,
+                    documentsHtml: $html['documents'] ?? null,
+                    eventJournalHtml: $html['event-journal'] ?? null,
+                    supplierResultsHtml: $html[self::SUPPLIER_RESULTS_TAB] ?? null,
+                );
+
+                return $inspector->details($details, $registry, $networkContext, $baseline);
+
+            });
+        if ($validated->value instanceof \Throwable) {
+            throw $validated->value;
         }
+        $details = $validated->value;
 
-        return new ProcurementDetails(
-            registryNumber: $registryNumber,
-            procedureUrlType: $procedureUrlType,
-            commonInfoHtml: $html['common-info'] ?? null,
-            documentsHtml: $html['documents'] ?? null,
-            eventJournalHtml: $html['event-journal'] ?? null,
-            supplierResultsHtml: $html[self::SUPPLIER_RESULTS_TAB] ?? null,
-        );
+        return $details->withValidation($validated->receipt);
     }
 
     public function isAvailable(): bool
@@ -305,91 +436,50 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
         return true;
     }
 
-    private function collectTab(Procurement $procurement, Registry $registry, string $tab, string $registryNumber, string $url, ?float $deadlineAt): string
+    private function collectTab(Procurement $procurement, Registry $registry, string $tab, string $registryNumber, string $url, ?float $deadlineAt, OutboundExecutionContext $outboundContext, TrafficClass $traffic): string
     {
-        $host = $this->canonicalHost($url);
-        $lease = $this->detailLease(procurement: $procurement, host: $host);
-        $settings = $this->crawlSettings->forStage(stage: CrawlStage::Detail, platform: $this->platformForId($registry->platform_id));
-
-        $startedAt = hrtime(true);
-        $request = $this->requestWithRetries(
+        $lease = $this->detailLease(procurement: $procurement);
+        $request = $this->request(
             lease: $lease,
             endpoint: $url,
             queryParams: [],
-            settings: $settings,
             stage: CrawlStage::Detail,
-            host: $host,
             deadlineAt: $deadlineAt,
+            platformId: $registry->platform_id,
+            outboundContext: $outboundContext,
+            trafficClass: $traffic,
         );
         $response = $request['response'];
-        $waitMs = $request['wait_ms'];
 
-        if ($response->status() === 200 && trim($response->body()) === '') {
-            $request = $this->requestWithRetries(
-                lease: $lease,
-                endpoint: $url,
-                queryParams: [],
-                settings: $settings,
-                stage: CrawlStage::Detail,
-                host: $host,
-                deadlineAt: $deadlineAt,
-            );
-            $response = $request['response'];
-            $waitMs += $request['wait_ms'];
+        if (! $response->successful()) {
+            throw OutboundUnavailable::dependency();
+        }
+        // Identity/layout are inspected once across the complete card before acceptance.
+        if (! str_contains($response->body(), $registryNumber)) {
+            // Retain the response until the full validator emits a contract rejection.
+            return $response->body();
         }
 
-        $this->assertCardPage(response: $response, tab: $tab, url: $url, registryNumber: $registryNumber);
-
         $html = $response->body();
-        $artifactRef = (bool) config('crawler.raw_html_retention_enabled', false)
+        // The transport already decoded UTF-8. Keep a legacy HTML parser from decoding the
+        // normalized text again according to the source's old meta charset declaration.
+        $prefix = substr($html, 0, 4096);
+        $normalized = preg_replace_callback('/(<meta\b[^>]*?charset\s*=\s*[\x22\x27]?)([a-zA-Z0-9_.:-]+)/i',
+            static fn (array $match): string => in_array(strtolower($match[2]), ['utf-8', 'utf8'], true) ? $match[0] : $match[1].'UTF-8', $prefix);
+        if ($normalized === null) {
+            throw new \LogicException('Cannot normalize HTML encoding metadata.');
+        }
+        $html = $normalized.substr($html, strlen($prefix));
+        $artifactRef = $traffic !== TrafficClass::Diagnostic && (bool) config('crawler.raw_html_retention_enabled', false)
             ? $this->storeRawHtml(registryId: $registry->id, registryNumber: $registryNumber, tab: $tab, url: $url, html: $html)
             : null;
-
-        $this->fetches->log(stage: CrawlStage::Detail, run: null, procurementId: $procurement->id, attributes: [
-            'method' => 'eis-card', 'request_params' => ['tab' => $tab, 'url' => $url],
-            'artifact_ref' => $artifactRef,
-            'http_status' => $response->status(), 'duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
-            'proxy_id' => $lease->proxyId, 'proxy_source' => $lease->source?->value, 'wait_ms' => $waitMs,
-        ]);
 
         return $html;
     }
 
-    private function detailLease(Procurement $procurement, string $host): ProxyLease
+    private function detailLease(Procurement $procurement): RoutePolicy
     {
-        return $this->proxyResolver->resolve(
-            scope: ProxyScope::CrawlDetail,
-            target: $host,
-            requirements: $this->proxyBindingResolver->requirementsForProcurement($procurement->id),
-        );
-    }
-
-    /**
-     * Сторож «пришла не та страница» (Д-8): несоответствие = отказ ответа ИЛИ тело не несёт
-     * запрошенного реестрового номера (кодировка тела на эту проверку не влияет — номер состоит
-     * из цифр). Любая вкладка логирует; `common-info` дополнительно бросает исключение — без неё
-     * карточка не считается снятой.
-     */
-    private function assertCardPage(Response $response, string $tab, string $url, string $registryNumber): void
-    {
-        if (! $response->failed() && str_contains($response->body(), $registryNumber)) {
-            return;
-        }
-
-        Log::warning(message: 'CsvSourceMethod: вкладка карточки вернула страницу без запрошенного реестрового номера.', context: [
-            'tab' => $tab,
-            'url' => $url,
-            'status' => $response->status(),
-            'body_length' => strlen($response->body()),
-            'registry_number' => $registryNumber,
-        ]);
-
-        throw CardPageMismatchException::forTab(
-            tab: $tab,
-            url: $url,
-            status: $response->status(),
-            bodyLength: strlen($response->body()),
-        );
+        return $this->proxyBindingResolver->forProcurement($procurement->id);
     }
 
     private function storeRawHtml(int $registryId, string $registryNumber, string $tab, string $url, string $html): string
@@ -416,265 +506,55 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
     }
 
     /**
-     * @param  array<string, string>  $queryParams
-     */
-    private function request(string $endpoint, array $queryParams, ProxyLease $lease, int $timeoutSeconds): Response
-    {
-        $tlsOptions = $this->tlsTrust->optionsFor($this->canonicalHost($endpoint));
-
-        $pendingRequest = Http::withOptions([...$lease->httpOptions(), ...$tlsOptions, 'stream' => true, 'read_timeout' => 1])
-            ->withUserAgent($this->stringConfig('crawler.user_agent'))
-            ->withHeaders(['Referer' => 'https://zakupki.gov.ru/'])
-            ->timeout($timeoutSeconds);
-
-        // Guzzle замещает query-строку URI опцией `query`, ДАЖЕ пустым массивом
-        // (`http_build_query([]) === ''`) — endpoint'ы, несущие свою query-строку внутри
-        // (карточные URL, Д-8), теряют её, если передать сюда `$queryParams = []`.
-        return $queryParams === []
-            ? $pendingRequest->get($endpoint)
-            : $pendingRequest->get($endpoint, $queryParams);
-    }
-
-    /**
-     * Оборачивает `request()` учётом исхода в резолвере (research/02 §9.1): сетевой отказ
-     * (таймаут/TLS/обрыв соединения) сообщается причиной и пробрасывается дальше, ответ цели
-     * (403/429/пустое тело/успех, включая 5xx как транспортный успех — §5) сообщается после
-     * получения ответа.
-     *
-     * @param  array<string, string>  $queryParams
-     */
-    private function requestWithOutcome(ProxyLease $lease, string $endpoint, array $queryParams, int $timeoutSeconds): Response
-    {
-        $startedAt = hrtime(true);
-
-        try {
-            $bodyDeadline = microtime(true) + $timeoutSeconds;
-            $response = $this->request(endpoint: $endpoint, queryParams: $queryParams, lease: $lease, timeoutSeconds: $timeoutSeconds);
-            $body = app(BoundedResponseReader::class)->read(
-                response: $response,
-                maxBytes: $this->intConfig('crawler.response_max_bytes', 8_388_608),
-                deadlineAt: $bodyDeadline,
-            );
-            $boundedResponse = new Response($response->toPsrResponse()->withBody(Utils::streamFor($body)));
-            $boundedResponse->transferStats = $response->transferStats;
-            $response = $boundedResponse;
-        } catch (ConnectionException $exception) {
-            $this->proxyResolver->reportOutcome($lease, ProxyOutcome::failure($this->connectionFailureReason($exception)));
-
-            throw $exception;
-        }
-
-        $latencyMs = (int) ((hrtime(true) - $startedAt) / 1_000_000);
-
-        $this->proxyResolver->reportOutcome($lease, $this->outcomeFrom($response, $latencyMs));
-
-        return $response;
-    }
-
-    /**
-     * @param  array<string, string>  $queryParams
+     * @param  array<string,string>  $queryParams
      * @return array{response: Response, wait_ms: int}
      */
-    private function requestWithRetries(
-        ProxyLease $lease,
+    private function request(
+        RoutePolicy $lease,
         string $endpoint,
         array $queryParams,
-        StageSettings $settings,
         CrawlStage $stage,
-        string $host,
         ?Crawler $crawler = null,
         ?float $deadlineAt = null,
         ?ListingExecutionContext $execution = null,
-        bool $retryEmpty = false,
+        ?int $platformId = null,
+        ?int $sendLimit = null,
+        ?OutboundExecutionContext $outboundContext = null,
+        ?TrafficClass $trafficClass = null,
     ): array {
-        $attempts = max(1, $settings->retries ?? 5);
-        $waitMs = 0;
-        $identity = $queryParams;
-        ksort($identity);
-        $requestHash = hash('sha256', json_encode([$host, parse_url($endpoint, PHP_URL_PATH), parse_url($endpoint, PHP_URL_QUERY), $identity], JSON_THROW_ON_ERROR));
-
-        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
-            ($execution?->checkpoint)?->__invoke();
-            $attemptStarted = hrtime(true);
-            $startedAt = now()->toIso8601String();
-            $waitMs += $this->requestBudget->acquire(
-                host: $host,
-                stage: $stage,
-                crawler: $crawler,
-                deadlineAt: $deadlineAt,
-                checkpoint: $execution?->checkpoint,
-            );
-            ($execution?->checkpoint)?->__invoke();
-
-            try {
-                $response = $this->requestWithOutcome(
-                    lease: $lease,
-                    endpoint: $endpoint,
-                    queryParams: $queryParams,
-                    timeoutSeconds: $this->requestTimeout(settings: $settings, stage: $stage, deadlineAt: $deadlineAt),
-                );
-            } catch (ConnectionException $exception) {
-                $reason = $this->connectionFailureReason($exception)->value;
-                $retry = $attempt < $attempts;
-                $previous = $exception->getPrevious();
-                $transport = $this->transportMetrics($previous instanceof ConnectException ? $previous->getHandlerContext() : []);
-                $this->observeAttempt($crawler, $execution, $requestHash, $queryParams, $lease, $attempt, $attempts, $startedAt, $attemptStarted, null, $reason, $retry, $waitMs, max(0, $settings->retryDelayMs ?? 500), $transport);
-                ($execution?->checkpoint)?->__invoke();
-                if ($attempt === $attempts) {
-                    throw new ConnectionException("Outbound transport failed: {$reason}.");
-                }
-
-                $this->waitBeforeRetry(settings: $settings, stage: $stage, deadlineAt: $deadlineAt, checkpoint: $execution?->checkpoint);
-
-                continue;
-            }
-
-            $empty = $response->status() === 200 && trim($response->body()) === '';
-            $retry = ($this->isRetryableResponse(response: $response) || ($retryEmpty && $empty)) && $attempt < $attempts;
-            $reason = $empty ? 'empty_body' : ($response->successful() ? 'response' : 'http_error');
-            $this->observeAttempt($crawler, $execution, $requestHash, $queryParams, $lease, $attempt, $attempts, $startedAt, $attemptStarted, $response->status(), $reason, $retry, $waitMs, max(0, $settings->retryDelayMs ?? 500), $this->transportMetrics($response->handlerStats()));
-            ($execution?->checkpoint)?->__invoke();
-            if (! $retry) {
-                return ['response' => $response, 'wait_ms' => $waitMs];
-            }
-
-            $response->close();
-            $this->waitBeforeRetry(settings: $settings, stage: $stage, deadlineAt: $deadlineAt, checkpoint: $execution?->checkpoint);
+        $platform = $this->platformForId($platformId ?? $crawler?->registry?->platform_id);
+        $url = $endpoint.($queryParams === [] ? '' : (str_contains($endpoint, '?') ? '&' : '?').http_build_query($queryParams));
+        $deadlineAt ??= microtime(true) + ($stage === CrawlStage::Listing ? 240 : 90);
+        if ($deadlineAt <= microtime(true)) {
+            throw OutboundRequestDeadlineExceeded::forStage($stage->value);
         }
+        $platformCode = $platform->getAttribute('code');
+        if (! is_string($platformCode)) {
+            throw new \LogicException('Platform code is unavailable.');
+        }
+        $response = $this->outbound->request(
+            callerCode: $stage === CrawlStage::Listing ? 'legacy.csv_listing' : 'legacy.card_tab',
+            platformId: $platform->id, providerKey: null, capability: $stage->value,
+            url: new SafeUrl($url),
+            trafficClass: $trafficClass ?? ($stage === CrawlStage::Detail ? TrafficClass::Detail
+                : ($crawler?->mode === CrawlerMode::Archive ? TrafficClass::ArchiveListing : TrafficClass::FreshListing)),
+            routePolicy: $lease, controls: $trafficClass === TrafficClass::Diagnostic ? ['system', 'monitoring'] : ['system', 'acquisition', 'acquisition:platform:'.$platformCode],
+            deadlineSeconds: min(420, max(1, (int) floor($deadlineAt - microtime(true)))),
+            payload: new HttpRequestPayload(['user-agent' => config()->string('outbound.http.user_agent')]),
+            checkpoint: $execution?->checkpoint, sendLimit: $sendLimit, context: $outboundContext,
+        );
 
-        throw new \LogicException('HTTP retry loop ended without a response.');
+        return ['response' => $response, 'wait_ms' => 0];
     }
 
-    private function requestTimeout(StageSettings $settings, CrawlStage $stage, ?float $deadlineAt): int
+    private function deadlineSeconds(?float $deadlineAt, int $default): int
     {
-        $configured = max(1, $settings->timeoutSeconds ?? 30);
-
-        if ($deadlineAt === null) {
-            return $configured;
-        }
-
-        $remaining = (int) floor($deadlineAt - microtime(true) - 5);
-
+        $remaining = $deadlineAt === null ? $default : (int) floor($deadlineAt - microtime(true));
         if ($remaining < 1) {
-            throw OutboundRequestDeadlineExceeded::forStage(stage: $stage->value);
+            throw OutboundRequestDeadlineExceeded::forStage('adapter_validation');
         }
 
-        return min($configured, $remaining);
-    }
-
-    private function waitBeforeRetry(StageSettings $settings, CrawlStage $stage, ?float $deadlineAt, ?\Closure $checkpoint = null): void
-    {
-        $waitMs = max(0, $settings->retryDelayMs ?? 500);
-
-        if ($deadlineAt !== null && microtime(true) + ($waitMs / 1000) >= $deadlineAt - 5) {
-            throw OutboundRequestDeadlineExceeded::forStage(stage: $stage->value);
-        }
-
-        $checkpoint?->__invoke();
-        while ($waitMs > 0) {
-            $slice = $checkpoint === null ? $waitMs : min(1000, $waitMs);
-            Sleep::for($slice)->milliseconds();
-            $waitMs -= $slice;
-            $checkpoint?->__invoke();
-        }
-    }
-
-    /**
-     * @param  array<string, string>  $queryParams
-     * @param  array<string, int|float>  $transport
-     */
-    private function observeAttempt(
-        ?Crawler $crawler,
-        ?ListingExecutionContext $execution,
-        string $requestHash,
-        array $queryParams,
-        ProxyLease $lease,
-        int $attempt,
-        int $attempts,
-        string $startedAt,
-        int $attemptStarted,
-        ?int $status,
-        string $reason,
-        bool $retry,
-        int $waitMs,
-        int $retryDelayMs,
-        array $transport = [],
-    ): void {
-        Log::info('Crawler outbound attempt', [
-            'crawler_id' => $crawler?->id,
-            'run_id' => $execution?->run->id,
-            'request_hash' => $requestHash,
-            'request_scope' => array_intersect_key($queryParams, array_flip(['from', 'to', 'publishDateFrom', 'publishDateTo', 'priceFromGeneral', 'priceToGeneral'])),
-            'attempt' => $attempt,
-            'max_attempts' => $attempts,
-            'proxy_id' => $lease->proxyId,
-            'scope' => $lease->scope->value,
-            'started_at' => $startedAt,
-            'ended_at' => now()->toIso8601String(),
-            'duration_ms' => (int) ((hrtime(true) - $attemptStarted) / 1_000_000),
-            'http_status' => $status,
-            'reason' => $reason,
-            'retry' => $retry,
-            'budget_wait_total_ms' => $waitMs,
-            'planned_retry_sleep_ms' => $retry ? $retryDelayMs : 0,
-            'transport' => $transport,
-        ]);
-    }
-
-    /**
-     * Only numeric transfer diagnostics; handler context also contains URLs,
-     * credentials and certificate information which must never reach the logs.
-     *
-     * @param  array<array-key, mixed>  $context
-     * @return array<string, int|float>
-     */
-    private function transportMetrics(array $context): array
-    {
-        $metrics = [];
-        foreach (['errno', 'http_code', 'http_connectcode', 'http_version', 'ssl_verify_result',
-            'namelookup_time', 'connect_time', 'appconnect_time', 'pretransfer_time',
-            'starttransfer_time', 'total_time', 'size_download', 'size_upload', 'redirect_count'] as $key) {
-            $value = $context[$key] ?? null;
-            if (is_int($value) || (is_float($value) && is_finite($value))) {
-                $metrics[$key] = $value;
-            }
-        }
-
-        return $metrics;
-    }
-
-    private function isRetryableResponse(Response $response): bool
-    {
-        return $response->status() === 429 || $response->status() >= 500;
-    }
-
-    private function outcomeFrom(Response $response, int $latencyMs): ProxyOutcome
-    {
-        return match (true) {
-            $response->status() === 403 => ProxyOutcome::failure(ProxyFailureReason::Http403),
-            $response->status() === 429 => ProxyOutcome::failure(ProxyFailureReason::Http429),
-            $response->status() === 407 => ProxyOutcome::failure(ProxyFailureReason::ProxyAuthFailed),
-            $response->status() === 200 && trim($response->body()) === '' => ProxyOutcome::failure(ProxyFailureReason::EmptyBody),
-            default => ProxyOutcome::success(latencyMs: $latencyMs),
-        };
-    }
-
-    private function connectionFailureReason(ConnectionException $exception): ProxyFailureReason
-    {
-        $message = $exception->getMessage();
-
-        return match (true) {
-            str_contains($message, 'SSL') => ProxyFailureReason::TlsError,
-            str_contains($message, 'timed out') || str_contains($message, 'Timeout') => ProxyFailureReason::NetworkTimeout,
-            default => ProxyFailureReason::ConnectFailed,
-        };
-    }
-
-    private function canonicalHost(string $url): string
-    {
-        $host = parse_url($url, PHP_URL_HOST);
-
-        return strtolower(is_string($host) ? $host : '');
+        return min(420, $remaining);
     }
 
     /**
@@ -720,6 +600,16 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
         }
 
         return $value;
+    }
+
+    private function platformCode(Platform $platform): string
+    {
+        $code = $platform->getAttribute('code');
+        if (! is_string($code) || $code === '') {
+            throw new \LogicException('Platform code is unavailable.');
+        }
+
+        return $code;
     }
 
     private function platformForId(mixed $platformId): Platform

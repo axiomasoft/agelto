@@ -6,6 +6,7 @@ use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;
+use App\Models\Procurement\Crawler\RawArtifact;
 use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CsvBlockIngestor;
@@ -41,12 +42,13 @@ test('distinct CSV request windows retain their own immutable bytes', function (
         batch: immutableArtifactBatch(body: 'day two', from: '1', priceFrom: '200'),
     );
 
-    $fetches = Fetch::query()->where('crawler_run_id', $run->id)->orderBy('id')->get();
-
-    expect($fetches)->toHaveCount(2)
-        ->and($fetches[0]->artifact_ref)->not->toBe($fetches[1]->artifact_ref)
-        ->and(Storage::disk('s3')->get($fetches[0]->artifact_ref))->toBe('day one')
-        ->and(Storage::disk('s3')->get($fetches[1]->artifact_ref))->toBe('day two');
+    $paths = RawArtifact::query()->where('path', 'like', "raw/csv/{$crawler->id}/{$run->id}/%")
+        ->pluck('path')->all();
+    $contents = array_map(fn ($path) => Storage::disk('s3')->get($path), $paths);
+    sort($contents);
+    expect($paths)->toHaveCount(2)->and(array_unique($paths))->toHaveCount(2)
+        ->and($contents)->toBe(['day one', 'day two'])
+        ->and(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0);
 });
 
 test('identical CSV replay reuses its immutable object reference', function () {
@@ -59,7 +61,7 @@ test('identical CSV replay reuses its immutable object reference', function () {
     app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
     app(CsvBlockIngestor::class)->ingest(crawler: $crawler, run: $run, batch: $batch);
 
-    expect(Fetch::query()->where('crawler_run_id', $run->id)->pluck('artifact_ref')->unique()->values()->all())
+    expect(RawArtifact::query()->where('path', 'like', "raw/csv/{$crawler->id}/{$run->id}/%")->pluck('path')->all())
         ->toHaveCount(1);
 });
 

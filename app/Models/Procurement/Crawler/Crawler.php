@@ -10,7 +10,7 @@ use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
+use App\Models\Procurement\Network\NetworkRouteProfile;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CrawlerFilterFactory;
 use Database\Factories\Procurement\Crawler\CrawlerFactory;
@@ -22,7 +22,6 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -43,8 +42,7 @@ use Spatie\LaravelData\Data;
  * @property string|null $schedule
  * @property CrawlerRuntimeOptions|null $options
  * @property bool $is_active
- * @property CrawlerProxyMode $proxy_mode
- * @property string|null $proxy_country
+ * @property string|null $route_profile_id
  * @property Carbon $created_at
  * @property Carbon $updated_at
  */
@@ -61,8 +59,7 @@ use Spatie\LaravelData\Data;
     'schedule',
     'options',
     'is_active',
-    'proxy_mode',
-    'proxy_country',
+    'route_profile_id',
 ])]
 #[Table(name: 'prc_crawlers')]
 final class Crawler extends Model
@@ -79,7 +76,6 @@ final class Crawler extends Model
             'source_method' => SourceMethod::class,
             'fallback_method' => SourceMethod::class,
             'is_active' => 'boolean',
-            'proxy_mode' => CrawlerProxyMode::class,
         ];
     }
 
@@ -96,7 +92,6 @@ final class Crawler extends Model
 
             $crawler->assertScope(filter: $filter);
             $crawler->assertStopPolicy();
-            $crawler->assertProxyBinding();
         });
     }
 
@@ -129,20 +124,6 @@ final class Crawler extends Model
      * Прокси включается только вместе с явным набором: иначе пустая настройка превратится в
      * неограниченный выбор любого доступного узла и обойдёт политику профиля (D38).
      */
-    private function assertProxyBinding(): void
-    {
-        if ($this->proxy_mode !== CrawlerProxyMode::Profile) {
-            return;
-        }
-
-        if ($this->exists && $this->proxies()->exists()) {
-            return;
-        }
-
-        throw ValidationException::withMessages([
-            'proxies' => 'Для включения прокси привяжите к профилю хотя бы один узел.',
-        ]);
-    }
 
     /**
      * Второй гейт записи (D18): фильтр, объявивший себя `RequiresScope`, обязан нести непустой
@@ -218,9 +199,10 @@ final class Crawler extends Model
     }
 
     /** @return BelongsToMany<Proxy, $this> */
-    public function proxies(): BelongsToMany
+    /** @return BelongsTo<NetworkRouteProfile, $this> */
+    public function routeProfile(): BelongsTo
     {
-        return $this->belongsToMany(related: Proxy::class, table: 'prc_crawler_proxy');
+        return $this->belongsTo(NetworkRouteProfile::class, 'route_profile_id');
     }
 
     /**

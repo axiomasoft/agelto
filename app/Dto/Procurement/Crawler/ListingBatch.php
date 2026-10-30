@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Crawler;
 
+use App\Dto\Procurement\Network\AdapterValidationReceipt;
 use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use Illuminate\Support\Carbon;
 
@@ -43,5 +44,14 @@ final readonly class ListingBatch
          */
         public bool $emptyBody = false,
         public ?Carbon $observedAt = null,
+        public ?ListingMapping $mapping = null,
+        public ?AdapterValidationReceipt $validation = null,
     ) {}
+
+    public function withValidation(?AdapterValidationReceipt $receipt): self
+    {
+        return new self($this->rows, $this->rawBody, $this->dedupSignature, $this->rowsTotal, $this->httpStatus,
+            $this->durationMs, $this->requestParams, $this->proxyId, $this->proxySource, $this->waitMs,
+            $this->rowsMalformed, $this->header, $this->emptyBody, $this->observedAt, $this->mapping, $receipt);
+    }
 }

@@ -6,9 +6,11 @@ namespace App\Services\Procurement\Network;
 
 use App\Dto\Procurement\Network\NetworkOwnerState;
 use App\Dto\Procurement\Network\OutboundOperationHandle;
+use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Process\AuthoritySnapshot;
 use App\Dto\Procurement\Process\ExecutionLease;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Network\DemandPurpose;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Process\PrefixFailure;
@@ -73,7 +75,7 @@ final readonly class NetworkOwnerFence
              WHERE oc.operation_id = ? ORDER BY c.scope_key COLLATE "C" FOR SHARE OF c', [$owner->id->value],
         );
         $operation = LedgerRow::one(
-            'SELECT kind, platform_id, generation, owner_token, state, probe_token, deadline_at::text AS deadline_at,
+            'SELECT kind, platform_id, provider_key, adapter_health_id, adapter_health_epoch, generation, owner_token, state, probe_token, deadline_at::text AS deadline_at,
                     lease_until > clock_timestamp() AND deadline_at > clock_timestamp() AS live
              FROM prc_outbound_operations WHERE id = ? FOR UPDATE', [$owner->id->value],
         );
@@ -93,6 +95,8 @@ final readonly class NetworkOwnerFence
             default => DemandPurpose::Ordinary,
         };
 
-        return new NetworkOwnerState($purpose, $operation->nullableString('probe_token'), new \DateTimeImmutable($operation->string('deadline_at')), platformId: $operation->nullableInt('platform_id'));
+        return new NetworkOwnerState($purpose, $operation->nullableString('probe_token'), new \DateTimeImmutable($operation->string('deadline_at')), platformId: $operation->nullableInt('platform_id'), providerKey: $operation->nullableString('provider_key') === null ? null : new ProviderKey($operation->string('provider_key')),
+            operationId: $owner->id, adapterHealthId: ($adapterId = $operation->nullableString('adapter_health_id')) === null ? null : new ProcessUuid($adapterId),
+            adapterHealthEpoch: $operation->nullableInt('adapter_health_epoch'));
     }
 }

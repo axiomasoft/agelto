@@ -6,6 +6,7 @@ namespace App\Services\Llm\Providers;
 
 use App\Enums\Llm\FinishReason;
 use App\Services\Llm\Contracts\LlmProvider;
+use App\Services\Llm\Contracts\OutboundEndpoints;
 use App\Services\Llm\Contracts\OutboundProxy;
 use App\Services\Llm\Contracts\SupportsContextCaching;
 use App\Services\Llm\Contracts\SupportsFileUpload;
@@ -30,6 +31,7 @@ use Prism\Prism\Enums\Provider as PrismProvider;
 use Prism\Prism\Exceptions\PrismException;
 use Prism\Prism\Facades\Prism;
 use Prism\Prism\Providers\Gemini\Gemini;
+use Prism\Prism\Providers\Gemini\Handlers\Cache;
 use Prism\Prism\Schema\RawSchema;
 use Prism\Prism\Structured\PendingRequest as StructuredPendingRequest;
 use Prism\Prism\Text\PendingRequest as TextPendingRequest;
@@ -58,7 +60,7 @@ use Prism\Prism\ValueObjects\Messages\UserMessage as PrismUserMessage;
  * Чтение из `usageMetadata` напрямую и ручное вычитание кэш-токенов даёт одинаковую
  * семантику `LlmUsage` (`promptTokens` НЕ включает `cachedTokens`) для обоих путей.
  */
-final readonly class PrismGeminiProvider implements LlmProvider, SupportsContextCaching, SupportsFileUpload
+final readonly class PrismGeminiProvider implements LlmProvider, OutboundEndpoints, SupportsContextCaching, SupportsFileUpload
 {
     // Литерал из `vendor/prism-php/prism/src/Providers/Gemini/Handlers/Structured.php:180-185` —
     // единственный признак, отличающий вендорское MAX_TOKENS-исключение от любого другого
@@ -66,6 +68,11 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
     private const string MAX_TOKENS_SIGNATURE = 'Gemini hit token limit with high thinking token usage.';
 
     public function __construct(private OutboundProxy $outboundProxy) {}
+
+    public function outboundOrigins(?string $baseUrl): array
+    {
+        return [config()->string('ai.gemini.files.base_url'), config()->string('prism.providers.gemini.url')];
+    }
 
     public function complete(LlmPrompt $prompt, LlmOptions $options): LlmResponse
     {
@@ -156,12 +163,13 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
 
     public function createCache(CacheableContent $content, LlmCacheOptions $options): LlmCacheHandle
     {
-        $cached = $this->geminiProvider()->cache(
-            model: $options->model,
+        // Reuse the installed SDK's codec with our canonical transport. Gemini::cache() constructs
+        // a private SDK client without client options, so it cannot own this physical send.
+        $cached = (new Cache(
+            client: $this->geminiClient(), model: $options->model,
             messages: $this->fileMessages($this->fileRefs($content->fileRefs)),
-            systemPrompts: [new PrismSystemMessage($content->systemPart)],
-            ttl: (int) $options->ttl->totalSeconds,
-        );
+            systemPrompts: [new PrismSystemMessage($content->systemPart)], ttl: (int) $options->ttl->totalSeconds,
+        ))->handle();
 
         return new LlmCacheHandle(id: $cached->name, expiresAt: CarbonImmutable::instance($cached->expiresAt));
     }
@@ -245,7 +253,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
                 $this->intConfig('ai.gemini.request_timeout_seconds', 90),
                 $options->requestTimeoutSeconds ?? PHP_INT_MAX,
             ),
-            ...$this->outboundProxy->optionsFor($this->host()),
+            ...$this->outboundProxy->optionsFor($this->host(), $options->provider),
         ];
     }
 
@@ -325,17 +333,6 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
         return implode("\n\n", $parts);
     }
 
-    private function geminiProvider(): Gemini
-    {
-        $provider = Prism::provider(PrismProvider::Gemini);
-
-        if (! $provider instanceof Gemini) {
-            throw new \LogicException('Prism Gemini provider должен быть экземпляром Gemini.');
-        }
-
-        return $provider;
-    }
-
     /**
      * @param  array<string, mixed>  $raw  Сырой ответ Gemini (`candidates`/`usageMetadata`)
      */
@@ -378,22 +375,7 @@ final readonly class PrismGeminiProvider implements LlmProvider, SupportsContext
      */
     private function withRateLimit(callable $callback, ?int $deadlineSeconds = null): mixed
     {
-        $max = $this->intConfig('ai.gemini.rate_limit.max', 0);
-
-        if ($max <= 0 || app()->runningUnitTests()) {
-            return $callback();
-        }
-
-        return Redis::throttle('gemini:generate')
-            ->allow($max)
-            ->every($this->intConfig('ai.gemini.rate_limit.every_seconds', 60))
-            ->block(min($this->intConfig('ai.gemini.rate_limit.block_seconds', 30), $deadlineSeconds ?? PHP_INT_MAX))
-            ->then(
-                $callback,
-                static function (): never {
-                    throw new \RuntimeException('Gemini rate limit: слот не получен за отведённое время.');
-                },
-            );
+        return $callback();
     }
 
     private function startResumableUpload(string $path, string $mimeType, int $size, ?float $deadlineAt): string

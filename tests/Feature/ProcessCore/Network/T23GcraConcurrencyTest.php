@@ -25,7 +25,9 @@ function permitWorker(string $operation, string $ticket, string $url, bool $alre
         .'$context = \Tests\Support\ProcessCore\Http\PermitFixtures::importContext('.var_export($operation, true).');'
         .'$ticket = \Tests\Support\ProcessCore\Http\PermitFixtures::importTicket('.var_export($ticket, true).', '.var_export($url, true).');'
         .'$repo = app(\App\Repositories\Procurement\Network\NetworkPermitRepository::class);'
-        .'do { $context->tick(); $permit = $repo->reserve($ticket, $context); if ($permit instanceof \App\Dto\Procurement\Network\NetworkPermitWait) usleep(10000); } while ($permit instanceof \App\Dto\Procurement\Network\NetworkPermitWait);'
+        .($alreadyReserved
+            ? '$permit = \\Tests\\Support\\ProcessCore\\Http\\PermitFixtures::importPermit($ticket);'
+            : 'do { $context->tick(); $permit = $repo->reserve($ticket, $context); if ($permit instanceof \App\Dto\Procurement\Network\NetworkPermitWait) usleep(10000); } while ($permit instanceof \App\Dto\Procurement\Network\NetworkPermitWait);')
         .'if (! $permit instanceof \App\Dto\Procurement\Network\ScheduledNetworkPermit) throw new \LogicException("Not granted: ".get_debug_type($permit));'
         .'do { $context->tick(); $claim = $repo->claimSend($permit, $context); if ($claim instanceof \App\Dto\Procurement\Network\NetworkPermitWait) usleep(10000); } while ($claim instanceof \App\Dto\Procurement\Network\NetworkPermitWait);'
         .'$sent = $claim instanceof \App\Dto\Procurement\Network\NetworkSendClaim && $claim->claimed;'
@@ -68,6 +70,7 @@ test('concurrent duplicate claimSend даёт один actual HTTP и один d
     $permit = $f->reserve($c);
     $code = permitWorker($c->lease()->id->value, $permit->ticket->id->value, $f->url->reveal(), true);
     $results = ConcurrentTransactions::concurrently(['a' => $code, 'b' => $code]);
-    expect(array_filter(array_column($results, 'sent')))->toHaveCount(1)
+    expect(array_unique(array_column($results, 'pid')))->toHaveCount(2)
+        ->and(array_filter(array_column($results, 'sent')))->toHaveCount(1)
         ->and($this->wire->receipts())->toHaveCount(1)->and(DB::table('prc_request_attempts')->count())->toBe(1);
 });

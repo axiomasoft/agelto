@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement;
 
+use App\Dto\Procurement\Details\ParsedProcurementDetails;
+use App\Dto\Procurement\Network\AdapterValidationReceipt;
+
 /**
  * Детальная карточка закупки (вкладки `common-info`/`documents`/`event-journal`/`supplier-results`,
  * `02-crawling.md` §5) — сырой HTML вкладок, снятый `SourceMethod::collectDetails()`. Парсинг
@@ -18,5 +21,13 @@ final readonly class ProcurementDetails
         public ?string $documentsHtml = null,
         public ?string $eventJournalHtml = null,
         public ?string $supplierResultsHtml = null,
+        public ?ParsedProcurementDetails $parsed = null,
+        public ?AdapterValidationReceipt $validation = null,
     ) {}
+
+    public function withValidation(?AdapterValidationReceipt $receipt): self
+    {
+        return new self($this->registryNumber, $this->procedureUrlType, $this->commonInfoHtml, $this->documentsHtml,
+            $this->eventJournalHtml, $this->supplierResultsHtml, $this->parsed, $receipt);
+    }
 }

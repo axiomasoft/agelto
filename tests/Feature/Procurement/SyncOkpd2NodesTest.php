@@ -11,6 +11,7 @@ use App\Models\Procurement\Platform\Registry;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * P2.5 — команда `crawler:okpd2-sync`: пересборка карты «код ОКПД2 → id НСИ» и детект дрейфа.
@@ -60,6 +61,8 @@ function fakeOkpd2Children(): void
         return Http::response($fixture['responses'][$parentId] ?? []);
     });
 }
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('обход собирает узлы поддерева и пишет их в карту с synced_at', function () {
     Sleep::fake();

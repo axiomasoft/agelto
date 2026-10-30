@@ -49,7 +49,7 @@ return new class extends Migration
             <<<'SQL'
             CREATE TABLE prc_control_scopes (
               id uuid PRIMARY KEY,
-              scope_kind text NOT NULL CHECK (scope_kind IN ('system','acquisition','documents','platform','cohort','stage')),
+              scope_kind text NOT NULL CHECK (scope_kind IN ('system','acquisition','documents','platform','provider','cohort','stage')),
               scope_key text NOT NULL,
               parent_id uuid NULL REFERENCES prc_control_scopes(id),
               desired_mode text NOT NULL DEFAULT 'enabled' CHECK (desired_mode IN ('enabled','paused')),

@@ -26,7 +26,7 @@ use App\Services\Procurement\Network\ProbeScheduler;
  */
 final readonly class NetworkAuthorityRepository
 {
-    public function __construct(private OutboundPolicy $policy) {}
+    public function __construct(private OutboundPolicy $policy, private AdapterHealthRepository $adapters) {}
 
     public function lock(OutboundRequestPlan $plan, NetworkRouteSelection $selection, NetworkOwnerState $owner): LockedNetwork|TransportBlocked
     {
@@ -57,7 +57,7 @@ final readonly class NetworkAuthorityRepository
             }
             $health[$table] = $row;
         }
-        $target = LedgerRow::one('SELECT platform_id, canonical_origin, retired_at::text AS retired_at, policy_version, endpoint_policy::text AS endpoint_policy,
+        $target = LedgerRow::one('SELECT platform_id, provider_key, capability, canonical_origin, retired_at::text AS retired_at, policy_version, endpoint_policy::text AS endpoint_policy,
             endpoint_policy_schema_version FROM prc_source_targets WHERE id = ? FOR UPDATE', [$plan->targetId->value]);
         if ($target === null) {
             return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
@@ -65,7 +65,9 @@ final readonly class NetworkAuthorityRepository
         if ($target->nullableString('retired_at') !== null) {
             return new TransportBlocked(NetworkBlockedReason::TargetRetired);
         }
-        if (($owner->platformId !== null && $owner->platformId !== $target->int('platform_id'))
+        if (($target->nullableString('provider_key') !== null && ($owner->providerKey?->value !== $target->string('provider_key') || $owner->platformId !== null))
+            || ($owner->providerKey !== null && $target->nullableString('provider_key') !== $owner->providerKey->value)
+            || ($owner->platformId !== null && $owner->platformId !== $target->nullableInt('platform_id'))
             || $target->string('canonical_origin') !== $plan->url->origin->value() || ! self::profileMatches($target, $plan->profile)) {
             return new TransportBlocked(NetworkBlockedReason::PolicyReview);
         }
@@ -89,6 +91,17 @@ final readonly class NetworkAuthorityRepository
                     ? NetworkBlockedReason::CredentialHold : NetworkBlockedReason::ConfigurationHold);
             }
             $ownedProbes[] = $table.':'.$row->string('id');
+        }
+        $adapter = $this->adapters->lockForSend($target, $plan, $owner);
+        if ($adapter instanceof TransportBlocked) {
+            return $adapter;
+        }
+        if ($adapter !== null) {
+            $key = 'prc_adapter_health:'.$adapter->string('id');
+            $epochs[$key] = $adapter->int('health_epoch');
+            if ($plan->adapterClaim?->canary === true) {
+                $ownedProbes[] = $key;
+            }
         }
         // A probe owner cannot use a foreign token or an empty probe scope set.
         if ($owner->purpose === DemandPurpose::Probe && $ownedProbes === []) {
@@ -129,12 +142,15 @@ final readonly class NetworkAuthorityRepository
     {
         return hash('sha256', json_encode([$plan->physicalRequestId->value, $plan->targetId->value, $plan->method,
             hash('sha256', $plan->url->reveal()), $plan->profile->toArray(), $plan->trafficClass->value,
-            $plan->idempotency->value, $plan->bodyHash?->hex], JSON_THROW_ON_ERROR));
+            $plan->idempotency->value, $plan->bodyHash?->hex,
+            ...($plan->sendLimit === null ? [] : ['send_limit' => $plan->sendLimit]),
+            ...($plan->adapterClaim === null ? [] : ['adapter' => [$plan->adapterClaim->contract->toArray(),
+                $plan->adapterClaim->healthId->value, $plan->adapterClaim->epoch, $plan->adapterClaim->operationId->value, $plan->adapterClaim->canary]])], JSON_THROW_ON_ERROR));
     }
 
     public static function profileMatches(LedgerRow $target, RequestProfile $profile): bool
     {
-        if ($target->int('endpoint_policy_schema_version') !== 1) {
+        if (! in_array($target->int('endpoint_policy_schema_version'), [1, 2], true)) {
             return false;
         }
         $policy = json_decode($target->string('endpoint_policy'), true, flags: JSON_THROW_ON_ERROR);

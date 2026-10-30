@@ -15,11 +15,12 @@ use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
-use App\Services\Procurement\Health\Contracts\HealthCheck;
+use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Client\ConnectionException;
@@ -31,7 +32,7 @@ use LogicException;
  * или budget-цепочки. Невозможность выполнить запрос (бюджет, прокси, сеть) не доказывает
  * поломку ЕИС, поэтому возвращается `not_enough_data`, а не `broken`.
  */
-final readonly class ListingFilterCheck implements HealthCheck
+final readonly class ListingFilterCheck implements DiagnosticCheck
 {
     private const string REGISTRY_NUMBER_COLUMN = 'Реестровый номер закупки';
 
@@ -91,10 +92,10 @@ final readonly class ListingFilterCheck implements HealthCheck
                 ),
             );
             $requestsUsed++;
-        } catch (PlatformBudgetExhaustedException|NoProxyAvailableException $exception) {
+        } catch (OutboundUnavailable|PlatformBudgetExhaustedException|NoProxyAvailableException $exception) {
             return $this->notEnoughData(
                 message: "Проба фильтра ОКПД2 не выполнилась: {$exception->getMessage()}",
-                requestsUsed: $requestsUsed,
+                requestsUsed: $requestsUsed + ($exception instanceof OutboundUnavailable && $exception->outcome->lastRequestId !== null ? 1 : 0),
                 measured: $this->measured(crawler: $crawler, windowFrom: $windowFrom, windowTo: $windowTo),
             );
         } catch (ConnectionException|InvalidListingResponse $exception) {

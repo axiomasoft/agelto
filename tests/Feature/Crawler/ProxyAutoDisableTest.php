@@ -2,78 +2,77 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Proxy\ProxyOutcome;
-use App\Enums\Procurement\Proxy\ProxyFailureReason;
-use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Dto\Procurement\Network\RetryRoutePreference;
+use App\Dto\Procurement\Network\TransportDeferred;
+use App\Enums\Procurement\Network\TransportFailure;
+use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Crawler\Proxy;
-use App\Repositories\Procurement\Proxy\ProxyHealthStoreRepository;
-use App\Services\Procurement\Proxy\CrawlerProxySettingsResolver;
-use App\Services\Procurement\Proxy\ProxyCircuitBreaker;
+use App\Models\User;
+use App\Services\Procurement\Network\NetworkRouteCommands;
 use App\Services\Procurement\Proxy\ProxyResolver;
-use App\Services\Procurement\Proxy\ProxyScoreCalculator;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Services\Procurement\Proxy\RoutePolicy;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\Proxy\HealthFixtures as F;
 
-uses(RefreshDatabase::class);
-
-function autoDisableResolver(): ProxyResolver
-{
-    return new ProxyResolver(
-        scoreCalculator: new ProxyScoreCalculator,
-        breaker: new ProxyCircuitBreaker,
-        health: new ProxyHealthStoreRepository,
-        crawlerSettings: app(CrawlerProxySettingsResolver::class),
-        randomSource: fn (): float => 0.0,
-    );
-}
+beforeEach(function (): void {
+    PermitFixtures::clean();
+    $this->wire = new WireFixture;
+    $this->f = new F($this->wire);
+});
+afterEach(function (): void {
+    $this->wire->stop();
+    PermitFixtures::clean();
+});
 
 test('глобальные открытия breaker отключают прокси и убирают его из выдачи', function (): void {
-    config(['crawler.proxy.breaker.threshold.global' => 1, 'crawler.proxy.breaker.disable_after_openings' => 3]);
-    $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create(['open_count' => 2]);
-    $resolver = autoDisableResolver();
-
-    $lease = $resolver->resolve(scope: ProxyScope::CrawlListing, target: 'zakupki.gov.ru');
-    $resolver->reportOutcome($lease, ProxyOutcome::failure(ProxyFailureReason::NetworkTimeout));
-
-    expect($proxy->refresh()->is_active)->toBeFalse()
-        ->and($proxy->disabled_at)->not->toBeNull()
-        ->and($proxy->disabled_reason)->toBe(ProxyFailureReason::NetworkTimeout->value);
+    $proxy = $this->f->proxy();
+    for ($i = 0; $i < 5; $i++) {
+        $this->f->outcome(F::failure(TransportFailure::ProxyConnect), $proxy);
+    }
+    $choice = app(ProxyResolver::class)->outboundRoutes(new RoutePolicy([$proxy], $this->f->profile))
+        ->select($this->f->permits->plan(), new RetryRoutePreference([], null, false, 2));
+    expect($choice)->toBeInstanceOf(TransportDeferred::class)
+        ->and(DB::table('prc_route_health')->where('route_id', $proxy->id->value)->value('state'))->toBe('open')
+        // Health denial no longer mutates an operator's independent administrative choice.
+        ->and(DB::table('prc_network_routes')->where('id', $proxy->id->value)->value('enabled'))->toBeTrue();
 });
 
 test('ручное включение сбрасывает состояние отключения', function (): void {
-    $proxy = Proxy::factory()->create([
-        'is_active' => false,
-        'fails_count' => 2,
-        'open_count' => 3,
-        'open_until' => now()->addHour(),
-        'disabled_at' => now(),
-        'disabled_reason' => ProxyFailureReason::NetworkTimeout->value,
-    ]);
-
-    app(ProxyHealthStoreRepository::class)->reactivate($proxy);
-
-    expect($proxy->refresh()->only(['is_active', 'fails_count', 'open_count', 'open_until', 'disabled_at', 'disabled_reason']))
-        ->toBe(['is_active' => true, 'fails_count' => 0, 'open_count' => 0, 'open_until' => null, 'disabled_at' => null, 'disabled_reason' => null]);
+    Artisan::call('guard:sync-roles');
+    $actor = User::factory()->create();
+    $actor->assignRole(OperatorRole::class);
+    try {
+        $route = $this->f->proxy();
+        $proxy = Proxy::factory()->create(['route_id' => $route->id->value]);
+        DB::table('prc_network_routes')->where('id', $route->id->value)->update(['enabled' => false, 'disabled_at' => now(), 'disabled_reason' => 'fixture']);
+        $before = DB::table('prc_route_health')->where('route_id', $route->id->value)->sole();
+        app(NetworkRouteCommands::class)->reactivate($actor, $proxy, 'Проверена конфигурация');
+        $changed = DB::table('prc_network_routes')->where('id', $route->id->value)->sole();
+        expect($changed->enabled)->toBeTrue()->and($changed->disabled_at)->toBeNull()->and($changed->disabled_reason)->toBeNull()
+            ->and((array) DB::table('prc_route_health')->where('route_id', $route->id->value)->sole())->toBe((array) $before)
+            ->and(DB::table('prc_process_transitions')->where('actor_id', $actor->id)->count())->toBe(1);
+    } finally {
+        $actor->delete();
+    }
 });
 
 test('пер-хостовое открытие breaker не отключает узел глобально', function (): void {
-    config(['crawler.proxy.breaker.threshold.target' => 1]);
-    $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
-    $resolver = autoDisableResolver();
-    $lease = $resolver->resolve(scope: ProxyScope::CrawlListing, target: 'zakupki.gov.ru');
-
-    $resolver->reportOutcome($lease, ProxyOutcome::failure(ProxyFailureReason::Http403));
-
-    expect($proxy->refresh()->is_active)->toBeTrue()
-        ->and($proxy->disabled_at)->toBeNull();
+    $proxy = $this->f->proxy();
+    for ($i = 0; $i < 5; $i++) {
+        $this->f->outcome(F::failure(TransportFailure::Timeout), $proxy);
+    }
+    expect(DB::table('prc_route_target_health')->where('route_id', $proxy->id->value)->value('state'))->toBe('open')
+        ->and(DB::table('prc_route_health')->where('route_id', $proxy->id->value)->value('state'))->toBe('closed')
+        ->and(DB::table('prc_network_routes')->where('id', $proxy->id->value)->value('enabled'))->toBeTrue();
 });
 
 test('успех до порога обнуляет серию глобальных открытий', function (): void {
-    $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create(['fails_count' => 2, 'open_count' => 2]);
-    $resolver = autoDisableResolver();
-    $lease = $resolver->resolve(scope: ProxyScope::CrawlListing, target: 'zakupki.gov.ru');
-
-    $resolver->reportOutcome($lease, ProxyOutcome::success());
-
-    expect($proxy->refresh()->only(['fails_count', 'open_count', 'disabled_at']))
-        ->toBe(['fails_count' => 0, 'open_count' => 0, 'disabled_at' => null]);
+    $proxy = $this->f->proxy();
+    $this->f->outcome(F::failure(TransportFailure::ProxyConnect), $proxy);
+    $this->f->outcome(F::success(), $proxy);
+    expect(DB::table('prc_route_health')->where('route_id', $proxy->id->value)->value('consecutive_failures'))->toBe(0)
+        ->and(DB::table('prc_route_health')->where('route_id', $proxy->id->value)->value('state'))->toBe('closed');
 });

@@ -4,13 +4,24 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Modes;
 
+use App\Dto\Procurement\Crawler\SourceEvent;
 use App\Dto\Procurement\Crawler\SourceFailure;
+use App\Dto\Procurement\Details\ParsedProcurementDetails;
 use App\Dto\Procurement\Health\HealthBaseline;
 use App\Dto\Procurement\ProcurementDetails;
+use App\Enums\Procurement\Crawler\CrawlerEventCode;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Crawler\SourceStage;
+use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
+use App\Exceptions\Procurement\Health\HealthBaselineUnavailableException;
+use App\Exceptions\Procurement\Network\AdapterInputRejected;
+use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
+use App\Exceptions\Procurement\Process\DependencyUnavailable;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\Detail\CommonInfoProcessor;
@@ -20,13 +31,17 @@ use App\Services\Procurement\DocumentIndexer;
 use App\Services\Procurement\Health\CardAnchorProbe;
 use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Health\HealthBaselineReader;
+use App\Services\Procurement\Network\AcquisitionEligibility;
+use App\Services\Procurement\Network\AdapterHealthPolicy;
+use App\Services\Procurement\Network\LegacyResponseAssessment;
 use App\Services\Procurement\OperationLogWriter;
 use App\Services\Procurement\PlatformAdapterRegistry;
-use App\Services\Procurement\SourceControl\SourceCircuitBreaker;
-use App\Services\Procurement\SourceControl\SourceFailureClassifier;
-use App\Services\Procurement\SourceControl\SourceFailureReporter;
+use App\Services\Procurement\Process\DatabaseFailureClassifier;
+use App\Services\Procurement\SourceControl\SourceEventReporter;
 use App\Services\Procurement\SourceMethodFactory;
 use App\Support\SecretRedactor;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use Throwable;
@@ -54,14 +69,21 @@ final readonly class DetailAnalysisProcessor
         private ProcurementStoreRepository $procurementStore,
         private OperationLogWriter $operationLogs,
         private CardLayoutPreflight $cardPreflight,
-        private SourceCircuitBreaker $breaker,
-        private SourceFailureClassifier $classifier,
-        private SourceFailureReporter $failures,
+        private AcquisitionEligibility $eligibility,
+        private LegacyResponseAssessment $classifier,
+        private SourceEventReporter $events,
     ) {}
 
     public function run(Procurement $procurement, ?float $deadlineAt = null): bool
     {
         if (! config('crawler.downstream_enabled', true)) {
+            return false;
+        }
+
+        $input = $procurement->detail_parse_outcome['input_validation'] ?? null;
+        $inputRetryAt = $procurement->getAttribute('detail_next_retry_at');
+        if ($input !== null && ($procurement->detail_failed
+            || ($inputRetryAt instanceof CarbonInterface && $inputRetryAt->isFuture()))) {
             return false;
         }
 
@@ -77,11 +99,11 @@ final readonly class DetailAnalysisProcessor
 
             $sourceMethod = $this->adapters->detailMethod(registry: $registry);
 
-            // Брейкер этапа карточек (независим от листинга). Этап ждёт или на ручной паузе —
-            // карточку не трогаем вовсе: попытка не тратится, закупка остаётся в очереди.
+            // Canonical detail eligibility is independent of listing. During cooldown/hold
+            // no input attempt is consumed and the procurement remains queued.
             $platformId = $registry->platform_id;
 
-            if (! $this->breaker->admits($platformId, SourceStage::Detail)) {
+            if (in_array($platformId, $this->eligibility->excludedPlatforms(StageCode::Detail), true)) {
                 return false;
             }
 
@@ -98,14 +120,15 @@ final readonly class DetailAnalysisProcessor
                         deadlineAt: $deadlineAt,
                     )
                     : $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
+            } catch (OutboundUnavailable|AdapterInputRejected|HealthBaselineUnavailableException $exception) {
+                throw $exception;
             } catch (PlatformBudgetExhaustedException $exception) {
                 throw $exception;
             } catch (Throwable $exception) {
-                // Вид отказа решает классификатор: сеть/прокси/чужая страница (уже после штатных
-                // ретраев и ротации прокси) считаются брейкером, ошибка нашего кода — нет.
-                // Карточка в любом случае уходит в штатный повтор с backoff (`markFailed`).
+                // Typed network dependencies bypass this branch. Surviving logical source
+                // exceptions retain public diagnostics and existing business retry behavior.
                 $kind = $this->classifier->classifyCardException($exception);
-                $this->failures->report(new SourceFailure(
+                $this->reportFailure(new SourceFailure(
                     platformId: $platformId,
                     stage: SourceStage::Detail,
                     kind: $kind,
@@ -119,133 +142,31 @@ final readonly class DetailAnalysisProcessor
                 throw $exception;
             }
 
-            // Проверка вёрстки ДО разбора: нет базовых селекторов — страница не обрабатывается
-            // целиком (ни одна вкладка), чтобы не записать «пустые» данные с чужой вёрстки.
-            // Попытка карточки не тратится: это проблема площадки, а не закупки; карточка
-            // остаётся в очереди, а серия таких отказов уводит этап в ожидание.
-            $baseline = $this->healthBaselineReader->read(registry: $registry);
-            $parser = $this->adapters->detailParser(registry: $registry);
-            $missing = $this->cardPreflight->missingBaseSelectors(details: $details, baseline: $baseline);
-
-            if ($missing !== []) {
-                $summary = implode('; ', array_map(
-                    static fn (string $tab, array $selectors): string => $tab.': '.implode(', ', $selectors),
-                    array_keys($missing),
-                    $missing,
-                ));
-                $this->failures->report(new SourceFailure(
-                    platformId: $platformId,
-                    stage: SourceStage::Detail,
-                    kind: SourceFailureKind::LayoutDrift,
-                    detail: "Карточка {$procurement->registry_number} не обработана: нет базовых селекторов ({$summary}).",
-                    context: ['procurement_id' => $procurement->id, 'missing_selectors' => $missing],
-                ));
-
+            return DB::transaction(fn (): bool => $this->applyDetails($procurement, $registry, $details));
+        } catch (AdapterInputRejected $failure) {
+            $registry = $procurement->registry ?? throw new RuntimeException('Input retry registry is missing.');
+            $code = $registry->platform?->getAttribute('code');
+            if (! is_string($code)) {
                 return false;
             }
+            $this->procurementStore->recordDetailContractFailure($procurement, $this->adapters->adapterContract($code, 'detail'),
+                $failure->checkCode, app(AdapterHealthPolicy::class)->inputLayoutAttempts);
+            $this->reportFailure(new SourceFailure(platformId: $registry->platform_id, stage: SourceStage::Detail,
+                kind: SourceFailureKind::LayoutDrift, detail: 'Карточка сохранена для повторной проверки: '.$failure->checkCode,
+                context: ['procurement_id' => $procurement->id, 'check_code' => $failure->checkCode, 'missing_selectors' => $failure->missingSelectors]));
 
-            $this->failures->reportSuccess($platformId, SourceStage::Detail);
-
-            $commonInfo = null;
-            $commonInfoSnapshotStatus = null;
-            $partiesComplete = false;
-            $parties = [];
-            $documents = [];
-            $documentsSnapshotStatus = null;
-            $journalEntries = [];
-            $supplierResults = null;
-
-            if ($details->commonInfoHtml !== null) {
-                $commonInfoSnapshot = $parser->commonInfo($details->commonInfoHtml);
-                $parties = $commonInfoSnapshot->parties;
-                $commonInfo = $commonInfoSnapshot->commonInfo;
-                $commonInfoSnapshotStatus = $commonInfoSnapshot->status->value;
-                $partiesComplete = $commonInfoSnapshot->authorizesPartiesReconciliation();
-
-                $this->commonInfoProcessor->process(procurement: $procurement, snapshot: $commonInfoSnapshot);
-            } else {
-                Log::warning(message: 'DetailAnalysisProcessor: вкладка common-info не снята.', context: ['procurement_id' => $procurement->id]);
-            }
-
-            if ($details->documentsHtml !== null) {
-                $documentsSnapshot = $parser->documents($details->documentsHtml);
-                $this->documentIndexer->index(procurement: $procurement, snapshot: $documentsSnapshot);
-                $documents = $documentsSnapshot->documents;
-                $documentsSnapshotStatus = $documentsSnapshot->status->value;
-            } else {
-                Log::warning(message: 'DetailAnalysisProcessor: вкладка documents не снята.', context: ['procurement_id' => $procurement->id]);
-            }
-
-            if ($details->eventJournalHtml !== null) {
-                $journalEntries = $parser->eventJournal($details->eventJournalHtml);
-                $this->eventJournalProcessor->process($procurement, $journalEntries);
-            } else {
-                Log::warning(message: 'DetailAnalysisProcessor: вкладка event-journal не снята.', context: ['procurement_id' => $procurement->id]);
-            }
-
-            if ($details->supplierResultsHtml !== null) {
-                $supplierResults = $parser->supplierResults($details->supplierResultsHtml);
-                $this->supplierResultsProcessor->process($procurement, $supplierResults);
-            }
-
-            $detailParseOutcome = $this->detailParseOutcome(
-                details: $details,
-                baseline: $baseline,
-                keyFieldValues: [
-                    'common-info' => [
-                        'snapshot_status' => $commonInfoSnapshotStatus,
-                        'ikz_year' => $commonInfo?->ikzYear,
-                        'ikz_customer_code' => $commonInfo?->ikzCustomerCode,
-                        'ikz_plan_number' => $commonInfo?->ikzPlanNumber,
-                        'ikz_plangraph_number' => $commonInfo?->ikzPlangraphNumber,
-                        'ikz_okpd_class' => $commonInfo?->ikzOkpdClass,
-                        'ikz_okpd_subclass' => $commonInfo?->ikzOkpdSubclass,
-                        'ikz_okpd_group' => $commonInfo?->ikzOkpdGroup,
-                        'ikz_kvr' => $commonInfo?->ikzKvr,
-                        'etp_name' => $commonInfo?->etpName,
-                        'etp_url' => $commonInfo?->etpUrl,
-                        'contact_person_name' => $commonInfo?->contactPersonName,
-                        'contact_person_email' => $commonInfo?->contactPersonEmail,
-                        'financing_rows' => $commonInfo?->financingRows,
-                        'items' => $commonInfo?->items,
-                        'parties' => $parties,
-                        'parties_complete' => $partiesComplete,
-                    ],
-                    'documents' => [
-                        'documents' => $documents,
-                        'snapshot_status' => $documentsSnapshotStatus,
-                    ],
-                    'event-journal' => ['entries' => $journalEntries],
-                    'supplier-results' => [
-                        'protocol' => $supplierResults?->protocol,
-                        'bids' => $supplierResults?->bids,
-                        'award' => $supplierResults?->award,
-                    ],
-                ],
-            );
-
-            if ($commonInfoSnapshotStatus !== 'complete' || $documentsSnapshotStatus !== 'complete' || ! $partiesComplete) {
-                $this->markFailed(
-                    procurement: $procurement,
-                    exception: new RuntimeException('Required detail snapshots are incomplete.'),
-                    detailParseOutcome: $detailParseOutcome,
-                );
-
-                return false;
-            }
-
-            $this->procurementStore->markDetailFetched(
-                procurement: $procurement,
-                fetchedAt: now(),
-                detailParseOutcome: $detailParseOutcome,
-            );
-
-            return true;
+            return false;
+        } catch (OutboundUnavailable|OutboundOwnershipLost|HealthBaselineUnavailableException) {
+            return false;
         } catch (PlatformBudgetExhaustedException) {
             $this->operationLogs->budgetExhausted($procurement->id);
 
             return false;
         } catch (Throwable $exception) {
+            if (DatabaseFailureClassifier::isTransient($exception)
+                || $exception instanceof DependencyUnavailable) {
+                return false;
+            }
             $this->operationLogs->detailFailed($procurement->id, $exception);
 
             if (! $failureReported) {
@@ -258,6 +179,140 @@ final readonly class DetailAnalysisProcessor
 
             return false;
         }
+    }
+
+    private function applyDetails(Procurement $procurement, Registry $registry, ProcurementDetails $details): bool
+    {
+        if ($details->validation !== null) {
+            app(AdapterHealthRepository::class)->assertReceipt($details->validation);
+        }
+        $platformId = $registry->platform_id;
+        // Проверка вёрстки ДО разбора: нет базовых селекторов — страница не обрабатывается
+        // целиком (ни одна вкладка), чтобы не записать «пустые» данные с чужой вёрстки.
+        // Попытка карточки не тратится: это проблема площадки, а не закупки; карточка
+        // остаётся в очереди, а серия таких отказов уводит этап в ожидание.
+        $baseline = $this->healthBaselineReader->read(registry: $registry);
+        $parser = $this->adapters->detailParser(registry: $registry);
+        $missing = $this->cardPreflight->missingBaseSelectors(details: $details, baseline: $baseline);
+
+        if ($missing !== []) {
+            $summary = implode('; ', array_map(
+                static fn (string $tab, array $selectors): string => $tab.': '.implode(', ', $selectors),
+                array_keys($missing),
+                $missing,
+            ));
+            $this->reportFailure(new SourceFailure(
+                platformId: $platformId,
+                stage: SourceStage::Detail,
+                kind: SourceFailureKind::LayoutDrift,
+                detail: "Карточка {$procurement->registry_number} не обработана: нет базовых селекторов ({$summary}).",
+                context: ['procurement_id' => $procurement->id, 'missing_selectors' => $missing],
+            ));
+
+            return false;
+        }
+
+        $commonInfo = null;
+        $commonInfoSnapshotStatus = null;
+        $partiesComplete = false;
+        $parties = [];
+        $documents = [];
+        $documentsSnapshotStatus = null;
+        $journalEntries = [];
+        $supplierResults = null;
+
+        $parsed = $details->parsed ?? new ParsedProcurementDetails(
+            $details->commonInfoHtml === null ? null : $parser->commonInfo($details->commonInfoHtml),
+            $details->documentsHtml === null ? null : $parser->documents($details->documentsHtml),
+            $details->eventJournalHtml === null ? null : $parser->eventJournal($details->eventJournalHtml),
+            $details->supplierResultsHtml === null ? null : $parser->supplierResults($details->supplierResultsHtml));
+
+        if ($parsed->commonInfo !== null) {
+            $commonInfoSnapshot = $parsed->commonInfo;
+            $parties = $commonInfoSnapshot->parties;
+            $commonInfo = $commonInfoSnapshot->commonInfo;
+            $commonInfoSnapshotStatus = $commonInfoSnapshot->status->value;
+            $partiesComplete = $commonInfoSnapshot->authorizesPartiesReconciliation();
+
+            $this->commonInfoProcessor->process(procurement: $procurement, snapshot: $commonInfoSnapshot);
+        } else {
+            Log::warning(message: 'DetailAnalysisProcessor: вкладка common-info не снята.', context: ['procurement_id' => $procurement->id]);
+        }
+
+        if ($parsed->documents !== null) {
+            $documentsSnapshot = $parsed->documents;
+            $this->documentIndexer->index(procurement: $procurement, snapshot: $documentsSnapshot);
+            $documents = $documentsSnapshot->documents;
+            $documentsSnapshotStatus = $documentsSnapshot->status->value;
+        } else {
+            Log::warning(message: 'DetailAnalysisProcessor: вкладка documents не снята.', context: ['procurement_id' => $procurement->id]);
+        }
+
+        if ($parsed->journalEntries !== null) {
+            $journalEntries = $parsed->journalEntries;
+            $this->eventJournalProcessor->process($procurement, $journalEntries);
+        } else {
+            Log::warning(message: 'DetailAnalysisProcessor: вкладка event-journal не снята.', context: ['procurement_id' => $procurement->id]);
+        }
+
+        if ($parsed->supplierResults !== null) {
+            $supplierResults = $parsed->supplierResults;
+            $this->supplierResultsProcessor->process($procurement, $supplierResults);
+        }
+
+        $detailParseOutcome = $this->detailParseOutcome(
+            details: $details,
+            baseline: $baseline,
+            keyFieldValues: [
+                'common-info' => [
+                    'snapshot_status' => $commonInfoSnapshotStatus,
+                    'ikz_year' => $commonInfo?->ikzYear,
+                    'ikz_customer_code' => $commonInfo?->ikzCustomerCode,
+                    'ikz_plan_number' => $commonInfo?->ikzPlanNumber,
+                    'ikz_plangraph_number' => $commonInfo?->ikzPlangraphNumber,
+                    'ikz_okpd_class' => $commonInfo?->ikzOkpdClass,
+                    'ikz_okpd_subclass' => $commonInfo?->ikzOkpdSubclass,
+                    'ikz_okpd_group' => $commonInfo?->ikzOkpdGroup,
+                    'ikz_kvr' => $commonInfo?->ikzKvr,
+                    'etp_name' => $commonInfo?->etpName,
+                    'etp_url' => $commonInfo?->etpUrl,
+                    'contact_person_name' => $commonInfo?->contactPersonName,
+                    'contact_person_email' => $commonInfo?->contactPersonEmail,
+                    'financing_rows' => $commonInfo?->financingRows,
+                    'items' => $commonInfo?->items,
+                    'parties' => $parties,
+                    'parties_complete' => $partiesComplete,
+                ],
+                'documents' => [
+                    'documents' => $documents,
+                    'snapshot_status' => $documentsSnapshotStatus,
+                ],
+                'event-journal' => ['entries' => $journalEntries],
+                'supplier-results' => [
+                    'protocol' => $supplierResults?->protocol,
+                    'bids' => $supplierResults?->bids,
+                    'award' => $supplierResults?->award,
+                ],
+            ],
+        );
+
+        if ($commonInfoSnapshotStatus !== 'complete' || $documentsSnapshotStatus !== 'complete' || ! $partiesComplete) {
+            $this->markFailed(
+                procurement: $procurement,
+                exception: new RuntimeException('Required detail snapshots are incomplete.'),
+                detailParseOutcome: $detailParseOutcome,
+            );
+
+            return false;
+        }
+
+        $this->procurementStore->markDetailFetched(
+            procurement: $procurement,
+            fetchedAt: now(),
+            detailParseOutcome: $detailParseOutcome,
+        );
+
+        return true;
     }
 
     /**
@@ -310,6 +365,19 @@ final readonly class DetailAnalysisProcessor
         }
     }
 
+    private function reportFailure(SourceFailure $failure): void
+    {
+        $event = SourceEvent::forFailure(
+            CrawlerEventCode::forFailure($failure->stage, $failure->kind),
+            $failure, $failure->detail,
+        );
+        if ($failure->kind === SourceFailureKind::NotFound) {
+            $this->events->log($event);
+        } else {
+            $this->events->report($event);
+        }
+    }
+
     private function reportCodeError(Procurement $procurement, Throwable $exception): void
     {
         $platformId = $procurement->registry?->platform_id;
@@ -318,7 +386,7 @@ final readonly class DetailAnalysisProcessor
             return;
         }
 
-        $this->failures->report(new SourceFailure(
+        $this->reportFailure(new SourceFailure(
             platformId: $platformId,
             stage: SourceStage::Detail,
             kind: SourceFailureKind::CodeError,

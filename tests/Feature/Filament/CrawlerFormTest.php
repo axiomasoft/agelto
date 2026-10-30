@@ -8,7 +8,6 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Crawler\RunStopPolicy;
 use App\Enums\Procurement\Crawler\SourceMethod;
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\CreateCrawler;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\EditCrawler;
 use App\Guards\Admin\Roles\OperatorRole;
@@ -19,6 +18,7 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\User;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 use function Pest\Laravel\actingAs;
@@ -52,7 +52,7 @@ test('сохранение профиля формой даёт типизиро
             'options' => ['columns' => ['nameOrderCsv']],
             'schedule' => null,
             'is_active' => true,
-            'proxy_mode' => CrawlerProxyMode::Direct->value,
+            'route_profile_id' => null,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -91,7 +91,7 @@ test('форма сохраняет long execution lane как профильн�
             'filter' => ['stageCompleted' => true, 'okpd2Codes' => ['43']],
             'options' => ['columns' => []],
             'is_active' => true,
-            'proxy_mode' => CrawlerProxyMode::Direct->value,
+            'route_profile_id' => null,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -136,7 +136,7 @@ test('невалидное cron-выражение отклоняется на �
             'source_method' => SourceMethod::Csv->value,
             'schedule' => 'не cron',
             'is_active' => false,
-            'proxy_mode' => CrawlerProxyMode::Direct->value,
+            'route_profile_id' => null,
         ])
         ->call('create')
         ->assertHasFormErrors(['schedule']);
@@ -160,7 +160,7 @@ test('неизвестный ключ фильтра отклоняется фо
             // суффиксом — тест на такой строке был бы хрупким (research/03-p2-okpd2-design.md §2.4).
             'filter' => ['stageUnknown' => true, 'okpd2Codes' => ['43']],
             'is_active' => true,
-            'proxy_mode' => CrawlerProxyMode::Direct->value,
+            'route_profile_id' => null,
         ])
         ->call('create');
 
@@ -243,7 +243,7 @@ test('форма сохраняет профиль с полями сортир�
             'filter' => ['okpd2Codes' => ['43'], 'sortField' => ListingSortField::Updated->value, 'sortAscending' => false],
             'options' => ['columns' => []],
             'is_active' => true,
-            'proxy_mode' => CrawlerProxyMode::Direct->value,
+            'route_profile_id' => null,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -272,7 +272,7 @@ test('форма сохраняет профиль с политикой ост�
             'filter' => ['okpd2Codes' => ['43']],
             'options' => ['columns' => []],
             'is_active' => true,
-            'proxy_mode' => CrawlerProxyMode::Direct->value,
+            'route_profile_id' => null,
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -297,7 +297,7 @@ test('форма не сохраняет политику «только акт�
             'source_method' => SourceMethod::Csv->value,
             'filter' => ['okpd2Codes' => ['43']],
             'is_active' => true,
-            'proxy_mode' => CrawlerProxyMode::Direct->value,
+            'route_profile_id' => null,
         ])
         ->call('create');
 
@@ -319,7 +319,7 @@ test('форма отклоняет профиль fz44 без выбранно�
             'source_method' => SourceMethod::Csv->value,
             'filter' => ['stageCompleted' => true],
             'is_active' => true,
-            'proxy_mode' => CrawlerProxyMode::Direct->value,
+            'route_profile_id' => null,
         ])
         ->call('create')
         ->assertHasFormErrors(['filter.okpd2Codes']);
@@ -329,36 +329,23 @@ test('форма отклоняет профиль fz44 без выбранно�
 
 test('форма сначала сохраняет direct-профиль с привязкой, затем разрешает профильный режим', function (): void {
     actingAs(crawlerFormOperator());
-
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
     $proxy = Proxy::factory()->create();
     $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['options' => null]);
-
+    $profileId = $crawler->route_profile_id;
     Livewire::test(EditCrawler::class, ['record' => $crawler->getKey()])
-        ->fillForm(['proxy_mode' => CrawlerProxyMode::Direct->value, 'options' => ['columns' => []]])
-        ->call('save')
-        ->assertHasNoFormErrors();
-
-    expect($crawler->refresh()->proxy_mode)->toBe(CrawlerProxyMode::Direct)
-        ->and($crawler->proxies()->pluck('prc_proxies.id')->all())->toBe([$proxy->id]);
-
+        ->fillForm(['route_profile_id' => null, 'options' => ['columns' => []]])->call('save')->assertHasNoFormErrors();
+    expect($crawler->refresh()->route_profile_id)->toBeNull()
+        ->and(DB::table('prc_network_route_profile_members')->where('profile_id', $profileId)->pluck('route_id')->all())->toBe([$proxy->route_id]);
     Livewire::test(EditCrawler::class, ['record' => $crawler->getKey()])
-        ->fillForm(['proxy_mode' => CrawlerProxyMode::Profile->value, 'options' => ['columns' => []]])
-        ->call('save')
-        ->assertHasNoFormErrors();
-
-    expect($crawler->refresh()->proxy_mode)->toBe(CrawlerProxyMode::Profile);
+        ->fillForm(['route_profile_id' => $profileId, 'options' => ['columns' => []]])->call('save')->assertHasNoFormErrors();
+    expect($crawler->refresh()->route_profile_id)->toBe($profileId);
 });
 
 test('форма показывает привязки и страну только для профильного режима', function (): void {
     actingAs(crawlerFormOperator());
-
-    Livewire::test(CreateCrawler::class)
-        ->fillForm(['proxy_mode' => CrawlerProxyMode::Default->value])
-        ->assertSchemaComponentHidden('proxies')
-        ->assertSchemaComponentHidden('proxy_country')
-        ->fillForm(['proxy_mode' => CrawlerProxyMode::Profile->value])
-        ->assertSchemaComponentVisible('proxies')
-        ->assertSchemaComponentVisible('proxy_country');
+    // Canonical profile selector replaces per-crawler geo and many-to-many node controls.
+    Livewire::test(CreateCrawler::class)->assertFormFieldExists('route_profile_id')
+        ->assertFormFieldDoesNotExist('proxies')->assertFormFieldDoesNotExist('proxy_country')->assertFormFieldDoesNotExist('proxy_mode');
 });

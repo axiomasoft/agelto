@@ -2,109 +2,96 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Crawler\CrawlStage;
-use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
-use App\Models\Procurement\Crawler\Crawler;
+use App\Dto\Procurement\Network\NetworkPermitWait;
+use App\Dto\Procurement\Network\OutboundRequestPlan;
+use App\Dto\Procurement\Network\TransferBudget;
+use App\Dto\Procurement\Network\TransportSucceeded;
+use App\Dto\Procurement\Platform\OriginBudgetPolicy;
+use App\Dto\Procurement\Platform\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Process\ProcessUuid;
+use App\Enums\Procurement\Network\TrafficClass;
 use App\Models\Procurement\Crawler\Proxy;
-use App\Models\Procurement\Platform\Platform;
-use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\PlatformRequestBudget;
-use Carbon\CarbonInterval;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Sleep;
+use App\Services\Procurement\Network\OutboundExecutor;
+use App\Services\Procurement\Network\SourceCatalogSync;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\Http\PermitFixtures as F;
+use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\LedgerFixtures;
 
-uses(RefreshDatabase::class);
-
+beforeEach(function (): void {
+    F::clean();
+    $this->wire = new WireFixture;
+    $this->f = new F($this->wire);
+});
 afterEach(function (): void {
-    Carbon::setTestNow();
+    $this->wire->stop();
+    F::clean();
 });
 
-/** @param array<string, mixed> $overrides */
-function platformWithBudget(string $host, array $overrides = []): Platform
+function executeBudgetTraffic(F $f, WireFixture $wire, OutboundRequestPlan $plan): void
 {
-    return Platform::factory()->create([
-        'base_url' => "https://{$host}/",
-        'throttle' => array_replace_recursive([
-            'requestsPerMinuteBase' => 1,
-            'requestsPerMinutePerProxy' => 0,
-            'maxWaitSeconds' => 60,
-            'stages' => [
-                'listing' => ['minPauseMs' => 0, 'maxPauseMs' => 0],
-                'detail' => ['minPauseMs' => 0, 'maxPauseMs' => 0],
-                'document' => ['minPauseMs' => 0, 'maxPauseMs' => 0],
-            ],
-        ], $overrides),
-    ]);
+    $result = app(OutboundExecutor::class)->execute($plan, $f->context(), $f->gate(), $wire->policy(), new TransferBudget(65536, 65536));
+    expect($result)->toBeInstanceOf(TransportSucceeded::class);
 }
 
 test('листинг и документы одного хоста делят окно, второй потребитель ждёт слот', function (): void {
-    Carbon::setTestNow('2026-08-08 12:00:00');
-    Sleep::fake(syncWithCarbon: true);
-    platformWithBudget(host: 'eis.test');
-
-    $budget = app(PlatformRequestBudget::class);
-
-    expect($budget->acquire(host: 'https://EIS.TEST/listing', stage: CrawlStage::Listing))->toBe(0)
-        ->and($budget->acquire(host: 'eis.test.', stage: CrawlStage::Document))->toBe(60_000);
-
-    Sleep::assertSlept(
-        static fn (CarbonInterval $duration): bool => (int) $duration->totalSeconds === 60,
-        times: 1,
-    );
+    DB::table('prc_network_budgets')->update(['emission_interval_us' => 500000, 'max_inflight' => 2, 'burst' => 1]);
+    executeBudgetTraffic($this->f, $this->wire, $this->f->plan(TrafficClass::FreshListing));
+    executeBudgetTraffic($this->f, $this->wire, $this->f->plan(TrafficClass::Download));
+    $delta = DB::selectOne('SELECT extract(epoch FROM max(authorized_at) - min(authorized_at))*1000000 AS us FROM prc_network_permits');
+    expect((float) $delta->us)->toBeGreaterThanOrEqual(500000)
+        ->and(DB::table('prc_network_demands')->distinct()->pluck('origin_budget_id')->all())->toHaveCount(1)
+        ->and(DB::table('prc_network_demands')->orderBy('ticket_seq')->pluck('traffic_class')->all())->toBe(['fresh_listing', 'download'])
+        ->and($this->wire->receipts())->toHaveCount(2);
 });
 
 test('ёмкость растёт только от активных привязанных узлов площадки', function (): void {
-    Sleep::fake();
-    $platform = platformWithBudget(host: 'eis.test', overrides: [
-        'requestsPerMinutePerProxy' => 1,
-        'maxWaitSeconds' => 0,
-    ]);
-    $platform->update(['code' => 'eis']);
-    $registry = Registry::factory()->for($platform)->create();
     $active = Proxy::factory()->create();
-    $inactive = Proxy::factory()->create(['is_active' => false]);
-    Crawler::factory()->for($registry)->withProxies($active, $inactive)->create();
-
-    $budget = app(PlatformRequestBudget::class);
-
-    expect($budget->acquire(host: 'eis.test', stage: CrawlStage::Listing))->toBe(0)
-        ->and($budget->acquire(host: 'eis.test', stage: CrawlStage::Detail))->toBe(0);
-
-    expect(fn (): int => $budget->acquire(host: 'eis.test', stage: CrawlStage::Document))
-        ->toThrow(PlatformBudgetExhaustedException::class);
+    $inactive = Proxy::factory()->create();
+    DB::table('prc_network_routes')->where('id', $inactive->route_id)->update(['enabled' => false]);
+    $default = DB::table('prc_network_route_profiles')->where('profile_key', 'default')->sole();
+    DB::table('prc_network_route_profile_members')->insert(['profile_id' => $default->id, 'route_id' => $active->route_id]);
+    DB::table('prc_network_budgets')->update(['max_inflight' => 1]);
+    $one = $this->f->context();
+    $two = $this->f->context();
+    $this->f->reserve($one);
+    $waiting = $this->f->repo->reserve($this->f->ticket($two), $two);
+    expect($waiting)->toBeInstanceOf(NetworkPermitWait::class)->and($waiting->reason->value)->toBe('capacity_wait')
+        ->and(DB::table('prc_network_permits')->where('state', 'reserved')->count())->toBe(1)
+        ->and(DB::table('prc_network_budgets')->where('scope_key', $this->f->url->origin->budgetScopeKey())->sole()->max_inflight)->toBe(1)
+        ->and($this->wire->receipts())->toBe([]);
 });
 
 test('стадийная пауза берётся из резолвера площадки и входит в измеренное ожидание', function (): void {
-    Sleep::fake();
-    platformWithBudget(host: 'eis.test', overrides: [
-        'requestsPerMinuteBase' => 10,
-        'stages' => [
-            'listing' => ['minPauseMs' => 321, 'maxPauseMs' => 321],
-        ],
-    ]);
-
-    $waitedMs = app(PlatformRequestBudget::class)->acquire(
-        host: 'eis.test',
-        stage: CrawlStage::Listing,
-    );
-
-    expect($waitedMs)->toBe(321);
-    Sleep::assertSlept(
-        static fn (CarbonInterval $duration): bool => (int) $duration->totalMilliseconds === 321,
-        times: 1,
-    );
+    DB::table('prc_network_budgets')->update(['emission_interval_us' => 321000, 'max_inflight' => 2, 'burst' => 1]);
+    $start = hrtime(true);
+    executeBudgetTraffic($this->f, $this->wire, $this->f->plan(TrafficClass::FreshListing));
+    executeBudgetTraffic($this->f, $this->wire, $this->f->plan(TrafficClass::FreshListing));
+    $delta = DB::selectOne('SELECT extract(epoch FROM max(authorized_at) - min(authorized_at))*1000000 AS us FROM prc_network_permits');
+    expect((float) $delta->us)->toBeGreaterThanOrEqual(321000)
+        ->and((hrtime(true) - $start) / 1000000)->toBeGreaterThanOrEqual(321)
+        ->and($this->wire->receipts())->toHaveCount(2);
 });
 
 test('разные хосты не расходуют общий счётчик', function (): void {
-    Sleep::fake();
-    platformWithBudget(host: 'eis.test');
-    platformWithBudget(host: 'example.test');
-
-    $budget = app(PlatformRequestBudget::class);
-
-    expect($budget->acquire(host: 'eis.test', stage: CrawlStage::Listing))->toBe(0)
-        ->and($budget->acquire(host: 'example.test', stage: CrawlStage::Listing))->toBe(0);
-
-    Sleep::assertNeverSlept();
+    $f = $this->f;
+    $other = $this->wire->url('/ok', host: 'second.test');
+    app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($f->code, [
+        new SourceTargetDefinition('card', 'detail', $f->url->origin, [$f->profile], new OriginBudgetPolicy(600, 1, 2)),
+        new SourceTargetDefinition('other', 'detail', $other->origin, [$f->profile], new OriginBudgetPolicy(600, 1, 2)),
+    ]));
+    foreach (['prc_route_health', 'prc_route_target_health', 'prc_target_health'] as $table) {
+        DB::table($table)->update(['state' => 'closed']);
+    }
+    executeBudgetTraffic($f, $this->wire, $f->plan());
+    $before = DB::table('prc_network_budgets')->where('scope_key', $f->url->origin->budgetScopeKey())->sole()->tat;
+    $target = DB::table('prc_source_targets')->where('target_key', 'other')->sole();
+    $original = $f->plan();
+    $plan = new OutboundRequestPlan(LedgerFixtures::uuid(), new ProcessUuid($target->id), 'GET', $other, $f->profile,
+        TrafficClass::Detail, $original->idempotency);
+    executeBudgetTraffic($f, $this->wire, $plan);
+    expect(DB::table('prc_network_budgets')->where('scope_key', $f->url->origin->budgetScopeKey())->sole()->tat)->toBe($before)
+        ->and(DB::table('prc_network_demands')->distinct()->pluck('origin_budget_id')->all())->toHaveCount(2)
+        ->and($this->wire->receipts())->toHaveCount(2);
 });

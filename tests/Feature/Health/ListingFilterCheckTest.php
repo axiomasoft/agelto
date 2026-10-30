@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Health\CheckResult;
+use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Process\RetryAt;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Okpd2Node;
@@ -13,13 +17,19 @@ use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;
 use App\Services\Procurement\Health\HealthBaselineReader;
+use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Sleep;
 use Tests\Support\Platforms\Eis\EisCsvFixture;
+use Tests\Support\ProcessCore\Http\CallerFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 beforeEach(function (): void {
     Sleep::fake();
@@ -79,6 +89,8 @@ function runListingFilterCheck(Platform $platform): CheckResult
         to: $to,
     );
 }
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('проверка подтверждает действие ОКПД2 и отправляет два запроса боевым путём', function (): void {
     [$platform] = listingFilterProfile();
@@ -145,27 +157,28 @@ test('проверка считает пустой ответ недостатк
 
 test('проверка называет исчерпание бюджета недостатком данных', function (): void {
     [$platform] = listingFilterProfile();
-    config(['crawler.budget.requests_per_minute_base' => 0]);
+    diagnosticListingUnavailable(NetworkDeferralReason::RateLimit);
     Http::fake();
 
     $result = runListingFilterCheck($platform);
 
     expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
         ->and($result->requestsUsed)->toBe(0)
-        ->and($result->message)->toContain('Бюджет запросов');
+        ->and($result->message)->toContain('rate_limit');
 
     Http::assertNothingSent();
 });
 
 test('проверка называет недоступность прокси недостатком данных', function (): void {
     [$platform] = listingFilterProfile(withProxy: true);
+    diagnosticListingUnavailable(NetworkDeferralReason::NoRoute);
     Http::fake();
 
     $result = runListingFilterCheck($platform);
 
     expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
         ->and($result->requestsUsed)->toBe(0)
-        ->and($result->message)->toContain('Нет доступного прокси');
+        ->and($result->message)->toContain('no_route');
 
     Http::assertNothingSent();
 });
@@ -182,17 +195,31 @@ test('проверка называет сетевой отказ недоста
 });
 
 test('проверка не повторяет ответ площадки и не делает третий запрос', function (): void {
-    [$platform] = listingFilterProfile();
-    Http::fake([
-        '*' => Http::sequence()
-            ->push(body: EisCsvFixture::body(), status: 200)
-            ->push(body: 'Service unavailable', status: 503),
-    ]);
-
-    $result = runListingFilterCheck($platform);
-
-    expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
-        ->and($result->requestsUsed)->toBe(2);
-
-    Http::assertSentCount(2);
+    PermitFixtures::clean();
+    $wire = new WireFixture;
+    try {
+        $registry = CallerFixtures::platform($wire);
+        Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
+        Crawler::factory()->for($registry)->create(['filter' => new EisSearchFilter(okpd2Codes: ['43'])]);
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        $wire->respond('/csv', 'Service unavailable', 503);
+        $result = runListingFilterCheck($registry->platform);
+        expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
+            ->and($result->requestsUsed)->toBe(2)
+            ->and($wire->receipts())->toHaveCount(2)
+            ->and(DB::table('prc_request_attempts')->count())->toBe(2);
+    } finally {
+        $wire->stop();
+        PermitFixtures::clean();
+    }
 });
+
+/** A typed admission result at the explicit logical-call seam; no physical-network claim. */
+function diagnosticListingUnavailable(NetworkDeferralReason $reason): void
+{
+    $network = Mockery::mock(LegacyOutbound::class);
+    $network->shouldReceive('validated')->once()->andThrow(new OutboundUnavailable(
+        new TransportDeferred($reason,
+            new RetryAt(new DateTimeImmutable('+1 minute')))));
+    app()->instance(LegacyOutbound::class, $network);
+}

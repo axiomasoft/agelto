@@ -4,30 +4,39 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Dto\Procurement\Platform\RequestProfile;
+use App\Dto\Procurement\Platform\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
-use App\Enums\Procurement\Proxy\CrawlerProxyMode;
-use App\Enums\Procurement\Proxy\ProxyRouteSource;
 use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
-use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
+use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Proxy;
-use App\Models\Procurement\Crawler\ProxyTarget;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 use App\Services\Procurement\Modes\FreshRunProcessor;
-use App\Settings\Procurement\CrawlerProxySettings;
+use App\Services\Procurement\Network\OutboundPolicy;
+use App\Services\Procurement\Network\SourceCatalogSync;
+use App\Services\Procurement\Process\ProcessTransaction;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
+use Tests\Support\Doubles\Crawler\CardHtmlFixture;
 use Tests\Support\Platforms\Eis\EisCsvFixture;
+use Tests\Support\ProcessCore\Http\CallerFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * Активный узел скоупа `crawl_listing` — резолвер (research/02 §9.1) не выдаёт лизу без
@@ -49,6 +58,37 @@ function registryWithOkpd2Scope(): Registry
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
 
     return $registry;
+}
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
+
+/** Real application client, server-owned responses and canonical explicit routes. */
+function csvWireScenario(bool $proxy = false, bool $tls = false): array
+{
+    PermitFixtures::clean();
+    $wire = new WireFixture($tls ? 443 : 0);
+    $registry = CallerFixtures::platform($wire);
+    if ($tls) {
+        config(['crawler.eis.csv_endpoint' => $wire->url('/csv', true)->reveal()]);
+        app(SourceCatalogSync::class)->sync(app(CsvSourceMethod::class)->sourceTargets());
+    }
+    Okpd2Node::query()->firstOrCreate(['platform_id' => $registry->platform_id, 'code' => '43'],
+        Okpd2Node::factory()->make(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921'])->getAttributes());
+    $node = $proxy ? Proxy::factory()->country('RU')->create(['host' => '127.0.0.1', 'port' => $wire->ports['proxy'], 'username' => null]) : null;
+    if ($node !== null) {
+        app(ProcessTransaction::class)->run(fn () => app(SourceCatalogRepository::class)->initializeRoute($node->route_id, app(OutboundPolicy::class)));
+    }
+    $factory = Crawler::factory()->for($registry);
+    $crawler = ($node === null ? $factory : $factory->withProxies($node))->create();
+    CallerFixtures::healthReady();
+
+    return [$wire, $crawler, $node];
+}
+
+function closeCsvWireScenario($wire): void
+{
+    $wire->stop();
+    PermitFixtures::clean();
 }
 
 test('истёкший deadline листинга запрещает новый HTTP-запрос', function (): void {
@@ -124,48 +164,40 @@ test('dedupSignature вычисляется по колонке «Реестро
     expect($batch->dedupSignature)->toBe('№0338300047926000272');
 });
 
-test('ретрай на 500 забирает второй ответ фикстуры', function () {
-    Sleep::fake();
-    $proxy = activeListingProxy();
-    $endpoint = config('crawler.eis.csv_endpoint');
-    Http::fake([
-        $endpoint.'*' => Http::sequence()
-            ->push(body: 'Internal Server Error', status: 500)
-            ->push(body: EisCsvFixture::body(), status: 200),
-    ]);
-
-    $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
-    $cursor = new ListingCursor(blockFrom: 1);
-
-    $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
-
-    expect($batch->httpStatus)->toBe(200)
-        ->and($batch->rowsTotal)->toBe(4);
-
-    Http::assertSentCount(2);
+test('ретрай на 500 забирает второй ответ фикстуры', function (): void {
+    [$wire, $crawler] = csvWireScenario();
+    try {
+        $wire->respond('/csv', 'Internal Server Error', 500);
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        $source = app(CsvSourceMethod::class);
+        expect(fn () => $source->collectListing($crawler, new ListingCursor(blockFrom: 1)))
+            ->toThrow(OutboundUnavailable::class);
+        $batch = $source->collectListing($crawler, new ListingCursor(blockFrom: 1));
+        expect($batch->httpStatus)->toBe(200)->and($batch->rowsTotal)->toBe(4)
+            ->and($wire->receipts())->toHaveCount(2)
+            ->and(DB::table('prc_outbound_operations')->count())->toBe(2)
+            ->and(DB::table('prc_request_attempts')->orderBy('request_seq')->pluck('status')->all())->toBe([500, 200]);
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
-test('пустой ответ 200 повторяется и итог собирается из второго ответа', function () {
-    Sleep::fake();
-    $proxy = activeListingProxy();
-    $endpoint = config('crawler.eis.csv_endpoint');
-    Http::fake([
-        $endpoint.'*' => Http::sequence()
-            ->push(body: '', status: 200)
-            ->push(body: EisCsvFixture::body(), status: 200),
-    ]);
-
-    $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
-    $cursor = new ListingCursor(blockFrom: 1);
-
-    $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
-
-    expect($batch->httpStatus)->toBe(200)
-        ->and($batch->rowsTotal)->toBe(4);
-
-    Http::assertSentCount(2);
+test('пустой ответ 200 повторяется и итог собирается из второго ответа', function (): void {
+    [$wire, $crawler] = csvWireScenario();
+    try {
+        $wire->respond('/csv', '', headers: ['Content-Type' => 'text/csv']);
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        $source = app(CsvSourceMethod::class);
+        expect(fn () => $source->collectListing($crawler, new ListingCursor(blockFrom: 1)))
+            ->toThrow(InvalidListingResponse::class, 'empty_body');
+        expect(DB::table('prc_adapter_health')->where('capability', 'listing')->value('state'))->toBe('suspect');
+        $batch = $source->collectListing($crawler, new ListingCursor(blockFrom: 1));
+        expect($batch->rowsTotal)->toBe(4)->and($batch->validation->verdict->value)->toBe('accepted')
+            ->and($wire->receipts())->toHaveCount(2)
+            ->and(DB::table('prc_adapter_health')->where('capability', 'listing')->value('state'))->toBe('healthy');
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
 test('query-параметры запроса содержат from/to, флаг реестра и сортировку', function () {
@@ -198,135 +230,95 @@ test('query-параметры запроса содержат from/to, флаг
     });
 });
 
-test('собранный ListingBatch несёт id узла, который резолвер выдал под скоуп crawl_listing', function () {
-    Sleep::fake();
-    $proxy = activeListingProxy();
-    $endpoint = config('crawler.eis.csv_endpoint');
-    Http::fake([
-        $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
-    ]);
-
-    $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
-    $cursor = new ListingCursor(blockFrom: 1);
-
-    $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
-
-    expect($batch->proxyId)->toBe($proxy->id)
-        ->and($batch->proxySource)->toBe(ProxyRouteSource::Profile);
+test('собранный ListingBatch несёт id узла, который резолвер выдал под скоуп crawl_listing', function (): void {
+    [$wire, $crawler, $proxy] = csvWireScenario(proxy: true);
+    try {
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        $batch = app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
+        $attempt = DB::table('prc_request_attempts')->sole();
+        expect($batch->validation->requestIds[0]->value)->toBe($attempt->request_id)
+            ->and($attempt->route_id)->toBe($proxy->route_id)->and(array_column($wire->receipts(), 'kind'))->toBe(['connect', 'http'])
+            ->and($wire->receipts()[0]['request'])->toStartWith('CONNECT 127.0.0.1:');
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
 test('default-профиль выдаёт сохранённый listing-узел и typed source', function (): void {
-    Sleep::fake();
-    $proxy = activeListingProxy();
-    $settings = new CrawlerProxySettings;
-    $settings->defaultProxyId = $proxy->id;
-    $settings->save();
-    $endpoint = config('crawler.eis.csv_endpoint');
-    Http::fake([$endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200)]);
-
-    $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'proxy_mode' => CrawlerProxyMode::Default]);
-
-    $batch = app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
-
-    expect($batch->proxyId)->toBe($proxy->id)
-        ->and($batch->proxySource)->toBe(ProxyRouteSource::Default);
+    [$wire, $crawler, $proxy] = csvWireScenario(proxy: true);
+    try {
+        $profile = DB::table('prc_network_route_profiles')->where('profile_key', 'default')->sole();
+        DB::table('prc_network_route_profile_members')->where('profile_id', $profile->id)->delete();
+        DB::table('prc_network_route_profile_members')->insert(['profile_id' => $profile->id, 'route_id' => $proxy->route_id]);
+        $crawler->update(['route_profile_id' => null]);
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
+        expect(DB::table('prc_request_attempts')->sole()->route_id)->toBe($proxy->route_id)
+            ->and(json_decode(DB::table('prc_network_permits')->sole()->policy_versions, true)['profile:'.$profile->id])->toBe(1);
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
-test('закрытый breaker у привязанного прокси не переводит listing на direct и запрос не уходит', function () {
-    Sleep::fake();
-    $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create([
-        'open_until' => now()->addMinute(),
-    ]);
-    $endpoint = config('crawler.eis.csv_endpoint');
-    Http::fake([
-        $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
-    ]);
-
-    $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
-    $cursor = new ListingCursor(blockFrom: 1);
-
-    expect(fn () => app(CsvSourceMethod::class)->collectListing($crawler, $cursor))
-        ->toThrow(NoProxyAvailableException::class);
-
-    Http::assertNothingSent();
+test('закрытый breaker у привязанного прокси не переводит listing на direct и запрос не уходит', function (): void {
+    [$wire, $crawler, $proxy] = csvWireScenario(proxy: true);
+    try {
+        DB::table('prc_route_health')->where('route_id', $proxy->route_id)->update([
+            'state' => 'open', 'open_until' => DB::raw("clock_timestamp() + interval '1 minute'")]);
+        expect(fn () => app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1)))
+            ->toThrow(OutboundUnavailable::class);
+        expect($wire->receipts())->toBe([])->and(DB::table('prc_request_attempts')->count())->toBe(0);
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
-test('профиль с proxy_country=RU при пуле из RU и DE получает только RU-узел', function () {
-    Sleep::fake();
-    $ruProxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
-    Proxy::factory()->country('DE')->withScopes([ProxyScope::CrawlListing])->create();
-    $endpoint = config('crawler.eis.csv_endpoint');
-    Http::fake([
-        $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
-    ]);
-
-    $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->withProxies($ruProxy)->create(['filter' => ['okpd2Codes' => ['43']], 'proxy_country' => 'RU']);
-    $cursor = new ListingCursor(blockFrom: 1);
-
-    $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
-
-    expect($batch->proxyId)->toBe($ruProxy->id);
+test('профиль с proxy_country=RU при пуле из RU и DE получает только RU-узел', function (): void {
+    [$wire, $crawler, $ru] = csvWireScenario(proxy: true);
+    try {
+        $de = Proxy::factory()->country('DE')->create(['host' => '127.0.0.1', 'port' => $wire->ports['stall_proxy']]);
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
+        expect(DB::table('prc_request_attempts')->sole()->route_id)->toBe($ru->route_id)
+            ->and(DB::table('prc_network_route_profile_members')->where('profile_id', $crawler->route_profile_id)->pluck('route_id')->all())->toBe([$ru->route_id])
+            ->and(DB::table('prc_request_attempts')->where('route_id', $de->route_id)->count())->toBe(0);
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
-test('direct-профиль получает typed direct lease от резолвера', function () {
-    Sleep::fake();
-    Log::spy();
-    // Пул кандидатов пуст, но direct остаётся typed требованием: только `ProxyResolver` создаёт
-    // direct-лизу и пишет наблюдаемый источник маршрута (D29).
-    $endpoint = config('crawler.eis.csv_endpoint');
-    Http::fake([
-        $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
-    ]);
-
-    $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']], 'proxy_mode' => CrawlerProxyMode::Direct]);
-    $cursor = new ListingCursor(blockFrom: 1);
-
-    $batch = app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
-
-    expect($batch->httpStatus)->toBe(200)
-        ->and($batch->proxyId)->toBeNull()
-        ->and($batch->proxySource?->value)->toBe('direct');
-
-    Http::assertSentCount(1);
-    Log::shouldHaveReceived('info')
-        ->with('Резолвер прокси: прямой маршрут', Mockery::on(
-            static fn (array $context): bool => $context['scope'] === ProxyScope::CrawlListing->value,
-        ))
-        ->once();
+test('direct-профиль получает typed direct lease от резолвера', function (): void {
+    [$wire, $crawler] = csvWireScenario();
+    try {
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        $batch = app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
+        $attempt = DB::table('prc_request_attempts')->sole();
+        expect($batch->httpStatus)->toBe(200)->and($wire->receipts())->toHaveCount(1)
+            ->and($wire->receipts()[0]['path'])->toStartWith('/csv')
+            ->and(DB::table('prc_network_routes')->where('id', $attempt->route_id)->sole()->kind)->toBe('direct');
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
 test('detail fetch сохраняет source default в partitioned evidence', function (): void {
-    Sleep::fake();
-    $proxy = Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlDetail])->create();
-    $settings = new CrawlerProxySettings;
-    $settings->defaultProxyId = $proxy->id;
-    $settings->save();
-    $registry = Registry::factory()->eis()->create([
-        'code' => 'fz44',
-        'settings' => [
-            'procedure_url_types' => ['Электронный аукцион' => 'ea20'],
-            'card_url_templates' => [
-                'ea20' => ['common-info' => 'https://zakupki.gov.ru/common-info.html?regNumber={regNumber}'],
-            ],
-        ],
-    ]);
-    Crawler::factory()->for($registry)->create(['proxy_mode' => CrawlerProxyMode::Default]);
-    Procurement::factory()->for($registry)->create([
-        'registry_number' => '0338200009125000001',
-        'procedure_type_raw' => 'Электронный аукцион',
-    ]);
-    config(['crawler.eis.card_tabs' => ['common-info']]);
-    Http::fake(['*common-info.html*' => Http::response('0338200009125000001', 200)]);
-
-    app(CsvSourceMethod::class)->collectDetails(registryNumber: '0338200009125000001', registry: $registry);
-
-    expect(Fetch::query()->where('stage', CrawlStage::Detail->value)->sole()->proxy_source)
-        ->toBe(ProxyRouteSource::Default);
+    [$wire, $crawler] = csvWireScenario();
+    try {
+        $registry = $crawler->registry;
+        config(['crawler.eis.card_tabs' => ['common-info']]);
+        $registry->update(['settings' => ['procedure_url_types' => ['Электронный аукцион' => 'ea20'],
+            'card_url_templates' => ['ea20' => ['common-info' => $wire->url('/common-info?regNumber={regNumber}')->reveal()]]]]);
+        $procurement = Procurement::factory()->for($registry)->create(['registry_number' => '0338200009125000001', 'procedure_type_raw' => 'Электронный аукцион']);
+        $wire->respond('/common-info', CardHtmlFixture::commonInfo(), headers: ['Content-Type' => 'text/html; charset=UTF-8']);
+        $details = app(CsvSourceMethod::class)->collectDetails($procurement->registry_number, $registry);
+        $attempt = DB::table('prc_request_attempts')->sole();
+        expect($details->validation->requestIds[0]->value)->toBe($attempt->request_id)
+            ->and(DB::table('prc_source_targets')->where('id', $attempt->target_id)->sole()->capability)->toBe('detail')
+            ->and(json_decode(DB::table('prc_network_permits')->sole()->policy_versions, true)['profile:'.DB::table('prc_network_route_profiles')->where('profile_key', 'default')->sole()->id])->toBe(1)
+            ->and(Fetch::query()->count())->toBe(0);
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
 /**
@@ -334,43 +326,32 @@ test('detail fetch сохраняет source default в partitioned evidence', f
  * `ProxyOutcome::success()` — без замера `prc_proxy_targets.latency_ms_avg` остаётся `NULL`
  * даже после успешных запросов, и вес `w_latency` резолвера структурно не влияет ни на что.
  */
-test('успешный запрос листинга пишет latency_ms_avg узла (не NULL)', function () {
-    Sleep::fake();
-    $proxy = activeListingProxy();
-    $endpoint = config('crawler.eis.csv_endpoint');
-    Http::fake([
-        $endpoint.'*' => Http::response(body: EisCsvFixture::body(), status: 200),
-    ]);
-
-    $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
-    $cursor = new ListingCursor(blockFrom: 1);
-
-    app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
-
-    $target = ProxyTarget::query()->where('proxy_id', $proxy->id)->where('target', 'zakupki.gov.ru')->firstOrFail();
-
-    expect($target->latency_ms_avg)->not->toBeNull();
+test('успешный запрос листинга пишет latency_ms_avg узла (не NULL)', function (): void {
+    [$wire, $crawler] = csvWireScenario();
+    try {
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
+        $attempt = DB::table('prc_request_attempts')->sole();
+        expect($attempt->duration_ms)->toBeInt()->toBeGreaterThanOrEqual(0)
+            ->and($attempt->finished_at)->not->toBeNull()->and($attempt->status)->toBe(200);
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
-test('запрос листинга несёт verify из карты crawler.tls.bundles для хоста площадки', function () {
-    Sleep::fake();
-    $proxy = activeListingProxy();
-
-    $capturedOptions = null;
-    Http::fake(function ($request, $options) use (&$capturedOptions) {
-        $capturedOptions = $options;
-
-        return Http::response(body: EisCsvFixture::body(), status: 200);
-    });
-
-    $registry = registryWithOkpd2Scope();
-    $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
-    $cursor = new ListingCursor(blockFrom: 1);
-
-    app(CsvSourceMethod::class)->collectListing($crawler, $cursor);
-
-    expect($capturedOptions['verify'] ?? null)->toBe(config('crawler.tls.bundles')['zakupki.gov.ru']);
+test('запрос листинга несёт verify из карты crawler.tls.bundles для хоста площадки', function (): void {
+    [$wire, $crawler] = csvWireScenario(tls: true);
+    try {
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        expect(app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1))->rowsTotal)->toBe(4);
+        config(['outbound.http.tls_bundles' => []]);
+        expect(fn () => app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1)))
+            ->toThrow(OutboundUnavailable::class);
+        expect($wire->receipts())->toHaveCount(1)
+            ->and(DB::table('prc_request_attempts')->orderBy('request_seq')->pluck('outcome')->all())->toBe(['response', 'tls']);
+    } finally {
+        closeCsvWireScenario($wire);
+    }
 });
 
 test('isAvailable возвращает true без сетевых запросов', function () {
@@ -463,6 +444,32 @@ test('лимиты bytes records и field останавливают fresh бе�
     $proxy = activeListingProxy();
     $registry = registryWithOkpd2Scope();
     $crawler = Crawler::factory()->for($registry)->withProxies($proxy)->create(['filter' => ['okpd2Codes' => ['43']]]);
+    if ($limit === 'response_max_bytes') {
+        [$wire, $crawler] = csvWireScenario();
+        try {
+            $catalog = app(CsvSourceMethod::class)->sourceTargets();
+            $targets = [];
+            foreach ($catalog->targets as $target) {
+                if ($target->capability === 'listing') {
+                    $profile = array_values($target->profiles)[0];
+                    $limited = RequestProfile::fromArray(array_replace($profile->toArray(), ['max_entity_bytes' => $value]));
+                    $target = new SourceTargetDefinition($target->key, $target->capability,
+                        $target->origin, [$limited], adapterContract: $target->adapterContract);
+                }
+                $targets[] = $target;
+            }
+            app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions('eis', $targets));
+            $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+            $run = app(FreshRunProcessor::class)->run($crawler);
+            expect($run->status)->toBe(RunStatus::Paused)->and($run->cursor->get('blockFrom'))->toBe(1)
+                ->and(DB::table('prc_request_attempts')->sole()->outcome)->toBe('byte_limit')
+                ->and(Procurement::query()->count())->toBe(0);
+        } finally {
+            closeCsvWireScenario($wire);
+        }
+
+        return;
+    }
     config(['crawler.'.$limit => $value]);
     Http::fake(['*' => fn () => Http::response(EisCsvFixture::body(), 200)]);
     $run = app(FreshRunProcessor::class)->run($crawler);

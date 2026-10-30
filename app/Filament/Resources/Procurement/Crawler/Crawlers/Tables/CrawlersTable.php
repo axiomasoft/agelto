@@ -12,6 +12,7 @@ use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -34,9 +35,9 @@ class CrawlersTable
                     ->label('Расписание')
                     ->placeholder('—')
                     ->visibleFrom('md'),
-                TextColumn::make('proxies_count')
-                    ->counts('proxies')
-                    ->label('Прокси')
+                TextColumn::make('routeProfile.profile_key')
+                    ->placeholder(config()->string('outbound.routing.default_profile'))
+                    ->label('Профиль маршрутов')
                     ->sortable()
                     ->visibleFrom('md'),
                 IconColumn::make('is_active')
@@ -88,27 +89,35 @@ class CrawlersTable
     private static function restartAction(): Action
     {
         return Action::make('restart')
+            ->schema([Textarea::make('reason')->label('Причина повторной проверки')
+                ->visible(fn (Crawler $record): bool => self::pausedRun($record)?->stats?->has('input_failure') ?? false)
+                ->required(fn (Crawler $record): bool => self::pausedRun($record)?->stats?->has('input_failure') ?? false)
+                ->maxLength(1000)])
             ->label('Запустить с начала')
             ->color('danger')
             ->requiresConfirmation()
             ->visible(fn (Crawler $record): bool => self::canManage() && self::activeRun($record) === null)
-            ->action(fn (Crawler $record) => self::dispatch(
+            ->action(fn (Crawler $record, array $data) => self::dispatch(
                 $record,
-                fn (StartCrawlerRunAction $action) => $action->restart($record),
+                fn (StartCrawlerRunAction $action) => $action->restart($record, actorId: (int) Auth::id(), reason: is_string($data['reason'] ?? null) ? $data['reason'] : null),
             ));
     }
 
     private static function resumeAction(): Action
     {
         return Action::make('resume')
+            ->schema([Textarea::make('reason')->label('Причина повторной проверки')
+                ->visible(fn (Crawler $record): bool => self::pausedRun($record)?->stats?->has('input_failure') ?? false)
+                ->required(fn (Crawler $record): bool => self::pausedRun($record)?->stats?->has('input_failure') ?? false)
+                ->maxLength(1000)])
             ->label('Продолжить')
             ->color('primary')
             ->visible(fn (Crawler $record): bool => self::canManage()
                 && self::activeRun($record) === null
                 && self::pausedRun($record) !== null)
-            ->action(fn (Crawler $record) => self::dispatch(
+            ->action(fn (Crawler $record, array $data) => self::dispatch(
                 $record,
-                fn (StartCrawlerRunAction $action) => $action->resume($record),
+                fn (StartCrawlerRunAction $action) => $action->resume($record, actorId: (int) Auth::id(), reason: is_string($data['reason'] ?? null) ? $data['reason'] : null),
             ));
     }
 

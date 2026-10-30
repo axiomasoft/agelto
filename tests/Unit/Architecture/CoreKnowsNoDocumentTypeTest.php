@@ -83,7 +83,10 @@ test('периметр ядра собран правилом вычитания
     // 110 = 109 + CooperativeListingSourceMethod (60d6162c, до P4): cooperative
     // listing progress — нейтральный transport contract, не тип документа.
     // 111 = 110 + ExecuteWorkJob (P1.10): общая доставка work envelope без знания типа документа.
-    expect($classes)->toHaveCount(111)
+    // 113 = 111 + generic Llm endpoint declaration and configured provider reader (P2.6).
+    // 114 = 113 + generic DiagnosticSourceMethod full-validation capability (D49).
+    expect($classes)->toHaveCount(114)
+        ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\CooperativeListingSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');

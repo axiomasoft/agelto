@@ -6,6 +6,8 @@ namespace App\Services\Llm\Providers;
 
 use App\Enums\Llm\FinishReason;
 use App\Services\Llm\Contracts\LlmProvider;
+use App\Services\Llm\Contracts\OutboundEndpoints;
+use App\Services\Llm\Contracts\OutboundProxy;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
@@ -45,8 +47,19 @@ use RuntimeException;
  * (Code Guidance P9.4: `structured_outputs`, НЕ deprecated `guided_json`, это параметр СЕРВЕРА
  * vLLM — на стороне клиента ему соответствует режим `Structured`, не `Auto`/`Json`).
  */
-final readonly class OpenAiCompatibleProvider implements LlmProvider
+final readonly class OpenAiCompatibleProvider implements LlmProvider, OutboundEndpoints
 {
+    public function __construct(private OutboundProxy $outbound) {}
+
+    public function outboundOrigins(?string $baseUrl): array
+    {
+        if ($baseUrl === null || $baseUrl === '') {
+            throw new RuntimeException('OpenAI-compatible provider has no configured base URL.');
+        }
+
+        return [$baseUrl];
+    }
+
     public function complete(LlmPrompt $prompt, LlmOptions $options): LlmResponse
     {
         $this->assertNoFileRefs($prompt);
@@ -82,7 +95,8 @@ final readonly class OpenAiCompatibleProvider implements LlmProvider
             ->withSystemPrompt($prompt->systemPart)
             ->withPrompt(implode("\n\n", $prompt->userParts))
             ->usingTemperature($options->temperature)
-            ->withMaxTokens($options->maxTokens);
+            ->withMaxTokens($options->maxTokens)
+            ->withClientOptions($this->outbound->optionsFor((string) parse_url($options->baseUrl ?? '', PHP_URL_HOST), $options->provider));
     }
 
     private function structuredRequest(LlmPrompt $prompt, JsonSchema $schema, LlmOptions $options): StructuredPendingRequest
@@ -94,7 +108,8 @@ final readonly class OpenAiCompatibleProvider implements LlmProvider
             ->withSystemPrompt($prompt->systemPart)
             ->withPrompt(implode("\n\n", $prompt->userParts))
             ->usingTemperature($options->temperature)
-            ->withMaxTokens($options->maxTokens);
+            ->withMaxTokens($options->maxTokens)
+            ->withClientOptions($this->outbound->optionsFor((string) parse_url($options->baseUrl ?? '', PHP_URL_HOST), $options->provider));
     }
 
     /**

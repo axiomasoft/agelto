@@ -91,7 +91,7 @@ test('T21 canonical wire host closes DNS binding bypass а HTTPS downgrade rejec
     }
     $wire = new WireFixture;
     try {
-        config(['crawler.tls.bundles' => ['fixture.test' => $wire->root.'/cert.pem']]);
+        config(['outbound.http.tls_bundles' => ['fixture.test' => $wire->root.'/cert.pem']]);
         $url = new SafeUrl('HTTP://FIXTURE.TEST.:'.$wire->ports['http'].'/ok');
         $result = app(OutboundExecutor::class)->execute(F::plan($url), F::context(), F::gate(), $wire->policy(), new TransferBudget(1_000_000, 1_000_000));
         expect($result)->toBeInstanceOf(TransportSucceeded::class)

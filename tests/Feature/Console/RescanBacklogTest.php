@@ -15,6 +15,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 beforeEach(function () {
     Sleep::fake();
@@ -26,6 +27,8 @@ beforeEach(function () {
         'crawler.tracking.window_overlap_days' => 0,
     ]);
 });
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('делегирует BacklogRescanProcessor и репортит число обработанных прогонов', function () {
     $registry = Registry::factory()->eis()->create();

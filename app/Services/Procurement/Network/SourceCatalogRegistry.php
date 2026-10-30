@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
+use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Services\Procurement\Network\Contracts\SourceCatalogProvider;
 use Illuminate\Contracts\Container\Container;
@@ -27,6 +28,9 @@ final readonly class SourceCatalogRegistry
                 throw new \InvalidArgumentException('Invalid outbound policy: outbound.catalog_providers '.$class.' is not a SourceCatalogProvider');
             }
             $targets = $provider->sourceTargets();
+            if ($targets instanceof ProviderTargetDefinitions) {
+                continue;
+            }
             if (isset($catalogs[$targets->platformCode])) {
                 throw new \InvalidArgumentException('Duplicate source catalog for platform '.$targets->platformCode);
             }
@@ -42,6 +46,30 @@ final readonly class SourceCatalogRegistry
                 }
                 $origins[$key] = $budget;
             }
+        }
+        ksort($catalogs, SORT_STRING);
+
+        return $catalogs;
+    }
+
+    /** @return array<string, ProviderTargetDefinitions> */
+    public function providers(): array
+    {
+        $catalogs = [];
+        foreach ($this->policy->catalogProviders as $class) {
+            $provider = $this->container->make($class);
+            if (! $provider instanceof SourceCatalogProvider) {
+                throw new \InvalidArgumentException('Invalid outbound catalog provider.');
+            }
+            $targets = $provider->sourceTargets();
+            if (! $targets instanceof ProviderTargetDefinitions) {
+                continue;
+            }
+            $key = $targets->providerKey->value;
+            if (isset($catalogs[$key])) {
+                throw new \InvalidArgumentException('Duplicate provider catalog: '.$key);
+            }
+            $catalogs[$key] = $targets;
         }
         ksort($catalogs, SORT_STRING);
 

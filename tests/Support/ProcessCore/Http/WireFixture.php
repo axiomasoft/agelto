@@ -18,7 +18,10 @@ final class WireFixture
 
     private Process $process;
 
-    public function __construct()
+    /** @var array<string, list<array{status: int, headers: array<string, string>, body_base64: string}>> */
+    private array $responses = [];
+
+    public function __construct(int $tlsPort = 0)
     {
         if (getenv('PROCESS_CORE_TEST') !== '1' || ! app()->environment('testing')) {
             throw new \RuntimeException('Real wire tests require isolated core rig.');
@@ -29,7 +32,7 @@ final class WireFixture
             '-subj', '/CN=fixture.test', '-addext', 'subjectAltName=DNS:fixture.test',
             '-keyout', $this->root.'/key.pem', '-out', $this->root.'/cert.pem']);
         $certificate->mustRun();
-        $this->process = new Process(['python3', base_path('tests/Support/ProcessCore/Http/server.py'), $this->root]);
+        $this->process = new Process(['python3', base_path('tests/Support/ProcessCore/Http/server.py'), $this->root, (string) $tlsPort]);
         $this->process->setTimeout(null)->start();
         $until = hrtime(true) + 5_000_000_000;
         while (! str_contains($this->process->getOutput(), "\n")) {
@@ -56,6 +59,15 @@ final class WireFixture
         ], ['fixture.test' => ['127.0.0.1'], 'second.test' => ['127.0.0.1']]);
     }
 
+    /** @param array<string, string> $headers */
+    public function respond(string $path, string $body, int $status = 200, array $headers = [], string $method = 'GET'): void
+    {
+        $key = $method.' '.$path;
+        $this->responses[$key][] = ['status' => $status, 'headers' => (object) $headers, 'body_base64' => base64_encode($body)];
+        file_put_contents($this->root.'/responses.tmp', json_encode($this->responses, JSON_THROW_ON_ERROR));
+        rename($this->root.'/responses.tmp', $this->root.'/responses.json');
+    }
+
     /** @return list<array<string, mixed>> */
     public function receipts(): array
     {
@@ -64,6 +76,11 @@ final class WireFixture
         }
 
         return array_map(fn (string $line): array => json_decode($line, true, flags: JSON_THROW_ON_ERROR), file($this->root.'/requests.jsonl', FILE_IGNORE_NEW_LINES));
+    }
+
+    public function errors(): string
+    {
+        return $this->process->getErrorOutput();
     }
 
     public function stop(): void

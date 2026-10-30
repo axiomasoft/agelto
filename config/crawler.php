@@ -3,33 +3,13 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Enums\Procurement\Crawler\SourceFailureKind;
-use App\Enums\Procurement\Crawler\SourceFailureReaction;
 use App\Enums\Procurement\Crawler\SourceMethod;
-use App\Enums\Procurement\Crawler\SourceStage;
-use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Filament\Platforms\Eis\EisCrawlerPlatformForm;
 use App\Services\Platforms\Eis\Card\EisDetailParser;
 use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
 
-// Реакции по умолчанию, общие для этапов (этап может задать свои). Смысл — у `source_control`.
-$sourceFailureReactions = [
-    SourceFailureKind::ProxyUnavailable->value => SourceFailureReaction::CountTowardWait,
-    SourceFailureKind::SourceBlocked->value => SourceFailureReaction::CountTowardWait,
-    SourceFailureKind::SourceUnavailable->value => SourceFailureReaction::CountTowardWait,
-    SourceFailureKind::UnexpectedStatus->value => SourceFailureReaction::CountTowardWait,
-    SourceFailureKind::InvalidContent->value => SourceFailureReaction::CountTowardWait,
-    SourceFailureKind::LayoutDrift->value => SourceFailureReaction::CountTowardHold,
-    SourceFailureKind::NotFound->value => SourceFailureReaction::LogOnly,
-    SourceFailureKind::EmptyBody->value => SourceFailureReaction::Record,
-    SourceFailureKind::RowErrors->value => SourceFailureReaction::Record,
-    // Ошибка нашего кода: журнал + ограниченные повторы, без продвижения курсора листинга.
-    SourceFailureKind::CodeError->value => SourceFailureReaction::Record,
-];
-
 return [
-    'response_max_bytes' => 8_388_608,
     'csv_max_records' => 1000,
     'csv_max_field_bytes' => 262_144,
     // CSV-only operation: gates all later dispatch and queued execution boundaries.
@@ -37,6 +17,8 @@ return [
 
     'platforms' => [
         'eis' => [
+            'adapter_version' => '1',
+            'contract_versions' => ['listing' => '1', 'detail' => '1'],
             'detail_source_method' => SourceMethod::Csv->value,
             'listing_mapper' => EisCsvRowMapper::class,
             'detail_parser' => EisDetailParser::class,
@@ -106,50 +88,6 @@ return [
     |   SourceFailureKind::NotFound->value => SourceFailureReaction::CountTowardWait,
     |
     */
-    'source_control' => [
-        'http_status_kinds' => [
-            401 => SourceFailureKind::SourceBlocked,
-            403 => SourceFailureKind::SourceBlocked,
-            404 => SourceFailureKind::NotFound,
-            407 => SourceFailureKind::ProxyUnavailable,
-            408 => SourceFailureKind::SourceUnavailable,
-            429 => SourceFailureKind::SourceBlocked,
-            451 => SourceFailureKind::SourceBlocked,
-        ],
-        'server_error_kind' => SourceFailureKind::SourceUnavailable,
-        'other_status_kind' => SourceFailureKind::UnexpectedStatus,
-        'stages' => [
-            SourceStage::Listing->value => [
-                'failure_threshold' => (int) env('CRAWLER_SOURCE_FAILURE_THRESHOLD', 5),
-                'layout_threshold' => 3,
-                'retry_interval_minutes' => (int) env('CRAWLER_SOURCE_RETRY_INTERVAL_MINUTES', 10),
-                'max_consecutive_skips' => 50,
-                'reactions' => $sourceFailureReactions,
-            ],
-            SourceStage::Detail->value => [
-                'failure_threshold' => (int) env('CRAWLER_SOURCE_FAILURE_THRESHOLD', 5),
-                'layout_threshold' => 3,
-                'retry_interval_minutes' => (int) env('CRAWLER_SOURCE_RETRY_INTERVAL_MINUTES', 10),
-                // Карточки ограничены попытками каждой карточки — бесконечного пропуска нет.
-                'max_consecutive_skips' => null,
-                'reactions' => $sourceFailureReactions,
-            ],
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Run — очередь и checkpoint-requeue (P3.2, D27/D28)
-    |--------------------------------------------------------------------------
-    |
-    | Бюджет ОДНОГО запуска `CrawlRunJob` (сек) — по исчерпании `FreshRunProcessor`
-    | выходит с сохранённым курсором и статусом `running`, job самодиспатчится
-    | продолжением. Инвариант таймаутов (`config/horizon.php` `supervisor-crawl`):
-    | checkpoint_seconds < timeout < queue.redis.retry_after. `ArchiveWindowScanner`
-    | эту границу не читает (Pending Work P3.2: у обёрток-дневных-циклов нет чистой
-    | точки выхода по бюджету).
-    |
-    */
     'run' => [
         'checkpoint_seconds' => 240,
     ],
@@ -193,114 +131,6 @@ return [
 
     // NOT calibrated: engineering-cautious defaults derived from the existing 1–4 second
     // request pause, not an EIS-published quota. Raise only from production observations.
-    'budget' => [
-        'requests_per_minute_base' => 15,
-        'requests_per_minute_per_proxy' => 15,
-        'max_wait_seconds' => 60,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Proxy resolver: политика выбора и circuit breaker (research/02 §6-7, P1.4)
-    |--------------------------------------------------------------------------
-    |
-    | Все значения ниже НЕКАЛИБРОВАНЫ — калибровка боевым прогоном (P4.7). Гео-политика
-    | по скоупу (запрещённые/требуемые страны) сюда не входит — заводится P1.5.
-    |
-    */
-    'proxy' => [
-        'resolver' => [
-            // Веса слагаемых score: score = w_success*success_ratio - w_latency*latency_norm
-            // - w_streak*streak_norm (research/02 §6).
-            'weights' => [
-                'success' => 1.0,
-                'latency' => 0.3,
-                'streak' => 0.5,
-            ],
-            // Задержка (мс), при которой штраф латентности максимален.
-            'latency_ref_ms' => 5000,
-            // Серия ГЛОБАЛЬНЫХ отказов, при которой штраф серии максимален.
-            'streak_ref' => 5,
-            // Ширина случайного выбора (weighted random внутри top-K, D6).
-            'top_k' => 3,
-            // Вес свежего исхода в EWMA success_ratio/latency_ms_avg (prc_proxy_targets).
-            'ewma_alpha' => 0.3,
-            // Нижняя граница веса — даже худший из top-K остаётся достижим.
-            'epsilon' => 0.01,
-        ],
-
-        'breaker' => [
-            // НЕ калибровано: число последовательных глобальных открытий breaker'а до
-            // ручного отключения узла оператором (P4.3, D41).
-            'disable_after_openings' => 3,
-            // Серия подряд отказов до открытия breaker'а — по умолчанию для уровня.
-            'threshold' => [
-                'global' => 5,
-                'target' => 3,
-            ],
-            // Базовый cooldown (минуты) при первом открытии; экспоненциально растёт
-            // до cap (research/02 §7: base * 2^(open_count-1)).
-            'base_cooldown_minutes' => [
-                'global' => 30,
-                'target' => 15,
-            ],
-            // Верхняя граница cooldown (часы), обе уровня.
-            'cap_hours' => 6,
-            // Единственность probe в half-open — секунды удержания пробы (§7).
-            'probe_lock_seconds' => 60,
-            // http_429 — троттлинг, не бан: узел здоров, ему нужна короткая пауза (§5, §7).
-            'http_429' => [
-                'threshold' => 10,
-                'base_cooldown_minutes' => 2,
-            ],
-        ],
-
-        /*
-        | Гео-политика по скоупу (research/02 §8, P1.5, D5) — жёсткий фильтр ДО скоринга внутри
-        | резолвера, не вес: запрет обязан быть гарантией. Узел без `country` не проходит гейт
-        | скоупа с непустым `forbidden_countries` (неизвестная страна = запрещённая). Только
-        | скоуп `llm` несёт запрет сегодня (требование брифа «не запустить Gemini через российский
-        | прокси»); `env`-override — под калибровку без деплоя.
-        |
-        | `required_country` (research/02 §8, P1.9, D83) — вторая половина той же политики: пол
-        | площадки для `crawl_*`/`document_download` («кроулинг ЕИС обязан идти через российский
-        | прокси»), `null` у `llm` (требование — запрет, не привязка к стране). Складывается с
-        | `ProxyRequirements->country` профиля, не заменяет его (Implementation Rules P1.9).
-        */
-        'policy' => [
-            ProxyScope::Llm->value => [
-                'forbidden_countries' => array_filter(array_map(
-                    'trim',
-                    explode(',', (string) env('CRAWLER_PROXY_LLM_FORBIDDEN_COUNTRIES', 'RU')),
-                )),
-                'required_country' => env('CRAWLER_PROXY_LLM_REQUIRED_COUNTRY'),
-            ],
-            ProxyScope::CrawlListing->value => [
-                'forbidden_countries' => [],
-                'required_country' => env('CRAWLER_PROXY_CRAWL_LISTING_REQUIRED_COUNTRY', 'RU'),
-            ],
-            ProxyScope::CrawlDetail->value => [
-                'forbidden_countries' => [],
-                'required_country' => env('CRAWLER_PROXY_CRAWL_DETAIL_REQUIRED_COUNTRY', 'RU'),
-            ],
-            ProxyScope::DocumentDownload->value => [
-                'forbidden_countries' => [],
-                'required_country' => env('CRAWLER_PROXY_DOCUMENT_DOWNLOAD_REQUIRED_COUNTRY', 'RU'),
-            ],
-        ],
-    ],
-
-    'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-        .'(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-
-    /*
-    |--------------------------------------------------------------------------
-    | ЕИС (zakupki.gov.ru)
-    |--------------------------------------------------------------------------
-    |
-    | Endpoint CSV-экспорта реестра закупок и размер блока листинга (`from`..`to`).
-    |
-    */
     'eis' => [
         'csv_endpoint' => 'https://zakupki.gov.ru/epz/order/orderCsvSettings/download.html',
         // Подтверждён прогоном P4.7 (K-1): полный блок — ровно 500 строк, дублей
@@ -381,21 +211,6 @@ return [
     | обязан нести его сам; бандл коммитится в репозиторий и копируется в образ (НЕ в системный
     | трест — это расширило бы доверие российскому УЦ на весь контейнер, включая канал к
     | LLM-провайдеру). Хост без записи в карте = системный трест, не отказ.
-    */
-    'tls' => [
-        'bundles' => [
-            'zakupki.gov.ru' => '/etc/ssl/certs/russian-trusted-ca.pem',
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Raw HTML snapshot storage (детальная карточка)
-    |--------------------------------------------------------------------------
-    |
-    | Сырой HTML вкладок карточки — расходник (`01-database.md` §9): retention
-    | по умолчанию выключен, диск по умолчанию — тот же, что `raw_disk`.
-    |
     */
     'raw_html_disk' => 's3',
     'raw_html_gzip' => true,

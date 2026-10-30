@@ -2,20 +2,25 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Proxy\ProxyFailureReason;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Filament\Resources\Procurement\Crawler\Proxies\Pages\CreateProxy;
 use App\Filament\Resources\Procurement\Crawler\Proxies\Pages\EditProxy;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
 
 // PHP-роли зеркалятся в таблицу roles до назначения (class_name → assignRole).
-beforeEach(fn () => artisan('guard:sync-roles'));
+beforeEach(function (): void {
+    artisan('guard:sync-roles');
+    LegacyBusinessNetwork::install(fakeResponses: false);
+});
 
 function proxyResourceOperator(): User
 {
@@ -34,11 +39,11 @@ test('сохранение прокси со скоупом и страной к
             'host' => 'proxy.example',
             'port' => 8080,
             'username' => 'user',
-            'password' => 'secret',
+            'secret_ref' => 'PROXY_TEST_SECRET',
             'country' => 'RU',
             'scopes' => [ProxyScope::CrawlListing->value],
-            'is_active' => true,
-            'fails_count' => 0,
+            'enabled' => true,
+            'reason' => 'Настройка маршрута',
         ])
         ->call('create')
         ->assertHasNoFormErrors();
@@ -53,30 +58,27 @@ test('сохранение прокси со скоупом и страной к
 test('пустой пароль при правке не перетирает сохранённый', function (): void {
     actingAs(proxyResourceOperator());
 
-    $proxy = Proxy::factory()->create(['password' => 'original-secret']);
+    $proxy = Proxy::factory()->create();
+    DB::table('prc_network_routes')->where('id', $proxy->route_id)->update(['secret_ref' => 'ORIGINAL_SECRET']);
 
     Livewire::test(EditProxy::class, ['record' => $proxy->getKey()])
-        ->fillForm(['password' => ''])
+        ->fillForm(['reason' => 'Правка имени', 'service' => 'updated'])
         ->call('save')
         ->assertHasNoFormErrors();
 
-    expect($proxy->refresh()->password)->toBe('original-secret');
+    expect($proxy->refresh()->route->secret_ref)->toBe('ORIGINAL_SECRET');
 });
 
 test('поле здоровья не редактируется через форму', function (): void {
     actingAs(proxyResourceOperator());
 
-    $proxy = Proxy::factory()->create([
-        'open_count' => 2,
-        'last_failure_reason' => ProxyFailureReason::NetworkTimeout->value,
-    ]);
-
+    $proxy = Proxy::factory()->create();
+    $route = $proxy->route;
+    $before = $route->toArray();
     Livewire::test(EditProxy::class, ['record' => $proxy->getKey()])
-        ->fillForm(['open_count' => 99, 'last_failure_reason' => ProxyFailureReason::Http403->value])
-        ->call('save')
-        ->assertHasNoFormErrors();
-
-    expect($proxy->refresh())
-        ->open_count->toBe(2)
-        ->last_failure_reason->toBe(ProxyFailureReason::NetworkTimeout->value);
+        ->fillForm(['reason' => 'Правка конфигурации', 'open_count' => 99, 'last_failure_reason' => 'http_403'])
+        ->call('save')->assertHasNoFormErrors();
+    expect(Schema::hasColumn('prc_proxies', 'open_count'))->toBeFalse()
+        ->and(DB::table('prc_route_health')->where('route_id', $route->id)->value('state'))->toBe('unknown')
+        ->and($route->refresh()->enabled)->toBe($before['enabled']);
 });

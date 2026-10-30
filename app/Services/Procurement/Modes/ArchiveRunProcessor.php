@@ -13,7 +13,7 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\CrawlerRunManager;
-use App\Services\Procurement\SourceControl\SourceRunControl;
+use App\Services\Procurement\Network\LegacyAcquisitionControl;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use Throwable;
@@ -29,7 +29,7 @@ final readonly class ArchiveRunProcessor
     public function __construct(
         private CrawlerRunManager $runs,
         private ArchiveWindowScanner $scanner,
-        private SourceRunControl $sourceControl,
+        private LegacyAcquisitionControl $sourceControl,
     ) {}
 
     public function run(Crawler $crawler, CarbonInterface $from, CarbonInterface $to, ?Run $run = null): Run

@@ -11,6 +11,7 @@ enum ScopeKind: string
     case Acquisition = 'acquisition';
     case Documents = 'documents';
     case Platform = 'platform';
+    case Provider = 'provider';
     case Cohort = 'cohort';
     case Stage = 'stage';
 }

@@ -15,7 +15,7 @@ use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;
 use App\Services\Procurement\Health\Checks\CardParseCheck;
 use App\Services\Procurement\Health\Checks\EstimateFieldsCheck;
 use App\Services\Procurement\Health\Checks\ListingShapeCheck;
-use App\Services\Procurement\Health\Contracts\HealthCheck;
+use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use LogicException;
@@ -23,7 +23,7 @@ use LogicException;
 /** Оркеструет пассивные проверки: эталон читается один раз, история пишется только репозиторием. */
 final readonly class PlatformHealthChecker
 {
-    /** @var list<HealthCheck> */
+    /** @var list<DiagnosticCheck> */
     private array $checks;
 
     public function __construct(

@@ -11,6 +11,7 @@ use App\Dto\Procurement\Network\ResponseEnvelope;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Network\TransportMetrics;
 use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ExecutionContext;
@@ -221,7 +222,7 @@ test('P25-01 SIGKILL at receipt commit boundary preserves atomic quota release a
                 ->and(DB::table('prc_network_budgets')->where('scope_key', $f->url->origin->budgetScopeKey())->sole()->not_before)->toBe('-infinity');
         }
         $result = unserialize(file_get_contents($marker.'.result'), ['allowed_classes' => [
-            HttpAttemptResult::class, HttpResponseHead::class,
+            HttpAttemptResult::class, HttpResponseHead::class, TransportMetrics::class,
             ResponseEnvelope::class, DecodedTextBody::class,
         ]]);
         expect($result)->toBeInstanceOf(HttpAttemptResult::class);

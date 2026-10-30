@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Network;
 
 use App\Dto\Procurement\Process\Duration;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
 use Closure;
 
@@ -16,6 +17,38 @@ final class OutboundExecutionContext
     private readonly int $deadlineNs;
 
     private bool $lost = false;
+
+    private ?AdapterValidationClaim $adapterClaim = null;
+
+    /** @var list<ProcessUuid> */
+    private array $successfulRequestIds = [];
+
+    public function bindAdapter(AdapterValidationClaim $claim): void
+    {
+        if ($this->adapterClaim !== null || $claim->operationId->value !== $this->handle->id->value) {
+            throw new \LogicException('An adapter claim belongs to exactly one full-validation owner.');
+        }
+        $this->adapterClaim = $claim;
+    }
+
+    public function adapterClaim(): ?AdapterValidationClaim
+    {
+        return $this->adapterClaim;
+    }
+
+    public function recordSuccessfulRequest(ProcessUuid $id): void
+    {
+        if (count($this->successfulRequestIds) >= 64) {
+            throw new \LogicException('Full validation request provenance exceeded its bound.');
+        }
+        $this->successfulRequestIds[] = $id;
+    }
+
+    /** @return list<ProcessUuid> */
+    public function successfulRequestIds(): array
+    {
+        return $this->successfulRequestIds;
+    }
 
     /**
      * @param  Closure(OutboundOperationHandle): ?OutboundOperationHandle  $renew

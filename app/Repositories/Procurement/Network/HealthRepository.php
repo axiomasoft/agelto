@@ -27,6 +27,7 @@ use App\Services\Procurement\Network\RequestClassifier;
 use App\Services\Procurement\Network\RetryPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /** One factual completion transaction: health subset -> request -> observation/dedup/release.
  * No work publication. Immutable authorization IDs/epochs permit late evidence after ownership loss.
@@ -146,7 +147,7 @@ final readonly class HealthRepository
                     $stale = true;
                 }
             }
-            $details = ['schema_version' => 1, 'route' => $classification->route->value,
+            $details = ['schema_version' => 1, 'transport' => $result->metrics === null ? null : ['errno' => $result->curlCode, ...$result->metrics->values], 'route' => $classification->route->value,
                 'route_target' => $classification->routeTarget->value,
                 'target' => ($maintenanceUntil === null ? $classification->target : HealthSignal::Maintenance)->value,
                 'independence_group' => $authorization->independenceGroup,
@@ -197,6 +198,15 @@ final readonly class HealthRepository
             }
             if ($request->nullableString('demand_id') !== null) {
                 DB::update("UPDATE prc_network_permits SET state = 'released' WHERE demand_id = ? AND state = 'sent'", [$request->string('demand_id')]);
+            }
+
+            if ($result->metrics !== null) {
+                Log::info('Crawler outbound attempt', [
+                    'request_id' => $requestId->value, 'route_id' => $identity->string('route_id'), 'target_id' => $identity->string('target_id'),
+                    'reason' => $result->curlCode === 28 ? 'network_timeout' : $classification->reason,
+                    'http_status' => $result->failure === null ? $result->head?->status : null,
+                    'transport' => ['errno' => $result->curlCode, ...$result->metrics->values],
+                ]);
             }
 
             return $quota;

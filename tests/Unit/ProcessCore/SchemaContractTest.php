@@ -40,9 +40,9 @@ test('полный enum стадий не активирует будущую с
     }
 
     // P1.15 дополнительно устанавливает три projection carriers; network/documents/AI остаются будущими.
-    expect($inventory['current_item'])->toBe('P1.15');
+    expect($inventory['current_item'])->toBe('P2.6');
     foreach ($inventory['carriers'] as $table => $carrier) {
-        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15'], true), $table);
+        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15', 'P2.1'], true), $table);
     }
 })->group('t01', 'p11');
 

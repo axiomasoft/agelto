@@ -6,7 +6,7 @@ use App\Services\Procurement\SourceTlsTrust;
 use Symfony\Component\Finder\Finder;
 
 test('хост из карты возвращает verify с путём бандла', function (): void {
-    config(['crawler.tls.bundles' => ['zakupki.gov.ru' => '/etc/ssl/certs/russian-trusted-ca.pem']]);
+    config(['outbound.http.tls_bundles' => ['zakupki.gov.ru' => '/etc/ssl/certs/russian-trusted-ca.pem']]);
 
     $options = (new SourceTlsTrust)->optionsFor('zakupki.gov.ru');
 
@@ -14,7 +14,7 @@ test('хост из карты возвращает verify с путём бан�
 });
 
 test('хост вне карты возвращает массив без verify', function (): void {
-    config(['crawler.tls.bundles' => ['zakupki.gov.ru' => '/etc/ssl/certs/russian-trusted-ca.pem']]);
+    config(['outbound.http.tls_bundles' => ['zakupki.gov.ru' => '/etc/ssl/certs/russian-trusted-ca.pem']]);
 
     $options = (new SourceTlsTrust)->optionsFor('example.com');
 
@@ -22,7 +22,7 @@ test('хост вне карты возвращает массив без verify
 });
 
 test('пустая карта — системный трест для любого хоста', function (): void {
-    config(['crawler.tls.bundles' => []]);
+    config(['outbound.http.tls_bundles' => []]);
 
     $options = (new SourceTlsTrust)->optionsFor('zakupki.gov.ru');
 

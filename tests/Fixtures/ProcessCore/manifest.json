@@ -545,12 +545,15 @@
     },
     {
       "path": "tests/Feature/Console/FetchDetailsTest.php",
-      "sha256": "dc39436e0bb8db59694825ef7a69d9fc632214b602eeec23018c8612daba2e43",
+      "sha256": "fbbad900ba0df41ec5347d5453e88125f25d163dbda87a3d517eafabc28c7790",
       "scenarios": [
         "явный id ставит одну детальную закупку в очередь",
         "несуществующий id закупки — FAILURE с сообщением об ошибке",
         "без аргумента ставит в очередь только ограниченную due-пачку"
-      ]
+      ],
+      "original_sha256": "dc39436e0bb8db59694825ef7a69d9fc632214b602eeec23018c8612daba2e43",
+      "original_path": "tests/Feature/Console/FetchDetailsTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Console/FreshCrawlerScheduleTest.php",
@@ -573,11 +576,14 @@
     },
     {
       "path": "tests/Feature/Console/RescanBacklogTest.php",
-      "sha256": "7a281a8d11c1dc866cf453d066da849990683568bbc4dd7f8691dad781662fc5",
+      "sha256": "c484c08679098491f7174a36ab89615e1ec768cce1375b3a3f55a940bfb74f3b",
       "scenarios": [
         "делегирует BacklogRescanProcessor и репортит число обработанных прогонов",
         "нет прогонов с cap_hit — репортит ноль"
-      ]
+      ],
+      "original_sha256": "7a281a8d11c1dc866cf453d066da849990683568bbc4dd7f8691dad781662fc5",
+      "original_path": "tests/Feature/Console/RescanBacklogTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Console/ResetAdminPasswordTest.php",
@@ -589,7 +595,7 @@
     },
     {
       "path": "tests/Feature/Console/RunArchiveCrawlerTest.php",
-      "sha256": "fe5a51696d19db6a9fc98a894910597035cbd744b1d7359d402a861d71c674af",
+      "sha256": "a0b29385d5e798774f09464bf72d0283108c9ac2189435ad790c4bd3a33f9571",
       "scenarios": [
         "резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Archive) с окном from/to",
         "без faked-очереди job исполняется синхронно (sync-driver) и доводит archive-прогон до completed",
@@ -601,7 +607,7 @@
       ],
       "original_path": "tests/Feature/Console/RunArchiveCrawlerTest.php",
       "original_sha256": "1c6b7ef1e2991f060b5ee6e5d07d423320a3568c9d9fad2a95d2f27d69599efd",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Console/RunDeltaScanTest.php",
@@ -612,7 +618,7 @@
     },
     {
       "path": "tests/Feature/Console/RunFreshCrawlerTest.php",
-      "sha256": "c3fac8b65c6e3a8574419a7b68df3adf85451889a4cc516ea908bb89fa815487",
+      "sha256": "e8ffe730ee918ae44be272c5151b65fb30717d85d5430e6d812a55b486066c35",
       "scenarios": [
         "резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Fresh)",
         "без faked-очереди job исполняется синхронно (sync-driver) и доводит прогон до completed",
@@ -622,21 +628,24 @@
         "сбой одного профиля сохраняет его курсор на паузе, остальные профили обработаны",
         "активный прогон профиля — команда отказывает, второй job не ставится",
         "мульти-профильный вызов: активный прогон одного профиля не мешает запуску свободного"
-      ]
+      ],
+      "original_sha256": "c3fac8b65c6e3a8574419a7b68df3adf85451889a4cc516ea908bb89fa815487",
+      "original_path": "tests/Feature/Console/RunFreshCrawlerTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Console/VerifyDocumentUidTest.php",
-      "sha256": "a155c70903097c3d19c21b2170e5fab80b1a29dcdfdeb9f78ac8f1ec23f7df87",
+      "sha256": "859fe36d6439619071e3b9b5a847de32680addbd9f75eff48dfc6f709f47224f",
       "scenarios": [
         "live B2 command records current uid evidence without bodies and fails closed on absent pairs"
       ],
       "original_path": "tests/Feature/Console/VerifyDocumentUidTest.php",
       "original_sha256": "9c1563e0b08d4351fcf29d10783ba9c97e1673743f6042b29bdb10f5549624c1",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Console/VerifyFreshBoundaryTest.php",
-      "sha256": "6e1992ca73aed1906d00990b820b530194dd4113574a6ee0cae947e90899540e",
+      "sha256": "50e16fd7499a83c642912680b26c126c878996e46c3fa13fb50a9fffa1c6e882",
       "scenarios": [
         "live A1 command uses bounded listing route and writes the exact sanitized schema",
         "непроверенный CSV в bounded probe фиксирует отказ без ложной пустой страницы"
@@ -644,21 +653,24 @@
       "original_sha256": "df24d16be39c5e762dd09e8167a100ff6a5564cf64ce0f5c172c40e723f2fa56",
       "harness_correction": "P4.1 D24: fresh HTTP response per request because the reader closes each stream; HTML without Content-Type has precise reason invalid_csv_header. Both scenario names and all request/page/stop/verdict/sanitization assertions retained.",
       "original_path": "tests/Feature/Console/VerifyFreshBoundaryTest.php",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/ArchiveRunProcessorTest.php",
-      "sha256": "d673e96c6e1b069abf861ecf04193a3ca3c92e2e46cfde87f2c94128fc72d98d",
+      "sha256": "37da8f9d7453cc847342b413c4efea11597ffc045df540c38a527d694fc3e1ab",
       "scenarios": [
         "период из 2 дней — scan вызван на каждый день, курсор прошёл оба дня, run completed",
         "оборванный прогон (paused с курсором на 2-м дне) резюмится со 2-го дня, не с 1-го",
         "стоп-сигнал Pause между днями останавливает archive-прогон целиком, следующий день не обходится",
         "стоп-сигнал Cancel между днями останавливает archive-прогон целиком, статус терминален"
-      ]
+      ],
+      "original_sha256": "d673e96c6e1b069abf861ecf04193a3ca3c92e2e46cfde87f2c94128fc72d98d",
+      "original_path": "tests/Feature/Crawler/ArchiveRunProcessorTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
-      "sha256": "776cd360ab855def7e46e2eaea4de175f01fac5f8b5415820366888651e9efed",
+      "sha256": "6340f2c4d31398fbc0a1f1ad985c4e874fe5af09ce8e02998cab2d31fdc9d117",
       "scenarios": [
         "окно дренируется на частичном блоке, стек опустошён",
         "cap по повтору dedup_signature делит интервал пополам, обе половины дренируются",
@@ -672,11 +684,11 @@
       ],
       "original_path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
       "original_sha256": "67e406ddeb254db05d05e614366db06df6923b71ae0e7387f87b0e06086557f0",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/AuditReliabilityRegressionTest.php",
-      "sha256": "34b6e14e8776b1ffe0abae1d2f32d6525c063d9bafc26d8f535b88f265bc54a7",
+      "sha256": "b4fc32b563530e7ec142fb94cf8c9faf5e5f212c1befb2601b6de3a2cdddfd8e",
       "scenarios": [
         "deadline листинга даёт checkpoint без инцидента и без продвижения курсора",
         "архив не начинает новый бюджет времени при переходе на следующий день",
@@ -685,11 +697,14 @@
         "сбой очереди не теряет автоматическое возобновление прогона",
         "устаревший тик не снимает новое ожидание брейкера",
         "повторная job при активном владельце завершается без ошибки и запросов"
-      ]
+      ],
+      "original_sha256": "34b6e14e8776b1ffe0abae1d2f32d6525c063d9bafc26d8f535b88f265bc54a7",
+      "original_path": "tests/Feature/Crawler/AuditReliabilityRegressionTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/AuditRemediationTest.php",
-      "sha256": "8e849a1202f28aae57958e6e90863c918e5e410bea07411e78a46c42aa903426",
+      "sha256": "0f20375ff347c96c3e2a58b59111778e62aaf0d912f3978408c91d88c8680b10",
       "scenarios": [
         "распакованное тело ограничено фактическими байтами и поток закрывается после отказа",
         "просроченный deadline закрывает тело до его чтения",
@@ -719,11 +734,11 @@
       ],
       "original_path": "tests/Feature/Crawler/AuditRemediationTest.php",
       "original_sha256": "b8802ab121b995eecd0467070aa140cee74d8a52994c846e5f735a04c8982675",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/BacklogRescanProcessorTest.php",
-      "sha256": "6fd0406889a354b860d0edee892d87d2f733adba7e087425f50819047a71ec87",
+      "sha256": "3dfc8a30fec643d33b3fc041823f793d3d3fb08f9bd8adacc7e2349770583964",
       "scenarios": [
         "cap_hit с живым archive-профилем реестра — scan вызван по update-окну, флаг помечен",
         "backlog использует scope из fresh-run, если профиль изменили после cap_hit",
@@ -741,13 +756,13 @@
       ],
       "original_path": "tests/Feature/Crawler/BacklogRescanProcessorTest.php",
       "original_sha256": "e712c6c5f1ff3f10abdd1d2893b681778fd5a6179ac42ebee02134f9b972b4dd",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/BudgetExhaustionTest.php",
-      "sha256": "126e1314411f4dc7c167099c0763d03395af6cc415c73ba8664e1ec04ade77ae",
+      "sha256": "a2cfe8b46b72dca0c96e0528901dfbd61ff65c8105ef8ea47f0d56fd15c51877",
       "original_sha256": "4c9c3f5927d7b70e857db7416da468a5b6bad3de3f36e94cdfa280f6a81e0311",
-      "change_reason": "P1.14 regression fixture: isolate document budget host from the EIS platform created by ProcurementFactory; preserve all scenario names and assertions and explicitly exercise the competing EIS platform.",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
       "scenarios": [
         "исчерпание бюджета листинга завершает срез чекпоинтом без падения прогона",
         "исчерпание бюджета archive сохраняет недренированный день и не переводит run в failed",
@@ -755,11 +770,12 @@
         "исчерпание бюджета backlog не помечает fresh-run rescanned",
         "исчерпание бюджета карточки не растит detail_attempts и не двигает retry",
         "исчерпание бюджета документа не записывает error-блок документа"
-      ]
+      ],
+      "original_path": "tests/Feature/Crawler/BudgetExhaustionTest.php"
     },
     {
       "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-      "sha256": "d6f1018b7ad2aba778ce34d050f69e5ace32ec698ad90b83f941c61e5a22e1ee",
+      "sha256": "08f12e8798b43eab79832be0832fb9be97885f3331ff7fba797a13098029b0a0",
       "scenarios": [
         "таймаут карточки сохраняет числовые фазы транспорта без URL и credentials",
         "collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)",
@@ -774,14 +790,17 @@
       ],
       "original_path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
       "original_sha256": "2cd90c422113c6fbe8bd7fd876526c0b7281d3e46178d02830529445de432bc8",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/ChangeTrackingWindowTest.php",
-      "sha256": "d70979fcd3c0943a4ba2dacaa581fff8c549daca46fafa502e04e47b0d170fcd",
+      "sha256": "6cd50228840a614921f3a5fcd3c24c86a454af55a0472d4c80c574c8b3c20e7c",
       "scenarios": [
         "обновление, попавшее в стык окон, не теряется — перекрытие расширяет рескан назад"
-      ]
+      ],
+      "original_sha256": "d70979fcd3c0943a4ba2dacaa581fff8c549daca46fafa502e04e47b0d170fcd",
+      "original_path": "tests/Feature/Crawler/ChangeTrackingWindowTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/CrawlerFilterContractTest.php",
@@ -810,21 +829,27 @@
     },
     {
       "path": "tests/Feature/Crawler/CrawlerProxySettingsStorageTest.php",
-      "sha256": "d50af8900d5a3aba3bf016523a38429e49bea4625d5fcda5c7bbe943d2245f98",
+      "sha256": "d2fa81a7a88dc77534cfac889bc238c098c04eca0c25a787498f91bb60394c64",
       "scenarios": [
         "настройка crawler proxy хранит nullable ID в выделенном репозитории",
         "resolver обновляет cached settings после сохранения другим process"
-      ]
+      ],
+      "original_sha256": "d50af8900d5a3aba3bf016523a38429e49bea4625d5fcda5c7bbe943d2245f98",
+      "original_path": "tests/Feature/Crawler/CrawlerProxySettingsStorageTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/CrawlerProxySettingsTest.php",
-      "sha256": "10226d5337be2b041ddabb2f75c844a9e023646db65dcb7eedda4c74b6acbbde",
+      "sha256": "ca00615da0dd60a2c7ba162ef787546b88d21b3194a44bd764ba2481e28bd980",
       "scenarios": [
         "FreshRunProcessor останавливается при изменении proxy маршрута между блоками",
         "ArchiveWindowScanner перечитывает proxy_mode/proxy_country профиля перед каждой итерацией",
         "фабрика по умолчанию сохраняет default-профиль, а withProxies задаёт profile mode",
         "профиль с включёнными прокси без явной привязки не сохраняется"
-      ]
+      ],
+      "original_sha256": "10226d5337be2b041ddabb2f75c844a9e023646db65dcb7eedda4c74b6acbbde",
+      "original_path": "tests/Feature/Crawler/CrawlerProxySettingsTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/CrawlerRunExecutionLeaseTest.php",
@@ -872,7 +897,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CrawlRunJobTest.php",
-      "sha256": "577bd2d960a9358db90d0cde97f83467d5b952f1952417878213c7ac68895295",
+      "sha256": "1f392c4d5a4a3d1ff9d2e04bcd2061fc66f6036c66b947a3a586833415db4b40",
       "scenarios": [
         "job резолвит fresh-режим и вызывает FreshRunProcessor",
         "job резолвит archive-режим и вызывает ArchiveRunProcessor за окно from/to",
@@ -892,11 +917,11 @@
       ],
       "original_path": "tests/Feature/Crawler/CrawlRunJobTest.php",
       "original_sha256": "da2b957da315ad5f9b9a7ae9e85a81c1465d79eb8ad283e0d6096e0c9bd5ea14",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
-      "sha256": "f21a2a9e2d79c32818dd1f28527abdb13550091366f4cb028f224f4197367023",
+      "sha256": "0990e449a5bb2a836a7d9f67cb05029291d8f09ac647547a62580bb5df654838",
       "scenarios": [
         "фикстурный блок создаёт закупки, ревизии и события discovered",
         "передаёт точность самой старой даты обновления из маппера",
@@ -915,11 +940,14 @@
         "нет обязательной колонки в заголовке — ответ не по формату, строки не разбираются",
         "HTML вместо CSV с HTTP 200 ловится проверкой заголовка, даже если записей нет",
         "пустое тело при 2xx — отдельный вид отказа, блок пропускается"
-      ]
+      ],
+      "original_sha256": "f21a2a9e2d79c32818dd1f28527abdb13550091366f4cb028f224f4197367023",
+      "original_path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-      "sha256": "d95d13fefd2b23eb632a50f3836bd1ae8fef9ecf57d0e0c26c40e01485415fd1",
+      "sha256": "f2e5defaa79a9f582895b5f7edef0f729f80068cbce31bf2724c12428761095c",
       "scenarios": [
         "истёкший deadline листинга запрещает новый HTTP-запрос",
         "collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре",
@@ -943,11 +971,11 @@
       ],
       "original_path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
       "original_sha256": "2b034439b6fd0c89d17422303b37091eca7aed1668ce8a444ced7b5000e611de",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/DeltaScanTest.php",
-      "sha256": "58037c6c1895ca9b6d183cc5c0073aee9a408ebe47af0966084318c38e6df04a",
+      "sha256": "dbe9f1b4bc42e6121a459236bbfbc0bac4368504f3e6723013c121f7fbca7169",
       "scenarios": [
         "нет активного archive-профиля реестра — warning, run не создаётся",
         "чужой running archive-прогон даёт busy без сканирования и completion",
@@ -960,11 +988,11 @@
       ],
       "original_path": "tests/Feature/Crawler/DeltaScanTest.php",
       "original_sha256": "6ee672e164521013e6585fc69578f43b0d0c293d5242730c27a6d9a00a33e3e7",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/DetailAnalysisProcessorTest.php",
-      "sha256": "a9bbd63764168634a3d111203d3c10c623fd67c4b4ecb76b8dc85feb5e2f9208",
+      "sha256": "e3f06662ed12241d07bf4d62813126621ad053155b534f4e20597ae4913c81c7",
       "scenarios": [
         "supplier-results mismatch остаётся retryable и следующий полный проход сходится",
         "неполные стороны оставляют карточку retryable до подтверждённого полного повтора",
@@ -985,15 +1013,18 @@
       ],
       "original_path": "tests/Feature/Crawler/DetailAnalysisProcessorTest.php",
       "original_sha256": "b99d8a55d37c350c2ff5f51af399b59114b9109fc5f0065dbd7808699c65a200",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/DetailDispatcherTest.php",
-      "sha256": "179f9d8f1899b77e4b268510dace5b9ecd299873dc3c762fa0a925949856641c",
+      "sha256": "c2a4752776f579c2cec0b909f7212e81e7f70b561b003e0d05b7b038fbb7fa90",
       "scenarios": [
         "диспетчер подаёт не больше лимита за тик",
         "повторный тик не создаёт второй detail-job для той же закупки"
-      ]
+      ],
+      "original_sha256": "179f9d8f1899b77e4b268510dace5b9ecd299873dc3c762fa0a925949856641c",
+      "original_path": "tests/Feature/Crawler/DetailDispatcherTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/EisCardUrlBuilderTest.php",
@@ -1045,7 +1076,7 @@
     },
     {
       "path": "tests/Feature/Crawler/EisListingReliabilityTest.php",
-      "sha256": "49b81dadfd759e22b93ebe56e9e646363849da4d2c6f92c1801e2f7565f82adb",
+      "sha256": "767c4c60c598686aab781f9f203e4b3eb83ffca5dd56eb91cfb3dae1a77e174e",
       "scenarios": [
         "невалидный ответ сохраняет raw evidence и не дренирует день",
         "валидный header-only CSV дренирует пустой день",
@@ -1061,11 +1092,11 @@
       ],
       "original_path": "tests/Feature/Crawler/EisListingReliabilityTest.php",
       "original_sha256": "bb2209f961fb3fdbca63c51fe82b3ca044ff70952f639e59e52137125d409378",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/FetchProcurementDetailJobTest.php",
-      "sha256": "0ee40c1326959c8c85b2af3b204d12377b096fd82c1af5b0af6e9b0677639cb7",
+      "sha256": "347633c4bcdbdc39ac1f49dbfae489e77201c375f7235363c3e8b3abdb4a8905",
       "scenarios": [
         "job вызывает детальный процессор и мост в pipeline после успеха",
         "job тихо заканчивается при исчерпанном бюджете и не вызывает мост",
@@ -1074,11 +1105,11 @@
       ],
       "original_path": "tests/Feature/Crawler/FetchProcurementDetailJobTest.php",
       "original_sha256": "04f0d9f9ae187e0920281ee98b1b6c32622dbb5a8b677ebf1a2dde7a2e8f76f5",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/FreshRunProcessorTest.php",
-      "sha256": "5a5101d4f9694f784f884038a1bb9e91c7d9151838cdbca99ea10ce547cefb4c",
+      "sha256": "4c2a74dd65ce92df4b185383021180c156d4bcd72d06d31601533f88b9d1c2f5",
       "scenarios": [
         "нераспознанный блок сохраняет evidence и курсор для повторной обработки",
         "страница ошибки (403) сохраняет текущий блок и приостанавливает fresh",
@@ -1102,17 +1133,20 @@
       ],
       "original_path": "tests/Feature/Crawler/FreshRunProcessorTest.php",
       "original_sha256": "40e69e34d6288aafe1885fb5be4792ac6e8a086c4d60ff601f9be2734b7b9f97",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/PlatformRequestBudgetTest.php",
-      "sha256": "41b7f6704b2a6ce9065200d8c7808e09a6073a1ebb50224313de8df7c0ad6372",
+      "sha256": "b4f96ab6b075dc6195ac233c5d1e9b122209f9fbc49a733e46a952bc2d8c8d19",
       "scenarios": [
         "листинг и документы одного хоста делят окно, второй потребитель ждёт слот",
         "ёмкость растёт только от активных привязанных узлов площадки",
         "стадийная пауза берётся из резолвера площадки и входит в измеренное ожидание",
         "разные хосты не расходуют общий счётчик"
-      ]
+      ],
+      "original_sha256": "41b7f6704b2a6ce9065200d8c7808e09a6073a1ebb50224313de8df7c0ad6372",
+      "original_path": "tests/Feature/Crawler/PlatformRequestBudgetTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/PlatformThrottleSettingsTest.php",
@@ -1124,44 +1158,56 @@
     },
     {
       "path": "tests/Feature/Crawler/ProxyAutoDisableTest.php",
-      "sha256": "eec3b09c31734b3aa1c042ddf9ff699e51ddafa9c627cc89d560148e7d04945b",
+      "sha256": "cf7b7caa7c0281f7fc47b0ddd0aa6c93f00bfc1edfee034a83b3a030e69eb658",
       "scenarios": [
         "глобальные открытия breaker отключают прокси и убирают его из выдачи",
         "ручное включение сбрасывает состояние отключения",
         "пер-хостовое открытие breaker не отключает узел глобально",
         "успех до порога обнуляет серию глобальных открытий"
-      ]
+      ],
+      "original_sha256": "eec3b09c31734b3aa1c042ddf9ff699e51ddafa9c627cc89d560148e7d04945b",
+      "original_path": "tests/Feature/Crawler/ProxyAutoDisableTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/ProxyBindingResolverTest.php",
-      "sha256": "0b3eecc67e548ea0c2d7849067e124bda9ec2e591cfe8ff941ab861dd2251ad4",
+      "sha256": "ec166fd8d52e40986b803366c6b1cf7eb65af78d793d2d15e77d7c6d8e884334",
       "scenarios": [
         "резолвер профиля возвращает только явно привязанные узлы",
         "резолвер стадии объединяет только наборы активных proxy-профилей реестра закупки",
         "резолвер стадии выбирает default без profile и direct только при явном opt-out всех профилей"
-      ]
+      ],
+      "original_sha256": "0b3eecc67e548ea0c2d7849067e124bda9ec2e591cfe8ff941ab861dd2251ad4",
+      "original_path": "tests/Feature/Crawler/ProxyBindingResolverTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/ProxyCredentialStorageTest.php",
-      "sha256": "bf7d91edc20ace8bace2730ac34a00b9540d9b102992d00605dc4c64aad560bb",
+      "sha256": "64d221801daee88da095668f9149d89939fd6f5a08dbe19c23391083b438105e",
       "scenarios": [
         "пароль прокси хранится в БД зашифрованным, а модель читает открытое значение",
         "пароль прокси не сериализуется моделью",
         "резолвер выдаёт лизу с расшифрованными учётными данными узла"
-      ]
+      ],
+      "original_sha256": "bf7d91edc20ace8bace2730ac34a00b9540d9b102992d00605dc4c64aad560bb",
+      "original_path": "tests/Feature/Crawler/ProxyCredentialStorageTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/ProxyOutcomeConcurrencyTest.php",
-      "sha256": "c86c43a782efb24bae9834eeb144cf7c4491e2a5f5f58e021aefc1a724f752f5",
+      "sha256": "2e0029cd477d8be3d9de1f818f940bb4c4df5f14cef3490482388522d812eca0",
       "scenarios": [
         "два одновременных глобальных отказа учитываются оба и один раз отключают узел",
         "два одновременных успешных замера входят в EWMA при alpha 0.3",
         "смешанные global и target outcomes не инвертируют порядок блокировок"
-      ]
+      ],
+      "original_sha256": "c86c43a782efb24bae9834eeb144cf7c4491e2a5f5f58e021aefc1a724f752f5",
+      "original_path": "tests/Feature/Crawler/ProxyOutcomeConcurrencyTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/ProxyResolverTest.php",
-      "sha256": "4e0350cfeff2e23371aa570e4675cccdc22174c7d0eaf287f1f93a4dbe15180b",
+      "sha256": "f2d03b8d2c3ef2b09c37472e787192c95811b320823f28d9b677cda218bbc4c6",
       "scenarios": [
         "score использует только числовую конфигурацию весов и точек отсчёта",
         "score отклоняет некорректную конфигурацию",
@@ -1185,17 +1231,23 @@
         "политика required_country=RU не выдаёт узел другой страны ни при одном значении случайности",
         "узел без страны не проходит скоуп с непустым required_country",
         "требование профиля, противоречащее required_country скоупа, даёт NoProxyAvailableException"
-      ]
+      ],
+      "original_sha256": "4e0350cfeff2e23371aa570e4675cccdc22174c7d0eaf287f1f93a4dbe15180b",
+      "original_path": "tests/Feature/Crawler/ProxyResolverTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/RawArtifactIdentityTest.php",
-      "sha256": "0e41d913fd543fb622a785a772542dec312d67b99d394ab975102c1780d26461",
+      "sha256": "580f80f2dac23c213fcbb8ef2662e3ab752412b47cf3377d62a9d5e57ecfc286",
       "scenarios": [
         "distinct CSV request windows retain their own immutable bytes",
         "identical CSV replay reuses its immutable object reference",
         "failed checked write does not create a fetch claiming an artifact",
         "raw artifact action does not expose request values in its path"
-      ]
+      ],
+      "original_sha256": "0e41d913fd543fb622a785a772542dec312d67b99d394ab975102c1780d26461",
+      "original_path": "tests/Feature/Crawler/RawArtifactIdentityTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/RunStopGateTest.php",
@@ -1209,7 +1261,7 @@
     },
     {
       "path": "tests/Feature/Crawler/SourceCircuitBreakerTest.php",
-      "sha256": "b254655d9897362fe739a98669f53f9670e39d16ca965a899a0a7e806958e343",
+      "sha256": "00061d14cda0d83e270ed06254ee19127a8700c02a03fcedcf4f64161551b23e",
       "scenarios": [
         "отказ ниже порога: этап работает, событие отказа записано, ожидания нет",
         "порог: ожидание на интервал, событие об ожидании, доменное событие",
@@ -1226,11 +1278,14 @@
         "404 по умолчанию — только лог: ни журнала, ни счёта, этап работает",
         "одна строка конфига делает 404 отказом площадки",
         "пороги: пустое поле в админке — из конфига, заполненное — перекрывает"
-      ]
+      ],
+      "original_sha256": "b254655d9897362fe739a98669f53f9670e39d16ca965a899a0a7e806958e343",
+      "original_path": "tests/Feature/Crawler/SourceCircuitBreakerTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/SourceControlScenariosTest.php",
-      "sha256": "dc3f0766148d3c28f80a656d6dd6f00422d94656466981339b77c850e11762f8",
+      "sha256": "d87efc9bd7da3c38c9ba08d93690945e93b2b01e671149d20a35a6dc3380346a",
       "scenarios": [
         "пул прокси лёг: 5 отказов → ожидание, прогон на паузе на том же блоке; через 10 мин продолжает, данные целы",
         "всплеск 503 ниже порога: тот же блок повторён после ожидания, обход завершён без пропусков",
@@ -1248,11 +1303,14 @@
         "карточки: новая вёрстка на 3 карточках → остановка; попытки карточек не тратятся",
         "находка: тики планировщика во время остановки не плодят «прогон приостановлен»",
         "находка: при ожидании этапа карточек диспетчер не ставит холостые job и не занимает лимит"
-      ]
+      ],
+      "original_sha256": "dc3f0766148d3c28f80a656d6dd6f00422d94656466981339b77c850e11762f8",
+      "original_path": "tests/Feature/Crawler/SourceControlScenariosTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/StageOneIsolationTest.php",
-      "sha256": "5b9343e79639322f502a99852e6efa3911ee78d6280589bb807dc3675afbcd26",
+      "sha256": "ab95a9f921fd6e0a688a61f6a9386319531e3709fe0929481142e8cbfe1a5fd0",
       "scenarios": [
         "CSV-only запрещает прямой и пакетный detail, backlog, retry и revalidation без claims",
         "CSV-only останавливает уже поставленные document jobs до чтения данных и lease",
@@ -1261,18 +1319,24 @@
         "отключённая стадия называет причину отказа fixture без рабочей копии и dispatch",
         "включение downstream возвращает штатный detail dispatch",
         "CSV-only не диспатчит подготовку извлечённого дочернего документа архива"
-      ]
+      ],
+      "original_sha256": "5b9343e79639322f502a99852e6efa3911ee78d6280589bb807dc3675afbcd26",
+      "original_path": "tests/Feature/Crawler/StageOneIsolationTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/SuspendedRunResumerTest.php",
-      "sha256": "4472e68d01e1a941b2466edb873fdc2d6397b73a4ef4c07de4ce6bc8ee407e12",
+      "sha256": "159c050d4aafbd3c6da9765b24572cfde891b9e2872dfbc33100ca5d5cb15c03",
       "scenarios": [
         "автоповтор отправляет job и сохраняет метку до фактического возобновления",
         "автоповтор ждёт retry_at и не трогает ручную паузу",
         "оператор возобновляет сразу, минуя ожидание: ожидание снято, прогон поставлен",
         "delta/backlog сохраняют метку и продолжаются своим планировщиком",
         "ожидание этапа карточек истекает без прогонов: снимается только retry_at"
-      ]
+      ],
+      "original_sha256": "4472e68d01e1a941b2466edb873fdc2d6397b73a4ef4c07de4ce6bc8ee407e12",
+      "original_path": "tests/Feature/Crawler/SuspendedRunResumerTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Doctor/ApplicationReadinessDiagnosticTest.php",
@@ -1291,7 +1355,7 @@
     },
     {
       "path": "tests/Feature/Document/DocumentDownloaderTest.php",
-      "sha256": "620792581d6d4631c86b1b91ea10f4de668053b82b6635cd387d3f5d0a03d06f",
+      "sha256": "2807286bfd5687119242ec3adcd5bfd0987da892ab883f5c5ebfd71015b87f47",
       "scenarios": [
         "download первого файла создаёт версию, кладёт файл в storage и пишет событие document_added",
         "download того же контента повторно — no-op, версия не дублируется",
@@ -1312,7 +1376,10 @@
         "единый deadline прекращает повторы 503 без публикации частичного документа",
         "цепочка redirect закрывает каждый поток и расходует HTTP бюджет на каждый переход",
         "deadline на проверке canonical storage не публикует версию и удаляет staging"
-      ]
+      ],
+      "original_sha256": "ca97e4df9cf40b36ddbd922a588b6ec71c0d420d46d9718d01af1dc51c095900",
+      "original_path": "tests/Feature/Document/DocumentDownloaderTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Document/DocumentIndexerTest.php",
@@ -1340,7 +1407,7 @@
     },
     {
       "path": "tests/Feature/Document/DocumentRevalidationTest.php",
-      "sha256": "d84af1935f3ef29b5d7cd2155326fba82989a0b7c1127d1f746240d4e0e2150d",
+      "sha256": "0fcfd5622ccdbed0fc6a08139f8dd8d9607e96a9c3c17a7d831a7d6cd9ff1bf0",
       "scenarios": [
         "revision-trigger ограниченно ставит существующий uid на ревалидацию",
         "low-rate policy подбирает старую версию без новой редакции",
@@ -1348,7 +1415,10 @@
         "production revalidation прежнего uid с новыми bytes создаёт версию и возвращает документ в подготовку",
         "production revalidation тех же bytes сохраняет терминал и сбрасывает прошлые ошибки",
         "возврат A B A восстанавливает порядок версий событие и новый анализ даже в один момент времени"
-      ]
+      ],
+      "original_sha256": "d84af1935f3ef29b5d7cd2155326fba82989a0b7c1127d1f746240d4e0e2150d",
+      "original_path": "tests/Feature/Document/DocumentRevalidationTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Document/DocumentVersionDiskColumnTest.php",
@@ -1359,11 +1429,14 @@
     },
     {
       "path": "tests/Feature/Document/DownloadDocumentJobTest.php",
-      "sha256": "1a6d3dfaa3e56a3db718c5a3cb6af3f9a6e07961380c640fa3f5d2794672ea69",
+      "sha256": "54f19c733570f0622b6e16704de9ddb759c6e9caa1540591377e71deb1988870",
       "scenarios": [
         "due download job скачивает discovered-документ через единый downloader route",
         "due download job безопасно пропускает документ без download input"
-      ]
+      ],
+      "original_sha256": "1a6d3dfaa3e56a3db718c5a3cb6af3f9a6e07961380c640fa3f5d2794672ea69",
+      "original_path": "tests/Feature/Document/DownloadDocumentJobTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Document/PipelineDispatcherTest.php",
@@ -1417,12 +1490,13 @@
     },
     {
       "path": "tests/Feature/Filament/AdminRouteInventoryTest.php",
-      "sha256": "c5972363e11a44a1f610ef3e936b335e50e654060caf51cfd82fc91c45981b54",
+      "sha256": "027dc15d08c344490781aa3a7187667ff8e0d116ed25ce3218dcedaa331a7570",
       "scenarios": [
         "runtime admin routes exactly match committed resource and role matrix"
       ],
       "original_sha256": "ab43e9fc7aa9c0ffe0dd4ae75bfbc49f83221b2c0157485783b8bf7df87bdcb6",
-      "change_reason": "P1.17 declare additional Process drilldown routes and navigation labels; existing scenarios and assertions retained."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
+      "original_path": "tests/Feature/Filament/AdminRouteInventoryTest.php"
     },
     {
       "path": "tests/Feature/Filament/AnalysisResourceTest.php",
@@ -1439,7 +1513,7 @@
     },
     {
       "path": "tests/Feature/Filament/CrawlerFormTest.php",
-      "sha256": "c8b7d500daa57495ff4802411bdb2132b498e5beccd12df55f89dd623e9c9888",
+      "sha256": "18a1bcc08edae87c22eb2899631f1f36c6b33fd6963b12e0bed20f23fd817fae",
       "scenarios": [
         "сохранение профиля формой даёт типизированный фильтр и обязательные колонки",
         "форма сохраняет long execution lane как профильный enum",
@@ -1457,16 +1531,19 @@
       ],
       "original_path": "tests/Feature/Filament/CrawlerFormTest.php",
       "original_sha256": "3db58cb3648f5b7398d1cacceca4098943e50332723aa0d7ddb3ea1c039d2619",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Filament/CrawlerProxySettingsPageTest.php",
-      "sha256": "71065f6a425bd6627314f6c8e83a1236566910ae06f06b7008f13a08cc789b49",
+      "sha256": "67320344982fe39361c4533ef03df6181bc788c3f382784bb230da37295f1b1d",
       "scenarios": [
         "оператор сохраняет nullable default только через action и видит безопасную подпись",
         "страница исключает неактивные и неполные default-прокси, а action повторно отвергает их",
         "страница скрыта и закрыта прямым URL без ProxyPermission Update"
-      ]
+      ],
+      "original_sha256": "71065f6a425bd6627314f6c8e83a1236566910ae06f06b7008f13a08cc789b49",
+      "original_path": "tests/Feature/Filament/CrawlerProxySettingsPageTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Filament/CrawlerRunActionsTest.php",
@@ -1663,13 +1740,14 @@
     },
     {
       "path": "tests/Feature/Filament/NavigationLabelsTest.php",
-      "sha256": "f5769cf4287df0d5dfabe3d43d0ed2e1b60ed181cef18d42c6b11d9e7924fcac",
+      "sha256": "bb908f1525c9c85a6cd10328e85690c9e5e7f43e4df13080d334cb4b66dc2146",
       "scenarios": [
         "назначает всем обнаруженным ресурсам осмысленные русские navigation labels",
         "фиксирует точный порядок групп и application pages"
       ],
       "original_sha256": "6fba9167bb547c818abc910c6985ba24052ba654374420601abf1330cc385c07",
-      "change_reason": "P1.17 declare additional Process drilldown routes and navigation labels; existing scenarios and assertions retained."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
+      "original_path": "tests/Feature/Filament/NavigationLabelsTest.php"
     },
     {
       "path": "tests/Feature/Filament/OperationLogResourceTest.php",
@@ -1745,30 +1823,39 @@
     },
     {
       "path": "tests/Feature/Filament/ProxyReactivateActionTest.php",
-      "sha256": "6cdb60e8254413bc9c3eb39803a53cc4b360792460d784401e838d4dde92d4a3",
+      "sha256": "ca2db90bf4e907da2274b72fe5e0efe72908fbd05742841f395492abc7fbbfdb",
       "scenarios": [
         "оператор видит действие возврата отключённого прокси",
         "пользователь без proxy.update не может открыть витрину прокси"
-      ]
+      ],
+      "original_sha256": "6cdb60e8254413bc9c3eb39803a53cc4b360792460d784401e838d4dde92d4a3",
+      "original_path": "tests/Feature/Filament/ProxyReactivateActionTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Filament/ProxyResourceTest.php",
-      "sha256": "763c2ed3f25aaab48d1dd750342b3aa3b075be5db9079fd5e625acbe8287aa12",
+      "sha256": "61c2cd876936c4903df3877d53885d2bbde2c4a251197a92f2ceee2925f7c6d4",
       "scenarios": [
         "сохранение прокси со скоупом и страной кладёт типизированные значения",
         "пустой пароль при правке не перетирает сохранённый",
         "поле здоровья не редактируется через форму"
-      ]
+      ],
+      "original_sha256": "763c2ed3f25aaab48d1dd750342b3aa3b075be5db9079fd5e625acbe8287aa12",
+      "original_path": "tests/Feature/Filament/ProxyResourceTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Filament/SourceControlResourceTest.php",
-      "sha256": "781d516dc00abab694aff8975298c64873424202f06f63a2c02ae3d072e7ea2c",
+      "sha256": "b939b0c5dd48cb736f2a04158cb5c3359f01c54c732cbbc11644fd1773ea093f",
       "scenarios": [
         "оператор ставит источник на паузу из админки: инцидент с автором",
         "«Возобновить сейчас» снимает ожидание и ставит приостановленные прогоны в очередь без ожидания",
         "оператор правит пороги брейкера",
         "журнал инцидентов: оператор отмечает разобранным; аналитик журнал не видит"
-      ]
+      ],
+      "original_sha256": "22c264defc5532b59536b446bd4fe10af53c046abd006ad8661f87932cb6f233",
+      "original_path": "tests/Feature/Filament/SourceControlResourceTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Filament/StatusMappingResourceTest.php",
@@ -1828,11 +1915,14 @@
     },
     {
       "path": "tests/Feature/Health/DetailParseOutcomeTest.php",
-      "sha256": "6799aee810df177cb0a84bdd48d5c6f673af1680d0d740a54100688ab28f35e6",
+      "sha256": "25974513dd7c44179090e269cdbc1ab5399490a8fdfbdfcb552d6f1d04833b6b",
       "scenarios": [
         "репозиторий перезаписывает последний исход разбора",
         "отсутствие эталона откладывает разбор, после исправления конфигурации карточка восстанавливается"
-      ]
+      ],
+      "original_sha256": "6799aee810df177cb0a84bdd48d5c6f673af1680d0d740a54100688ab28f35e6",
+      "original_path": "tests/Feature/Health/DetailParseOutcomeTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Health/EstimateFieldsCheckTest.php",
@@ -1855,17 +1945,20 @@
     },
     {
       "path": "tests/Feature/Health/HealthCheckCommandTest.php",
-      "sha256": "305ee5109d86784d76a1c2e3eef4c7304e56fd9613a6e76abf708b84ee3f3a60",
+      "sha256": "a56aa9176d151242c1332756ea43276f7ac58ccfc6aa3ca0449b7197d248787a",
       "scenarios": [
         "команда записывает по строке на каждую проверку",
         "dry-run команды не записывает историю",
         "выключенный healthcheck не читает площадку, не пишет историю и не ходит в сеть",
         "выключенный healthcheck не регистрируется в расписании"
-      ]
+      ],
+      "original_sha256": "305ee5109d86784d76a1c2e3eef4c7304e56fd9613a6e76abf708b84ee3f3a60",
+      "original_path": "tests/Feature/Health/HealthCheckCommandTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Health/ListingFilterCheckTest.php",
-      "sha256": "17125ff7ead6d9a6d59a10917f235b52e2f54fd60dd8d667d8b87b3bb0839188",
+      "sha256": "8291461f4f9e306e7f811a54fc660fd908a5420093e9539fc07a4f027f8f2c3a",
       "scenarios": [
         "проверка подтверждает действие ОКПД2 и отправляет два запроса боевым путём",
         "проверка считает совпавшие множества реестровых номеров поломкой фильтра",
@@ -1877,7 +1970,7 @@
       ],
       "original_path": "tests/Feature/Health/ListingFilterCheckTest.php",
       "original_sha256": "2c8027edbfa34becb12ed6c1f1697f27d12d03e18ac3f811fde7a0284bbdf539",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Health/ListingShapeCheckTest.php",
@@ -1974,7 +2067,7 @@
     },
     {
       "path": "tests/Feature/Llm/GeminiProxyRoutingTest.php",
-      "sha256": "32571963343bec2c40f5607de004bb3b83dfa059d9195d22f0349db4138d9d57",
+      "sha256": "821f49aaea38cfb9dfbc52dcacaf8bfc634ad0ac7f922d3cee7d0e356edafa21",
       "scenarios": [
         "резолвер не выдаёт запрещённый по стране узел для LLM-скоупа ни при одной конфигурации здоровья",
         "узел без страны исключается из LLM-скоупа при непустой политике запретов",
@@ -1984,7 +2077,10 @@
         "пустая политика запретов для LLM-скоупа — резолвер бросает ProxyPolicyMisconfiguredException",
         "предохранитель пустой политики LLM не подменяется legacy env-прокси",
         "PrismGeminiProvider запрашивает опции у порта OutboundProxy по каноническому хосту Gemini"
-      ]
+      ],
+      "original_path": "tests/Feature/Llm/GeminiProxyRoutingTest.php",
+      "original_sha256": "32571963343bec2c40f5607de004bb3b83dfa059d9195d22f0349db4138d9d57",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Llm/LlmCacheManagerTest.php",
@@ -3034,7 +3130,7 @@
     },
     {
       "path": "tests/Feature/Procurement/SyncOkpd2NodesTest.php",
-      "sha256": "b72ca914abd90b60316aeb5e03b09ec79e0c9973d8635f1d27619239e8b40746",
+      "sha256": "7e57045959f3eb848d1979f38414bf1ba662d728b4dd2c6795bd5ee2b4abfb31",
       "scenarios": [
         "обход собирает узлы поддерева и пишет их в карту с synced_at",
         "сменившийся external_id кода активного профиля даёт ненулевой код возврата",
@@ -3045,7 +3141,7 @@
       ],
       "original_path": "tests/Feature/Procurement/SyncOkpd2NodesTest.php",
       "original_sha256": "2082ac243a9c229a5c0900b9b55966ef512fa06fefffa9491ed228812f33f3f4",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Reference/ClassifierResolverTest.php",
@@ -3080,7 +3176,7 @@
     },
     {
       "path": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
-      "sha256": "8ba22c9a8c21290bf3e966edc4099d66b9056b7f5a90bcb221439b0d994e4fc4",
+      "sha256": "8af0fadb587b9517c7ecb523353e00a0df77b15a795dae817a6c30d351d2d4f3",
       "scenarios": [
         "сид прокси декодирует реквизиты и разрешает только CSV листинг",
         "повторный сид обновляет пароль существующего прокси без дубля",
@@ -3091,11 +3187,11 @@
       ],
       "original_path": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
       "original_sha256": "660c4387f0eafbc6ce4b0b9dd20fbdc8016350223b41a9d0bee5af3b6c870e48",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Seeders/EisSeedersTest.php",
-      "sha256": "951e9b0b1cc96769f9832010772adf46d93aaf251e0c342f7f84822916493b41",
+      "sha256": "476c9973bdcbe0b3bf5047b56a9a22f48878cdc339050472b32bfe7404d099dd",
       "scenarios": [
         "сид заводит площадку ЕИС и реестр fz44 с настройками карточки",
         "повторный прогон сида площадки идемпотентен — без дублей и ротации UUID реестра",
@@ -3111,7 +3207,7 @@
       ],
       "original_path": "tests/Feature/Seeders/EisSeedersTest.php",
       "original_sha256": "311fcad409f65c497cf668b09dc38423288eb13ffac9ceedfdf617f02b01d453",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Feature/Storage/DiskBackfillTest.php",
@@ -3202,7 +3298,10 @@
     },
     {
       "path": "tests/Support/Crawler/SourceControlScenario.php",
-      "sha256": "ce8181300e6494d30f1a7ced04a8286f01066e3e6157ca19463289aa5898c735"
+      "sha256": "3ee0b9b6bc91283db9f7813bc20d44ea561c28b32ec85a3230b381e96f498898",
+      "original_sha256": "ce8181300e6494d30f1a7ced04a8286f01066e3e6157ca19463289aa5898c735",
+      "original_path": "tests/Support/Crawler/SourceControlScenario.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Support/Documents/DocumentFormatContract.php",
@@ -3321,7 +3420,7 @@
     },
     {
       "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "sha256": "892a511ef377d213b522abde87f44ad2cb933d7050e4ab960236645a113460ac",
+      "sha256": "574939985df42c028a884bbd59b2410c75f2e17e7e80580ee7a6e373d2dd0ef3",
       "scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -3329,7 +3428,8 @@
       ],
       "original_sha256": "e8b967abe0a3214efa331b93cfd41887239c3959d7c8b2b9071b3e441ef22370",
       "harness_correction": "P4.1 checks.2: canary 109 -> 110 for the existing neutral CooperativeListingSourceMethod added by 60d6162c; original case names retained and explicit membership asserted.",
-      "change_reason": "P1.10 D37 quality correction: preserve all original 110 core members and add the generic ExecuteWorkJob as member 111 with an explicit membership assertion; retain scenario names, exclusions, original_sha256 and P4.1 provenance. Actual before SHA-256: 1c0295ab98821222eaee8a4ee4f40caf7fdcc33deaf0bad9ac290b6a5f05ec16; actual after SHA-256: 892a511ef377d213b522abde87f44ad2cb933d7050e4ab960236645a113460ac."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
+      "original_path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php"
     },
     {
       "path": "tests/Unit/Architecture/DocumentFormatRegistryTest.php",
@@ -3532,7 +3632,7 @@
     },
     {
       "path": "tests/Unit/Crawler/ProxyCircuitBreakerTest.php",
-      "sha256": "cca7248cad7dbbad736fbb84a16b88261c3bc84574d1af373f9a6047513933db",
+      "sha256": "aa865461a72545d53c68ff293775cd2a55fda46680c43dc16245df331a7cc54b",
       "scenarios": [
         "сетевые и креды-причины классифицируются как глобальный уровень",
         "ответы цели классифицируются как целевой уровень",
@@ -3543,7 +3643,10 @@
         "http_429 использует отдельный порог и короткий cooldown целевого уровня",
         "http403 (не 429) открывается по обычному целевому порогу",
         "успех сбрасывает серию, счётчик открытий и breaker"
-      ]
+      ],
+      "original_sha256": "cca7248cad7dbbad736fbb84a16b88261c3bc84574d1af373f9a6047513933db",
+      "original_path": "tests/Unit/Crawler/ProxyCircuitBreakerTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Unit/Crawler/ProxyLeaseTest.php",
@@ -3582,13 +3685,16 @@
     },
     {
       "path": "tests/Unit/Crawler/SourceTlsTrustTest.php",
-      "sha256": "954c8f7ce18b70024f02eca2c20b097f6eb854679e2b1248d22ce7a619805aaa",
+      "sha256": "74bce33f78dd1de5985503f968c34aefe11998338f9211087f557dd2bab3e317",
       "scenarios": [
         "хост из карты возвращает verify с путём бандла",
         "хост вне карты возвращает массив без verify",
         "пустая карта — системный трест для любого хоста",
         "в app/ нет verify со значением false ни в одном файле"
-      ]
+      ],
+      "original_sha256": "954c8f7ce18b70024f02eca2c20b097f6eb854679e2b1248d22ce7a619805aaa",
+      "original_path": "tests/Unit/Crawler/SourceTlsTrustTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Unit/Platforms/Eis/Card/SupplierResultsParserTest.php",
@@ -3698,18 +3804,21 @@
     },
     {
       "path": "tests/Unit/Llm/OpenAiCompatibleProviderTest.php",
-      "sha256": "c4215e0fe526977c9d761043848805f745e71e006b9dffaa53cee3bc9ce0793b",
+      "sha256": "3349e791831ea47b64a5f8341d8ffdb849cb61128e7fdaef5d2c41fc9cd66988",
       "scenarios": [
         "complete() уходит на OpenAI-совместимый endpoint и маппит usage/finishReason",
         "completeStructured() шлёт RawSchema как есть (без Gemini-адаптации) и режим Structured",
         "complete() бросает исключение, если у маршрута не задан base_url",
         "complete() бросает исключение при непустых fileRefs — Files API не поддержан",
         "complete() fail-closed, когда настроенный api_key_env не разрешается"
-      ]
+      ],
+      "original_path": "tests/Unit/Llm/OpenAiCompatibleProviderTest.php",
+      "original_sha256": "c4215e0fe526977c9d761043848805f745e71e006b9dffaa53cee3bc9ce0793b",
+      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
     },
     {
       "path": "tests/Unit/Llm/PrismGeminiProviderTest.php",
-      "sha256": "736b1b63d609c4ffcf54e3c32e8e35d55ac8ae2f64d02705daea745d984f47f0",
+      "sha256": "0e8a3546bdd9a95a2959f7c9125fde9318653126e355652d320a5047644904cb",
       "scenarios": [
         "completeStructured() маппит usage из сырого usageMetadata, а не из Prism-usage хендлера",
         "completeStructured() складывает thoughtsTokenCount в completionTokens — Google билluет reasoning по ставке output",
@@ -3725,7 +3834,10 @@
         "completeStructured() НЕ ловит PrismException без вендорской сигнатуры MAX_TOKENS — перевод узкий",
         "completeStructured() эмитит thinkingLevel в providerOptions, когда он задан в LlmOptions (НЕ thinkingBudget)",
         "uploadFile() опрашивает состояние, пока PROCESSING, и возвращает handle по ACTIVE"
-      ]
+      ],
+      "original_path": "tests/Unit/Llm/PrismGeminiProviderTest.php",
+      "original_sha256": "736b1b63d609c4ffcf54e3c32e8e35d55ac8ae2f64d02705daea745d984f47f0",
+      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
     },
     {
       "path": "tests/Unit/Llm/PromptContextGeneratorTest.php",
@@ -3939,15 +4051,18 @@
     },
     {
       "path": "tests/Unit/Procurement/SourceControl/SourceControlPolicyTest.php",
-      "sha256": "ea01973ac24a7449b81af85856863608e11ef1e12159241acfd19e9e5f9ad0c5",
+      "sha256": "80cc2ccba8f1634948624abe5822a02b6f0fdffb7ab8c125f8865442018dc86e",
       "scenarios": [
         "конфиг проекта разбирается: статусы и реакции по умолчанию",
         "ошибка конфига валит разбор с адресом ошибки"
-      ]
+      ],
+      "original_sha256": "ea01973ac24a7449b81af85856863608e11ef1e12159241acfd19e9e5f9ad0c5",
+      "original_path": "tests/Unit/Procurement/SourceControl/SourceControlPolicyTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Unit/Procurement/SourceControl/SourceFailureClassifierTest.php",
-      "sha256": "e9856384b87aa7106301d7751366d9d3f0a6c6e24016cef65b41c84983c11116",
+      "sha256": "452bdbdbdddd8a9a6eeb110b9883990343a0e59abf0d53e7a10d95658e2ca3ce",
       "scenarios": [
         "HTTP-статус классифицируется по стороне сбоя",
         "успешный ответ без единой распознанной записи — ответ не по формату",
@@ -3958,7 +4073,10 @@
         "пустое тело при 2xx — EmptyBody; пустая выдача с заголовком — норма",
         "карточка: сеть, прокси и чужая страница — недоступность; прочее — ошибка нашего кода",
         "отвергнутый ответ листинга сохраняет классификацию HTTP и содержимого"
-      ]
+      ],
+      "original_sha256": "e9856384b87aa7106301d7751366d9d3f0a6c6e24016cef65b41c84983c11116",
+      "original_path": "tests/Unit/Procurement/SourceControl/SourceFailureClassifierTest.php",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "tests/Unit/Procurement/SourceTargetValidatorTest.php",
@@ -4139,7 +4257,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100038_create_prc_crawlers_table.php",
-      "sha256": "c714c432418bf62e77fcd3218467b0ee52d73190364b7d394da34ddd67fe52b7"
+      "sha256": "e20b64a96dc2ead3edf83ad68b11f879e2e7127341df86637980c58767c95ffd",
+      "original_path": "database/migrations/2026_07_04_100038_create_prc_crawlers_table.php",
+      "original_sha256": "c714c432418bf62e77fcd3218467b0ee52d73190364b7d394da34ddd67fe52b7",
+      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
     },
     {
       "path": "database/migrations/2026_07_04_100039_create_prc_crawler_runs_table.php",
@@ -4147,15 +4268,14 @@
     },
     {
       "path": "database/migrations/2026_07_04_100040_create_prc_proxies_table.php",
-      "sha256": "66b30d1a3b134be076af6727aa748cb4b98e731be0d3fc8501cfd36840affb1f"
+      "sha256": "088b8e8f74cd200d89d36cd5fbb7657ffb229871d02a9d34dd335ff2feb272e7",
+      "original_path": "database/migrations/2026_07_04_100040_create_prc_proxies_table.php",
+      "original_sha256": "66b30d1a3b134be076af6727aa748cb4b98e731be0d3fc8501cfd36840affb1f",
+      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
     },
     {
       "path": "database/migrations/2026_07_04_100041_create_prc_fetches_table.php",
       "sha256": "0bd546c4fdf2b14f67da4c387c4fdc4a6bcae5c89d2e5472141e8e24c7269279"
-    },
-    {
-      "path": "database/migrations/2026_07_04_100042_create_prc_proxy_checks_table.php",
-      "sha256": "b434dbdd41841cd8e93fd5ae312c9a3ce915e8d799bc1226d5a1c92dc0fc35a1"
     },
     {
       "path": "database/migrations/2026_07_04_100044_create_prc_ignored_items_table.php",
@@ -4206,10 +4326,6 @@
       "sha256": "46b63d1eaf034bb4c7a296122b7c016d8970397ad6cfb3d459348949266822ac"
     },
     {
-      "path": "database/migrations/2026_07_31_100062_create_prc_proxy_targets_table.php",
-      "sha256": "fefbc5eb5dbd1139409b81cc213c8e8f0c7e2e7742a9d9be5e7252fa95901e1e"
-    },
-    {
       "path": "database/migrations/2026_08_05_100068_enable_db_observability_extensions.php",
       "sha256": "279af1e27db9deabd833f98a1b9817aff72cc0c1f1d3f1ad387f63fbf54ae2e6"
     },
@@ -4226,20 +4342,12 @@
       "sha256": "4f7e332fc674748e2246a906f855673989b4462854da50465f6a10acd63f8c17"
     },
     {
-      "path": "database/migrations/2026_08_08_100082_create_prc_crawler_proxy_table.php",
-      "sha256": "33e6f457b6abdf0996d60f694aca8eb627fd325fb503250bb21ea26faad53498"
-    },
-    {
       "path": "database/migrations/2026_08_08_100085_create_prc_platform_checks_table.php",
       "sha256": "338f1de3c003b2e154c16d39c91636bbf647b6410e01ffe84d7b5f1a4ecce9fc"
     },
     {
       "path": "database/migrations/2026_08_09_099999_create_prc_settings_table.php",
       "sha256": "c869b36a44a48c703f7f5e01e1f77267178c24e192a8bc42c43b6edcd7284c40"
-    },
-    {
-      "path": "database/migrations/2026_08_09_100087_replace_crawler_use_proxy_with_mode.php",
-      "sha256": "aefda0919ce01f0fb5a9c938ca4b880f708caf67f8fffecbf6787f98921e71b3"
     },
     {
       "path": "database/migrations/2026_08_09_100088_add_proxy_source_to_prc_fetches.php",
@@ -4307,15 +4415,17 @@
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
-      "sha256": "dfcece59c5797e26784f66fca2463146c33717948a36007a124a910fddc6e6da",
+      "sha256": "a29630c1121207edbc9948e621f24e68028cd5bea7b5326759652ca5e08eaec8",
       "original_path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
       "original_sha256": "1d0dfa0b99f6b4665b7c37928306175aff8a9bbcdccb45195e1b2c93bdd57002",
       "change_reason": "P2.1 adds the composite attempt/work unique FK authority required by network demand ownership; legacy consumers remain active."
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_network_tables.php",
-      "sha256": "779fbfef82862c65888be42216946f3085a485d0e5db142ef10ba18720d7e0ed",
-      "change_reason": "P2.1 additive baseline network catalog, health, operation owner, demand and permit tables; no consumer activation."
+      "sha256": "0db045f6b5f9e9d9f3d2f4e6b0c316d10e3b5f9b74266e597be23ba0fdce0e7a",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
+      "original_path": "database/migrations/2026_10_25_100000_create_prc_process_network_tables.php",
+      "original_sha256": "93b42fcc30eba2012529206754f2db3ed9b323218ac54c7e486aae9879b92911"
     },
     {
       "path": "database/migrations/2026_10_25_100001_create_prc_request_observation_tables.php",
@@ -4419,11 +4529,11 @@
     {
       "path": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod",
-      "sha256": "55b31737dfddfd91fbe0443c0e69863333a181a4c4674b8cf282dec801b5df1c",
+      "sha256": "f45b97f5c0397b9792a63dec53827e096b1c313711dc657bdb57c047fbb6350c",
       "original_path": "app/Services/Procurement/Eis/CsvSourceMethod.php",
       "original_sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\CsvSourceMethod",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "app/Services/Platforms/Eis/Card/EisCardUrlBuilder.php",
@@ -4437,11 +4547,11 @@
     {
       "path": "app/Services/Platforms/Eis/Csv/EisCsvParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvParser",
-      "sha256": "6eaa52842b4eea047d76e66e10badd98afecd58b294a2019854f26595433ae73",
+      "sha256": "9d46fa132829885a9f8df9f4c6da1d41e78d1418e958f42d188f9fd87b1ee820",
       "original_path": "app/Services/Procurement/Eis/EisCsvParser.php",
       "original_sha256": "9f6e6543e4b0dd6e7f99c3f541d1efe07c8f502794af73e9d9e53d98507157a3",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvParser",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
     },
     {
       "path": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
@@ -4482,20 +4592,20 @@
     {
       "path": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Filters\\Okpd2NodeSynchronizer",
-      "sha256": "b73f812d673a83c33dcb43279fb864d9ab5f7d4051282ccfe413d82f06997dd5",
+      "sha256": "d4a91784992da56f22cba3aef566b5500f6cdec2760dfcb33ca43a8263a0ec08",
       "original_path": "app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php",
       "original_sha256": "785c129b65dc11a206fd4a30ba9a4d6dfb4bebc964bd07750867a6740fe47d61",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Okpd2NodeSynchronizer",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Diagnostics\\ListingFilterCheck",
-      "sha256": "2ec00d38e5b398b98e45bde6bf6e06fdede5d25213dcaea62bf1687c8d5cc490",
+      "sha256": "55771f1d36bccdb4c744d7d20f412da82a65fc2c14b8d319ee1a6f376d7f33c5",
       "original_path": "app/Services/Procurement/Health/Checks/ListingFilterCheck.php",
       "original_sha256": "66e898e2f24d08930703ac3aa88b2521ecc381f76cae1408447125119e8e0775",
       "original_fqcn": "App\\Services\\Procurement\\Health\\Checks\\ListingFilterCheck",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "database/factories/Platforms/Eis/EisDetailsFactory.php",
@@ -4509,20 +4619,20 @@
     {
       "path": "database/seeders/Platforms/Eis/EisCrawlerProxySeeder.php",
       "fqcn": "Database\\Seeders\\Platforms\\Eis\\EisCrawlerProxySeeder",
-      "sha256": "035ae34706bf71df906242aabf488a7ef0dd7d8f1c70960f0d24c5c7b939a304",
+      "sha256": "3d5b778fb054c69530327892791f551084adc4336efd960f6e3a4d345fd4e6ce",
       "original_path": "database/seeders/Procurement/EisCrawlerProxySeeder.php",
       "original_sha256": "66e05f0cb581b794f653f1bbd7b2c195a2823fd03bdb4f03b37ccd093c21caf4",
       "original_fqcn": "Database\\Seeders\\Procurement\\EisCrawlerProxySeeder",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
     },
     {
       "path": "database/seeders/Platforms/Eis/EisJanuary2025AuditSeeder.php",
       "fqcn": "Database\\Seeders\\Platforms\\Eis\\EisJanuary2025AuditSeeder",
-      "sha256": "6a5b69b3914244f7ae4f11e201e3613f16526198bf187931b11268629a628faf",
+      "sha256": "5bdae52fe454a2cb4d2031dd17e20aa271700490998823a692f4a48346998c25",
       "original_path": "database/seeders/Procurement/EisJanuary2025AuditSeeder.php",
       "original_sha256": "6d3b7fe000dc1e5ba12dae1086f1713ac35a187353c23e8721481430d07b0cee",
       "original_fqcn": "Database\\Seeders\\Procurement\\EisJanuary2025AuditSeeder",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
     },
     {
       "path": "database/seeders/Platforms/Eis/EisPlatformSeeder.php",
@@ -4532,6 +4642,28 @@
       "original_sha256": "b39c7fc02edf4dc4f7f6b88fc1e163a5d74a539bd0ce8e05ec8f4d88077a7b53",
       "original_fqcn": "Database\\Seeders\\Procurement\\EisPlatformSeeder",
       "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+    }
+  ],
+  "retired_migrations": [
+    {
+      "path": "database/migrations/2026_07_04_100042_create_prc_proxy_checks_table.php",
+      "sha256": "b434dbdd41841cd8e93fd5ae312c9a3ce915e8d799bc1226d5a1c92dc0fc35a1",
+      "retired_at": "P2.6"
+    },
+    {
+      "path": "database/migrations/2026_07_31_100062_create_prc_proxy_targets_table.php",
+      "sha256": "fefbc5eb5dbd1139409b81cc213c8e8f0c7e2e7742a9d9be5e7252fa95901e1e",
+      "retired_at": "P2.6"
+    },
+    {
+      "path": "database/migrations/2026_08_08_100082_create_prc_crawler_proxy_table.php",
+      "sha256": "33e6f457b6abdf0996d60f694aca8eb627fd325fb503250bb21ea26faad53498",
+      "retired_at": "P2.6"
+    },
+    {
+      "path": "database/migrations/2026_08_09_100087_replace_crawler_use_proxy_with_mode.php",
+      "sha256": "aefda0919ce01f0fb5a9c938ca4b880f708caf67f8fffecbf6787f98921e71b3",
+      "retired_at": "P2.6"
     }
   ]
 }

@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
+use App\Dto\Procurement\Network\AdapterContractRef;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\ProcurementSnapshotData;
+use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
+use App\Repositories\Procurement\Process\CallerTransaction;
+use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\TransitionRepository;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -160,18 +166,64 @@ final readonly class ProcurementStoreRepository
         bool $failed,
         ?array $detailParseOutcome = null,
     ): void {
-        $attributes = [
-            'detail_attempts' => $procurement->detail_attempts + 1,
-            'detail_last_error' => $error,
-            'detail_next_retry_at' => $nextRetryAt,
-            'detail_failed' => $failed,
-        ];
+        DB::transaction(function () use ($procurement, $error, $nextRetryAt, $failed, $detailParseOutcome): void {
+            $locked = Procurement::query()->whereKey($procurement->id)->lockForUpdate()->firstOrFail();
+            $attributes = [
+                'detail_attempts' => $locked->detail_attempts + 1,
+                'detail_last_error' => $error,
+                'detail_next_retry_at' => $nextRetryAt,
+                'detail_failed' => $failed,
+            ];
+            if ($detailParseOutcome !== null) {
+                $input = $locked->detail_parse_outcome['input_validation'] ?? null;
+                $attributes['detail_parse_outcome'] = $input === null ? $detailParseOutcome
+                    : [...$detailParseOutcome, 'input_validation' => $input];
+            }
+            $locked->update($attributes);
+            $procurement->refresh();
+        });
+    }
 
-        if ($detailParseOutcome !== null) {
-            $attributes['detail_parse_outcome'] = $detailParseOutcome;
+    /** Contract-only retry budget is local to this input; it never consumes detail_attempts. */
+    public function recordDetailContractFailure(Procurement $procurement, AdapterContractRef $contract,
+        string $checkCode, int $limit): void
+    {
+        DB::transaction(function () use ($procurement, $contract, $checkCode, $limit): void {
+            $locked = Procurement::query()->whereKey($procurement->id)->lockForUpdate()->firstOrFail();
+            $outcome = $locked->detail_parse_outcome ?? [];
+            $old = $outcome['input_validation'] ?? [];
+            $count = ($old['contract'] ?? null) == $contract->toArray() && is_int($old['failures'] ?? null) ? $old['failures'] + 1 : 1;
+            $outcome['input_validation'] = ['contract' => $contract->toArray(), 'failures' => $count,
+                'held' => $count >= $limit, 'check_code' => $checkCode];
+            $locked->update(['detail_parse_outcome' => $outcome, 'detail_failed' => $count >= $limit,
+                'detail_next_retry_at' => $count >= $limit ? null : now()->addSeconds(30 * $count),
+                'detail_last_error' => 'Adapter input rejected: '.$checkCode]);
+            $procurement->refresh();
+        });
+    }
+
+    /** Manual input recovery retains the original pure-contract history in operator audit. */
+    public function resetDetailInput(Procurement $procurement, int $actorId, string $reason): void
+    {
+        CallerTransaction::require('Detail input recovery');
+        if ($actorId < 1 || trim($reason) === '') {
+            throw new \InvalidArgumentException('Detail input recovery requires an actor and reason.');
         }
-
-        $procurement->update($attributes);
+        $system = LedgerRow::one("SELECT id, desired_mode, control_version FROM prc_control_scopes WHERE scope_key = 'system' FOR UPDATE")
+            ?? throw new \LogicException('Control authority is missing.');
+        $locked = Procurement::query()->whereKey($procurement->id)->lockForUpdate()->firstOrFail();
+        $outcome = $locked->detail_parse_outcome ?? [];
+        unset($outcome['input_validation']);
+        $locked->update(['detail_parse_outcome' => $outcome, 'detail_failed' => false, 'detail_attempts' => 0,
+            'detail_next_retry_at' => null, 'detail_last_error' => null]);
+        $version = $system->int('control_version') + 1;
+        DB::update('UPDATE prc_control_scopes SET control_version = ? WHERE id = ?', [$version, $system->string('id')]);
+        app(TransitionRepository::class)->recordControl(
+            new ProcessUuid((string) Str::uuid()), new ProcessUuid((string) Str::uuid()),
+            new ProcessUuid($system->string('id')), $version, $system->string('desired_mode'),
+            $system->string('desired_mode'), 'detail_input_reset', ActorKind::Operator,
+            $actorId, ['reason' => $reason, 'procurement_id' => $procurement->id]);
+        $procurement->refresh();
     }
 
     /**

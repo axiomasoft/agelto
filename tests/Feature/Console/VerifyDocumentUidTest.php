@@ -8,6 +8,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /** @return array{input: string, output: string} */
 function documentUidCarriers(): array
@@ -45,6 +46,8 @@ function documentUidCarriers(): array
 
     return ['input' => $scopePath, 'output' => $outputPath];
 }
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('live B2 command records current uid evidence without bodies and fails closed on absent pairs', function () {
     Sleep::fake();

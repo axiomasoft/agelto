@@ -11,12 +11,12 @@ use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Platform\Platform;
-use App\Services\Procurement\Health\Contracts\HealthCheck;
 use App\Services\Procurement\Health\HealthCheckResultFactory;
+use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
 use Carbon\CarbonInterface;
 use LogicException;
 
-final readonly class EstimateFieldsCheck implements HealthCheck
+final readonly class EstimateFieldsCheck implements DiagnosticCheck
 {
     public function __construct(private HealthCheckResultFactory $results) {}
 

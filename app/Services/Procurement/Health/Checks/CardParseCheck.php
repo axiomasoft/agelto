@@ -9,11 +9,11 @@ use App\Dto\Procurement\Health\HealthBaseline;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Health\Contracts\HealthCheck;
 use App\Services\Procurement\Health\HealthCheckResultFactory;
+use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
 use Carbon\CarbonInterface;
 
-final readonly class CardParseCheck implements HealthCheck
+final readonly class CardParseCheck implements DiagnosticCheck
 {
     public function __construct(private HealthCheckResultFactory $results) {}
 

@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
-use App\Enums\Procurement\Crawler\SourceStage;
+use App\Enums\Procurement\Process\StageCode;
 use App\Jobs\Procurement\FetchProcurementDetailJob;
-use App\Repositories\Procurement\Crawler\SourceCircuitRepository;
-use Illuminate\Support\Carbon;
+use App\Services\Procurement\Network\AcquisitionEligibility;
 
 /**
  * Подаёт ограниченную детерминированную пачку due-закупок в detail-очередь.
@@ -19,7 +18,7 @@ final readonly class DetailDispatcher
 {
     public function __construct(
         private DetailRefetchSelector $selector,
-        private SourceCircuitRepository $circuits,
+        private AcquisitionEligibility $eligibility,
     ) {}
 
     public function dispatchDue(int $limit): int
@@ -33,7 +32,7 @@ final readonly class DetailDispatcher
         // сценарием). Такие закупки остаются due и уйдут после возобновления этапа.
         $procurements = $this->selector->due(
             limit: $limit,
-            excludePlatformIds: $this->circuits->notAdmittingPlatformIds(SourceStage::Detail, Carbon::now()),
+            excludePlatformIds: $this->eligibility->excludedPlatforms(StageCode::Detail),
         );
         $dispatched = 0;
 

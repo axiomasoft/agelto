@@ -12,10 +12,8 @@ use App\Enums\Procurement\Crawler\RunPurpose;
 use App\Enums\Procurement\Crawler\RunStatus;
 use App\Enums\Procurement\Crawler\RunStopKind;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Enums\Procurement\Crawler\SourceStageStatus;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Run;
-use App\Models\Procurement\Crawler\SourceCircuit;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Contracts\SourceMethod;
 use App\Services\Procurement\CrawlerRunManager;
@@ -27,6 +25,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
 use Tests\Support\Doubles\Crawler\QueueSourceMethod;
 use Tests\Support\Postgres\ConcurrentTransactions;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /**
  * Один «частичный» блок (`rowsTotal < block_size=2`) — сразу дренирует update-окно
@@ -150,6 +150,8 @@ beforeEach(function () {
         'crawler.tracking.window_overlap_days' => 0,
     ]);
 });
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('cap_hit с живым archive-профилем реестра — scan вызван по update-окну, флаг помечен', function () {
     $registry = Registry::factory()->eis()->create();
@@ -409,6 +411,7 @@ PHP);
 });
 
 test('backlog processor после expiry продолжает точный checkpoint прежнего owner', function () {
+    PermitFixtures::clean();
     $fixture = ConcurrentTransactions::execute(<<<'PHP'
 $registry = \App\Models\Procurement\Platform\Registry::factory()->eis()->create();
 $freshCrawler = \App\Models\Procurement\Crawler\Crawler::factory()
@@ -500,6 +503,7 @@ config([
         return true;
     }
 };
+\Tests\Support\ProcessCore\LegacyBusinessNetwork::install();
 app()->instance(\$source::class, \$source);
 config(['crawler.platforms.eis.source_methods' => [
     \App\Enums\Procurement\Crawler\SourceMethod::Csv->value => \$source::class,
@@ -530,6 +534,7 @@ PHP);
             ->and($state['cursor']['day'])->toBe('2026-09-02')
             ->and($state['fresh_stats']['backlog_rescanned_at'])->not->toBeNull();
     } finally {
+        PermitFixtures::clean();
         ConcurrentTransactions::execute(<<<PHP
 \Illuminate\Support\Facades\DB::table('prc_fetches')->whereIn('crawler_run_id', [{$fixture['fresh_run_id']}, {$fixture['archive_run_id']}])->delete();
 \App\Models\Procurement\Crawler\Run::query()->whereIn('id', [{$fixture['fresh_run_id']}, {$fixture['archive_run_id']}])->delete();
@@ -714,9 +719,10 @@ test('источник бросает — archive-run ждёт на текуще
 
     $archiveRun = Run::query()->where('crawler_id', '!=', $freshCrawler->id)->sole();
     expect($archiveRun->status)->toBe(RunStatus::Paused)
-        ->and(SourceCircuit::query()->sole()->status())->toBe(SourceStageStatus::Running)
+        ->and(DB::table('prc_source_circuits')->count())->toBe(0)
         ->and($archiveRun->cursor['blockFrom'] ?? 1)->toBe(1)
-        ->and($archiveRun->stats['source_retry_at'])->not->toBeNull();
+        ->and($archiveRun->next_retry_at)->not->toBeNull()
+        ->and($archiveRun->attempts)->toBe(1);
 
     $freshRun->refresh();
     expect($freshRun->stats['backlog_rescanned_at'] ?? null)->toBeNull();

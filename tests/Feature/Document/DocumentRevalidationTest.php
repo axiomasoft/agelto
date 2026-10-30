@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Sleep;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 function revalidationDocument(Procurement $procurement, array $attributes = []): Document
 {
@@ -37,6 +38,8 @@ function revalidationDocument(Procurement $procurement, array $attributes = []):
         ...$attributes,
     ]);
 }
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('revision-trigger ограниченно ставит существующий uid на ревалидацию', function () {
     Queue::fake();

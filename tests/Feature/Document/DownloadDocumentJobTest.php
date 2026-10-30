@@ -9,11 +9,14 @@ use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Document\Document;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 function downloadJobFixture(): string
 {
     return (string) file_get_contents(base_path('tests/Fixtures/Documents/sample-v1.pdf'));
 }
+
+beforeEach(fn () => LegacyBusinessNetwork::install());
 
 test('due download job скачивает discovered-документ через единый downloader route', function () {
     Storage::fake('s3');

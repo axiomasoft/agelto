@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Network;
 
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundOperationHandle;
+use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Network\OutboundOperationKind;
@@ -45,6 +46,8 @@ final readonly class LegacyBridge
         ContentHash $policyHash,
         Closure $call,
         ?Closure $checkpoint = null,
+        ?ProviderKey $providerKey = null,
+        OutboundOperationKind $kind = OutboundOperationKind::LegacyBridge,
     ): mixed {
         if ($deadlineSeconds < 1 || $deadlineSeconds > $this->policy->bridgeMaxDeadlineSeconds) {
             throw new \InvalidArgumentException('Legacy bridge deadline must be within 1..outbound.legacy_bridge.max_deadline_seconds.');
@@ -52,8 +55,9 @@ final readonly class LegacyBridge
         $checkpoint?->__invoke();
         [$id, $token] = [self::uuid(), self::uuid()];
         $handle = $this->transaction->run(fn (): OutboundOperationHandle => $this->operations->open(
-            $id, $token, OutboundOperationKind::LegacyBridge, $platformId, $callerCode, $policyHash,
+            $id, $token, $kind, $platformId, $callerCode, $policyHash,
             $controlScopeKeys, min($this->policy->bridgeLeaseSeconds, $deadlineSeconds), $deadlineSeconds,
+            probeToken: $kind === OutboundOperationKind::Probe ? $token : null, providerKey: $providerKey,
         ));
         try {
             $context = new OutboundExecutionContext($handle, $this->renew(...), $checkpoint, $deadlineSeconds, max(1, min(15, intdiv($this->policy->bridgeLeaseSeconds, 3))));

@@ -155,11 +155,10 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_04_100035_create_prc_estimate_items_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100036_create_prc_estimate_resources_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100037_create_prc_estimate_totals_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100038_create_prc_crawlers_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100038_create_prc_crawlers_table.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
 | `2026_07_04_100039_create_prc_crawler_runs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100040_create_prc_proxies_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100040_create_prc_proxies_table.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
 | `2026_07_04_100041_create_prc_fetches_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100042_create_prc_proxy_checks_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100044_create_prc_ignored_items_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100046_create_prc_operation_logs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100047_setup_pg_partman.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
@@ -172,15 +171,12 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_27_100057_create_prc_estimate_work_types_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_28_100058_create_prc_ai_prompt_suggestions_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_29_100059_create_prc_ai_analysis_runs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_31_100062_create_prc_proxy_targets_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_08_05_100068_enable_db_observability_extensions.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
 | `2026_08_05_100074_precreate_historical_partitions.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
 | `2026_08_05_100076_prune_orphaned_partman_part_config_entries.php` | remove_after_clean_proof | P1.1–P1.4 | Кандидат на удаление только owning пунктом после доказанного clean install без repair; P1.1 не удаляет. |
 | `2026_08_07_100078_create_prc_okpd2_nodes_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_08_08_100082_create_prc_crawler_proxy_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_08_08_100085_create_prc_platform_checks_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_08_09_099999_create_prc_settings_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_08_09_100087_replace_crawler_use_proxy_with_mode.php` | fold_into_create | P2.14 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_08_09_100088_add_proxy_source_to_prc_fetches.php` | delete_with_owner | P3.17 | Удалить вместе с owning legacy table и последними consumers. |
 | `2026_08_09_100089_add_unprocessable_reason_to_prc_documents_table.php` | fold_into_create | P3.1 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_08_09_100090_add_archive_entry_path_to_prc_document_versions_table.php` | fold_into_create | P3.1 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
@@ -197,8 +193,8 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_10_08_100104_catalog_raw_artifacts.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_10_18_170000_add_eis_identity_to_org_organizations.php` | fold_into_create | Organization | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_10_23_100000_create_org_organization_identifiers_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_10_25_100000_create_prc_process_ledger_tables.php` | create | P1.6 | P1.6 canonical Process ledger bp-ddl-core: control/handler authority, real crawl subjects, intents до work, attempts, groups/members, journal, outbox, daemon heartbeat. |
-| `2026_10_25_100000_create_prc_process_network_tables.php` | create | P2.1 | Network baseline authority; runtime cutover P2.6. |
+| `2026_10_25_100000_create_prc_process_ledger_tables.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
+| `2026_10_25_100000_create_prc_process_network_tables.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
 | `2026_10_25_100001_create_prc_request_observation_tables.php` | create | P1.6 | P1.6 durable request attempt/observation carriers execution#s04; network FKs добавляет P2.1. |
 | `2026_10_28_100000_create_prc_process_projection_tables.php` | create | P1.15 | P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured. |
 
@@ -226,7 +222,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
 | id | uuid | no | id uuid PRIMARY KEY |
-| scope_kind | text | no | scope_kind text NOT NULL CHECK (scope_kind IN ('system','acquisition','documents','platform','cohort','stage')) |
+| scope_kind | text | no | scope_kind text NOT NULL CHECK (scope_kind IN ('system','acquisition','documents','platform','provider','cohort','stage')) |
 | scope_key | text | no | scope_key text NOT NULL |
 | parent_id | uuid | yes | parent_id uuid NULL REFERENCES prc_control_scopes(id) → prc_control_scopes(id) ON DELETE NO ACTION @P1.6 |
 | desired_mode | text | no | desired_mode text NOT NULL DEFAULT 'enabled' CHECK (desired_mode IN ('enabled','paused')) |
@@ -236,10 +232,18 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | changed_at | timestamptz | yes | changed_at timestamptz NULL |
 
 Constraints:
+- `CONSTRAINT prc_control_scopes_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES users(id)`
+- `CONSTRAINT prc_control_scopes_control_version_check CHECK ((control_version >= 1))`
+- `CONSTRAINT prc_control_scopes_desired_mode_check CHECK ((desired_mode = ANY (ARRAY['enabled'::text, 'paused'::text])))`
+- `CONSTRAINT prc_control_scopes_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES prc_control_scopes(id)`
+- `CONSTRAINT prc_control_scopes_pkey PRIMARY KEY (id)`
+- `CONSTRAINT prc_control_scopes_root_check CHECK (((scope_kind = 'system'::text) = (parent_id IS NULL)))`
 - `CONSTRAINT prc_control_scopes_scope_key_unique UNIQUE (scope_key)`
-- `CONSTRAINT prc_control_scopes_root_check CHECK ((scope_kind = 'system') = (parent_id IS NULL))`
+- `CONSTRAINT prc_control_scopes_scope_kind_check CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'provider'::text, 'cohort'::text, 'stage'::text])))`
 
 Indexes:
+- `CREATE UNIQUE INDEX prc_control_scopes_pkey ON public.prc_control_scopes USING btree (id)`
+- `CREATE UNIQUE INDEX prc_control_scopes_scope_key_unique ON public.prc_control_scopes USING btree (scope_key)`
 
 #### prc_process_lanes
 
@@ -673,6 +677,9 @@ Create: P2.1; activation boundary: P2.6; owner: `Repositories/Procurement/Networ
 | operation_key | uuid | no | operation_key uuid NOT NULL UNIQUE |
 | kind | text | no | kind text NOT NULL CHECK(kind IN ('legacy_bridge','diagnostic','probe')) |
 | platform_id | bigint | yes | platform_id bigint NULL REFERENCES prc_platforms(id) → prc_platforms(id) ON DELETE NO ACTION @P2.1 |
+| provider_key | text | yes | provider_key text NULL CHECK(provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$') |
+| adapter_health_id | uuid | yes | adapter_health_id uuid NULL REFERENCES prc_adapter_health(id) → prc_adapter_health(id) ON DELETE NO ACTION @P2.6 |
+| adapter_health_epoch | bigint | yes | adapter_health_epoch bigint NULL CHECK(adapter_health_epoch >= 1) |
 | caller_code | text | no | caller_code text NOT NULL |
 | state | text | no | state text NOT NULL CHECK(state IN ('open','closed','expired')) |
 | owner_token | uuid | no | owner_token uuid NOT NULL |
@@ -685,12 +692,27 @@ Create: P2.1; activation boundary: P2.6; owner: `Repositories/Procurement/Networ
 | policy_hash | bytea | no | policy_hash bytea NOT NULL CHECK(octet_length(policy_hash)=32) |
 
 Constraints:
-- `CHECK(lease_until<=deadline_at)`
-- `CHECK((kind='probe') = (probe_token IS NOT NULL))`
-- `CHECK((state='open') = (finished_at IS NULL))`
+- `CONSTRAINT prc_outbound_operations_adapter_health_epoch_check CHECK (((adapter_health_epoch IS NULL) OR (adapter_health_epoch >= 1)))`
+- `CONSTRAINT prc_outbound_operations_adapter_health_id_fkey FOREIGN KEY (adapter_health_id) REFERENCES prc_adapter_health(id)`
+- `CONSTRAINT prc_outbound_operations_check CHECK (((platform_id IS NULL) OR (provider_key IS NULL)))`
+- `CONSTRAINT prc_outbound_operations_check1 CHECK (((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL)))`
+- `CONSTRAINT prc_outbound_operations_check2 CHECK ((lease_until <= deadline_at))`
+- `CONSTRAINT prc_outbound_operations_check3 CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL)))`
+- `CONSTRAINT prc_outbound_operations_check4 CHECK (((state = 'open'::text) = (finished_at IS NULL)))`
+- `CONSTRAINT prc_outbound_operations_generation_check CHECK ((generation >= 1))`
+- `CONSTRAINT prc_outbound_operations_kind_check CHECK ((kind = ANY (ARRAY['legacy_bridge'::text, 'diagnostic'::text, 'probe'::text])))`
+- `CONSTRAINT prc_outbound_operations_operation_key_key UNIQUE (operation_key)`
+- `CONSTRAINT prc_outbound_operations_pkey PRIMARY KEY (id)`
+- `CONSTRAINT prc_outbound_operations_platform_id_fkey FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
+- `CONSTRAINT prc_outbound_operations_policy_hash_check CHECK ((octet_length(policy_hash) = 32))`
+- `CONSTRAINT prc_outbound_operations_provider_key_check CHECK (((provider_key IS NULL) OR (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text)))`
+- `CONSTRAINT prc_outbound_operations_state_check CHECK ((state = ANY (ARRAY['open'::text, 'closed'::text, 'expired'::text])))`
 
 Indexes:
-- `CREATE INDEX prc_outbound_operations_reap ON prc_outbound_operations(lease_until) WHERE state='open';`
+- `CREATE INDEX prc_outbound_operations_adapter_live ON public.prc_outbound_operations USING btree (adapter_health_id, adapter_health_epoch, lease_until) WHERE ((state = 'open'::text) AND (adapter_health_id IS NOT NULL))`
+- `CREATE UNIQUE INDEX prc_outbound_operations_operation_key_key ON public.prc_outbound_operations USING btree (operation_key)`
+- `CREATE UNIQUE INDEX prc_outbound_operations_pkey ON public.prc_outbound_operations USING btree (id)`
+- `CREATE INDEX prc_outbound_operations_reap ON public.prc_outbound_operations USING btree (lease_until) WHERE (state = 'open'::text)`
 
 #### prc_outbound_operation_controls
 
@@ -753,15 +775,29 @@ Create: P2.1; activation boundary: P2.6; owner: `Repositories/Procurement/Networ
 | state | text | no | state text NOT NULL CHECK(state IN ('queued','granted','cancelled','expired')) |
 
 Constraints:
-- `FOREIGN KEY(attempt_id,work_id) REFERENCES prc_process_attempts(id,work_id)`
-- `CHECK((work_id IS NOT NULL AND attempt_id IS NOT NULL AND work_generation IS NOT NULL AND work_generation>=1 AND operation_id IS NULL AND operation_generation IS NULL) OR (work_id IS NULL AND attempt_id IS NULL AND work_generation IS NULL AND operation_id IS NOT NULL AND operation_generation IS NOT NULL AND operation_generation>=1))`
-- `CHECK(expires_at<=operation_deadline)`
+- `CONSTRAINT prc_network_demands_attempt_id_work_id_fkey FOREIGN KEY (attempt_id, work_id) REFERENCES prc_process_attempts(id, work_id)`
+- `CONSTRAINT prc_network_demands_check CHECK ((((work_id IS NOT NULL) AND (attempt_id IS NOT NULL) AND (work_generation IS NOT NULL) AND (work_generation >= 1) AND (operation_id IS NULL) AND (operation_generation IS NULL)) OR ((work_id IS NULL) AND (attempt_id IS NULL) AND (work_generation IS NULL) AND (operation_id IS NOT NULL) AND (operation_generation IS NOT NULL) AND (operation_generation >= 1))))`
+- `CONSTRAINT prc_network_demands_check1 CHECK ((expires_at <= operation_deadline))`
+- `CONSTRAINT prc_network_demands_operation_id_fkey FOREIGN KEY (operation_id) REFERENCES prc_outbound_operations(id)`
+- `CONSTRAINT prc_network_demands_origin_budget_id_fkey FOREIGN KEY (origin_budget_id) REFERENCES prc_network_budgets(id)`
+- `CONSTRAINT prc_network_demands_physical_request_id_key UNIQUE (physical_request_id)`
+- `CONSTRAINT prc_network_demands_pkey PRIMARY KEY (id)`
+- `CONSTRAINT prc_network_demands_purpose_check CHECK ((purpose = ANY (ARRAY['ordinary'::text, 'probe'::text, 'diagnostic'::text])))`
+- `CONSTRAINT prc_network_demands_route_id_fkey FOREIGN KEY (route_id) REFERENCES prc_network_routes(id)`
+- `CONSTRAINT prc_network_demands_state_check CHECK ((state = ANY (ARRAY['queued'::text, 'granted'::text, 'cancelled'::text, 'expired'::text])))`
+- `CONSTRAINT prc_network_demands_target_id_fkey FOREIGN KEY (target_id) REFERENCES prc_source_targets(id)`
+- `CONSTRAINT prc_network_demands_ticket_seq_key UNIQUE (ticket_seq)`
+- `CONSTRAINT prc_network_demands_traffic_class_check CHECK ((traffic_class = ANY (ARRAY['fresh_listing'::text, 'status_refresh'::text, 'detail'::text, 'archive_listing'::text, 'download'::text, 'reference_sync'::text, 'diagnostic'::text, 'provider'::text])))`
+- `CONSTRAINT prc_network_demands_work_id_fkey FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
 
 Indexes:
-- `CREATE UNIQUE INDEX prc_network_demands_attempt_active ON prc_network_demands(attempt_id) WHERE state='queued' AND attempt_id IS NOT NULL;`
-- `CREATE UNIQUE INDEX prc_network_demands_operation_active ON prc_network_demands(operation_id) WHERE state='queued' AND operation_id IS NOT NULL;`
-- `CREATE INDEX prc_network_demands_fifo ON prc_network_demands(origin_budget_id,ticket_seq) WHERE state='queued';`
-- `CREATE INDEX prc_network_demands_class ON prc_network_demands(origin_budget_id,traffic_class,id);`
+- `CREATE UNIQUE INDEX prc_network_demands_attempt_active ON public.prc_network_demands USING btree (attempt_id) WHERE ((state = 'queued'::text) AND (attempt_id IS NOT NULL))`
+- `CREATE INDEX prc_network_demands_class ON public.prc_network_demands USING btree (origin_budget_id, traffic_class, id)`
+- `CREATE INDEX prc_network_demands_fifo ON public.prc_network_demands USING btree (origin_budget_id, ticket_seq) WHERE (state = 'queued'::text)`
+- `CREATE UNIQUE INDEX prc_network_demands_operation_active ON public.prc_network_demands USING btree (operation_id) WHERE ((state = 'queued'::text) AND (operation_id IS NOT NULL))`
+- `CREATE UNIQUE INDEX prc_network_demands_physical_request_id_key ON public.prc_network_demands USING btree (physical_request_id)`
+- `CREATE UNIQUE INDEX prc_network_demands_pkey ON public.prc_network_demands USING btree (id)`
+- `CREATE UNIQUE INDEX prc_network_demands_ticket_seq_key ON public.prc_network_demands USING btree (ticket_seq)`
 
 #### prc_network_permits
 
@@ -981,7 +1017,8 @@ Create: P2.1; activation boundary: P2.6; owner: `Repositories/Procurement/Networ
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
 | id | uuid | no | id uuid PRIMARY KEY |
-| platform_id | bigint | no | platform_id bigint NOT NULL REFERENCES prc_platforms(id) → prc_platforms(id) ON DELETE NO ACTION @P2.1 |
+| platform_id | bigint | yes | platform_id bigint NULL REFERENCES prc_platforms(id) → prc_platforms(id) ON DELETE NO ACTION @P2.1 |
+| provider_key | text | yes | provider_key text NULL CHECK(provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$') |
 | target_key | text | no | target_key text NOT NULL |
 | canonical_origin | text | no | canonical_origin text NOT NULL |
 | capability | text | no | capability text NOT NULL |
@@ -991,10 +1028,18 @@ Create: P2.1; activation boundary: P2.6; owner: `Repositories/Procurement/Networ
 | retired_at | timestamptz | yes | retired_at timestamptz NULL |
 
 Constraints:
-- `CHECK (endpoint_policy_schema_version > 0)`
-- `UNIQUE(platform_id,target_key)`
+- `CONSTRAINT prc_source_targets_check CHECK ((((platform_id IS NOT NULL) AND (provider_key IS NULL)) OR ((platform_id IS NULL) AND (provider_key IS NOT NULL) AND (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text))))`
+- `CONSTRAINT prc_source_targets_endpoint_policy_schema_version_check CHECK ((endpoint_policy_schema_version > 0))`
+- `CONSTRAINT prc_source_targets_pkey PRIMARY KEY (id)`
+- `CONSTRAINT prc_source_targets_platform_id_fkey FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
+- `CONSTRAINT prc_source_targets_platform_id_target_key_key UNIQUE (platform_id, target_key)`
+- `CONSTRAINT prc_source_targets_policy_version_check CHECK ((policy_version >= 1))`
+- `CONSTRAINT prc_source_targets_provider_key_target_key_key UNIQUE (provider_key, target_key)`
 
 Indexes:
+- `CREATE UNIQUE INDEX prc_source_targets_pkey ON public.prc_source_targets USING btree (id)`
+- `CREATE UNIQUE INDEX prc_source_targets_platform_id_target_key_key ON public.prc_source_targets USING btree (platform_id, target_key)`
+- `CREATE UNIQUE INDEX prc_source_targets_provider_key_target_key_key ON public.prc_source_targets USING btree (provider_key, target_key)`
 
 #### prc_route_health
 
@@ -1589,6 +1634,18 @@ Remove at this cutover: none.
 Constraints:
 - `UNIQUE NULLS NOT DISTINCT(platform_id,source_document_key)`
 
+#### prc_crawlers @P2.6
+
+Atomic network binding cutover; acquisition execution remains on existing owners until P2.18.
+
+| Column | Type | Nullable | Target declaration |
+| --- | --- | --- | --- |
+| route_profile_id | uuid | yes | route_profile_id uuid NULL REFERENCES prc_network_route_profiles(id) |
+
+Remove at this cutover: proxy_mode, proxy_country.
+
+Constraints:
+
 #### prc_crawlers @P2.18
 
 Profile schema/destructive rename вместе с последними acquisition consumers.
@@ -1596,11 +1653,10 @@ Profile schema/destructive rename вместе с последними acquisiti
 | Column | Type | Nullable | Target declaration |
 | --- | --- | --- | --- |
 | listing_kind | text | no | listing_kind text NOT NULL CHECK(listing_kind IN ('fresh','archive','delta')) |
-| route_profile_id | uuid | yes | route_profile_id uuid NULL REFERENCES prc_network_route_profiles(id) |
 | capability_selection | jsonb | no | capability_selection jsonb NOT NULL |
 | capability_selection_schema_version | smallint | no | capability_selection_schema_version smallint NOT NULL CHECK(capability_selection_schema_version>0) |
 
-Remove at this cutover: mode, source_method, fallback_method, proxy_country, proxy_mode, execution_lane, stop_policy.
+Remove at this cutover: mode, source_method, fallback_method, execution_lane, stop_policy.
 
 Constraints:
 
@@ -1612,7 +1668,7 @@ Sole health/control owner становится Network, все transport callers
 | --- | --- | --- | --- |
 | route_id | uuid | no | route_id uuid NOT NULL REFERENCES prc_network_routes(id) |
 
-Remove at this cutover: open_until, open_count, last_failure_reason, last_success_at, last_failure_at, fails_count, is_active, disabled_at, disabled_reason.
+Remove at this cutover: open_until, open_count, last_failure_reason, last_success_at, last_failure_at, fails_count, is_active, disabled_at, disabled_reason, password.
 
 Constraints:
 - `UNIQUE(route_id)`
@@ -2677,7 +2733,7 @@ Constraints:
 - `prc_control_scopes_pkey`: `PRIMARY KEY (id)`
 - `prc_control_scopes_root_check`: `CHECK (((scope_kind = 'system'::text) = (parent_id IS NULL)))`
 - `prc_control_scopes_scope_key_unique`: `UNIQUE (scope_key)`
-- `prc_control_scopes_scope_kind_check`: `CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'cohort'::text, 'stage'::text])))`
+- `prc_control_scopes_scope_kind_check`: `CHECK ((scope_kind = ANY (ARRAY['system'::text, 'acquisition'::text, 'documents'::text, 'platform'::text, 'provider'::text, 'cohort'::text, 'stage'::text])))`
 
 Indexes:
 - `prc_control_scopes_pkey`: `CREATE UNIQUE INDEX prc_control_scopes_pkey ON public.prc_control_scopes USING btree (id)`
@@ -2749,23 +2805,6 @@ Indexes:
 - `prc_crawl_runs_pkey`: `CREATE UNIQUE INDEX prc_crawl_runs_pkey ON public.prc_crawl_runs USING btree (id)`
 - `prc_crawl_runs_process_run_id_unique`: `CREATE UNIQUE INDEX prc_crawl_runs_process_run_id_unique ON public.prc_crawl_runs USING btree (process_run_id)`
 
-#### prc_crawler_proxy
-
-Owner: Procurement; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| crawler_id | bigint / int8 | NO | bigint NOT NULL |
-| proxy_id | bigint / int8 | NO | bigint NOT NULL |
-
-Constraints:
-- `prc_crawler_proxy_crawler_id_foreign`: `FOREIGN KEY (crawler_id) REFERENCES prc_crawlers(id) ON DELETE CASCADE`
-- `prc_crawler_proxy_crawler_id_proxy_id_unique`: `UNIQUE (crawler_id, proxy_id)`
-- `prc_crawler_proxy_proxy_id_foreign`: `FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id) ON DELETE CASCADE`
-
-Indexes:
-- `prc_crawler_proxy_crawler_id_proxy_id_unique`: `CREATE UNIQUE INDEX prc_crawler_proxy_crawler_id_proxy_id_unique ON public.prc_crawler_proxy USING btree (crawler_id, proxy_id)`
-
 #### prc_crawler_runs
 
 Owner: Procurement; retention: business.
@@ -2825,17 +2864,17 @@ Owner: Procurement; retention: business.
 | filter | jsonb / jsonb | YES | jsonb |
 | schedule | text / text | YES | text |
 | options | jsonb / jsonb | YES | jsonb |
-| proxy_country | character / bpchar | YES | character(2) |
+| route_profile_id | uuid / uuid | YES | uuid |
 | stop_policy | text / text | NO | text DEFAULT 'default'::text NOT NULL |
 | execution_lane | text / text | NO | text DEFAULT 'standard'::text NOT NULL |
 | is_active | boolean / bool | NO | boolean DEFAULT true NOT NULL |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| proxy_mode | text / text | NO | text DEFAULT 'default'::text NOT NULL |
 
 Constraints:
 - `prc_crawlers_pkey`: `PRIMARY KEY (id)`
 - `prc_crawlers_registry_id_foreign`: `FOREIGN KEY (registry_id) REFERENCES prc_registries(id)`
+- `prc_crawlers_route_profile_id_foreign`: `FOREIGN KEY (route_profile_id) REFERENCES prc_network_route_profiles(id)`
 
 Indexes:
 - `prc_crawlers_pkey`: `CREATE UNIQUE INDEX prc_crawlers_pkey ON public.prc_crawlers USING btree (id)`
@@ -3478,7 +3517,7 @@ Constraints:
 - `prc_network_demands_state_check`: `CHECK ((state = ANY (ARRAY['queued'::text, 'granted'::text, 'cancelled'::text, 'expired'::text])))`
 - `prc_network_demands_target_id_fkey`: `FOREIGN KEY (target_id) REFERENCES prc_source_targets(id)`
 - `prc_network_demands_ticket_seq_key`: `UNIQUE (ticket_seq)`
-- `prc_network_demands_traffic_class_check`: `CHECK ((traffic_class = ANY (ARRAY['fresh_listing'::text, 'status_refresh'::text, 'detail'::text, 'archive_listing'::text, 'download'::text, 'reference_sync'::text, 'diagnostic'::text])))`
+- `prc_network_demands_traffic_class_check`: `CHECK ((traffic_class = ANY (ARRAY['fresh_listing'::text, 'status_refresh'::text, 'detail'::text, 'archive_listing'::text, 'download'::text, 'reference_sync'::text, 'diagnostic'::text, 'provider'::text])))`
 - `prc_network_demands_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
 
 Indexes:
@@ -3773,6 +3812,9 @@ Owner: Repositories/Procurement/Network; retention: requests.
 | operation_key | uuid / uuid | NO | uuid NOT NULL |
 | kind | text / text | NO | text NOT NULL |
 | platform_id | bigint / int8 | YES | bigint |
+| provider_key | text / text | YES | text |
+| adapter_health_id | uuid / uuid | YES | uuid |
+| adapter_health_epoch | bigint / int8 | YES | bigint |
 | caller_code | text / text | NO | text NOT NULL |
 | state | text / text | NO | text NOT NULL |
 | owner_token | uuid / uuid | NO | uuid NOT NULL |
@@ -3785,18 +3827,24 @@ Owner: Repositories/Procurement/Network; retention: requests.
 | policy_hash | bytea / bytea | NO | bytea NOT NULL |
 
 Constraints:
-- `prc_outbound_operations_check`: `CHECK ((lease_until <= deadline_at))`
-- `prc_outbound_operations_check1`: `CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL)))`
-- `prc_outbound_operations_check2`: `CHECK (((state = 'open'::text) = (finished_at IS NULL)))`
+- `prc_outbound_operations_adapter_health_epoch_check`: `CHECK (((adapter_health_epoch IS NULL) OR (adapter_health_epoch >= 1)))`
+- `prc_outbound_operations_adapter_health_id_fkey`: `FOREIGN KEY (adapter_health_id) REFERENCES prc_adapter_health(id)`
+- `prc_outbound_operations_check`: `CHECK (((platform_id IS NULL) OR (provider_key IS NULL)))`
+- `prc_outbound_operations_check1`: `CHECK (((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL)))`
+- `prc_outbound_operations_check2`: `CHECK ((lease_until <= deadline_at))`
+- `prc_outbound_operations_check3`: `CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL)))`
+- `prc_outbound_operations_check4`: `CHECK (((state = 'open'::text) = (finished_at IS NULL)))`
 - `prc_outbound_operations_generation_check`: `CHECK ((generation >= 1))`
 - `prc_outbound_operations_kind_check`: `CHECK ((kind = ANY (ARRAY['legacy_bridge'::text, 'diagnostic'::text, 'probe'::text])))`
 - `prc_outbound_operations_operation_key_key`: `UNIQUE (operation_key)`
 - `prc_outbound_operations_pkey`: `PRIMARY KEY (id)`
 - `prc_outbound_operations_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
 - `prc_outbound_operations_policy_hash_check`: `CHECK ((octet_length(policy_hash) = 32))`
+- `prc_outbound_operations_provider_key_check`: `CHECK (((provider_key IS NULL) OR (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text)))`
 - `prc_outbound_operations_state_check`: `CHECK ((state = ANY (ARRAY['open'::text, 'closed'::text, 'expired'::text])))`
 
 Indexes:
+- `prc_outbound_operations_adapter_live`: `CREATE INDEX prc_outbound_operations_adapter_live ON public.prc_outbound_operations USING btree (adapter_health_id, adapter_health_epoch, lease_until) WHERE ((state = 'open'::text) AND (adapter_health_id IS NOT NULL))`
 - `prc_outbound_operations_operation_key_key`: `CREATE UNIQUE INDEX prc_outbound_operations_operation_key_key ON public.prc_outbound_operations USING btree (operation_key)`
 - `prc_outbound_operations_pkey`: `CREATE UNIQUE INDEX prc_outbound_operations_pkey ON public.prc_outbound_operations USING btree (id)`
 - `prc_outbound_operations_reap`: `CREATE INDEX prc_outbound_operations_reap ON public.prc_outbound_operations USING btree (lease_until) WHERE (state = 'open'::text)`
@@ -4495,79 +4543,22 @@ Owner: Procurement; retention: business.
 | host | text / text | NO | text NOT NULL |
 | port | integer / int4 | YES | integer |
 | username | text / text | YES | text |
-| password | text / text | YES | text |
 | country | character / bpchar | YES | character(2) |
 | scopes | jsonb / jsonb | NO | jsonb DEFAULT '[]'::jsonb NOT NULL |
-| open_until | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| open_count | smallint / int2 | NO | smallint DEFAULT '0'::smallint NOT NULL |
-| last_failure_reason | text / text | YES | text |
-| last_success_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| is_active | boolean / bool | NO | boolean DEFAULT true NOT NULL |
-| fails_count | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| disabled_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| disabled_reason | text / text | YES | text |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
 
 Constraints:
 - `prc_proxies_pkey`: `PRIMARY KEY (id)`
+- `prc_proxies_route_id_fkey`: `FOREIGN KEY (route_id) REFERENCES prc_network_routes(id)`
+- `prc_proxies_route_id_key`: `UNIQUE (route_id)`
 
 Indexes:
-- `prc_proxies_is_active_country_index`: `CREATE INDEX prc_proxies_is_active_country_index ON public.prc_proxies USING btree (is_active, country)`
+- `prc_proxies_country_index`: `CREATE INDEX prc_proxies_country_index ON public.prc_proxies USING btree (country)`
 - `prc_proxies_pkey`: `CREATE UNIQUE INDEX prc_proxies_pkey ON public.prc_proxies USING btree (id)`
+- `prc_proxies_route_id_key`: `CREATE UNIQUE INDEX prc_proxies_route_id_key ON public.prc_proxies USING btree (route_id)`
 - `prc_proxies_scopes_gin`: `CREATE INDEX prc_proxies_scopes_gin ON public.prc_proxies USING gin (scopes)`
-
-#### prc_proxy_checks
-
-Owner: Procurement; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| proxy_id | bigint / int8 | NO | bigint NOT NULL |
-| checked_at | timestamp with time zone / timestamptz | NO | timestamp(0) with time zone NOT NULL |
-| success | boolean / bool | NO | boolean NOT NULL |
-| latency_ms | integer / int4 | YES | integer |
-| error | text / text | YES | text |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-
-Constraints:
-- `prc_proxy_checks_pkey`: `PRIMARY KEY (id)`
-- `prc_proxy_checks_proxy_id_foreign`: `FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id)`
-
-Indexes:
-- `prc_proxy_checks_pkey`: `CREATE UNIQUE INDEX prc_proxy_checks_pkey ON public.prc_proxy_checks USING btree (id)`
-- `prc_proxy_checks_proxy_id_index`: `CREATE INDEX prc_proxy_checks_proxy_id_index ON public.prc_proxy_checks USING btree (proxy_id)`
-
-#### prc_proxy_targets
-
-Owner: Procurement; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| proxy_id | bigint / int8 | NO | bigint NOT NULL |
-| target | text / text | NO | text NOT NULL |
-| success_ratio | double precision / float8 | NO | double precision DEFAULT '1'::double precision NOT NULL |
-| latency_ms_avg | integer / int4 | YES | integer |
-| consecutive_failures | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| open_until | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| open_count | smallint / int2 | NO | smallint DEFAULT '0'::smallint NOT NULL |
-| last_failure_reason | text / text | YES | text |
-| last_outcome_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-
-Constraints:
-- `prc_proxy_targets_pkey`: `PRIMARY KEY (id)`
-- `prc_proxy_targets_proxy_id_foreign`: `FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id) ON DELETE CASCADE`
-- `prc_proxy_targets_proxy_id_target_unique`: `UNIQUE (proxy_id, target)`
-
-Indexes:
-- `prc_proxy_targets_pkey`: `CREATE UNIQUE INDEX prc_proxy_targets_pkey ON public.prc_proxy_targets USING btree (id)`
-- `prc_proxy_targets_proxy_id_target_unique`: `CREATE UNIQUE INDEX prc_proxy_targets_proxy_id_target_unique ON public.prc_proxy_targets USING btree (proxy_id, target)`
 
 #### prc_raw_artifacts
 
@@ -4858,7 +4849,8 @@ Owner: Repositories/Procurement/Network; retention: authority.
 | Column | PostgreSQL type | Nullable | Exact column definition |
 | --- | --- | --- | --- |
 | id | uuid / uuid | NO | uuid NOT NULL |
-| platform_id | bigint / int8 | NO | bigint NOT NULL |
+| platform_id | bigint / int8 | YES | bigint |
+| provider_key | text / text | YES | text |
 | target_key | text / text | NO | text NOT NULL |
 | canonical_origin | text / text | NO | text NOT NULL |
 | capability | text / text | NO | text NOT NULL |
@@ -4868,15 +4860,18 @@ Owner: Repositories/Procurement/Network; retention: authority.
 | retired_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
 
 Constraints:
+- `prc_source_targets_check`: `CHECK ((((platform_id IS NOT NULL) AND (provider_key IS NULL)) OR ((platform_id IS NULL) AND (provider_key IS NOT NULL) AND (provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text))))`
 - `prc_source_targets_endpoint_policy_schema_version_check`: `CHECK ((endpoint_policy_schema_version > 0))`
 - `prc_source_targets_pkey`: `PRIMARY KEY (id)`
 - `prc_source_targets_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
 - `prc_source_targets_platform_id_target_key_key`: `UNIQUE (platform_id, target_key)`
 - `prc_source_targets_policy_version_check`: `CHECK ((policy_version >= 1))`
+- `prc_source_targets_provider_key_target_key_key`: `UNIQUE (provider_key, target_key)`
 
 Indexes:
 - `prc_source_targets_pkey`: `CREATE UNIQUE INDEX prc_source_targets_pkey ON public.prc_source_targets USING btree (id)`
 - `prc_source_targets_platform_id_target_key_key`: `CREATE UNIQUE INDEX prc_source_targets_platform_id_target_key_key ON public.prc_source_targets USING btree (platform_id, target_key)`
+- `prc_source_targets_provider_key_target_key_key`: `CREATE UNIQUE INDEX prc_source_targets_provider_key_target_key_key ON public.prc_source_targets USING btree (provider_key, target_key)`
 
 #### prc_status_mappings
 
@@ -5234,3 +5229,27 @@ Writers, models и проверяемые DB инварианты описаны
 fairness/provider recovery и handler fault budget присутствуют с точными predicates. Runtime
 primitives, admission, recovery и consumers ещё не активны: P1.7–P1.11 используют этот baseline без
 повторного DDL, а изменения schema остаются правкой исходных baseline files с двумя clean install.
+
+
+## P2.6 provider ownership amendment (partial candidate)
+
+The clean baseline now declares the owner-authorized provider branch below. The full P2.6
+consumer/schema cutover and its two isolated installs remain unaccepted; this note is not an
+installed-schema or activation claim. Earlier schema snapshots above predate this amendment.
+
+- `prc_source_targets.platform_id` is nullable and keeps its real platform FK. New nullable
+  `provider_key` is validated by `[a-z][a-z0-9_.:-]{0,95}`. An exclusive CHECK requires exactly
+  one of platform_id/provider_key. Platform and provider target keys have separate unique pairs;
+  provider target keys carry `provider:<provider_key>:<endpoint_key>`.
+- `prc_outbound_operations.provider_key` is nullable, grammar-checked, and cannot coexist with
+  platform_id. A provider operation must bind its exact provider control and system ancestor.
+  Target/owner mismatch is rejected by the common network authority. No ProcessWork or financial
+  identity is fabricated for a legacy provider request.
+- `prc_control_scopes.scope_kind` includes `provider`, with system → provider:<key> topology.
+  `prc_network_demands.traffic_class` includes `provider`; demand purpose remains ordinary/probe/diagnostic.
+- Origin identity, shared budgets, existing TAT/send_tat/not_before debt and overrides remain
+  independent of the provider/platform owner branch. A sync only retires its own catalog.
+
+`ProviderOwnershipTest` exercises the real PostgreSQL CHECK/unique failures and canonical
+provider controls. Full schema/reset manifests and all remaining old binding/health removals
+are still required on the completed P2.6 candidate.
