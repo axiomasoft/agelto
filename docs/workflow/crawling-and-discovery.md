@@ -337,6 +337,13 @@ detail works удерживают drain run отдельно от закрыти
 активация/retirement и detail/status handlers принадлежат P2.16/P2.18. Listing не
 запускает document pipeline. Схема P2.15 использует существующие subject carriers.
 
+Listing не наблюдает extension карточки и переносит его из текущей canonical revision
+через typed `HeadSnapshot` и registered descriptor. Идентичный listing после detail не
+создаёт revision, не увеличивает head_generation и не инвалидирует уже выданные
+detail/status work. Отсутствие наблюдения отличается от explicit CompleteEmpty detail:
+последний публикует пустой typed extension, который последующий listing сохраняет.
+T27ListingExtensionTest проверяет оба случая, status completion и remap с историей.
+
 ## P2.16: части карточки и повторяемые циклы
 
 `DetailHandler` сохраняет каждую полную независимую часть как immutable artifact и

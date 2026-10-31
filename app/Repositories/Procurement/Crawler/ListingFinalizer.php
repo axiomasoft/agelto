@@ -23,6 +23,7 @@ use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Repositories\Procurement\Process\TransitionRepository;
+use App\Services\Procurement\Acquisition\HeadSnapshot;
 use App\Services\Procurement\Acquisition\IdentityResolver;
 use App\Services\Procurement\Acquisition\ListingPublicationLocks;
 use App\Services\Procurement\Acquisition\SnapshotFinalizer;
@@ -40,7 +41,7 @@ final class ListingFinalizer implements StagePublicationRepository
 
     public function __construct(private readonly ListingStoreRepository $store, private readonly SnapshotFinalizer $snapshots,
         private readonly IdentityResolver $identities, private readonly PostgresAdvisoryLock $locks,
-        private readonly TransitionRepository $transitions) {}
+        private readonly TransitionRepository $transitions, private readonly HeadSnapshot $heads) {}
 
     public function publicationLocks(WorkInput $input, ValidatedStageResult $result): PublicationLocks
     {
@@ -80,6 +81,7 @@ final class ListingFinalizer implements StagePublicationRepository
                 $data = new ProcurementSnapshotData($task->registryId, $summary->identity, $summary->title, $summary->sourceStage,
                     Carbon::instance($summary->publishedAt), Carbon::instance($summary->updatedAt),
                     sourceUpdatedAtHasDayPrecision: $summary->updatedAtDayPrecision,
+                    extension: $head === null ? null : $this->heads->make($head, $summary->identity)->extension,
                     procedureType: $head?->procedure_type, procedureTypeRaw: $head?->procedure_type_raw,
                     initialPrice: $summary->initialPrice, currency: $summary->currency,
                     advancePercent: $head?->advance_percent, okvedCode: $head?->okved_code, okvedAdditional: $head?->okved_additional,
