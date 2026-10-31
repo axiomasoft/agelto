@@ -226,7 +226,7 @@ function scenarioCard(): Procurement
 
     return Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => S::CardNumber,
+        'source_identity_value' => S::CardNumber,
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,
@@ -313,7 +313,7 @@ test('карточки: новая вёрстка на 3 карточках → 
             foreach (['common-info', 'documents', 'event-journal'] as $tab) {
                 $wire->respond('/'.$tab, '<html><body>'.$number.' новая вёрстка</body></html>', headers: ['Content-Type' => 'text/html; charset=UTF-8']);
             }
-            $card = Procurement::factory()->create(['registry_id' => $registry->id, 'registry_number' => $number,
+            $card = Procurement::factory()->create(['registry_id' => $registry->id, 'source_identity_value' => $number,
                 'procedure_type_raw' => 'Электронный аукцион', 'status' => ProcurementStatus::Bidding]);
             expect(app(DetailAnalysisProcessor::class)->run($card))->toBeFalse();
             $cards[] = $card;

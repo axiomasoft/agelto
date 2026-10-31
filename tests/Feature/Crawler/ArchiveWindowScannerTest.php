@@ -352,7 +352,7 @@ test('ошибка записи блока откатывает транзакц
     $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
 
     expect($result)->toBe(ArchiveWindowScanResult::Stopped)
-        ->and(Procurement::query()->orderBy('registry_number')->pluck('registry_number')->all())
+        ->and(Procurement::query()->orderBy('source_identity_value')->pluck('source_identity_value')->all())
         ->toBe(['0173200001234000001', '0173200001234000002'])
         ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvCodeError)->sole()->type)->toBe(CrawlerEventCode::CsvCodeError)
         ->and($run->refresh()->status)->toBe(RunStatus::Paused)

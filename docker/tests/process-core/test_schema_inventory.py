@@ -136,7 +136,7 @@ class SchemaInventoryTest(unittest.TestCase):
         self.assertEqual(self.inventory["current_item"], "P2.6")
         self.assertEqual(len(self.inventory["migrations"]), 81)
         self.assertEqual(len(self.inventory["baseline"]["tables"]), 108)
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1312)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1314)
         adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
                            for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]
                            if c["column_name"] in ("adapter_health_id", "adapter_health_epoch")}

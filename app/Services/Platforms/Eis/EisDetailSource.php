@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Platforms\Eis;
 
 use App\Dto\Platforms\Eis\EisCardRoutes;
-use App\Dto\Platforms\Eis\EisDetailExtension;
 use App\Dto\Platforms\Eis\EisPolicy;
 use App\Dto\Procurement\Acquisition\DetailFetched;
 use App\Dto\Procurement\Acquisition\DetailFetchResult;
@@ -204,6 +203,6 @@ final readonly class EisDetailSource implements DetailSource
         }
 
         return new DetailFetched(new ProcurementSnapshot($request->identity, $title, $stage, $parties, $common->items,
-            $common->financingRows, $documents, $parts, EisDetailExtension::fromCommon($common), events: $events, results: $results));
+            $common->financingRows, $documents, $parts, $common->extension, events: $events, results: $results));
     }
 }

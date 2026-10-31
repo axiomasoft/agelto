@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Models\Organization\Organization;
-use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -27,13 +26,12 @@ return new class extends Migration
             $table->id();
             $table->uuid('uuid')->unique();
 
-            $table->foreignId('registry_id')
-                ->constrained(table: (new Registry)->getTable())
-                ->onDelete('NO ACTION'); // P7.5, F-02: прежнее поведение объявлено явно.
-
-            $table->text('registry_number');
-            $table->text('etp_number')->nullable();
-            $table->text('ikz')->nullable()->index();
+            $table->foreignId('platform_id')->constrained('prc_platforms')->onDelete('NO ACTION');
+            $table->unsignedBigInteger('registry_id');
+            $table->foreign(['registry_id', 'platform_id'], 'prc_procurements_registry_platform_fk')
+                ->references(['id', 'platform_id'])->on('prc_registries')->onDelete('NO ACTION');
+            $table->text('source_identity_type')->collation('C');
+            $table->text('source_identity_value')->collation('C');
             $table->text('title');
             $table->text('status');
             $table->text('source_stage');
@@ -69,8 +67,6 @@ return new class extends Migration
             $table->jsonb('detail_parse_outcome')->nullable();
             $table->timestampTz('succeeded_at')->nullable();
 
-            $table->text('registry_guid')->nullable()->index();
-
             // Без constrained() — prc_revisions партиционирована, FK на неё не строится.
             $table->unsignedBigInteger('current_revision_id')->nullable();
             $table->timestampTz('current_revision_detected_at')->nullable();
@@ -93,13 +89,15 @@ return new class extends Migration
             $table->bigInteger('status_cycle_seq')->default(0);
             $table->timestampTz('next_status_due_at', precision: 6)->nullable();
 
-            $table->unique(['registry_id', 'registry_number']);
+            $table->unique(['platform_id', 'source_identity_type', 'source_identity_value'], 'prc_procurements_source_identity_unique');
             $table->index(['registry_id', 'status', 'published_at']);
             $table->index(['status', 'bidding_ends_at']);
         });
 
         DB::statement(
             'ALTER TABLE prc_procurements '
+            ."ADD CONSTRAINT prc_procurements_source_identity_type_check CHECK (source_identity_type ~ '^[a-z][a-z0-9_.:-]{0,95}$'), "
+            .'ADD CONSTRAINT prc_procurements_source_identity_value_check CHECK (char_length(source_identity_value) BETWEEN 1 AND 200), '
             .'ADD CONSTRAINT prc_procurements_head_generation_check CHECK (head_generation >= 1), '
             .'ADD CONSTRAINT prc_procurements_detail_cycle_seq_check CHECK (detail_cycle_seq >= 0), '
             .'ADD CONSTRAINT prc_procurements_status_cycle_seq_check CHECK (status_cycle_seq >= 0)',

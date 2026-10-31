@@ -24,6 +24,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['platform_id', 'code']);
+            $table->unique(['id', 'platform_id'], 'prc_registries_id_platform_unique');
         });
     }
 

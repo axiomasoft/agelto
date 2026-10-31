@@ -83,7 +83,7 @@ test('фикстурный блок создаёт закупки, ревизи�
 
     expect(Procurement::query()->count())->toBe(2);
 
-    $procurement = Procurement::query()->where('registry_number', '0173200001234000001')->first();
+    $procurement = Procurement::query()->where('source_identity_value', '0173200001234000001')->first();
     expect($procurement)->not->toBeNull()
         ->and(ProcurementRevision::query()->where('procurement_id', $procurement->id)->count())->toBe(1)
         ->and(ProcurementEvent::query()->where('procurement_id', $procurement->id)->where('event_type', ProcurementEventType::Discovered)->count())->toBe(1);
@@ -187,8 +187,8 @@ test('строка из crw_ignored_items пропускается и не со�
 
     expect($result->rowsSkipped)->toBe(1)
         ->and($result->rowsNew)->toBe(1)
-        ->and(Procurement::query()->where('registry_number', '0173200001234000099')->exists())->toBeFalse()
-        ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
+        ->and(Procurement::query()->where('source_identity_value', '0173200001234000099')->exists())->toBeFalse()
+        ->and(Procurement::query()->where('source_identity_value', '0173200001234000001')->exists())->toBeTrue();
 });
 
 test('битая строка без номера оставляет блок незавершённым', function () {
@@ -208,7 +208,7 @@ test('битая строка без номера оставляет блок н
 
     expect(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0)
         ->and(Procurement::query()->count())->toBe(1)
-        ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
+        ->and(Procurement::query()->where('source_identity_value', '0173200001234000001')->exists())->toBeTrue();
 });
 
 test('дедуп внутри блока по реестровому номеру — 510 строк на 500 уникальных дают 500 инжестов без вторых ревизий', function () {
@@ -239,7 +239,7 @@ test('дедуп внутри блока по реестровому номер�
         ->and(Procurement::query()->count())->toBe(500)
         ->and(ProcurementRevision::query()->count())->toBe(500);
 
-    $firstDuplicated = Procurement::query()->where('registry_number', '0173200001234000001')->firstOrFail();
+    $firstDuplicated = Procurement::query()->where('source_identity_value', '0173200001234000001')->firstOrFail();
     expect($firstDuplicated->title)->toBe('Поставка оргтехники');
 
     Log::shouldHaveReceived('warning')
@@ -263,7 +263,7 @@ test('битая строка с неверной датой оставляет 
         ->and($result->rowsErrors)->toBe(1);
 
     expect(Fetch::query()->where('crawler_run_id', $run->id)->count())->toBe(0)
-        ->and(Procurement::query()->where('registry_number', '0173200001234000001')->exists())->toBeTrue();
+        ->and(Procurement::query()->where('source_identity_value', '0173200001234000001')->exists())->toBeTrue();
 });
 
 test('ошибка маппера записывается отдельно от пропущенной строки', function () {

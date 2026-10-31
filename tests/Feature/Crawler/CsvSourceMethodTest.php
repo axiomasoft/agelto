@@ -310,9 +310,9 @@ test('detail fetch сохраняет source default в partitioned evidence', f
         config(['crawler.eis.card_tabs' => ['common-info']]);
         $registry->update(['settings' => ['procedure_url_types' => ['Электронный аукцион' => 'ea20'],
             'card_url_templates' => ['ea20' => ['common-info' => $wire->url('/common-info?regNumber={regNumber}')->reveal()]]]]);
-        $procurement = Procurement::factory()->for($registry)->create(['registry_number' => '0338200009125000001', 'procedure_type_raw' => 'Электронный аукцион']);
+        $procurement = Procurement::factory()->for($registry)->create(['source_identity_value' => '0338200009125000001', 'procedure_type_raw' => 'Электронный аукцион']);
         $wire->respond('/common-info', CardHtmlFixture::commonInfo(), headers: ['Content-Type' => 'text/html; charset=UTF-8']);
-        $details = app(CsvSourceMethod::class)->collectDetails($procurement->registry_number, $registry);
+        $details = app(CsvSourceMethod::class)->collectDetails($procurement->source_identity_value, $registry);
         $attempt = DB::table('prc_request_attempts')->sole();
         expect($details->validation->requestIds[0]->value)->toBe($attempt->request_id)
             ->and(DB::table('prc_source_targets')->where('id', $attempt->target_id)->sole()->capability)->toBe('detail')

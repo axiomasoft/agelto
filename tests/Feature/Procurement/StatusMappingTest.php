@@ -9,7 +9,7 @@ use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\ProcurementEvent;
-use App\Services\Procurement\ProcurementIngestProcessor;
+use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use App\Services\Procurement\StatusMappingService;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\Procurement\SnapshotFactory;
@@ -119,9 +119,9 @@ PHP);
 });
 
 test('обнаружение закупки с незнакомым статусом пишет одно canonical initial-status событие', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
 
-    $procurement = app(ProcurementIngestProcessor::class)->ingest(SnapshotFactory::make($registry, [
+    $procurement = app(SnapshotFinalizer::class)->ingest(SnapshotFactory::make($registry, [
         'sourceStage' => 'Совсем незнакомый статус',
     ]));
 

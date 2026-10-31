@@ -2,10 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\ProcurementStatus;
+use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Platform\Registry;
-use App\Repositories\Procurement\ProcurementStoreRepository;
-use Illuminate\Support\Carbon;
+use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use Tests\Support\Procurement\SnapshotFactory;
 
 /**
@@ -14,25 +13,21 @@ use Tests\Support\Procurement\SnapshotFactory;
  * продюсера мимо колонки.
  */
 test('etp_number сохраняется через storeProcurement, когда передан снапшотом', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
 
-    $procurement = app(ProcurementStoreRepository::class)->storeProcurement(
+    $procurement = app(SnapshotFinalizer::class)->ingest(
         data: SnapshotFactory::make($registry, ['etpNumber' => 'ETP-000123']),
-        status: ProcurementStatus::Bidding->value,
-        seenAt: Carbon::now(),
     );
 
-    expect($procurement->fresh()->etp_number)->toBe('ETP-000123');
+    expect(EisDetails::query()->find($procurement->id)?->etp_number)->toBe('ETP-000123');
 });
 
 test('etp_number остаётся null по умолчанию и не роняет запись', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
 
-    $procurement = app(ProcurementStoreRepository::class)->storeProcurement(
+    $procurement = app(SnapshotFinalizer::class)->ingest(
         data: SnapshotFactory::make($registry, ['registryNumber' => '0173100000123000002']),
-        status: ProcurementStatus::Bidding->value,
-        seenAt: Carbon::now(),
     );
 
-    expect($procurement->fresh()->etp_number)->toBeNull();
+    expect(EisDetails::query()->find($procurement->id)?->etp_number)->toBeNull();
 });

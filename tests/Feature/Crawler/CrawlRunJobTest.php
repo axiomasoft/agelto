@@ -326,7 +326,7 @@ test('archive continuation использует неизменяемый typed f
         ->and($run->fresh()->stats['execution_context']['from'])->toBe('2025-01-01')
         ->and($run->fresh()->stats['execution_context']['to'])->toBe('2025-01-01')
         ->and($run->fresh()->status)->toBe(RunStatus::Completed)
-        ->and(Procurement::query()->where('registry_number', '0173200001225000099')->exists())->toBeTrue();
+        ->and(Procurement::query()->where('source_identity_value', '0173200001225000099')->exists())->toBeTrue();
 });
 
 test('operator debt композиция scanner processor job ставит archive на паузу без busy self-dispatch', function (): void {

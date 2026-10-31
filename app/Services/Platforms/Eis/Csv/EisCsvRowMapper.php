@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis\Csv;
 
+use App\Dto\Platforms\Eis\EisDetailExtension;
+use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\SourceIdentifierType;
+use App\Dto\Procurement\Platform\SourceIdentifierValue;
+use App\Dto\Procurement\Platform\SourceIdentity;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Platforms\Eis\EisProcedureType;
 use App\Models\Procurement\Crawler\Crawler;
@@ -88,14 +93,15 @@ final readonly class EisCsvRowMapper implements ListingRowMapper, ListingSchemaA
 
         return new ProcurementSnapshotData(
             registryId: $crawler->registry_id,
-            registryNumber: $registryNumber,
+            identity: new SourceIdentity(new PlatformCode('eis'),
+                new SourceIdentifierType('registry:44fz'), new SourceIdentifierValue($registryNumber)),
             title: trim($row[self::TITLE_COLUMN] ?? ''),
             sourceStage: trim($row[self::STAGE_COLUMN] ?? ''),
             publishedAt: $publishedAt,
             sourceUpdatedAt: $sourceUpdatedAt['value'],
             sourceUpdatedAtHasDayPrecision: $sourceUpdatedAt['hasDayPrecision'],
             sourceUpdatedBefore: $sourceUpdatedAt['hasDayPrecision'] ? $this->clock->endOfSourceDay($sourceUpdatedAt['value']) : null,
-            ikz: $this->nullableString(value: $row[self::IKZ_COLUMN] ?? null),
+            extension: new EisDetailExtension(ikz: $this->nullableString(value: $row[self::IKZ_COLUMN] ?? null)),
             procedureType: $procedureType,
             procedureTypeRaw: $procedureTypeRaw,
             initialPrice: $this->mapPrice(value: $row[self::INITIAL_PRICE_COLUMN] ?? null),

@@ -786,3 +786,37 @@ owned by P2.8. This records repository acceptance; production deployment is a se
 
 Diagnostic and operator recovery commands are documented in
 [the process rig runbook](runbooks/process-test-rig.md#p26-диагностика-и-восстановление-после-переключения-сети).
+
+## P2.14: canonical identity и extension persistence
+
+Primary identity — точный `(platform_id, source_identity_type, source_identity_value)`.
+RegistryDefinition задаёт type; IdentityResolver проверяет platform/registry по trusted catalog.
+Значение opaque: ведущие нули, регистр, пробелы и Unicode representation сохраняются.
+Clean baseline использует text COLLATE "C", UNIQUE tuple и composite registry/platform FK.
+Общие DTO и procurement больше не содержат registry_number/ikz/etp_number/registry_guid;
+для отображения служит source_identity_value, остальные identifiers принадлежат EisDetailExtension.
+
+SnapshotFinalizer::lockIdentities вызывается в caller transaction до work lock: сначала
+все deduplicated advisory keys в signed64 порядке, затем existing subject rows по id.
+После owner fence persistLocked использует тот же transaction-bound handle и не начинает
+транзакцию или HTTP. INSERT ON CONFLICT по exact identity constraint и locked reread
+не требуют повторного fetch; 23505 не добавлен в transient retry policy.
+Legacy block ingestor не поглощает persistence exceptions: весь block откатывается,
+а raw artifact подготавливается до publication transaction.
+Legacy ingest entrypoint сохраняется до producer cutover P2.18. Новый stage handler здесь
+не активируется; P2.15/P2.16 подключают listing/detail/status publication к этим primitives.
+
+EisExtensionPersister — единственный application writer prc_eis_details. Registry выбирает
+точный typed writer; ошибка откатывает canonical revision/events и cursor вместе с extension.
+CompleteEmpty common-info может очистить прежние common fields; listing metadata не
+обнуляется отсутствующими полями. Старые detail consumers используют тот же writer.
+EIS UI fields загружаются через registered UI extension, без EIS imports в shared resource.
+
+T41 проверяет opaque values/collation, platform и registry separation, FK rejection,
+forced advisory hash collision, ON CONFLICT и два PostgreSQL contenders с одним physical
+fixture HTTP на block и двумя domain commits. T42 проверяет rollback revision/events/cursor,
+caller transaction и negative writer ownership fixtures. core-test-acquisition теперь запускает
+эти текущие assertions; полная группа acquisition принимается в P2.19.
+Schema inventory фиксирует фактические три изменённые таблицы; marker current_item остаётся
+последним полностью активированным carrier stage, без ранней активации future carriers.
+Двукратный isolated install и полную regression запускает conductor (V3/V4).

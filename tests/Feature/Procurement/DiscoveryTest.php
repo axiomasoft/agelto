@@ -8,7 +8,7 @@ use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
-use App\Services\Procurement\ProcurementIngestProcessor;
+use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use Illuminate\Support\Carbon;
 use Tests\Support\Procurement\SnapshotFactory;
 
@@ -20,7 +20,7 @@ use Tests\Support\Procurement\SnapshotFactory;
  * в StatusMappingTest). Первый ingest всегда фиксирует первый наблюдённый канонический статус.
  */
 test('новая закупка находит insert prc_procurements + первую ревизию + initial status', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     StatusMapping::factory()->create([
         'registry_id' => $registry->id,
         'source_stage' => 'Подача заявок',
@@ -28,11 +28,11 @@ test('новая закупка находит insert prc_procurements + пер�
     ]);
     $data = SnapshotFactory::make($registry);
 
-    $procurement = app(ProcurementIngestProcessor::class)->ingest($data);
+    $procurement = app(SnapshotFinalizer::class)->ingest($data);
 
     expect($procurement)->toBeInstanceOf(Procurement::class)
         ->and($procurement->registry_id)->toBe($registry->id)
-        ->and($procurement->registry_number)->toBe('0173100000123000001')
+        ->and($procurement->source_identity_value)->toBe('0173100000123000001')
         ->and($procurement->revision_count)->toBe(1);
 
     $revision = ProcurementRevision::query()->where('procurement_id', $procurement->id)->sole();
@@ -55,7 +55,7 @@ test('новая закупка находит insert prc_procurements + пер�
 });
 
 test('редакция без изменений ядра трогает только last_seen_at, без новой ревизии', function () {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     StatusMapping::factory()->create([
         'registry_id' => $registry->id,
         'source_stage' => 'Подача заявок',
@@ -63,7 +63,7 @@ test('редакция без изменений ядра трогает тол�
     ]);
     $data = SnapshotFactory::make($registry);
 
-    $processor = app(ProcurementIngestProcessor::class);
+    $processor = app(SnapshotFinalizer::class);
     $first = $processor->ingest($data);
 
     $secondSeenAt = Carbon::now()->addHour();

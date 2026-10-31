@@ -85,11 +85,11 @@ final class PlatformBootValidator
                 throw new InvalidPlatformDefinition($path.'.extension.dto: expected readonly DTO.');
             }
             $writer = new ReflectionClass($extension->persister);
-            // Fully qualified generic argument makes the pairing unambiguous without constructing
+            // Resolved PHPDoc generic makes the pairing unambiguous without constructing
             // the writer or calling adapter code while validating declarations.
             $doc = $writer->getDocComment() ?: '';
             if (! preg_match('/@implements\s+[^\s<]*ExtensionPersister\s*<\s*([^>\s]+)\s*>/', $doc, $match)
-                || ltrim($match[1], '\\') !== $extension->dto) {
+                || $this->resolveDocType($writer, $match[1]) !== $extension->dto) {
                 throw new InvalidPlatformDefinition($path.'.extension.persister: exact fully qualified DTO generic is required.');
             }
             if ($extension->parserVersion->value !== $definition->version->value) {
@@ -99,6 +99,30 @@ final class PlatformBootValidator
         if ($definition->uiExtension !== null) {
             $this->implementation($definition->uiExtension, 'App\\Contracts\\Procurement\\Platform\\PlatformUiExtension', $path.'.uiExtension');
         }
+    }
+
+    /**
+     * Resolve the writer's imported PHPDoc generic without instantiating it.
+     *
+     * @param  ReflectionClass<object>  $writer
+     */
+    private function resolveDocType(ReflectionClass $writer, string $type): string
+    {
+        if (str_starts_with($type, '\\') || (str_contains($type, '\\') && class_exists($type))) {
+            return ltrim($type, '\\');
+        }
+        $source = file_get_contents($writer->getFileName() ?: '') ?: '';
+        preg_match_all('/^use\s+([^;]+);/m', $source, $imports);
+        foreach ($imports[1] as $import) {
+            $parts = preg_split('/\s+as\s+/i', $import) ?: [];
+            $name = $parts[0] ?? '';
+            $alias = $parts[1] ?? substr($name, (int) strrpos($name, '\\') + 1);
+            if ($type === $alias) {
+                return $name;
+            }
+        }
+
+        return $writer->getNamespaceName() === '' ? $type : $writer->getNamespaceName().'\\'.$type;
     }
 
     private function requestFit(EndpointDefinition $endpoint, StageCode $stage, string $key, ProcessPolicy $process, OutboundPolicy $outbound): void

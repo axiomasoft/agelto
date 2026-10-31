@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Platforms\Eis\EisDetailExtension;
 use App\Dto\Procurement\Details\CommonInfoData;
 use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\FinancingRowData;
@@ -70,7 +71,7 @@ function completeCommonInfoSnapshot(array $items = [], array $parties = [], arra
 {
     return new CommonInfoSnapshot(
         status: DetailSnapshotStatus::Complete,
-        commonInfo: new CommonInfoData(ikzYear: $ikzYear, financingRows: $financingRows, items: $items),
+        commonInfo: new CommonInfoData(extension: new EisDetailExtension(ikzYear: $ikzYear, hasCommonInfo: true), financingRows: $financingRows, items: $items),
         parties: $parties,
         partiesComplete: true,
     );

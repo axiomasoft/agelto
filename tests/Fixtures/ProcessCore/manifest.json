@@ -932,7 +932,7 @@
     },
     {
       "path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
-      "sha256": "6340f2c4d31398fbc0a1f1ad985c4e874fe5af09ce8e02998cab2d31fdc9d117",
+      "sha256": "bffe539e1c004495b434ac2612e75b1db5711b1b08f45c5507f27b14ddee11b6",
       "scenarios": [
         "окно дренируется на частичном блоке, стек опустошён",
         "cap по повтору dedup_signature делит интервал пополам, обе половины дренируются",
@@ -946,7 +946,8 @@
       ],
       "original_path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
       "original_sha256": "67e406ddeb254db05d05e614366db06df6923b71ae0e7387f87b0e06086557f0",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/AuditReliabilityRegressionTest.php",
@@ -966,7 +967,7 @@
     },
     {
       "path": "tests/Feature/Crawler/AuditRemediationTest.php",
-      "sha256": "0f20375ff347c96c3e2a58b59111778e62aaf0d912f3978408c91d88c8680b10",
+      "sha256": "527c6f9bdc46138a6f54650f24ebf686ccc807dfe7d9538fae505e89ca321419",
       "scenarios": [
         "распакованное тело ограничено фактическими байтами и поток закрывается после отказа",
         "просроченный deadline закрывает тело до его чтения",
@@ -996,7 +997,8 @@
       ],
       "original_path": "tests/Feature/Crawler/AuditRemediationTest.php",
       "original_sha256": "b8802ab121b995eecd0467070aa140cee74d8a52994c846e5f735a04c8982675",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/BacklogRescanProcessorTest.php",
@@ -1037,7 +1039,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-      "sha256": "9240eac6b1dd8468da157516f5aaaf4f68a7eb303c7ca1c71fa849f98434c22b",
+      "sha256": "59bf32cde8b61df53ce0dcde5659d1a0037fd2a45b4c7bc2d5d9b84298a35916",
       "scenarios": [
         "таймаут карточки сохраняет числовые фазы транспорта без URL и credentials",
         "collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)",
@@ -1052,17 +1054,19 @@
       ],
       "original_path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
       "original_sha256": "2cd90c422113c6fbe8bd7fd876526c0b7281d3e46178d02830529445de432bc8",
-      "change_reason": "P2.12 catalog declarations/setup switched to actual EisDefinition; acquisition methods, original provenance and scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/ChangeTrackingWindowTest.php",
-      "sha256": "6cd50228840a614921f3a5fcd3c24c86a454af55a0472d4c80c574c8b3c20e7c",
+      "sha256": "7c028ea49e53a46a94ec496c8ff349af20d8ff77186d4c6f6d6e4a89a6de5059",
       "scenarios": [
         "обновление, попавшее в стык окон, не теряется — перекрытие расширяет рескан назад"
       ],
       "original_sha256": "d70979fcd3c0943a4ba2dacaa581fff8c549daca46fafa502e04e47b0d170fcd",
       "original_path": "tests/Feature/Crawler/ChangeTrackingWindowTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/CrawlerFilterContractTest.php",
@@ -1159,7 +1163,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CrawlRunJobTest.php",
-      "sha256": "1f392c4d5a4a3d1ff9d2e04bcd2061fc66f6036c66b947a3a586833415db4b40",
+      "sha256": "54a982b8a5f33d5894b1a47d83222a9daa610fd0305b3da428155c98d55974ae",
       "scenarios": [
         "job резолвит fresh-режим и вызывает FreshRunProcessor",
         "job резолвит archive-режим и вызывает ArchiveRunProcessor за окно from/to",
@@ -1179,11 +1183,12 @@
       ],
       "original_path": "tests/Feature/Crawler/CrawlRunJobTest.php",
       "original_sha256": "da2b957da315ad5f9b9a7ae9e85a81c1465d79eb8ad283e0d6096e0c9bd5ea14",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
-      "sha256": "0990e449a5bb2a836a7d9f67cb05029291d8f09ac647547a62580bb5df654838",
+      "sha256": "4c8410f3b51860ce280ac516c0ec6ca6ab1451592312eabb6f22fe75586c94bd",
       "scenarios": [
         "фикстурный блок создаёт закупки, ревизии и события discovered",
         "передаёт точность самой старой даты обновления из маппера",
@@ -1205,11 +1210,12 @@
       ],
       "original_sha256": "f21a2a9e2d79c32818dd1f28527abdb13550091366f4cb028f224f4197367023",
       "original_path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-      "sha256": "91cd9ffc8980a5e9fadb5d0c973dc5e689eab3f292418aad27203a2e03cb6098",
+      "sha256": "059ea81e15a355443390fcc668feb591eee8fc305e80a6e5ffaeb3e48faaf8cb",
       "scenarios": [
         "истёкший deadline листинга запрещает новый HTTP-запрос",
         "collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре",
@@ -1233,7 +1239,8 @@
       ],
       "original_path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
       "original_sha256": "2b034439b6fd0c89d17422303b37091eca7aed1668ce8a444ced7b5000e611de",
-      "change_reason": "P2.12 catalog declarations/setup switched to actual EisDefinition; acquisition methods, original provenance and scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/DeltaScanTest.php",
@@ -1254,7 +1261,7 @@
     },
     {
       "path": "tests/Feature/Crawler/DetailAnalysisProcessorTest.php",
-      "sha256": "e3f06662ed12241d07bf4d62813126621ad053155b534f4e20597ae4913c81c7",
+      "sha256": "27abfbef15737798361c281803828dda183ca81befd658a00e4019770696d049",
       "scenarios": [
         "supplier-results mismatch остаётся retryable и следующий полный проход сходится",
         "неполные стороны оставляют карточку retryable до подтверждённого полного повтора",
@@ -1275,7 +1282,8 @@
       ],
       "original_path": "tests/Feature/Crawler/DetailAnalysisProcessorTest.php",
       "original_sha256": "b99d8a55d37c350c2ff5f51af399b59114b9109fc5f0065dbd7808699c65a200",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/DetailDispatcherTest.php",
@@ -1358,7 +1366,7 @@
     },
     {
       "path": "tests/Feature/Crawler/FetchProcurementDetailJobTest.php",
-      "sha256": "347633c4bcdbdc39ac1f49dbfae489e77201c375f7235363c3e8b3abdb4a8905",
+      "sha256": "6f4c68c06ed44ff51be435ac21b8e1e0876f5c184844cf6581ec41d041ae9b20",
       "scenarios": [
         "job вызывает детальный процессор и мост в pipeline после успеха",
         "job тихо заканчивается при исчерпанном бюджете и не вызывает мост",
@@ -1367,7 +1375,8 @@
       ],
       "original_path": "tests/Feature/Crawler/FetchProcurementDetailJobTest.php",
       "original_sha256": "04f0d9f9ae187e0920281ee98b1b6c32622dbb5a8b677ebf1a2dde7a2e8f76f5",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/FreshRunProcessorTest.php",
@@ -1547,7 +1556,7 @@
     },
     {
       "path": "tests/Feature/Crawler/SourceControlScenariosTest.php",
-      "sha256": "d87efc9bd7da3c38c9ba08d93690945e93b2b01e671149d20a35a6dc3380346a",
+      "sha256": "c81309d125361938dce32c01ecad4b684b93cba17326a5facc567cec983d45c4",
       "scenarios": [
         "пул прокси лёг: 5 отказов → ожидание, прогон на паузе на том же блоке; через 10 мин продолжает, данные целы",
         "всплеск 503 ниже порога: тот же блок повторён после ожидания, обход завершён без пропусков",
@@ -1568,7 +1577,8 @@
       ],
       "original_sha256": "dc3f0766148d3c28f80a656d6dd6f00422d94656466981339b77c850e11762f8",
       "original_path": "tests/Feature/Crawler/SourceControlScenariosTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Crawler/StageOneIsolationTest.php",
@@ -2687,7 +2697,7 @@
     },
     {
       "path": "tests/Feature/Procurement/CommonInfoProcessorTest.php",
-      "sha256": "8f5af0618c7c8d0fddcbb84d0093b21d9ce489ce10eafbe39b79b827b5df96ec",
+      "sha256": "a3d90df1aca2fed0139cc67a039a2255ddd1bec4cee79bf8c9d9d29f044ab844",
       "scenarios": [
         "неполная январская проекция сторон сохраняет существующие организации и роли",
         "process создаёт eis_details/financing/items из разобранных данных вкладки (реальная вкладка common-info, P4.14)",
@@ -2705,7 +2715,8 @@
       ],
       "original_path": "tests/Feature/Procurement/CommonInfoProcessorTest.php",
       "original_sha256": "82ea77c6f7c75899a06e9d4d94e143d3148d397a42f62c2cfdb2462e1761e97f",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Procurement/ContourTest.php",
@@ -2721,10 +2732,13 @@
     },
     {
       "path": "tests/Feature/Procurement/CustomerOrgOwnershipTest.php",
-      "sha256": "81fc688f3beb222bbf9b3a782e3f5c1a76d971831e23b52361c144ee8136f416",
+      "sha256": "8b7a0273fe48a41ea60cc50abcf31917da19ac7fb169b75d43f499fe484595c8",
       "scenarios": [
         "заказчик, проставленный detail-слоем, переживает новую ревизию листинга"
-      ]
+      ],
+      "original_sha256": "81fc688f3beb222bbf9b3a782e3f5c1a76d971831e23b52361c144ee8136f416",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "tests/Feature/Procurement/DetailLayerTest.php",
@@ -2753,11 +2767,14 @@
     },
     {
       "path": "tests/Feature/Procurement/DiscoveryTest.php",
-      "sha256": "1cbf2e9765d76c80533b8edf491275dc580f85db8fb0f1c371d1cc3ee2d70b34",
+      "sha256": "2cd90c6fccb4e4c6bcbae852bfb069fdf193ae411babb0357083b07d62790157",
       "scenarios": [
         "новая закупка находит insert prc_procurements + первую ревизию + initial status",
         "редакция без изменений ядра трогает только last_seen_at, без новой ревизии"
-      ]
+      ],
+      "original_sha256": "1cbf2e9765d76c80533b8edf491275dc580f85db8fb0f1c371d1cc3ee2d70b34",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "tests/Feature/Procurement/DocumentVersioningTest.php",
@@ -2883,7 +2900,7 @@
     },
     {
       "path": "tests/Feature/Procurement/History/ProcurementTimelineBuilderTest.php",
-      "sha256": "f6978310ad8467d29b4e3665672900823479ba53a88048699b49ede3c89b721f",
+      "sha256": "674d61981ce600ba593eaa0c82c83dec33413dc261c2f669f34ddb6d7f710825",
       "scenarios": [
         "длительности статусов считаются по доменным временам трёх переходов",
         "незавершённая закупка сохраняет честную неопределённость общей длительности",
@@ -2893,7 +2910,10 @@
         "пустая история возвращает пустую ленту без исключения",
         "лента связывает событие с номером редакции только из заданного окна",
         "read репозиторий принимает временную границу как обязательную часть каждого метода"
-      ]
+      ],
+      "original_sha256": "f6978310ad8467d29b4e3665672900823479ba53a88048699b49ede3c89b721f",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "tests/Feature/Procurement/History/RevisionDiffServiceTest.php",
@@ -3031,11 +3051,14 @@
     },
     {
       "path": "tests/Feature/Procurement/PlatformOnboardingTest.php",
-      "sha256": "74c02fc175b23fa16fbfadfe63c64397cfa99feec663e3d67b5a1171da77a9c5",
+      "sha256": "62e68b5f33e842a72e93f5a2166827a5b452a2fd10c759ce893c33fa82621446",
       "scenarios": [
         "новая площадка заводится вставкой prc_platforms/prc_registries/prc_status_mappings, ядро не меняется",
         "коммерческая площадка без ИКЗ сохраняет закупку с ikz = null в ядре"
-      ]
+      ],
+      "original_sha256": "74c02fc175b23fa16fbfadfe63c64397cfa99feec663e3d67b5a1171da77a9c5",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
@@ -3240,24 +3263,30 @@
     },
     {
       "path": "tests/Feature/Procurement/ProcurementIngestConcurrencyTest.php",
-      "sha256": "8b57bc9a6b2ac75d9483aef8533c867bfe612c2e551b91532280bc332a5ce82b",
+      "sha256": "c5e1cb412c0e4c1373e0efeba50b06bc51d148dded7c43d1b93e24d97327c96c",
       "scenarios": [
         "два PostgreSQL worker с одинаковым снимком создают одну логическую ревизию",
         "два PostgreSQL worker с разными снимками создают монотонную историю и canonical head",
         "logical head следует номеру ревизии при обратном порядке времени обнаружения"
-      ]
+      ],
+      "original_sha256": "8b57bc9a6b2ac75d9483aef8533c867bfe612c2e551b91532280bc332a5ce82b",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "tests/Feature/Procurement/ProcurementStoreRepositoryTest.php",
-      "sha256": "5b8920d78c52de6a4ffd8cc5e21db0755712b9112550b25ca417865e5638f532",
+      "sha256": "cdb940c8a1495f9d414c8149e01616124880f38a2658c59932ddd0cec68d0744",
       "scenarios": [
         "etp_number сохраняется через storeProcurement, когда передан снапшотом",
         "etp_number остаётся null по умолчанию и не роняет запись"
-      ]
+      ],
+      "original_sha256": "5b8920d78c52de6a4ffd8cc5e21db0755712b9112550b25ca417865e5638f532",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "tests/Feature/Procurement/ProcurementSucceededEventTest.php",
-      "sha256": "561ca2478fad31d46aef40e9477864802a1bfecac4150fb9149abca53ef77de7",
+      "sha256": "77770581da1d7e64ca5913136ea75d8bc2ac0094814ddc3f27a0770022282631",
       "scenarios": [
         "переход в completed рождает событие успешной закупки",
         "award с идентифицированным победителем рождает событие без смены статуса",
@@ -3265,7 +3294,10 @@
         "отрицательные и неизвестный статусы не рождают событие успешной закупки",
         "нагрузка несёт снимок отсутствующих на момент исхода смет",
         "откат транзакции не диспатчит событие успешной закупки"
-      ]
+      ],
+      "original_sha256": "561ca2478fad31d46aef40e9477864802a1bfecac4150fb9149abca53ef77de7",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "tests/Feature/Procurement/ProtocolAwardTest.php",
@@ -3278,7 +3310,7 @@
     },
     {
       "path": "tests/Feature/Procurement/RevisionTest.php",
-      "sha256": "bb81b2d2463845dcf1ef7efb76b42d18b02345606e9c7175d5ecaa08a7b7e152",
+      "sha256": "176143b2177996197b2cddb2f9d91d6d09eb8dfffdfbf825cdb692630d61a310",
       "scenarios": [
         "изменение цены и статуса создаёт новую ревизию и события price_changed/status_changed",
         "повторный инжест идентичного CSV-снапшота ЕИС не создаёт вторую ревизию и событие (Д-1)",
@@ -3289,7 +3321,8 @@
       ],
       "original_path": "tests/Feature/Procurement/RevisionTest.php",
       "original_sha256": "de014b47534acb80a84ac523eef6829bd94775910524e719898e70756308e4e1",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Feature/Procurement/Screening/ScreeningBranchingTest.php",
@@ -3366,7 +3399,7 @@
     },
     {
       "path": "tests/Feature/Procurement/StatusMappingTest.php",
-      "sha256": "27341156ca87a9b59012aac13f684105eb6a344973f176b5fbde9d61c0450870",
+      "sha256": "9bf986388431414dddf4f7dd81143728f32fd92cfb136a0aa750bee4964245f7",
       "scenarios": [
         "незнакомый сырой статус резолвится в unknown и заводит строку маппинга для оператора",
         "повторный резолв уже заведённого статуса не считается новым маппингом",
@@ -3374,7 +3407,10 @@
         "platform default применяется только к реестру этой площадки",
         "конкурентное обнаружение создаёт один exact unknown mapping",
         "обнаружение закупки с незнакомым статусом пишет одно canonical initial-status событие"
-      ]
+      ],
+      "original_sha256": "27341156ca87a9b59012aac13f684105eb6a344973f176b5fbde9d61c0450870",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "tests/Feature/Procurement/SupplierResultsProcessorTest.php",
@@ -3658,7 +3694,10 @@
     },
     {
       "path": "tests/Support/Procurement/SnapshotFactory.php",
-      "sha256": "b8ae2b5e34250a554ee56da988e7193de66c7f7a88ab96e94c3efc408d5b6388"
+      "sha256": "b0a687ea0a7efb94231a4e4ed923972f37930c283092bb98fa9c0eb5bbfdbdcb",
+      "original_sha256": "b8ae2b5e34250a554ee56da988e7193de66c7f7a88ab96e94c3efc408d5b6388",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "tests/Support/TestEnvironmentGuard.php",
@@ -3759,7 +3798,7 @@
     },
     {
       "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
-      "sha256": "4d2b73018d6c8571a9d903b7953098408c46a69447ac117cf54d65f919dc0265",
+      "sha256": "4423c5a5c5f1cbdc73ada1c1e77f17a75d7387482b7e4740784af8d6478b8d69",
       "scenarios": [
         "parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info, P4.14)",
         "parse разбирает площадку и контактное лицо из раздельных section (не общий dd со ссылкой)",
@@ -3779,7 +3818,8 @@
       ],
       "original_path": "tests/Unit/Crawler/CommonInfoParserTest.php",
       "original_sha256": "ea6aade40e66e288e53a4fbe02e2ace7e712ccae9367b0c832864fed3d6b8869",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Unit/Crawler/CrawlSettingsResolverTest.php",
@@ -3821,7 +3861,7 @@
     },
     {
       "path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
-      "sha256": "2469a164aa9288b17ebe6d0061d10076513fcc9bf894cfb4aed06669114eb210",
+      "sha256": "364d239d5cdd762e307a99f27cc0af55f1192a166a0cce9eb8d1402c8249c488",
       "scenarios": [
         "44-ФЗ способ закупки из закрытой карты маппится в procedure_type enum",
         "223-ФЗ способ закупки остаётся свободным текстом без procedure_type",
@@ -3839,7 +3879,8 @@
       ],
       "original_path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
       "original_sha256": "59d8952d3a0aa08c89b7a9a8d13e9b06d146370b449586a3fb7e2c5cadb0c6bb",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "tests/Unit/Platforms/Eis/EisProcedureTypeTest.php",
@@ -4376,7 +4417,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100001_create_prc_registries_table.php",
-      "sha256": "6259ed20e13970f29294315bcee4e92f45c21226101d5dfafdb5455af33f7aac"
+      "sha256": "d56a642292679e8eb4e60349913b19450727d94c154811edbf171a7af4eda267",
+      "original_sha256": "6259ed20e13970f29294315bcee4e92f45c21226101d5dfafdb5455af33f7aac",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "database/migrations/2026_07_04_100002_create_prc_status_mappings_table.php",
@@ -4408,7 +4452,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100011_create_prc_procurements_table.php",
-      "sha256": "10afa35b633ff5114aa573b787dcd5e9b3c59f787e106395594e1dc8f03f9dce"
+      "sha256": "1fc5eab91a6769758661ded2570cb49c08b8478e54dcf1843d142235d89e2b19",
+      "original_sha256": "10afa35b633ff5114aa573b787dcd5e9b3c59f787e106395594e1dc8f03f9dce",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
     },
     {
       "path": "database/migrations/2026_07_04_100012_create_prc_revisions_table.php",
@@ -4432,10 +4479,11 @@
     },
     {
       "path": "database/migrations/2026_07_04_100017_create_prc_eis_details_table.php",
-      "sha256": "ae90524de01460073c772abdeb7b5fc59588d1ef0f3fe4fb9db5e6ff506dd7f1",
+      "sha256": "27dcc5d237d17a1e8275756a4f72548b6686db0d32b05d1230888289aaf5f0c3",
       "original_path": "database/migrations/2026_07_04_100017_create_prc_eis_details_table.php",
       "original_sha256": "8f58341e5bf713125e74b6b54e94de6f9cac9f3a422adf02f42aa8f7cf034213",
-      "change_reason": "P4.2 extension model FQCN import only; migration DDL unchanged."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "database/migrations/2026_07_04_100018_create_prc_documents_table.php",
@@ -4737,21 +4785,22 @@
     {
       "path": "app/Models/Platforms/Eis/EisDetails.php",
       "fqcn": "App\\Models\\Platforms\\Eis\\EisDetails",
-      "sha256": "5f3aa94e6e32a8e580a60163d1f69c3be0a3f332d2c7b9a166cfd793d655be70",
+      "sha256": "88a5a00780d6cba9c98ce625ccd19c5e3c4a29397db0d78e32420f2e907db127",
       "original_path": "app/Models/Procurement/EisDetails.php",
       "original_sha256": "f229cf3bbd843cab415e3cf176a35f016c95a29daa78c205e1d1098229c922fb",
       "original_fqcn": "App\\Models\\Procurement\\EisDetails",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "app/Services/Platforms/Eis/Card/CommonInfoParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\CommonInfoParser",
-      "sha256": "b683314cf4f557050174f442825f89626c340289b78a2c50947d278c4b94718b",
+      "sha256": "8aef8095839d9194f36e5e9bfccc706c007b19705ca6d43e28ba55111d45e8df",
       "original_path": "app/Services/Procurement/Eis/Card/CommonInfoParser.php",
       "original_sha256": "3652b366991a0e1b0d724b054ad7ec9762386039beafa19a06dc60b87f451b0c",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\CommonInfoParser",
-      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
-      "accepted_change_item": "P2.10"
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "app/Services/Platforms/Eis/Card/DocumentsParser.php",
@@ -4796,11 +4845,12 @@
     {
       "path": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod",
-      "sha256": "d50558b46c75045ea211c138ffe44b23f8b287f0f033b082095dc3b3695de135",
+      "sha256": "c91fbd29238e809f6831a906866c1dac410ba395fadf359443f51c1ab6deeef8",
       "original_path": "app/Services/Procurement/Eis/CsvSourceMethod.php",
       "original_sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\CsvSourceMethod",
-      "change_reason": "P2.12 catalog declarations/setup switched to actual EisDefinition; acquisition methods, original provenance and scenario identities retained."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "app/Services/Platforms/Eis/Card/EisCardUrlBuilder.php",
@@ -4824,11 +4874,12 @@
     {
       "path": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvRowMapper",
-      "sha256": "6a3d520689a41487e09b09214609f364e3b33da3ae34b5f8608238e57d53fbc1",
+      "sha256": "0d0102c92c24569946fbcea661af6baeba9a193e4ce1f0bc6c9a3f28d298893e",
       "original_path": "app/Services/Procurement/Eis/EisCsvRowMapper.php",
       "original_sha256": "42a8ca7d361306d437f33e58585d37edcf69f15e4e4a1ca77920635f20e3be3e",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvRowMapper",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
     },
     {
       "path": "app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php",

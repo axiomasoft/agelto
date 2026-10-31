@@ -109,7 +109,7 @@ test('logical head следует номеру ревизии при обрат�
 function concurrentIngestFixture(): array
 {
     return ConcurrentTransactions::execute(<<<'PHP'
-$registry = \App\Models\Procurement\Platform\Registry::factory()->create();
+$registry = \App\Models\Procurement\Platform\Registry::factory()->eis()->create();
 \App\Models\Procurement\Platform\StatusMapping::factory()->create([
     'registry_id' => $registry->id,
     'source_stage' => 'Подача заявок',
@@ -131,14 +131,14 @@ function concurrentIngestWorker(int $registryId, string $initialPrice, ?string $
 \$registry = \App\Models\Procurement\Platform\Registry::query()->findOrFail({$registryId});
 \$snapshot = new \App\Dto\Procurement\ProcurementSnapshotData(
     registryId: \$registry->id,
-    registryNumber: '0173100000123000001',
+    identity: app(\App\Services\Procurement\Acquisition\IdentityResolver::class)->forRegistry(\$registry->id, '0173100000123000001')->source,
     title: 'Поставка бумаги офисной',
     sourceStage: 'Подача заявок',
     publishedAt: \Illuminate\Support\Carbon::parse('2026-01-10 10:00:00'),
     sourceUpdatedAt: \Illuminate\Support\Carbon::parse('2026-01-10 10:00:00'),
     initialPrice: '{$initialPrice}',
 );
-\$procurement = app(\App\Services\Procurement\ProcurementIngestProcessor::class)->ingest(data: \$snapshot);
+\$procurement = app(\App\Services\Procurement\Acquisition\SnapshotFinalizer::class)->ingest(data: \$snapshot);
 
 return [
     'procurement_id' => \$procurement->id,
@@ -160,8 +160,7 @@ function concurrentLockedFirstIngestWorker(int $registryId, string $lockReadyPat
 try {
     \$registry = \App\Models\Procurement\Platform\Registry::query()->findOrFail({$registryId});
     app(\App\Support\Database\PostgresAdvisoryLock::class)->acquireProcurement(
-        registryId: \$registry->id,
-        registryNumber: '0173100000123000001',
+        identity: app(\App\Services\Procurement\Acquisition\IdentityResolver::class)->forRegistry(\$registry->id, '0173100000123000001'),
     );
 
     if (file_put_contents({$lockReadyPath}, 'locked') === false) {
@@ -207,14 +206,14 @@ try {
 
     \$snapshot = new \App\Dto\Procurement\ProcurementSnapshotData(
         registryId: \$registry->id,
-        registryNumber: '0173100000123000001',
+        identity: app(\App\Services\Procurement\Acquisition\IdentityResolver::class)->forRegistry(\$registry->id, '0173100000123000001')->source,
         title: 'Поставка бумаги офисной',
         sourceStage: 'Подача заявок',
         publishedAt: \Illuminate\Support\Carbon::parse('2026-01-10 10:00:00'),
         sourceUpdatedAt: \Illuminate\Support\Carbon::parse('2026-01-10 10:00:00'),
         initialPrice: '150000.00',
     );
-    \$procurement = app(\App\Services\Procurement\ProcurementIngestProcessor::class)->ingest(data: \$snapshot);
+    \$procurement = app(\App\Services\Procurement\Acquisition\SnapshotFinalizer::class)->ingest(data: \$snapshot);
     \$backendPid = \Illuminate\Support\Facades\DB::scalar('select pg_backend_pid()');
     \$connection->commit();
 
@@ -264,14 +263,14 @@ if (file_put_contents({$waitingPidPath}, (string) \$backendPid) === false) {
 \$registry = \App\Models\Procurement\Platform\Registry::query()->findOrFail({$registryId});
 \$snapshot = new \App\Dto\Procurement\ProcurementSnapshotData(
     registryId: \$registry->id,
-    registryNumber: '0173100000123000001',
+    identity: app(\App\Services\Procurement\Acquisition\IdentityResolver::class)->forRegistry(\$registry->id, '0173100000123000001')->source,
     title: 'Поставка бумаги офисной',
     sourceStage: 'Подача заявок',
     publishedAt: \Illuminate\Support\Carbon::parse('2026-01-10 10:00:00'),
     sourceUpdatedAt: \Illuminate\Support\Carbon::parse('2026-01-10 10:00:00'),
     initialPrice: '175000.00',
 );
-\$procurement = app(\App\Services\Procurement\ProcurementIngestProcessor::class)->ingest(data: \$snapshot);
+\$procurement = app(\App\Services\Procurement\Acquisition\SnapshotFinalizer::class)->ingest(data: \$snapshot);
 
 return [
     'procurement_id' => \$procurement->id,
@@ -288,7 +287,7 @@ function concurrentIngestState(int $registryId): array
     return ConcurrentTransactions::execute(<<<PHP
 \$procurement = \App\Models\Procurement\Procurement::query()
     ->where('registry_id', {$registryId})
-    ->where('registry_number', '0173100000123000001')
+    ->where('source_identity_value', '0173100000123000001')
     ->sole();
 \$revisions = \App\Models\Procurement\ProcurementRevision::query()
     ->where('procurement_id', \$procurement->id)

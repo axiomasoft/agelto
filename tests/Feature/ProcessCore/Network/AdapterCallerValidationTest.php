@@ -43,8 +43,8 @@ function adapterCardInput(WireFixture $wire): Procurement
         $wire->respond('/'.$tab, $body, headers: ['Content-Type' => 'text/html; charset=UTF-8']);
     }
 
-    return Procurement::query()->firstOrCreate(['registry_id' => $registry->id, 'registry_number' => $number],
-        Procurement::factory()->make(['registry_id' => $registry->id, 'registry_number' => $number,
+    return Procurement::query()->firstOrCreate(['registry_id' => $registry->id, 'source_identity_value' => $number],
+        Procurement::factory()->make(['registry_id' => $registry->id, 'source_identity_value' => $number,
             'procedure_type_raw' => 'Электронный аукцион', 'status' => ProcurementStatus::Awarded])->getAttributes());
 }
 
@@ -53,7 +53,7 @@ test('настоящая карточка проходит все вкладки
     try {
         $procurement = adapterCardInput($wire);
         $before = $procurement->refresh()->getRawOriginal();
-        $details = app(CsvSourceMethod::class)->collectDetails($procurement->registry_number, $procurement->registry);
+        $details = app(CsvSourceMethod::class)->collectDetails($procurement->source_identity_value, $procurement->registry);
         expect($details->parsed)->not->toBeNull()->and($details->validation->verdict)->toBe(AdapterVerdict::Accepted)
             ->and($details->parsed->commonInfo->authorizesCommonInfoReconciliation())->toBeTrue()
             ->and($details->parsed->documents->authorizesReconciliation())->toBeTrue()

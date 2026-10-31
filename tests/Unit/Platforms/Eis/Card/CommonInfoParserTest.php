@@ -16,21 +16,21 @@ test('parse разбирает ИКЗ на 8 разрядов по вычисл�
     $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml())->commonInfo;
 
     expect($data)->toBeInstanceOf(CommonInfoData::class)
-        ->and($data->ikzYear)->toBe(25)
-        ->and($data->ikzCustomerCode)->toBe('24100013650410101001')
-        ->and($data->ikzPlanNumber)->toBe('0002')
-        ->and($data->ikzPlangraphNumber)->toBe('001')
-        ->and($data->ikzOkpdClass)->toBe('18')
-        ->and($data->ikzOkpdSubclass)->toBe('1')
-        ->and($data->ikzOkpdGroup)->toBe('1')
-        ->and($data->ikzKvr)->toBe('244');
+        ->and($data->extension->ikzYear)->toBe(25)
+        ->and($data->extension->ikzCustomerCode)->toBe('24100013650410101001')
+        ->and($data->extension->ikzPlanNumber)->toBe('0002')
+        ->and($data->extension->ikzPlangraphNumber)->toBe('001')
+        ->and($data->extension->ikzOkpdClass)->toBe('18')
+        ->and($data->extension->ikzOkpdSubclass)->toBe('1')
+        ->and($data->extension->ikzOkpdGroup)->toBe('1')
+        ->and($data->extension->ikzKvr)->toBe('244');
 });
 
 test('parse разбирает площадку и контактное лицо из раздельных section (не общий dd со ссылкой)', function () {
     $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml())->commonInfo;
 
-    expect($data->etpName)->toBe('АО «Сбербанк-АСТ»')
-        ->and($data->etpUrl)->toBe('http://www.sberbank-ast.ru')
+    expect($data->extension->etpName)->toBe('АО «Сбербанк-АСТ»')
+        ->and($data->extension->etpUrl)->toBe('http://www.sberbank-ast.ru')
         ->and($data->contactPersonName)->toBe('Иванов И. И.')
         ->and($data->contactPersonEmail)->toBe('responsible-official@example.invalid');
 });
@@ -174,14 +174,14 @@ test('parse не падает и возвращает null-поля ИКЗ пр�
 
     $data = app(CommonInfoParser::class)->parse($html)->commonInfo;
 
-    expect($data->ikzYear)->toBeNull()
-        ->and($data->ikzCustomerCode)->toBeNull()
-        ->and($data->ikzPlanNumber)->toBeNull()
-        ->and($data->ikzPlangraphNumber)->toBeNull()
-        ->and($data->ikzOkpdClass)->toBeNull()
-        ->and($data->ikzOkpdSubclass)->toBeNull()
-        ->and($data->ikzOkpdGroup)->toBeNull()
-        ->and($data->ikzKvr)->toBeNull();
+    expect($data->extension->ikzYear)->toBeNull()
+        ->and($data->extension->ikzCustomerCode)->toBeNull()
+        ->and($data->extension->ikzPlanNumber)->toBeNull()
+        ->and($data->extension->ikzPlangraphNumber)->toBeNull()
+        ->and($data->extension->ikzOkpdClass)->toBeNull()
+        ->and($data->extension->ikzOkpdSubclass)->toBeNull()
+        ->and($data->extension->ikzOkpdGroup)->toBeNull()
+        ->and($data->extension->ikzKvr)->toBeNull();
 });
 
 test('parse помечает snapshot неполным, если нет контейнера позиций', function () {

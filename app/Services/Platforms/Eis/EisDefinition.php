@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis;
 
+use App\Dto\Platforms\Eis\EisDetailExtension;
 use App\Dto\Platforms\Eis\EisPolicy;
 use App\Dto\Procurement\Network\AdapterContractRef;
 use App\Dto\Procurement\Platform\AdapterVersion;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
 use App\Dto\Procurement\Platform\DiagnosticChecks;
+use App\Dto\Procurement\Platform\ExtensionDescriptor;
 use App\Dto\Procurement\Platform\PlatformCode;
 use App\Dto\Procurement\Platform\PlatformDefinition;
 use App\Dto\Procurement\Platform\RegistryDefinition;
@@ -23,6 +25,7 @@ use App\Dto\Procurement\Platform\SupportedListingPartitioningCapability;
 use App\Dto\Procurement\Platform\UnsupportedCapability;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
+use App\Filament\Platforms\Eis\EisUiExtension;
 use App\Services\Procurement\Platform\Contracts\PlatformDefinitionProvider;
 use Illuminate\Contracts\Config\Repository;
 
@@ -83,6 +86,9 @@ final readonly class EisDefinition implements PlatformDefinitionProvider
             checks: new DiagnosticChecks(['listing_filter' => Diagnostics\ListingFilterCheck::class]),
             sourceTargets: $this->targets,
             partitioning: new SupportedListingPartitioningCapability(EisListingPartitioner::class, ['listing']),
+            extension: new ExtensionDescriptor(EisDetailExtension::class,
+                EisExtensionPersister::class, new AdapterVersion('1'), new AdapterVersion('1')),
+            uiExtension: EisUiExtension::class,
         );
     }
 }

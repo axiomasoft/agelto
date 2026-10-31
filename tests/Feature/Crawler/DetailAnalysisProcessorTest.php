@@ -78,7 +78,7 @@ test('supplier-results mismatch остаётся retryable и следующий
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,
     ]);
@@ -127,7 +127,7 @@ test('неполные стороны оставляют карточку retrya
     activeDetailAnalysisProxies();
     $procurement = Procurement::factory()->create([
         'registry_id' => detailAnalysisRegistry()->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
@@ -157,7 +157,7 @@ test('run наполняет все вкладки-таблицы и стави�
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,
@@ -192,7 +192,7 @@ test('run индексирует документы как discovered без inl
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -211,7 +211,7 @@ test('incomplete documents page не снимает ранее известны�
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -240,14 +240,14 @@ test('падение снятия карточки уходит в error-бло�
     $registry = detailAnalysisRegistry();
     $healthy = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
     ]);
     $broken = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200009999000009',
+        'source_identity_value' => '0173200009999000009',
         'procedure_type' => 'unmapped_procedure_type',
         'procedure_type_raw' => 'Неизвестный способ вне карты',
         'status' => ProcurementStatus::Bidding,
@@ -277,7 +277,7 @@ test('common-info вернул страницу без запрошенного 
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -307,7 +307,7 @@ test('исчерпание попыток ставит detail_failed', function 
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0173200009999000009',
+        'source_identity_value' => '0173200009999000009',
         'procedure_type' => 'unmapped_procedure_type',
         'procedure_type_raw' => 'Неизвестный способ вне карты',
         'status' => ProcurementStatus::Bidding,
@@ -328,14 +328,14 @@ test('страница-заглушка без базовых селекторо
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
         'detail_fetched_at' => null,
         'current_revision_detected_at' => now()->subDay(),
     ]);
-    Http::fake(['*' => fn () => Http::response("<html><body>{$procurement->registry_number} Temporary maintenance</body></html>", 200)]);
+    Http::fake(['*' => fn () => Http::response("<html><body>{$procurement->source_identity_value} Temporary maintenance</body></html>", 200)]);
 
     expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
 
@@ -358,7 +358,7 @@ test('легитимно пустой complete documents snapshot заверша
     $registry = detailAnalysisRegistry();
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -383,7 +383,7 @@ function detailAnalysisProcurement(): Procurement
 
     return Procurement::factory()->create([
         'registry_id' => detailAnalysisRegistry()->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,

@@ -115,11 +115,11 @@ final readonly class DetailAnalysisProcessor
             try {
                 $details = $sourceMethod instanceof DeadlineAwareSourceMethod && $deadlineAt !== null
                     ? $sourceMethod->collectDetailsWithinDeadline(
-                        registryNumber: $procurement->registry_number,
+                        registryNumber: $procurement->source_identity_value,
                         registry: $registry,
                         deadlineAt: $deadlineAt,
                     )
-                    : $sourceMethod->collectDetails(registryNumber: $procurement->registry_number, registry: $registry);
+                    : $sourceMethod->collectDetails(registryNumber: $procurement->source_identity_value, registry: $registry);
             } catch (OutboundUnavailable|AdapterInputRejected|HealthBaselineUnavailableException $exception) {
                 throw $exception;
             } catch (PlatformBudgetExhaustedException $exception) {
@@ -132,7 +132,7 @@ final readonly class DetailAnalysisProcessor
                     platformId: $platformId,
                     stage: SourceStage::Detail,
                     kind: $kind,
-                    detail: "Карточка {$procurement->registry_number} не получена: ".mb_substr(SecretRedactor::text($exception->getMessage()), 0, 500),
+                    detail: "Карточка {$procurement->source_identity_value} не получена: ".mb_substr(SecretRedactor::text($exception->getMessage()), 0, 500),
                     context: ['procurement_id' => $procurement->id, 'exception' => $exception::class],
                 ));
                 $failureReported = true;
@@ -205,7 +205,7 @@ final readonly class DetailAnalysisProcessor
                 platformId: $platformId,
                 stage: SourceStage::Detail,
                 kind: SourceFailureKind::LayoutDrift,
-                detail: "Карточка {$procurement->registry_number} не обработана: нет базовых селекторов ({$summary}).",
+                detail: "Карточка {$procurement->source_identity_value} не обработана: нет базовых селекторов ({$summary}).",
                 context: ['procurement_id' => $procurement->id, 'missing_selectors' => $missing],
             ));
 
@@ -266,16 +266,6 @@ final readonly class DetailAnalysisProcessor
             keyFieldValues: [
                 'common-info' => [
                     'snapshot_status' => $commonInfoSnapshotStatus,
-                    'ikz_year' => $commonInfo?->ikzYear,
-                    'ikz_customer_code' => $commonInfo?->ikzCustomerCode,
-                    'ikz_plan_number' => $commonInfo?->ikzPlanNumber,
-                    'ikz_plangraph_number' => $commonInfo?->ikzPlangraphNumber,
-                    'ikz_okpd_class' => $commonInfo?->ikzOkpdClass,
-                    'ikz_okpd_subclass' => $commonInfo?->ikzOkpdSubclass,
-                    'ikz_okpd_group' => $commonInfo?->ikzOkpdGroup,
-                    'ikz_kvr' => $commonInfo?->ikzKvr,
-                    'etp_name' => $commonInfo?->etpName,
-                    'etp_url' => $commonInfo?->etpUrl,
                     'contact_person_name' => $commonInfo?->contactPersonName,
                     'contact_person_email' => $commonInfo?->contactPersonEmail,
                     'financing_rows' => $commonInfo?->financingRows,
@@ -390,7 +380,7 @@ final readonly class DetailAnalysisProcessor
             platformId: $platformId,
             stage: SourceStage::Detail,
             kind: SourceFailureKind::CodeError,
-            detail: "Карточка {$procurement->registry_number} пропущена: ".mb_substr(SecretRedactor::text($exception->getMessage()), 0, 500),
+            detail: "Карточка {$procurement->source_identity_value} пропущена: ".mb_substr(SecretRedactor::text($exception->getMessage()), 0, 500),
             context: ['procurement_id' => $procurement->id, 'exception' => $exception::class],
         ));
     }

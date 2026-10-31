@@ -101,6 +101,6 @@ test('обновление, попавшее в стык окон, не теря
     app(BacklogRescanProcessor::class)->sweep();
 
     expect(Procurement::query()->count())->toBe(5)
-        ->and(Procurement::query()->where('registry_number', 'p46-overlap-day-1')->exists())->toBeTrue()
-        ->and(Procurement::query()->where('registry_number', 'p46-overlap-day-2')->exists())->toBeTrue();
+        ->and(Procurement::query()->where('source_identity_value', 'p46-overlap-day-1')->exists())->toBeTrue()
+        ->and(Procurement::query()->where('source_identity_value', 'p46-overlap-day-2')->exists())->toBeTrue();
 });

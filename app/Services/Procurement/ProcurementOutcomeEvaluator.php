@@ -62,7 +62,7 @@ final readonly class ProcurementOutcomeEvaluator
             event(new ProcurementSucceeded(
                 procurementId: $procurement->id,
                 registryId: $this->intAttribute($procurement, 'registry_id'),
-                registryNumber: $this->stringAttribute($procurement, 'registry_number'),
+                registryNumber: $this->stringAttribute($procurement, 'source_identity_value'),
                 canonicalStatus: $status->value,
                 reason: $reason,
                 succeededAt: $succeededAt,

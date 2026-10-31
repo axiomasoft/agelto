@@ -83,6 +83,16 @@ final class PlatformSourceRules
     public static function rolePermissions(): array
     {
         return [
+            'app/Services/Platforms/Eis/EisDefinition.php' => [
+                'App\\Filament\\Platforms\\Eis\\EisUiExtension',
+            ],
+            'app/Services/Platforms/Eis/EisExtensionPersister.php' => [
+                'App\\Repositories\\Procurement\\Process\\CallerTransaction',
+            ],
+            'app/Filament/Platforms/Eis/EisUiExtension.php' => [
+                'App\\Contracts\\Procurement\\Platform\\PlatformUiExtension',
+                'App\\Models\\Procurement\\Procurement',
+            ],
             'tests/Support/Platforms/Contract/ContractRegistry.php' => [
                 'Tests\\Support\\Platforms\\Eis\\EisContractManifest',
                 'Tests\\Support\\Platforms\\JsonProcurement\\JsonContractManifest',
@@ -97,6 +107,8 @@ final class PlatformSourceRules
                 'App\\Services\\Procurement\\Network\\BoundedResponseReader',
             ],
             'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php' => [
+                'App\\Repositories\\Procurement\\ProcurementReadRepository',
+                'App\\Services\\Procurement\\Acquisition\\IdentityResolver',
                 'App\\Services\\Procurement\\Contracts\\DiagnosticSourceMethod',
                 'App\\Services\\Procurement\\Network\\AdapterInputInspector',
                 'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',

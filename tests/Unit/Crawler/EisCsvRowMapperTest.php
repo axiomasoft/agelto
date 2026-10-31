@@ -162,7 +162,7 @@ test('префикс «№» перед реестровым номером сн
         crawler: $crawler,
     );
 
-    expect($snapshot->registryNumber)->toBe('0173200001234000001');
+    expect($snapshot->identity->value->value)->toBe('0173200001234000001');
 });
 
 /**
@@ -199,7 +199,7 @@ test('реальная фикстура: initial_price/customer_name/procedure_t
         $snapshot = app(EisCsvRowMapper::class)->map(row: $row, crawler: $crawler);
 
         expect($snapshot)->not->toBeNull()
-            ->and($snapshot->registryNumber)->not->toStartWith('№')
+            ->and($snapshot->identity->value->value)->not->toStartWith('№')
             ->and($snapshot->initialPrice)->not->toBeNull()
             ->and($snapshot->procedureTypeRaw)->not->toBeNull()
             ->and($snapshot->attributes['customer_name'] ?? null)->not->toBeNull();

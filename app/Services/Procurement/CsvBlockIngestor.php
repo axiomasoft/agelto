@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
+use App\Dto\Procurement\Acquisition\LockedProcurement;
 use App\Dto\Procurement\Crawler\FetchResult;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\SkippedListingRow;
@@ -14,7 +15,8 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Crawler\Run;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
-use App\Repositories\Procurement\ProcurementReadRepository;
+use App\Services\Procurement\Acquisition\IdentityResolver;
+use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Contracts\ListingSchemaAware;
 use App\Services\Procurement\Network\LegacyResponseAssessment;
@@ -32,8 +34,7 @@ use Illuminate\Support\Facades\Log;
 final readonly class CsvBlockIngestor
 {
     public function __construct(
-        private ProcurementIngestProcessor $ingestProcessor,
-        private ProcurementReadRepository $procurements,
+        private SnapshotFinalizer $ingestProcessor,
         private PlatformAdapterRegistry $adapters,
         private CrawlerRunManager $runs,
         private StoreRawFetchArtifactAction $rawArtifacts,
@@ -43,16 +44,18 @@ final readonly class CsvBlockIngestor
 
     public function ingest(Crawler $crawler, Run $run, ListingBatch $batch, ?string $artifactRef = null): FetchResult
     {
-        return DB::transaction(function () use ($crawler, $run, $batch, $artifactRef): FetchResult {
+        $artifactRef ??= $this->stageArtifact(crawler: $crawler, run: $run, batch: $batch);
+
+        return DB::transaction(function () use ($crawler, $run, $batch): FetchResult {
             if ($batch->validation !== null) {
                 app(AdapterHealthRepository::class)->assertReceipt($batch->validation);
             }
 
-            return $this->ingestValidated($crawler, $run, $batch, $artifactRef);
+            return $this->ingestValidated($crawler, $run, $batch);
         });
     }
 
-    private function ingestValidated(Crawler $crawler, Run $run, ListingBatch $batch, ?string $artifactRef): FetchResult
+    private function ingestValidated(Crawler $crawler, Run $run, ListingBatch $batch): FetchResult
     {
         $rowMapper = $this->adapters->listingMapper(registry: $crawler->registry ?? throw new \LogicException('Crawler registry is missing.'));
         $skipped = 0;
@@ -103,7 +106,7 @@ final readonly class CsvBlockIngestor
         }
 
         $mappedRows = count($snapshots);
-        [$snapshots, $duplicates] = $this->deduplicateByRegistryNumber(snapshots: $snapshots);
+        [$snapshots, $duplicates] = $this->deduplicateBySourceIdentity(snapshots: $snapshots);
 
         if ($duplicates > 0) {
             Log::warning(
@@ -132,30 +135,27 @@ final readonly class CsvBlockIngestor
         }
 
         $ignoredNumbers = $this->ignoredRegistryNumbers(crawler: $crawler, snapshots: $snapshots);
+        $identities = array_map(fn (ProcurementSnapshotData $snapshot) => app(IdentityResolver::class)->resolve($snapshot->registryId, $snapshot->identity), $snapshots);
+        $locked = $this->ingestProcessor->lockIdentities($identities);
 
         $new = 0;
         $updated = 0;
         $rowsParsed = 0;
 
-        foreach ($snapshots as $snapshot) {
-            if (in_array($snapshot->registryNumber, $ignoredNumbers, strict: true)) {
+        foreach ($snapshots as $index => $snapshot) {
+            if (in_array($snapshot->identity->value->value, $ignoredNumbers, strict: true)) {
                 $skipped++;
 
                 continue;
             }
 
-            try {
-                [$isNew, $isUpdated] = $this->ingestSnapshot(snapshot: $snapshot, run: $run, observedAt: $batch->observedAt);
-                $rowsParsed++;
-                $new += $isNew ? 1 : 0;
-                $updated += $isUpdated ? 1 : 0;
-            } catch (\Throwable $exception) {
-                $this->logRowFailure(crawler: $crawler, run: $run, exception: $exception, registryNumber: $snapshot->registryNumber);
-                $rowsErrors++;
-            }
+            // Persistence defects must roll back the whole block, including its cursor.
+            // Only source mapping failures above are classified as individual row errors.
+            [$isNew, $isUpdated] = $this->ingestSnapshot($snapshot, $run, $batch->observedAt, $locked[$index]);
+            $rowsParsed++;
+            $new += $isNew ? 1 : 0;
+            $updated += $isUpdated ? 1 : 0;
         }
-
-        $artifactRef ??= $this->stageArtifact(crawler: $crawler, run: $run, batch: $batch);
 
         // Отказ только классифицируется; в `SourceFailureReporter` его передаёт вызывающий ПОСЛЕ
         // транзакции блока (`SourceRunControl::afterBlock`), чтобы откат не стёр запись о проблеме.
@@ -223,20 +223,21 @@ final readonly class CsvBlockIngestor
      * @param  list<ProcurementSnapshotData>  $snapshots
      * @return array{0: list<ProcurementSnapshotData>, 1: int}
      */
-    private function deduplicateByRegistryNumber(array $snapshots): array
+    private function deduplicateBySourceIdentity(array $snapshots): array
     {
         $seen = [];
         $duplicates = 0;
         $deduped = [];
 
         foreach ($snapshots as $snapshot) {
-            if (isset($seen[$snapshot->registryNumber])) {
+            $key = json_encode($snapshot->identity->toArray(), JSON_THROW_ON_ERROR);
+            if (isset($seen[$key])) {
                 $duplicates++;
 
                 continue;
             }
 
-            $seen[$snapshot->registryNumber] = true;
+            $seen[$key] = true;
             $deduped[] = $snapshot;
         }
 
@@ -246,12 +247,12 @@ final readonly class CsvBlockIngestor
     /**
      * @return array{0: bool, 1: bool} [этоНоваяЗакупка, этоОбновлённаяРевизия]
      */
-    private function ingestSnapshot(ProcurementSnapshotData $snapshot, Run $run, ?Carbon $observedAt): array
+    private function ingestSnapshot(ProcurementSnapshotData $snapshot, Run $run, ?Carbon $observedAt, LockedProcurement $locked): array
     {
-        $existing = $this->procurements->findProcurement(registryId: $snapshot->registryId, registryNumber: $snapshot->registryNumber);
+        $existing = $locked->procurement;
         $revisionCountBefore = $existing === null ? 0 : $existing->revision_count;
 
-        $procurement = $this->ingestProcessor->ingest(data: $snapshot, crawlerRunId: $run->id, observedAt: $observedAt);
+        $procurement = $this->ingestProcessor->persistLocked($snapshot, $locked, $run->id, $observedAt);
 
         if ($existing === null) {
             return [true, false];
@@ -270,7 +271,7 @@ final readonly class CsvBlockIngestor
             return [];
         }
 
-        $registryNumbers = array_map(static fn (ProcurementSnapshotData $snapshot): string => $snapshot->registryNumber, $snapshots);
+        $registryNumbers = array_map(static fn (ProcurementSnapshotData $snapshot): string => $snapshot->identity->value->value, $snapshots);
 
         $numbers = IgnoredItem::query()
             ->where('registry_id', $crawler->registry_id)

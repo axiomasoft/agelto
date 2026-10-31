@@ -10,7 +10,8 @@ use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
-use App\Services\Procurement\ProcurementIngestProcessor;
+use App\Services\Procurement\Acquisition\IdentityResolver;
+use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use Illuminate\Support\Carbon;
 use Tests\Support\Procurement\SnapshotFactory;
 
@@ -18,8 +19,8 @@ use Tests\Support\Procurement\SnapshotFactory;
  * §11 «Изменилась цена/статус/даты» и «Состояние на дату X».
  */
 test('изменение цены и статуса создаёт новую ревизию и события price_changed/status_changed', function () {
-    $registry = Registry::factory()->create();
-    $processor = app(ProcurementIngestProcessor::class);
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
 
     $procurement = $processor->ingest(SnapshotFactory::make($registry, [
         'sourceStage' => 'Подача заявок',
@@ -54,7 +55,7 @@ test('повторный инжест идентичного CSV-снапшот�
     $crawler = Crawler::factory()->create();
     $registry = $crawler->registry;
     $mapper = app(EisCsvRowMapper::class);
-    $processor = app(ProcurementIngestProcessor::class);
+    $processor = app(SnapshotFinalizer::class);
 
     $row = [
         'Реестровый номер закупки' => '0173100000123000001',
@@ -93,8 +94,8 @@ test('повторный инжест идентичного CSV-снапшот�
 });
 
 test('состояние на дату X читается по последней ревизии с detected_at <= X, таймлайн — по prc_events', function () {
-    $registry = Registry::factory()->create();
-    $processor = app(ProcurementIngestProcessor::class);
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
 
     // Партиции `prc_revisions` заведены помесячно вокруг текущей даты (см. `config/partitioning.php`),
     // поэтому даты сценария держим внутри текущего месяца, а не жёстко в прошлом.
@@ -135,8 +136,8 @@ test('состояние на дату X читается по последне�
 });
 
 test('снапшот старше текущей головы не создаёт ревизию-откат и не меняет голову', function (): void {
-    $registry = Registry::factory()->create();
-    $processor = app(ProcurementIngestProcessor::class);
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
 
     $processor->ingest(SnapshotFactory::make($registry, [
         'sourceStage' => 'Подача заявок',
@@ -163,8 +164,8 @@ test('снапшот старше текущей головы не создаё�
 });
 
 test('дата с точностью до суток того же дня не считается устаревшей', function (): void {
-    $registry = Registry::factory()->create();
-    $processor = app(ProcurementIngestProcessor::class);
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
 
     $processor->ingest(SnapshotFactory::make($registry, [
         'sourceStage' => 'Подача заявок',
@@ -173,7 +174,7 @@ test('дата с точностью до суток того же дня не �
 
     $sameDay = new ProcurementSnapshotData(
         registryId: $registry->id,
-        registryNumber: '0173100000123000001',
+        identity: app(IdentityResolver::class)->forRegistry($registry->id, '0173100000123000001')->source,
         title: 'Поставка бумаги офисной',
         sourceStage: 'Работа комиссии',
         publishedAt: Carbon::parse('2026-01-10 10:00:00'),
@@ -186,8 +187,8 @@ test('дата с точностью до суток того же дня не �
 });
 
 test('снимок с точностью до суток старше головы через полночь МСК игнорируется (граница поясов)', function (): void {
-    $registry = Registry::factory()->create();
-    $processor = app(ProcurementIngestProcessor::class);
+    $registry = Registry::factory()->eis()->create();
+    $processor = app(SnapshotFinalizer::class);
 
     // Голова: 13.01 01:00 МСК = 12.01 22:00 UTC.
     $processor->ingest(SnapshotFactory::make($registry, [
@@ -199,7 +200,7 @@ test('снимок с точностью до суток старше голов
     // раньше головы — снимок устаревший. Старое сравнение по дате UTC считало его «тем же днём».
     $stale = new ProcurementSnapshotData(
         registryId: $registry->id,
-        registryNumber: '0173100000123000001',
+        identity: app(IdentityResolver::class)->forRegistry($registry->id, '0173100000123000001')->source,
         title: 'Поставка бумаги офисной',
         sourceStage: 'Подача заявок',
         publishedAt: Carbon::parse('2026-01-10 10:00:00'),

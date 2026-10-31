@@ -35,7 +35,9 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Platforms\Eis\Card\EisCardUrlBuilder;
+use App\Services\Procurement\Acquisition\IdentityResolver;
 use App\Services\Procurement\Contracts\CooperativeListingSourceMethod;
 use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\Contracts\DiagnosticSourceMethod;
@@ -315,10 +317,9 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
 
     private function collectDetailsInternal(string $registryNumber, Registry $registry, ?float $deadlineAt, bool $diagnostic = false): ProcurementDetails
     {
-        $procurement = Procurement::query()
-            ->where('registry_id', $registry->id)
-            ->where('registry_number', $registryNumber)
-            ->firstOrFail();
+        $procurement = app(ProcurementReadRepository::class)->findProcurement(
+            app(IdentityResolver::class)->forRegistry($registry->id, $registryNumber))
+            ?? throw new \RuntimeException('Procurement identity not found.');
 
         $procedureUrlType = $this->cardUrlBuilder->resolveProcedureUrlType(
             registry: $registry,

@@ -26,6 +26,7 @@ use App\Models\Procurement\Procurement;
 use App\Services\PartitionCoverage;
 use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
 use App\Services\Platforms\Eis\EisSourceClock;
+use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use App\Services\Procurement\ArchiveWindowScanner;
 use App\Services\Procurement\Contracts\ListingRowMapper;
 use App\Services\Procurement\Contracts\SourceMethod;
@@ -35,7 +36,6 @@ use App\Services\Procurement\DetailRefetchSelector;
 use App\Services\Procurement\Health\CardLayoutPreflight;
 use App\Services\Procurement\Modes\FreshRunProcessor;
 use App\Services\Procurement\Network\BoundedResponseReader;
-use App\Services\Procurement\ProcurementIngestProcessor;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Support\SecretRedactor;
 use GuzzleHttp\Psr7\Response as PsrResponse;
@@ -144,7 +144,7 @@ test('поздний ingest старого дневного наблюдения
     $old = $mapper->map($row, $crawler);
     $row['Наименование закупки'] = 'Новое название';
     $new = $mapper->map($row, $crawler);
-    $ingest = app(ProcurementIngestProcessor::class);
+    $ingest = app(SnapshotFinalizer::class);
     $head = $ingest->ingest($new, observedAt: Carbon::parse('2026-10-25 12:00:00.200000 UTC'));
     $ingest->ingest($old, observedAt: Carbon::parse('2026-10-25 12:00:00.100000 UTC'));
     expect($head->refresh()->title)->toBe('Новое название')
@@ -375,7 +375,7 @@ test('более новый source day сохраняет время собст�
     $row = S::row('0173200001234000988');
     $mapper = app(EisCsvRowMapper::class);
     $row['Дата обновления'] = '25.10.2026';
-    $ingest = app(ProcurementIngestProcessor::class);
+    $ingest = app(SnapshotFinalizer::class);
     $head = $ingest->ingest($mapper->map($row, $crawler), observedAt: Carbon::parse('2026-10-26 12:00:00.300000 UTC'));
     $row['Дата обновления'] = '26.10.2026';
     $row['Наименование закупки'] = 'Новая редакция';

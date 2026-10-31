@@ -25,7 +25,10 @@ use Illuminate\Support\Str;
  *
  * @property ProcurementStatus $status
  * @property string $uuid
- * @property string $registry_number
+ * @property int $registry_id
+ * @property int $platform_id
+ * @property string $source_identity_type
+ * @property string $source_identity_value
  * @property string $title
  * @property string|null $currency
  * @property int|null $customer_org_id
@@ -46,9 +49,9 @@ use Illuminate\Support\Str;
 #[Fillable([
     'uuid',
     'registry_id',
-    'registry_number',
-    'etp_number',
-    'ikz',
+    'platform_id',
+    'source_identity_type',
+    'source_identity_value',
     'title',
     'status',
     'succeeded_at',
@@ -74,7 +77,6 @@ use Illuminate\Support\Str;
     'detail_last_error',
     'detail_next_retry_at',
     'detail_failed',
-    'registry_guid',
     'current_revision_id',
     'current_revision_detected_at',
     'revision_count',
@@ -123,6 +125,11 @@ final class Procurement extends Model
 
     protected static function booted(): void
     {
+        self::updating(function (self $procurement): void {
+            if ($procurement->isDirty(['platform_id', 'registry_id', 'source_identity_type', 'source_identity_value'])) {
+                throw new \LogicException('Procurement primary identity is immutable.');
+            }
+        });
         self::creating(function (self $procurement): void {
             $procurement->uuid ??= (string) Str::uuid7();
         });
@@ -168,9 +175,8 @@ final class Procurement extends Model
 
     /**
      * Единственный носитель правила показа (§4 root/document-contour.md, D91) — вырезает закупки
-     * служебных площадок (`is_public=false`) из публичной витрины. `Procurement` не несёт
-     * `platform_id` напрямую (площадка достижима только цепочкой `registry.platform_id`, §1.2
-     * контракта) — путь до `Platform` вложенный, в отличие от `Document`/`Estimate`.
+     * служебных площадок (`is_public=false`) из публичной витрины. Registry/platform composite
+     * FK гарантирует совпадение canonical platform_id с путём registry.platform.
      *
      * @param  Builder<Procurement>  $query
      * @return Builder<Procurement>

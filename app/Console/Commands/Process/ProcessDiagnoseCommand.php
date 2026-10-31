@@ -165,7 +165,7 @@ final class ProcessDiagnoseCommand extends Command
             if (! $source instanceof DiagnosticSourceMethod) {
                 throw new \LogicException('Adapter does not support full diagnostic validation.');
             }
-            $validated = $source->diagnoseDetails($procurement->registry_number, $registry, microtime(true) + 300);
+            $validated = $source->diagnoseDetails($procurement->source_identity_value, $registry, microtime(true) + 300);
         } else {
             throw new \InvalidArgumentException('Тип входа не соответствует выбранному контракту.');
         }

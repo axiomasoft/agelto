@@ -14,8 +14,8 @@ use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\ProcurementEvent;
+use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use App\Services\Procurement\Detail\SupplierResultsProcessor;
-use App\Services\Procurement\ProcurementIngestProcessor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
@@ -23,7 +23,7 @@ use Tests\Support\Procurement\SnapshotFactory;
 
 function succeededEventRegistry(string $stage, ProcurementStatus $status): Registry
 {
-    $platform = Platform::factory()->create(['uuid' => (string) Str::uuid7()]);
+    $platform = Platform::factory()->create(['code' => 'eis', 'uuid' => (string) Str::uuid7()]);
     $registry = Registry::factory()->for($platform)->create(['uuid' => (string) Str::uuid7()]);
 
     StatusMapping::factory()->create([
@@ -53,7 +53,7 @@ test('переход в completed рождает событие успешной
     Event::fake();
     $registry = succeededEventRegistry('Завершена', ProcurementStatus::Completed);
 
-    $procurement = app(ProcurementIngestProcessor::class)->ingest(SnapshotFactory::make($registry, [
+    $procurement = app(SnapshotFinalizer::class)->ingest(SnapshotFactory::make($registry, [
         'sourceStage' => 'Завершена',
     ]));
 
@@ -68,7 +68,7 @@ test('переход в completed рождает событие успешной
 test('award с идентифицированным победителем рождает событие без смены статуса', function () {
     Event::fake();
     $registry = succeededEventRegistry('Подача заявок', ProcurementStatus::Bidding);
-    $procurement = app(ProcurementIngestProcessor::class)->ingest(SnapshotFactory::make($registry));
+    $procurement = app(SnapshotFinalizer::class)->ingest(SnapshotFactory::make($registry));
     $winner = Organization::factory()->create(['uuid' => (string) Str::uuid7()]);
 
     app(SupplierResultsProcessor::class)->process($procurement, successfulAwardData($winner));
@@ -82,7 +82,7 @@ test('award с идентифицированным победителем ро�
 test('повторный ingest не рождает второе событие успешной закупки', function () {
     Event::fake();
     $registry = succeededEventRegistry('Завершена', ProcurementStatus::Completed);
-    $processor = app(ProcurementIngestProcessor::class);
+    $processor = app(SnapshotFinalizer::class);
     $snapshot = SnapshotFactory::make($registry, ['sourceStage' => 'Завершена']);
 
     $procurement = $processor->ingest($snapshot);
@@ -99,7 +99,7 @@ test('отрицательные и неизвестный статусы не �
     Event::fake();
     $registry = succeededEventRegistry("Статус {$status->value}", $status);
 
-    app(ProcurementIngestProcessor::class)->ingest(SnapshotFactory::make($registry, [
+    app(SnapshotFinalizer::class)->ingest(SnapshotFactory::make($registry, [
         'sourceStage' => "Статус {$status->value}",
     ]));
 
@@ -109,7 +109,7 @@ test('отрицательные и неизвестный статусы не �
 test('нагрузка несёт снимок отсутствующих на момент исхода смет', function () {
     Event::fake();
     $registry = succeededEventRegistry('Завершена', ProcurementStatus::Completed);
-    $result = app(ProcurementIngestProcessor::class)->ingest(SnapshotFactory::make($registry, [
+    $result = app(SnapshotFinalizer::class)->ingest(SnapshotFactory::make($registry, [
         'sourceStage' => 'Завершена',
     ]));
 
@@ -124,7 +124,7 @@ test('откат транзакции не диспатчит событие у�
 
     try {
         DB::transaction(function () use ($registry): void {
-            app(ProcurementIngestProcessor::class)->ingest(SnapshotFactory::make($registry, [
+            app(SnapshotFinalizer::class)->ingest(SnapshotFactory::make($registry, [
                 'sourceStage' => 'Завершена',
             ]));
 

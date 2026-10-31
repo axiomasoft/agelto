@@ -3,7 +3,10 @@
   "files": [
     {
       "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-      "sha256": "9240eac6b1dd8468da157516f5aaaf4f68a7eb303c7ca1c71fa849f98434c22b",
+      "sha256": "59bf32cde8b61df53ce0dcde5659d1a0037fd2a45b4c7bc2d5d9b84298a35916",
+      "original_sha256": "9240eac6b1dd8468da157516f5aaaf4f68a7eb303c7ca1c71fa849f98434c22b",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Canonical identity reader/fixture cutover; scenario names, datasets and assertions preserved.",
       "scenarios": [
         "таймаут карточки сохраняет числовые фазы транспорта без URL и credentials",
         "collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)",
@@ -20,7 +23,10 @@
     },
     {
       "path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-      "sha256": "91cd9ffc8980a5e9fadb5d0c973dc5e689eab3f292418aad27203a2e03cb6098",
+      "sha256": "059ea81e15a355443390fcc668feb591eee8fc305e80a6e5ffaeb3e48faaf8cb",
+      "original_sha256": "91cd9ffc8980a5e9fadb5d0c973dc5e689eab3f292418aad27203a2e03cb6098",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Canonical identity reader/fixture cutover; scenario names, datasets and assertions preserved.",
       "scenarios": [
         "истёкший deadline листинга запрещает новый HTTP-запрос",
         "collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре",
@@ -108,7 +114,10 @@
     },
     {
       "path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
-      "sha256": "2469a164aa9288b17ebe6d0061d10076513fcc9bf894cfb4aed06669114eb210",
+      "sha256": "364d239d5cdd762e307a99f27cc0af55f1192a166a0cce9eb8d1402c8249c488",
+      "original_sha256": "2469a164aa9288b17ebe6d0061d10076513fcc9bf894cfb4aed06669114eb210",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Assertions read the canonical SourceIdentity value; original scenarios and expected values preserved.",
       "scenarios": [
         "44-ФЗ способ закупки из закрытой карты маппится в procedure_type enum",
         "223-ФЗ способ закупки остаётся свободным текстом без procedure_type",
@@ -129,7 +138,10 @@
     },
     {
       "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
-      "sha256": "4d2b73018d6c8571a9d903b7953098408c46a69447ac117cf54d65f919dc0265",
+      "sha256": "4423c5a5c5f1cbdc73ada1c1e77f17a75d7387482b7e4740784af8d6478b8d69",
+      "original_sha256": "4d2b73018d6c8571a9d903b7953098408c46a69447ac117cf54d65f919dc0265",
+      "accepted_change_item": "P2.14",
+      "change_reason": "Assertions read typed EIS extension fields; original scenarios and expected values preserved.",
       "scenarios": [
         "parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info, P4.14)",
         "parse разбирает площадку и контактное лицо из раздельных section (не общий dd со ссылкой)",

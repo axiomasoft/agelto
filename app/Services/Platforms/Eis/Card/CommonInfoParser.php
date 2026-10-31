@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis\Card;
 
+use App\Dto\Platforms\Eis\EisDetailExtension;
 use App\Dto\Procurement\Details\CommonInfoData;
 use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\FinancingRowData;
@@ -58,16 +59,21 @@ final readonly class CommonInfoParser
                     ? DetailSnapshotStatus::Complete
                     : DetailSnapshotStatus::Incomplete,
                 commonInfo: new CommonInfoData(
-                    ikzYear: $ikz['ikz_year'] ?? null,
-                    ikzCustomerCode: $ikz['ikz_customer_code'] ?? null,
-                    ikzPlanNumber: $ikz['ikz_plan_number'] ?? null,
-                    ikzPlangraphNumber: $ikz['ikz_plangraph_number'] ?? null,
-                    ikzOkpdClass: $ikz['ikz_okpd_class'] ?? null,
-                    ikzOkpdSubclass: $ikz['ikz_okpd_subclass'] ?? null,
-                    ikzOkpdGroup: $ikz['ikz_okpd_group'] ?? null,
-                    ikzKvr: $ikz['ikz_kvr'] ?? null,
-                    etpName: $etp['name'] ?? null,
-                    etpUrl: $etp['url'] ?? null,
+                    extension: new EisDetailExtension(
+                        ikzYear: $ikz['ikz_year'] ?? null,
+                        ikzCustomerCode: $ikz['ikz_customer_code'] ?? null,
+                        ikzPlanNumber: $ikz['ikz_plan_number'] ?? null,
+                        ikzPlangraphNumber: $ikz['ikz_plangraph_number'] ?? null,
+                        ikzOkpdClass: $ikz['ikz_okpd_class'] ?? null,
+                        ikzOkpdSubclass: $ikz['ikz_okpd_subclass'] ?? null,
+                        ikzOkpdGroup: $ikz['ikz_okpd_group'] ?? null,
+                        ikzKvr: $ikz['ikz_kvr'] ?? null,
+                        etpName: $etp['name'] ?? null,
+                        etpUrl: $etp['url'] ?? null,
+                        contactPersonName: $contactPerson['name'] ?? null,
+                        contactPersonEmail: $contactPerson['email'] ?? null,
+                        hasCommonInfo: true,
+                    ),
                     contactPersonName: $contactPerson['name'] ?? null,
                     contactPersonEmail: $contactPerson['email'] ?? null,
                     financingRows: $financingRows,

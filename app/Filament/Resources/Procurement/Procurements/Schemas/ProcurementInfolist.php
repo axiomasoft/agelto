@@ -1,23 +1,47 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Procurements\Schemas;
 
 use App\Dto\Procurement\History\ProcurementDurations;
 use App\Models\Procurement\Procurement;
 use App\Services\Procurement\History\ProcurementTimelineBuilder;
+use App\Services\Procurement\Platform\PlatformRegistry;
+use App\Services\Procurement\Platform\PlatformUiResolver;
 use Carbon\CarbonInterval;
 use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
 
 class ProcurementInfolist
 {
+    /** @return list<Component> */
+    private static function platformSections(Procurement $record): array
+    {
+        $code = $record->registry?->platform?->getAttribute('code');
+        if (! is_string($code)) {
+            return [];
+        }
+        $registry = app(PlatformRegistry::class);
+        foreach ($registry->all() as $definition) {
+            if ($definition->code->value === $code) {
+                return app(PlatformUiResolver::class)
+                    ->resolve($definition->code)?->procurementInfolistSections($record) ?? [];
+            }
+        }
+
+        return [];
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
-            ->components([
+            ->components(fn (Procurement $record): array => [
+                ...self::platformSections($record),
                 Section::make('Наблюдаемая длительность')
                     ->columns(2)
                     ->schema([
@@ -51,16 +75,8 @@ class ProcurementInfolist
                     ->label('UUID'),
                 TextEntry::make('registry.name')
                     ->label('Реестр'),
-                TextEntry::make('registry_number')
-                    ->label('Номер в реестре')
-                    ->columnSpanFull(),
-                TextEntry::make('etp_number')
-                    ->label('Номер ЭТП')
-                    ->placeholder('-')
-                    ->columnSpanFull(),
-                TextEntry::make('ikz')
-                    ->label('ИКЗ')
-                    ->placeholder('-')
+                TextEntry::make('source_identity_value')
+                    ->label('Идентификатор источника')
                     ->columnSpanFull(),
                 TextEntry::make('title')
                     ->label('Название')
@@ -147,10 +163,6 @@ class ProcurementInfolist
                 IconEntry::make('detail_failed')
                     ->label('Получение карточки не удалось')
                     ->boolean(),
-                TextEntry::make('registry_guid')
-                    ->label('GUID в реестре')
-                    ->placeholder('-')
-                    ->columnSpanFull(),
                 TextEntry::make('current_revision_id')
                     ->label('Текущая редакция')
                     ->numeric()

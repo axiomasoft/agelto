@@ -91,7 +91,7 @@ test('job вызывает детальный процессор и мост в 
     Proxy::factory()->country('RU')->withScopes([ProxyScope::DocumentDownload])->create();
     $procurement = Procurement::factory()->create([
         'registry_id' => detailJobRegistry()->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
     ]);

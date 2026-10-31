@@ -9,8 +9,8 @@ use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Repositories\Procurement\History\ProcurementHistoryReadRepository;
+use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use App\Services\Procurement\History\ProcurementTimelineBuilder;
-use App\Services\Procurement\ProcurementIngestProcessor;
 use Illuminate\Support\Carbon;
 use Tests\Support\Procurement\SnapshotFactory;
 
@@ -60,13 +60,13 @@ test('незавершённая закупка сохраняет честну�
 });
 
 test('ingest фиксирует наблюдаемую длительность bidding → evaluation → completed', function (): void {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     StatusMapping::factory()->createMany([
         ['registry_id' => $registry->id, 'source_stage' => 'Подача заявок', 'canonical_status' => ProcurementStatus::Bidding->value],
         ['registry_id' => $registry->id, 'source_stage' => 'Работа комиссии', 'canonical_status' => ProcurementStatus::Evaluation->value],
         ['registry_id' => $registry->id, 'source_stage' => 'Закупка завершена', 'canonical_status' => ProcurementStatus::Completed->value],
     ]);
-    $processor = app(ProcurementIngestProcessor::class);
+    $processor = app(SnapshotFinalizer::class);
     $originalNow = Carbon::getTestNow();
 
     try {
@@ -94,7 +94,7 @@ test('ingest фиксирует наблюдаемую длительность 
 });
 
 test('закупка, завершённая при discovery, терминальна с нулевой наблюдаемой длительностью', function (): void {
-    $registry = Registry::factory()->create();
+    $registry = Registry::factory()->eis()->create();
     StatusMapping::factory()->create([
         'registry_id' => $registry->id,
         'source_stage' => 'Закупка завершена',
@@ -104,7 +104,7 @@ test('закупка, завершённая при discovery, терминал�
 
     try {
         Carbon::setTestNow(historyMoment('10:00:00'));
-        $procurement = app(ProcurementIngestProcessor::class)->ingest(SnapshotFactory::make($registry, [
+        $procurement = app(SnapshotFinalizer::class)->ingest(SnapshotFactory::make($registry, [
             'sourceStage' => 'Закупка завершена',
         ]));
     } finally {

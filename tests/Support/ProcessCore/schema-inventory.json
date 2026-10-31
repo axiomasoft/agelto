@@ -263,6 +263,18 @@
       "schema_sha256": "150ee3836b43c821ced0ebce9acd842c3af2705851d7eeb684e125f6ca53ca9d",
       "catalog_sha256": "3ca84ce11d173ca9fbd84d25e8d64933acc897a25a55a7bac2daed68828f2c1f",
       "note": "D49 adds only2 nullable operation attachment columns plus their CHECK/FK/index; no new carrier, counter table or workflow. Final unchanged candidate still needs two clean resets."
+    },
+    "p214_catalog": {
+      "kind": "single_file_test_installed_catalog",
+      "tables": [
+        "prc_registries",
+        "prc_procurements",
+        "prc_eis_details"
+      ],
+      "schema_sha256": "0282d82aaf934b3c95a090a367050f4737e62fcf642d03451ffe35467d22af84",
+      "catalog_sha256": "e24d31181d07b1a31531387f39410ec1892c6cc9616bcd24201ca240c42e5186",
+      "evidence": "storage/app/testing/process-core/reports/p214-executor",
+      "note": "Identity-only P2.14 cutover captured after scoped tests. current_item retains the last fully activated carrier stage; acquisition carriers remain staged for their owning points. Two clean installs remain coordinator-owned."
     }
   },
   "migrations": [
@@ -296,10 +308,11 @@
     },
     {
       "path": "database/migrations/2026_07_04_100001_create_prc_registries_table.php",
-      "sha256": "6259ed20e13970f29294315bcee4e92f45c21226101d5dfafdb5455af33f7aac",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "sha256": "d56a642292679e8eb4e60349913b19450727d94c154811edbf171a7af4eda267",
+      "action": "adapt",
+      "owner_item": "P2.14",
+      "reason": "Canonical platform-scoped primary identity and single EIS extension writer baseline cutover.",
+      "original_sha256": "6259ed20e13970f29294315bcee4e92f45c21226101d5dfafdb5455af33f7aac"
     },
     {
       "path": "database/migrations/2026_07_04_100002_create_prc_status_mappings_table.php",
@@ -352,10 +365,11 @@
     },
     {
       "path": "database/migrations/2026_07_04_100011_create_prc_procurements_table.php",
-      "sha256": "10afa35b633ff5114aa573b787dcd5e9b3c59f787e106395594e1dc8f03f9dce",
-      "action": "edit_create",
-      "owner_item": "P1.6",
-      "reason": "P1.6 добавляет head_generation/detail_cycle_seq/status_cycle_seq/next_status_due_at в исходный CREATE (execution#subject-locks)."
+      "sha256": "1fc5eab91a6769758661ded2570cb49c08b8478e54dcf1843d142235d89e2b19",
+      "action": "adapt",
+      "owner_item": "P2.14",
+      "reason": "Canonical platform-scoped primary identity and single EIS extension writer baseline cutover.",
+      "original_sha256": "10afa35b633ff5114aa573b787dcd5e9b3c59f787e106395594e1dc8f03f9dce"
     },
     {
       "path": "database/migrations/2026_07_04_100012_create_prc_revisions_table.php",
@@ -394,10 +408,11 @@
     },
     {
       "path": "database/migrations/2026_07_04_100017_create_prc_eis_details_table.php",
-      "sha256": "ae90524de01460073c772abdeb7b5fc59588d1ef0f3fe4fb9db5e6ff506dd7f1",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "sha256": "27dcc5d237d17a1e8275756a4f72548b6686db0d32b05d1230888289aaf5f0c3",
+      "action": "adapt",
+      "owner_item": "P2.14",
+      "reason": "Canonical platform-scoped primary identity and single EIS extension writer baseline cutover.",
+      "original_sha256": "ae90524de01460073c772abdeb7b5fc59588d1ef0f3fe4fb9db5e6ff506dd7f1"
     },
     {
       "path": "database/migrations/2026_07_04_100018_create_prc_documents_table.php",
@@ -7980,341 +7995,383 @@
         "retention": "business",
         "columns": [
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
             "column_name": "procurement_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
             "ordinal_position": 1,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "int8"
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "ikz_year",
-            "data_type": "integer",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "ikz",
             "ordinal_position": 2,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "int4"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "ikz_customer_code",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "etp_number",
             "ordinal_position": 3,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "ikz_plan_number",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "registry_guid",
             "ordinal_position": 4,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "ikz_plangraph_number",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "ikz_year",
             "ordinal_position": 5,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "integer",
+            "udt_name": "int4",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "ikz_okpd_class",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "ikz_customer_code",
             "ordinal_position": 6,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "ikz_okpd_subclass",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "ikz_plan_number",
             "ordinal_position": 7,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "ikz_okpd_group",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "ikz_plangraph_number",
             "ordinal_position": 8,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "ikz_kvr",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "ikz_okpd_class",
             "ordinal_position": 9,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "plan_graph_position",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "ikz_okpd_subclass",
             "ordinal_position": 10,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "plan_graph_url",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "ikz_okpd_group",
             "ordinal_position": 11,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": "false",
-            "column_name": "bid_security_required",
-            "data_type": "boolean",
-            "is_nullable": "NO",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "ikz_kvr",
             "ordinal_position": 12,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "bool"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "bid_security_percent",
-            "data_type": "numeric",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "plan_graph_position",
             "ordinal_position": 13,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "numeric"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "bid_security_amount",
-            "data_type": "numeric",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "plan_graph_url",
             "ordinal_position": 14,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "numeric"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": "false",
-            "column_name": "performance_security_required",
-            "data_type": "boolean",
-            "is_nullable": "NO",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "bid_security_required",
             "ordinal_position": 15,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "bool"
+            "data_type": "boolean",
+            "udt_name": "bool",
+            "is_nullable": "NO",
+            "column_default": "false"
           },
           {
-            "column_default": null,
-            "column_name": "performance_security_percent",
-            "data_type": "numeric",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "bid_security_percent",
             "ordinal_position": 16,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "numeric"
-          },
-          {
-            "column_default": null,
-            "column_name": "performance_security_amount",
             "data_type": "numeric",
+            "udt_name": "numeric",
             "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "bid_security_amount",
             "ordinal_position": 17,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "numeric"
+            "data_type": "numeric",
+            "udt_name": "numeric",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": "false",
-            "column_name": "is_smp_only",
-            "data_type": "boolean",
-            "is_nullable": "NO",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "performance_security_required",
             "ordinal_position": 18,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "bool"
+            "data_type": "boolean",
+            "udt_name": "bool",
+            "is_nullable": "NO",
+            "column_default": "false"
           },
           {
-            "column_default": "false",
-            "column_name": "anti_dumping_applied",
-            "data_type": "boolean",
-            "is_nullable": "NO",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "performance_security_percent",
             "ordinal_position": 19,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "bool"
+            "data_type": "numeric",
+            "udt_name": "numeric",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": "false",
-            "column_name": "treasury_support",
-            "data_type": "boolean",
-            "is_nullable": "NO",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "performance_security_amount",
             "ordinal_position": 20,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "bool"
+            "data_type": "numeric",
+            "udt_name": "numeric",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "advantages",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "is_smp_only",
             "ordinal_position": 21,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "jsonb"
+            "data_type": "boolean",
+            "udt_name": "bool",
+            "is_nullable": "NO",
+            "column_default": "false"
           },
           {
-            "column_default": null,
-            "column_name": "national_regime",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "anti_dumping_applied",
             "ordinal_position": 22,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "jsonb"
+            "data_type": "boolean",
+            "udt_name": "bool",
+            "is_nullable": "NO",
+            "column_default": "false"
           },
           {
-            "column_default": null,
-            "column_name": "participant_requirements",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "treasury_support",
             "ordinal_position": 23,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "jsonb"
+            "data_type": "boolean",
+            "udt_name": "bool",
+            "is_nullable": "NO",
+            "column_default": "false"
           },
           {
-            "column_default": null,
-            "column_name": "etp_name",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "advantages",
             "ordinal_position": 24,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "etp_url",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "national_regime",
             "ordinal_position": 25,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "execution_starts_at",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "participant_requirements",
             "ordinal_position": 26,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "execution_ends_at",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "etp_name",
             "ordinal_position": 27,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "contact_person",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "etp_url",
             "ordinal_position": 28,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "jsonb"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "print_form_urls",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "execution_starts_at",
             "ordinal_position": 29,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "jsonb"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "created_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "execution_ends_at",
             "ordinal_position": 30,
-            "table_name": "prc_eis_details",
-            "table_schema": "public",
-            "udt_name": "timestamp"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "updated_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 31,
-            "table_name": "prc_eis_details",
             "table_schema": "public",
-            "udt_name": "timestamp"
+            "table_name": "prc_eis_details",
+            "column_name": "contact_person",
+            "ordinal_position": 31,
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "print_form_urls",
+            "ordinal_position": 32,
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "created_at",
+            "ordinal_position": 33,
+            "data_type": "timestamp without time zone",
+            "udt_name": "timestamp",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_eis_details",
+            "column_name": "updated_at",
+            "ordinal_position": 34,
+            "data_type": "timestamp without time zone",
+            "udt_name": "timestamp",
+            "is_nullable": "YES",
+            "column_default": null
           }
         ],
         "constraints": [
           {
-            "definition": "PRIMARY KEY (procurement_id)",
-            "name": "prc_eis_details_pkey",
             "schema": "public",
             "table_name": "prc_eis_details",
-            "type": "p"
+            "name": "prc_eis_details_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (procurement_id)"
           },
           {
-            "definition": "FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id) ON DELETE RESTRICT",
-            "name": "prc_eis_details_procurement_id_foreign",
             "schema": "public",
             "table_name": "prc_eis_details",
-            "type": "f"
+            "name": "prc_eis_details_procurement_id_foreign",
+            "type": "f",
+            "definition": "FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id) ON DELETE RESTRICT"
           }
         ],
         "indexes": [
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_eis_details_pkey ON public.prc_eis_details USING btree (procurement_id)",
-            "indexname": "prc_eis_details_pkey",
             "schemaname": "public",
-            "tablename": "prc_eis_details"
+            "tablename": "prc_eis_details",
+            "indexname": "prc_eis_details_ikz_index",
+            "indexdef": "CREATE INDEX prc_eis_details_ikz_index ON public.prc_eis_details USING btree (ikz)"
+          },
+          {
+            "schemaname": "public",
+            "tablename": "prc_eis_details",
+            "indexname": "prc_eis_details_pkey",
+            "indexdef": "CREATE UNIQUE INDEX prc_eis_details_pkey ON public.prc_eis_details USING btree (procurement_id)"
+          },
+          {
+            "schemaname": "public",
+            "tablename": "prc_eis_details",
+            "indexname": "prc_eis_details_registry_guid_index",
+            "indexdef": "CREATE INDEX prc_eis_details_registry_guid_index ON public.prc_eis_details USING btree (registry_guid)"
           }
         ],
-        "definition": "CREATE TABLE public.prc_eis_details (\n    procurement_id bigint NOT NULL,\n    ikz_year integer,\n    ikz_customer_code text,\n    ikz_plan_number text,\n    ikz_plangraph_number text,\n    ikz_okpd_class text,\n    ikz_okpd_subclass text,\n    ikz_okpd_group text,\n    ikz_kvr text,\n    plan_graph_position text,\n    plan_graph_url text,\n    bid_security_required boolean DEFAULT false NOT NULL,\n    bid_security_percent numeric(5,2),\n    bid_security_amount numeric(18,2),\n    performance_security_required boolean DEFAULT false NOT NULL,\n    performance_security_percent numeric(5,2),\n    performance_security_amount numeric(18,2),\n    is_smp_only boolean DEFAULT false NOT NULL,\n    anti_dumping_applied boolean DEFAULT false NOT NULL,\n    treasury_support boolean DEFAULT false NOT NULL,\n    advantages jsonb,\n    national_regime jsonb,\n    participant_requirements jsonb,\n    etp_name text,\n    etp_url text,\n    execution_starts_at text,\n    execution_ends_at text,\n    contact_person jsonb,\n    print_form_urls jsonb,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
+        "definition": "CREATE TABLE public.prc_eis_details (\n    procurement_id bigint NOT NULL,\n    ikz text,\n    etp_number text,\n    registry_guid text,\n    ikz_year integer,\n    ikz_customer_code text,\n    ikz_plan_number text,\n    ikz_plangraph_number text,\n    ikz_okpd_class text,\n    ikz_okpd_subclass text,\n    ikz_okpd_group text,\n    ikz_kvr text,\n    plan_graph_position text,\n    plan_graph_url text,\n    bid_security_required boolean DEFAULT false NOT NULL,\n    bid_security_percent numeric(5,2),\n    bid_security_amount numeric(18,2),\n    performance_security_required boolean DEFAULT false NOT NULL,\n    performance_security_percent numeric(5,2),\n    performance_security_amount numeric(18,2),\n    is_smp_only boolean DEFAULT false NOT NULL,\n    anti_dumping_applied boolean DEFAULT false NOT NULL,\n    treasury_support boolean DEFAULT false NOT NULL,\n    advantages jsonb,\n    national_regime jsonb,\n    participant_requirements jsonb,\n    etp_name text,\n    etp_url text,\n    execution_starts_at text,\n    execution_ends_at text,\n    contact_person jsonb,\n    print_form_urls jsonb,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
       },
       "prc_estimate_items": {
         "owner": "Procurement",
@@ -16547,651 +16604,650 @@
         "retention": "business",
         "columns": [
           {
-            "column_default": "nextval('prc_procurements_id_seq'::regclass)",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
             "ordinal_position": 1,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "int8"
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": "nextval('prc_procurements_id_seq'::regclass)"
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "uuid",
-            "data_type": "uuid",
-            "is_nullable": "NO",
             "ordinal_position": 2,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "uuid"
+            "data_type": "uuid",
+            "udt_name": "uuid",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "registry_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "platform_id",
             "ordinal_position": 3,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "int8"
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "registry_number",
-            "data_type": "text",
-            "is_nullable": "NO",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "registry_id",
             "ordinal_position": 4,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "etp_number",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "source_identity_type",
             "ordinal_position": 5,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "ikz",
-            "data_type": "text",
-            "is_nullable": "YES",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "source_identity_value",
             "ordinal_position": 6,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "title",
-            "data_type": "text",
-            "is_nullable": "NO",
             "ordinal_position": 7,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "status",
-            "data_type": "text",
-            "is_nullable": "NO",
             "ordinal_position": 8,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "source_stage",
-            "data_type": "text",
-            "is_nullable": "NO",
             "ordinal_position": 9,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "procedure_type",
-            "data_type": "text",
-            "is_nullable": "YES",
             "ordinal_position": 10,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "procedure_type_raw",
-            "data_type": "text",
-            "is_nullable": "YES",
             "ordinal_position": 11,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "customer_org_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
             "ordinal_position": 12,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "int8"
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "initial_price",
-            "data_type": "numeric",
-            "is_nullable": "YES",
             "ordinal_position": 13,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "numeric"
-          },
-          {
-            "column_default": null,
-            "column_name": "currency",
-            "data_type": "character",
-            "is_nullable": "YES",
-            "ordinal_position": 14,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "bpchar"
-          },
-          {
-            "column_default": null,
-            "column_name": "advance_percent",
             "data_type": "numeric",
+            "udt_name": "numeric",
             "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "currency",
+            "ordinal_position": 14,
+            "data_type": "character",
+            "udt_name": "bpchar",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "advance_percent",
             "ordinal_position": 15,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "numeric"
+            "data_type": "numeric",
+            "udt_name": "numeric",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "okved_code",
-            "data_type": "text",
-            "is_nullable": "YES",
             "ordinal_position": 16,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "okved_additional",
-            "data_type": "text",
-            "is_nullable": "YES",
             "ordinal_position": 17,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "region_code",
-            "data_type": "text",
-            "is_nullable": "YES",
             "ordinal_position": 18,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "published_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "NO",
             "ordinal_position": 19,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "source_updated_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "NO",
             "ordinal_position": 20,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "bidding_starts_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
             "ordinal_position": 21,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "bidding_ends_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
             "ordinal_position": 22,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "summary_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
             "ordinal_position": 23,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "detail_url",
-            "data_type": "text",
-            "is_nullable": "YES",
             "ordinal_position": 24,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "detail_fetched_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
             "ordinal_position": 25,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": "0",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "detail_attempts",
-            "data_type": "integer",
-            "is_nullable": "NO",
             "ordinal_position": 26,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "detail_last_error",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 27,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "detail_next_retry_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 28,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": "false",
-            "column_name": "detail_failed",
-            "data_type": "boolean",
-            "is_nullable": "NO",
-            "ordinal_position": 29,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "bool"
-          },
-          {
-            "column_default": null,
-            "column_name": "detail_parse_outcome",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
-            "ordinal_position": 30,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "jsonb"
-          },
-          {
-            "column_default": null,
-            "column_name": "succeeded_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 31,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "registry_guid",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 32,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "current_revision_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 33,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "current_revision_detected_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 34,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": "1",
-            "column_name": "revision_count",
             "data_type": "integer",
+            "udt_name": "int4",
             "is_nullable": "NO",
-            "ordinal_position": 35,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "int4"
+            "column_default": "0"
           },
           {
-            "column_default": null,
-            "column_name": "ignored_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 36,
-            "table_name": "prc_procurements",
             "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "ignore_reason",
+            "table_name": "prc_procurements",
+            "column_name": "detail_last_error",
+            "ordinal_position": 27,
             "data_type": "text",
+            "udt_name": "text",
             "is_nullable": "YES",
-            "ordinal_position": 37,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "text"
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "attributes",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "detail_next_retry_at",
+            "ordinal_position": 28,
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "detail_failed",
+            "ordinal_position": 29,
+            "data_type": "boolean",
+            "udt_name": "bool",
+            "is_nullable": "NO",
+            "column_default": "false"
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "detail_parse_outcome",
+            "ordinal_position": 30,
             "data_type": "jsonb",
+            "udt_name": "jsonb",
             "is_nullable": "YES",
-            "ordinal_position": 38,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "jsonb"
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "succeeded_at",
+            "ordinal_position": 31,
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "current_revision_id",
+            "ordinal_position": 32,
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "current_revision_detected_at",
+            "ordinal_position": 33,
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "revision_count",
+            "ordinal_position": 34,
+            "data_type": "integer",
+            "udt_name": "int4",
+            "is_nullable": "NO",
+            "column_default": "1"
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "ignored_at",
+            "ordinal_position": 35,
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "ignore_reason",
+            "ordinal_position": 36,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
+            "column_name": "attributes",
+            "ordinal_position": 37,
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "first_seen_at",
+            "ordinal_position": 38,
             "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
             "is_nullable": "NO",
-            "ordinal_position": 39,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "last_seen_at",
+            "ordinal_position": 39,
             "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
             "is_nullable": "NO",
-            "ordinal_position": 40,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "created_at",
+            "ordinal_position": 40,
             "data_type": "timestamp without time zone",
+            "udt_name": "timestamp",
             "is_nullable": "YES",
-            "ordinal_position": 41,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamp"
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "updated_at",
+            "ordinal_position": 41,
             "data_type": "timestamp without time zone",
+            "udt_name": "timestamp",
             "is_nullable": "YES",
-            "ordinal_position": 42,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamp"
+            "column_default": null
           },
           {
-            "column_default": "'1'::bigint",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "head_generation",
+            "ordinal_position": 42,
             "data_type": "bigint",
+            "udt_name": "int8",
             "is_nullable": "NO",
-            "ordinal_position": 43,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "int8"
+            "column_default": "'1'::bigint"
           },
           {
-            "column_default": "'0'::bigint",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "detail_cycle_seq",
+            "ordinal_position": 43,
             "data_type": "bigint",
+            "udt_name": "int8",
             "is_nullable": "NO",
-            "ordinal_position": 44,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "int8"
+            "column_default": "'0'::bigint"
           },
           {
-            "column_default": "'0'::bigint",
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "status_cycle_seq",
+            "ordinal_position": 44,
             "data_type": "bigint",
+            "udt_name": "int8",
             "is_nullable": "NO",
-            "ordinal_position": 45,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "int8"
+            "column_default": "'0'::bigint"
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "next_status_due_at",
+            "ordinal_position": 45,
             "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
             "is_nullable": "YES",
-            "ordinal_position": 46,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "source_updated_has_day_precision",
+            "ordinal_position": 46,
             "data_type": "boolean",
+            "udt_name": "bool",
             "is_nullable": "YES",
-            "ordinal_position": 47,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "bool"
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "source_updated_before",
+            "ordinal_position": 47,
             "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
             "is_nullable": "YES",
-            "ordinal_position": 48,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_procurements",
             "column_name": "source_observed_at",
+            "ordinal_position": 48,
             "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
             "is_nullable": "YES",
-            "ordinal_position": 49,
-            "table_name": "prc_procurements",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
+            "column_default": null
           },
           {
-            "column_default": "false",
-            "column_name": "source_order_ambiguous",
-            "data_type": "boolean",
-            "is_nullable": "NO",
-            "ordinal_position": 50,
-            "table_name": "prc_procurements",
             "table_schema": "public",
-            "udt_name": "bool"
+            "table_name": "prc_procurements",
+            "column_name": "source_order_ambiguous",
+            "ordinal_position": 49,
+            "data_type": "boolean",
+            "udt_name": "bool",
+            "is_nullable": "NO",
+            "column_default": "false"
           }
         ],
         "constraints": [
           {
-            "definition": "FOREIGN KEY (customer_org_id) REFERENCES org_organizations(id) ON DELETE SET NULL",
+            "schema": "public",
+            "table_name": "prc_procurements",
             "name": "prc_procurements_customer_org_id_foreign",
-            "schema": "public",
-            "table_name": "prc_procurements",
-            "type": "f"
+            "type": "f",
+            "definition": "FOREIGN KEY (customer_org_id) REFERENCES org_organizations(id) ON DELETE SET NULL"
           },
           {
-            "definition": "CHECK ((detail_cycle_seq >= 0))",
+            "schema": "public",
+            "table_name": "prc_procurements",
             "name": "prc_procurements_detail_cycle_seq_check",
-            "schema": "public",
-            "table_name": "prc_procurements",
-            "type": "c"
+            "type": "c",
+            "definition": "CHECK ((detail_cycle_seq >= 0))"
           },
           {
-            "definition": "CHECK ((head_generation >= 1))",
+            "schema": "public",
+            "table_name": "prc_procurements",
             "name": "prc_procurements_head_generation_check",
-            "schema": "public",
-            "table_name": "prc_procurements",
-            "type": "c"
+            "type": "c",
+            "definition": "CHECK ((head_generation >= 1))"
           },
           {
-            "definition": "PRIMARY KEY (id)",
+            "schema": "public",
+            "table_name": "prc_procurements",
             "name": "prc_procurements_pkey",
-            "schema": "public",
-            "table_name": "prc_procurements",
-            "type": "p"
+            "type": "p",
+            "definition": "PRIMARY KEY (id)"
           },
           {
-            "definition": "FOREIGN KEY (registry_id) REFERENCES prc_registries(id)",
-            "name": "prc_procurements_registry_id_foreign",
             "schema": "public",
             "table_name": "prc_procurements",
-            "type": "f"
+            "name": "prc_procurements_platform_id_foreign",
+            "type": "f",
+            "definition": "FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)"
           },
           {
-            "definition": "UNIQUE (registry_id, registry_number)",
-            "name": "prc_procurements_registry_id_registry_number_unique",
             "schema": "public",
             "table_name": "prc_procurements",
-            "type": "u"
+            "name": "prc_procurements_registry_platform_fk",
+            "type": "f",
+            "definition": "FOREIGN KEY (registry_id, platform_id) REFERENCES prc_registries(id, platform_id)"
           },
           {
-            "definition": "CHECK ((status_cycle_seq >= 0))",
+            "schema": "public",
+            "table_name": "prc_procurements",
+            "name": "prc_procurements_source_identity_type_check",
+            "type": "c",
+            "definition": "CHECK ((source_identity_type ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text))"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_procurements",
+            "name": "prc_procurements_source_identity_unique",
+            "type": "u",
+            "definition": "UNIQUE (platform_id, source_identity_type, source_identity_value)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_procurements",
+            "name": "prc_procurements_source_identity_value_check",
+            "type": "c",
+            "definition": "CHECK (((char_length(source_identity_value) >= 1) AND (char_length(source_identity_value) <= 200)))"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_procurements",
             "name": "prc_procurements_status_cycle_seq_check",
-            "schema": "public",
-            "table_name": "prc_procurements",
-            "type": "c"
+            "type": "c",
+            "definition": "CHECK ((status_cycle_seq >= 0))"
           },
           {
-            "definition": "UNIQUE (uuid)",
-            "name": "prc_procurements_uuid_unique",
             "schema": "public",
             "table_name": "prc_procurements",
-            "type": "u"
+            "name": "prc_procurements_uuid_unique",
+            "type": "u",
+            "definition": "UNIQUE (uuid)"
           }
         ],
         "indexes": [
           {
-            "indexdef": "CREATE INDEX prc_procurements_customer_org_id_index ON public.prc_procurements USING btree (customer_org_id)",
+            "schemaname": "public",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_customer_org_id_index",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE INDEX prc_procurements_customer_org_id_index ON public.prc_procurements USING btree (customer_org_id)"
           },
           {
-            "indexdef": "CREATE INDEX prc_procurements_ikz_index ON public.prc_procurements USING btree (ikz)",
-            "indexname": "prc_procurements_ikz_index",
             "schemaname": "public",
-            "tablename": "prc_procurements"
-          },
-          {
-            "indexdef": "CREATE INDEX prc_procurements_okved_additional_index ON public.prc_procurements USING btree (okved_additional)",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_okved_additional_index",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE INDEX prc_procurements_okved_additional_index ON public.prc_procurements USING btree (okved_additional)"
           },
           {
-            "indexdef": "CREATE INDEX prc_procurements_okved_code_index ON public.prc_procurements USING btree (okved_code)",
+            "schemaname": "public",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_okved_code_index",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE INDEX prc_procurements_okved_code_index ON public.prc_procurements USING btree (okved_code)"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_procurements_pkey ON public.prc_procurements USING btree (id)",
+            "schemaname": "public",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_pkey",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE UNIQUE INDEX prc_procurements_pkey ON public.prc_procurements USING btree (id)"
           },
           {
-            "indexdef": "CREATE INDEX prc_procurements_published_at_index ON public.prc_procurements USING btree (published_at)",
+            "schemaname": "public",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_published_at_index",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE INDEX prc_procurements_published_at_index ON public.prc_procurements USING btree (published_at)"
           },
           {
-            "indexdef": "CREATE INDEX prc_procurements_region_code_index ON public.prc_procurements USING btree (region_code)",
+            "schemaname": "public",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_region_code_index",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE INDEX prc_procurements_region_code_index ON public.prc_procurements USING btree (region_code)"
           },
           {
-            "indexdef": "CREATE INDEX prc_procurements_registry_guid_index ON public.prc_procurements USING btree (registry_guid)",
-            "indexname": "prc_procurements_registry_guid_index",
             "schemaname": "public",
-            "tablename": "prc_procurements"
-          },
-          {
-            "indexdef": "CREATE UNIQUE INDEX prc_procurements_registry_id_registry_number_unique ON public.prc_procurements USING btree (registry_id, registry_number)",
-            "indexname": "prc_procurements_registry_id_registry_number_unique",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
-          },
-          {
-            "indexdef": "CREATE INDEX prc_procurements_registry_id_status_published_at_index ON public.prc_procurements USING btree (registry_id, status, published_at)",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_registry_id_status_published_at_index",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE INDEX prc_procurements_registry_id_status_published_at_index ON public.prc_procurements USING btree (registry_id, status, published_at)"
           },
           {
-            "indexdef": "CREATE INDEX prc_procurements_source_updated_at_index ON public.prc_procurements USING btree (source_updated_at)",
+            "schemaname": "public",
+            "tablename": "prc_procurements",
+            "indexname": "prc_procurements_source_identity_unique",
+            "indexdef": "CREATE UNIQUE INDEX prc_procurements_source_identity_unique ON public.prc_procurements USING btree (platform_id, source_identity_type, source_identity_value)"
+          },
+          {
+            "schemaname": "public",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_source_updated_at_index",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE INDEX prc_procurements_source_updated_at_index ON public.prc_procurements USING btree (source_updated_at)"
           },
           {
-            "indexdef": "CREATE INDEX prc_procurements_status_bidding_ends_at_index ON public.prc_procurements USING btree (status, bidding_ends_at)",
+            "schemaname": "public",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_status_bidding_ends_at_index",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE INDEX prc_procurements_status_bidding_ends_at_index ON public.prc_procurements USING btree (status, bidding_ends_at)"
           },
           {
-            "indexdef": "CREATE INDEX prc_procurements_succeeded_at_index ON public.prc_procurements USING btree (succeeded_at) WHERE (succeeded_at IS NOT NULL)",
+            "schemaname": "public",
+            "tablename": "prc_procurements",
             "indexname": "prc_procurements_succeeded_at_index",
-            "schemaname": "public",
-            "tablename": "prc_procurements"
+            "indexdef": "CREATE INDEX prc_procurements_succeeded_at_index ON public.prc_procurements USING btree (succeeded_at) WHERE (succeeded_at IS NOT NULL)"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_procurements_uuid_unique ON public.prc_procurements USING btree (uuid)",
-            "indexname": "prc_procurements_uuid_unique",
             "schemaname": "public",
-            "tablename": "prc_procurements"
+            "tablename": "prc_procurements",
+            "indexname": "prc_procurements_uuid_unique",
+            "indexdef": "CREATE UNIQUE INDEX prc_procurements_uuid_unique ON public.prc_procurements USING btree (uuid)"
           }
         ],
-        "definition": "CREATE TABLE public.prc_procurements (\n    id bigint NOT NULL,\n    uuid uuid NOT NULL,\n    registry_id bigint NOT NULL,\n    registry_number text NOT NULL,\n    etp_number text,\n    ikz text,\n    title text NOT NULL,\n    status text NOT NULL,\n    source_stage text NOT NULL,\n    procedure_type text,\n    procedure_type_raw text,\n    customer_org_id bigint,\n    initial_price numeric(18,2),\n    currency character(3),\n    advance_percent numeric(5,2),\n    okved_code text,\n    okved_additional text,\n    region_code text,\n    published_at timestamp(0) with time zone NOT NULL,\n    source_updated_at timestamp(0) with time zone NOT NULL,\n    bidding_starts_at timestamp(0) with time zone,\n    bidding_ends_at timestamp(0) with time zone,\n    summary_at timestamp(0) with time zone,\n    detail_url text,\n    detail_fetched_at timestamp(0) with time zone,\n    detail_attempts integer DEFAULT 0 NOT NULL,\n    detail_last_error text,\n    detail_next_retry_at timestamp(0) with time zone,\n    detail_failed boolean DEFAULT false NOT NULL,\n    detail_parse_outcome jsonb,\n    succeeded_at timestamp(0) with time zone,\n    registry_guid text,\n    current_revision_id bigint,\n    current_revision_detected_at timestamp(0) with time zone,\n    revision_count integer DEFAULT 1 NOT NULL,\n    ignored_at timestamp(0) with time zone,\n    ignore_reason text,\n    attributes jsonb,\n    first_seen_at timestamp(0) with time zone NOT NULL,\n    last_seen_at timestamp(0) with time zone NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    head_generation bigint DEFAULT '1'::bigint NOT NULL,\n    detail_cycle_seq bigint DEFAULT '0'::bigint NOT NULL,\n    status_cycle_seq bigint DEFAULT '0'::bigint NOT NULL,\n    next_status_due_at timestamp(6) with time zone,\n    source_updated_has_day_precision boolean,\n    source_updated_before timestamp(0) with time zone,\n    source_observed_at timestamp(6) with time zone,\n    source_order_ambiguous boolean DEFAULT false NOT NULL,\n    CONSTRAINT prc_procurements_detail_cycle_seq_check CHECK ((detail_cycle_seq >= 0)),\n    CONSTRAINT prc_procurements_head_generation_check CHECK ((head_generation >= 1)),\n    CONSTRAINT prc_procurements_status_cycle_seq_check CHECK ((status_cycle_seq >= 0))\n);"
+        "definition": "CREATE TABLE public.prc_procurements (\n    id bigint NOT NULL,\n    uuid uuid NOT NULL,\n    platform_id bigint NOT NULL,\n    registry_id bigint NOT NULL,\n    source_identity_type text NOT NULL COLLATE pg_catalog.\"C\",\n    source_identity_value text NOT NULL COLLATE pg_catalog.\"C\",\n    title text NOT NULL,\n    status text NOT NULL,\n    source_stage text NOT NULL,\n    procedure_type text,\n    procedure_type_raw text,\n    customer_org_id bigint,\n    initial_price numeric(18,2),\n    currency character(3),\n    advance_percent numeric(5,2),\n    okved_code text,\n    okved_additional text,\n    region_code text,\n    published_at timestamp(0) with time zone NOT NULL,\n    source_updated_at timestamp(0) with time zone NOT NULL,\n    bidding_starts_at timestamp(0) with time zone,\n    bidding_ends_at timestamp(0) with time zone,\n    summary_at timestamp(0) with time zone,\n    detail_url text,\n    detail_fetched_at timestamp(0) with time zone,\n    detail_attempts integer DEFAULT 0 NOT NULL,\n    detail_last_error text,\n    detail_next_retry_at timestamp(0) with time zone,\n    detail_failed boolean DEFAULT false NOT NULL,\n    detail_parse_outcome jsonb,\n    succeeded_at timestamp(0) with time zone,\n    current_revision_id bigint,\n    current_revision_detected_at timestamp(0) with time zone,\n    revision_count integer DEFAULT 1 NOT NULL,\n    ignored_at timestamp(0) with time zone,\n    ignore_reason text,\n    attributes jsonb,\n    first_seen_at timestamp(0) with time zone NOT NULL,\n    last_seen_at timestamp(0) with time zone NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    head_generation bigint DEFAULT '1'::bigint NOT NULL,\n    detail_cycle_seq bigint DEFAULT '0'::bigint NOT NULL,\n    status_cycle_seq bigint DEFAULT '0'::bigint NOT NULL,\n    next_status_due_at timestamp(6) with time zone,\n    source_updated_has_day_precision boolean,\n    source_updated_before timestamp(0) with time zone,\n    source_observed_at timestamp(6) with time zone,\n    source_order_ambiguous boolean DEFAULT false NOT NULL,\n    CONSTRAINT prc_procurements_detail_cycle_seq_check CHECK ((detail_cycle_seq >= 0)),\n    CONSTRAINT prc_procurements_head_generation_check CHECK ((head_generation >= 1)),\n    CONSTRAINT prc_procurements_source_identity_type_check CHECK ((source_identity_type ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text)),\n    CONSTRAINT prc_procurements_source_identity_value_check CHECK (((char_length(source_identity_value) >= 1) AND (char_length(source_identity_value) <= 200))),\n    CONSTRAINT prc_procurements_status_cycle_seq_check CHECK ((status_cycle_seq >= 0))\n);"
       },
       "prc_protocols": {
         "owner": "Procurement",
@@ -17597,134 +17653,147 @@
         "retention": "business",
         "columns": [
           {
-            "column_default": "nextval('prc_registries_id_seq'::regclass)",
+            "table_schema": "public",
+            "table_name": "prc_registries",
             "column_name": "id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
             "ordinal_position": 1,
-            "table_name": "prc_registries",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "uuid",
-            "data_type": "uuid",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "prc_registries",
-            "table_schema": "public",
-            "udt_name": "uuid"
-          },
-          {
-            "column_default": null,
-            "column_name": "platform_id",
             "data_type": "bigint",
+            "udt_name": "int8",
             "is_nullable": "NO",
+            "column_default": "nextval('prc_registries_id_seq'::regclass)"
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_registries",
+            "column_name": "uuid",
+            "ordinal_position": 2,
+            "data_type": "uuid",
+            "udt_name": "uuid",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_registries",
+            "column_name": "platform_id",
             "ordinal_position": 3,
-            "table_name": "prc_registries",
-            "table_schema": "public",
-            "udt_name": "int8"
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_registries",
             "column_name": "code",
-            "data_type": "character varying",
-            "is_nullable": "NO",
             "ordinal_position": 4,
-            "table_name": "prc_registries",
-            "table_schema": "public",
-            "udt_name": "varchar"
-          },
-          {
-            "column_default": null,
-            "column_name": "name",
             "data_type": "character varying",
+            "udt_name": "varchar",
             "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_registries",
+            "column_name": "name",
             "ordinal_position": 5,
-            "table_name": "prc_registries",
-            "table_schema": "public",
-            "udt_name": "varchar"
+            "data_type": "character varying",
+            "udt_name": "varchar",
+            "is_nullable": "NO",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_registries",
             "column_name": "settings",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
             "ordinal_position": 6,
-            "table_name": "prc_registries",
-            "table_schema": "public",
-            "udt_name": "jsonb"
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
+            "table_schema": "public",
+            "table_name": "prc_registries",
             "column_name": "created_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
             "ordinal_position": 7,
-            "table_name": "prc_registries",
-            "table_schema": "public",
-            "udt_name": "timestamp"
+            "data_type": "timestamp without time zone",
+            "udt_name": "timestamp",
+            "is_nullable": "YES",
+            "column_default": null
           },
           {
-            "column_default": null,
-            "column_name": "updated_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 8,
-            "table_name": "prc_registries",
             "table_schema": "public",
-            "udt_name": "timestamp"
+            "table_name": "prc_registries",
+            "column_name": "updated_at",
+            "ordinal_position": 8,
+            "data_type": "timestamp without time zone",
+            "udt_name": "timestamp",
+            "is_nullable": "YES",
+            "column_default": null
           }
         ],
         "constraints": [
           {
-            "definition": "PRIMARY KEY (id)",
+            "schema": "public",
+            "table_name": "prc_registries",
+            "name": "prc_registries_id_platform_unique",
+            "type": "u",
+            "definition": "UNIQUE (id, platform_id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_registries",
             "name": "prc_registries_pkey",
-            "schema": "public",
-            "table_name": "prc_registries",
-            "type": "p"
+            "type": "p",
+            "definition": "PRIMARY KEY (id)"
           },
           {
-            "definition": "UNIQUE (platform_id, code)",
+            "schema": "public",
+            "table_name": "prc_registries",
             "name": "prc_registries_platform_id_code_unique",
-            "schema": "public",
-            "table_name": "prc_registries",
-            "type": "u"
+            "type": "u",
+            "definition": "UNIQUE (platform_id, code)"
           },
           {
-            "definition": "FOREIGN KEY (platform_id) REFERENCES prc_platforms(id) ON DELETE CASCADE",
+            "schema": "public",
+            "table_name": "prc_registries",
             "name": "prc_registries_platform_id_foreign",
-            "schema": "public",
-            "table_name": "prc_registries",
-            "type": "f"
+            "type": "f",
+            "definition": "FOREIGN KEY (platform_id) REFERENCES prc_platforms(id) ON DELETE CASCADE"
           },
           {
-            "definition": "UNIQUE (uuid)",
-            "name": "prc_registries_uuid_unique",
             "schema": "public",
             "table_name": "prc_registries",
-            "type": "u"
+            "name": "prc_registries_uuid_unique",
+            "type": "u",
+            "definition": "UNIQUE (uuid)"
           }
         ],
         "indexes": [
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_registries_pkey ON public.prc_registries USING btree (id)",
+            "schemaname": "public",
+            "tablename": "prc_registries",
+            "indexname": "prc_registries_id_platform_unique",
+            "indexdef": "CREATE UNIQUE INDEX prc_registries_id_platform_unique ON public.prc_registries USING btree (id, platform_id)"
+          },
+          {
+            "schemaname": "public",
+            "tablename": "prc_registries",
             "indexname": "prc_registries_pkey",
-            "schemaname": "public",
-            "tablename": "prc_registries"
+            "indexdef": "CREATE UNIQUE INDEX prc_registries_pkey ON public.prc_registries USING btree (id)"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_registries_platform_id_code_unique ON public.prc_registries USING btree (platform_id, code)",
+            "schemaname": "public",
+            "tablename": "prc_registries",
             "indexname": "prc_registries_platform_id_code_unique",
-            "schemaname": "public",
-            "tablename": "prc_registries"
+            "indexdef": "CREATE UNIQUE INDEX prc_registries_platform_id_code_unique ON public.prc_registries USING btree (platform_id, code)"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_registries_uuid_unique ON public.prc_registries USING btree (uuid)",
-            "indexname": "prc_registries_uuid_unique",
             "schemaname": "public",
-            "tablename": "prc_registries"
+            "tablename": "prc_registries",
+            "indexname": "prc_registries_uuid_unique",
+            "indexdef": "CREATE UNIQUE INDEX prc_registries_uuid_unique ON public.prc_registries USING btree (uuid)"
           }
         ],
         "definition": "CREATE TABLE public.prc_registries (\n    id bigint NOT NULL,\n    uuid uuid NOT NULL,\n    platform_id bigint NOT NULL,\n    code character varying(255) NOT NULL,\n    name character varying(255) NOT NULL,\n    settings jsonb,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"

@@ -20,10 +20,10 @@ final class ProcurementFactory extends Factory
     public function definition(): array
     {
         return [
-            'registry_id' => fn (): int|string => $this->eisRegistry()->getKey(),
-            'registry_number' => fake()->unique()->numerify('0000000000##########'),
-            'etp_number' => null,
-            'ikz' => null,
+            'registry_id' => fn (): int => $this->integer($this->eisRegistry()->getKey()),
+            'platform_id' => fn (array $attributes): int => $this->registry($attributes)->platform_id,
+            'source_identity_type' => fn (array $attributes): string => $this->registry($attributes)->code === 'fz44' ? 'registry:44fz' : 'registry:'.$this->registry($attributes)->code,
+            'source_identity_value' => fake()->unique()->numerify('0000000000##########'),
             'title' => fake()->sentence(),
             'status' => ProcurementStatus::Bidding,
             'source_stage' => 'Подача заявок',
@@ -47,7 +47,6 @@ final class ProcurementFactory extends Factory
             'detail_last_error' => null,
             'detail_next_retry_at' => null,
             'detail_failed' => false,
-            'registry_guid' => null,
             'current_revision_id' => null,
             'current_revision_detected_at' => null,
             'revision_count' => 1,
@@ -57,6 +56,17 @@ final class ProcurementFactory extends Factory
             'first_seen_at' => now(),
             'last_seen_at' => now(),
         ];
+    }
+
+    private function integer(mixed $id): int
+    {
+        return is_int($id) ? $id : throw new \LogicException('Invalid factory registry ID.');
+    }
+
+    /** @param array<mixed> $attributes */
+    private function registry(array $attributes): Registry
+    {
+        return Registry::query()->whereKey($this->integer($attributes['registry_id']))->firstOrFail();
     }
 
     private function eisRegistry(): Registry

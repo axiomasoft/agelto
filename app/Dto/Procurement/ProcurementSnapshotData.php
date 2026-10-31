@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement;
 
+use App\Dto\Procurement\Platform\SourceIdentity;
 use Illuminate\Support\Carbon;
 
 /**
@@ -19,14 +20,13 @@ final readonly class ProcurementSnapshotData
      */
     public function __construct(
         public int $registryId,
-        public string $registryNumber,
+        public SourceIdentity $identity,
         public string $title,
         public string $sourceStage,
         public Carbon $publishedAt,
         public Carbon $sourceUpdatedAt,
         public bool $sourceUpdatedAtHasDayPrecision = false,
-        public ?string $etpNumber = null,
-        public ?string $ikz = null,
+        public ?object $extension = null,
         public ?string $procedureType = null,
         public ?string $procedureTypeRaw = null,
         public ?string $initialPrice = null,
@@ -39,7 +39,6 @@ final readonly class ProcurementSnapshotData
         public ?Carbon $biddingEndsAt = null,
         public ?Carbon $summaryAt = null,
         public ?string $detailUrl = null,
-        public ?string $registryGuid = null,
         public ?array $attributes = null,
         public ?Carbon $sourceUpdatedBefore = null,
     ) {}
@@ -55,12 +54,11 @@ final readonly class ProcurementSnapshotData
     {
         $snapshot = [
             'registry_id' => $this->registryId,
-            'registry_number' => $this->registryNumber,
+            'source_identity' => $this->identity->toArray(),
             'title' => $this->title,
             'status' => $canonicalStatus,
             'source_stage' => $this->sourceStage,
-            'etp_number' => $this->etpNumber,
-            'ikz' => $this->ikz,
+            'extension' => $this->extension,
             'procedure_type' => $this->procedureType,
             'procedure_type_raw' => $this->procedureTypeRaw,
             'initial_price' => $this->initialPrice,
@@ -75,7 +73,6 @@ final readonly class ProcurementSnapshotData
             'bidding_ends_at' => $this->biddingEndsAt?->toIso8601String(),
             'summary_at' => $this->summaryAt?->toIso8601String(),
             'detail_url' => $this->detailUrl,
-            'registry_guid' => $this->registryGuid,
             'attributes' => $this->attributes,
         ];
 

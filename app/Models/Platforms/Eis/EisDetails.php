@@ -19,6 +19,9 @@ use Illuminate\Database\Eloquent\Model;
 #[UseFactory(EisDetailsFactory::class)]
 #[Fillable([
     'procurement_id',
+    'ikz',
+    'etp_number',
+    'registry_guid',
     'ikz_year',
     'ikz_customer_code',
     'ikz_plan_number',

@@ -120,7 +120,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `0001_01_01_000001_create_cache_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `0001_01_01_000002_create_jobs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100000_create_prc_platforms_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100001_create_prc_registries_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100001_create_prc_registries_table.php` | adapt | P2.14 | Canonical platform-scoped primary identity and single EIS extension writer baseline cutover. |
 | `2026_07_04_100002_create_prc_status_mappings_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100005_create_ref_okpd2_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100006_create_ref_ktru_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
@@ -128,13 +128,13 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_04_100008_create_ref_kbk_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100009_create_org_organizations_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100010_create_prc_procurement_parties_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100011_create_prc_procurements_table.php` | edit_create | P1.6 | P1.6 добавляет head_generation/detail_cycle_seq/status_cycle_seq/next_status_due_at в исходный CREATE (execution#subject-locks). |
+| `2026_07_04_100011_create_prc_procurements_table.php` | adapt | P2.14 | Canonical platform-scoped primary identity and single EIS extension writer baseline cutover. |
 | `2026_07_04_100012_create_prc_revisions_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100013_create_prc_events_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100014_create_prc_lots_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100015_create_prc_items_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100016_create_prc_financing_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100017_create_prc_eis_details_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100017_create_prc_eis_details_table.php` | adapt | P2.14 | Canonical platform-scoped primary identity and single EIS extension writer baseline cutover. |
 | `2026_07_04_100018_create_prc_documents_table.php` | edit_create | P1.6 | P1.6 добавляет head_generation/acquisition_cycle_seq/next_revalidation_due_at в исходный CREATE (execution#subject-locks). |
 | `2026_07_04_100019_create_prc_document_versions_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100020_create_prc_protocols_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
@@ -2999,6 +2999,9 @@ Owner: Platforms/Eis (extension writer P2.14); retention: business.
 | Column | PostgreSQL type | Nullable | Exact column definition |
 | --- | --- | --- | --- |
 | procurement_id | bigint / int8 | NO | bigint NOT NULL |
+| ikz | text / text | YES | text |
+| etp_number | text / text | YES | text |
+| registry_guid | text / text | YES | text |
 | ikz_year | integer / int4 | YES | integer |
 | ikz_customer_code | text / text | YES | text |
 | ikz_plan_number | text / text | YES | text |
@@ -3035,7 +3038,9 @@ Constraints:
 - `prc_eis_details_procurement_id_foreign`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id) ON DELETE RESTRICT`
 
 Indexes:
+- `prc_eis_details_ikz_index`: `CREATE INDEX prc_eis_details_ikz_index ON public.prc_eis_details USING btree (ikz)`
 - `prc_eis_details_pkey`: `CREATE UNIQUE INDEX prc_eis_details_pkey ON public.prc_eis_details USING btree (procurement_id)`
+- `prc_eis_details_registry_guid_index`: `CREATE INDEX prc_eis_details_registry_guid_index ON public.prc_eis_details USING btree (registry_guid)`
 
 #### prc_estimate_items
 
@@ -4427,10 +4432,10 @@ Owner: Repositories/Procurement (subject authority; Process head fields from P1.
 | --- | --- | --- | --- |
 | id | bigint / int8 | NO | bigint NOT NULL |
 | uuid | uuid / uuid | NO | uuid NOT NULL |
+| platform_id | bigint / int8 | NO | bigint NOT NULL |
 | registry_id | bigint / int8 | NO | bigint NOT NULL |
-| registry_number | text / text | NO | text NOT NULL |
-| etp_number | text / text | YES | text |
-| ikz | text / text | YES | text |
+| source_identity_type | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| source_identity_value | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
 | title | text / text | NO | text NOT NULL |
 | status | text / text | NO | text NOT NULL |
 | source_stage | text / text | NO | text NOT NULL |
@@ -4456,7 +4461,6 @@ Owner: Repositories/Procurement (subject authority; Process head fields from P1.
 | detail_failed | boolean / bool | NO | boolean DEFAULT false NOT NULL |
 | detail_parse_outcome | jsonb / jsonb | YES | jsonb |
 | succeeded_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| registry_guid | text / text | YES | text |
 | current_revision_id | bigint / int8 | YES | bigint |
 | current_revision_detected_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
 | revision_count | integer / int4 | NO | integer DEFAULT 1 NOT NULL |
@@ -4481,22 +4485,23 @@ Constraints:
 - `prc_procurements_detail_cycle_seq_check`: `CHECK ((detail_cycle_seq >= 0))`
 - `prc_procurements_head_generation_check`: `CHECK ((head_generation >= 1))`
 - `prc_procurements_pkey`: `PRIMARY KEY (id)`
-- `prc_procurements_registry_id_foreign`: `FOREIGN KEY (registry_id) REFERENCES prc_registries(id)`
-- `prc_procurements_registry_id_registry_number_unique`: `UNIQUE (registry_id, registry_number)`
+- `prc_procurements_platform_id_foreign`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
+- `prc_procurements_registry_platform_fk`: `FOREIGN KEY (registry_id, platform_id) REFERENCES prc_registries(id, platform_id)`
+- `prc_procurements_source_identity_type_check`: `CHECK ((source_identity_type ~ '^[a-z][a-z0-9_.:-]{0,95}$'::text))`
+- `prc_procurements_source_identity_unique`: `UNIQUE (platform_id, source_identity_type, source_identity_value)`
+- `prc_procurements_source_identity_value_check`: `CHECK (((char_length(source_identity_value) >= 1) AND (char_length(source_identity_value) <= 200)))`
 - `prc_procurements_status_cycle_seq_check`: `CHECK ((status_cycle_seq >= 0))`
 - `prc_procurements_uuid_unique`: `UNIQUE (uuid)`
 
 Indexes:
 - `prc_procurements_customer_org_id_index`: `CREATE INDEX prc_procurements_customer_org_id_index ON public.prc_procurements USING btree (customer_org_id)`
-- `prc_procurements_ikz_index`: `CREATE INDEX prc_procurements_ikz_index ON public.prc_procurements USING btree (ikz)`
 - `prc_procurements_okved_additional_index`: `CREATE INDEX prc_procurements_okved_additional_index ON public.prc_procurements USING btree (okved_additional)`
 - `prc_procurements_okved_code_index`: `CREATE INDEX prc_procurements_okved_code_index ON public.prc_procurements USING btree (okved_code)`
 - `prc_procurements_pkey`: `CREATE UNIQUE INDEX prc_procurements_pkey ON public.prc_procurements USING btree (id)`
 - `prc_procurements_published_at_index`: `CREATE INDEX prc_procurements_published_at_index ON public.prc_procurements USING btree (published_at)`
 - `prc_procurements_region_code_index`: `CREATE INDEX prc_procurements_region_code_index ON public.prc_procurements USING btree (region_code)`
-- `prc_procurements_registry_guid_index`: `CREATE INDEX prc_procurements_registry_guid_index ON public.prc_procurements USING btree (registry_guid)`
-- `prc_procurements_registry_id_registry_number_unique`: `CREATE UNIQUE INDEX prc_procurements_registry_id_registry_number_unique ON public.prc_procurements USING btree (registry_id, registry_number)`
 - `prc_procurements_registry_id_status_published_at_index`: `CREATE INDEX prc_procurements_registry_id_status_published_at_index ON public.prc_procurements USING btree (registry_id, status, published_at)`
+- `prc_procurements_source_identity_unique`: `CREATE UNIQUE INDEX prc_procurements_source_identity_unique ON public.prc_procurements USING btree (platform_id, source_identity_type, source_identity_value)`
 - `prc_procurements_source_updated_at_index`: `CREATE INDEX prc_procurements_source_updated_at_index ON public.prc_procurements USING btree (source_updated_at)`
 - `prc_procurements_status_bidding_ends_at_index`: `CREATE INDEX prc_procurements_status_bidding_ends_at_index ON public.prc_procurements USING btree (status, bidding_ends_at)`
 - `prc_procurements_succeeded_at_index`: `CREATE INDEX prc_procurements_succeeded_at_index ON public.prc_procurements USING btree (succeeded_at) WHERE (succeeded_at IS NOT NULL)`
@@ -4594,12 +4599,14 @@ Owner: Procurement; retention: business.
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 
 Constraints:
+- `prc_registries_id_platform_unique`: `UNIQUE (id, platform_id)`
 - `prc_registries_pkey`: `PRIMARY KEY (id)`
 - `prc_registries_platform_id_code_unique`: `UNIQUE (platform_id, code)`
 - `prc_registries_platform_id_foreign`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id) ON DELETE CASCADE`
 - `prc_registries_uuid_unique`: `UNIQUE (uuid)`
 
 Indexes:
+- `prc_registries_id_platform_unique`: `CREATE UNIQUE INDEX prc_registries_id_platform_unique ON public.prc_registries USING btree (id, platform_id)`
 - `prc_registries_pkey`: `CREATE UNIQUE INDEX prc_registries_pkey ON public.prc_registries USING btree (id)`
 - `prc_registries_platform_id_code_unique`: `CREATE UNIQUE INDEX prc_registries_platform_id_code_unique ON public.prc_registries USING btree (platform_id, code)`
 - `prc_registries_uuid_unique`: `CREATE UNIQUE INDEX prc_registries_uuid_unique ON public.prc_registries USING btree (uuid)`

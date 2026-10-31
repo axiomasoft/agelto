@@ -20,6 +20,9 @@ return new class extends Migration
                 ->onDelete('RESTRICT'); // P7.5, F-02/D133: аудитный ребёнок блокирует удаление.
 
             // ИКЗ (36 разрядов) — разбор в колонки, без парсинга строки в коде.
+            $table->text('ikz')->nullable()->index();
+            $table->text('etp_number')->nullable();
+            $table->text('registry_guid')->nullable()->index();
             $table->integer('ikz_year')->nullable();
             $table->text('ikz_customer_code')->nullable();
             $table->text('ikz_plan_number')->nullable();

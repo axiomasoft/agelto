@@ -79,7 +79,7 @@ function realCardScenario(): array
         $templates[$tab] = $wire->url('/'.$tab.'?regNumber={regNumber}')->reveal();
     }
     $registry->update(['settings' => ['procedure_url_types' => ['Электронный аукцион' => 'ea20'], 'card_url_templates' => ['ea20' => $templates]]]);
-    $procurement = Procurement::factory()->for($registry)->create(['registry_number' => '0338200009125000001',
+    $procurement = Procurement::factory()->for($registry)->create(['source_identity_value' => '0338200009125000001',
         'procedure_type_raw' => 'Электронный аукцион', 'status' => ProcurementStatus::Awarded]);
 
     return [$wire, $registry, $procurement];
@@ -112,7 +112,7 @@ test('таймаут карточки сохраняет числовые фаз
         }
         app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions('eis', $targets));
         Log::spy();
-        expect(fn () => app(CsvSourceMethod::class)->collectDetails($procurement->registry_number, $registry))
+        expect(fn () => app(CsvSourceMethod::class)->collectDetails($procurement->source_identity_value, $registry))
             ->toThrow(OutboundUnavailable::class);
         Log::shouldHaveReceived('info')->with('Crawler outbound attempt', Mockery::on(function (array $context) use ($httpCode, $receivedBytes): bool {
             $transport = $context['transport'];
@@ -137,7 +137,7 @@ test('collectDetails отправляет карточный URL с query-стр
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,
@@ -158,7 +158,7 @@ test('collectDetails возвращает ProcurementDetails с сырым HTML 
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Awarded,
@@ -181,7 +181,7 @@ test('collectDetails не забирает supplier-results для незаве�
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -201,10 +201,10 @@ test('каждый transport retry карточки заново расходу�
         // A real full canary makes the adapter healthy; the next ordinary read retries 503 through the same budget.
         DB::table('prc_network_budgets')->update(['emission_interval_us' => 100000, 'burst' => 1]);
         $source = app(CsvSourceMethod::class);
-        $source->collectDetails($procurement->registry_number, $registry);
+        $source->collectDetails($procurement->source_identity_value, $registry);
         $wire->respond('/common-info', 'temporary upstream failure', 503);
         $wire->respond('/common-info', CardHtmlFixture::commonInfo(), headers: ['Content-Type' => 'text/html; charset=UTF-8']);
-        $details = $source->collectDetails($procurement->registry_number, $registry);
+        $details = $source->collectDetails($procurement->source_identity_value, $registry);
         $attempts = DB::table('prc_request_attempts')->orderBy('request_seq')->get();
         expect($details->validation->requestIds)->toHaveCount(4)->and($attempts)->toHaveCount(9)
             ->and(DB::table('prc_network_permits')->where('state', 'released')->count())->toBe(9)
@@ -231,7 +231,7 @@ test('collectDetails кладёт сырой HTML в storage gzip при вкл�
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -257,7 +257,7 @@ test('collectDetails не пишет в storage когда retention выклю�
     $registry = fakeCardRegistry();
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -278,7 +278,7 @@ test('collectDetails бросает исключение при отсутств
     ]);
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type' => 'electronic_auction',
         'procedure_type_raw' => 'Электронный аукцион',
         'status' => ProcurementStatus::Bidding,
@@ -306,7 +306,7 @@ test('collectDetails у типа без вкладки supplier-results (мар�
     ]);
     Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'registry_number' => '0338200009125000001',
+        'source_identity_value' => '0338200009125000001',
         'procedure_type_raw' => 'Электронный аукцион на оказание услуг или выполнение работ по капитальному ремонту общего имущества в многоквартирном доме',
         'status' => ProcurementStatus::Awarded,
     ]);
@@ -326,7 +326,7 @@ test('collectDetails без активной proxy-привязки идёт н�
     [$wire, $registry, $procurement] = realCardScenario();
     try {
         Log::spy();
-        app(CsvSourceMethod::class)->collectDetails($procurement->registry_number, $registry);
+        app(CsvSourceMethod::class)->collectDetails($procurement->source_identity_value, $registry);
         expect($wire->receipts())->toHaveCount(4)
             ->and(array_unique(DB::table('prc_request_attempts')->pluck('route_id')->all()))
             ->toBe([DB::table('prc_network_routes')->where('kind', 'direct')->sole()->id]);

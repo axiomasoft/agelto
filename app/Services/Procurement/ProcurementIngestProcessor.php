@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
+use App\Dto\Procurement\Acquisition\ProcurementIdentity;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
-use App\Support\Database\PostgresAdvisoryLock;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -27,54 +27,25 @@ final readonly class ProcurementIngestProcessor
         private ProcurementStoreRepository $store,
         private StatusMappingService $statusMapping,
         private ProcurementOutcomeEvaluator $outcomeEvaluator,
-        private PostgresAdvisoryLock $locks,
     ) {}
 
-    public function ingest(ProcurementSnapshotData $data, ?int $crawlerRunId = null, ?Carbon $observedAt = null): Procurement
+    /** Caller owns the identity/subject locks and the fenced finalization transaction. */
+    public function ingestLocked(ProcurementSnapshotData $data, ProcurementIdentity $identity,
+        ?Procurement $procurement, ?int $crawlerRunId = null, ?Carbon $observedAt = null): Procurement
     {
+        CallerTransaction::require('Canonical ingestion');
         $observedAt ??= Carbon::now();
+        $now = Carbon::now();
+        $resolution = $this->statusMapping->resolve(registryId: $data->registryId, sourceStage: $data->sourceStage);
+        $snapshot = $data->toSnapshotArray(canonicalStatus: $resolution->status->value);
+        $snapshotHash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        $procurement ??= $this->store->storeProcurement($data, $resolution->status->value, $now, $identity);
+        $procurement = $procurement->wasRecentlyCreated
+            ? $this->discover($data, $resolution->status->value, $snapshot, $snapshotHash, $crawlerRunId, $now, $observedAt, $procurement)
+            : $this->applyRevision($procurement, $data, $resolution->status->value, $snapshot, $snapshotHash, $crawlerRunId, $now, $observedAt);
+        $this->outcomeEvaluator->evaluate(procurement: $procurement);
 
-        return DB::transaction(function () use ($data, $crawlerRunId, $observedAt): Procurement {
-            $now = Carbon::now();
-            $resolution = $this->statusMapping->resolve(registryId: $data->registryId, sourceStage: $data->sourceStage);
-            $snapshot = $data->toSnapshotArray(canonicalStatus: $resolution->status->value);
-            $snapshotHash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
-
-            $this->locks->acquireProcurement(
-                registryId: $data->registryId,
-                registryNumber: $data->registryNumber,
-            );
-
-            $procurement = $this->procurements->findProcurement(
-                registryId: $data->registryId,
-                registryNumber: $data->registryNumber,
-            );
-
-            $procurement = $procurement === null
-                ? $this->discover(
-                    data: $data,
-                    status: $resolution->status->value,
-                    snapshot: $snapshot,
-                    snapshotHash: $snapshotHash,
-                    crawlerRunId: $crawlerRunId,
-                    now: $now,
-                    observedAt: $observedAt,
-                )
-                : $this->applyRevision(
-                    procurement: $procurement,
-                    data: $data,
-                    status: $resolution->status->value,
-                    snapshot: $snapshot,
-                    snapshotHash: $snapshotHash,
-                    crawlerRunId: $crawlerRunId,
-                    now: $now,
-                    observedAt: $observedAt,
-                );
-
-            $this->outcomeEvaluator->evaluate(procurement: $procurement);
-
-            return $procurement;
-        });
+        return $procurement;
     }
 
     /**
@@ -88,8 +59,8 @@ final readonly class ProcurementIngestProcessor
         ?int $crawlerRunId,
         Carbon $now,
         Carbon $observedAt,
+        Procurement $procurement,
     ): Procurement {
-        $procurement = $this->store->storeProcurement(data: $data, status: $status, seenAt: $now);
 
         $revision = $this->store->storeRevision(
             procurementId: $procurement->id,

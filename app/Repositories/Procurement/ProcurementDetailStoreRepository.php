@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
-use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Award;
 use App\Models\Procurement\Bid;
 use App\Models\Procurement\Financing;
@@ -13,7 +12,7 @@ use App\Models\Procurement\PurchaseItem;
 use Illuminate\Support\Str;
 
 /**
- * Запись детального слоя карточки закупки (`prc_eis_details`/`prc_financing`/`prc_items`/
+ * Запись детального слоя карточки закупки (`prc_financing`/`prc_items`/
  * `prc_protocols`/`prc_bids`/`prc_awards`) для tab-процессоров P3.3/P3.4/P3.6/P3.7. Ни один
  * из процессоров не мутирует эти таблицы напрямую через Eloquent — только через этот
  * репозиторий.
@@ -26,17 +25,6 @@ use Illuminate\Support\Str;
  */
 final readonly class ProcurementDetailStoreRepository
 {
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
-    public function storeEisDetails(int $procurementId, array $attributes): void
-    {
-        EisDetails::query()->updateOrCreate(
-            ['procurement_id' => $procurementId],
-            $attributes,
-        );
-    }
-
     /**
      * @param  list<array<string, mixed>>  $rows
      */

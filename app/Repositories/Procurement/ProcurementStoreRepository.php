@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
+use App\Dto\Procurement\Acquisition\ProcurementIdentity;
 use App\Dto\Procurement\Network\AdapterContractRef;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\ProcurementSnapshotData;
@@ -22,14 +23,18 @@ use Illuminate\Support\Str;
 
 final readonly class ProcurementStoreRepository
 {
-    public function storeProcurement(ProcurementSnapshotData $data, string $status, Carbon $seenAt): Procurement
+    public function storeProcurement(ProcurementSnapshotData $data, string $status, Carbon $seenAt, ProcurementIdentity $identity): Procurement
     {
-        return Procurement::query()->create([
+        CallerTransaction::require('Canonical identity insert');
+        if ($data->identity->toArray() !== $identity->source->toArray() || $data->registryId !== $identity->registryId) {
+            throw new \LogicException('Identity binding mismatch.');
+        }
+        $model = new Procurement([
             'uuid' => (string) Str::uuid7(),
             'registry_id' => $data->registryId,
-            'registry_number' => $data->registryNumber,
-            'etp_number' => $data->etpNumber,
-            'ikz' => $data->ikz,
+            'platform_id' => $identity->platformId,
+            'source_identity_type' => $identity->source->type->value,
+            'source_identity_value' => $identity->source->value->value,
             'title' => $data->title,
             'status' => $status,
             'source_stage' => $data->sourceStage,
@@ -49,12 +54,21 @@ final readonly class ProcurementStoreRepository
             'bidding_ends_at' => $data->biddingEndsAt,
             'summary_at' => $data->summaryAt,
             'detail_url' => $data->detailUrl,
-            'registry_guid' => $data->registryGuid,
             'attributes' => $data->attributes,
             'revision_count' => 1,
             'first_seen_at' => $seenAt,
             'last_seen_at' => $seenAt,
         ]);
+        $model->updateTimestamps();
+        $attributes = $model->getAttributes();
+        $query = DB::table('prc_procurements');
+        $sql = DB::connection()->getQueryGrammar()->compileInsert($query, $attributes);
+        $inserted = DB::selectOne($sql.' ON CONFLICT ON CONSTRAINT prc_procurements_source_identity_unique DO NOTHING RETURNING id', array_values($attributes));
+        $procurement = app(ProcurementReadRepository::class)->findProcurement($identity, lock: true)
+            ?? throw new \LogicException('Identity insert did not yield a row.');
+        $procurement->wasRecentlyCreated = $inserted !== null;
+
+        return $procurement;
     }
 
     public function updateProcurementHead(
@@ -86,7 +100,6 @@ final readonly class ProcurementStoreRepository
             'bidding_ends_at' => $data->biddingEndsAt,
             'summary_at' => $data->summaryAt,
             'detail_url' => $data->detailUrl,
-            'registry_guid' => $data->registryGuid,
             'attributes' => $data->attributes,
             'current_revision_id' => $revision->id,
             'current_revision_detected_at' => $revision->detected_at,

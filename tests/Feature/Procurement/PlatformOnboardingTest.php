@@ -36,10 +36,9 @@ test('коммерческая площадка без ИКЗ сохраняет
 
     $procurement = Procurement::factory()->create([
         'registry_id' => $registry->id,
-        'ikz' => null,
     ]);
 
-    expect($procurement->ikz)->toBeNull();
+    expect(array_key_exists('ikz', $procurement->getAttributes()))->toBeFalse();
 
     // Классификатор позиций заменяем (OCDS-подход): своя схема через classifier_scheme,
     // не завязана на окpd2-специфичный столбец.

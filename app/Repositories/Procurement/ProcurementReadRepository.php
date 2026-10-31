@@ -4,18 +4,26 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
+use App\Dto\Procurement\Acquisition\ProcurementIdentity;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementRevision;
 use Illuminate\Support\Carbon;
 
 final readonly class ProcurementReadRepository
 {
-    public function findProcurement(int $registryId, string $registryNumber): ?Procurement
+    public function findProcurement(ProcurementIdentity $identity, bool $lock = false): ?Procurement
     {
-        return Procurement::query()
-            ->where('registry_id', $registryId)
-            ->where('registry_number', $registryNumber)
+        $procurement = Procurement::query()
+            ->where('platform_id', $identity->platformId)
+            ->where('source_identity_type', $identity->source->type->value)
+            ->where('source_identity_value', $identity->source->value->value)
+            ->when($lock, fn ($query) => $query->lockForUpdate())
             ->first();
+        if ($procurement !== null && $procurement->registry_id !== $identity->registryId) {
+            throw new \LogicException('Primary identity belongs to a different registry.');
+        }
+
+        return $procurement;
     }
 
     public function findLatestRevision(int $procurementId): ?ProcurementRevision

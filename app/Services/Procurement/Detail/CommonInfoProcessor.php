@@ -8,24 +8,26 @@ use App\Dto\Procurement\Details\CommonInfoData;
 use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
+use App\Dto\Procurement\Platform\PlatformCode;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
-use App\Services\Platforms\Eis\Card\CommonInfoParser;
+use App\Services\Procurement\Acquisition\ExtensionWriter;
 use App\Services\Reference\ClassifierResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
- * DTO → БД для вкладки `common-info`: `prc_eis_details` (1:1, upsert), `prc_financing`
+ * DTO → БД для вкладки `common-info`: registered adapter extension, `prc_financing`
  * (replace-set по годам, без строки «Всего»), `prc_items` (upsert по `position_number`,
  * с резолвом `okpd2_ref_id`/`ktru_ref_id`). Никакого DOM-парсинга здесь — вход уже
- * разобранный {@see CommonInfoData} от {@see CommonInfoParser}.
+ * разобранный {@see CommonInfoData} от platform parser.
  * Роли/организации/`customer_org_id` синхронизируются независимо, только для подтверждённого
  * полного parties snapshot.
  */
 final readonly class CommonInfoProcessor
 {
     public function __construct(
+        private ExtensionWriter $extensions,
         private ClassifierResolver $classifierResolver,
         private ProcurementDetailStoreRepository $storeRepository,
         private OrganizationPartiesProcessor $organizationPartiesProcessor,
@@ -46,16 +48,16 @@ final readonly class CommonInfoProcessor
             return;
         }
 
-        DB::transaction(function () use ($procurement, $reconcileCommonInfo, $reconcileParties, $snapshot): void {
+        $platformCode = DB::table('prc_platforms')->where('id', $procurement->platform_id)->value('code');
+        if (! is_string($platformCode)) {
+            throw new \LogicException('Missing procurement platform.');
+        }
+        $platform = new PlatformCode($platformCode);
+        DB::transaction(function () use ($procurement, $reconcileCommonInfo, $reconcileParties, $snapshot, $platform): void {
             if ($reconcileCommonInfo) {
                 $data = $snapshot->commonInfo;
 
-                if (! $this->isEmpty($data)) {
-                    $this->storeRepository->storeEisDetails(
-                        procurementId: $procurement->id,
-                        attributes: $this->eisDetailsAttributes($data),
-                    );
-                }
+                $this->extensions->persist($platform, $procurement->id, $data->extension);
 
                 $this->storeRepository->replaceFinancing(
                     procurementId: $procurement->id,
@@ -79,54 +81,6 @@ final readonly class CommonInfoProcessor
                 $this->organizationPartiesProcessor->sync(procurement: $procurement, parties: $snapshot->parties);
             }
         });
-    }
-
-    /**
-     * Ноль-как-успех запрещён (Д-8, `research/10` §2): пустая строка `prc_eis_details`
-     * неотличима от «карточка снята, данных нет» — не пишем её вовсе, если разбор не дал
-     * ни одного атрибута, ни строки финансирования, ни позиции.
-     */
-    private function isEmpty(CommonInfoData $data): bool
-    {
-        return $data->ikzYear === null
-            && $data->ikzCustomerCode === null
-            && $data->ikzPlanNumber === null
-            && $data->ikzPlangraphNumber === null
-            && $data->ikzOkpdClass === null
-            && $data->ikzOkpdSubclass === null
-            && $data->ikzOkpdGroup === null
-            && $data->ikzKvr === null
-            && $data->etpName === null
-            && $data->etpUrl === null
-            && $data->contactPersonName === null
-            && $data->contactPersonEmail === null
-            && $data->financingRows === []
-            && $data->items === [];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function eisDetailsAttributes(CommonInfoData $data): array
-    {
-        $contactPerson = array_filter([
-            'name' => $data->contactPersonName,
-            'email' => $data->contactPersonEmail,
-        ], static fn (?string $value): bool => $value !== null);
-
-        return [
-            'ikz_year' => $data->ikzYear,
-            'ikz_customer_code' => $data->ikzCustomerCode,
-            'ikz_plan_number' => $data->ikzPlanNumber,
-            'ikz_plangraph_number' => $data->ikzPlangraphNumber,
-            'ikz_okpd_class' => $data->ikzOkpdClass,
-            'ikz_okpd_subclass' => $data->ikzOkpdSubclass,
-            'ikz_okpd_group' => $data->ikzOkpdGroup,
-            'ikz_kvr' => $data->ikzKvr,
-            'etp_name' => $data->etpName,
-            'etp_url' => $data->etpUrl,
-            'contact_person' => $contactPerson !== [] ? $contactPerson : null,
-        ];
     }
 
     /**
