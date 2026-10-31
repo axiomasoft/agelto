@@ -83,6 +83,9 @@ final class PlatformSourceRules
     public static function rolePermissions(): array
     {
         return [
+            'config/platforms.php' => [
+                'App\\Services\\Platforms\\Eis\\EisDefinition',
+            ],
             'config/outbound.php' => [
                 'App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod',
             ],

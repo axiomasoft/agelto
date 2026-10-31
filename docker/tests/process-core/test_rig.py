@@ -226,7 +226,7 @@ class RigGuardsTest(unittest.TestCase):
                 compose.assert_not_called()
 
     def test_execution_suite_runs_only_owned_paths_and_rejects_empty_or_skipped_selection(self):
-        for name in ("execution", "network"):
+        for name in ("execution", "network", "platforms"):
             self.assertNotIn(name, rig.FUTURE)
             for cases, error in [([], "empty test selection"),
                                  ([{"name": "skipped", "skipped": True}, {"name": "claim", "skipped": False}], "failed/skipped"),
@@ -277,7 +277,7 @@ class RigGuardsTest(unittest.TestCase):
 
     def test_network_suite_runs_initial_machinery_after_guarded_clean_reset(self):
         self.assertIn("network", rig.IMPLEMENTED)
-        self.assertEqual(rig.FUTURE, {"platforms", "acquisition", "documents", "ai", "e2e", "faults", "load"})
+        self.assertEqual(rig.FUTURE, {"acquisition", "documents", "ai", "e2e", "faults", "load"})
         self.assertEqual(rig.SUITE_PATHS["network"], [
             "tests/Feature/ProcessCore/Network",
             "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php",
@@ -292,6 +292,25 @@ class RigGuardsTest(unittest.TestCase):
                 patch.object(rig, "write_json"), patch("sys.stdout", new=io.StringIO()):
             self.assertEqual(rig.execute("core-test-network", "network"), 0)
         self.assertEqual(calls, ["clock", ("reset", "clean-reset"), ("suite", "network")])
+
+    def test_platforms_suite_runs_owned_contracts_after_guarded_clean_reset(self):
+        self.assertIn("platforms", rig.IMPLEMENTED)
+        self.assertNotIn("platforms", rig.FUTURE)
+        self.assertEqual(rig.SUITE_PATHS["platforms"], [
+            "tests/Feature/ProcessCore/Platforms",
+            "tests/Unit/Architecture/PlatformsDomainLayoutTest.php",
+            "tests/Unit/Architecture/PlatformExtensionContractTest.php",
+        ])
+        calls = []
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "ROOT", Path(temp).parent), \
+                patch.object(rig, "new_report", return_value=(Path(temp), {"command": "core-test-platforms"})), \
+                patch.object(rig, "install_clock", side_effect=lambda: calls.append("clock") or {"epoch": 1}), \
+                patch.object(rig, "reset", side_effect=lambda folder, clock: calls.append(("reset", folder.name))), \
+                patch.object(rig, "suite", side_effect=lambda folder, name: calls.append(("suite", name)) or {"executed": 1, "exit": 0}), \
+                patch.object(rig, "write_json"), patch("sys.stdout", new=io.StringIO()):
+            self.assertEqual(rig.execute("core-test-platforms", "platforms"), 0)
+        self.assertEqual(calls, ["clock", ("reset", "clean-reset"), ("suite", "platforms")])
 
     def test_fixture_proof_requires_success_nonempty_assertions_and_no_skips(self):
         for code, result in [(1, {"executed": 1, "skipped": 0}),

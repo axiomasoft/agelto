@@ -42,7 +42,7 @@ function alignedDomainLayoutLayers(): array
         'App\Exceptions\Procurement' => [
             'root' => ['OperationFailed', 'UnknownReportFormat', 'InvalidEvalDiffPayload'],
             // P2.1: Network — typed outbound control exits, без переключения legacy callers.
-            'subareas' => ['Ai', 'Crawler', 'Health', 'Network', 'Prepare', 'Process', 'Proxy'],
+            'subareas' => ['Ai', 'Crawler', 'Health', 'Network', 'Platform', 'Prepare', 'Process', 'Proxy'],
         ],
         // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [

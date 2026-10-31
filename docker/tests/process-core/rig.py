@@ -24,20 +24,24 @@ SERVICES = {"app", "core-postgres", "core-redis", "object-storage", "fixture-htt
 VOLUMES = {"core-postgres", "core-redis", "core-objects", "core-storage", "core-bootstrap", "core-pest",
            "core-prompts", "core-estimate-prompts"}
 RUNTIME_INPUTS = ROOT / "docker/tests/process-core/runtime-inputs"
-FUTURE = {"platforms", "acquisition",
+FUTURE = {"acquisition",
           "documents", "ai", "e2e", "faults", "load"}
-IMPLEMENTED = {"up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "regression", "report", "down"}
+IMPLEMENTED = {"up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "regression", "report", "down"}
 # Domain suites run only the files their owning package filled with real assertions. execution:
 # P1.6 ledger/authority + P1.7 admission/claim/controls + P1.8 lease/checkpoint/finalize on real PG.
 # concurrency: only separate PHP processes/PG connections with deterministic barriers (P1.7 pause/
 # feeder races, P1.8 finalize fence vs controlled revocation, fault budget); real reconciler — P1.11.
 # network: P2.1 INITIAL contracts/catalog/owner DDL only, plus real PG catalog races.
 # Transport, actual-send permits and health reducers are supplied by their later owning points.
+# platforms: P2.9 config-only Definition/identity/policy assertions; adapter cases follow in P2.10–P2.12.
 SUITE_PATHS = {"execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
                "concurrency": ["tests/Integration/ProcessCore/Concurrency"],
                "observability": ["tests/Feature/ProcessCore/Observability"],
                "network": ["tests/Feature/ProcessCore/Network",
-                           "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php"]}
+                            "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php"],
+               "platforms": ["tests/Feature/ProcessCore/Platforms",
+                             "tests/Unit/Architecture/PlatformsDomainLayoutTest.php",
+                             "tests/Unit/Architecture/PlatformExtensionContractTest.php"]}
 
 
 class GuardError(RuntimeError):
@@ -650,7 +654,7 @@ def main(command):
 def execute(command, name):
     folder, result = new_report(command)
     try:
-        if name in {"reset", "install", "execution", "concurrency", "observability", "network", "regression"}:
+        if name in {"reset", "install", "execution", "concurrency", "observability", "network", "platforms", "regression"}:
             clock = install_clock()
             result["install_clock"] = clock
             write_json(folder / "install-clock.json", clock)
@@ -675,8 +679,8 @@ def execute(command, name):
             write_json(folder / "install-comparison.json", {"first": before, "second": after})
             require(before == after, "two clean installs produced different manifests")
             result["manifests"] = after
-        elif name in {"unit", "execution", "concurrency", "observability", "network", "regression"}:
-            if name in {"execution", "concurrency", "observability", "network", "regression"}:
+        elif name in {"unit", "execution", "concurrency", "observability", "network", "platforms", "regression"}:
+            if name in {"execution", "concurrency", "observability", "network", "platforms", "regression"}:
                 reset_folder = folder / "clean-reset"
                 reset_folder.mkdir()
                 reset(reset_folder, clock=clock)

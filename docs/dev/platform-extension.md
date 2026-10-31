@@ -6,6 +6,58 @@ status: living
 
 # Расширение площадки
 
+## Definition и policy (P2.9)
+
+Новый контракт объявляется один раз в `config/platforms.php` под `definitions`:
+`code => PlatformDefinitionProvider::class`. Вложенный `config/platforms/<code>.php`
+содержит policy; top-level ключ с кодом площадки в `platforms.php` запрещён.
+T38 проверяет настоящий `config:cache`: обе ветви остаются доступны.
+
+`PlatformRegistry` создаёт immutable `PlatformDefinition` только из config. Provider
+имеет либо пустой constructor, либо единственную зависимость
+`Illuminate\Contracts\Config\Repository`; registry не разрешает произвольный container graph.
+Конструктор и `definition()` provider обязаны быть чистыми. Reflection не доказывает
+отсутствие произвольных side effects в PHP: это проверяется contract tests зарегистрированных
+providers, перехватом DB/HTTP и review. Advertised implementations проверяются без создания
+объектов; отсутствующий класс, интерфейс вместо реализации и несовместимый контракт дают ошибку.
+Definition validation не выполняет catalog sync, migrations, DNS или source requests.
+
+`EisDefinition` собирает `EisPolicy`: block size строго integer 1..1000, timezone из IANA
+и полный endpoint RequestProfile. Неизвестные ключи и coercion scalar types запрещены;
+ошибка содержит config path. Network сохраняет единственное владение rate/permit/retry/TLS.
+Новая policy не копирует origin budget или TrafficClass policy в адаптер.
+
+`RegistryDefinitions` отвергает повтор code и повтор primary identity namespace внутри площадки.
+ЕИС явно объявляет `fz44 → registry:44fz`; testing-only JsonProcurement использует
+`fz44 → opaque:notice`. `SourceIdentity` состоит из platform/type/value. Opaque value сохраняет
+нули, регистр, пробелы и Unicode representation; invalid UTF-8, NUL, пустая строка и длина
+больше 200 символов запрещены. Проверка identity всегда получает конкретный request registry.
+DTO codec сохраняет ровно три строки, без alias lookup и cross-platform merge.
+
+Проверка деклараций: `php artisan platform:validate [code]`. Команда проверяет весь registry,
+затем выбранный code; она не запускает fixtures/Pest и не синхронизирует DB. Отсутствующий
+code возвращает failure. UI descriptor проверяется против `PlatformUiExtension`; extension
+descriptor — против readonly DTO и `ExtensionPersister`, с exact fully-qualified DTO в
+PHPDoc generic `@implements`. Adapter/parser version обязаны совпадать. Writer constructor
+при проверке не вызывается. Транзакционный writer и UI activation принадлежат своим cutovers.
+
+Граница staging: P2.9 ещё не активирует typed fetch API. Listing/detail/documents/partitioning
+в EIS/JSON Definition явно `UnsupportedCapability(reason)`; контрактный interface должен
+существовать до объявления Supported. P2.10 поставляет реальные fetch contracts и адаптеры,
+включая validator/cursor/filter contracts; P2.11 — общий fixture kit. P2.12 атомарно переводит
+factory, catalog sync и consumers на эту Definition, удаляет `PlatformAdapterRegistry`,
+`SourceMethodFactory`, mixed `PlatformAdapterDefinition` и старую registration map.
+До этого legacy runtime использует прежнюю карту, а новая Definition используется только
+offline validation и contract tests: второй runtime lookup/fallback не подключён.
+Схема identity и CommonInfoProcessor/ProcurementDetails меняются в acquisition cutover.
+JSON пока доказывает независимую регистрацию и namespace identity, не работу JSON parser.
+
+Адресные assertions находятся в
+`tests/Feature/ProcessCore/Platforms/T38PlatformBootValidationTest.php` и `T43EisPolicyTest.php`.
+Они не доказывают T39/T41/T42/T45 или полноту следующего среза.
+
+## Сохраняемый runtime до P2.12
+
 Площадка в данных и crawl-capability — разные вещи. `Platform`/`Registry` можно завести для
 справочника без кода; обход становится доступен только после exact definition в
 `config/crawler.php` для `Platform.code`.
@@ -41,8 +93,10 @@ make core-test-report
 Контракты команд и evidence описаны в [runbook стенда](runbooks/process-test-rig.md).
 Исторический `docker/tests/platform-extension-contract.sh` привязан к старому окружению и plan views;
 он не является интерфейсом текущей приёмки. Не используйте `|| true` или `--fix`:
-любой exit code остаётся красным. `core-test-platforms` получает domain assertions в P2.9–P2.12;
-до этого он явно возвращает `suite_not_implemented`, а сохранённые platform cases входят в Unit/Feature.
+любой exit code остаётся красным. `core-test-platforms` с P2.9 запускает текущие T38/T43
+из `tests/Feature/ProcessCore/Platforms` и platform architecture checks через isolated harness
+после guarded clean reset. Empty/skipped selection остаётся ошибкой. Адаптерные assertions
+добавляются owning пунктами P2.10–P2.12; текущий pass не подтверждает будущие механизмы.
 
 Откат migration status mappings отказывается до изменения схемы, если существуют platform-scoped
 rules. Диагностика missing mapping называет platform/registry/method, а отказ rollback говорит,
@@ -97,9 +151,10 @@ seed composition и schema model binding имеют отдельные exact per
 переназначить owner или спрятать permanent role в legacy exceptions. Удаление пар разрешено;
 P3.17 удаляет сам baseline при своём cutover. Origin inventory остаётся evidence переноса.
 
-Текущие runtime config keys остаются в `config/crawler.php`. Typed platform definitions и перенос
-`eis.*` в `config/platforms/eis.php` принадлежат P2.9–P2.12. При том переносе registry хранится
-под `platforms.definitions`: top-level code `eis` был бы перезаписан вложенным config.
+Текущие runtime config keys остаются в `config/crawler.php` до атомарного P2.12 cutover.
+P2.9 добавляет config-only definitions и `platforms.eis` для нового контракта; существующие
+readers переключаются вместе с адаптерами. Registry хранится под `platforms.definitions`:
+top-level code `eis` был бы перезаписан вложенным config.
 Нейтрализацию legacy DTO и переключение consumers выполняют их owning cutovers.
 
 ## Контракт данных адаптера

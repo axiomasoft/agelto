@@ -1,0 +1,87 @@
+<?php
+
+declare(strict_types=1);
+
+// Definition policy only until the explicit P2.12 adapter/catalog cutover.
+return [
+    'block_size' => 500,
+    'source_timezone' => env('EIS_SOURCE_TIMEZONE', 'Europe/Moscow'),
+    'endpoints' => [
+        'listing' => [
+            'target' => 'eis.listing',
+            'url' => 'https://zakupki.gov.ru/epz/order/orderCsvSettings/download.html',
+            'profile' => [
+                'code' => 'eis.csv_export',
+                'connect_seconds' => 5,
+                'low_speed_seconds' => 30,
+                'total_seconds' => 90,
+                'max_entity_bytes' => 16777216,
+                'max_text_bytes' => 50331648,
+                'redirects' => 3,
+                'attempts' => 3,
+                'distinct_routes' => 2,
+                'delays_ms' => [200, 600],
+                'response_kind' => 'text',
+                'charset_default' => 'Windows-1251',
+                'version' => 1,
+            ],
+        ],
+        'card' => [
+            'target' => 'eis.card',
+            'url' => 'https://zakupki.gov.ru/epz/order/notice/',
+            'profile' => [
+                'code' => 'eis.card_tab',
+                'connect_seconds' => 5,
+                'low_speed_seconds' => 15,
+                'total_seconds' => 30,
+                'max_entity_bytes' => 8388608,
+                'max_text_bytes' => 25165824,
+                'redirects' => 3,
+                'attempts' => 3,
+                'distinct_routes' => 2,
+                'delays_ms' => [200, 600],
+                'response_kind' => 'text',
+                'charset_default' => 'Windows-1251',
+                'version' => 1,
+            ],
+        ],
+        'document' => [
+            'target' => 'eis.document',
+            'url' => 'https://zakupki.gov.ru/',
+            'profile' => [
+                'code' => 'eis.document',
+                'connect_seconds' => 5,
+                'low_speed_seconds' => 30,
+                'total_seconds' => 240,
+                'max_entity_bytes' => 268435456,
+                'max_text_bytes' => null,
+                'redirects' => 3,
+                'attempts' => 3,
+                'distinct_routes' => 2,
+                'delays_ms' => [200, 600],
+                'response_kind' => 'binary',
+                'charset_default' => null,
+                'version' => 1,
+            ],
+        ],
+        'diagnostic' => [
+            'target' => 'eis.diagnostic',
+            'url' => 'https://zakupki.gov.ru/epz/order/extendedsearch/results.html',
+            'profile' => [
+                'code' => 'eis.diagnostics',
+                'connect_seconds' => 5,
+                'low_speed_seconds' => 10,
+                'total_seconds' => 20,
+                'max_entity_bytes' => 2097152,
+                'max_text_bytes' => 6291456,
+                'redirects' => 3,
+                'attempts' => 2,
+                'distinct_routes' => 2,
+                'delays_ms' => [200],
+                'response_kind' => 'text',
+                'charset_default' => 'Windows-1251',
+                'version' => 1,
+            ],
+        ],
+    ],
+];

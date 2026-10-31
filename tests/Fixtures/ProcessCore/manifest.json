@@ -3441,7 +3441,7 @@
     },
     {
       "path": "tests/Unit/Architecture/DomainLayoutTest.php",
-      "sha256": "e27efe41b565ee59e67f0f6d5647e24621a3bfcc0739ba52bd21b165f9c0cf54",
+      "sha256": "ca9799d633a15050ca2212af4cdd917d2c6d49127a4d2dcee4023217a806ff3d",
       "scenarios": [
         "в корне выровненных слоёв раскладки нет файлов сверх реестра root-legal классов",
         "namespace каждого файла выровненных слоёв совпадает с его путём",
@@ -3449,7 +3449,7 @@
       ],
       "original_path": "tests/Unit/Architecture/DomainLayoutTest.php",
       "original_sha256": "01928226c2909b569254785ae9c2f297a44833f7abc076b249cb04637864f381",
-      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved. P1.6 registers the Process repository subarea. P1.8 registers the Process exceptions subarea (typed control exits). P2.1 registers neutral Network enums/DTO/repositories/exceptions and Platform DTO subareas; original scenario names and assertions preserved."
+      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved. P1.6 registers the Process repository subarea. P1.8 registers the Process exceptions subarea (typed control exits). P2.1 registers neutral Network enums/DTO/repositories/exceptions and Platform DTO subareas; original scenario names and assertions preserved. P2.9 registers the Platform exceptions subarea for InvalidPlatformDefinition; original scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Architecture/HistoryModulePlatformAgnosticTest.php",
