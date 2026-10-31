@@ -45,10 +45,6 @@ return new class extends Migration
         DB::statement('CREATE INDEX prc_fetches_proxy_id_index ON prc_fetches (proxy_id)');
         DB::statement('CREATE INDEX prc_fetches_procurement_id_index ON prc_fetches (procurement_id)');
         DB::statement(
-            'ALTER TABLE prc_fetches ADD CONSTRAINT prc_fetches_crawler_run_id_foreign '
-            .'FOREIGN KEY (crawler_run_id) REFERENCES prc_crawler_runs (id) ON DELETE NO ACTION',
-        );
-        DB::statement(
             'ALTER TABLE prc_fetches ADD CONSTRAINT prc_fetches_proxy_id_foreign '
             .'FOREIGN KEY (proxy_id) REFERENCES prc_proxies (id) ON DELETE NO ACTION',
         );

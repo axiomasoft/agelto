@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Procurement\Crawler;
 
 use App\Dto\Procurement\Acquisition\ListingDetailReference;
+use App\Dto\Procurement\Acquisition\ListingFacts;
 use App\Dto\Procurement\Acquisition\ListingReceipt;
 use App\Dto\Procurement\Acquisition\ListingResult;
 use App\Dto\Procurement\Acquisition\ProcurementSummary;
@@ -23,6 +24,7 @@ use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Repositories\Procurement\Process\TransitionRepository;
+use App\Services\Procurement\Acquisition\AcquisitionProvenance;
 use App\Services\Procurement\Acquisition\HeadSnapshot;
 use App\Services\Procurement\Acquisition\IdentityResolver;
 use App\Services\Procurement\Acquisition\ListingPublicationLocks;
@@ -75,21 +77,37 @@ final class ListingFinalizer implements StagePublicationRepository
         $successors = [];
         $references = [];
         if ($result->page->assessment->usable()) {
+            $ignored = DB::table('prc_ignored_items')->where('registry_id', $task->registryId)
+                ->whereIn('registry_number', array_map(fn (ProcurementSummary $s) => $s->identity->value->value, $result->page->summaries->items))
+                ->pluck('registry_number')->all();
+            $seen = [];
             foreach ($result->page->summaries->items as $i => $summary) {
+                $identityKey = json_encode($summary->identity->toArray(), JSON_THROW_ON_ERROR);
+                if (isset($seen[$identityKey]) || in_array($summary->identity->value->value, $ignored, true)) {
+                    continue;
+                }
+                $seen[$identityKey] = true;
                 $locked = $this->publication->locked[$i];
                 $head = $locked->procurement;
+                $facts = $summary->facts;
+                $extension = $head === null ? null : $this->heads->make($head, $summary->identity)->extension;
+                $extension = $facts?->mergeExtension($extension) ?? $extension;
                 $data = new ProcurementSnapshotData($task->registryId, $summary->identity, $summary->title, $summary->sourceStage,
                     Carbon::instance($summary->publishedAt), Carbon::instance($summary->updatedAt),
                     sourceUpdatedAtHasDayPrecision: $summary->updatedAtDayPrecision,
-                    extension: $head === null ? null : $this->heads->make($head, $summary->identity)->extension,
-                    procedureType: $head?->procedure_type, procedureTypeRaw: $head?->procedure_type_raw,
+                    extension: $extension,
+                    procedureType: $facts !== null && $facts->observes('procedureType') ? $facts->procedureType : $head?->procedure_type,
+                    procedureTypeRaw: $facts !== null && $facts->observes('procedureTypeRaw') ? $facts->procedureTypeRaw : $head?->procedure_type_raw,
                     initialPrice: $summary->initialPrice, currency: $summary->currency,
                     advancePercent: $head?->advance_percent, okvedCode: $head?->okved_code, okvedAdditional: $head?->okved_additional,
-                    regionCode: $head?->region_code, biddingStartsAt: $head?->bidding_starts_at,
-                    biddingEndsAt: $head?->bidding_ends_at, summaryAt: $head?->summary_at, detailUrl: $head?->detail_url,
-                    attributes: $this->attributes($head),
-                    sourceUpdatedBefore: $summary->updatedAtDayPrecision ? Carbon::instance($summary->updatedAt)->addDay() : null);
-                $procurement = $this->snapshots->persistLocked($data, $locked, observedAt: Carbon::instance($result->observedAt));
+                    regionCode: $head?->region_code,
+                    biddingStartsAt: $facts !== null && $facts->observes('biddingStartsAt') ? ($facts->biddingStartsAt === null ? null : Carbon::instance($facts->biddingStartsAt)) : $head?->bidding_starts_at,
+                    biddingEndsAt: $facts !== null && $facts->observes('biddingEndsAt') ? ($facts->biddingEndsAt === null ? null : Carbon::instance($facts->biddingEndsAt)) : $head?->bidding_ends_at,
+                    summaryAt: $head?->summary_at, detailUrl: $head?->detail_url,
+                    attributes: $this->attributes($head, $facts),
+                    sourceUpdatedBefore: $summary->updatedBefore === null ? null : Carbon::instance($summary->updatedBefore));
+                $procurement = $this->snapshots->persistLocked($data, $locked,
+                    processRunId: AcquisitionProvenance::runFor($input), observedAt: Carbon::instance($result->observedAt));
                 $detail = $this->detailIntent($procurement->id, $procurement->head_generation, $input, $summary);
                 $successors[$detail->intentId->value] = $detail;
                 $references[] = new ListingDetailReference($detail->intentId, $procurement->id,
@@ -175,24 +193,28 @@ final class ListingFinalizer implements StagePublicationRepository
     }
 
     /** @return array<string, mixed>|null */
-    private function attributes(?Procurement $head): ?array
+    private function attributes(?Procurement $head, ?ListingFacts $facts): ?array
     {
         $attributes = $head?->getAttribute('attributes');
-        if ($attributes === null) {
-            return null;
-        }
-        if (! $attributes instanceof Collection) {
+        if ($attributes !== null && ! $attributes instanceof Collection) {
             throw new \LogicException('Invalid canonical diagnostic attributes.');
         }
         $result = [];
-        foreach ($attributes as $key => $value) {
+        foreach ($attributes ?? [] as $key => $value) {
             if (! is_string($key)) {
                 throw new \LogicException('Invalid diagnostic attribute key.');
             }
             $result[$key] = $value;
         }
+        if ($facts !== null && $facts->observes('customerName')) {
+            if ($facts->customerName === null) {
+                unset($result['customer_name']);
+            } else {
+                $result['customer_name'] = $facts->customerName;
+            }
+        }
 
-        return $result;
+        return $result === [] && $attributes === null ? null : $result;
     }
 
     public function afterSuccessors(WorkInput $input, WorkId $workId, ProcessUuid $eventId, ProcessUuid $projectionId): void

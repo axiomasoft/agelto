@@ -3,41 +3,39 @@
 declare(strict_types=1);
 
 use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Crawler\SkippedListingRow;
-use App\Dto\Procurement\Crawler\WindowFilter;
+use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Network\ProxyNodeConfiguration;
-use App\Dto\Procurement\ProcurementDetails;
-use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceMethod as Method;
+use App\Dto\Procurement\Network\TransportSucceeded;
+use App\Dto\Procurement\Process\RetryAt;
+use App\Dto\Procurement\Process\StageDeferred;
+use App\Dto\Procurement\ProcurementSnapshotData;
+use App\Enums\Procurement\Network\TrafficClass;
+use App\Enums\Procurement\Process\DeferralReason;
+use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
-use App\Jobs\Procurement\CrawlRunJob;
+use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\RawArtifact;
-use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceIncident;
-use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Models\Procurement\Procurement;
 use App\Services\PartitionCoverage;
-use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
+use App\Services\Platforms\Eis\Card\DocumentsParser;
 use App\Services\Platforms\Eis\EisSourceClock;
+use App\Services\Procurement\Acquisition\AcquisitionArtifacts;
+use App\Services\Procurement\Acquisition\AcquisitionScheduler;
+use App\Services\Procurement\Acquisition\AcquisitionTick;
+use App\Services\Procurement\Acquisition\IdentityResolver;
 use App\Services\Procurement\Acquisition\SnapshotFinalizer;
-use App\Services\Procurement\ArchiveWindowScanner;
-use App\Services\Procurement\Contracts\ListingRowMapper;
-use App\Services\Procurement\Contracts\SourceMethod;
-use App\Services\Procurement\Crawler\ResumeWaitingRuns;
-use App\Services\Procurement\CsvBlockIngestor;
-use App\Services\Procurement\DetailRefetchSelector;
-use App\Services\Procurement\Health\CardLayoutPreflight;
-use App\Services\Procurement\Modes\FreshRunProcessor;
 use App\Services\Procurement\Network\BoundedResponseReader;
+use App\Services\Procurement\Process\QueueWorkWakePublisher;
+use App\Services\Procurement\Process\RelayDaemon;
+use App\Services\Procurement\Process\StageQueueMap;
+use App\Services\Procurement\Process\WorkFeeder;
+use App\Services\Procurement\Process\WorkFinalizer;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Support\SecretRedactor;
+use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use GuzzleHttp\Psr7\Response as PsrResponse;
 use GuzzleHttp\Psr7\Utils;
 use Illuminate\Database\QueryException;
@@ -50,17 +48,158 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Tests\Support\Crawler\SourceControlScenario as S;
-use Tests\Support\Doubles\Crawler\ScriptedSourceMethod;
+use Tests\Support\Platforms\Contract\ContractRuntime;
 use Tests\Support\Postgres\ConcurrentTransactions;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ListingFixtures;
 
 beforeEach(function (): void {
-    LegacyBusinessNetwork::install();
     Storage::fake('s3');
     $this->realQueue = Queue::getFacadeRoot();
     Queue::fake();
+});
+
+test('typed document parser accepts a known empty container and rejects an unrecognized page', function (): void {
+    $parser = app(DocumentsParser::class);
+    expect($parser->parse('<div class="blockFilesTabDocs"></div>', strict: true)->authorizesReconciliation())->toBeTrue()
+        ->and($parser->parse('<html>maintenance</html>', strict: true)->authorizesReconciliation())->toBeFalse();
+});
+
+test('Process detail admission visits a small platform cohort before consuming the large cohort backlog', function (): void {
+    ExecutionFixtures::authority([StageCode::Detail], lanes: [
+        'acquisition' => ['max_outstanding' => 2, 'max_running' => 1, 'low_watermark' => 0, 'refill_max' => 2],
+        'acquisition.detail' => ['max_outstanding' => 2, 'max_running' => 1, 'low_watermark' => 0, 'refill_max' => 2],
+    ]);
+    DB::transaction(function () use (&$small): void {
+        for ($i = 0; $i < 20; $i++) {
+            ExecutionFixtures::detailWork('platform:large');
+        }
+        $small = ExecutionFixtures::detailWork('platform:small');
+    });
+    expect(app(WorkFeeder::class)->tick('acquisition'))->toBe(2)
+        ->and(ExecutionFixtures::work($small)->state)->toBe('admitted')
+        ->and(DB::table('prc_process_work')->where('cohort_key', 'platform:large')->where('state', 'admitted')->count())->toBe(1);
+});
+
+function auditDaySnapshot(Registry $registry, string $id, string $day, string $title, EisSourceClock $clock): ProcurementSnapshotData
+{
+    $start = $clock->parseDateTime('!d.m.Y', $day);
+
+    return new ProcurementSnapshotData($registry->id,
+        app(IdentityResolver::class)->forRegistry($registry->id, $id)->source,
+        $title, 'Подача заявок', Carbon::parse('2026-01-01'), $start,
+        sourceUpdatedAtHasDayPrecision: true, sourceUpdatedBefore: $clock->endOfSourceDay($start), initialPrice: '1250000.50');
+}
+
+test('поздний ingest старого дневного наблюдения не откатывает более поздний HTTP снимок', function (): void {
+    $registry = EisCrawlerFactory::new()->create()->registry;
+    $clock = new EisSourceClock('Europe/Berlin');
+    $old = auditDaySnapshot($registry, '0173200001234000999', '25.10.2026', 'Старое название', $clock);
+    $new = auditDaySnapshot($registry, '0173200001234000999', '25.10.2026', 'Новое название', $clock);
+    $head = app(SnapshotFinalizer::class)->ingest($new, observedAt: Carbon::parse('2026-10-25 12:00:00.200000 UTC'));
+    app(SnapshotFinalizer::class)->ingest($old, observedAt: Carbon::parse('2026-10-25 12:00:00.100000 UTC'));
+    expect($head->refresh()->title)->toBe('Новое название')->and($head->source_updated_has_day_precision)->toBeTrue()
+        ->and($head->source_order_ambiguous)->toBeTrue()->and($head->source_updated_before->toIso8601String())->toBe('2026-10-25T23:00:00+00:00')
+        ->and($head->revision_count)->toBe(1);
+});
+
+test('более новый source day сохраняет время собственного HTTP снимка', function (): void {
+    $registry = EisCrawlerFactory::new()->create()->registry;
+    $clock = new EisSourceClock;
+    $ingest = app(SnapshotFinalizer::class);
+    $head = $ingest->ingest(auditDaySnapshot($registry, '0173200001234000988', '25.10.2026', 'Исходная редакция', $clock),
+        observedAt: Carbon::parse('2026-10-26 12:00:00.300000 UTC'));
+    $ingest->ingest(auditDaySnapshot($registry, '0173200001234000988', '26.10.2026', 'Новая редакция', $clock),
+        observedAt: Carbon::parse('2026-10-26 12:00:00.100000 UTC'));
+    expect($head->refresh()->source_observed_at->format('u'))->toBe('100000');
+    $ingest->ingest(auditDaySnapshot($registry, '0173200001234000988', '26.10.2026', 'Ещё новее', $clock),
+        observedAt: Carbon::parse('2026-10-26 12:00:00.200000 UTC'));
+    expect($head->refresh()->title)->toBe('Ещё новее');
+});
+
+test('Process producer invalid profiles cannot starve later due profiles or multiply one due allocation', function (): void {
+    ListingFixtures::bind();
+    $bad = [];
+    foreach (range(1, 12) as $unused) {
+        $profile = AcquisitionProfileFixtures::create();
+        $profile->update(['filter' => new EisSearchFilter(okpd2Codes: ['99'])]);
+        $bad[] = $profile->id;
+    }
+    $valid = AcquisitionProfileFixtures::create();
+    $scheduler = app(AcquisitionScheduler::class);
+    foreach (Crawler::query()->get() as $profile) {
+        $scheduler->configure($profile->id, $profile->listing_kind, '* * * * *', 'UTC', $profile->profile_version);
+    }
+    DB::table('prc_acquisition_schedules')->update(['next_due_at' => DB::raw("clock_timestamp()-interval '1 minute'")]);
+    app(AcquisitionTick::class)->tick();
+    app(AcquisitionTick::class)->tick();
+    expect(DB::table('prc_process_runs')->whereIn('profile_id', $bad)->count())->toBe(0)
+        ->and(DB::table('prc_process_runs')->where('profile_id', $valid->id)->count())->toBe(1)
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
+});
+
+test('actual Redis refusal leaves a durable Process wake unclaimed and recoverable after queue restoration', function (): void {
+    ExecutionFixtures::authority([StageCode::Detail]);
+    $work = DB::transaction(fn () => ExecutionFixtures::detailWork());
+    app(WorkFeeder::class)->tick('acquisition');
+    $original = config('database.redis.default.port');
+    config(['database.redis.default.port' => 1, 'database.redis.default.timeout' => 0.1]);
+    Redis::purge('default');
+    try {
+        $publisher = new QueueWorkWakePublisher(app(StageQueueMap::class), $this->realQueue);
+        $relay = app()->makeWith(RelayDaemon::class, ['publisher' => $publisher]);
+        expect($relay->tick()->errorCode)->toBe('redis_publish_failed');
+        $row = DB::table('prc_process_outbox')->where('dedup_key', 'wake:'.$work->value->value.':1')->sole();
+        expect($row->claim_token)->toBeNull()->and($row->claim_until)->toBeNull()->and($row->published_at)->toBeNull();
+    } finally {
+        config(['database.redis.default.port' => $original]);
+        Redis::purge('default');
+    }
+    $publisher = new QueueWorkWakePublisher(app(StageQueueMap::class), Queue::getFacadeRoot());
+    $relay = app()->makeWith(RelayDaemon::class, ['publisher' => $publisher]);
+    expect($relay->tick()->processed)->toBe(1);
+    Queue::assertPushed(ExecuteWorkJob::class, 1);
+});
+
+test('Process progress reports a durable wait reason independently from delivery activity', function (): void {
+    ExecutionFixtures::authority([StageCode::Detail]);
+    FinalizeFixtures::bind(StageCode::Detail);
+    $work = DB::transaction(fn () => ExecutionFixtures::detailWork());
+    $lease = FinalizeFixtures::running($work);
+    app(WorkFinalizer::class)->finish($lease, new StageDeferred(
+        DeferralReason::RateLimit, new RetryAt(new DateTimeImmutable('+1 hour'))));
+    expect(Artisan::call('crawler:progress'))->toBe(0)->and(Artisan::output())->toContain('rate_limit', 'deferred');
+});
+
+test('direct raw catalog registration preserves the newest usage of an immutable repeated path', function (): void {
+    $store = app(StoreRawFetchArtifactAction::class);
+    $path = $store->execute('s3', 'raw/catalog', ['id' => 1], 'same bytes', 'txt');
+    $this->travel(2)->hours();
+    $store->execute('s3', 'raw/catalog', ['id' => 1], 'same bytes', 'txt');
+    $latest = RawArtifact::query()->where('path', $path)->value('last_seen_at');
+    $this->travelBack();
+    $store->execute('s3', 'raw/catalog', ['id' => 1], 'same bytes', 'txt');
+    expect(RawArtifact::query()->where('path', $path)->count())->toBe(1)
+        ->and(RawArtifact::query()->where('path', $path)->value('last_seen_at'))->toBe($latest)
+        ->and(array_key_exists('crawler:catalog-raw-history', Artisan::all()))->toBeFalse();
+});
+
+test('acquisition raw catalog respects independently configured listing and detail disks', function (): void {
+    config(['crawler.raw_disk' => 'listing-disk', 'crawler.raw_html_disk' => 'detail-disk',
+        'crawler.raw_html_retention_enabled' => true, 'crawler.raw_html_gzip' => false]);
+    Storage::fake('listing-disk');
+    Storage::fake('detail-disk');
+    $capture = app(AcquisitionArtifacts::class);
+    foreach ([TrafficClass::FreshListing, TrafficClass::Detail] as $traffic) {
+        $capture->capture(new TransportSucceeded(
+            ContractRuntime::response('raw body', 'text/plain'),
+            LedgerFixtures::uuid()), $traffic);
+    }
+    expect(RawArtifact::query()->pluck('disk')->sort()->values()->all())->toBe(['detail-disk', 'listing-disk']);
 });
 
 test('распакованное тело ограничено фактическими байтами и поток закрывается после отказа', function (): void {
@@ -78,25 +217,10 @@ test('просроченный deadline закрывает тело до его 
     expect($input->isReadable())->toBeFalse();
 });
 
-test('documents допускает пустой контейнер и отклоняет заглушку', function (): void {
-    $preflight = app(CardLayoutPreflight::class);
-    expect($preflight->missingBaseSelectors(new ProcurementDetails(registryNumber: '1', procedureUrlType: 'test', documentsHtml: '<div class="blockFilesTabDocs"></div>')))->toBe([])
-        ->and($preflight->missingBaseSelectors(new ProcurementDetails(registryNumber: '1', procedureUrlType: 'test', documentsHtml: '<html>maintenance</html>')))
-        ->toBe(['documents' => ['div.blockFilesTabDocs']]);
-});
-
-test('карточки маленькой площадки получают долю общего лимита', function (): void {
-    $large = Registry::factory()->create();
-    $small = Registry::factory()->for(Platform::factory()->create(), 'platform')->create();
-    Procurement::factory()->count(20)->create(['registry_id' => $large->id, 'detail_fetched_at' => null]);
-    $one = Procurement::factory()->create(['registry_id' => $small->id, 'detail_fetched_at' => null]);
-    expect(app(DetailRefetchSelector::class)->due(2)->pluck('id')->all())->toContain($one->id);
-});
-
 test('plaintext прокси обновляется идемпотентно без изменения уже зашифрованного пароля', function (): void {
     $proxy = Proxy::factory()->create(['username' => 'user']);
     DB::table('prc_network_routes')->where('id', $proxy->route_id)->update(['secret_ref' => 'AUDIT_PROXY_SECRET']);
-    $crawler = Crawler::factory()->withProxies($proxy)->create();
+    $crawler = EisCrawlerFactory::new()->withProxies($proxy)->create();
     putenv('AUDIT_PROXY_SECRET=first');
     try {
         $resolver = app(ProxyBindingResolver::class);
@@ -136,24 +260,6 @@ test('граница суток хранит 23 и 25 часов в зоне с 
     expect((int) $start->diffInHours($clock->endOfSourceDay($start)))->toBe($hours);
 })->with([['29.03.2026', 23], ['25.10.2026', 25]]);
 
-test('поздний ingest старого дневного наблюдения не откатывает более поздний HTTP снимок', function (): void {
-    $crawler = Crawler::factory()->create();
-    $row = S::row('0173200001234000999');
-    $row['Дата обновления'] = '25.10.2026';
-    $mapper = new EisCsvRowMapper(new EisSourceClock('Europe/Berlin'));
-    $old = $mapper->map($row, $crawler);
-    $row['Наименование закупки'] = 'Новое название';
-    $new = $mapper->map($row, $crawler);
-    $ingest = app(SnapshotFinalizer::class);
-    $head = $ingest->ingest($new, observedAt: Carbon::parse('2026-10-25 12:00:00.200000 UTC'));
-    $ingest->ingest($old, observedAt: Carbon::parse('2026-10-25 12:00:00.100000 UTC'));
-    expect($head->refresh()->title)->toBe('Новое название')
-        ->and($head->getAttribute('source_updated_has_day_precision'))->toBeTrue()
-        ->and($head->getAttribute('source_order_ambiguous'))->toBeTrue()
-        ->and($head->getAttribute('source_updated_before')->toIso8601String())->toBe('2026-10-25T23:00:00+00:00')
-        ->and($head->revision_count)->toBe(1);
-});
-
 test('частично покрытый месяц достраивается по границам а имя чужой таблицы не считается покрытием', function (): void {
     DB::statement('CREATE TABLE audit_partition_probe (at timestamptz) PARTITION BY RANGE (at)');
     DB::statement("CREATE TABLE audit_partition_probe_half PARTITION OF audit_partition_probe FOR VALUES FROM ('2026-01-01') TO ('2026-01-15')");
@@ -166,52 +272,6 @@ test('частично покрытый месяц достраивается п
     expect(fn () => $coverage->ensure('audit_partition_probe', Carbon::parse('2026-02-01 UTC'), Carbon::parse('2026-03-01 UTC')))
         ->toThrow(QueryException::class);
 });
-
-test('повтор окна восстанавливает строку потерянную при удалении перед offset и не дублирует ревизии', function (): void {
-    config(['crawler.platforms.eis.block_size' => 2]);
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-    // Pass one misses C after a deletion shifts it before offset 3. Two later stable
-    // passes see A,C. Both remain represented, and repeat ingest creates no new revisions.
-    $first = S::rows(1, 2);
-    $changed = S::rows(2, 2);
-    $source = S::install(new ScriptedSourceMethod(listing: [$first, S::end(), $changed, S::end(), $changed, S::end()]));
-    $result = app(ArchiveWindowScanner::class)->scan($crawler, $run, new WindowFilter('update', now()->startOfDay(), now()->startOfDay()));
-    expect($result)->toBe(ArchiveWindowScanResult::Drained)
-        ->and($source->requestedBlocks)->toBe([1, 3, 1, 3, 1, 3])
-        ->and(Procurement::query()->count())->toBe(4)
-        ->and(Procurement::query()->max('revision_count'))->toBe(1);
-});
-
-test('нестабильное окно остаётся незавершённым после трёх проходов', function (): void {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-    S::install(new ScriptedSourceMethod(listing: [S::rows(1), S::rows(2), S::rows(3)]));
-    expect(app(ArchiveWindowScanner::class)->scan($crawler, $run, new WindowFilter('update', now()->startOfDay(), now()->startOfDay())))
-        ->toBe(ArchiveWindowScanResult::Stopped)
-        ->and($run->refresh()->status)->toBe(RunStatus::Paused);
-});
-
-test('изменение маршрута между блоками останавливает старый fresh профиль', function (string $change): void {
-    $crawler = Crawler::factory()->create();
-    $source = Mockery::mock(SourceMethod::class);
-    $source->shouldReceive('isAvailable')->once()->andReturnTrue();
-    $source->shouldReceive('collectListing')->once()->andReturnUsing(function () use ($crawler, $change) {
-        if ($change === 'platform') {
-            $crawler->registry->platform->update(['base_url' => 'https://changed.test']);
-        } else {
-            $crawler->registry()->update(['settings' => json_encode(['changed' => true])]);
-        }
-
-        return S::rows(1);
-    });
-    app()->instance($source::class, $source);
-    config(['crawler.platforms.eis.source_methods' => [Method::Csv->value => $source::class]]);
-    $run = app(FreshRunProcessor::class)->run($crawler);
-    expect($run->status)->toBe(RunStatus::Paused)
-        ->and($run->stats->get('stop_reason'))->toContain('между блоками')
-        ->and($run->cursor->get('blockFrom'))->toBe(501);
-})->with(['registry', 'platform']);
 
 test('секреты скрываются в URL SQL и вложенном контексте', function (): void {
     $clean = SecretRedactor::text('https://user:secret@host.test/?token=abc password="xyz" SQL: update proxies set password=private');
@@ -231,61 +291,6 @@ test('retention удаляет ограниченную порцию проср�
         ->and(SourceIncident::query()->count())->toBe(2);
     Storage::disk('s3')->assertMissing($old);
     Storage::disk('s3')->assertExists($fresh);
-});
-
-test('осознанный пропуск строки отличается от неразобранной строки', function (): void {
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create();
-    $mapper = Mockery::mock(ListingRowMapper::class);
-    $mapper->shouldReceive('map')->once()->andReturn(new SkippedListingRow('metadata'));
-    app()->instance($mapper::class, $mapper);
-    config(['crawler.platforms.eis.listing_mapper' => $mapper::class]);
-    $result = app(CsvBlockIngestor::class)->ingest($crawler, $run, S::rows(1, 1));
-    expect($result->failure)->toBeNull()->and($result->rowsSkipped)->toBe(1);
-});
-
-test('невалидные первые contexts не голодают последующие due прогоны и burst ограничен', function (): void {
-    $registry = Registry::factory()->eis()->create();
-    for ($i = 0; $i < 12; $i++) {
-        $crawler = Crawler::factory()->create(['registry_id' => $registry->id]);
-        Run::factory()->for($crawler)->create(['status' => RunStatus::Paused, 'stats' => ['source_suspended' => true]]);
-    }
-    $crawler = Crawler::factory()->create(['registry_id' => $registry->id]);
-    $valid = Run::factory()->for($crawler)->create(['status' => RunStatus::Paused, 'stats' => [
-        'source_suspended' => true, 'execution_context' => ['mode' => 'fresh', 'execution_lane' => 'standard'],
-    ]]);
-    $resumer = app(ResumeWaitingRuns::class);
-    expect($resumer->resumeDue(limit: 10))->toBe(0)->and($resumer->resumeDue(limit: 10))->toBe(1)->and($resumer->resumeDue(limit: 10))->toBe(0);
-    Queue::assertPushed(CrawlRunJob::class, 1);
-    expect($valid->refresh()->stats->get('source_suspended'))->toBeTrue();
-});
-
-test('реальный отказ Redis не теряет due прогон и не оставляет dispatch claim', function (): void {
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Paused, 'stats' => [
-        'source_suspended' => true, 'execution_context' => ['mode' => 'fresh', 'execution_lane' => 'standard'],
-    ]]);
-    // Real socket refusal in the isolated container; no Redis service or data is stopped/deleted.
-    Queue::swap($this->realQueue);
-    config(['database.redis.default.port' => 1, 'database.redis.default.timeout' => 0.1]);
-    Redis::purge('default');
-    try {
-        expect(fn () => app(ResumeWaitingRuns::class)->resumeDue())->toThrow(RedisException::class);
-        expect($run->refresh()->stats->get('source_suspended'))->toBeTrue()
-            ->and($run->getAttribute('source_resume_claimed_until'))->toBeNull();
-    } finally {
-        config(['database.redis.default.port' => 6379]);
-        Redis::purge('default');
-        Queue::fake();
-    }
-    expect(app(ResumeWaitingRuns::class)->resumeDue())->toBe(1);
-    Queue::assertPushed(CrawlRunJob::class, 1);
-});
-
-test('монитор обнаруживает старую паузу несмотря на свежую попытку dispatch', function (): void {
-    $crawler = Crawler::factory()->create();
-    Run::factory()->for($crawler)->create(['status' => RunStatus::Paused, 'last_heartbeat_at' => now()->subHours(2), 'source_resume_checked_at' => now()]);
-    expect(Artisan::call('crawler:progress'))->toBe(1);
 });
 
 test('четыре процесса не расходуют больше одного общего HTTP слота', function (): void {
@@ -316,72 +321,4 @@ PHP;
         PermitFixtures::clean();
     }
 
-});
-
-test('backfill raw каталога сохраняет новейшее использование повторяющегося пути', function (): void {
-    $path = 'raw/csv/legacy/payload.csv';
-    Fetch::factory()->create(['artifact_ref' => $path, 'fetched_at' => now()->subDays(40)]);
-    Fetch::factory()->create(['artifact_ref' => $path, 'fetched_at' => now()->subDay()]);
-    expect(Artisan::call('crawler:catalog-raw-history'))->toBe(0);
-    $seen = DB::table((new RawArtifact)->getTable())->where('path', $path)->value('last_seen_at');
-    expect(Carbon::parse($seen)->toDateString())->toBe(now()->subDay()->toDateString());
-    expect(Artisan::call('crawler:catalog-raw-history'))->toBe(0)
-        ->and(DB::table((new RawArtifact)->getTable())->where('path', $path)->count())->toBe(1);
-});
-
-test('после нестабильного многоблочного окна возобновление проверяет весь интервал', function (): void {
-    config(['crawler.platforms.eis.block_size' => 2]);
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-    $window = new WindowFilter('update', now()->startOfDay(), now()->startOfDay());
-    S::install(new ScriptedSourceMethod(listing: [S::rows(1, 2), S::end(), S::rows(2, 2), S::end(), S::rows(3, 2), S::end()]));
-    $scanner = app(ArchiveWindowScanner::class);
-    expect($scanner->scan($crawler, $run, $window))->toBe(ArchiveWindowScanResult::Stopped)
-        ->and($run->refresh()->cursor->get('blockFrom'))->toBe(1);
-    $run->update(['status' => RunStatus::Running]);
-    $source = S::install(new ScriptedSourceMethod(listing: [S::rows(3, 2), S::end()]));
-    expect($scanner->scan($crawler, $run, $window))->toBe(ArchiveWindowScanResult::Drained)
-        ->and($source->requestedBlocks)->toBe([1, 3])
-        ->and(Procurement::query()->max('revision_count'))->toBe(1);
-});
-
-test('backfill различает диски HTML карточек и CSV листинга', function (): void {
-    config(['crawler.raw_disk' => 'listing-disk', 'crawler.raw_html_disk' => 'detail-disk']);
-    Fetch::factory()->create(['stage' => 'listing', 'artifact_ref' => 'raw/csv/legacy.csv']);
-    Fetch::factory()->create(['stage' => 'detail', 'artifact_ref' => 'raw/html/legacy.html']);
-    expect(Artisan::call('crawler:catalog-raw-history'))->toBe(0)
-        ->and(DB::table((new RawArtifact)->getTable())->where('path', 'raw/html/legacy.html')->value('disk'))->toBe('detail-disk')
-        ->and(DB::table((new RawArtifact)->getTable())->where('path', 'raw/csv/legacy.csv')->value('disk'))->toBe('listing-disk');
-});
-
-test('HTTP 200 с ошибкой схемы не обновляет время успешного блока', function (): void {
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create();
-    $ingestor = app(CsvBlockIngestor::class);
-    $ingestor->ingest($crawler, $run, S::rows(1));
-    $success = $run->refresh()->stats->get('listing_last_success_at');
-    expect($success)->not->toBeNull();
-    $this->travel(1)->minutes();
-    $invalid = new ListingBatch(
-        rows: [], rawBody: 'changed-header', dedupSignature: null, rowsTotal: 0,
-        httpStatus: 200, durationMs: 1, requestParams: [], header: ['changed-header'],
-    );
-    expect($ingestor->ingest($crawler, $run, $invalid)->failure)->not->toBeNull()
-        ->and($run->refresh()->stats->get('listing_last_success_at'))->toBe($success);
-});
-
-test('более новый source day сохраняет время собственного HTTP снимка', function (): void {
-    $crawler = Crawler::factory()->create();
-    $row = S::row('0173200001234000988');
-    $mapper = app(EisCsvRowMapper::class);
-    $row['Дата обновления'] = '25.10.2026';
-    $ingest = app(SnapshotFinalizer::class);
-    $head = $ingest->ingest($mapper->map($row, $crawler), observedAt: Carbon::parse('2026-10-26 12:00:00.300000 UTC'));
-    $row['Дата обновления'] = '26.10.2026';
-    $row['Наименование закупки'] = 'Новая редакция';
-    $ingest->ingest($mapper->map($row, $crawler), observedAt: Carbon::parse('2026-10-26 12:00:00.100000 UTC'));
-    expect($head->refresh()->getAttribute('source_observed_at')->format('u'))->toBe('100000');
-    $row['Наименование закупки'] = 'Ещё новее';
-    $ingest->ingest($mapper->map($row, $crawler), observedAt: Carbon::parse('2026-10-26 12:00:00.200000 UTC'));
-    expect($head->refresh()->title)->toBe('Ещё новее');
 });

@@ -6,11 +6,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
-/**
- * P7.5, F-04: `crawler_run_id` несёт FK на `prc_crawler_runs` без индекса (write-only).
- * Родитель создаётся позже, поэтому FK объявляет create-миграция `prc_crawler_runs` 100039;
- * для партиционированного родителя Postgres 17 не поддерживает `NOT VALID` (SQLSTATE 42809).
- */
+/** Partitioned canonical history; the Process ledger baseline installs its provenance FK. */
 return new class extends Migration
 {
     public function up(): void
@@ -26,7 +22,7 @@ return new class extends Migration
                 snapshot_hash text NOT NULL,
                 source_updated_at timestamptz NULL,
                 detected_at timestamptz NOT NULL,
-                crawler_run_id bigint NULL,
+                process_run_id uuid NULL,
                 created_at timestamptz NULL,
                 updated_at timestamptz NULL,
                 PRIMARY KEY (id, detected_at)

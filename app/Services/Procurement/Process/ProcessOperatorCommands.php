@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Process;
 use App\Actions\Procurement\Process\AcknowledgeIncident;
 use App\Actions\Procurement\Process\CancelRun;
 use App\Actions\Procurement\Process\CancelWork;
+use App\Actions\Procurement\Process\RetryFailedItem;
 use App\Actions\Procurement\Process\RetryHandlerFaultedWork;
 use App\Actions\Procurement\Process\SetScopeMode;
 use App\Dto\Procurement\Process\OperatorCommandResult;
@@ -32,6 +33,7 @@ final readonly class ProcessOperatorCommands
         private CancelWork $cancelWork,
         private CancelRun $cancelRun,
         private RetryHandlerFaultedWork $retryFaulted,
+        private RetryFailedItem $retryFailedItem,
         private AcknowledgeIncident $acknowledgeIncident,
     ) {}
 
@@ -65,6 +67,13 @@ final readonly class ProcessOperatorCommands
         $this->authorize($actor, ProcessControlPermission::RetryHandlerFault, $reason);
 
         return self::fromWork($this->retryFaulted->execute($workId, $expectedTransitionSeq, $commandId, $reason, $actor->id));
+    }
+
+    public function retryFailedItem(User $actor, WorkId $workId, int $expectedTransitionSeq, ProcessUuid $commandId, string $reason): OperatorCommandResult
+    {
+        $this->authorize($actor, ProcessControlPermission::RetryFailedItem, $reason);
+
+        return self::fromWork($this->retryFailedItem->execute($workId, $expectedTransitionSeq, $commandId, $reason, $actor->id));
     }
 
     public function acknowledgeIncident(User $actor, ProcessUuid $incidentId, int $expectedTransitionSeq, string $reason): OperatorCommandResult

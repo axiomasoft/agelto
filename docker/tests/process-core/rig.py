@@ -502,8 +502,8 @@ def env_proof(folder):
                                              "raw_socket_egress": denial, "fixture_http": True})
 
 
-def compare_scenarios(before, after, moves):
-    """Compare exact executed identities, including dataset labels, across a path-only move."""
+def compare_scenarios(before, after, moves, transfers=()):
+    """Require every original case or all its explicitly recorded D18 replacements."""
     require(before and all(c.get("status") == "passed" for c in before),
             "original executed scenarios must be nonempty and passed")
     paths = {move["old"]: move["new"] for move in moves}
@@ -519,13 +519,38 @@ def compare_scenarios(before, after, moves):
     observed = Counter(key(case) for case in after if case.get("status") == "passed")
     identities = Counter(key(case) for case in after)
 
+    transferred = []
+    sources = set()
+    for transfer in transfers:
+        require(isinstance(transfer, dict) and set(transfer) == {"source", "replacements", "reason", "contract"},
+                "invalid scenario transfer fields")
+        source = key(transfer["source"])
+        require(source in expected and source not in sources, "unknown or duplicate scenario transfer source")
+        require(isinstance(transfer["reason"], str) and transfer["reason"].strip()
+                and isinstance(transfer["contract"], str) and transfer["contract"].strip(),
+                "scenario transfer requires its reason and contract")
+        replacements = transfer["replacements"]
+        require(isinstance(replacements, list) and replacements, "scenario transfer requires executed replacements")
+        targets = [key(case) for case in replacements]
+        require(len(set(targets)) == len(targets) and source not in targets,
+                "duplicate or self-referencing scenario replacement")
+        sources.add(source)
+        # A transfer never excuses a failed/skipped/missing target, or a duplicate execution.
+        if all(observed[target] == 1 and identities[target] == 1 for target in targets):
+            transferred.append(transfer)
+
+    require(not any(key(case) in sources for transfer in transfers for case in transfer["replacements"]),
+            "scenario transfers cannot chain or cycle")
+    transferred_counts = Counter(key(transfer["source"]) for transfer in transferred)
+    covered = (expected & observed) | transferred_counts
+
     def entries(counter):
         return [{"file": path, "name": name, "count": count}
                 for (path, name), count in sorted(counter.items())]
 
     return {"original_executed_cases": len(before), "after_executed_cases": len(after),
-            "preserved_cases": sum((expected & observed).values()),
-            "missing": entries(expected - observed), "new": entries(observed - expected),
+            "preserved_cases": sum(covered.values()), "transferred": transferred,
+            "missing": entries(expected - covered), "new": entries(observed - expected),
             "duplicates": entries(Counter({k: v for k, v in identities.items() if v > 1})),
             "nonpassing": [case for case in after if case.get("status") != "passed"]}
 
@@ -540,7 +565,18 @@ def scenario_proof(folder, cases):
     require(provenance["command"] == "core-test-regression" and provenance["exit"] == 0
             and digest(original["cases"]) == provenance["cases_sha256"],
             "original executed scenario provenance/hash mismatch")
-    comparison = compare_scenarios(original["cases"], cases, moves["moves"])
+    transfer_path = ROOT / "tests/Fixtures/ProcessCore/scenario-transfers.json"
+    transfers = []
+    if transfer_path.exists():
+        transfer_document = json.loads(transfer_path.read_text())
+        require(transfer_document.get("format") == "process-core-scenario-transfers/v1"
+                and transfer_document.get("before_cases_sha256") == provenance["cases_sha256"],
+                "scenario transfer format/baseline mismatch")
+        transfers = transfer_document["transfers"]
+        require(isinstance(transfers, list), "scenario transfers must be a list")
+    comparison = compare_scenarios(original["cases"], cases, moves["moves"], transfers)
+    if transfer_path.exists():
+        comparison["transfer_fixture_sha256"] = hashlib.sha256(transfer_path.read_bytes()).hexdigest()
     comparison["before_evidence"] = provenance
     comparison["before_fixture_sha256"] = hashlib.sha256(original_path.read_bytes()).hexdigest()
     write_json(folder / "scenario-comparison.json", comparison)

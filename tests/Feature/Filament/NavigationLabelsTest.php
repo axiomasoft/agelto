@@ -14,8 +14,6 @@ use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionReso
 use App\Filament\Resources\Procurement\Ai\Providers\ProviderResource;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\CrawlerResource;
 use App\Filament\Resources\Procurement\Crawler\Proxies\ProxyResource;
-use App\Filament\Resources\Procurement\Crawler\Runs\RunResource;
-use App\Filament\Resources\Procurement\Crawler\SourceCircuits\SourceCircuitResource;
 use App\Filament\Resources\Procurement\Crawler\SourceIncidents\SourceIncidentResource;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Filament\Resources\Procurement\Health\PlatformChecks\PlatformCheckResource;
@@ -46,9 +44,7 @@ test('назначает всем обнаруженным ресурсам ос
         StatusMappingResource::class => ['Площадки', 'Соответствие статусов', 30],
         PlatformCheckResource::class => ['Площадки', 'Проверки площадок', 40],
         CrawlerResource::class => ['Сбор данных', 'Задания сбора', 10],
-        RunResource::class => ['Сбор данных', 'Запуски сбора', 20],
         ProxyResource::class => ['Сбор данных', 'Прокси-серверы', 30],
-        SourceCircuitResource::class => ['Сбор данных', 'Источники: история', 40],
         SourceIncidentResource::class => ['Сбор данных', 'Источники: инциденты', 41],
         FixtureResource::class => ['Качество анализа', 'Эталонные документы', 10],
         DatasetExampleResource::class => ['Качество анализа', 'Проверенные примеры', 20],

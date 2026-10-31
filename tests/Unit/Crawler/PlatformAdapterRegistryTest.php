@@ -2,126 +2,71 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\SkippedListingRow;
-use App\Dto\Procurement\Details\DocumentsSnapshot;
-use App\Enums\Procurement\Crawler\SourceMethod;
-use App\Enums\Procurement\DetailSnapshotStatus;
-use App\Exceptions\Procurement\Crawler\PlatformAdapterConfigurationException;
-use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Platform\Platform;
-use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Contracts\DetailParser;
-use App\Services\Procurement\Contracts\ListingRowMapper;
-use App\Services\Procurement\Health\HealthBaselineReader;
-use App\Services\Procurement\PlatformAdapterRegistry;
-use Illuminate\Support\Facades\Storage;
-use Tests\Support\Doubles\Crawler\FakeAvailableSourceMethod;
-use Tests\Support\Doubles\Crawler\FakeCrawlerPlatformForm;
-use Tests\Support\Doubles\Crawler\FakeUnavailableSourceMethod;
-use Tests\Support\Doubles\Crawler\FirstPlatformFilter;
-use Tests\Support\Doubles\Crawler\SecondPlatformFilter;
+use App\Dto\Platforms\Eis\EisPolicy;
+use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\SupportedDetailCapability;
+use App\Dto\Procurement\Platform\SupportedListingCapability;
+use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
+use App\Services\Platforms\Eis\EisDefinition;
+use App\Services\Platforms\Eis\EisDetailSource;
+use App\Services\Platforms\Eis\EisListingSource;
+use App\Services\Procurement\Platform\PlatformRegistry;
+use Illuminate\Config\Repository;
+use Tests\Support\Platforms\JsonProcurement\JsonDetailSource;
+use Tests\Support\Platforms\JsonProcurement\JsonListingSource;
+use Tests\Support\Platforms\JsonProcurement\JsonProcurementDefinition;
 
-function adapterRegistryWithPlatform(string $platformCode, string $registryCode): Registry
+function acquisitionDefinitionConfig(): Repository
 {
-    $platform = new Platform;
-    $platform->code = $platformCode;
+    $config = new Repository(config()->all());
+    $config->set('platforms.definitions', ['eis' => EisDefinition::class, 'json' => JsonProcurementDefinition::class]);
 
-    $registry = new Registry;
-    $registry->code = $registryCode;
-    $registry->setRelation('platform', $platform);
-
-    return $registry;
+    return $config;
 }
 
-function syntheticPlatformMap(): array
-{
-    return [
-        'alpha' => [
-            'source_methods' => [SourceMethod::Csv->value => FakeAvailableSourceMethod::class],
-            'registry_filters' => ['main' => [
-                'filter' => FirstPlatformFilter::class,
-                'form' => FakeCrawlerPlatformForm::class,
-            ]],
-        ],
-        'beta' => [
-            'source_methods' => [SourceMethod::Csv->value => FakeUnavailableSourceMethod::class],
-            'registry_filters' => ['main' => [
-                'filter' => SecondPlatformFilter::class,
-                'form' => FakeCrawlerPlatformForm::class,
-            ]],
-        ],
-    ];
-}
-
-test('одинаковый код реестра на разных площадках резолвит разные typed capabilities', function (): void {
-    $registry = new PlatformAdapterRegistry(platforms: syntheticPlatformMap());
-
-    expect($registry->filterClass(registry: adapterRegistryWithPlatform(platformCode: 'alpha', registryCode: 'main')))
-        ->toBe(FirstPlatformFilter::class)
-        ->and($registry->filterClass(registry: adapterRegistryWithPlatform(platformCode: 'beta', registryCode: 'main')))
-        ->toBe(SecondPlatformFilter::class)
-        ->and($registry->sourceMethod(registry: adapterRegistryWithPlatform(platformCode: 'alpha', registryCode: 'main'), method: SourceMethod::Csv))
-        ->toBe(FakeAvailableSourceMethod::class)
-        ->and($registry->sourceMethod(registry: adapterRegistryWithPlatform(platformCode: 'beta', registryCode: 'main'), method: SourceMethod::Csv))
-        ->toBe(FakeUnavailableSourceMethod::class);
+test('the same registry code on two platforms resolves independent typed capabilities', function (): void {
+    $registry = new PlatformRegistry(acquisitionDefinitionConfig());
+    $eis = $registry->get(new PlatformCode('eis'));
+    $json = $registry->get(new PlatformCode('json'));
+    expect($eis->registries->get('fz44')->primaryIdentityType->value)->toBe('registry:44fz')
+        ->and($json->registries->get('fz44')->primaryIdentityType->value)->toBe('opaque:notice')
+        ->and($eis->listing)->toBeInstanceOf(SupportedListingCapability::class)
+        ->and($eis->listing->implementation)->toBe(EisListingSource::class)
+        ->and($json->listing)->toBeInstanceOf(SupportedListingCapability::class)
+        ->and($json->listing->implementation)->toBe(JsonListingSource::class);
 });
 
-test('отсутствующая площадка, метод или filter fail-closed с exact identity', function (): void {
-    $registry = new PlatformAdapterRegistry(platforms: syntheticPlatformMap());
-
-    expect(fn () => $registry->filterClass(registry: adapterRegistryWithPlatform(platformCode: 'unknown', registryCode: 'main')))
-        ->toThrow(PlatformAdapterUnavailableException::class, 'unknown');
-    expect(fn () => $registry->sourceMethod(registry: adapterRegistryWithPlatform(platformCode: 'alpha', registryCode: 'main'), method: SourceMethod::Html))
-        ->toThrow(PlatformAdapterUnavailableException::class, 'alpha');
-    expect(fn () => $registry->filterClass(registry: adapterRegistryWithPlatform(platformCode: 'alpha', registryCode: 'missing')))
-        ->toThrow(PlatformAdapterUnavailableException::class, 'missing');
+test('missing platforms and registries fail closed with their exact identity', function (): void {
+    $registry = new PlatformRegistry(acquisitionDefinitionConfig());
+    expect(fn () => $registry->get(new PlatformCode('unknown')))->toThrow(InvalidPlatformDefinition::class, 'unknown');
+    expect(fn () => $registry->get(new PlatformCode('eis'))->registries->get('missing'))
+        ->toThrow(InvalidPlatformDefinition::class, 'missing');
 });
 
-test('невалидные class-string maps отклоняются до runtime resolution', function (): void {
-    expect(fn () => new PlatformAdapterRegistry(platforms: [
-        'alpha' => [
-            'source_methods' => [SourceMethod::Csv->value => stdClass::class],
-            'registry_filters' => [],
-        ],
-    ]))->toThrow(PlatformAdapterConfigurationException::class);
+test('invalid provider class strings are rejected before runtime capability resolution', function (): void {
+    $config = acquisitionDefinitionConfig();
+    $config->set('platforms.definitions.eis', stdClass::class);
+    expect(fn () => new PlatformRegistry($config))->toThrow(InvalidPlatformDefinition::class, 'platforms.definitions.eis');
 });
 
-test('нетипизированные capability maps отклоняются при сборке registry', function (): void {
-    expect(fn () => new PlatformAdapterRegistry(platforms: [
-        'alpha' => ['source_methods' => 'csv', 'registry_filters' => []],
-    ]))->toThrow(PlatformAdapterConfigurationException::class, 'source_methods');
-});
-
-test('две несовместимые площадки выбирают собственные mapper parser baseline и размер блока в одном контейнере', function (): void {
-    $map = syntheticPlatformMap();
-    foreach (['alpha' => 17, 'beta' => 29] as $code => $size) {
-        $mapper = Mockery::namedMock('Audit'.ucfirst($code).'Mapper', ListingRowMapper::class);
-        $mapper->shouldReceive('map')->with([$code.'_id' => '1'], Mockery::type(Crawler::class))
-            ->andReturn(new SkippedListingRow($code));
-        $parser = Mockery::namedMock('Audit'.ucfirst($code).'Parser', DetailParser::class);
-        $parser->shouldReceive('documents')->with('<'.$code.'/>')
-            ->andReturn(new DocumentsSnapshot(DetailSnapshotStatus::Complete, []));
-        app()->instance($mapper::class, $mapper);
-        app()->instance($parser::class, $parser);
-        $baseline = json_decode(file_get_contents(resource_path('crawler/health/eis-baseline.json')), true);
-        $baseline['platform'] = $code;
-        $baseline['card_tabs']['documents']['anchors'] = [['selector' => $code, 'critical' => true, 'min_matches' => 1]];
-        $disk = Storage::disk('local');
-        $disk->put('baseline-'.$code.'.json', json_encode($baseline));
-        $map[$code] += ['listing_mapper' => $mapper::class, 'detail_parser' => $parser::class, 'block_size' => $size, 'baseline_path' => $disk->path('baseline-'.$code.'.json')];
+test('untyped definition maps are rejected during registry construction', function (): void {
+    foreach (['csv', ['eis' => ['listing' => EisListingSource::class]]] as $malformed) {
+        $config = acquisitionDefinitionConfig();
+        $config->set('platforms.definitions', $malformed);
+        expect(fn () => new PlatformRegistry($config))->toThrow(InvalidPlatformDefinition::class, 'platforms.definitions');
     }
-    $adapters = new PlatformAdapterRegistry($map);
-    app()->instance(PlatformAdapterRegistry::class, $adapters);
-    foreach (['alpha', 'beta', 'alpha'] as $code) {
-        $registry = adapterRegistryWithPlatform($code, 'main');
-        expect($adapters->listingMapper($registry)->map([$code.'_id' => '1'], new Crawler)->reason)->toBe($code)
-            ->and($adapters->detailParser($registry)->documents('<'.$code.'/>')->status)->toBe(DetailSnapshotStatus::Complete)
-            ->and($adapters->blockSize($registry))->toBe($code === 'alpha' ? 17 : 29)
-            ->and(app(HealthBaselineReader::class)->read($registry)->platform)->toBe($code);
+});
+
+test('two incompatible adapters retain their own parsers endpoints and policies in one registry', function (): void {
+    $config = acquisitionDefinitionConfig();
+    $config->set('platforms.eis.block_size', 17);
+    $registry = new PlatformRegistry($config);
+    foreach (['eis', 'json', 'eis'] as $code) {
+        $definition = $registry->get(new PlatformCode($code));
+        expect($definition->detail)->toBeInstanceOf(SupportedDetailCapability::class)
+            ->and($definition->detail->implementation)->toBe($code === 'eis' ? EisDetailSource::class : JsonDetailSource::class);
     }
-    $bad = $map;
-    unset($bad['beta']['listing_mapper']);
-    expect(fn () => (new PlatformAdapterRegistry($bad))->listingMapper(adapterRegistryWithPlatform('beta', 'main')))
-        ->toThrow(PlatformAdapterConfigurationException::class);
+    expect((new EisPolicy($config))->blockSize)->toBe(17)
+        ->and($registry->get(new PlatformCode('eis'))->endpoints->get('listing')->profile->totalSeconds)->toBe(90)
+        ->and($registry->get(new PlatformCode('json'))->endpoints->get('detail')->profile->totalSeconds)->toBe(10);
 });

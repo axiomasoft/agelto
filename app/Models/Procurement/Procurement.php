@@ -46,12 +46,9 @@ use Illuminate\Support\Str;
  * @property Carbon|null $bidding_ends_at
  * @property Carbon|null $summary_at
  * @property int|null $customer_org_id
- * @property int $detail_attempts
  * @property Carbon|null $detail_fetched_at
  * @property Carbon|null $source_updated_at
- * @property bool $detail_failed
  * @property int $revision_count
- * @property array<string, array<string, mixed>>|null $detail_parse_outcome
  * @property-read Registry|null $registry
  * @property-read string|null $procedure_type_raw
  * @property-read int $head_generation Subject head, advanced by canonical publication under the subject lock.
@@ -85,12 +82,6 @@ use Illuminate\Support\Str;
     'bidding_ends_at',
     'summary_at',
     'detail_url',
-    'detail_fetched_at',
-    'detail_parse_outcome',
-    'detail_attempts',
-    'detail_last_error',
-    'detail_next_retry_at',
-    'detail_failed',
     'current_revision_id',
     'current_revision_detected_at',
     'revision_count',
@@ -114,8 +105,6 @@ final class Procurement extends Model
             'attributes' => AsCollection::class,
             'initial_price' => 'decimal:2',
             'advance_percent' => 'decimal:2',
-            'detail_failed' => 'boolean',
-            'detail_attempts' => 'integer',
             'revision_count' => 'integer',
             'published_at' => 'datetime',
             'source_updated_at' => 'datetime',
@@ -126,9 +115,6 @@ final class Procurement extends Model
             'bidding_starts_at' => 'datetime',
             'bidding_ends_at' => 'datetime',
             'summary_at' => 'datetime',
-            'detail_fetched_at' => 'datetime',
-            'detail_parse_outcome' => 'array',
-            'detail_next_retry_at' => 'datetime',
             'next_status_due_at' => 'datetime',
             'current_revision_detected_at' => 'datetime',
             'ignored_at' => 'datetime',

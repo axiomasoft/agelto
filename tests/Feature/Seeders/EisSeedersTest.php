@@ -2,21 +2,19 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
-use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\ListingSortField;
-use App\Enums\Procurement\Crawler\RunStopPolicy;
+use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Platform\StatusMapping;
-use App\Services\Platforms\Eis\Csv\EisCsvUrlBuilder;
+use Database\Seeders\Platforms\Eis\EisCrawlerProfileSeeder;
 use Database\Seeders\Platforms\Eis\EisPlatformSeeder;
-use Database\Seeders\Procurement\CrawlerProfileSeeder;
 use Database\Seeders\Procurement\Okpd2NodeSeeder;
 use Database\Seeders\StatusMappingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
 
 uses(RefreshDatabase::class);
 
@@ -66,24 +64,22 @@ test('после сида площадки StatusMappingSeeder заводит м
 
 test('сид заводит два профиля обхода — архивный активен, fresh выключен', function (): void {
     $this->seed(EisPlatformSeeder::class);
-    $this->seed(CrawlerProfileSeeder::class);
+    $this->seed(EisCrawlerProfileSeeder::class);
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
-    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('mode');
+    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('listing_kind');
 
     expect($crawlers)->toHaveCount(2);
 
-    $archive = $crawlers[CrawlerMode::Archive->value];
+    $archive = $crawlers[AcquisitionKind::Archive->value];
     expect($archive->is_active)->toBeTrue()
-        ->and($archive->execution_lane)->toBe(CrawlerExecutionLane::Long)
         ->and($archive->route_profile_id)->toBeNull()
         ->and($archive->filter->stageCompleted)->toBeTrue()
-        ->and($archive->options?->toArray()['columns']['registryNumberCsv'] ?? null)->toBeTrue();
+        ->and(Schema::hasColumn('prc_crawlers', 'execution_lane'))->toBeFalse();
 
-    $fresh = $crawlers[CrawlerMode::Fresh->value];
+    $fresh = $crawlers[AcquisitionKind::Fresh->value];
     expect($fresh->is_active)->toBeFalse()
-        ->and($fresh->execution_lane)->toBe(CrawlerExecutionLane::Standard)
         ->and($fresh->route_profile_id)->toBeNull()
         ->and($fresh->filter->okpd2Codes)->toBe(['43'])
         ->and($fresh->schedule)->toBe('*/30 * * * *');
@@ -91,11 +87,11 @@ test('сид заводит два профиля обхода — архивн�
 
 test('сид заводит архивный профиль с окном дат прогона (P3.8, D113)', function (): void {
     $this->seed(EisPlatformSeeder::class);
-    $this->seed(CrawlerProfileSeeder::class);
+    $this->seed(EisCrawlerProfileSeeder::class);
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
-    $archive = Crawler::query()->where('registry_id', $registry->id)->where('mode', CrawlerMode::Archive)->sole();
+    $archive = Crawler::query()->where('registry_id', $registry->id)->where('listing_kind', AcquisitionKind::Archive)->sole();
 
     expect($archive->filter->archiveWindowFrom()?->toDateString())->toBe('2025-01-01')
         ->and($archive->filter->archiveWindowTo()?->toDateString())->toBe('2025-12-31');
@@ -108,27 +104,27 @@ test('сид заводит архивный профиль с окном дат
  */
 test('сид заводит профили с сортировкой выдачи и политикой остановки из брифа', function (): void {
     $this->seed(EisPlatformSeeder::class);
-    $this->seed(CrawlerProfileSeeder::class);
+    $this->seed(EisCrawlerProfileSeeder::class);
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
-    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('mode');
+    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('listing_kind');
 
-    $archive = $crawlers[CrawlerMode::Archive->value];
+    $archive = $crawlers[AcquisitionKind::Archive->value];
     expect($archive->filter->sortField)->toBe(ListingSortField::Published)
         ->and($archive->filter->sortAscending)->toBeTrue()
-        ->and($archive->stop_policy)->toBe(RunStopPolicy::Default);
+        ->and(Schema::hasColumn('prc_crawlers', 'stop_policy'))->toBeFalse();
 
-    $fresh = $crawlers[CrawlerMode::Fresh->value];
+    $fresh = $crawlers[AcquisitionKind::Fresh->value];
     expect($fresh->filter->sortField)->toBe(ListingSortField::Updated)
         ->and($fresh->filter->sortAscending)->toBeFalse()
-        ->and($fresh->stop_policy)->toBe(RunStopPolicy::OnlyFresh);
+        ->and($fresh->listing_kind)->toBe(AcquisitionKind::Fresh);
 });
 
 test('повторный прогон сида профилей идемпотентен — число профилей не меняется', function (): void {
     $this->seed(EisPlatformSeeder::class);
-    $this->seed(CrawlerProfileSeeder::class);
-    $this->seed(CrawlerProfileSeeder::class);
+    $this->seed(EisCrawlerProfileSeeder::class);
+    $this->seed(EisCrawlerProfileSeeder::class);
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
@@ -137,7 +133,7 @@ test('повторный прогон сида профилей идемпоте
 });
 
 test('сид профилей без площадки eis бросает внятное исключение', function (): void {
-    expect(fn () => (new CrawlerProfileSeeder)->run())
+    expect(fn () => (new EisCrawlerProfileSeeder)->run())
         ->toThrow(RuntimeException::class, 'eis');
 });
 
@@ -150,7 +146,7 @@ test('сид профилей резолвит реестр fz44 СВОЕЙ пл
     Registry::factory()->create(['code' => 'fz44']);
 
     $this->seed(EisPlatformSeeder::class);
-    $this->seed(CrawlerProfileSeeder::class);
+    $this->seed(EisCrawlerProfileSeeder::class);
 
     $eisPlatform = Platform::query()->where('code', 'eis')->sole();
     $eisRegistry = Registry::query()->where('platform_id', $eisPlatform->id)->where('code', 'fz44')->sole();
@@ -163,16 +159,16 @@ test('сид профилей резолвит реестр fz44 СВОЕЙ пл
 test('архивный профиль из сида даёт ожидаемый боевой URL выгрузки', function (): void {
     $this->seed(EisPlatformSeeder::class);
     $this->seed(Okpd2NodeSeeder::class);
-    $this->seed(CrawlerProfileSeeder::class);
+    $this->seed(EisCrawlerProfileSeeder::class);
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $archive = Crawler::query()
         ->where('registry_id', $registry->id)
-        ->where('mode', CrawlerMode::Archive)
+        ->where('listing_kind', AcquisitionKind::Archive)
         ->sole();
 
-    $query = app(EisCsvUrlBuilder::class)->buildQueryParams(crawler: $archive, from: 1, to: 500);
+    $query = AcquisitionProfileFixtures::query($archive);
 
     expect($query)
         ->toHaveKey('pc', 'on')
@@ -186,21 +182,16 @@ test('архивный профиль из сида даёт ожидаемый 
 test('сидовый архивный профиль не передаёт окно публикации в sweep по дате обновления', function (): void {
     $this->seed(EisPlatformSeeder::class);
     $this->seed(Okpd2NodeSeeder::class);
-    $this->seed(CrawlerProfileSeeder::class);
+    $this->seed(EisCrawlerProfileSeeder::class);
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $archive = Crawler::query()
         ->where('registry_id', $registry->id)
-        ->where('mode', CrawlerMode::Archive)
+        ->where('listing_kind', AcquisitionKind::Archive)
         ->sole();
 
-    $query = app(EisCsvUrlBuilder::class)->buildQueryParams(
-        crawler: $archive,
-        from: 1,
-        to: 500,
-        cursor: new ListingCursor(blockFrom: 1, day: '2026-08-08', priceStack: ['0:500000'], dateField: 'update'),
-    );
+    $query = AcquisitionProfileFixtures::query($archive, AcquisitionKind::Delta, '2026-08-08');
 
     expect($query['updateDateFrom'])->toBe('08.08.2026')
         ->and($query['updateDateTo'])->toBe('08.08.2026')

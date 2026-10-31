@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
-use App\Filament\Resources\Procurement\Crawler\Runs\RunResource;
+use App\Filament\Resources\Procurement\Process\Runs\ProcessRunResource;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Guards\Admin\Permissions\DocumentationPermission;
 use App\Guards\Admin\Roles\AnalystRole;
@@ -36,9 +36,9 @@ test('оператор имеет CRUD на конфигурации, управ
 
     expect($operator->can('admin.platform.create'))->toBeTrue()
         ->and($operator->can('admin.ai_route.update'))->toBeTrue()
-        ->and($operator->can('admin.run.update'))->toBeTrue()
+        ->and($operator->can('admin.process_control.cancel_run'))->toBeTrue()
         // прогоны не создаёт/не удаляет, реестр закупок и роли — вне доступа
-        ->and($operator->can('admin.run.create'))->toBeFalse()
+        ->and($operator->can('admin.process_run.create'))->toBeFalse()
         ->and($operator->can('admin.procurement.create'))->toBeFalse()
         ->and($operator->can('admin.role.create'))->toBeFalse();
 });
@@ -48,10 +48,10 @@ test('аналитик видит продуктовые реестры толь
     $analyst->assignRole(AnalystRole::class);
 
     expect($analyst->can('admin.procurement.view_any'))->toBeTrue()
-        ->and($analyst->can('admin.run.view_any'))->toBeTrue()
+        ->and($analyst->can('admin.process_run.view_any'))->toBeTrue()
         // ни мутаций реестра, ни операторской конфигурации
         ->and($analyst->can('admin.procurement.delete'))->toBeFalse()
-        ->and($analyst->can('admin.run.update'))->toBeFalse()
+        ->and($analyst->can('admin.process_control.cancel_run'))->toBeFalse()
         ->and($analyst->can('admin.platform.view_any'))->toBeFalse();
 });
 
@@ -83,7 +83,7 @@ test('прямые admin URL повторно проверяют роль, а н
 });
 
 test('view-only ресурсы Run и Procurement не имеют create/edit страниц', function () {
-    expect(array_keys(RunResource::getPages()))->toBe(['index', 'view'])
+    expect(array_keys(ProcessRunResource::getPages()))->toBe(['index'])
         ->and(array_keys(ProcurementResource::getPages()))->toBe(['index', 'view']);
 });
 

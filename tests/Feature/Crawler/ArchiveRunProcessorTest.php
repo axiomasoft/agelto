@@ -2,226 +2,91 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Dto\Procurement\ProcurementDetails;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\RunStopKind;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Run;
-use App\Models\Procurement\Platform\Registry;
+use App\Actions\Procurement\Process\CancelRun;
+use App\Actions\Procurement\Process\CancelWork;
+use App\Dto\Procurement\Process\ListingInput;
+use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\VersionedPayload;
+use App\Dto\Procurement\Process\WorkId;
+use App\Enums\Procurement\Process\ControlMode;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Contracts\SourceMethod;
-use App\Services\Procurement\Modes\ArchiveRunProcessor;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Sleep;
-use Tests\Support\Doubles\Crawler\QueueSourceMethod;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
+use App\Services\Procurement\Process\ProcessPayloadCodec;
+use App\Services\Procurement\Process\WorkFeeder;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\ExecutionFixtures as E;
+use Tests\Support\ProcessCore\ListingFixtures as F;
 
-/**
- * @return array<string, string>
- */
-function archiveRunCsvRow(string $registryNumber): array
+beforeEach(fn () => F::bind());
+
+/** Complete exactly one assigned day, including its mandatory full stability pass. */
+function finishArchiveDay(ProcessUuid $crawl, string $day): int
 {
-    return [
-        'Реестровый номер закупки' => $registryNumber,
-        'Способ определения поставщика' => 'Электронный аукцион',
-        'Наименование закупки' => 'Поставка оргтехники',
-        'Этап закупки' => 'Подача заявок',
-        'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
-        'НМЦК' => '1 250 000,50',
-        'Валюта' => 'RUB',
-        'ОКПД2' => '26.20.11.110',
-        'Дата размещения' => '01.03.2026',
-        'Дата обновления' => '02.03.2026 10:15:00',
-        'Начало подачи заявок' => '01.03.2026',
-        'Окончание подачи заявок' => '15.03.2026',
-        'Наименование заказчика' => 'ГБУ «Тестовое учреждение»',
-    ];
+    $count = 0;
+    while (($row = DB::table('prc_process_work as w')->join('prc_crawl_blocks as b', 'b.id', '=', 'w.crawl_block_id')
+        ->where('b.crawl_run_id', $crawl->value)->where('b.partition_payload->windowStart', $day)
+        ->whereIn('w.state', ['ready', 'admitted'])->first(['w.id', 'w.input_payload'])) !== null) {
+        expect(++$count)->toBeLessThanOrEqual(2);
+        $input = app(ProcessPayloadCodec::class)->decodeInput(new VersionedPayload($row->input_payload, 1));
+        expect($input)->toBeInstanceOf(ListingInput::class);
+        F::finish(new WorkId(new ProcessUuid($row->id)), $input, F::page([F::summary('archive-'.$day)]));
+    }
+
+    return $count;
 }
 
-function archiveRunBatch(string $registryNumber, string $dedupSignature): ListingBatch
-{
-    return new ListingBatch(
-        rows: [archiveRunCsvRow($registryNumber)],
-        rawBody: 'raw csv body',
-        dedupSignature: $dedupSignature,
-        rowsTotal: 1,
-        httpStatus: 200,
-        durationMs: 10,
-        requestParams: [],
-    );
-}
-
-function useArchiveRunQueueSourceMethod(array $batches): void
-{
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: $batches));
-
-    config(['crawler.platforms.eis.source_methods' => [
-        SourceMethodEnum::Csv->value => QueueSourceMethod::class,
-    ]]);
-}
-
-/**
- * `QueueSourceMethod` не умеет менять состояние строки прогона В ПРОЦЕССЕ обхода — этот
- * двойник (P3.7) вдобавок к выдаче батча по индексу вызова синхронно применяет побочный эффект
- * (постановку стоп-сигнала), симулируя оператора, нажавшего «Остановить»/«Отменить» МЕЖДУ днями.
- * Возвращает сам двойник — тест читает `->calls`, чтобы доказать, что источник НЕ был опрошен
- * на дне, следующем за тем, где стоп-гейт его обнаружил.
- *
- * @param  list<ListingBatch>  $batches
- * @param  array<int, Closure>  $sideEffectsByCallIndex  0-based индекс вызова → эффект ПОСЛЕ выдачи батча
- */
-function useArchiveRunStopSignalingSourceMethod(array $batches, array $sideEffectsByCallIndex = []): object
-{
-    $double = new class($batches, $sideEffectsByCallIndex) implements SourceMethod
-    {
-        public int $calls = 0;
-
-        public function __construct(private readonly array $batches, private readonly array $sideEffects) {}
-
-        public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
-        {
-            $index = $this->calls;
-            $batch = $this->batches[$index] ?? throw new OutOfBoundsException('стоп-двойник: очередь блоков исчерпана раньше, чем ожидал тест.');
-            $this->calls++;
-
-            ($this->sideEffects[$index] ?? null)?->__invoke();
-
-            return $batch;
-        }
-
-        public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
-        {
-            return new ProcurementDetails;
-        }
-
-        public function isAvailable(): bool
-        {
-            return true;
-        }
-    };
-
-    app()->instance($double::class, $double);
-    config(['crawler.platforms.eis.source_methods' => [
-        SourceMethodEnum::Csv->value => $double::class,
-    ]]);
-
-    return $double;
-}
-
-beforeEach(function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    config([
-        // Блок = 2 строки, наши батчи по 1 строке — сразу "частичный блок" (drain).
-        'crawler.platforms.eis.block_size' => 2,
-        'crawler.archive.price_ceiling' => 100,
-        'crawler.archive.min_price_interval' => 10,
-        'crawler.archive.max_blocks_per_window' => 50,
-    ]);
-});
-
-beforeEach(fn () => LegacyBusinessNetwork::install());
-
-test('период из 2 дней — scan вызван на каждый день, курсор прошёл оба дня, run completed', function () {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-
-    useArchiveRunQueueSourceMethod([
-        archiveRunBatch('0173200001234000001', 'sig-day-1'),
-        archiveRunBatch('0173200001234000002', 'sig-day-2'),
-    ]);
-
-    $run = app(ArchiveRunProcessor::class)->run(
-        crawler: $crawler,
-        from: Carbon::parse('2024-01-01'),
-        to: Carbon::parse('2024-01-02'),
-    );
-
-    expect($run->status)->toBe(RunStatus::Completed)
+test('Process archive covers both assigned days and closes discovery with required detail obligations', function (): void {
+    $f = F::run('2024-01-01', '2024-01-02');
+    expect(finishArchiveDay($f['crawl'], '2024-01-01'))->toBe(2)
+        ->and(finishArchiveDay($f['crawl'], '2024-01-02'))->toBe(2)
         ->and(Procurement::query()->count())->toBe(2)
-        ->and($run->cursor['day'])->toBe('2024-01-03');
+        ->and(app(ListingCoverageRepository::class)->read($f['stream'])->verifiedThrough)->toBe('2024-01-02')
+        ->and(DB::table('prc_process_runs')->where('id', $f['run']->value)->value('discovery_outcome'))->toBe('complete')
+        ->and(DB::table('prc_process_run_work as rw')->join('prc_process_work as w', 'w.id', '=', 'rw.work_id')
+            ->where('rw.run_id', $f['run']->value)->where('rw.accounting_role', 'required')->where('w.stage', 'detail')->count())->toBe(2);
 });
 
-test('оборванный прогон (paused с курсором на 2-м дне) резюмится со 2-го дня, не с 1-го', function () {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-
-    $existingRun = Run::factory()->for($crawler)->create([
-        'status' => RunStatus::Paused,
-        'cursor' => (new ListingCursor(blockFrom: 1, day: '2024-01-02'))->toArray(),
-    ]);
-
-    useArchiveRunQueueSourceMethod([
-        archiveRunBatch('0173200001234000003', 'sig-day-2-only'),
-    ]);
-
-    $run = app(ArchiveRunProcessor::class)->run(
-        crawler: $crawler,
-        from: Carbon::parse('2024-01-01'),
-        to: Carbon::parse('2024-01-02'),
-    );
-
-    expect($run->id)->toBe($existingRun->id)
-        ->and($run->status)->toBe(RunStatus::Completed)
-        ->and(Procurement::query()->count())->toBe(1);
+test('Process archive resumes remaining day without recreating completed day work', function (): void {
+    $f = F::run('2024-01-01', '2024-01-02');
+    finishArchiveDay($f['crawl'], '2024-01-01');
+    $completed = DB::table('prc_process_work')->where('state', 'succeeded')->orderBy('id')->pluck('id')->all();
+    E::setMode('acquisition', ControlMode::Paused);
+    expect(app(WorkFeeder::class)->tick('acquisition'))->toBe(0);
+    E::setMode('acquisition', ControlMode::Enabled);
+    expect(finishArchiveDay($f['crawl'], '2024-01-02'))->toBe(2)
+        ->and(finishArchiveDay($f['crawl'], '2024-01-01'))->toBe(0)
+        ->and(DB::table('prc_process_attempts')->whereIn('work_id', $completed)->count())->toBe(2)
+        ->and(Procurement::query()->count())->toBe(2);
 });
 
-test('стоп-сигнал Pause между днями останавливает archive-прогон целиком, следующий день не обходится', function () {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-
-    $sourceMethod = useArchiveRunStopSignalingSourceMethod(
-        batches: [
-            archiveRunBatch('0173200001234000201', 'sig-day-1'),
-            archiveRunBatch('0173200001234000203', 'sig-day-3-must-not-be-fetched'),
-        ],
-        sideEffectsByCallIndex: [
-            0 => fn () => Run::query()->where('crawler_id', $crawler->id)->update([
-                'stop_requested_at' => Carbon::now(),
-                'stop_kind' => RunStopKind::Pause->value,
-            ]),
-        ],
-    );
-
-    $run = app(ArchiveRunProcessor::class)->run(
-        crawler: $crawler,
-        from: Carbon::parse('2024-01-01'),
-        to: Carbon::parse('2024-01-03'),
-    );
-
-    expect($sourceMethod->calls)->toBe(1)
-        ->and($run->fresh()->status)->toBe(RunStatus::Paused)
-        ->and($run->fresh()->status)->not->toBe(RunStatus::Completed)
-        ->and($run->fresh()->cursor['day'])->toBe('2024-01-01')
-        ->and(Procurement::query()->count())->toBe(1);
+test('Process archive pause between days retains ready assignments and prohibits the next grant', function (): void {
+    $f = F::run('2024-01-01', '2024-01-03');
+    finishArchiveDay($f['crawl'], '2024-01-01');
+    E::setMode('acquisition', ControlMode::Paused);
+    expect(app(WorkFeeder::class)->tick('acquisition'))->toBe(0)
+        ->and(Procurement::query()->count())->toBe(1)
+        ->and(app(ListingCoverageRepository::class)->read($f['stream'])->verifiedThrough)->toBe('2024-01-01')
+        ->and(DB::table('prc_process_runs')->where('id', $f['run']->value)->value('discovery_outcome'))->toBe('collecting')
+        ->and(DB::table('prc_process_work as w')->join('prc_crawl_blocks as b', 'b.id', '=', 'w.crawl_block_id')
+            ->where('b.partition_payload->windowStart', '2024-01-02')->value('w.execution_attempts'))->toBe(0);
 });
 
-test('стоп-сигнал Cancel между днями останавливает archive-прогон целиком, статус терминален', function () {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-
-    $sourceMethod = useArchiveRunStopSignalingSourceMethod(
-        batches: [
-            archiveRunBatch('0173200001234000301', 'sig-day-1-cancel'),
-            archiveRunBatch('0173200001234000303', 'sig-day-3-must-not-be-fetched'),
-        ],
-        sideEffectsByCallIndex: [
-            0 => fn () => Run::query()->where('crawler_id', $crawler->id)->update([
-                'stop_requested_at' => Carbon::now(),
-                'stop_kind' => RunStopKind::Cancel->value,
-            ]),
-        ],
-    );
-
-    $run = app(ArchiveRunProcessor::class)->run(
-        crawler: $crawler,
-        from: Carbon::parse('2024-01-01'),
-        to: Carbon::parse('2024-01-03'),
-    );
-
-    expect($sourceMethod->calls)->toBe(1)
-        ->and($run->fresh()->status)->toBe(RunStatus::Cancelled)
-        ->and($run->fresh()->status)->not->toBe(RunStatus::Completed)
-        ->and(Procurement::query()->count())->toBe(1);
+test('Process archive hard cancellation stops remaining exclusive days without claiming coverage', function (): void {
+    $f = F::run('2024-01-01', '2024-01-03');
+    finishArchiveDay($f['crawl'], '2024-01-01');
+    $seq = DB::table('prc_process_runs')->where('id', $f['run']->value)->value('transition_seq');
+    app(CancelRun::class)->execute($f['run'], 'operator cancel archive', $seq);
+    // CancelRun owns the intent; explicit CancelWork fences the exclusively assigned pages.
+    foreach (DB::table('prc_process_work as w')->join('prc_crawl_blocks as b', 'b.id', '=', 'w.crawl_block_id')
+        ->where('b.crawl_run_id', $f['crawl']->value)->whereIn('w.state', ['ready', 'admitted'])->pluck('w.id') as $id) {
+        app(CancelWork::class)->execute(new WorkId(new ProcessUuid($id)), 'operator hard cancel remaining archive page');
+    }
+    expect(DB::table('prc_process_runs')->where('id', $f['run']->value)->value('cancel_requested_at'))->not->toBeNull()
+        ->and(app(WorkFeeder::class)->tick('acquisition'))->toBe(0)->and(F::next($f['crawl']))->toBeNull()
+        ->and(Procurement::query()->count())->toBe(1)
+        ->and(app(ListingCoverageRepository::class)->read($f['stream'])->verifiedThrough)->toBe('2024-01-01')
+        ->and(DB::table('prc_process_work as w')->join('prc_crawl_blocks as b', 'b.id', '=', 'w.crawl_block_id')
+            ->where('b.partition_payload->windowStart', '2024-01-02')->value('w.state'))->toBe('cancelled')
+        ->and(DB::table('prc_process_work as w')->join('prc_crawl_blocks as b', 'b.id', '=', 'w.crawl_block_id')
+            ->where('b.partition_payload->windowStart', '2024-01-02')->value('w.execution_attempts'))->toBe(0);
 });

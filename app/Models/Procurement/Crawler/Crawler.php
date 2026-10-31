@@ -5,11 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\Contracts\RequiresScope;
-use App\Dto\Procurement\Crawler\CrawlerRuntimeOptions;
-use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\RunStopPolicy;
-use App\Enums\Procurement\Crawler\SourceMethod;
+use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Models\Procurement\Network\NetworkRouteProfile;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CrawlerFilterFactory;
@@ -23,6 +19,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Spatie\LaravelData\Data;
@@ -32,15 +29,11 @@ use Spatie\LaravelData\Data;
  *
  * @property int $id
  * @property int $registry_id
+ * @property int $profile_version
  * @property string $name
- * @property CrawlerExecutionLane $execution_lane
- * @property CrawlerMode $mode
- * @property RunStopPolicy $stop_policy
- * @property SourceMethod $source_method
- * @property SourceMethod|null $fallback_method
+ * @property AcquisitionKind $listing_kind
  * @property Data|null $filter
  * @property string|null $schedule
- * @property CrawlerRuntimeOptions|null $options
  * @property bool $is_active
  * @property string|null $route_profile_id
  * @property Carbon $created_at
@@ -50,31 +43,38 @@ use Spatie\LaravelData\Data;
 #[Fillable([
     'registry_id',
     'name',
-    'execution_lane',
-    'mode',
-    'stop_policy',
-    'source_method',
-    'fallback_method',
+    'listing_kind',
     'filter',
     'schedule',
-    'options',
     'is_active',
     'route_profile_id',
 ])]
 #[Table(name: 'prc_crawlers')]
 final class Crawler extends Model
 {
+    /** Every persisted edit gets a serialized immutable profile version. */
+    public function save(array $options = []): bool
+    {
+        return DB::transaction(function () use ($options): bool {
+            if ($this->exists) {
+                $current = self::query()->whereKey($this->getKey())->lockForUpdate()->firstOrFail();
+                $this->setAttribute('profile_version', $current->profile_version + 1);
+            } else {
+                $this->setAttribute('profile_version', 1);
+            }
+
+            return parent::save($options);
+        });
+    }
+
     /** @use HasFactory<CrawlerFactory> */
     use HasFactory;
 
     protected function casts(): array
     {
         return [
-            'execution_lane' => CrawlerExecutionLane::class,
-            'mode' => CrawlerMode::class,
-            'stop_policy' => RunStopPolicy::class,
-            'source_method' => SourceMethod::class,
-            'fallback_method' => SourceMethod::class,
+            'profile_version' => 'integer',
+            'listing_kind' => AcquisitionKind::class,
             'is_active' => 'boolean',
         ];
     }
@@ -88,42 +88,10 @@ final class Crawler extends Model
     {
         self::saving(static function (self $crawler): void {
             $filter = $crawler->resolveFilter(raw: $crawler->rawFilter());
-            $crawler->resolveRuntimeOptions(raw: $crawler->rawOptions());
 
             $crawler->assertScope(filter: $filter);
-            $crawler->assertStopPolicy();
         });
     }
-
-    /**
-     * Третий гейт записи (P3.3): `RunStopPolicy::OnlyFresh` осмыслен только у fresh-прогона —
-     * archive-профиль с этой политикой не отвергается на прогоне (стоп-условие живёт в
-     * `FreshRunProcessor`, до которого archive никогда не доходит), а молча остаётся мёртвой
-     * настройкой, если не запретить сохранение здесь.
-     */
-    private function assertStopPolicy(): void
-    {
-        if ($this->stop_policy !== RunStopPolicy::OnlyFresh) {
-            return;
-        }
-
-        if ($this->mode === CrawlerMode::Fresh) {
-            return;
-        }
-
-        throw ValidationException::withMessages([
-            'stop_policy' => sprintf(
-                'Режим работы «только актуальные данные» доступен только профилю с mode=fresh '
-                .'(текущий mode=%s): политика останова читает свежий обход, архивный её не применяет.',
-                $this->mode->value,
-            ),
-        ]);
-    }
-
-    /**
-     * Прокси включается только вместе с явным набором: иначе пустая настройка превратится в
-     * неограниченный выбор любого доступного узла и обойдёт политику профиля (D38).
-     */
 
     /**
      * Второй гейт записи (D18): фильтр, объявивший себя `RequiresScope`, обязан нести непустой
@@ -178,20 +146,6 @@ final class Crawler extends Model
         );
     }
 
-    /** @return Attribute<?CrawlerRuntimeOptions, CrawlerRuntimeOptions|array<string, mixed>|Arrayable<string, mixed>|null> */
-    protected function options(): Attribute
-    {
-        return Attribute::make(
-            get: fn (): ?CrawlerRuntimeOptions => $this->resolveRuntimeOptions(raw: $this->rawOptions()),
-            set: static fn (CrawlerRuntimeOptions|array|Arrayable|null $value): array => [
-                'options' => $value === null ? null : json_encode(
-                    $value instanceof Arrayable ? $value->toArray() : $value,
-                    JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
-                ),
-            ],
-        );
-    }
-
     /** @return BelongsTo<Registry, $this> */
     public function registry(): BelongsTo
     {
@@ -211,20 +165,6 @@ final class Crawler extends Model
     private function rawFilter(): ?array
     {
         $raw = $this->attributes['filter'] ?? null;
-
-        if ($raw === null || $raw === '') {
-            return null;
-        }
-
-        $decoded = is_string($raw) ? json_decode($raw, associative: true, flags: JSON_THROW_ON_ERROR) : $raw;
-
-        return $this->jsonObject($decoded);
-    }
-
-    /** @return array<string, mixed>|null */
-    private function rawOptions(): ?array
-    {
-        $raw = $this->attributes['options'] ?? null;
 
         if ($raw === null || $raw === '') {
             return null;
@@ -256,16 +196,6 @@ final class Crawler extends Model
         $class = app(CrawlerFilterFactory::class)->for(registry: $registry);
 
         return $class::validateAndCreate($raw);
-    }
-
-    /** @param array<string, mixed>|null $raw */
-    private function resolveRuntimeOptions(?array $raw): ?CrawlerRuntimeOptions
-    {
-        if ($raw === null || $raw === []) {
-            return null;
-        }
-
-        return CrawlerRuntimeOptions::validateAndCreate($raw);
     }
 
     private function registryCode(Registry $registry): string

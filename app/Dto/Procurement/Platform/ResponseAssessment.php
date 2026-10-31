@@ -21,11 +21,12 @@ final readonly class ResponseAssessment
         public ContentHash $bodyHash,
         public float $confidence = 1.0,
         public ?ArtifactRef $artifact = null,
+        ?FailureScope $failureScope = null,
     ) {
         if (! is_finite($confidence) || $confidence < 0 || $confidence > 1) {
             throw new \InvalidArgumentException('Invalid assessment confidence.');
         }
-        $this->failureScope = match ($reason) {
+        $this->failureScope = $failureScope ?? match ($reason) {
             AssessmentReason::Valid, AssessmentReason::Empty => FailureScope::None,
             AssessmentReason::IdentityMismatch => FailureScope::Item,
             AssessmentReason::InvalidResponse, AssessmentReason::UnstableSource => FailureScope::Origin,

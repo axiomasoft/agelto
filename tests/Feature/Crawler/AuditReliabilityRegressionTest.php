@@ -2,184 +2,66 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Crawler\WindowFilter;
-use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\RunPurpose;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
-use App\Jobs\Procurement\CrawlRunJob;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Run;
-use App\Models\Procurement\Crawler\SourceIncident;
-use App\Models\Procurement\Procurement;
-use App\Services\Procurement\ArchiveWindowScanner;
-use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
-use App\Services\Procurement\Contracts\SourceMethod;
-use App\Services\Procurement\Crawler\ResumeWaitingRuns;
-use App\Services\Procurement\CrawlerRunManager;
-use App\Services\Procurement\Modes\ArchiveRunProcessor;
-use App\Services\Procurement\Modes\FreshRunProcessor;
-use Illuminate\Bus\Dispatcher;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Bus;
+use App\Dto\Procurement\Acquisition\ListingResult;
+use App\Dto\Procurement\Process\StageSucceeded;
+use App\Enums\Procurement\Process\StageCode;
+use App\Jobs\Procurement\Process\ExecuteWorkJob;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
+use App\Services\Procurement\Process\RecoveryReconciler;
+use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\WorkRunner;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Storage;
-use Tests\Support\Crawler\SourceControlScenario as S;
-use Tests\Support\Doubles\Crawler\ScriptedSourceMethod;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use Tests\Support\ProcessCore\ExecutionFixtures as E;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ListingFixtures as F;
 
 beforeEach(function (): void {
-    LegacyBusinessNetwork::install();
-    Storage::fake('s3');
+    F::bind();
     Queue::fake();
 });
 
-test('deadline листинга даёт checkpoint без инцидента и без продвижения курсора', function (CrawlerMode $mode): void {
-    $crawler = Crawler::factory()->create(['mode' => $mode]);
-    $source = Mockery::mock(DeadlineAwareSourceMethod::class);
-    $source->shouldReceive('isAvailable')->andReturnTrue();
-    $source->shouldReceive('collectListingWithinDeadline')->once()
-        ->withArgs(fn ($crawler, $cursor, float $deadlineAt): bool => $cursor->blockFrom === 1 && $deadlineAt > microtime(true))
-        ->andThrow(OutboundRequestDeadlineExceeded::forStage('listing'));
-    app()->instance($source::class, $source);
-    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => $source::class]]);
-
-    if ($mode === CrawlerMode::Fresh) {
-        $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
-    } else {
-        $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-        expect(app(ArchiveWindowScanner::class)->scan(
-            crawler: $crawler, run: $run,
-            filter: new WindowFilter(dateField: 'publish', dateFrom: now()->startOfDay(), dateTo: now()->startOfDay()),
-        ))->toBe(ArchiveWindowScanResult::Checkpointed);
-    }
-
-    expect($run->refresh()->status)->toBe(RunStatus::Running)
-        ->and($run->cursor['blockFrom'] ?? 1)->toBe(1)
-        ->and(SourceIncident::query()->count())->toBe(0)
-        ->and(Procurement::query()->count())->toBe(0);
-})->with([CrawlerMode::Fresh, CrawlerMode::Archive]);
-
-test('архив не начинает новый бюджет времени при переходе на следующий день', function (): void {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $deadlines = [];
-    $source = Mockery::mock(DeadlineAwareSourceMethod::class);
-    $source->shouldReceive('isAvailable')->andReturnTrue();
-    $source->shouldReceive('collectListingWithinDeadline')->times(4)
-        ->andReturnUsing(function ($crawler, $cursor, float $deadlineAt) use (&$deadlines): ListingBatch {
-            $deadlines[] = $deadlineAt;
-
-            return S::end();
-        });
-    app()->instance($source::class, $source);
-    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => $source::class]]);
-
-    $run = app(ArchiveRunProcessor::class)->run(crawler: $crawler, from: now()->subDay()->startOfDay(), to: now()->startOfDay());
-
-    expect($run->status)->toBe(RunStatus::Completed)
-        ->and($deadlines)->toHaveCount(4)
-        ->and($deadlines[0])->toBe($deadlines[1]);
+test('Process stale listing result cannot publish after a newer owner acquires the same page', function (): void {
+    $run = F::run();
+    $old = FinalizeFixtures::running($run['work']);
+    FinalizeFixtures::expire($run['work']);
+    expect(FinalizeFixtures::revoke($run['work']))->toBeTrue();
+    $current = FinalizeFixtures::running($run['work']);
+    $result = new StageSucceeded(new ListingResult(app(ListingStoreRepository::class)->task($run['input']), F::page([F::summary('late')])));
+    expect(app(WorkFinalizer::class)->finish($old, $result)->status->value)->toBe('lost_ownership')
+        ->and(DB::table('prc_procurements')->count())->toBe(0)
+        ->and(DB::table('prc_crawl_blocks')->whereNotNull('terminal_proof')->count())->toBe(0)
+        ->and(E::work($run['work'])->owner_token)->toBe($current->token->value)
+        ->and(E::work($run['work'])->generation)->toBe($current->generation);
 });
 
-test('единичный отказ листинга сохраняет курсор и повторяет тот же блок после backoff', function (string $failure): void {
-    $crawler = Crawler::factory()->create();
-    $step = match ($failure) {
-        '503' => S::network(),
-        'empty' => S::emptyBody(),
-        'code' => S::bug(),
-        'row' => new ListingBatch(
-            rows: [S::row('0173200001234000001')], rawBody: 'partial', dedupSignature: 'first',
-            rowsTotal: 2, httpStatus: 200, durationMs: 1, requestParams: [], rowsMalformed: 1,
-        ),
-    };
-    $source = S::install(new ScriptedSourceMethod([$step, S::rows(2), S::end()]));
-    $processor = app(FreshRunProcessor::class);
-
-    $run = $processor->run(crawler: $crawler);
-    expect($run->status)->toBe(RunStatus::Paused)
-        ->and($run->cursor['blockFrom'])->toBe(1)
-        ->and($source->requestedBlocks)->toBe([1]);
-
-    $processor->run(crawler: $crawler);
-    expect($source->requestedBlocks)->toBe([1]);
-
-    $this->travel(11)->minutes();
-    $run = $processor->run(crawler: $crawler);
-    expect($run->status)->toBe(RunStatus::Completed)
-        ->and($source->requestedBlocks)->toBe([1, 1, 501]);
-})->with(['503', 'empty', 'code', 'row']);
-
-test('fresh-ответ бывшего владельца не записывает закупки после перехвата аренды', function (): void {
-    $crawler = Crawler::factory()->create();
-    $runs = app(CrawlerRunManager::class);
-    $run = $runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
-    expect($runs->acquireExecutionLease(run: $run))->toBeTrue();
-    $source = Mockery::mock(SourceMethod::class);
-    $source->shouldReceive('isAvailable')->andReturnTrue();
-    $source->shouldReceive('collectListing')->once()->andReturnUsing(function () use ($run): ListingBatch {
-        Run::query()->whereKey($run->id)->update(['execution_owner_token' => '00000000-0000-4000-8000-000000000001']);
-
-        return S::rows(1);
-    });
-    app()->instance($source::class, $source);
-    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => $source::class]]);
-
-    app(FreshRunProcessor::class)->run(crawler: $crawler, run: $run);
-
-    expect(Procurement::query()->count())->toBe(0)
-        ->and($run->fresh()->execution_owner_token)->toBe('00000000-0000-4000-8000-000000000001')
-        ->and($run->fresh()->cursor['blockFrom'])->toBe(1);
-});
-
-test('сбой очереди не теряет автоматическое возобновление прогона', function (): void {
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create([
-        'status' => RunStatus::Paused,
-        'stats' => [
-            'source_suspended' => true,
-            'execution_context' => ['mode' => 'fresh', 'execution_lane' => 'standard', 'from' => null, 'to' => null],
-        ],
-    ]);
-    Bus::shouldReceive('dispatch')->once()->andThrow(new RuntimeException('Redis unavailable'));
-    try {
-        app(ResumeWaitingRuns::class)->resumeDue();
-    } catch (RuntimeException $exception) {
-        expect($exception->getMessage())->toBe('Redis unavailable');
-    }
-
-    expect($run->fresh()->stats->get('source_suspended'))->toBeTrue();
-    Bus::swap(app(Dispatcher::class));
-    $this->travel(11)->minutes(); // TTL unique-lock после неудачного dispatch — 600 секунд.
-    app(ResumeWaitingRuns::class)->resumeDue();
-    Queue::assertPushed(CrawlRunJob::class);
-});
-
-test('устаревший тик не снимает новое ожидание брейкера', function (): void {
-    $crawler = Crawler::factory()->create();
-    $target = DB::table('prc_source_targets')->where('platform_id', $crawler->registry->platform_id)->where('capability', 'detail')->sole();
-    $newRetryAt = now()->addMinutes(10)->startOfSecond();
-    DB::table('prc_target_health')->where('target_id', $target->id)->update(['state' => 'open', 'open_until' => $newRetryAt]);
-    Artisan::call('crawler:recover-stale');
-    expect(Carbon::parse(DB::table('prc_target_health')->where('target_id', $target->id)->value('open_until'))->eq($newRetryAt))->toBeTrue();
-});
-
-test('повторная job при активном владельце завершается без ошибки и запросов', function (): void {
-    $crawler = Crawler::factory()->create();
-    $runs = app(CrawlerRunManager::class);
-    $run = $runs->startOrResume(crawler: $crawler, purpose: RunPurpose::Profile, subjectKey: null);
-    $runs->recordExecutionContext(run: $run, crawler: $crawler, mode: CrawlerMode::Fresh, executionLane: $crawler->execution_lane, from: null, to: null);
-    $runs->acquireExecutionLease(run: $run);
-    $owner = $run->execution_owner_token;
-    $source = S::install(new ScriptedSourceMethod);
-
-    app()->call([new CrawlRunJob(crawlerId: $crawler->id, mode: CrawlerMode::Fresh), 'handle']);
-
-    expect($source->requestedBlocks)->toBe([])
-        ->and($run->fresh()->execution_owner_token)->toBe($owner);
+test('Process duplicate queued delivery cannot disturb an active owner or emit a second wake', function (): void {
+    $run = F::run();
+    FinalizeFixtures::running($run['work']);
+    $before = DB::table('prc_process_work as w')->where('id', $run['work']->value->value)->selectRaw('to_jsonb(w)::text AS snapshot')->value('snapshot');
+    $generation = E::work($run['work'])->dispatch_generation;
+    (new ExecuteWorkJob($run['work']->value->value, $generation, LedgerFixtures::uuid()->value, 1))->handle(app(WorkRunner::class));
+    expect(DB::table('prc_process_work as w')->where('id', $run['work']->value->value)->selectRaw('to_jsonb(w)::text AS snapshot')->value('snapshot'))->toBe($before)
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0)->and(DB::table('prc_process_attempts')->count())->toBe(1);
     Queue::assertNothingPushed();
+});
+
+test('Process expired-work recovery cannot shorten a newer absolute target cooldown', function (): void {
+    PermitFixtures::clean();
+    try {
+        $network = new PermitFixtures;
+        E::authority([StageCode::Listing]);
+        $run = F::run();
+        FinalizeFixtures::running($run['work']);
+        FinalizeFixtures::expire($run['work']);
+        $until = DB::selectOne("SELECT (clock_timestamp()+interval '10 minutes')::text AS at")->at;
+        DB::table('prc_target_health')->where('target_id', $network->target->value)->update(['state' => 'open', 'open_until' => $until]);
+        expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1)
+            ->and(DB::table('prc_target_health')->where('target_id', $network->target->value)->value('open_until'))->toBe($until)
+            ->and(E::work($run['work'])->state)->toBe('ready')->and(DB::table('prc_request_attempts')->count())->toBe(0);
+    } finally {
+        PermitFixtures::clean();
+    }
 });

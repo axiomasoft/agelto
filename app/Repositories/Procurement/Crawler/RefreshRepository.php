@@ -84,8 +84,10 @@ final readonly class RefreshRepository
                 return null;
             }
             // Latest published complete detail pins locator, adapter and both policy dimensions.
-            $template = LedgerRow::one("SELECT w.input_payload::text AS payload, w.cohort_key, i.id, i.next_due_at<=clock_timestamp() AS due
+            $template = LedgerRow::one("SELECT w.input_payload::text AS payload, w.cohort_key, i.id, i.next_due_at<=clock_timestamp() AS due,
+                    r.configuration_snapshot::text AS configuration, r.configuration_schema_version
                 FROM prc_operation_intents i JOIN prc_process_work w ON w.intent_id=i.id
+                JOIN prc_process_runs r ON r.id=w.origin_run_id
                 WHERE i.subject_kind='prc_procurements' AND i.subject_id=? AND i.stage='detail'
                   AND i.state='terminal' AND w.state='succeeded' ORDER BY i.requested_at DESC,i.id DESC LIMIT 1", [(string) $p->id]);
             if ($template === null) {
@@ -122,7 +124,8 @@ final readonly class RefreshRepository
                     SELECT ?,id,?,?,next_status_due_at FROM prc_procurements WHERE id=?', [$intent->value, $intent->value, $cycle, $p->id]);
             }
 
-            return $this->register($input, $intent, $p, $template->string('cohort_key'));
+            return $this->register($input, $intent, $p, $template->string('cohort_key'),
+                new VersionedPayload($template->string('configuration'), $template->int('configuration_schema_version')));
         });
     }
 
@@ -137,11 +140,11 @@ final readonly class RefreshRepository
         return ($recent?->bool('recent') ?? false) ? $this->policy->recentSeconds : $this->policy->terminalSeconds;
     }
 
-    private function register(WorkInput $input, ProcessUuid $intent, Procurement $p, string $cohort): WorkId
+    private function register(WorkInput $input, ProcessUuid $intent, Procurement $p, string $cohort, VersionedPayload $configuration): WorkId
     {
         $run = ListingStoreRepository::id('refresh-run:'.$intent->value);
         $work = new WorkId(ListingStoreRepository::id('refresh-work:'.$intent->value));
-        $this->runs->storeRun($run, RunKind::Schedule, 'refresh:'.$intent->value, null, new VersionedPayload('{"refresh":1}', 1), null,
+        $this->runs->storeRun($run, RunKind::Schedule, 'refresh:'.$intent->value, null, $configuration, null,
             ListingStoreRepository::id('run-event:'.$intent->value), ListingStoreRepository::id('run-project:'.$intent->value));
         $this->works->storeWork($work, $input, 1, $intent, $cohort, $p->platform_id, $run, 100,
             ListingStoreRepository::id('work-event:'.$intent->value), ListingStoreRepository::id('work-project:'.$intent->value));

@@ -5,17 +5,19 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Health;
 
 use App\Dto\Procurement\Health\CheckResult;
+use App\Dto\Procurement\Platform\PlatformCode;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Events\Procurement\PlatformHealthChanged;
 use App\Models\Procurement\Health\PlatformCheck;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Health\PlatformCheckStoreRepository;
-use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;
+use App\Services\Procurement\Acquisition\DiagnosticRunner;
 use App\Services\Procurement\Health\Checks\CardParseCheck;
 use App\Services\Procurement\Health\Checks\EstimateFieldsCheck;
 use App\Services\Procurement\Health\Checks\ListingShapeCheck;
 use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
+use App\Services\Procurement\Platform\PlatformRegistry;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use LogicException;
@@ -23,7 +25,7 @@ use LogicException;
 /** Оркеструет пассивные проверки: эталон читается один раз, история пишется только репозиторием. */
 final readonly class PlatformHealthChecker
 {
-    /** @var list<DiagnosticCheck> */
+    /** @var list<PassiveHealthCheck> */
     private array $checks;
 
     public function __construct(
@@ -32,9 +34,8 @@ final readonly class PlatformHealthChecker
         CardParseCheck $cardParseCheck,
         ListingShapeCheck $listingShapeCheck,
         EstimateFieldsCheck $estimateFieldsCheck,
-        ListingFilterCheck $listingFilterCheck,
     ) {
-        $this->checks = [$cardParseCheck, $listingShapeCheck, $estimateFieldsCheck, $listingFilterCheck];
+        $this->checks = [$cardParseCheck, $listingShapeCheck, $estimateFieldsCheck];
     }
 
     /**
@@ -61,12 +62,24 @@ final readonly class PlatformHealthChecker
 
         $results = [];
 
-        foreach ($this->checks as $check) {
+        $checks = $this->checks;
+        $definition = app(PlatformRegistry::class)->get(new PlatformCode($platformCode));
+        foreach ($definition->checks->implementations as $implementation) {
+            $check = app($implementation);
+            if (! $check instanceof DiagnosticCheck) {
+                throw new LogicException('Registered platform diagnostic must implement DiagnosticCheck.');
+            }
+            $checks[] = $check;
+        }
+        foreach ($checks as $check) {
             if ($kind !== null && $check->kind() !== $kind) {
                 continue;
             }
 
-            $result = $check->run(platform: $platform, baseline: $baseline, from: $from, to: $to);
+            $result = $check instanceof DiagnosticCheck
+                ? app(DiagnosticRunner::class)->run(
+                    $check, $definition, $platform->id, $baseline, \DateTimeImmutable::createFromInterface($to))
+                : $check->run(platform: $platform, baseline: $baseline, from: $from, to: $to);
 
             if (! $dryRun) {
                 $previous = $this->checksStore->latestFor(platform: $platform, kind: $result->kind);

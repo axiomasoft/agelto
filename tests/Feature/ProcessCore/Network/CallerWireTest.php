@@ -2,42 +2,66 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Models\Procurement\Crawler\Crawler;
+use App\Dto\Procurement\Acquisition\ListingFetched;
 use App\Models\Procurement\Document\Document;
-use App\Models\Procurement\Platform\Okpd2Node;
 use App\Services\Llm\Dto\CacheableContent;
 use App\Services\Llm\Dto\LlmCacheOptions;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\Providers\PrismGeminiProvider;
-use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 use App\Services\Platforms\Eis\Filters\Okpd2NodeSynchronizer;
 use App\Services\Procurement\DocumentDownloader;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Platforms\Eis\EisCsvFixture;
+use Tests\Support\ProcessCore\Http\AcquisitionWireFixture;
 use Tests\Support\ProcessCore\Http\CallerFixtures as C;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\RawEvidenceFixtures;
 
-beforeEach(fn () => F::clean());
-afterEach(fn () => F::clean());
+beforeEach(function (): void {
+    F::clean();
+    $this->rawEvidence = new RawEvidenceFixtures;
+});
+afterEach(function (): void {
+    F::clean();
+    $this->rawEvidence->clean();
+});
+
+test('исторический win1251 экспорт с четырьмя строками и пустым обязательным title остаётся partial', function (): void {
+    $wire = new WireFixture;
+    try {
+        $fixture = new AcquisitionWireFixture($wire);
+        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        $batch = $fixture->fetch($fixture->listingRequest('2026-08-05'));
+        expect($batch->value)->toBeInstanceOf(ListingFetched::class)
+            ->and($batch->value->page->rowsTotal)->toBe(4)
+            ->and($batch->value->page->assessment->completeness->value)->toBe('partial')
+            ->and($batch->value->page->summaries->items)->toBeEmpty()
+            ->and($batch->value->page->nextCursor)->toBeNull()
+            ->and(DB::table('prc_procurements')->count())->toBe(0);
+        C::assertAccounting($wire, 1, 'acquisition.diagnostic');
+    } finally {
+        $wire->stop();
+    }
+});
 
 test('CSV caller декодирует реальный win1251 экспорт и проводит единственный запрос через permit', function (): void {
     $wire = new WireFixture;
     try {
-        $registry = C::platform($wire);
-        Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
-        $crawler = Crawler::factory()->for($registry)->create(['filter' => ['okpd2Codes' => ['43']]]);
-        $wire->respond('/csv', EisCsvFixture::body(), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
-        $batch = app(CsvSourceMethod::class)->collectListing($crawler, new ListingCursor(blockFrom: 1));
-        expect($batch->rows)->toHaveCount(4)
-            ->and($batch->rows[0]['Реестровый номер закупки'])->toBe('№0338300047926000272')
-            ->and($batch->rows[0]['Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)'])->toBe('Электронный аукцион');
-        C::assertAccounting($wire, 1, 'legacy.csv_listing');
+        $fixture = new AcquisitionWireFixture($wire);
+        $utf8 = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Csv/neutral-valid.csv'));
+        $wire->respond('/csv', mb_convert_encoding($utf8, 'Windows-1251', 'UTF-8'), headers: ['Content-Type' => 'text/csv; charset=windows-1251']);
+        $batch = $fixture->fetch($fixture->listingRequest());
+        expect($batch->value)->toBeInstanceOf(ListingFetched::class)
+            ->and($batch->value->page->summaries->items)->toHaveCount(1)
+            ->and($batch->value->page->summaries->items[0]->identity->value->value)->toBe('00042')
+            ->and($batch->value->page->summaries->items[0]->sourceStage)->toBe('Подача заявок');
+        C::assertAccounting($wire, 1, 'acquisition.diagnostic');
+        expect(DB::table('prc_outbound_operations')->sole()->kind)->toBe('probe');
     } finally {
         $wire->stop();
     }

@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Acquisition;
 
 use App\Dto\Procurement\Acquisition\LockedProcurement;
 use App\Dto\Procurement\Acquisition\ProcurementIdentity;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Process\CallerTransaction;
@@ -24,12 +25,12 @@ final readonly class SnapshotFinalizer
         private ExtensionWriter $extensions) {}
 
     /** Legacy entrypoint until producer cutover; HTTP has already completed. */
-    public function ingest(ProcurementSnapshotData $data, ?int $crawlerRunId = null, ?Carbon $observedAt = null): Procurement
+    public function ingest(ProcurementSnapshotData $data, ?ProcessUuid $processRunId = null, ?Carbon $observedAt = null): Procurement
     {
         $identity = $this->identities->resolve($data->registryId, $data->identity);
         $this->extensions->validate($data->identity->platform, $data->extension);
 
-        return DB::transaction(fn (): Procurement => $this->persistLocked($data, $this->lockIdentities([$identity])[0], $crawlerRunId, $observedAt));
+        return DB::transaction(fn (): Procurement => $this->persistLocked($data, $this->lockIdentities([$identity])[0], $processRunId, $observedAt));
     }
 
     /**
@@ -77,7 +78,7 @@ final readonly class SnapshotFinalizer
 
     /** No transaction nesting, advisory acquisition or external I/O after the work fence. */
     public function persistLocked(ProcurementSnapshotData $data, LockedProcurement $locked,
-        ?int $crawlerRunId = null, ?Carbon $observedAt = null): Procurement
+        ?ProcessUuid $processRunId = null, ?Carbon $observedAt = null): Procurement
     {
         CallerTransaction::require('Snapshot publication');
         if ($locked->transactionId !== $this->transactionId()
@@ -86,7 +87,7 @@ final readonly class SnapshotFinalizer
             throw new \LogicException('Snapshot lock binding mismatch.');
         }
         $this->extensions->validate($data->identity->platform, $data->extension);
-        $procurement = $this->ingest->ingestLocked($data, $locked->identity, $locked->procurement, $crawlerRunId, $observedAt);
+        $procurement = $this->ingest->ingestLocked($data, $locked->identity, $locked->procurement, $processRunId, $observedAt);
         $latest = $this->read->findLatestRevision($procurement->id);
         $hash = hash('sha256', json_encode($data->toSnapshotArray($procurement->status->value), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
         if ($latest?->snapshot_hash === $hash) {

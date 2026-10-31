@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\Contract;
 
+use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\TransportOutcome;
 use App\Dto\Procurement\Process\ExecutionContext;
@@ -18,7 +19,7 @@ final class RecordingOutbound implements PlatformOutbound
     /** @param list<TransportOutcome> $outcomes */
     public function __construct(private array $outcomes = []) {}
 
-    public function execute(OutboundRequestPlan $plan, ExecutionContext $context): TransportOutcome
+    public function execute(OutboundRequestPlan $plan, ExecutionContext|OutboundExecutionContext $context): TransportOutcome
     {
         $this->plans[] = $plan;
 

@@ -11,6 +11,7 @@ use App\Dto\Procurement\Details\SupplierResultsData;
 use App\Dto\Procurement\Process\StageSucceeded;
 use App\Dto\Procurement\Process\StatusRefreshInput;
 use App\Enums\Procurement\Platform\SnapshotConsistency;
+use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Crawler\RefreshRepository;
 use App\Services\Procurement\Acquisition\SnapshotFinalizer;
@@ -18,6 +19,7 @@ use App\Services\Procurement\Acquisition\StatusRefreshHandler;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\ExecutionContextFactory;
 use App\Services\Procurement\Process\WorkFinalizer;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DetailFixtures as F;
 use Tests\Support\ProcessCore\DetailFixtureSource;
@@ -30,8 +32,12 @@ test('T17 unchanged status allocates two distinct cycles and fetches twice with 
     F::bind();
     $f = F::work();
     $snapshot = F::snapshot($f['request'], 'attributes');
+    expect(ProcurementResource::getEloquentQuery()->findOrFail($f['p']->id)->detail_fetched_at)->toBeNull();
     $lease = FinalizeFixtures::running($f['work']);
     app(WorkFinalizer::class)->finish($lease, new StageSucceeded(new DetailResult($snapshot, new DetailProgress, SnapshotConsistency::BoundedRevalidated, new DateTimeImmutable)));
+    $publishedAt = DB::table('prc_detail_snapshots')->where('part_key', 'like', '%:published')->value('created_at');
+    expect(ProcurementResource::getEloquentQuery()->findOrFail($f['p']->id)->detail_fetched_at?->toDateTimeString())
+        ->toBe(Carbon::parse($publishedAt)->toDateTimeString());
     $source = new DetailFixtureSource([new DetailFetched($snapshot), new DetailFetched($snapshot)], ['attributes']);
     $handler = new StatusRefreshHandler(app(RefreshRepository::class), app(DetailSnapshotRepository::class), $source, new FetchOutcomeBridge);
     $ids = [];
@@ -52,6 +58,8 @@ test('T17 unchanged status allocates two distinct cycles and fetches twice with 
         ->and(DB::table('prc_process_runs')->where('discovery_outcome', 'complete')->count())->toBe(2)
         ->and(DB::table('prc_process_run_work')->where('accounting_role', 'required')->count())->toBe(2)
         ->and(DB::table('prc_process_work')->where('stage', 'status_refresh')->where('state', 'succeeded')->count())->toBe(2);
+    expect(ProcurementResource::getEloquentQuery()->findOrFail($f['p']->id)->detail_fetched_at?->toDateTimeString())
+        ->toBe(Carbon::parse($publishedAt)->toDateTimeString());
 });
 
 test('T17 status received before a newer head is history only and requests reconciliation', function (): void {

@@ -37,6 +37,7 @@ return new class extends Migration
 
     public function down(): void
     {
+        DB::statement('ALTER TABLE prc_process_attempts DROP COLUMN adapter_health_id, DROP COLUMN adapter_health_epoch');
         DB::statement('ALTER TABLE prc_crawlers DROP CONSTRAINT prc_crawlers_route_profile_id_foreign');
         DB::statement('ALTER TABLE prc_proxies DROP COLUMN route_id');
         foreach (array_reverse(self::TABLES) as $table) {
@@ -173,6 +174,13 @@ return new class extends Migration
               UNIQUE(platform_id,capability,adapter_version,contract_version)
             )
             SQL,
+            <<<'SQL'
+            ALTER TABLE prc_process_attempts
+              ADD COLUMN adapter_health_id uuid NULL REFERENCES prc_adapter_health(id),
+              ADD COLUMN adapter_health_epoch bigint NULL CHECK(adapter_health_epoch IS NULL OR adapter_health_epoch >= 1),
+              ADD CONSTRAINT prc_process_attempts_adapter_pair CHECK((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL))
+            SQL,
+            'CREATE INDEX prc_process_attempts_adapter_live ON prc_process_attempts(adapter_health_id, adapter_health_epoch) WHERE finished_at IS NULL AND adapter_health_id IS NOT NULL',
             // Bounded OUTBOUND owner для legacy_bridge/diagnostic/probe — не второй process engine.
             <<<'SQL'
             CREATE TABLE prc_outbound_operations (
@@ -185,6 +193,8 @@ return new class extends Migration
               adapter_health_id uuid NULL REFERENCES prc_adapter_health(id),
               adapter_health_epoch bigint NULL CHECK(adapter_health_epoch IS NULL OR adapter_health_epoch >= 1),
               CHECK((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL)),
+              parent_attempt_id uuid NULL REFERENCES prc_process_attempts(id),
+              CHECK(parent_attempt_id IS NULL OR kind='probe'),
               caller_code text NOT NULL,
               state text NOT NULL CHECK(state IN ('open','closed','expired')),
               owner_token uuid NOT NULL,

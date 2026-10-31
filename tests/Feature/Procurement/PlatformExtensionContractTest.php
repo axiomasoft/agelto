@@ -2,39 +2,47 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Crawler\SourceMethod;
-use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
+use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\SupportedListingCapability;
+use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\PlatformAdapterRegistry;
-use Tests\Support\Doubles\Crawler\FakeAvailableSourceMethod;
-use Tests\Support\Doubles\Crawler\FakeCrawlerPlatformForm;
-use Tests\Support\Doubles\Crawler\FirstPlatformFilter;
-use Tests\Support\Doubles\Crawler\SecondPlatformFilter;
+use App\Services\Platforms\Eis\EisDefinition;
+use App\Services\Platforms\Eis\EisListingSource;
+use App\Services\Procurement\Acquisition\AcquisitionProfiles;
+use App\Services\Procurement\Platform\PlatformRegistry;
+use Illuminate\Config\Repository;
+use Tests\Support\Platforms\JsonProcurement\JsonListingSource;
+use Tests\Support\Platforms\JsonProcurement\JsonProcurementDefinition;
 
-function extensionRegistry(string $platformCode): Registry
+function extensionRegistry(): PlatformRegistry
 {
-    $platform = Platform::factory()->create(['code' => $platformCode]);
+    $config = new Repository(config()->all());
+    $config->set('platforms.definitions', ['eis' => EisDefinition::class, 'json' => JsonProcurementDefinition::class]);
 
-    return Registry::factory()->for($platform)->create(['code' => 'shared']);
+    return new PlatformRegistry($config);
 }
 
 test('две площадки с совпадающим registry code получают независимые capability', function (): void {
-    $registry = new PlatformAdapterRegistry(platforms: [
-        'alpha-contract' => ['source_methods' => [SourceMethod::Csv->value => FakeAvailableSourceMethod::class], 'registry_filters' => ['shared' => ['filter' => FirstPlatformFilter::class, 'form' => FakeCrawlerPlatformForm::class]]],
-        'beta-contract' => ['source_methods' => [SourceMethod::Csv->value => FakeAvailableSourceMethod::class], 'registry_filters' => ['shared' => ['filter' => SecondPlatformFilter::class, 'form' => FakeCrawlerPlatformForm::class]]],
-    ]);
-    $alpha = extensionRegistry(platformCode: 'alpha-contract');
-    $beta = extensionRegistry(platformCode: 'beta-contract');
+    $registry = extensionRegistry();
+    $eis = $registry->get(new PlatformCode('eis'));
+    $json = $registry->get(new PlatformCode('json'));
 
-    expect($registry->filterClass(registry: $alpha))->toBe(FirstPlatformFilter::class)
-        ->and($registry->filterClass(registry: $beta))->toBe(SecondPlatformFilter::class)
-        ->and($registry->sourceMethod(registry: $alpha, method: SourceMethod::Csv))->toBe(FakeAvailableSourceMethod::class);
+    expect($eis->registries->get('fz44')->primaryIdentityType->value)->toBe('registry:44fz')
+        ->and($json->registries->get('fz44')->primaryIdentityType->value)->toBe('opaque:notice')
+        ->and($eis->listing)->toBeInstanceOf(SupportedListingCapability::class)
+        ->and($json->listing)->toBeInstanceOf(SupportedListingCapability::class)
+        ->and($eis->listing->implementation)->toBe(EisListingSource::class)
+        ->and($json->listing->implementation)->toBe(JsonListingSource::class);
 });
 
 test('удалённая capability завершается explicit fail-closed ошибкой', function (): void {
-    $registry = new PlatformAdapterRegistry(platforms: ['alpha-contract' => ['source_methods' => [], 'registry_filters' => []]]);
+    $platform = Platform::factory()->create(['code' => 'json']);
+    $registry = Registry::factory()->for($platform)->create(['code' => 'fz44']);
+    $profile = new Crawler(['registry_id' => $registry->id]);
+    $profile->setRelation('registry', $registry);
 
-    expect(fn (): string => $registry->filterClass(registry: extensionRegistry(platformCode: 'alpha-contract')))
-        ->toThrow(PlatformAdapterUnavailableException::class, 'shared');
+    // JSON supports listing but declares no profile preparer. There is no EIS fallback.
+    expect(fn () => (new AcquisitionProfiles(extensionRegistry()))->preparer($profile))
+        ->toThrow(InvalidArgumentException::class, 'Platform has no acquisition profile capability.');
 });

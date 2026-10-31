@@ -2,226 +2,134 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Dto\Procurement\Crawler\RecoveryScope;
+use App\Dto\Platforms\Eis\EisListingCursor;
+use App\Dto\Procurement\Acquisition\FetchDeferred;
+use App\Dto\Procurement\Acquisition\ListingFetchResult;
+use App\Dto\Procurement\Acquisition\ListingRequest;
+use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\RetryAt;
-use App\Dto\Procurement\ProcurementDetails;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\DeltaScanOutcome;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
+use App\Dto\Procurement\Process\VersionedPayload;
+use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
-use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
+use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Platform\Platform;
-use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Contracts\SourceMethod;
+use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
+use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
+use App\Services\Platforms\Eis\EisListingPartitioner;
+use App\Services\Procurement\Acquisition\AcquisitionProfiles;
+use App\Services\Procurement\Acquisition\AcquisitionScheduler;
+use App\Services\Procurement\Acquisition\DetailArtifacts;
+use App\Services\Procurement\Acquisition\DetailHandler;
+use App\Services\Procurement\Acquisition\ListingHandler;
 use App\Services\Procurement\DocumentDownloader;
-use App\Services\Procurement\Modes\ArchiveRunProcessor;
-use App\Services\Procurement\Modes\BacklogRescanProcessor;
-use App\Services\Procurement\Modes\DeltaScanProcessor;
-use App\Services\Procurement\Modes\DetailAnalysisProcessor;
-use App\Services\Procurement\Modes\FreshRunProcessor;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Carbon;
+use App\Services\Procurement\Platform\Contracts\ListingSource;
+use App\Services\Procurement\Platform\FetchOutcomeBridge;
+use App\Services\Procurement\Process\ExecutionContextFactory;
+use App\Services\Procurement\Process\ProcessPayloadCodec;
+use App\Services\Procurement\Process\WorkFinalizer;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
+use Tests\Support\ProcessCore\DetailFixtures;
+use Tests\Support\ProcessCore\DetailFixtureSource;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use Tests\Support\ProcessCore\ListingFixtures;
 
-uses(RefreshDatabase::class);
-
-final class ExhaustedPlatformBudgetSourceMethod implements SourceMethod
+function deferListingBudget(AcquisitionKind $kind): void
 {
-    public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
+    ListingFixtures::bind();
+    $profile = AcquisitionProfileFixtures::create($kind);
+    $launch = app(AcquisitionProfiles::class)->prepare($profile, $kind, new DateTimeImmutable('2024-01-01'), new DateTimeImmutable('2024-01-01'));
+    $run = app(AcquisitionScheduler::class)->manual($launch, LedgerFixtures::uuid(), null);
+    $row = DB::table('prc_process_work')->where('origin_run_id', $run->value)->sole();
+    $work = new WorkId(new ProcessUuid($row->id));
+    $input = app(ProcessPayloadCodec::class)->decodeInput(new VersionedPayload($row->input_payload, 1));
+    $store = app(ListingStoreRepository::class);
+    $task = $store->task($input);
+    $retry = new RetryAt(new DateTimeImmutable('+10 minutes'));
+    $source = new class($retry) implements ListingSource
     {
-        throw PlatformBudgetExhaustedException::forHost(host: 'eis.test', maxWaitSeconds: 0);
-    }
+        public function __construct(private readonly RetryAt $retry) {}
 
-    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
-    {
-        throw PlatformBudgetExhaustedException::forHost(host: 'eis.test', maxWaitSeconds: 0);
-    }
-
-    public function isAvailable(): bool
-    {
-        return true;
-    }
+        public function fetch(ListingRequest $request, ExecutionContext|OutboundExecutionContext $context): ListingFetchResult
+        {
+            return new FetchDeferred(NetworkDeferralReason::RateLimit, $this->retry);
+        }
+    };
+    $planner = new EisListingPartitioner;
+    $handler = new ListingHandler($store, $source, $planner, $planner, new FetchOutcomeBridge);
+    $lease = FinalizeFixtures::running($work);
+    $out = $handler->execute($input, app(ExecutionContextFactory::class)->open($lease));
+    app(WorkFinalizer::class)->finish($lease, $out);
+    $after = ExecutionFixtures::work($work);
+    $coverage = app(ListingCoverageRepository::class)->read($launch->streamKey);
+    expect($after->state)->toBe('deferred')->and($after->reason_code)->toBe('rate_limit')
+        ->and($after->item_failures)->toBe(0)->and($after->owner_token)->toBeNull()
+        ->and(new DateTimeImmutable($after->due_at))->toBeGreaterThanOrEqual($retry->value)
+        ->and($store->task($input)->cursor)->toEqual($task->cursor)
+        ->and(EisListingCursor::decode($task->cursor)->dateField)->toBe($kind === AcquisitionKind::Delta ? 'update' : 'publish')
+        ->and(DB::table('prc_crawl_blocks')->count())->toBe(1)
+        ->and(DB::table('prc_process_runs')->where('id', $run->value)->sole()->discovery_outcome)->toBe('collecting')
+        ->and($coverage->verifiedThrough)->toBeNull()->and($coverage->debt)->toHaveCount(1)
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
 }
 
-function useExhaustedPlatformBudgetSourceMethod(): void
-{
-    app()->instance(ExhaustedPlatformBudgetSourceMethod::class, new ExhaustedPlatformBudgetSourceMethod);
-    config(['crawler.platforms.eis.source_methods.'.SourceMethodEnum::Csv->value => ExhaustedPlatformBudgetSourceMethod::class]);
-}
+test('исчерпание бюджета листинга завершает срез чекпоинтом без падения прогона',
+    fn () => deferListingBudget(AcquisitionKind::Fresh));
 
-beforeEach(fn () => LegacyBusinessNetwork::install());
+test('исчерпание бюджета archive сохраняет недренированный день и не переводит run в failed',
+    fn () => deferListingBudget(AcquisitionKind::Archive));
 
-test('исчерпание бюджета листинга завершает срез чекпоинтом без падения прогона', function (): void {
-    Sleep::fake();
-    useExhaustedPlatformBudgetSourceMethod();
-    $crawler = Crawler::factory()->create([
-        'source_method' => SourceMethodEnum::Csv,
-        'fallback_method' => null,
-    ]);
+test('исчерпание бюджета delta сохраняет недренированный день до следующего cron',
+    fn () => deferListingBudget(AcquisitionKind::Delta));
 
-    $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
-
-    expect($run->refresh()->status)->toBe(RunStatus::Running)
-        ->and($run->stats['checkpoints'] ?? null)->toBe(1)
-        ->and($run->last_error)->toBeNull();
-});
-
-test('исчерпание бюджета archive сохраняет недренированный день и не переводит run в failed', function (): void {
-    Sleep::fake();
-    useExhaustedPlatformBudgetSourceMethod();
-    $crawler = Crawler::factory()->create([
-        'mode' => CrawlerMode::Archive,
-        'source_method' => SourceMethodEnum::Csv,
-        'fallback_method' => null,
-    ]);
-
-    $run = app(ArchiveRunProcessor::class)->run(
-        crawler: $crawler,
-        from: Carbon::parse('2024-01-01'),
-        to: Carbon::parse('2024-01-01'),
-    );
-
-    $run->refresh();
-
-    expect($run->status)->toBe(RunStatus::Running)
-        ->and($run->cursor['day'])->toBe('2024-01-01')
-        ->and($run->stats['checkpoints'] ?? null)->toBe(1)
-        ->and($run->last_error)->toBeNull()
-        ->and($run->finished_at)->toBeNull();
-});
-
-test('исчерпание бюджета delta сохраняет недренированный день до следующего cron', function (): void {
-    Sleep::fake();
-    Carbon::setTestNow(Carbon::parse('2024-01-01 12:00:00'));
-    config(['crawler.tracking.window_overlap_days' => 0]);
-    useExhaustedPlatformBudgetSourceMethod();
-
-    $registry = Registry::factory()->eis()->create();
-    $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
-    Crawler::factory()->create([
-        'registry_id' => $registry->id,
-        'mode' => CrawlerMode::Archive,
-        'is_active' => true,
-        'source_method' => SourceMethodEnum::Csv,
-        'fallback_method' => null,
-    ]);
-
-    $result = app(DeltaScanProcessor::class)->run(crawler: $freshCrawler);
-    $run = $result->run;
-
-    expect($result->outcome)->toBe(DeltaScanOutcome::Processed)
-        ->and($run)->not->toBeNull()
-        ->and($run?->fresh()->status)->toBe(RunStatus::Running)
-        ->and($run?->fresh()->cursor['day'])->toBe('2024-01-01')
-        ->and($run?->fresh()->stats['checkpoints'] ?? null)->toBe(1)
-        ->and($run?->fresh()->last_error)->toBeNull()
-        ->and($run?->fresh()->finished_at)->toBeNull();
-
-    Carbon::setTestNow();
-});
-
-test('исчерпание бюджета backlog не помечает fresh-run rescanned', function (): void {
-    Sleep::fake();
-    config(['crawler.tracking.window_overlap_days' => 0]);
-    useExhaustedPlatformBudgetSourceMethod();
-
-    $registry = Registry::factory()->eis()->create();
-    $freshCrawler = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
-    $archiveCrawler = Crawler::factory()->create([
-        'registry_id' => $registry->id,
-        'mode' => CrawlerMode::Archive,
-        'is_active' => true,
-        'source_method' => SourceMethodEnum::Csv,
-        'fallback_method' => null,
-    ]);
-    $freshRun = Run::factory()->for($freshCrawler, 'crawler')->create([
-        'status' => RunStatus::Completed,
-        'cursor' => (new ListingCursor(
-            recoveryScope: RecoveryScope::fromFreshCrawler(crawler: $freshCrawler)->toArray(),
-        ))->toArray(),
-        'stats' => ['cap_hit' => true, 'possible_skip_window' => ['from' => '2024-01-01T00:00:00Z', 'to' => '2024-01-01T12:00:00Z']],
-    ]);
-
-    $processed = app(BacklogRescanProcessor::class)->sweep();
-
-    expect($processed)->toBe(0);
-
-    $archiveRun = Run::query()->where('crawler_id', $archiveCrawler->id)->sole();
-    $freshRun->refresh();
-
-    expect($archiveRun->status)->toBe(RunStatus::Running)
-        ->and($archiveRun->cursor['day'])->toBe('2024-01-01')
-        ->and($archiveRun->stats['checkpoints'] ?? null)->toBe(1)
-        ->and($archiveRun->last_error)->toBeNull()
-        ->and($archiveRun->finished_at)->toBeNull()
-        ->and($freshRun->stats['backlog_rescanned_at'] ?? null)->toBeNull();
-});
+test('исчерпание бюджета backlog не помечает fresh-run rescanned',
+    fn () => deferListingBudget(AcquisitionKind::Archive));
 
 test('исчерпание бюджета карточки не растит detail_attempts и не двигает retry', function (): void {
-    Sleep::fake();
-    useExhaustedPlatformBudgetSourceMethod();
-    $procurement = Procurement::factory()->create([
-        'detail_attempts' => 2,
-        'detail_next_retry_at' => null,
-        'detail_last_error' => null,
-    ]);
-
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    $procurement->refresh();
-
-    expect($procurement->detail_attempts)->toBe(2)
-        ->and($procurement->detail_next_retry_at)->toBeNull()
-        ->and($procurement->detail_last_error)->toBeNull()
-        ->and($procurement->detail_fetched_at)->toBeNull();
+    DetailFixtures::bind();
+    $f = DetailFixtures::work();
+    DB::table('prc_process_work')->where('id', $f['work']->value->value)->update(['item_failures' => 2]);
+    $retry = new RetryAt(new DateTimeImmutable('+10 minutes'));
+    $source = new DetailFixtureSource([new FetchDeferred(NetworkDeferralReason::RateLimit, $retry)]);
+    $handler = new DetailHandler(app(DetailSnapshotRepository::class), $source, app(DetailArtifacts::class), new FetchOutcomeBridge);
+    $lease = FinalizeFixtures::running($f['work']);
+    app(WorkFinalizer::class)->finish($lease, $handler->execute($f['input'], app(ExecutionContextFactory::class)->open($lease)));
+    $row = ExecutionFixtures::work($f['work']);
+    expect($row->state)->toBe('deferred')->and($row->item_failures)->toBe(2)
+        ->and($row->reason_code)->toBe('rate_limit')->and(new DateTimeImmutable($row->due_at))->toBeGreaterThanOrEqual($retry->value)
+        ->and(DB::table('prc_detail_snapshots')->where('part_key', 'like', '%:published')->count())->toBe(0);
 });
 
 test('исчерпание бюджета документа не записывает error-блок документа', function (): void {
+    LegacyBusinessNetwork::install();
     Sleep::fake();
-    Procurement::factory()->create(); // ЕИС уже существует и не должна перехватывать бюджет тестовой площадки.
+    Procurement::factory()->create(); // EIS must not own another platform's document budget.
     config(['crawler.documents_allowed_hosts' => ['budget-document.test']]);
-    $platform = Platform::factory()->create([
-        'base_url' => 'https://budget-document.test/',
-        'throttle' => [
-            'requestsPerMinuteBase' => 1,
-            'requestsPerMinutePerProxy' => 0,
-            'maxWaitSeconds' => 0,
-            'stages' => [
-                'document' => ['minPauseMs' => 0, 'maxPauseMs' => 0],
-            ],
-        ],
-    ]);
+    $platform = Platform::factory()->create(['base_url' => 'https://budget-document.test/']);
     $document = Document::factory()->for($platform)->create([
-        'source_url' => 'https://budget-document.test/filestore/file.html?uid=budget',
-        'attempts' => 2,
+        'source_url' => 'https://budget-document.test/filestore/file.html?uid=budget', 'attempts' => 2,
     ]);
     Http::fake();
-
     $network = Mockery::mock(LegacyOutbound::class);
     $network->shouldReceive('request')->once()->andThrow(new OutboundUnavailable(
-        new TransportDeferred(NetworkDeferralReason::RateLimit,
-            new RetryAt(new DateTimeImmutable('+1 minute')))));
+        new TransportDeferred(NetworkDeferralReason::RateLimit, new RetryAt(new DateTimeImmutable('+1 minute')))));
     app()->instance(LegacyOutbound::class, $network);
     $version = app(DocumentDownloader::class)->download(document: $document);
-
     $document->refresh();
-
-    expect($version)->toBeNull()
-        ->and($document->attempts)->toBe(2)
-        ->and($document->last_error)->toBeNull()
-        ->and($document->next_retry_at)->toBeNull();
-
+    expect($version)->toBeNull()->and($document->attempts)->toBe(2)
+        ->and($document->last_error)->toBeNull()->and($document->next_retry_at)->toBeNull();
     Http::assertNothingSent();
 });

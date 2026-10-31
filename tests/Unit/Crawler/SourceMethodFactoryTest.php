@@ -2,113 +2,79 @@
 
 declare(strict_types=1);
 
-use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Exceptions\Procurement\Crawler\PlatformAdapterUnavailableException;
+use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\SupportedListingCapability;
+use App\Dto\Procurement\Platform\UnsupportedCapability;
+use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Exceptions\SourceMethodUnavailableException;
-use App\Services\Procurement\SourceMethodFactory;
-use Tests\Support\Doubles\Crawler\FakeAvailableSourceMethod;
-use Tests\Support\Doubles\Crawler\FakeCrawlerPlatformForm;
-use Tests\Support\Doubles\Crawler\FakeUnavailableSourceMethod;
+use App\Services\Platforms\Eis\EisDefinition;
+use App\Services\Platforms\Eis\EisListingSource;
+use App\Services\Platforms\Eis\Listing\EisProfilePreparer;
+use App\Services\Procurement\Acquisition\AcquisitionProfiles;
+use App\Services\Procurement\Platform\PlatformRegistry;
+use Illuminate\Config\Repository;
+use Tests\Support\Platforms\JsonProcurement\JsonProcurementDefinition;
 
-function sourceMethodRegistry(): Registry
+function sourceDefinitionRegistry(array $definitions): PlatformRegistry
+{
+    $config = new Repository(config()->all());
+    $config->set('platforms.definitions', $definitions);
+
+    return new PlatformRegistry($config);
+}
+
+function sourceDefinitionProfile(string $code, string $registryCode = 'fz44'): Crawler
 {
     $platform = new Platform;
-    $platform->code = 'test';
-
+    $platform->code = $code;
     $registry = new Registry;
-    $registry->code = 'main';
+    $registry->code = $registryCode;
     $registry->setRelation('platform', $platform);
+    $profile = new Crawler;
+    $profile->setRelation('registry', $registry);
 
-    return $registry;
+    return $profile;
 }
 
-function sourceMethodPlatformConfig(array $sourceMethods): array
-{
-    return [
-        'test' => [
-            'source_methods' => $sourceMethods,
-            'registry_filters' => [
-                'main' => [
-                    'filter' => EisSearchFilter::class,
-                    'form' => FakeCrawlerPlatformForm::class,
-                ],
-            ],
-        ],
-    ];
-}
-
-test('make резолвит реализацию из exact platform definition', function () {
-    config(['crawler.platforms' => sourceMethodPlatformConfig([
-        SourceMethodEnum::Csv->value => FakeAvailableSourceMethod::class,
-    ])]);
-
-    $method = app(SourceMethodFactory::class)->make(method: SourceMethodEnum::Csv, registry: sourceMethodRegistry());
-
-    expect($method)->toBeInstanceOf(FakeAvailableSourceMethod::class);
+test('typed definition resolves the exact listing implementation and profile preparer', function (): void {
+    $registry = sourceDefinitionRegistry(['eis' => EisDefinition::class]);
+    $definition = $registry->get(new PlatformCode('eis'));
+    expect($definition->listing)->toBeInstanceOf(SupportedListingCapability::class)
+        ->and($definition->listing->implementation)->toBe(EisListingSource::class)
+        ->and((new AcquisitionProfiles($registry))->preparer(sourceDefinitionProfile('eis')))->toBeInstanceOf(EisProfilePreparer::class);
 });
 
-test('makeWithFallback переключается на fallback когда primary недоступен', function () {
-    config(['crawler.platforms' => sourceMethodPlatformConfig([
-        SourceMethodEnum::Csv->value => FakeUnavailableSourceMethod::class,
-        SourceMethodEnum::Html->value => FakeAvailableSourceMethod::class,
-    ])]);
-
-    $crawler = new Crawler;
-    $crawler->source_method = SourceMethodEnum::Csv;
-    $crawler->fallback_method = SourceMethodEnum::Html;
-    $crawler->setRelation('registry', sourceMethodRegistry());
-
-    $method = app(SourceMethodFactory::class)->makeWithFallback(crawler: $crawler);
-
-    expect($method)->toBeInstanceOf(FakeAvailableSourceMethod::class);
+test('an unsupported capability stays explicit and never falls back to another platform', function (): void {
+    $registry = sourceDefinitionRegistry(['eis' => EisDefinition::class, 'json' => JsonProcurementDefinition::class]);
+    $json = $registry->get(new PlatformCode('json'));
+    config(['crawler.platforms.json.fallback_method' => 'eis']);
+    expect($json->status)->toBeInstanceOf(UnsupportedCapability::class)
+        ->and($json->status->reason)->not->toBeEmpty();
+    expect(fn () => (new AcquisitionProfiles($registry))->preparer(sourceDefinitionProfile('json')))
+        ->toThrow(InvalidArgumentException::class, 'no acquisition profile capability');
 });
 
-test('makeWithFallback кидает исключение когда primary и fallback недоступны', function () {
-    config(['crawler.platforms' => sourceMethodPlatformConfig([
-        SourceMethodEnum::Csv->value => FakeUnavailableSourceMethod::class,
-        SourceMethodEnum::Html->value => FakeUnavailableSourceMethod::class,
-    ])]);
+test('missing definitions reject resolution even when legacy primary and fallback config are present', function (): void {
+    $registry = sourceDefinitionRegistry([]);
+    config(['crawler.platforms.test.source_methods' => ['csv' => EisListingSource::class, 'html' => EisListingSource::class]]);
+    expect(fn () => $registry->get(new PlatformCode('test')))->toThrow(InvalidPlatformDefinition::class, 'test');
+});
 
-    $crawler = new Crawler;
-    $crawler->source_method = SourceMethodEnum::Csv;
-    $crawler->fallback_method = SourceMethodEnum::Html;
-    $crawler->setRelation('registry', sourceMethodRegistry());
+test('missing profile capability cannot resolve an implicit default preparer', function (): void {
+    $registry = sourceDefinitionRegistry(['json' => JsonProcurementDefinition::class]);
+    expect(fn () => (new AcquisitionProfiles($registry))->preparer(sourceDefinitionProfile('json')))
+        ->toThrow(InvalidArgumentException::class, 'no acquisition profile capability');
+});
 
-    app(SourceMethodFactory::class)->makeWithFallback(crawler: $crawler);
-})->throws(SourceMethodUnavailableException::class);
+test('a registry absent from the exact platform definition fails closed before preparation', function (): void {
+    $registry = sourceDefinitionRegistry(['eis' => EisDefinition::class]);
+    expect(fn () => (new AcquisitionProfiles($registry))->preparer(sourceDefinitionProfile('eis', 'missing')))
+        ->toThrow(InvalidPlatformDefinition::class, 'missing');
+});
 
-test('makeWithFallback кидает исключение когда primary недоступен и fallback не задан', function () {
-    config(['crawler.platforms' => sourceMethodPlatformConfig([
-        SourceMethodEnum::Csv->value => FakeUnavailableSourceMethod::class,
-    ])]);
-
-    $crawler = new Crawler;
-    $crawler->source_method = SourceMethodEnum::Csv;
-    $crawler->fallback_method = null;
-    $crawler->setRelation('registry', sourceMethodRegistry());
-
-    app(SourceMethodFactory::class)->makeWithFallback(crawler: $crawler);
-})->throws(SourceMethodUnavailableException::class);
-
-test('make кидает fail-closed исключение когда метод не замаплен в platform definition', function () {
-    config(['crawler.platforms' => sourceMethodPlatformConfig([])]);
-
-    app(SourceMethodFactory::class)->make(method: SourceMethodEnum::Html, registry: sourceMethodRegistry());
-})->throws(PlatformAdapterUnavailableException::class);
-
-test('makeWithFallback кидает fail-closed исключение когда fallback не замаплен в platform definition', function () {
-    config(['crawler.platforms' => sourceMethodPlatformConfig([
-        SourceMethodEnum::Csv->value => FakeUnavailableSourceMethod::class,
-    ])]);
-
-    $crawler = new Crawler;
-    $crawler->source_method = SourceMethodEnum::Csv;
-    $crawler->fallback_method = SourceMethodEnum::Html;
-    $crawler->setRelation('registry', sourceMethodRegistry());
-
-    app(SourceMethodFactory::class)->makeWithFallback(crawler: $crawler);
-})->throws(PlatformAdapterUnavailableException::class);
+test('an invalid registered provider fails at construction without resolving a fallback', function (): void {
+    expect(fn () => sourceDefinitionRegistry(['eis' => stdClass::class]))
+        ->toThrow(InvalidPlatformDefinition::class, 'platforms.definitions.eis');
+});

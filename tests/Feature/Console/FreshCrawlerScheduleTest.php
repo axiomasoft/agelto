@@ -2,57 +2,51 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Crawler\Crawler;
+use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Services\Procurement\Acquisition\AcquisitionTick;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures as F;
+use Tests\Support\ProcessCore\ListingFixtures;
 
-/**
- * Cron-выражения fresh-задач конкретного профиля после повторной загрузки `routes/console.php`.
- *
- * @return list<string>
- */
-function freshScheduleFor(Crawler $crawler): array
-{
-    // `require` исполняет console.php в области ЭТОЙ функции: его цикл перезаписал бы `$crawler`.
-    $crawlerId = $crawler->id;
-    $schedule = app(Schedule::class);
-    $before = count($schedule->events());
-
-    require base_path('routes/console.php');
-
-    return collect(array_slice($schedule->events(), $before))
-        ->filter(fn (Event $event): bool => preg_match("/crawler:run-fresh'? '?{$crawlerId}'?$/", (string) $event->command) === 1)
-        ->map(fn (Event $event): string => $event->expression)
-        ->values()
-        ->all();
-}
+beforeEach(fn () => ListingFixtures::bind());
 
 test('активный fresh-профиль регистрируется по своему cron', function (): void {
-    $crawler = Crawler::factory()->create(['is_active' => true, 'schedule' => '*/15 * * * *']);
+    $profile = F::create();
+    $profile->update(['schedule' => '*/15 * * * *']);
+    app(AcquisitionTick::class)->tick();
 
-    expect(freshScheduleFor($crawler))->toBe(['*/15 * * * *']);
+    $schedule = DB::table('prc_acquisition_schedules')->where('profile_id', $profile->id)->sole();
+    expect($schedule->cron)->toBe('*/15 * * * *')->and($schedule->timezone)->toBe('UTC')
+        ->and($schedule->acquisition_kind)->toBe(AcquisitionKind::Fresh->value)
+        ->and($schedule->profile_version)->toBe($profile->profile_version);
 });
 
 test('пустое расписание не запускает профиль по cron, как обещает форма краулера', function (): void {
-    $crawler = Crawler::factory()->create(['is_active' => true, 'schedule' => null]);
+    $profile = F::create();
+    $profile->update(['schedule' => null]);
+    app(AcquisitionTick::class)->tick();
 
-    expect(freshScheduleFor($crawler))->toBe([]);
+    expect(DB::table('prc_acquisition_schedules')->where('profile_id', $profile->id)->exists())->toBeFalse()
+        ->and(DB::table('prc_process_runs')->where('profile_id', $profile->id)->exists())->toBeFalse();
 });
 
 test('невалидный cron одного профиля пропускается с ошибкой в логе и не ломает планировщик', function (): void {
     Log::spy();
-    $broken = Crawler::factory()->create(['is_active' => true, 'schedule' => 'каждые 5 минут']);
-    $healthy = Crawler::factory()->create(['is_active' => true, 'schedule' => '0 * * * *']);
+    $broken = F::create();
+    $broken->update(['schedule' => 'каждые 5 минут']);
+    $healthy = F::create();
+    $healthy->update(['schedule' => '0 * * * *']);
+    app(AcquisitionTick::class)->tick();
 
-    expect(freshScheduleFor($broken))->toBe([])
-        ->and(freshScheduleFor($healthy))->toBe(['0 * * * *']);
-    Log::shouldHaveReceived('error')->withArgs(
-        fn (string $message, array $context): bool => $context['crawler_id'] === $broken->id,
-    )->atLeast()->once();
+    expect(DB::table('prc_acquisition_schedules')->pluck('profile_id')->all())->toBe([$healthy->id]);
+    Log::shouldHaveReceived('warning')->withArgs(
+        fn (string $message, array $context): bool => $context['profile_id'] === $broken->id,
+    )->once();
 });
 
 test('недоступная БД не роняет загрузку console.php и оставляет задачи без таблиц', function (): void {
@@ -64,23 +58,22 @@ test('недоступная БД не роняет загрузку console.php
     require base_path('routes/console.php');
 
     $commands = collect(array_slice($schedule->events(), $before))->map(fn (Event $event): string => (string) $event->command);
-
     expect($commands->contains(fn (string $command): bool => str_contains($command, 'partitions:maintain')))->toBeTrue()
-        ->and($commands->contains(fn (string $command): bool => str_contains($command, 'crawler:')))->toBeFalse();
+        ->and($commands->contains(fn (string $command): bool => str_contains($command, 'process:schedule-acquisition')))->toBeFalse();
     Log::shouldHaveReceived('warning')->once();
 });
 
 test('сбой чтения профилей после успешной проверки схемы не роняет console.php', function (): void {
-    Log::spy();
+    // Profile reads belong to the producer command now, never to console bootstrap.
     DB::listen(static function (QueryExecuted $query): void {
         if (str_contains($query->sql, 'from "prc_crawlers"')) {
             throw new RuntimeException('profile query failed');
         }
     });
-
+    $schedule = app(Schedule::class);
+    $before = count($schedule->events());
     require base_path('routes/console.php');
 
-    Log::shouldHaveReceived('warning')->withArgs(
-        fn (string $message, array $context): bool => $context['exception'] === 'profile query failed',
-    )->once();
+    $commands = collect(array_slice($schedule->events(), $before))->map(fn (Event $event): string => (string) $event->command);
+    expect($commands->filter(fn (string $command): bool => str_contains($command, 'process:schedule-acquisition')))->toHaveCount(1);
 });

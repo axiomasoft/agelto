@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Database\Factories\Procurement\Crawler;
 
 use App\Models\Procurement\Crawler\Fetch;
-use App\Models\Procurement\Crawler\Run;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,7 +20,7 @@ final class FetchFactory extends Factory
         $rowsParsed = fake()->numberBetween(int1: 0, int2: $rowsTotal);
 
         return [
-            'crawler_run_id' => Run::factory(),
+            'crawler_run_id' => null,
             'method' => 'csv',
             'request_params' => null,
             'artifact_ref' => null,

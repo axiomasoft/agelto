@@ -196,6 +196,13 @@ HEAD/dirty/input-tree hashes и hashes исходных JUnit/schema/catalog/see
 `executed-scenarios.json`. Это before evidence P4.1, а не pass текущего candidate.
 Regression сопоставляет каждый file/name через точную move map, требует passed status и пишет
 `scenario-comparison.json` до отказа при потере/переименовании/skipped case или дубле.
+При owning cutover D18 допускает перенос через versioned
+`tests/Fixtures/ProcessCore/scenario-transfers.json`: точный исходный file/name (включая dataset),
+все тесты-замены, причина и нормативный контракт. Карта привязана к hash исходного executed
+baseline; сам baseline не меняется. Guard требует успешного однократного исполнения **каждой**
+замены, отвергает неизвестные/повторные источники, пустые списки, self-reference и цепочки.
+Нет исключения для удалённого файла, отсутствующего, failed или skipped теста. Report сохраняет
+применённые переносы отдельно от неизменённых сценариев и hash карты текущего candidate.
 Дополнительные architecture cases разрешены. `core-test-report` требует этот artifact и сверяет
 его hash с результатом regression того же input tree.
 
@@ -348,20 +355,21 @@ WHERE p.code = 'eis';
 
 Сброс требует оператора с правом управления, непустую причину и точную `state_version`.
 Конфликт версии отклоняет сброс. Состояние меняется на `validating`; исправность подтверждает
-последующий полный canary. Для отдельной карточки `--release-input` снимает только её
-локальный запрет повторов. Причина и оператор сохраняются в аудите:
+последующий полный canary. Для отдельной карточки `--release-input` создаёт новый audited
+Process intent для `failed_item`, сохраняя исчерпанный budget прежней работы:
 
 ```bash
 php artisan process:diagnose eis --adapter=detail --reset-version=7 --actor-id=1 --reason='Исправлен контракт парсера'
 php artisan process:diagnose eis --adapter=detail --procurement-id=456 --release-input --actor-id=1 --reason='Проверен сохранённый вход'
 ```
 
-Для прогонов listing используются действия «Возобновить» / «Перезапустить» в таблице
-краулеров; после исчерпания лимита входа требуется причина. Автоматическое продолжение
-ожидающих профильных прогонов выполняет существующий `crawler:recover-stale`. Оно соблюдает
-ручные controls, локальный hold и абсолютный `RetryAt`, сохраняя курсор и счётчики входа.
-При отказе очереди освобождаются точные SQL claim и unique lock; следующий тик может повторить
-публикацию. Delta и backlog продолжаются своими планировщиками.
+С P2.18 профиль запускается через `process:run` или versioned действие в таблице профилей;
+fresh/archive/delta выделяет `process:schedule-acquisition`. Pause/resume/cancel выполняются
+через Process control API с RBAC, expected version и причиной. RecoveryReconciler и outbox
+relay восстанавливают work/delivery, сохраняя cursor, controls, hold и абсолютный RetryAt.
+`crawler:recover-stale`, старые jobs и их unique locks удалены. CancelRun не отменяет работу,
+которая нужна другому run. Legacy incidents readers/table сохраняются до P3.17;
+circuits readers/table удалены. См. [acquisition-scheduler.md](acquisition-scheduler.md).
 
 Последний полностью полученный HTTP error сохраняется как ограниченный decoded UTF-8
 артефакт CSV с идентичностью физического запроса. Промежуточный 503 перед успешным ответом

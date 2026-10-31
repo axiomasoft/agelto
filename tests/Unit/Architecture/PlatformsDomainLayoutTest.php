@@ -158,7 +158,7 @@ test('T33 старые FQCN и физические move paths отсутств�
 
     foreach ($map['moves'] as $move) {
         expect(is_file(base_path($move['old'])))->toBeFalse()
-            ->and(is_file(base_path($move['new'])))->toBeTrue();
+            ->and(is_file(base_path($move['new'])))->toBe(! isset($move['removed_in']));
 
         if (str_starts_with($move['old'], 'tests/Fixtures/')) {
             expect(hash_file('sha256', base_path($move['new'])))->toBe($move['before_sha256']);
@@ -183,11 +183,26 @@ test('T33 каждый перенесённый class enum factory и seeder д�
         foreach (['app/' => 'App/', 'database/factories/' => 'Database/Factories/', 'database/seeders/' => 'Database/Seeders/', 'tests/Support/' => 'Tests/Support/'] as $prefix => $namespace) {
             if (str_starts_with($move['new'], $prefix)) {
                 $class = str_replace('/', '\\', $namespace.substr($move['new'], strlen($prefix), -4));
-                expect(class_exists($class) || enum_exists($class))->toBeTrue();
+                expect(class_exists($class) || enum_exists($class))->toBe(! isset($move['removed_in']));
                 $count++;
             }
         }
     }
 
     expect($count)->toBe(24);
+});
+
+test('T33 profile preparation role cannot acquire execution persistence dependencies', function (): void {
+    $violations = PlatformSourceRules::dependencyViolations([
+        'app/Services/Platforms/Eis/Listing/EisProfilePreparer.php' => '<?php use App\\Repositories\\Procurement\\Process\\WorkStoreRepository;',
+    ], []);
+    expect($violations)->toContain('forbidden dependency: app/Services/Platforms/Eis/Listing/EisProfilePreparer.php -> App\\Repositories\\Procurement\\Process\\WorkStoreRepository');
+});
+
+test('T33 diagnostic assessment cannot select routes or read acquisition models', function (): void {
+    $path = 'app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php';
+    foreach (['App\\Models\\Procurement\\Crawler\\Crawler', 'App\\Services\\Procurement\\Proxy\\ProxyResolver'] as $dependency) {
+        expect(PlatformSourceRules::dependencyViolations([$path => '<?php use '.$dependency.';'], []))
+            ->toBe(['forbidden dependency: '.$path.' -> '.$dependency]);
+    }
 });

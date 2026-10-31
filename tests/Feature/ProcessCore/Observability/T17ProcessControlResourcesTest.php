@@ -133,7 +133,8 @@ test('T17 EXR-01: полный sidebar админки на промежуточ�
         ->and($html)->toContain('Процессы: инциденты');
     actingAs(processUiUser(OperatorRole::class))->get(WorkItemResource::getUrl())->assertOk();
     actingAs(processUiUser(AnalystRole::class))->get(WorkItemResource::getUrl())->assertForbidden();
-    actingAs(processUiUser(AnalystRole::class))->get(ProcessRunResource::getUrl())->assertForbidden();
+    // The acquisition cutover preserves the analyst's historical read-only run access.
+    actingAs(processUiUser(AnalystRole::class))->get(ProcessRunResource::getUrl())->assertOk();
 });
 
 test('T17 drilldown work: причина и next retry видны; CancelWork через таблицу с версией и audit; terminal без действия', function (): void {

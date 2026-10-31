@@ -19,14 +19,14 @@ use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Crawler\RefreshRepository;
-use App\Services\Procurement\Platform\Contracts\DetailPartsSource;
+use App\Services\Procurement\Platform\Contracts\StatusSource;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\Contracts\StageHandler;
 
 final readonly class StatusRefreshHandler implements StageHandler
 {
     public function __construct(private RefreshRepository $refreshes, private DetailSnapshotRepository $details,
-        private DetailPartsSource $source, private FetchOutcomeBridge $bridge) {}
+        private StatusSource $source, private FetchOutcomeBridge $bridge) {}
 
     public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
     {
@@ -36,9 +36,8 @@ final readonly class StatusRefreshHandler implements StageHandler
         $intent = $this->refreshes->intent($input);
         $saved = $this->details->request($input->procurementId, $intent);
         $request = new DetailRequest($saved->registry, $saved->identity, $saved->locator, statusOnly: true);
-        $parts = $this->source->parts($request);
         $execution->tick();
-        $fetched = $this->source->fetchPart($request, $parts[0], $execution);
+        $fetched = $this->source->refresh($request, $execution);
         if (! $fetched instanceof DetailFetched) {
             return match (true) {
                 $fetched instanceof FetchDeferred, $fetched instanceof FetchBlocked, $fetched instanceof FetchItemRejected => $this->bridge->failure($fetched),

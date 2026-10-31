@@ -37,6 +37,7 @@ use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Repositories\Procurement\Process\RunStoreRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Platforms\Eis\EisListingPartitioner;
+use App\Services\Procurement\Acquisition\DetailValueCodec;
 use App\Services\Procurement\Acquisition\ListingStageCodec;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
 use App\Services\Procurement\Process\StageRegistry;
@@ -54,11 +55,11 @@ final class ListingFixtures
     public static function bindLocal(): void
     {
         ExecutionFixtures::registerHandler(StageCode::Listing);
-        app(StageRegistry::class)->bindFinalization(StageCode::Listing, new ListingStageCodec, app(ListingFinalizer::class));
+        app(StageRegistry::class)->bindFinalization(StageCode::Listing, new ListingStageCodec(app(DetailValueCodec::class)), app(ListingFinalizer::class));
     }
 
     /** @return array{run: ProcessUuid, crawl: ProcessUuid, work: WorkId, input: ListingInput, stream: ContentHash} */
-    public static function run(string $from = '2026-01-01', ?string $through = null, int $budget = 10000, ?ContentHash $stream = null, ?Registry $registry = null, ?string $closesAt = null): array
+    public static function run(string $from = '2026-01-01', ?string $through = null, int $budget = 10000, ?ContentHash $stream = null, ?Registry $registry = null, ?string $closesAt = null, int $blockSize = 500): array
     {
         $registry ??= Registry::factory()->eis()->create();
         $partitioner = new EisListingPartitioner;
@@ -68,11 +69,11 @@ final class ListingFixtures
         $crawl = LedgerFixtures::uuid();
         $stream ??= ContentHash::of($run->value);
 
-        return DB::transaction(function () use ($registry, $partitioner, $filter, $snapshot, $run, $crawl, $stream, $from, $through, $budget, $closesAt): array {
+        return DB::transaction(function () use ($registry, $partitioner, $filter, $snapshot, $run, $crawl, $stream, $from, $through, $budget, $closesAt, $blockSize): array {
             app(RunStoreRepository::class)->storeRun($run, RunKind::Manual, null, null, new VersionedPayload('{}', 1), null, LedgerFixtures::uuid(), LedgerFixtures::uuid());
             app(CrawlStoreRepository::class)->storeCrawlRun($crawl, $run, AcquisitionKind::Archive,
                 new VersionedPayload($snapshot->serializedPayload, 1), ContentHash::of('access'), 'fixture-listing/1');
-            $plan = $partitioner->plan($filter, $from, $through ?? $from);
+            $plan = $partitioner->plan($filter, $from, $through ?? $from, blockSize: $blockSize);
             if ($closesAt !== null) {
                 $w = $plan->windows[0];
                 $plan = new ListingPlan([

@@ -2,26 +2,36 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Acquisition\DetailProgress;
+use App\Dto\Procurement\Acquisition\DetailResult;
+use App\Dto\Procurement\Process\ArtifactRef;
+use App\Dto\Procurement\Process\StageFailedItem;
+use App\Dto\Procurement\Process\StageSucceeded;
 use App\Enums\Organization\ProcurementPartyRole;
+use App\Enums\Procurement\Platform\SnapshotConsistency;
+use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Models\Organization\Organization;
 use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Financing;
-use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\PurchaseItem;
-use Illuminate\Support\Carbon;
+use App\Services\Procurement\Process\WorkFinalizer;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\DetailFixtures as F;
+use Tests\Support\ProcessCore\ExecutionFixtures as E;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\LedgerFixtures;
 
-/**
- * §11 «Детальный слой карточки снят» и «Детальная карточка упала».
- * Процессора детального слоя в этой фазе нет (вне scope P1.10) — проверяем
- * схему/модели напрямую через фабрики.
- */
-test('снятие детального слоя заполняет items/financing/eis_details/parties и проставляет detail_fetched_at', function () {
-    $procurement = Procurement::factory()->create(['detail_fetched_at' => null]);
+beforeEach(fn () => F::bind());
+
+test('Process detail publication records successful snapshot and preserves items financing extension and parties relations', function () {
+    $f = F::work();
+    $procurement = $f['p'];
     $customer = Organization::factory()->create();
 
-    $fetchedAt = Carbon::parse('2026-02-01 12:00:00');
-    $procurement->update(['detail_fetched_at' => $fetchedAt]);
+    app(WorkFinalizer::class)->finish(FinalizeFixtures::running($f['work']), new StageSucceeded(
+        new DetailResult(F::snapshot($f['request'], 'attributes'), new DetailProgress,
+            SnapshotConsistency::BoundedRevalidated, new DateTimeImmutable)));
 
     $item = PurchaseItem::factory()->create(['procurement_id' => $procurement->id]);
     $financing = Financing::factory()->create(['procurement_id' => $procurement->id]);
@@ -34,7 +44,8 @@ test('снятие детального слоя заполняет items/financ
 
     $procurement->refresh();
 
-    expect($procurement->detail_fetched_at->equalTo($fetchedAt))->toBeTrue()
+    expect(DB::table('prc_detail_snapshots')->where('procurement_id', $procurement->id)->where('part_key', 'like', '%:published')->count())->toBe(1)
+        ->and(E::work($f['work'])->state)->toBe('succeeded')
         ->and(PurchaseItem::query()->where('procurement_id', $procurement->id)->find($item->id))->not->toBeNull()
         ->and(Financing::query()->where('procurement_id', $procurement->id)->find($financing->id))->not->toBeNull()
         ->and(EisDetails::query()->where('procurement_id', $procurement->id)->first()->procurement_id)->toBe($procurement->id)
@@ -43,33 +54,23 @@ test('снятие детального слоя заполняет items/financ
     expect($eisDetails->procurement_id)->toBe($procurement->id);
 });
 
-test('провал детальной карточки помечает detail_next_retry_at/detail_failed для ретрая по detail_fetched_at IS NULL', function () {
-    $failingRetryAt = Carbon::now()->addMinutes(30);
+test('Process detail failure retains retry evidence and budget exhaustion without a successful snapshot', function () {
+    $f = F::work();
+    $failure = new StageFailedItem(ItemFailureReason::ContractRejected,
+        new ArtifactRef('fixture', 'detail/rejected', LedgerFixtures::hash('detail-rejected')));
+    app(WorkFinalizer::class)->finish(FinalizeFixtures::running($f['work']), $failure);
+    $work = E::work($f['work']);
+    expect($work->state)->toBe('deferred')->and($work->item_failures)->toBe(1)
+        ->and($work->due_at)->not->toBeNull()
+        ->and($work->reason_code)->toBe('item_retry')
+        ->and(DB::table('prc_process_attempts')->where('work_id', $f['work']->value->value)->sole()->terminal_kind)->toBe('failed_item');
 
-    $procurement = Procurement::factory()->create([
-        'detail_fetched_at' => null,
-        'detail_attempts' => 1,
-        'detail_last_error' => 'HTTP 503 от карточки закупки',
-        'detail_next_retry_at' => $failingRetryAt,
-        'detail_failed' => false,
-    ]);
-
-    $pendingRetry = Procurement::query()
-        ->whereNull('detail_fetched_at')
-        ->where('detail_failed', false)
-        ->where('detail_next_retry_at', '<=', Carbon::now()->addHour())
-        ->find($procurement->id);
-
-    expect($pendingRetry)->not->toBeNull()
-        ->and($pendingRetry->detail_attempts)->toBe(1)
-        ->and($pendingRetry->detail_last_error)->toBe('HTTP 503 от карточки закупки');
-
-    $procurement->update(['detail_failed' => true]);
-
-    $permanentlyFailed = Procurement::query()
-        ->whereNull('detail_fetched_at')
-        ->where('detail_failed', true)
-        ->find($procurement->id);
-
-    expect($permanentlyFailed)->not->toBeNull();
+    for ($attempt = 2; $attempt <= 3; $attempt++) {
+        app(WorkFinalizer::class)->finish(FinalizeFixtures::rerun($f['work']), $failure);
+    }
+    expect(E::work($f['work'])->state)->toBe('failed_item')
+        ->and(E::work($f['work'])->item_failures)->toBe(3)
+        ->and(E::work($f['work'])->reason_code)->toBe('contract_rejected')
+        ->and(DB::table('prc_process_transitions')->where('work_id', $f['work']->value->value)->whereIn('new_state', ['deferred', 'failed_item'])->count())->toBe(3)
+        ->and(DB::table('prc_detail_snapshots')->where('procurement_id', $f['p']->id)->where('part_key', 'like', '%:published')->count())->toBe(0);
 });

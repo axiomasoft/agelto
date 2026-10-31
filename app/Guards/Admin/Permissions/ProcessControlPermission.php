@@ -15,8 +15,11 @@ enum ProcessControlPermission: string
     case View = 'process_control.view';
     case PauseScope = 'process_control.pause_scope';
     case ResumeScope = 'process_control.resume_scope';
+    case ValidateAdapter = 'process_control.validate_adapter';
+    case LaunchRun = 'process_control.launch_run';
     case CancelWork = 'process_control.cancel_work';
     case CancelRun = 'process_control.cancel_run';
     case RetryHandlerFault = 'process_control.retry_handler_fault';
+    case RetryFailedItem = 'process_control.retry_failed_item';
     case AcknowledgeIncident = 'process_control.acknowledge_incident';
 }

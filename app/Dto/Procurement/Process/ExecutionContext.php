@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Process;
 
+use App\Dto\Procurement\Network\AdapterValidationClaim;
+use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Exceptions\Procurement\Process\LeaseLost;
 use App\Exceptions\Procurement\Process\SliceExhausted;
@@ -30,6 +32,39 @@ final class ExecutionContext
     private int $lastRenewalNs;
 
     private bool $lost = false;
+
+    private ?AdapterValidationClaim $adapterClaim = null;
+
+    /** @var list<ProcessUuid> */
+    private array $successfulRequestIds = [];
+
+    public function bindAdapter(AdapterValidationClaim $claim): void
+    {
+        if ($this->adapterClaim !== null || $claim->ownerKind !== AdapterValidationOwnerKind::WorkAttempt
+            || $claim->ownerId->value !== $this->lease->attemptId->value || $claim->canary) {
+            throw new \LogicException('An adapter claim belongs to exactly one work attempt.');
+        }
+        $this->adapterClaim = $claim;
+    }
+
+    public function adapterClaim(): ?AdapterValidationClaim
+    {
+        return $this->adapterClaim;
+    }
+
+    public function recordSuccessfulRequest(ProcessUuid $id): void
+    {
+        if (count($this->successfulRequestIds) >= 64) {
+            throw new \LogicException('Full validation request provenance exceeded its bound.');
+        }
+        $this->successfulRequestIds[] = $id;
+    }
+
+    /** @return list<ProcessUuid> */
+    public function successfulRequestIds(): array
+    {
+        return $this->successfulRequestIds;
+    }
 
     public function __construct(
         ExecutionLease $lease,

@@ -6,7 +6,7 @@ namespace App\Actions\Procurement\Network;
 
 use App\Dto\Procurement\Network\AdapterContractRef;
 use App\Dto\Procurement\Network\NetworkChangeResult;
-use App\Guards\Admin\Permissions\SourceCircuitPermission;
+use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\User;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Services\Procurement\Process\ProcessTransaction;
@@ -18,7 +18,7 @@ final readonly class ResetAdapterHealth
 
     public function execute(User $actor, AdapterContractRef $contract, int $expectedVersion, string $reason): NetworkChangeResult
     {
-        if (! $actor->hasPermission(permission: SourceCircuitPermission::Update, panelId: 'admin')) {
+        if (! $actor->hasPermission(permission: ProcessControlPermission::ValidateAdapter, panelId: 'admin')) {
             throw new AuthorizationException('Adapter recovery is not permitted.');
         }
 

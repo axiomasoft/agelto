@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 use App\Dto\Procurement\Acquisition\ProcurementIdentity;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
@@ -31,7 +32,7 @@ final readonly class ProcurementIngestProcessor
 
     /** Caller owns the identity/subject locks and the fenced finalization transaction. */
     public function ingestLocked(ProcurementSnapshotData $data, ProcurementIdentity $identity,
-        ?Procurement $procurement, ?int $crawlerRunId = null, ?Carbon $observedAt = null): Procurement
+        ?Procurement $procurement, ?ProcessUuid $processRunId = null, ?Carbon $observedAt = null): Procurement
     {
         CallerTransaction::require('Canonical ingestion');
         $observedAt ??= Carbon::now();
@@ -41,8 +42,8 @@ final readonly class ProcurementIngestProcessor
         $snapshotHash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
         $procurement ??= $this->store->storeProcurement($data, $resolution->status->value, $now, $identity);
         $procurement = $procurement->wasRecentlyCreated
-            ? $this->discover($data, $resolution->status->value, $snapshot, $snapshotHash, $crawlerRunId, $now, $observedAt, $procurement)
-            : $this->applyRevision($procurement, $data, $resolution->status->value, $snapshot, $snapshotHash, $crawlerRunId, $now, $observedAt);
+            ? $this->discover($data, $resolution->status->value, $snapshot, $snapshotHash, $processRunId, $now, $observedAt, $procurement)
+            : $this->applyRevision($procurement, $data, $resolution->status->value, $snapshot, $snapshotHash, $processRunId, $now, $observedAt);
         $this->outcomeEvaluator->evaluate(procurement: $procurement);
 
         return $procurement;
@@ -56,7 +57,7 @@ final readonly class ProcurementIngestProcessor
         string $status,
         array $snapshot,
         string $snapshotHash,
-        ?int $crawlerRunId,
+        ?ProcessUuid $processRunId,
         Carbon $now,
         Carbon $observedAt,
         Procurement $procurement,
@@ -69,7 +70,7 @@ final readonly class ProcurementIngestProcessor
             snapshotHash: $snapshotHash,
             detectedAt: $now,
             sourceUpdatedAt: $data->sourceUpdatedAt,
-            crawlerRunId: $crawlerRunId,
+            processRunId: $processRunId,
         );
 
         $this->store->updateProcurementHead(
@@ -108,7 +109,7 @@ final readonly class ProcurementIngestProcessor
         string $status,
         array $snapshot,
         string $snapshotHash,
-        ?int $crawlerRunId,
+        ?ProcessUuid $processRunId,
         Carbon $now,
         Carbon $observedAt,
     ): Procurement {
@@ -149,7 +150,7 @@ final readonly class ProcurementIngestProcessor
             snapshotHash: $snapshotHash,
             detectedAt: $now,
             sourceUpdatedAt: $data->sourceUpdatedAt,
-            crawlerRunId: $crawlerRunId,
+            processRunId: $processRunId,
         );
 
         $this->store->updateProcurementHead(

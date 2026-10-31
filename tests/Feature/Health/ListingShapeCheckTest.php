@@ -2,82 +2,68 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Crawler\CrawlStage;
+use App\Dto\Procurement\Health\CheckResult;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Fetch;
-use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Platform\Platform;
-use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Health\Checks\ListingShapeCheck;
 use App\Services\Procurement\Health\HealthBaselineReader;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\LedgerFixtures;
 
-function listingFetch(Platform $platform, array $attributes = []): Fetch
+// Reader fixtures model committed adapter evidence. Transport bytes/row assessments are
+// covered by T17AcquisitionRuntimeTest; this check counts distinct validated inputs.
+function listingAssessment(Platform $platform, string $verdict, ?string $input = null, bool $stale = false): void
 {
-    $registry = Registry::query()
-        ->where('platform_id', $platform->id)
-        ->where('code', 'fz44')
-        ->first();
-
-    if ($registry === null) {
-        $registry = Registry::factory()->create(['platform_id' => $platform->id]);
-    }
-
-    $crawler = Crawler::factory()->create(['registry_id' => $registry->id]);
-    $run = Run::factory()->create(['crawler_id' => $crawler->id]);
-
-    return Fetch::factory()->create([
-        'crawler_run_id' => $run->id,
-        'stage' => CrawlStage::Listing->value,
-        'fetched_at' => now(),
-        ...$attributes,
+    DB::table('prc_observations')->insert([
+        'observation_id' => LedgerFixtures::uuid()->value, 'kind' => 'adapter_validation',
+        'reason_code' => 'fixture.listing', 'input_hash' => DB::raw("decode('".hash('sha256', $input ?? LedgerFixtures::uuid()->value)."','hex')"),
+        'generation' => 1, 'epochs' => '{}', 'epochs_schema_version' => 1, 'stale' => $stale,
+        'details' => json_encode(['contract' => ['platform_code' => $platform->code, 'capability' => 'listing'], 'verdict' => $verdict], JSON_THROW_ON_ERROR),
+        'details_schema_version' => 1, 'occurred_at' => now()->subSecond(),
     ]);
+}
+
+function listingShapeResult(Platform $platform): CheckResult
+{
+    return app(ListingShapeCheck::class)->run($platform, app(HealthBaselineReader::class)->read(), now()->subDay(), now());
 }
 
 test('проверка формы листинга подтверждает неизменившийся распарсенный блок', function (): void {
     $platform = Platform::factory()->create(['code' => 'eis']);
-    listingFetch($platform, ['rows_total' => 2, 'rows_new' => 0, 'rows_updated' => 0, 'rows_parsed' => 2, 'rows_errors' => 0, 'http_status' => 200]);
-
-    $result = app(ListingShapeCheck::class)->run($platform, app(HealthBaselineReader::class)->read(), now()->subDay(), now());
-
-    expect($result->verdict)->toBe(PlatformCheckVerdict::Ok);
+    listingAssessment($platform, 'accepted');
+    expect(listingShapeResult($platform)->verdict)->toBe(PlatformCheckVerdict::Ok);
 });
 
 test('проверка формы листинга считает полностью ошибочный блок broken среди healthy samples', function (): void {
     $platform = Platform::factory()->create(['code' => 'eis']);
-    listingFetch($platform, ['rows_total' => 10, 'rows_parsed' => 10, 'rows_errors' => 0, 'http_status' => 200]);
-    listingFetch($platform, ['rows_total' => 2, 'rows_parsed' => 0, 'rows_errors' => 2, 'http_status' => 200]);
-
-    $result = app(ListingShapeCheck::class)->run($platform, app(HealthBaselineReader::class)->read(), now()->subDay(), now());
-
-    expect($result->verdict)->toBe(PlatformCheckVerdict::Broken);
+    listingAssessment($platform, 'accepted');
+    listingAssessment($platform, 'contract_failure');
+    expect(listingShapeResult($platform)->verdict)->toBe(PlatformCheckVerdict::Broken);
 });
 
 test('проверка формы листинга отражает частичные ошибки по доле строк', function (): void {
+    // Row metrics no longer imply validation success; the canonical denominator is distinct inputs.
     $platform = Platform::factory()->create(['code' => 'eis']);
-    listingFetch($platform, ['rows_total' => 10, 'rows_parsed' => 9, 'rows_errors' => 1, 'http_status' => 200]);
-
-    $result = app(ListingShapeCheck::class)->run($platform, app(HealthBaselineReader::class)->read(), now()->subDay(), now());
-
+    foreach (range(1, 9) as $input) {
+        listingAssessment($platform, 'accepted', (string) $input);
+    }
+    listingAssessment($platform, 'contract_failure');
+    $result = listingShapeResult($platform);
     expect($result->verdict)->toBe(PlatformCheckVerdict::Degraded)
-        ->and($result->measured['max_row_error_share'])->toBe(0.1)
-        ->and($result->measured['row_error_share_denominator'])->toBe('rows_total');
+        ->and($result->measured['contract_failure_share'])->toBe(0.1)
+        ->and($result->measured['source'])->toBe('adapter_validation');
 });
 
 test('проверка формы листинга считает исторические null-метрики неизвестными', function (): void {
     $platform = Platform::factory()->create(['code' => 'eis']);
-    listingFetch($platform, ['rows_total' => 2, 'rows_parsed' => null, 'rows_errors' => null, 'http_status' => 200]);
-
-    $result = app(ListingShapeCheck::class)->run($platform, app(HealthBaselineReader::class)->read(), now()->subDay(), now());
-
+    listingAssessment($platform, 'partial');
+    $result = listingShapeResult($platform);
     expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)
-        ->and($result->measured['unknown_parse_metrics'])->toBe(1);
+        ->and($result->measured['incomplete_assessments'])->toBe(1);
 });
 
 test('проверка формы листинга не называет отсутствие блоков здоровьем', function (): void {
     $platform = Platform::factory()->create(['code' => 'eis']);
-
-    $result = app(ListingShapeCheck::class)->run($platform, app(HealthBaselineReader::class)->read(), now()->subDay(), now());
-
-    expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData);
+    listingAssessment($platform, 'accepted', stale: true);
+    expect(listingShapeResult($platform)->verdict)->toBe(PlatformCheckVerdict::NotEnoughData);
 });

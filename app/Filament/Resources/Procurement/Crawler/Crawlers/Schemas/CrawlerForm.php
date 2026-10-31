@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 
-use App\Contracts\Procurement\Crawler\CrawlerPlatformForm;
-use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\RunStopPolicy;
-use App\Enums\Procurement\Crawler\SourceMethod;
+use App\Contracts\Procurement\Platform\PlatformUiExtension;
+use App\Dto\Procurement\Platform\PlatformCode;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\PlatformAdapterRegistry;
+use App\Services\Procurement\Platform\PlatformRegistry;
 use Cron\CronExpression;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -33,18 +30,7 @@ final class CrawlerForm
                 ->schema([
                     Select::make('registry_id')->label('Реестр')->relationship('registry', 'name')->live()->required(),
                     Textarea::make('name')->label('Название')->required()->columnSpanFull(),
-                    Select::make('mode')->label('Режим')->options(CrawlerMode::class)->required(),
-                    Select::make('execution_lane')
-                        ->label('Контур исполнения')
-                        ->options([
-                            CrawlerExecutionLane::Standard->value => 'Стандартный — до 5 минут',
-                            CrawlerExecutionLane::Long->value => 'Длинный архивный — до 1 часа',
-                        ])
-                        ->default(CrawlerExecutionLane::Standard->value)
-                        ->required(),
-                    Select::make('stop_policy')->label('Режим работы')->options(RunStopPolicy::class)->required(),
-                    Select::make('source_method')->label('Основной способ получения')->options(SourceMethod::class)->required(),
-                    Select::make('fallback_method')->label('Резервный способ получения')->options(SourceMethod::class),
+                    Select::make('listing_kind')->label('Режим')->options(['fresh' => 'Новые извещения', 'archive' => 'Архив', 'delta' => 'Изменения'])->required(),
                 ])
                 ->columns(3),
             Section::make('Настройки площадки')
@@ -101,12 +87,17 @@ final class CrawlerForm
         }
 
         try {
-            $class = app(PlatformAdapterRegistry::class)->formClass(registry: $registry);
+            $code = $registry->platform?->getAttribute('code');
+            if (! is_string($code)) {
+                return [self::unavailablePlatformPlaceholder()];
+            }
+            $definition = app(PlatformRegistry::class)->get(new PlatformCode($code));
+            if ($definition->uiExtension === null) {
+                return [];
+            }
+            $extension = app($definition->uiExtension);
 
-            /** @var CrawlerPlatformForm $form */
-            $form = app()->make($class);
-
-            return $form->components(registry: $registry, get: $get);
+            return $extension instanceof PlatformUiExtension ? $extension->profileFormSchema() : [self::unavailablePlatformPlaceholder()];
         } catch (Throwable) {
             return [self::unavailablePlatformPlaceholder()];
         }

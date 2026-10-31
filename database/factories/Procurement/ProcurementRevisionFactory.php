@@ -28,7 +28,7 @@ final class ProcurementRevisionFactory extends Factory
             'snapshot_hash' => hash(algo: 'sha256', data: json_encode($snapshot)),
             'source_updated_at' => now(),
             'detected_at' => now(),
-            'crawler_run_id' => null,
+            'process_run_id' => null,
         ];
     }
 }

@@ -4,16 +4,10 @@ declare(strict_types=1);
 
 namespace App\Filament\Platforms\Eis;
 
-use App\Contracts\Procurement\Crawler\CrawlerPlatformForm;
-use App\Dto\Procurement\Crawler\CrawlerRuntimeOptions;
 use App\Enums\Procurement\Crawler\ListingSortField;
-use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
-use App\Services\Platforms\Eis\Csv\EisCsvUrlBuilder;
-use App\Services\Procurement\CrawlerFilterFactory;
-use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -21,99 +15,16 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Fieldset;
-use Filament\Schemas\Components\Utilities\Get;
 use Illuminate\Support\Collection;
-use Throwable;
 
-final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
+final readonly class EisCrawlerPlatformForm
 {
-    /** @var array<string, string> */
-    private const array COLUMN_FLAG_LABELS = [
-        'placementCsv' => 'Закон',
-        'registryNumberCsv' => 'Реестровый номер закупки',
-        'stepOrderPlacementCsv' => 'Этап закупки',
-        'methodOrderPurchaseCsv' => 'Способ определения поставщика (подрядчика, исполнителя), подрядной организации',
-        'nameOrderCsv' => 'Наименование закупки',
-        'purchaseNumbersCsv' => 'Идентификационный код закупки (ИКЗ)',
-        'numberLotCsv' => 'Номер лота',
-        'nameLotCsv' => 'Наименование лота',
-        'maxContractPriceCsv' => 'Начальная (максимальная) цена контракта (договора)',
-        'currencyCodeCsv' => 'Валюта',
-        'maxPriceContractCurrencyCsv' => 'Начальная (максимальная) цена в валюте контракта',
-        'currencyCodeContractCurrencyCsv' => 'Валюта контракта',
-        'scopeOkdpCsv' => 'Классификация по ОКДП',
-        'scopeOkpdCsv' => 'Классификация по ОКПД',
-        'scopeOkpd2Csv' => 'Классификация по ОКПД2',
-        'scopeKtruCsv' => 'Код позиции',
-        'ea615ItemCsv' => 'Предмет электронного аукциона',
-        'customerNameCsv' => 'Наименование Заказчика',
-        'organizationOrderPlacementCsv' => 'Организация, осуществляющая размещение',
-        'publishDateCsv' => 'Дата размещения',
-        'lastDateChangeCsv' => 'Дата обновления',
-        'startDateRequestCsv' => 'Начало подачи заявок',
-        'endDateRequestCsv' => 'Окончание подачи заявок',
-        'ea615DateCsv' => 'Проведение электронного аукциона',
-        'featureOrderPlacementCsv' => 'Особенности размещения заказа / Преимущества (44-ФЗ)',
-    ];
-
-    /** @var list<string> */
-    private const array MANDATORY_COLUMN_FLAGS = [
-        'registryNumberCsv',
-        'publishDateCsv',
-        'lastDateChangeCsv',
-    ];
-
-    public function __construct(
-        private CrawlerFilterFactory $filters,
-        private Okpd2NodeReadRepository $okpd2Nodes,
-        private EisCsvUrlBuilder $urlBuilder,
-    ) {}
+    public function __construct(private Okpd2NodeReadRepository $okpd2Nodes) {}
 
     /** @return list<Component> */
-    public function components(Registry $registry, Get $get): array
+    public function components(Registry $registry): array
     {
-        return [
-            Fieldset::make('Фильтр площадки')
-                ->columnSpanFull()
-                ->schema($this->filterFields(registry: $registry)),
-            CheckboxList::make('options.columns')
-                ->label('Колонки CSV-выгрузки')
-                ->options(self::COLUMN_FLAG_LABELS)
-                ->columns(columns: 2)
-                ->columnSpanFull()
-                ->disableOptionWhen(
-                    callback: static fn (string $value): bool => in_array($value, self::MANDATORY_COLUMN_FLAGS, strict: true),
-                )
-                ->afterStateHydrated(static function (CheckboxList $component, mixed $state): void {
-                    $enabled = is_array($state)
-                        ? array_keys(array_filter($state, static fn (mixed $value): bool => $value === true))
-                        : [];
-
-                    $component->state(array_values(array_unique([...$enabled, ...self::MANDATORY_COLUMN_FLAGS])));
-                })
-                ->dehydrateStateUsing(static function (array $state): array {
-                    return array_fill_keys(self::selectedColumns($state), true);
-                }),
-            Fieldset::make('Переопределения листинга')
-                ->columnSpanFull()
-                ->schema([
-                    TextInput::make('options.retries')->label('Попытки')->numeric()->minValue(0),
-                    TextInput::make('options.retryDelayMs')->label('Пауза перед повтором, мс')->numeric()->minValue(0),
-                    TextInput::make('options.minPauseMs')->label('Пауза между запросами от, мс')->numeric()->minValue(0),
-                    TextInput::make('options.maxPauseMs')->label('Пауза между запросами до, мс')->numeric()->minValue(0),
-                ]),
-            Placeholder::make('url_preview')
-                ->label('Пример URL выгрузки (from=1, to=500)')
-                ->columnSpanFull()
-                ->content(fn (): string => $this->previewForState(registry: $registry, get: $get)),
-        ];
-    }
-
-    public function previewUrl(Crawler $crawler): string
-    {
-        $query = $this->urlBuilder->buildQueryParams(crawler: $crawler, from: 1, to: 500);
-
-        return $this->configString('crawler.eis.csv_endpoint').'?'.http_build_query($query);
+        return [Fieldset::make('Фильтр площадки')->columnSpanFull()->schema($this->filterFields($registry))];
     }
 
     /** @return list<Component> */
@@ -134,26 +45,6 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
             Select::make('filter.sortField')->label('Сортировка выдачи')->options(ListingSortField::class),
             Toggle::make('filter.sortAscending')->label('По возрастанию'),
         ];
-    }
-
-    private function previewForState(Registry $registry, Get $get): string
-    {
-        try {
-            $filterClass = $this->filters->for(registry: $registry);
-            $filterState = $get('filter');
-            $filter = is_array($filterState) && $filterState !== []
-                ? $filterClass::validateAndCreate($filterState)
-                : null;
-            $columns = array_fill_keys(self::selectedColumns($get('options.columns')), true);
-            $crawler = new Crawler;
-            $crawler->setRelation('registry', $registry);
-            $crawler->filter = $filter;
-            $crawler->options = new CrawlerRuntimeOptions(columns: $columns);
-
-            return $this->previewUrl(crawler: $crawler);
-        } catch (Throwable) {
-            return 'Пример недоступен: заполните фильтр валидными значениями.';
-        }
     }
 
     private function okpd2CodeField(Registry $registry): Select|Placeholder
@@ -205,26 +96,6 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
     /**
      * @return list<string>
      */
-    private static function selectedColumns(mixed $state): array
-    {
-        $selected = [];
-
-        if (is_array($state)) {
-            foreach ($state as $key => $value) {
-                $column = is_string($key) && $value === true ? $key : $value;
-
-                if (is_string($column) && isset(self::COLUMN_FLAG_LABELS[$column])) {
-                    $selected[] = $column;
-                }
-            }
-        }
-
-        return array_values(array_unique([...$selected, ...self::MANDATORY_COLUMN_FLAGS]));
-    }
-
-    /**
-     * @return list<string>
-     */
     private static function stringList(mixed $value): array
     {
         if (! is_array($value)) {
@@ -252,17 +123,6 @@ final readonly class EisCrawlerPlatformForm implements CrawlerPlatformForm
 
         if (! is_string($value)) {
             throw new \LogicException("OKPD2 {$attribute} должен быть строкой.");
-        }
-
-        return $value;
-    }
-
-    private function configString(string $key): string
-    {
-        $value = config($key);
-
-        if (! is_string($value)) {
-            throw new \LogicException("{$key} должен быть строкой.");
         }
 
         return $value;

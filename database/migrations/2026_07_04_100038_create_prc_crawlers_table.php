@@ -6,6 +6,7 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -27,22 +28,19 @@ return new class extends Migration
                 ->onDelete('NO ACTION');
 
             $table->text('name');
-            $table->text('mode');
-            $table->text('source_method');
-            $table->text('fallback_method')->nullable();
+            $table->unsignedBigInteger('profile_version')->default(1);
+            $table->text('listing_kind')->default('fresh');
 
             $table->jsonb('filter')->nullable()->comment('даты/цены/ОКПД2/этапы');
             $table->text('schedule')->nullable()->comment('cron-выражение');
-            $table->jsonb('options')->nullable()->comment('recordsPerPage, лимиты дробления, колонки CSV');
 
             $table->uuid('route_profile_id')->nullable();
-            $table->text('stop_policy')->default('default');
-            $table->text('execution_lane')->default('standard');
 
             $table->boolean('is_active')->default(true);
 
             $table->timestamps();
         });
+        DB::statement("ALTER TABLE prc_crawlers ADD CONSTRAINT prc_crawlers_listing_kind_check CHECK (listing_kind IN ('fresh','archive','delta'))");
     }
 
     public function down(): void

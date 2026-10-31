@@ -9,12 +9,18 @@ use App\Doctor\Diagnostics\BaseDataIsReady;
 use App\Doctor\Diagnostics\InitialAdminIsReady;
 use App\Doctor\Diagnostics\PrivatePackagesArePinned;
 use App\Doctor\Diagnostics\SecretContractIsReady;
+use App\Dto\Platforms\Eis\EisCardRoutes;
+use App\Dto\Platforms\Eis\EisPolicy;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
 use App\Services\Llm\Contracts\OutboundProxy;
 use App\Services\Llm\Contracts\UsageSource;
 use App\Services\Llm\TrackingUsageSource;
+use App\Services\Platforms\Eis\Card\EisCardCatalog;
+use App\Services\Platforms\Eis\EisSourceClock;
+use App\Services\Procurement\Acquisition\AcquisitionRuntime;
+use App\Services\Procurement\Acquisition\DetailValueCodec;
 use App\Services\Procurement\Analyzers\Estimate\ChunkSource;
 use App\Services\Procurement\Analyzers\Estimate\RowRangeChunkSource;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
@@ -22,8 +28,11 @@ use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\NetworkProbeReconcileCategory;
 use App\Services\Procurement\Network\NetworkReconcileCategory;
+use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
 use App\Services\Procurement\Process\ReconcileDaemon;
+use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Proxy\PoolOutboundProxy;
+use App\Services\Procurement\SourceTargetValidator;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
@@ -43,6 +52,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(EisSourceClock::class, fn () => new EisSourceClock($this->app->make(EisPolicy::class)->sourceTimezone->getName()));
+        $this->app->bind(DocumentUrlPolicy::class,
+            SourceTargetValidator::class);
+        $this->app->bind(EisCardRoutes::class, static fn (): EisCardRoutes => (new EisCardCatalog)->routes());
+        $this->app->singleton(DetailValueCodec::class, fn (): DetailValueCodec => $this->app->make(AcquisitionRuntime::class)->values());
+        $this->app->afterResolving(StageRegistry::class, function (StageRegistry $registry): void {
+            $this->app->make(AcquisitionRuntime::class)->register($registry, $this->app->make(DetailValueCodec::class));
+        });
         $this->app->bind(LegacyOutbound::class, LegacyOutboundClient::class);
         $this->app->afterResolving(ReconcileDaemon::class,
             static function (ReconcileDaemon $daemon): void {

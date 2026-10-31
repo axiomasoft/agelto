@@ -1,162 +1,64 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Tables;
 
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Exceptions\Procurement\OperationFailed;
-use App\Guards\Admin\Permissions\RunPermission;
+use App\Dto\Procurement\Process\ProcessUuid;
+use App\Filament\Resources\Procurement\Process\Runs\ProcessRunResource;
+use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
+use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Run;
-use App\Services\Procurement\Crawler\StartCrawlerRunAction;
+use App\Models\User;
+use App\Services\Procurement\Acquisition\LaunchAcquisition;
 use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Hidden;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
-class CrawlersTable
+final class CrawlersTable
 {
     public static function configure(Table $table): Table
     {
-        return $table
-            ->columns([
-                TextColumn::make('registry.name')
-                    ->label('Реестр')
-                    ->searchable()
-                    ->wrapHeader(),
-                TextColumn::make('mode')
-                    ->badge(),
-                TextColumn::make('schedule')
-                    ->label('Расписание')
-                    ->placeholder('—')
-                    ->visibleFrom('md'),
-                TextColumn::make('routeProfile.profile_key')
-                    ->placeholder(config()->string('outbound.routing.default_profile'))
-                    ->label('Профиль маршрутов')
-                    ->sortable()
-                    ->visibleFrom('md'),
-                IconColumn::make('is_active')
-                    ->boolean(),
-                TextColumn::make('created_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                //
-            ])
-            ->recordActions([
-                self::startAction(),
-                self::restartAction(),
-                self::resumeAction(),
-                EditAction::make(),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ]);
-    }
+        return $table->columns([
+            TextColumn::make('name')->label('Название')->searchable(),
+            TextColumn::make('registry.name')->label('Реестр'),
+            TextColumn::make('listing_kind')->label('Режим')->formatStateUsing(fn (mixed $state): string => $state instanceof \BackedEnum ? (string) $state->value : '—'),
+            TextColumn::make('schedule')->label('Расписание (UTC)')->placeholder('—')->visibleFrom('md'),
+            TextColumn::make('routeProfile.profile_key')->label('Профиль маршрутов')->placeholder(config()->string('outbound.routing.default_profile'))->toggleable(isToggledHiddenByDefault: true),
+            IconColumn::make('is_active')->label('Активно')->boolean(),
+        ])->recordActions([
+            Action::make('start')->label('Запустить')->requiresConfirmation()
+                ->visible(fn (Crawler $record): bool => $record->is_active && (Auth::user()?->hasPermission(ProcessControlPermission::LaunchRun, panelId: 'admin') ?? false))
+                ->schema([
+                    Hidden::make(OperatorActionInput::FIELD)->required()->default(fn (Crawler $record): string => OperatorActionInput::issue('launch_acquisition', (string) $record->id, $record->profile_version)),
+                    Hidden::make('command_id')->required()->default(fn (): string => (string) Str::uuid()),
+                ])
+                ->action(function (Action $action, Crawler $record, array $data): void {
+                    $actor = Auth::user();
+                    abort_unless($actor instanceof User, 403);
+                    $version = OperatorActionInput::confirmedVersion($action, 'launch_acquisition', (string) $record->id, $data);
+                    try {
+                        $commandId = $data['command_id'] ?? null;
+                        if (! is_string($commandId)) {
+                            throw new \InvalidArgumentException('Missing acquisition command identity.');
+                        }
+                        $id = app(LaunchAcquisition::class)->execute($actor, $record, $version, new ProcessUuid($commandId));
+                    } catch (\InvalidArgumentException $failure) {
+                        Notification::make()->title($failure->getMessage())->danger()->send();
+                        $action->halt();
 
-    /**
-     * Право — строка ability `RunPermission::Update` через `hasPermission()` (канон
-     * `ViewFixture`): `->authorize('update')` резолвился бы на модель ресурса КРАУЛЕРОВ и дал бы
-     * `crawler.update` — право не того ресурса (управление ПРОГОНОМ, не профилем).
-     */
-    private static function startAction(): Action
-    {
-        return Action::make('start')
-            ->label('Запустить')
-            ->color('primary')
-            ->visible(fn (Crawler $record): bool => self::canManage()
-                && self::activeRun($record) === null
-                && self::pausedRun($record) === null)
-            ->action(fn (Crawler $record) => self::dispatch(
-                $record,
-                fn (StartCrawlerRunAction $action) => $action->start($record),
-            ));
-    }
-
-    private static function restartAction(): Action
-    {
-        return Action::make('restart')
-            ->schema([Textarea::make('reason')->label('Причина повторной проверки')
-                ->visible(fn (Crawler $record): bool => self::pausedRun($record)?->stats?->has('input_failure') ?? false)
-                ->required(fn (Crawler $record): bool => self::pausedRun($record)?->stats?->has('input_failure') ?? false)
-                ->maxLength(1000)])
-            ->label('Запустить с начала')
-            ->color('danger')
-            ->requiresConfirmation()
-            ->visible(fn (Crawler $record): bool => self::canManage() && self::activeRun($record) === null)
-            ->action(fn (Crawler $record, array $data) => self::dispatch(
-                $record,
-                fn (StartCrawlerRunAction $action) => $action->restart($record, actorId: (int) Auth::id(), reason: is_string($data['reason'] ?? null) ? $data['reason'] : null),
-            ));
-    }
-
-    private static function resumeAction(): Action
-    {
-        return Action::make('resume')
-            ->schema([Textarea::make('reason')->label('Причина повторной проверки')
-                ->visible(fn (Crawler $record): bool => self::pausedRun($record)?->stats?->has('input_failure') ?? false)
-                ->required(fn (Crawler $record): bool => self::pausedRun($record)?->stats?->has('input_failure') ?? false)
-                ->maxLength(1000)])
-            ->label('Продолжить')
-            ->color('primary')
-            ->visible(fn (Crawler $record): bool => self::canManage()
-                && self::activeRun($record) === null
-                && self::pausedRun($record) !== null)
-            ->action(fn (Crawler $record, array $data) => self::dispatch(
-                $record,
-                fn (StartCrawlerRunAction $action) => $action->resume($record, actorId: (int) Auth::id(), reason: is_string($data['reason'] ?? null) ? $data['reason'] : null),
-            ));
-    }
-
-    /**
-     * Guard активного прогона стоит И в `visible()` (устаревшая страница не показывает
-     * кликабельную кнопку), И внутри `StartCrawlerRunAction` (гонка двух вкладок,
-     * Implementation Rules п. 2).
-     */
-    private static function dispatch(Crawler $record, callable $call): void
-    {
-        if (! self::canManage()) {
-            Notification::make()->title('Недостаточно прав для управления прогоном')->danger()->send();
-
-            return;
-        }
-
-        try {
-            $call(app(StartCrawlerRunAction::class));
-        } catch (OperationFailed $e) {
-            Notification::make()->title($e->getMessage())->danger()->send();
-
-            return;
-        }
-
-        Notification::make()->title('Поставлено в очередь')->success()->send();
-    }
-
-    private static function canManage(): bool
-    {
-        return Auth::user()?->hasPermission(RunPermission::Update) ?? false;
-    }
-
-    private static function activeRun(Crawler $record): ?Run
-    {
-        return Run::query()->where('crawler_id', $record->id)->where('status', RunStatus::Running)->first();
-    }
-
-    private static function pausedRun(Crawler $record): ?Run
-    {
-        return Run::query()->where('crawler_id', $record->id)->where('status', RunStatus::Paused)->first();
+                        return;
+                    }
+                    Notification::make()->title('Запуск зарегистрирован')->body($id->value)->success()->send();
+                }),
+            Action::make('runs')->label('Прогоны')->url(ProcessRunResource::getUrl()),
+            EditAction::make(),
+        ]);
     }
 }

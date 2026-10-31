@@ -3,144 +3,81 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Jobs\Procurement\CrawlRunJob;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Run;
+use App\Enums\Procurement\Process\AcquisitionKind;
 use Carbon\CarbonImmutable;
-use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Sleep;
-use Tests\Support\Doubles\Crawler\QueueSourceMethod;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures as P;
+use Tests\Support\ProcessCore\ListingFixtures;
 
-/**
- * Один «частичный» блок (`rowsTotal < block_size=2`) — самый быстрый способ довести
- * `ArchiveRunProcessor::run()` до `completed` за один день.
- */
-function runArchiveCrawlerDrainedBatch(): ListingBatch
-{
-    return new ListingBatch(
-        rows: [],
-        rawBody: '',
-        dedupSignature: null,
-        rowsTotal: 0,
-        httpStatus: 200,
-        durationMs: 0,
-        requestParams: [],
-    );
-}
+beforeEach(fn () => ListingFixtures::bind());
 
-beforeEach(function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    config(['crawler.platforms.eis.block_size' => 2]);
-    // P4.7 явно маршрутизирует job на connection `redis`; в тесте сохраняем синхронный driver,
-    // чтобы проверять команду и доменный результат без запущенного Redis worker.
+test('process run allocates archive day roots for explicit bounds without direct dispatch', function (): void {
+    $profile = P::create(AcquisitionKind::Archive);
+    Queue::fake();
+    $this->artisan('process:run', ['profile' => (string) $profile->id, '--kind' => 'archive',
+        '--from' => '2024-01-01', '--to' => '2024-01-01'])->assertSuccessful();
+    expect(DB::table('prc_crawl_runs')->sole()->listing_kind)->toBe('archive')
+        ->and(P::cursors($profile))->toHaveCount(1)
+        ->and(P::cursors($profile)[0]->day)->toBe('2024-01-01')
+        ->and(DB::table('prc_process_run_work')->sole()->accounting_role)->toBe('required');
+    Queue::assertNothingPushed();
+});
+
+test('archive launch with a sync queue cannot report success before work publication', function (): void {
+    $profile = P::create(AcquisitionKind::Archive);
     config(['queue.connections.redis.driver' => 'sync']);
+    $this->artisan('process:run', ['profile' => (string) $profile->id, '--kind' => 'archive',
+        '--from' => '2024-01-01', '--to' => '2024-01-01'])->assertSuccessful();
+    expect(DB::table('prc_process_runs')->sole()->discovery_outcome)->toBe('collecting')
+        ->and(DB::table('prc_process_work')->sole()->state)->toBe('ready')
+        ->and(DB::table('prc_process_attempts')->count())->toBe(0);
 });
 
-beforeEach(fn () => LegacyBusinessNetwork::install());
-
-test('резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Archive) с окном from/to', function () {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
-    Queue::fake();
-
-    $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id, '--from' => '2024-01-01', '--to' => '2024-01-01'])
-        ->assertExitCode(Command::SUCCESS);
-
-    Queue::assertPushed(CrawlRunJob::class, function (CrawlRunJob $job) use ($crawler): bool {
-        return $job->crawlerId === $crawler->id
-            && $job->mode === CrawlerMode::Archive
-            && str_starts_with((string) $job->from, '2024-01-01')
-            && str_starts_with((string) $job->to, '2024-01-01');
-    });
+test('process archive run resolves the profile by name', function (): void {
+    $profile = P::create(AcquisitionKind::Archive);
+    $profile->update(['name' => 'eis-archive-profile']);
+    $this->artisan('process:run', ['profile' => 'eis-archive-profile', '--kind' => 'archive',
+        '--from' => '2024-01-01', '--to' => '2024-01-01'])->assertSuccessful();
+    expect(DB::table('prc_process_runs')->sole()->profile_id)->toBe($profile->id)
+        ->and(P::cursors($profile)[0]->day)->toBe('2024-01-01');
 });
 
-test('без faked-очереди job исполняется синхронно (sync-driver) и доводит archive-прогон до completed', function () {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
-
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: [runArchiveCrawlerDrainedBatch()]));
-    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
-
-    $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id, '--from' => '2024-01-01', '--to' => '2024-01-01'])
-        ->assertExitCode(Command::SUCCESS);
-
-    $run = Run::query()->where('crawler_id', $crawler->id)->sole();
-
-    expect($run->status)->toBe(RunStatus::Completed);
+test('process archive run rejects missing profile ids and names without a run', function (): void {
+    foreach (['999999', 'no-such-archive'] as $identifier) {
+        $this->artisan('process:run', ['profile' => $identifier, '--kind' => 'archive', '--from' => '2024-01-01'])
+            ->expectsOutputToContain('profile not found')->assertFailed();
+    }
+    expect(DB::table('prc_process_runs')->count())->toBe(0)
+        ->and(DB::table('prc_crawl_blocks')->count())->toBe(0);
 });
 
-test('резолвит профиль по name', function () {
-    $crawler = Crawler::factory()->create(['name' => 'eis-archive-profile', 'mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
-
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: [runArchiveCrawlerDrainedBatch()]));
-    config(['crawler.platforms.eis.source_methods' => [SourceMethodEnum::Csv->value => QueueSourceMethod::class]]);
-
-    $this->artisan('crawler:run-archive', ['crawler' => 'eis-archive-profile', '--from' => '2024-01-01', '--to' => '2024-01-01'])
-        ->assertExitCode(Command::SUCCESS);
-
-    $run = Run::query()->where('crawler_id', $crawler->id)->sole();
-
-    expect($run->status)->toBe(RunStatus::Completed);
+test('archive launch without a start bound fails closed when the profile has no date window', function (): void {
+    $profile = P::create(AcquisitionKind::Archive);
+    $profile->update(['filter' => new EisSearchFilter(okpd2Codes: ['43'])]);
+    $this->artisan('process:run', ['profile' => (string) $profile->id, '--kind' => 'archive'])
+        ->expectsOutputToContain('requires a start date')->assertFailed();
+    expect(DB::table('prc_process_runs')->count())->toBe(0);
 });
 
-test('несуществующий id/name профиля — FAILURE без запуска прогона', function () {
-    $this->artisan('crawler:run-archive', ['crawler' => '999999', '--from' => '2024-01-01'])
-        ->expectsOutputToContain('Не найден профиль краулера с таким id/name.')
-        ->assertExitCode(Command::FAILURE);
-
-    expect(Run::query()->count())->toBe(0);
+test('archive launch uses the immutable profile date window when bounds are omitted', function (): void {
+    $profile = P::create(AcquisitionKind::Archive);
+    $profile->update(['filter' => new EisSearchFilter(okpd2Codes: ['43'],
+        publishedFrom: CarbonImmutable::parse('2025-01-01'), publishedTo: CarbonImmutable::parse('2025-12-31'))]);
+    $this->artisan('process:run', ['profile' => (string) $profile->id, '--kind' => 'archive'])->assertSuccessful();
+    $days = array_map(fn ($cursor) => $cursor->day, P::cursors($profile));
+    sort($days);
+    expect($days)->toHaveCount(365)->and($days[0])->toBe('2025-01-01')->and($days[364])->toBe('2025-12-31');
 });
 
-test('без --from профиль БЕЗ окна — FAILURE без запуска прогона (P3.8, D113)', function () {
-    $crawler = Crawler::factory()
-        ->filter(new EisSearchFilter(okpd2Codes: ['43']))
-        ->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
-
-    $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id])
-        ->expectsOutputToContain('не заполнено окно дат')
-        ->assertExitCode(Command::FAILURE);
-
-    expect(Run::query()->count())->toBe(0);
-});
-
-test('без --from профиль С окном берёт окно профиля (P3.8, D113)', function () {
-    $crawler = Crawler::factory()
-        ->filter(new EisSearchFilter(
-            okpd2Codes: ['43'],
-            publishedFrom: CarbonImmutable::parse('2025-01-01'),
-            publishedTo: CarbonImmutable::parse('2025-12-31'),
-        ))
-        ->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
-    Queue::fake();
-
-    $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id])
-        ->assertExitCode(Command::SUCCESS);
-
-    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
-        && str_starts_with((string) $job->from, '2025-01-01')
-        && str_starts_with((string) $job->to, '2025-12-31'));
-});
-
-test('--from/--to перекрывают окно профиля (P3.8, D113)', function () {
-    $crawler = Crawler::factory()
-        ->filter(new EisSearchFilter(
-            okpd2Codes: ['43'],
-            publishedFrom: CarbonImmutable::parse('2025-01-01'),
-            publishedTo: CarbonImmutable::parse('2025-12-31'),
-        ))
-        ->create(['mode' => CrawlerMode::Archive, 'source_method' => SourceMethodEnum::Csv]);
-    Queue::fake();
-
-    $this->artisan('crawler:run-archive', ['crawler' => (string) $crawler->id, '--from' => '2024-03-01', '--to' => '2024-03-31'])
-        ->assertExitCode(Command::SUCCESS);
-
-    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
-        && str_starts_with((string) $job->from, '2024-03-01')
-        && str_starts_with((string) $job->to, '2024-03-31'));
+test('explicit archive bounds override the profile window and preserve every declared day', function (): void {
+    $profile = P::create(AcquisitionKind::Archive);
+    $profile->update(['filter' => new EisSearchFilter(okpd2Codes: ['43'],
+        publishedFrom: CarbonImmutable::parse('2025-01-01'), publishedTo: CarbonImmutable::parse('2025-12-31'))]);
+    $this->artisan('process:run', ['profile' => (string) $profile->id, '--kind' => 'archive',
+        '--from' => '2024-03-01', '--to' => '2024-03-31'])->assertSuccessful();
+    $days = array_map(fn ($cursor) => $cursor->day, P::cursors($profile));
+    sort($days);
+    expect($days)->toHaveCount(31)->and($days[0])->toBe('2024-03-01')->and($days[30])->toBe('2024-03-31')
+        ->and(DB::table('prc_process_run_work')->where('accounting_role', 'required')->count())->toBe(31);
 });

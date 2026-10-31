@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis\Card;
 
+use App\Dto\Platforms\Eis\EisPolicy;
 use App\Dto\Procurement\Details\DocumentData;
 use App\Dto\Procurement\Details\DocumentsSnapshot;
+use App\Dto\Procurement\Network\SafeUrl;
 use App\Enums\Procurement\DetailSnapshotStatus;
-use App\Services\Procurement\SourceTargetValidator;
+use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
@@ -21,7 +23,7 @@ use Symfony\Component\DomCrawler\Crawler;
  */
 final readonly class DocumentsParser
 {
-    public function __construct(private SourceTargetValidator $targetValidator) {}
+    public function __construct(private DocumentUrlPolicy $targetValidator, private EisPolicy $policy) {}
 
     public function parse(string $html, bool $strict = false): DocumentsSnapshot
     {
@@ -152,13 +154,7 @@ final readonly class DocumentsParser
             return $href;
         }
 
-        $baseUrl = config('crawler.eis.base_url');
-
-        if (! is_string($baseUrl) || $baseUrl === '') {
-            throw new \LogicException('crawler.eis.base_url должен быть непустой строкой.');
-        }
-
-        $base = rtrim($baseUrl, '/');
+        $base = (new SafeUrl($this->policy->endpoints->get('card')->url))->origin->value();
 
         return $base.'/'.ltrim($href, '/');
     }

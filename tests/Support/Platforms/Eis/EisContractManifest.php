@@ -11,9 +11,11 @@ use App\Dto\Platforms\Eis\EisPolicy;
 use App\Dto\Procurement\Acquisition\DetailRequest;
 use App\Dto\Procurement\Acquisition\ListingRequest;
 use App\Dto\Procurement\Acquisition\ProcurementSummaries;
+use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Platform\CursorEnvelope;
 use App\Dto\Procurement\Platform\SourceIdentifierValue;
 use App\Dto\Procurement\Platform\SourceIdentity;
+use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Platform\AssessmentReason as Reason;
 use App\Enums\Procurement\Platform\Completeness as State;
 use App\Enums\Procurement\Platform\TerminalProof;
@@ -108,6 +110,20 @@ final readonly class EisContractManifest
             });
         $parts = ['parties' => 'complete_empty', 'attributes' => 'complete', 'documents' => 'complete_empty', 'events' => 'not_applicable', 'results' => 'not_applicable'];
         $detail = new Observation(State::Complete, Reason::Valid, identities: $valid->identities, titles: ['Работы'], stages: $valid->stages, parts: $parts);
+        foreach (['valid' => 'Подача заявок', 'unknown' => 'Новый статус источника'] as $name => $stage) {
+            $cases[] = new ContractCase('status', $name, [self::CARD.'contract-common.html'],
+                new Observation(State::Complete, Reason::Valid, identities: $valid->identities, titles: ['Работы'], stages: [$stage],
+                    parts: ['parties' => 'complete_empty', 'attributes' => 'complete']),
+                function () use ($stage): Observation {
+                    $body = str_replace('Подача заявок', $stage, FixtureCorpus::read(self::CARD.'contract-common.html'));
+                    $outbound = new RecordingOutbound([new TransportSucceeded(ContractRuntime::response($body, 'text/html'))]);
+                    $result = self::detail($outbound)->refresh(self::detailRequest(), ContractRuntime::context());
+                    Assert::assertCount(1, $outbound->plans);
+                    Assert::assertSame(TrafficClass::StatusRefresh, $outbound->plans[0]->trafficClass);
+
+                    return Observation::detail($result);
+                });
+        }
         foreach (['valid', 'required_sections', 'wrong_identity', 'status', 'redaction', 'login'] as $name) {
             $expected = match ($name) {
                 'wrong_identity' => new Observation(State::Unavailable, Reason::IdentityMismatch),

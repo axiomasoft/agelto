@@ -2,359 +2,123 @@
 
 declare(strict_types=1);
 
-use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Dto\Procurement\Crawler\WindowFilter;
-use App\Dto\Procurement\ProcurementDetails;
-use App\Enums\Procurement\Crawler\ArchiveWindowScanResult;
-use App\Enums\Procurement\Crawler\CrawlerEventCode;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Run;
-use App\Models\Procurement\Crawler\SourceCircuit;
-use App\Models\Procurement\Crawler\SourceIncident;
-use App\Models\Procurement\Platform\Registry;
-use App\Models\Procurement\Procurement;
-use App\Services\Procurement\ArchiveWindowScanner;
-use App\Services\Procurement\Contracts\SourceMethod;
-use Illuminate\Database\Events\QueryExecuted;
-use Illuminate\Support\Carbon;
+use App\Dto\Platforms\Eis\EisListingCursor;
+use App\Dto\Platforms\Eis\EisListingFilter;
+use App\Dto\Platforms\Eis\EisListingPolicy;
+use App\Dto\Platforms\Eis\EisPolicy;
+use App\Dto\Procurement\Acquisition\ListingPage;
+use App\Dto\Procurement\Acquisition\ListingResult;
+use App\Dto\Procurement\Acquisition\ProcurementSummaries;
+use App\Dto\Procurement\Network\TransportSucceeded;
+use App\Dto\Procurement\Platform\ResponseAssessment;
+use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\StageSucceeded;
+use App\Enums\Procurement\Platform\AssessmentReason;
+use App\Enums\Procurement\Platform\Completeness;
+use App\Enums\Procurement\Platform\TerminalProof;
+use App\Enums\Procurement\Process\StageCode;
+use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
+use App\Services\Platforms\Eis\EisListingPartitioner;
+use App\Services\Platforms\Eis\EisListingSource;
+use App\Services\Procurement\Acquisition\ListingHandler;
+use App\Services\Procurement\Platform\FetchOutcomeBridge;
+use App\Services\Procurement\Process\ExecutionContextFactory;
+use App\Services\Procurement\Process\WorkFinalizer;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Sleep;
-use Tests\Support\Doubles\Crawler\QueueSourceMethod;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use Tests\Support\Platforms\Contract\ContractRuntime;
+use Tests\Support\Platforms\Contract\RecordingOutbound;
+use Tests\Support\Platforms\Eis\EisListingFactsFixtures;
+use Tests\Support\ProcessCore\ExecutionFixtures as E;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ListingFixtures as F;
 
-final class ArchiveContinuationSourceMethod implements SourceMethod
-{
-    private int $cursorIndex = 0;
+beforeEach(function (): void {
+    E::authority([StageCode::Listing]);
+    F::bindLocal();
+});
 
-    /**
-     * @param  list<ListingBatch|PlatformBudgetExhaustedException>  $responses
-     */
-    public function __construct(private readonly array $responses) {}
+test('Process archive split preserves overlapping inclusive cents and immutable filter bounds', function (): void {
+    $partitioner = new EisListingPartitioner(new EisListingPolicy(minIntervalCents: 1));
+    $filter = new EisListingFilter(['123']);
+    $root = $partitioner->plan($filter, '2026-01-01', '2026-01-01', priceFrom: '0.01', priceTo: '0.03')->windows[0]->cursor;
+    $split = $partitioner->split($root, 1);
+    $children = array_map(EisListingCursor::decode(...), $split->children);
+    expect([$children[0]->lowCents, $children[0]->highCents])->toBe([1, 2])
+        ->and([$children[1]->lowCents, $children[1]->highCents])->toBe([2, 3])
+        ->and($children[0]->filterHash->hex)->toBe($filter->fingerprint()->hex)
+        ->and($partitioner->split($children[0]->envelope(), 3)->incompleteReason)->toBe(AssessmentReason::Overflow);
+});
 
-    public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
-    {
-        $response = $this->responses[$this->cursorIndex++];
+test('Process archive minimum interval cap retains explicit debt with no false coverage', function (): void {
+    $run = F::run();
+    $task = app(ListingStoreRepository::class)->task($run['input']);
+    $partitioner = new EisListingPartitioner(new EisListingPolicy(minIntervalCents: 100000000001));
+    $split = $partitioner->split($task->rootCursor, 1);
+    expect($split->children)->toBe([]);
+    $page = new ListingPage(new ProcurementSummaries([]), 500,
+        new ResponseAssessment(Completeness::Partial, AssessmentReason::RepeatedPage, ContentHash::of('repeat')), TerminalProof::None, null);
+    $lease = FinalizeFixtures::running($run['work']);
+    app(WorkFinalizer::class)->finish($lease, new StageSucceeded(new ListingResult($task, $page, $split)));
+    $coverage = app(ListingCoverageRepository::class)->read($run['stream']);
+    expect($coverage->verifiedThrough)->toBeNull()->and($coverage->debt)->toHaveCount(1)
+        ->and(DB::table('prc_process_runs')->value('discovery_outcome'))->toBe('incomplete')
+        ->and(DB::table('prc_crawl_blocks')->whereNotNull('limitation_reason_code')->value('limitation_reason_code'))->toBe('listing_cap_unresolved')
+        ->and(F::next($run['crawl']))->toBeNull();
+});
 
-        if ($response instanceof PlatformBudgetExhaustedException) {
-            throw $response;
-        }
-
-        return $response;
+test('Process archive publication failure rolls back the next page while retaining committed previous purchases', function (): void {
+    $run = F::run();
+    $task = app(ListingStoreRepository::class)->task($run['input']);
+    $cursor = EisListingCursor::decode($task->cursor);
+    $page = new ListingPage(new ProcurementSummaries([F::summary('first')]), 500,
+        new ResponseAssessment(Completeness::Complete, AssessmentReason::Valid, ContentHash::of('first')), TerminalProof::None, $cursor->next(500)->envelope());
+    F::finish($run['work'], $run['input'], $page);
+    $next = F::next($run['crawl']);
+    $task = app(ListingStoreRepository::class)->task($next['input']);
+    $lease = FinalizeFixtures::running($next['work']);
+    DB::unprepared("CREATE FUNCTION pg_temp.p218_archive_fail() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'archive journal fault'; END $$");
+    DB::unprepared('CREATE TRIGGER p218_archive_fail BEFORE INSERT ON prc_process_transitions FOR EACH ROW EXECUTE FUNCTION pg_temp.p218_archive_fail()');
+    try {
+        expect(fn () => app(WorkFinalizer::class)->finish($lease, new StageSucceeded(new ListingResult($task, F::page([F::summary('second')])))))
+            ->toThrow(QueryException::class, 'archive journal fault');
+    } finally {
+        DB::unprepared('DROP TRIGGER p218_archive_fail ON prc_process_transitions');
     }
+    expect(DB::table('prc_procurements')->pluck('source_identity_value')->all())->toBe(['first'])
+        ->and(DB::table('prc_crawl_blocks')->where('id', $next['input']->crawlBlockId->value)->value('terminal_proof'))->toBeNull()
+        ->and(app(ListingStoreRepository::class)->task($next['input'])->cursor->serializedPayload)->toBe($task->cursor->serializedPayload)
+        ->and(DB::table('prc_process_work')->where('id', $lease->workId->value->value)->value('state'))->toBe('running');
+});
 
-    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
-    {
-        return new ProcurementDetails;
+test('Process archive repeated page detection survives the persisted successor and drains both required split branches', function (): void {
+    config(['platforms.eis.block_size' => 1]);
+    $run = F::run('2026-03-01', blockSize: 1);
+    $body = EisListingFactsFixtures::body([EisListingFactsFixtures::row('1')]);
+    for ($i = 0; $i < 2; $i++) {
+        $next = F::next($run['crawl']);
+        // A new handler/outbound instance models delivery after the persisted first-page checkpoint.
+        $outbound = new RecordingOutbound([new TransportSucceeded(
+            ContractRuntime::response($body, 'text/csv'))]);
+        $partitioner = new EisListingPartitioner;
+        $handler = new ListingHandler(app(ListingStoreRepository::class),
+            new EisListingSource(new EisPolicy(config()), $outbound,
+                LedgerFixtures::uuid()), $partitioner, $partitioner, new FetchOutcomeBridge);
+        $lease = FinalizeFixtures::running($next['work']);
+        $context = app(ExecutionContextFactory::class)->open($lease);
+        app(WorkFinalizer::class)->finish($lease, $handler->execute($next['input'], $context));
     }
-
-    public function isAvailable(): bool
-    {
-        return true;
+    expect(DB::table('prc_crawl_blocks')->whereNotNull('parent_block_id')->where('partition_payload->page', 1)->count())->toBe(2)
+        ->and(DB::table('prc_crawl_blocks')->whereNotNull('parent_block_id')->count())->toBe(3)
+        ->and(DB::table('prc_process_runs')->value('discovery_outcome'))->toBe('collecting')
+        ->and(DB::table('prc_procurements')->count())->toBe(1)
+        ->and(DB::table('prc_process_work')->where('stage', 'detail')->count())->toBe(1);
+    $n = 0;
+    while (($next = F::next($run['crawl'])) !== null) {
+        F::finish($next['work'], $next['input'], F::page());
+        expect(++$n)->toBeLessThanOrEqual(4);
     }
-}
-
-/**
- * @return array<string, string>
- */
-function archiveScannerCsvRow(string $registryNumber): array
-{
-    return [
-        'Реестровый номер закупки' => $registryNumber,
-        'Способ определения поставщика' => 'Электронный аукцион',
-        'Наименование закупки' => 'Поставка оргтехники',
-        'Этап закупки' => 'Подача заявок',
-        'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
-        'НМЦК' => '1 250 000,50',
-        'Валюта' => 'RUB',
-        'ОКПД2' => '26.20.11.110',
-        'Дата размещения' => '01.03.2026',
-        'Дата обновления' => '02.03.2026 10:15:00',
-        'Начало подачи заявок' => '01.03.2026',
-        'Окончание подачи заявок' => '15.03.2026',
-        'Наименование заказчика' => 'ГБУ «Тестовое учреждение»',
-    ];
-}
-
-/**
- * @param  list<string>  $registryNumbers
- */
-function archiveScannerBatch(array $registryNumbers, ?string $dedupSignature): ListingBatch
-{
-    $rows = array_map(archiveScannerCsvRow(...), $registryNumbers);
-
-    return new ListingBatch(
-        rows: $rows,
-        rawBody: 'raw csv body',
-        dedupSignature: $dedupSignature,
-        rowsTotal: count($rows),
-        httpStatus: 200,
-        durationMs: 10,
-        requestParams: [],
-    );
-}
-
-function useArchiveQueueSourceMethod(array $batches): void
-{
-    app()->instance(QueueSourceMethod::class, new QueueSourceMethod(repeatStableWindows: true, batches: $batches));
-
-    config(['crawler.platforms.eis.source_methods' => [
-        SourceMethodEnum::Csv->value => QueueSourceMethod::class,
-    ]]);
-}
-
-/**
- * @param  list<ListingBatch|PlatformBudgetExhaustedException>  $responses
- */
-function useArchiveContinuationSourceMethod(array $responses): void
-{
-    app()->instance(ArchiveContinuationSourceMethod::class, new ArchiveContinuationSourceMethod(responses: $responses));
-    config(['crawler.platforms.eis.source_methods' => [
-        SourceMethodEnum::Csv->value => ArchiveContinuationSourceMethod::class,
-    ]]);
-}
-
-beforeEach(function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    config([
-        'crawler.platforms.eis.block_size' => 2,
-        'crawler.archive.price_ceiling' => 100,
-        'crawler.archive.min_price_interval' => 10,
-        'crawler.archive.max_blocks_per_window' => 50,
-    ]);
-});
-
-function archiveWindowFilter(): WindowFilter
-{
-    return new WindowFilter(dateField: 'publish', dateFrom: Carbon::parse('2024-01-01'), dateTo: Carbon::parse('2024-01-01'));
-}
-
-beforeEach(fn () => LegacyBusinessNetwork::install());
-
-test('окно дренируется на частичном блоке, стек опустошён', function () {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-
-    useArchiveQueueSourceMethod([
-        archiveScannerBatch(['0173200001234000001', '0173200001234000002'], dedupSignature: 'sig-1'),
-        archiveScannerBatch(['0173200001234000003', '0173200001234000004'], dedupSignature: 'sig-2'),
-        archiveScannerBatch(['0173200001234000005'], dedupSignature: 'sig-3'),
-    ]);
-
-    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
-
-    expect($result)->toBe(ArchiveWindowScanResult::Drained)
-        ->and(Procurement::query()->count())->toBe(5)
-        ->and($run->fresh()->cursor['priceStack'])->toBeNull()
-        ->and($run->fresh()->cursor['blockFrom'])->toBe(1);
-});
-
-test('cap по повтору dedup_signature делит интервал пополам, обе половины дренируются', function () {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-
-    $repeatedRows = ['0173200001234000010', '0173200001234000011'];
-    useArchiveQueueSourceMethod([
-        archiveScannerBatch($repeatedRows, dedupSignature: 'dup-signature'),
-        archiveScannerBatch($repeatedRows, dedupSignature: 'dup-signature'),
-        archiveScannerBatch(['0173200001234000014'], dedupSignature: 'sig-lower'),
-        archiveScannerBatch(['0173200001234000015'], dedupSignature: 'sig-upper'),
-    ]);
-
-    app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
-
-    expect(Procurement::query()->count())->toBe(4)
-        ->and($run->fresh()->cursor['priceStack'])->toBeNull();
-});
-
-test('archive max-block detector survives checkpoints and consumes one listing block per continuation', function () {
-    config(['crawler.archive.max_blocks_per_window' => 2]);
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-
-    useArchiveContinuationSourceMethod([
-        archiveScannerBatch(['0173200001234000040', '0173200001234000041'], dedupSignature: 'sig-1'),
-        PlatformBudgetExhaustedException::forHost(host: 'eis.test', maxWaitSeconds: 0),
-        archiveScannerBatch(['0173200001234000042', '0173200001234000043'], dedupSignature: 'sig-2'),
-    ]);
-
-    $first = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
-
-    expect($first)->toBe(ArchiveWindowScanResult::Checkpointed)
-        ->and($run->fresh()->cursor['lastDedupSignature'])->toBe('sig-1')
-        ->and($run->fresh()->cursor['blocksInInterval'])->toBe(1);
-
-    $second = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run->fresh(), filter: archiveWindowFilter());
-
-    expect($second)->toBe(ArchiveWindowScanResult::OperatorDebt)
-        ->and($run->fresh()->cursor['priceStack'])->toBe(['0:100'])
-        ->and($run->fresh()->cursor['blocksInInterval'])->toBe(2)
-        ->and(Procurement::query()->count())->toBe(4);
-});
-
-test('cap на минимальном ценовом интервале остаётся operator debt без потери стека', function () {
-    config(['crawler.archive.price_ceiling' => 10, 'crawler.archive.min_price_interval' => 10]);
-    Log::spy();
-
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-
-    useArchiveQueueSourceMethod([
-        archiveScannerBatch(['0173200001234000020', '0173200001234000021'], dedupSignature: 'dup-signature'),
-        archiveScannerBatch(['0173200001234000022', '0173200001234000023'], dedupSignature: 'dup-signature'),
-    ]);
-
-    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
-
-    Log::shouldHaveReceived('warning')
-        ->withArgs(fn (string $message): bool => str_contains($message, 'price interval at minimum'))
-        ->once();
-
-    expect($result)->toBe(ArchiveWindowScanResult::OperatorDebt)
-        ->and(Procurement::query()->count())->toBe(4)
-        ->and($run->fresh()->cursor['priceStack'])->toBe(['0:10']);
-});
-
-test('max_blocks_per_window сохраняет хвост до resume с изменённым лимитом', function () {
-    config(['crawler.archive.max_blocks_per_window' => 2]);
-    Log::spy();
-
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-
-    useArchiveQueueSourceMethod([
-        archiveScannerBatch(['0173200001234000030', '0173200001234000031'], dedupSignature: 'sig-1'),
-        archiveScannerBatch(['0173200001234000032', '0173200001234000033'], dedupSignature: 'sig-2'),
-        archiveScannerBatch(['0173200001234000034'], dedupSignature: 'sig-3'),
-    ]);
-
-    $first = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
-
-    Log::shouldHaveReceived('warning')
-        ->withArgs(fn (string $message): bool => str_contains($message, 'max blocks per price interval'))
-        ->once();
-
-    expect($first)->toBe(ArchiveWindowScanResult::OperatorDebt)
-        ->and(Procurement::query()->count())->toBe(4)
-        ->and($run->fresh()->cursor['priceStack'])->toBe(['0:100']);
-
-    config(['crawler.archive.max_blocks_per_window' => 3]);
-
-    $second = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run->fresh(), filter: archiveWindowFilter());
-
-    expect($second)->toBe(ArchiveWindowScanResult::Drained)
-        ->and(Procurement::query()->count())->toBe(5)
-        ->and($run->fresh()->cursor['priceStack'])->toBeNull();
-});
-
-test('стартовый ценовой стек берётся из priceTo фильтра профиля, config остаётся дефолтом без него', function () {
-    // max_blocks_per_window=0 форсирует деление на ПЕРВОЙ итерации, ДО единого collectListing():
-    // Log-контекст несёт стартовый интервал стека до какого-либо дробления — точная проба П-9.
-    config(['crawler.archive.price_ceiling' => 1_000_000_000, 'crawler.archive.max_blocks_per_window' => 0]);
-    Log::spy();
-
-    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
-
-    $crawlerWithPrice = Crawler::factory()
-        ->filter(new EisSearchFilter(priceTo: 200_000_000, okpd2Codes: ['43']))
-        ->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive]);
-    $runWithPrice = Run::factory()->for($crawlerWithPrice)->create(['cursor' => null]);
-
-    app(ArchiveWindowScanner::class)->scan(crawler: $crawlerWithPrice, run: $runWithPrice, filter: archiveWindowFilter());
-
-    Log::shouldHaveReceived('warning')
-        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'max blocks per price interval') && $context['interval'] === '0:200000000')
-        ->once();
-
-    $crawlerWithoutPrice = Crawler::factory()->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive]);
-    $runWithoutPrice = Run::factory()->for($crawlerWithoutPrice)->create(['cursor' => null]);
-
-    app(ArchiveWindowScanner::class)->scan(crawler: $crawlerWithoutPrice, run: $runWithoutPrice, filter: archiveWindowFilter());
-
-    Log::shouldHaveReceived('warning')
-        ->withArgs(fn (string $message, array $context): bool => str_contains($message, 'max blocks per price interval') && $context['interval'] === '0:1000000000')
-        ->once();
-});
-
-test('отказ блока сохраняет интервал и курсор, инцидент записан вне транзакции', function (): void {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-
-    useArchiveQueueSourceMethod([
-        new ListingBatch(rows: [], rawBody: '<html>403</html>', dedupSignature: null, rowsTotal: 0, httpStatus: 403, durationMs: 5, requestParams: ['from' => '1']),
-        archiveScannerBatch(['0173200001234000003', '0173200001234000004'], dedupSignature: 'sig-2'),
-        archiveScannerBatch(['0173200001234000005'], dedupSignature: 'sig-3'),
-    ]);
-
-    // Инцидент пишется ВНЕ транзакции блока (аренды): уровень вложенности при записи равен
-    // базовому уровню теста, значит откат блока его не сотрёт.
-    $baseLevel = DB::transactionLevel();
-    $levels = [];
-    SourceIncident::created(function () use (&$levels): void {
-        $levels[] = DB::transactionLevel();
-    });
-
-    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
-
-    expect($result)->toBe(ArchiveWindowScanResult::Stopped)
-        ->and($run->refresh()->cursor['blockFrom'] ?? 1)->toBe(1)
-        ->and(Procurement::query()->count())->toBe(0)
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvSourceBlocked)->sole()->type)->toBe(CrawlerEventCode::CsvSourceBlocked)
-        ->and($levels)->toBe([$baseLevel, $baseLevel]);
-});
-
-test('системный отказ в archive: курсор остаётся на блоке, прогон на паузе источника', function (): void {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-    SourceCircuit::factory()->create(['platform_id' => $crawler->registry->platform_id, 'failure_threshold' => 1]);
-
-    useArchiveQueueSourceMethod([
-        new ListingBatch(rows: [], rawBody: '', dedupSignature: null, rowsTotal: 0, httpStatus: 503, durationMs: 5, requestParams: ['from' => '1']),
-    ]);
-
-    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
-    $run->refresh();
-
-    expect($result)->toBe(ArchiveWindowScanResult::Stopped)
-        ->and($run->status)->toBe(RunStatus::Paused)
-        ->and($run->stats['source_suspended'] ?? null)->toBeTrue()
-        ->and($run->cursor['blockFrom'] ?? 1)->toBe(1);
-});
-
-test('ошибка записи блока откатывает транзакцию и сохраняет курсор, прежние данные целы', function (): void {
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-
-    useArchiveQueueSourceMethod([
-        archiveScannerBatch(['0173200001234000001', '0173200001234000002'], dedupSignature: 'sig-1'),
-        archiveScannerBatch(['0173200001234000003', '0173200001234000004'], dedupSignature: 'sig-2'),
-        archiveScannerBatch(['0173200001234000005'], dedupSignature: 'sig-3'),
-    ]);
-    // Fail after the second block's SQL checkpoint, inside the same transaction as its rows.
-    DB::listen(function (QueryExecuted $query): void {
-        if (str_starts_with($query->sql, 'update "prc_crawler_runs" set "cursor"')) {
-            foreach ($query->bindings as $binding) {
-                if (is_string($binding) && str_contains($binding, '"blockFrom":5')) {
-                    throw new LogicException('bug after block checkpoint');
-                }
-            }
-        }
-    });
-
-    $result = app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: archiveWindowFilter());
-
-    expect($result)->toBe(ArchiveWindowScanResult::Stopped)
-        ->and(Procurement::query()->orderBy('source_identity_value')->pluck('source_identity_value')->all())
-        ->toBe(['0173200001234000001', '0173200001234000002'])
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CsvCodeError)->sole()->type)->toBe(CrawlerEventCode::CsvCodeError)
-        ->and($run->refresh()->status)->toBe(RunStatus::Paused)
-        ->and($run->cursor['blockFrom'])->toBe(3);
+    expect($n)->toBe(4)->and(DB::table('prc_process_runs')->value('discovery_outcome'))->toBe('complete');
 });

@@ -4,25 +4,16 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
+use App\Enums\Procurement\Network\AdapterVerdict;
 use App\Events\Procurement\PlatformHealthChanged;
 use App\Listeners\Procurement\NotifyPlatformHealthChanged;
 use App\Models\Procurement\Health\PlatformCheck;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Health\PlatformHealthChecker;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Str;
-
-function platformHealthMeasuredOutcome(bool $broken = false): array
-{
-    return [
-        'common-info' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
-        'documents' => ['status' => 'measured', 'anchors_missing_critical' => $broken ? 1 : 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
-        'event-journal' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
-        'supplier-results' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
-    ];
-}
+use Tests\Support\ProcessCore\AdapterObservationFixtures;
 
 function platformHealthCheck(Platform $platform, PlatformCheckVerdict $verdict, $checkedAt): PlatformCheck
 {
@@ -59,12 +50,7 @@ function procurementForPlatformHealthCheck(Platform $platform, bool $broken): vo
         'platform_id' => $platform->id,
     ]);
 
-    Procurement::factory()->create([
-        'uuid' => (string) Str::uuid(),
-        'registry_id' => $registry->id,
-        'detail_fetched_at' => now(),
-        'detail_parse_outcome' => platformHealthMeasuredOutcome(broken: $broken),
-    ]);
+    AdapterObservationFixtures::detail($platform->code, $broken ? AdapterVerdict::ContractFailure : AdapterVerdict::Accepted);
 }
 
 test('ухудшение здоровья площадки порождает событие с предыдущим вердиктом', function (): void {

@@ -2,202 +2,73 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Dto\Procurement\Crawler\WindowFilter;
-use App\Dto\Procurement\ProcurementDetails;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Models\Procurement\Crawler\Crawler;
+use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Models\Procurement\Crawler\Proxy;
-use App\Models\Procurement\Crawler\Run;
-use App\Models\Procurement\Platform\Registry;
 use App\Repositories\Procurement\Network\RouteRepository;
-use App\Services\Procurement\ArchiveWindowScanner;
-use App\Services\Procurement\Contracts\SourceMethod;
-use App\Services\Procurement\Modes\FreshRunProcessor;
+use App\Services\Procurement\Acquisition\AcquisitionProfiles;
+use App\Services\Procurement\Acquisition\AcquisitionScheduler;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
-use Illuminate\Support\Carbon;
+use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Sleep;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures as F;
+use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ListingFixtures;
 
-/**
- * Одна валидная строка CSV-блока (набор колонок, которые понимает `EisCsvRowMapper`).
- *
- * @return array<string, string>
- */
-function proxySettingsCsvRow(string $registryNumber): array
-{
-    return [
-        'Реестровый номер закупки' => $registryNumber,
-        'Способ определения поставщика' => 'Электронный аукцион',
-        'Наименование закупки' => 'Поставка оргтехники',
-        'Этап закупки' => 'Подача заявок',
-        'Идентификационный код закупки (ИКЗ)' => '243773601234512345100100001',
-        'НМЦК' => '1 250 000,50',
-        'Валюта' => 'RUB',
-        'ОКПД2' => '26.20.11.110',
-        'Дата размещения' => '01.03.2026',
-        'Дата обновления' => '02.03.2026 10:15:00',
-        'Начало подачи заявок' => '01.03.2026',
-        'Окончание подачи заявок' => '15.03.2026',
-        'Наименование заказчика' => 'ГБУ «Тестовое учреждение»',
-    ];
-}
+beforeEach(fn () => ListingFixtures::bind());
 
-/**
- * Двойник `SourceMethod`, фиксирующий `proxy_mode`/`proxy_country` профиля НА МОМЕНТ
- * КАЖДОГО вызова `collectListing()` — так проверяется, что правка настроек посреди
- * прогона доходит до следующей итерации, а не остаётся снимком старта.
- */
-final class ProxySettingsRecordingSourceMethod implements SourceMethod
-{
-    /** @var list<array{proxy_mode: string, proxy_country: ?string}> */
-    public array $observed = [];
-
-    private int $cursorIndex = 0;
-
-    /**
-     * @param  list<ListingBatch>  $batches
-     */
-    public function __construct(
-        private readonly array $batches,
-        private readonly ?Closure $beforeReturn = null,
-    ) {}
-
-    public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
-    {
-        $this->observed[] = ['route_profile_id' => $crawler->route_profile_id];
-
-        $batch = $this->batches[$this->cursorIndex];
-
-        if ($this->beforeReturn !== null) {
-            ($this->beforeReturn)($this->cursorIndex);
-        }
-
-        $this->cursorIndex++;
-
-        return $batch;
-    }
-
-    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
-    {
-        return new ProcurementDetails(registryNumber: $registryNumber, procedureUrlType: 'fz44');
-    }
-
-    public function isAvailable(): bool
-    {
-        return true;
-    }
-}
-
-/**
- * @param  list<ListingBatch>  $batches
- */
-function useProxySettingsSourceMethod(array $batches, ?Closure $beforeReturn = null): ProxySettingsRecordingSourceMethod
-{
-    $double = new ProxySettingsRecordingSourceMethod(batches: $batches, beforeReturn: $beforeReturn);
-    app()->instance(ProxySettingsRecordingSourceMethod::class, $double);
-
-    config(['crawler.platforms.eis.source_methods' => [
-        SourceMethodEnum::Csv->value => ProxySettingsRecordingSourceMethod::class,
-    ]]);
-
-    return $double;
-}
-
-beforeEach(function () {
-    LegacyBusinessNetwork::install();
-    Sleep::fake();
-    Storage::fake('s3');
+test('fresh work pins route access and does not adopt a profile edit between blocks', function (): void {
+    $profile = F::create();
+    $profiles = app(AcquisitionProfiles::class);
+    $launch = $profiles->prepare($profile, AcquisitionKind::Fresh);
+    $producer = app(AcquisitionScheduler::class);
+    $command = LedgerFixtures::uuid();
+    $run = $producer->manual($launch, $command, null);
+    $work = DB::table('prc_process_work')->sole();
+    $before = F::workSnapshot($work->id);
+    app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile('settings.changed'));
+    $newRoute = DB::table('prc_network_route_profiles')->where('profile_key', 'settings.changed')->sole()->id;
+    $profile->update(['route_profile_id' => $newRoute]);
+    $next = $profiles->prepare($profile, AcquisitionKind::Fresh);
+    expect($next->accessPolicyHash->hex)->not->toBe($launch->accessPolicyHash->hex)
+        ->and(F::workSnapshot($work->id))->toBe($before)
+        ->and(json_decode(DB::table('prc_process_runs')->where('id', $run->value)->value('configuration_snapshot'), true)['route_profile_id'])
+        ->toBe($launch->configuration->json === null ? null : json_decode($launch->configuration->json, true)['route_profile_id']);
+    expect($producer->manual($launch, $command, null)->value)->toBe($run->value);
+    expect(fn () => $producer->manual($launch, LedgerFixtures::uuid(), null))
+        ->toThrow(InvalidArgumentException::class);
 });
 
-test('FreshRunProcessor останавливается при изменении proxy маршрута между блоками', function () {
-    $crawler = Crawler::factory()->withProxies(Proxy::factory()->create())->create();
-
-    $initialProfile = $crawler->route_profile_id;
-    $sourceMethod = useProxySettingsSourceMethod(
-        batches: [
-            new ListingBatch(rows: [proxySettingsCsvRow('0173200001234000001')], rawBody: 'raw', dedupSignature: 'sig-1', rowsTotal: 1, httpStatus: 200, durationMs: 1, requestParams: []),
-            new ListingBatch(rows: [], rawBody: 'raw', dedupSignature: null, rowsTotal: 0, httpStatus: 200, durationMs: 1, requestParams: []),
-        ],
-        beforeReturn: function (int $index) use ($crawler): void {
-            if ($index === 0) {
-                Crawler::query()->whereKey($crawler->id)->update(['route_profile_id' => canonicalSettingsDirectProfile()]);
-            }
-        },
-    );
-
-    $run = app(FreshRunProcessor::class)->run(crawler: $crawler);
-    expect($sourceMethod->observed)->toBe([
-        ['route_profile_id' => $initialProfile],
-    ])->and($run->status)->toBe(RunStatus::Paused)
-        ->and($run->stats->get('stop_reason'))->toContain('между блоками');
-});
-
-test('ArchiveWindowScanner перечитывает proxy_mode/proxy_country профиля перед каждой итерацией', function () {
-    config([
-        'crawler.platforms.eis.block_size' => 1,
-        'crawler.archive.price_ceiling' => 100,
-        'crawler.archive.min_price_interval' => 10,
-        'crawler.archive.max_blocks_per_window' => 50,
-    ]);
-
-    $crawler = Crawler::factory()
-        ->withProxies(Proxy::factory()->create())
-        ->create(['mode' => CrawlerMode::Archive]);
-    $run = Run::factory()->for($crawler)->create(['cursor' => null]);
-
-    $initialProfile = $crawler->route_profile_id;
-    $sourceMethod = useProxySettingsSourceMethod(
-        batches: [
-            new ListingBatch(rows: [proxySettingsCsvRow('0173200001234000010')], rawBody: 'raw', dedupSignature: 'sig-1', rowsTotal: 1, httpStatus: 200, durationMs: 1, requestParams: []),
-            new ListingBatch(rows: [], rawBody: 'raw', dedupSignature: 'sig-2', rowsTotal: 0, httpStatus: 200, durationMs: 1, requestParams: []),
-        ],
-        beforeReturn: function (int $index) use ($crawler): void {
-            if ($index === 0) {
-                Crawler::query()->whereKey($crawler->id)->update(['route_profile_id' => canonicalSettingsDirectProfile()]);
-            }
-        },
-    );
-
-    $filter = new WindowFilter(dateField: 'publish', dateFrom: Carbon::parse('2024-01-01'), dateTo: Carbon::parse('2024-01-01'));
-
-    app(ArchiveWindowScanner::class)->scan(crawler: $crawler, run: $run, filter: $filter);
-
-    expect($sourceMethod->observed)->toBe([
-        ['route_profile_id' => $initialProfile],
-        ['route_profile_id' => canonicalSettingsDirectProfile()],
-        ['route_profile_id' => canonicalSettingsDirectProfile()],
-    ]);
+test('archive continuation retains immutable route snapshot while a new launch uses the edited profile', function (): void {
+    $profile = F::create(AcquisitionKind::Archive);
+    $profiles = app(AcquisitionProfiles::class);
+    $from = new DateTimeImmutable('2024-01-01');
+    $through = new DateTimeImmutable('2025-03-01');
+    $original = $profiles->prepare($profile, AcquisitionKind::Archive, $from, $through);
+    expect($original->plan->continuation)->not->toBeNull();
+    $run = app(AcquisitionScheduler::class)->manual($original, LedgerFixtures::uuid(), null);
+    $stored = DB::table('prc_process_runs')->where('id', $run->value)->value('configuration_snapshot');
+    app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile('settings.archive'));
+    $profile->update(['route_profile_id' => DB::table('prc_network_route_profiles')->where('profile_key', 'settings.archive')->sole()->id]);
+    $next = $profiles->prepare($profile, AcquisitionKind::Archive, $from, $through);
+    expect($next->accessPolicyHash->hex)->not->toBe($original->accessPolicyHash->hex)
+        ->and(DB::table('prc_process_runs')->where('id', $run->value)->value('configuration_snapshot'))->toBe($stored)
+        ->and(json_decode($stored, true)['route_profile_id'])->not->toBe($profile->route_profile_id)
+        ->and($next->plan->continuation->cursor)->toEqual($original->plan->continuation->cursor);
 });
 
 test('фабрика по умолчанию сохраняет default-профиль, а withProxies задаёт profile mode', function (): void {
-    $directCrawler = Crawler::factory()->create();
+    $direct = EisCrawlerFactory::new()->create();
     $proxy = Proxy::factory()->create();
-    $proxyCrawler = Crawler::factory()->withProxies($proxy)->create();
-
-    expect($directCrawler->route_profile_id)->toBeNull()
-        ->and($proxyCrawler->route_profile_id)->not->toBeNull()
-        ->and(array_values(app(ProxyBindingResolver::class)->forCrawler($proxyCrawler)->bindings)[0]->id->value)->toBe($proxy->route_id);
+    $profile = EisCrawlerFactory::new()->withProxies($proxy)->create();
+    expect($direct->route_profile_id)->toBeNull()->and($profile->route_profile_id)->not->toBeNull()
+        ->and(array_values(app(ProxyBindingResolver::class)->forCrawler($profile)->bindings)[0]->id->value)->toBe($proxy->route_id);
 });
 
 test('профиль с включёнными прокси без явной привязки не сохраняется', function (): void {
     app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile('settings.empty'));
-    $profile = DB::table('prc_network_route_profiles')->where('profile_key', 'settings.empty')->sole();
-    $crawler = Crawler::factory()->create(['route_profile_id' => $profile->id]);
-    expect(app(ProxyBindingResolver::class)->forCrawler($crawler)->bindings)->toBe([])
+    $route = DB::table('prc_network_route_profiles')->where('profile_key', 'settings.empty')->sole();
+    $profile = EisCrawlerFactory::new()->create(['route_profile_id' => $route->id]);
+    expect(app(ProxyBindingResolver::class)->forCrawler($profile)->bindings)->toBe([])
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
 });
-
-function canonicalSettingsDirectProfile(): string
-{
-    $route = DB::table('prc_network_routes')->where('kind', 'direct')->sole();
-    app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile('settings.direct', $route->id));
-
-    return DB::table('prc_network_route_profiles')->where('profile_key', 'settings.direct')->sole()->id;
-}

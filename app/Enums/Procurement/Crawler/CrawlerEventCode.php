@@ -9,12 +9,8 @@ use Filament\Support\Contracts\HasLabel;
 /**
  * Единый каталог событий краулера: стабильный внутренний код (не HTTP-статус) + важность.
  *
- * Конвенция: событие публикует `SourceEventReporter` — строка журнала `prc_source_incidents`
- * (колонка `type` = код, `SourceIncidentPublisher`) и запись в стандартный лог Laravel
- * (`SourceEventLogger`) с уровнем `severity()` и сообщением `"<КОД>: <текст>"`; теги в контексте:
- * `code`, `platform_id`, `stage`, `crawler_id`, `run_id`, `fetch_id`, `failure_kind`,
- * `http_status`, `cursor`, `request_params` (только непустые). Канал лога —
- * штатный, настроенный в `LOG_CHANNEL` (в проде `json`).
+ * Historical read vocabulary for prc_source_incidents until the P3.17 reader cutover.
+ * New acquisition evidence belongs to Process transitions, observations and incidents.
  *
  * Коды не переименовываются (по ним ищут в логах и строятся алерты); новый случай — новый код.
  */

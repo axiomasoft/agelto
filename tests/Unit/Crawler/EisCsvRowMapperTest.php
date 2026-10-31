@@ -2,29 +2,21 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\ProcurementSnapshotData;
+use App\Dto\Platforms\Eis\EisListingCursor;
+use App\Dto\Platforms\Eis\EisListingFilter;
+use App\Dto\Platforms\Eis\EisPolicy;
+use App\Dto\Procurement\Acquisition\ListingRequest;
+use App\Dto\Procurement\Acquisition\ProcurementSummary;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Platforms\Eis\EisProcedureType;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Platform\Registry;
-use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
+use App\Services\Platforms\Eis\Csv\EisSummaryParser;
+use App\Services\Platforms\Eis\EisListingSource;
+use Tests\Support\Platforms\Contract\RecordingOutbound;
 
 /**
- * `Crawler` без обращения к БД (Unit-тест, без `RefreshDatabase`) — реестр привязывается
- * как in-memory relation, `EisCsvRowMapper` читает только `$crawler->registry->code`.
- */
-function eisCrawlerForRegistryCode(string $registryCode): Crawler
-{
-    $registry = Registry::factory()->make(['code' => $registryCode]);
-    $crawler = Crawler::factory()->make(['registry_id' => 1]);
-    $crawler->setRelation('registry', $registry);
-
-    return $crawler;
-}
-
-/**
- * Базовая строка CSV-экспорта ЕИС со всеми колонками, которые читает `EisCsvRowMapper`.
+ * Базовая строка CSV-экспорта ЕИС со всеми колонками, которые читает `EisSummaryParser`.
  * Тесты подменяют отдельные ключи под сценарий — форма ассоциатива соответствует реальным
- * заголовкам колонок (см. `EisCsvRowMapper` константы `*_COLUMN`).
+ * заголовкам колонок (см. `EisSummaryParser` константы `*_COLUMN`).
  *
  * @return array<string, string>
  */
@@ -48,118 +40,109 @@ function eisCsvRow(array $overrides = []): array
 }
 
 test('44-ФЗ способ закупки из закрытой карты маппится в procedure_type enum', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
-    $snapshot = app(EisCsvRowMapper::class)->map(row: eisCsvRow(), crawler: $crawler);
+    $snapshot = app(EisSummaryParser::class)->parse(row: eisCsvRow());
 
-    expect($snapshot)->toBeInstanceOf(ProcurementSnapshotData::class)
-        ->and($snapshot->procedureType)->toBe(EisProcedureType::ElectronicAuction->value)
-        ->and($snapshot->procedureTypeRaw)->toBe('Электронный аукцион');
+    expect($snapshot)->toBeInstanceOf(ProcurementSummary::class)
+        ->and($snapshot->facts->procedureType)->toBe(EisProcedureType::ElectronicAuction->value)
+        ->and($snapshot->facts->procedureTypeRaw)->toBe('Электронный аукцион');
 });
 
-test('223-ФЗ способ закупки остаётся свободным текстом без procedure_type', function () {
-    $crawler = eisCrawlerForRegistryCode('fz223');
+test('unknown procedure labels retain raw text while an unregistered registry fails closed', function () {
 
-    $snapshot = app(EisCsvRowMapper::class)->map(
-        row: eisCsvRow(['Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)' => 'Закупка у единственного поставщика по 223-ФЗ (внутренний регламент)']),
-        crawler: $crawler,
+    $snapshot = app(EisSummaryParser::class)->parse(
+        row: eisCsvRow(['Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)' => 'Закупка у единственного поставщика по 223-ФЗ (внутренний регламент)'])
     );
 
-    expect($snapshot->procedureType)->toBeNull()
-        ->and($snapshot->procedureTypeRaw)->toBe('Закупка у единственного поставщика по 223-ФЗ (внутренний регламент)');
+    expect($snapshot->facts->procedureType)->toBeNull()
+        ->and($snapshot->facts->procedureTypeRaw)->toBe('Закупка у единственного поставщика по 223-ФЗ (внутренний регламент)');
+    $filter = new EisListingFilter(['123']);
+    $cursor = new EisListingCursor('2026-03-01', 'publish', 0, 10000, $filter->fingerprint());
+    $source = new EisListingSource(new EisPolicy(config()), new RecordingOutbound,
+        new ProcessUuid('00000000-0000-4000-8000-000000000001'));
+    expect(fn () => $source->plan(new ListingRequest('fz223', $filter, $cursor->envelope())))
+        ->toThrow(InvalidArgumentException::class);
 });
 
 test('44-ФЗ способ, которого нет в закрытой карте, тоже уходит в procedure_type_raw без исключения', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
-    $snapshot = app(EisCsvRowMapper::class)->map(
-        row: eisCsvRow(['Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)' => 'Новый неизвестный способ']),
-        crawler: $crawler,
+    $snapshot = app(EisSummaryParser::class)->parse(
+        row: eisCsvRow(['Способ определения поставщика (подрядчика, исполнителя), подрядной организации (размещения закупки)' => 'Новый неизвестный способ'])
     );
 
-    expect($snapshot->procedureType)->toBeNull()
-        ->and($snapshot->procedureTypeRaw)->toBe('Новый неизвестный способ');
+    expect($snapshot->facts->procedureType)->toBeNull()
+        ->and($snapshot->facts->procedureTypeRaw)->toBe('Новый неизвестный способ');
 });
 
 test('НМЦК с разделителем тысяч и запятой нормализуется в numeric-строку с точкой', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
-    $snapshot = app(EisCsvRowMapper::class)->map(row: eisCsvRow(), crawler: $crawler);
+    $snapshot = app(EisSummaryParser::class)->parse(row: eisCsvRow());
 
     expect($snapshot->initialPrice)->toBe('1250000.50');
 });
 
-test('даты размещения/обновления/подачи заявок парсятся в Carbon', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
+test('даты размещения/обновления/подачи заявок сохраняются в immutable summary facts', function () {
 
-    $snapshot = app(EisCsvRowMapper::class)->map(row: eisCsvRow(), crawler: $crawler);
+    $snapshot = app(EisSummaryParser::class)->parse(row: eisCsvRow());
 
-    expect($snapshot->publishedAt)->toBeInstanceOf(Carbon\Carbon::class)
-        ->and($snapshot->publishedAt->toDateString())->toBe('2026-03-01')
-        ->and($snapshot->sourceUpdatedAt->format('Y-m-d H:i:s'))->toBe('2026-03-02 07:15:00')
-        ->and($snapshot->biddingStartsAt->toDateString())->toBe('2026-03-01')
-        ->and($snapshot->biddingEndsAt->toDateString())->toBe('2026-03-15');
+    expect($snapshot->publishedAt)->toBeInstanceOf(DateTimeImmutable::class)
+        ->and($snapshot->publishedAt->format('Y-m-d'))->toBe('2026-03-01')
+        ->and($snapshot->updatedAt->format('Y-m-d H:i:s'))->toBe('2026-03-02 07:15:00')
+        ->and($snapshot->facts->biddingStartsAt->format('Y-m-d'))->toBe('2026-03-01')
+        ->and($snapshot->facts->biddingEndsAt->format('Y-m-d'))->toBe('2026-03-15');
 });
 
 test('дата парсится без подстановки текущего времени (модификатор `!`)', function (string $rawDate, string $expected) {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
-    $snapshot = app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Дата обновления' => $rawDate]), crawler: $crawler);
+    $snapshot = app(EisSummaryParser::class)->parse(row: eisCsvRow(['Дата обновления' => $rawDate]));
 
-    expect($snapshot->sourceUpdatedAt->format('Y-m-d H:i:s'))->toBe($expected);
+    expect($snapshot->updatedAt->format('Y-m-d H:i:s'))->toBe($expected);
 })->with([
     'd.m.Y H:i:s — время сохраняется целиком' => ['02.03.2026 10:15:42', '2026-03-02 07:15:42'],
     'd.m.Y H:i — секунды нулевые, часы и минуты сохранены' => ['02.03.2026 10:15', '2026-03-02 07:15:00'],
-    // Сутки источника: начало суток по МСК в UTC (см. `EisCsvRowMapper::parseSourceUpdatedAt`).
+    // Сутки источника: начало суток по МСК в UTC (см. `EisSummaryParser::parseSourceUpdatedAt`).
     'd.m.Y — начало суток источника' => ['02.03.2026', '2026-03-01 21:00:00'],
 ]);
 
 test('суточная точность даты обновления передаётся явно, а не выводится из полуночи', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
-    $dayPrecision = app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Дата обновления' => '02.03.2026']), crawler: $crawler);
-    $timestampPrecision = app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Дата обновления' => '02.03.2026 00:00:00']), crawler: $crawler);
+    $dayPrecision = app(EisSummaryParser::class)->parse(row: eisCsvRow(['Дата обновления' => '02.03.2026']));
+    $timestampPrecision = app(EisSummaryParser::class)->parse(row: eisCsvRow(['Дата обновления' => '02.03.2026 00:00:00']));
 
-    expect($dayPrecision->sourceUpdatedAtHasDayPrecision)->toBeTrue()
-        ->and($timestampPrecision->sourceUpdatedAtHasDayPrecision)->toBeFalse();
+    expect($dayPrecision->updatedAtDayPrecision)->toBeTrue()
+        ->and($timestampPrecision->updatedAtDayPrecision)->toBeFalse();
 });
 
 test('пустой registry_number вызывает ошибку обязательного поля', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
-    expect(fn () => app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Реестровый номер закупки' => '']), crawler: $crawler))->toThrow(UnexpectedValueException::class);
+    expect(fn () => app(EisSummaryParser::class)->parse(row: eisCsvRow(['Реестровый номер закупки' => ''])))->toThrow(UnexpectedValueException::class);
 });
 
 test('отсутствующий registry_number вызывает ошибку обязательного поля', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
     $row = eisCsvRow();
     unset($row['Реестровый номер закупки']);
 
-    expect(fn () => app(EisCsvRowMapper::class)->map(row: $row, crawler: $crawler))->toThrow(UnexpectedValueException::class);
+    expect(fn () => app(EisSummaryParser::class)->parse(row: $row))->toThrow(UnexpectedValueException::class);
 });
 
 test('непарсящаяся дата размещения вызывает ошибку обязательного поля', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
-    expect(fn () => app(EisCsvRowMapper::class)->map(row: eisCsvRow(['Дата размещения' => 'не дата']), crawler: $crawler))->toThrow(UnexpectedValueException::class);
+    expect(fn () => app(EisSummaryParser::class)->parse(row: eisCsvRow(['Дата размещения' => 'не дата'])))->toThrow(UnexpectedValueException::class);
 });
 
 test('отсутствующая дата обновления вызывает ошибку обязательного поля', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
     $row = eisCsvRow();
     unset($row['Дата обновления']);
 
-    expect(fn () => app(EisCsvRowMapper::class)->map(row: $row, crawler: $crawler))->toThrow(UnexpectedValueException::class);
+    expect(fn () => app(EisSummaryParser::class)->parse(row: $row))->toThrow(UnexpectedValueException::class);
 });
 
 test('префикс «№» перед реестровым номером снимается (живая проба P4.9 — 500/500 строк блока несут его)', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
 
-    $snapshot = app(EisCsvRowMapper::class)->map(
-        row: eisCsvRow(['Реестровый номер закупки' => '№0173200001234000001']),
-        crawler: $crawler,
+    $snapshot = app(EisSummaryParser::class)->parse(
+        row: eisCsvRow(['Реестровый номер закупки' => '№0173200001234000001'])
     );
 
     expect($snapshot->identity->value->value)->toBe('0173200001234000001');
@@ -192,16 +175,15 @@ function eisRealFixtureRows(): array
 }
 
 test('реальная фикстура: initial_price/customer_name/procedure_type_raw непусты, registry_number без префикса «№»', function () {
-    $crawler = eisCrawlerForRegistryCode('fz44');
     $rows = eisRealFixtureRows();
 
     foreach ($rows as $row) {
-        $snapshot = app(EisCsvRowMapper::class)->map(row: $row, crawler: $crawler);
+        $snapshot = app(EisSummaryParser::class)->parse(row: $row);
 
         expect($snapshot)->not->toBeNull()
             ->and($snapshot->identity->value->value)->not->toStartWith('№')
             ->and($snapshot->initialPrice)->not->toBeNull()
-            ->and($snapshot->procedureTypeRaw)->not->toBeNull()
-            ->and($snapshot->attributes['customer_name'] ?? null)->not->toBeNull();
+            ->and($snapshot->facts->procedureTypeRaw)->not->toBeNull()
+            ->and($snapshot->facts->customerName)->not->toBeNull();
     }
 });

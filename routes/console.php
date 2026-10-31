@@ -1,12 +1,9 @@
 <?php
 
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Health\ApplicationReadiness;
 use App\Services\Procurement\DocumentRevalidationSelector;
 use App\Services\Procurement\PipelineDispatcher;
 use App\Services\Procurement\PipelineRecoveryReconciler;
-use Cron\CronExpression;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
@@ -46,69 +43,8 @@ $hasTable = (static function (): Closure {
     };
 })();
 
-// Schema-guard: этот файл выполняется на КАЖДЫЙ artisan-вызов (не только schedule:run),
-// в т.ч. до первой миграции (`migrate` на свежем окружении) — без гварда упал бы на
-// отсутствующей таблице `prc_crawlers`.
-//
-// Расписание fresh-профилей читается из БД, поэтому ошибка здесь не должна ронять ни один
-// artisan-вызов (`package:discover`, `migrate`, воркеры) и остальные задачи планировщика:
-// недоступная БД пропускает только профили (`schedule:work` перечитает их через минуту), а
-// невалидный cron одного профиля — только этот профиль. Пустое расписание — профиль не
-// запускается по cron (контракт формы краулера), а не скрытый «каждые 30 минут».
-$freshCrawlers = collect();
-
-try {
-    if ($hasTable('prc_crawlers')) {
-        $freshCrawlers = Crawler::query()->where('mode', CrawlerMode::Fresh)->where('is_active', true)->get();
-    }
-} catch (Throwable $exception) {
-    Log::warning('Планировщик: не удалось прочитать fresh-профили.', ['exception' => $exception->getMessage()]);
-}
-
-foreach ($freshCrawlers as $crawler) {
-    $cron = trim((string) $crawler->schedule);
-
-    if ($cron === '') {
-        continue;
-    }
-
-    if (! CronExpression::isValidExpression($cron)) {
-        Log::error('Fresh-профиль пропущен планировщиком: невалидное cron-выражение.', ['crawler_id' => $crawler->id, 'schedule' => $cron]);
-
-        continue;
-    }
-
-    Schedule::command('crawler:run-fresh', [$crawler->id])->cron($cron);
-}
-
-// Тот же schema-guard (см. выше) — детальная стадия читает `prc_procurements`.
-if ($hasTable('prc_procurements')) {
-    Schedule::command('crawler:fetch-details')->name('crawler:fetch-details')->everyFiveMinutes()->withoutOverlapping();
-}
-
-// Тот же schema-guard (см. выше) — sweep читает `prc_crawler_runs.stats->cap_hit`.
-if ($hasTable('prc_crawler_runs')) {
-    Schedule::command('crawler:rescan-backlog')
-        ->name('crawler:rescan-backlog')
-        ->everyFifteenMinutes()
-        ->withoutOverlapping();
-}
-
-// Тот же schema-guard (см. выше) — подъём зависших running-прогонов (P3.2, D28): павший
-// воркер оставляет прогон в running навсегда, recoverStale() был мёртвым кодом, никем не
-// вызывался.
-if ($hasTable('prc_crawler_runs')) {
-    Schedule::command('crawler:recover-stale')->everyFiveMinutes();
-}
-
-// Тот же schema-guard (см. выше) — плановый delta-scan окна обновления (П-3,
-// `research/05-change-tracking.md` §2.2); выключен по умолчанию — включает владелец
-// после боевого прогона P4.7 (как и fresh-профиль, D37).
-if ($hasTable('prc_crawlers') && config('crawler.tracking.delta_scan_enabled')) {
-    Schedule::command('crawler:run-delta')
-        ->name('crawler:run-delta')
-        ->cron((string) config('crawler.tracking.delta_scan_cron'))
-        ->withoutOverlapping();
+if ($hasTable('prc_acquisition_schedules')) {
+    Schedule::command('process:schedule-acquisition')->everyMinute()->withoutOverlapping();
 }
 
 // Тот же schema-guard (см. выше) — мост подготовки документов (P4.3, ТЗ 03 §4). Поллер —
@@ -138,10 +74,4 @@ if ($hasTable('prc_documents')) {
 // Bounded retention runs separately from HTTP workers.
 if ($hasTable('prc_raw_artifacts')) {
     Schedule::command('crawler:prune-history')->hourly()->withoutOverlapping();
-}
-
-if ($hasTable('prc_source_circuits')) {
-    Schedule::command('crawler:progress')->everyFiveMinutes()->withoutOverlapping()
-        ->sendOutputTo(storage_path('logs/crawler-progress.log'))
-        ->onFailure(fn () => Log::warning('Crawler progress is stalled; inspect crawler:progress and source incidents.'));
 }

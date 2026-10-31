@@ -22,6 +22,7 @@ final readonly class PlatformDefinition
         public SupportedListingPartitioningCapability|UnsupportedCapability $partitioning,
         public ?ExtensionDescriptor $extension = null,
         public ?string $uiExtension = null,
+        public ?AcquisitionProfileDescriptor $acquisitionProfile = null,
     ) {}
 
     public function validateIdentity(string $registryCode, SourceIdentity $identity): void

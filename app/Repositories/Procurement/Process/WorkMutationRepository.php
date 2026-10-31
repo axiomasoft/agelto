@@ -192,6 +192,7 @@ final readonly class WorkMutationRepository
         string $reason,
         ?int $actorId,
         array $ids,
+        bool $failedItem = false,
     ): WorkMutationResult|PrefixFailure {
         CallerTransaction::require('Handler fault retry');
         $reason = self::reason($reason);
@@ -221,13 +222,14 @@ final readonly class WorkMutationRepository
         if ($work->int('transition_seq') !== $expectedTransitionSeq) {
             return WorkMutationResult::refused(WorkMutationStatus::VersionConflict);
         }
-        if ($work->string('state') !== WorkState::Blocked->value || $work->nullableString('reason_code') !== BlockedReason::HandlerFaultLimit->value) {
+        if ($failedItem ? $work->string('state') !== WorkState::FailedItem->value
+            : ($work->string('state') !== WorkState::Blocked->value || $work->nullableString('reason_code') !== BlockedReason::HandlerFaultLimit->value)) {
             return WorkMutationResult::refused(WorkMutationStatus::NotEligible);
         }
         if ($prefix->group !== null) {
             throw new \LogicException('Fault-limited work cannot retain an active admission group.');
         }
-        if (! $prefix->intentActive || $this->resolver->inputInvalidated($input, $snapshot->inputRevision, $prefix->subjects)) {
+        if ((! $failedItem && ! $prefix->intentActive) || $this->resolver->inputInvalidated($input, $snapshot->inputRevision, $prefix->subjects)) {
             return WorkMutationResult::refused(WorkMutationStatus::VersionConflict);
         }
         $envelope = $this->works->lockedCheckpoint($work);
@@ -267,7 +269,11 @@ final readonly class WorkMutationRepository
         );
 
         $generation = $work->int('generation');
-        $row = LedgerRow::one(
+        $row = $failedItem ? LedgerRow::one(
+            "UPDATE prc_process_work SET transition_seq=transition_seq+1, updated_at=clock_timestamp()
+             WHERE id=? AND generation=? AND state='failed_item' RETURNING generation,transition_seq",
+            [$snapshot->workId->value->value, $generation],
+        ) : LedgerRow::one(
             "UPDATE prc_process_work
              SET state = 'superseded', reason_code = 'manual_retry', generation = generation + 1, owner_token = NULL, lease_until = NULL,
                  dispatch_claim_until = NULL, due_at = NULL, provider_recovery_due_at = NULL,
@@ -275,10 +281,12 @@ final readonly class WorkMutationRepository
              WHERE id = ? AND generation = ? AND state = 'blocked' AND reason_code = 'handler_fault_limit'
              RETURNING generation, transition_seq",
             [$snapshot->workId->value->value, $generation],
-        ) ?? throw new \LogicException('Manual retry fence did not match the locked blocked work.');
+        );
+        $row ??= throw new \LogicException('Manual retry fence did not match the locked work.');
         $this->transitions->recordWork(
             $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            WorkState::Blocked->value, WorkState::Superseded->value, 'manual_retry', ActorKind::Operator,
+            $failedItem ? WorkState::FailedItem->value : WorkState::Blocked->value,
+            $failedItem ? WorkState::FailedItem->value : WorkState::Superseded->value, 'manual_retry', ActorKind::Operator,
             $row->int('generation'), $actorId, ['reason' => $reason, 'command_id' => $commandId->value, 'successor_work_id' => $ids['work']->value],
         );
 

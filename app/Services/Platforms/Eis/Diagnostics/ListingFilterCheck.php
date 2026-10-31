@@ -4,32 +4,24 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis\Diagnostics;
 
-use App\Dto\Platforms\Eis\EisListingQueryOverrides;
+use App\Dto\Platforms\Eis\EisListingCursor;
+use App\Dto\Platforms\Eis\EisListingProbeFilter;
+use App\Dto\Procurement\Acquisition\AcquisitionLaunch;
 use App\Dto\Procurement\Acquisition\ListingPage;
+use App\Dto\Procurement\Acquisition\ListingRequest;
 use App\Dto\Procurement\Acquisition\ProcurementSummary;
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Health\CheckResult;
 use App\Dto\Procurement\Health\HealthBaseline;
+use App\Dto\Procurement\Platform\DiagnosticInput;
+use App\Dto\Procurement\Platform\ProbePlan;
 use App\Dto\Procurement\Platform\ResponseAssessment;
 use App\Dto\Procurement\Process\ContentHash;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Enums\Procurement\Platform\AssessmentReason;
 use App\Enums\Procurement\Platform\Completeness;
-use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
-use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
-use App\Exceptions\Procurement\Network\OutboundUnavailable;
-use App\Exceptions\Procurement\Proxy\NoProxyAvailableException;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Platform\Platform;
-use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
+use App\Services\Platforms\Eis\EisListingPartitioner;
 use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
-use Carbon\CarbonImmutable;
-use Carbon\CarbonInterface;
-use Illuminate\Http\Client\ConnectionException;
 use LogicException;
 
 /**
@@ -40,9 +32,21 @@ use LogicException;
  */
 final readonly class ListingFilterCheck implements DiagnosticCheck
 {
-    private const string REGISTRY_NUMBER_COLUMN = 'Реестровый номер закупки';
+    public function plan(AcquisitionLaunch $launch): ProbePlan
+    {
+        $filter = (new EisListingPartitioner)->restoreFilter($launch->filter);
+        $cursor = $launch->plan->windows[0]->cursor;
 
-    public function __construct(private CsvSourceMethod $source) {}
+        $unfiltered = new EisListingProbeFilter($filter);
+        $decoded = EisListingCursor::decode($cursor);
+        $probeCursor = new EisListingCursor($decoded->day, $decoded->dateField, $decoded->lowCents,
+            $decoded->highCents, $unfiltered->fingerprint(), 1, 0, $decoded->blockSize);
+
+        return new ProbePlan([
+            new ListingRequest($launch->registry, $unfiltered, $probeCursor->envelope()),
+            new ListingRequest($launch->registry, $filter, $cursor),
+        ]);
+    }
 
     /** Pure new-boundary assessment; acquisition diagnostics supplies two bounded reads. */
     public static function assessPages(
@@ -77,87 +81,22 @@ final readonly class ListingFilterCheck implements DiagnosticCheck
         return PlatformCheckKind::ListingFilter;
     }
 
-    public function run(Platform $platform, HealthBaseline $baseline, CarbonInterface $from, CarbonInterface $to): CheckResult
+    public function run(DiagnosticInput $input): CheckResult
     {
-        $crawler = Crawler::query()
-            ->where('mode', CrawlerMode::Fresh->value)
-            ->where('source_method', SourceMethod::Csv->value)
-            ->where('is_active', true)
-            ->whereHas('registry', fn ($query) => $query->where('platform_id', $platform->id))
-            ->with('registry')
-            ->orderBy('id')
-            ->first();
-
-        if (! $crawler instanceof Crawler) {
-            return $this->notEnoughData(
-                message: 'Активный fresh-профиль CSV для пробы ОКПД2 не найден.',
-                requestsUsed: 0,
-                measured: [],
-            );
+        $baseline = $input->baseline;
+        $requestsUsed = $input->requestsUsed;
+        if (count($input->pages) !== 2 || ! $input->pages[0]->assessment->usable()
+            || ! $input->pages[1]->assessment->usable()) {
+            return $this->notEnoughData('Проба фильтра не получила два проверенных listing ответа.'.($input->unavailable === null ? '' : ' '.$input->unavailable->value),
+                $requestsUsed, $this->measured($input));
         }
-
-        $windowFrom = CarbonImmutable::instance($to)->subDay()->startOfDay();
-        $windowTo = $windowFrom->endOfDay();
-        $cursor = new ListingCursor(blockFrom: 1);
-        $requestsUsed = 0;
-
-        try {
-            $unfiltered = $this->source->collectListing(
-                crawler: $crawler,
-                cursor: $cursor,
-                queryOverrides: new EisListingQueryOverrides(
-                    publishedFrom: $windowFrom,
-                    publishedTo: $windowTo,
-                    withoutOkpd2: true,
-                    retryOnEmptyResponse: false,
-                    requestAttempts: 1,
-                ),
-            );
-            $requestsUsed++;
-
-            $filtered = $this->source->collectListing(
-                crawler: $crawler,
-                cursor: $cursor,
-                queryOverrides: new EisListingQueryOverrides(
-                    publishedFrom: $windowFrom,
-                    publishedTo: $windowTo,
-                    retryOnEmptyResponse: false,
-                    requestAttempts: 1,
-                ),
-            );
-            $requestsUsed++;
-        } catch (OutboundUnavailable|PlatformBudgetExhaustedException|NoProxyAvailableException $exception) {
-            return $this->notEnoughData(
-                message: "Проба фильтра ОКПД2 не выполнилась: {$exception->getMessage()}",
-                requestsUsed: $requestsUsed + ($exception instanceof OutboundUnavailable && $exception->outcome->lastRequestId !== null ? 1 : 0),
-                measured: $this->measured(crawler: $crawler, windowFrom: $windowFrom, windowTo: $windowTo),
-            );
-        } catch (ConnectionException|InvalidListingResponse $exception) {
-            return $this->notEnoughData(
-                message: 'Проба фильтра ОКПД2 не получила проверенный CSV-ответ.',
-                requestsUsed: $requestsUsed + 1,
-                measured: $this->measured(crawler: $crawler, windowFrom: $windowFrom, windowTo: $windowTo),
-            );
-        }
-
-        if ($unfiltered->httpStatus !== 200 || $filtered->httpStatus !== 200) {
-            return $this->notEnoughData(
-                message: "Проба фильтра ОКПД2 получила HTTP {$unfiltered->httpStatus}/{$filtered->httpStatus}.",
-                requestsUsed: $requestsUsed,
-                measured: [
-                    ...$this->measured(crawler: $crawler, windowFrom: $windowFrom, windowTo: $windowTo),
-                    'http_status_unfiltered' => $unfiltered->httpStatus,
-                    'http_status_filtered' => $filtered->httpStatus,
-                ],
-            );
-        }
-
-        $unfilteredNumbers = $this->registryNumbers(batch: $unfiltered);
-        $filteredNumbers = $this->registryNumbers(batch: $filtered);
+        [$unfiltered, $filtered] = $input->pages;
+        $unfilteredNumbers = $this->registryNumbers($unfiltered);
+        $filteredNumbers = $this->registryNumbers($filtered);
         $overlap = count(array_intersect($unfilteredNumbers, $filteredNumbers));
         $overlapShare = $unfilteredNumbers === [] ? 1.0 : $overlap / count($unfilteredNumbers);
         $measured = [
-            ...$this->measured(crawler: $crawler, windowFrom: $windowFrom, windowTo: $windowTo),
+            ...$this->measured($input),
             'rows_unfiltered' => $unfiltered->rowsTotal,
             'rows_filtered' => $filtered->rowsTotal,
             'registry_numbers_unfiltered' => count($unfilteredNumbers),
@@ -210,29 +149,19 @@ final readonly class ListingFilterCheck implements DiagnosticCheck
     }
 
     /** @return array<string, int|string> */
-    private function measured(Crawler $crawler, CarbonImmutable $windowFrom, CarbonImmutable $windowTo): array
+    private function measured(DiagnosticInput $input): array
     {
         return [
-            'crawler_id' => $crawler->id,
-            'window_from' => $windowFrom->toAtomString(),
-            'window_to' => $windowTo->toAtomString(),
+            'crawler_id' => $input->profileId ?? 0,
+            'window_from' => $input->from->format(DATE_ATOM),
+            'window_to' => $input->to->format(DATE_ATOM),
         ];
     }
 
     /** @return list<string> */
-    private function registryNumbers(ListingBatch $batch): array
+    private function registryNumbers(ListingPage $page): array
     {
-        $numbers = [];
-
-        foreach ($batch->rows as $row) {
-            $number = trim((string) ($row[self::REGISTRY_NUMBER_COLUMN] ?? ''));
-
-            if ($number !== '') {
-                $numbers[] = $number;
-            }
-        }
-
-        return array_values(array_unique($numbers));
+        return array_values(array_unique(array_map(static fn (ProcurementSummary $summary): string => json_encode($summary->identity->toArray(), JSON_THROW_ON_ERROR), $page->summaries->items)));
     }
 
     private function maxOverlapShare(HealthBaseline $baseline): float

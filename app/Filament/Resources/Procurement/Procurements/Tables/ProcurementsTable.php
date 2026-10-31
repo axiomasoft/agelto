@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Procurement\Procurements\Tables;
 
 use App\Models\Procurement\Procurement;
 use Filament\Actions\ViewAction;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -41,10 +40,7 @@ class ProcurementsTable
                     ->numeric()
                     ->sortable()
                     ->visibleFrom('md'),
-                IconColumn::make('detail_failed')
-                    ->label('Ошибка деталей')
-                    ->boolean()
-                    ->wrapHeader(),
+                TextColumn::make('detail_work_state')->label('Получение карточки')->placeholder('Не запланировано'),
                 TextColumn::make('last_seen_at')
                     ->label('Последний контакт')
                     ->dateTime()

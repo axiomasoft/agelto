@@ -145,7 +145,8 @@ final readonly class NetworkAuthorityRepository
             $plan->idempotency->value, $plan->bodyHash?->hex,
             ...($plan->sendLimit === null ? [] : ['send_limit' => $plan->sendLimit]),
             ...($plan->adapterClaim === null ? [] : ['adapter' => [$plan->adapterClaim->contract->toArray(),
-                $plan->adapterClaim->healthId->value, $plan->adapterClaim->epoch, $plan->adapterClaim->operationId->value, $plan->adapterClaim->canary]])], JSON_THROW_ON_ERROR));
+                $plan->adapterClaim->healthId->value, $plan->adapterClaim->epoch, $plan->adapterClaim->ownerId->value,
+                $plan->adapterClaim->canary, $plan->adapterClaim->ownerKind->value]])], JSON_THROW_ON_ERROR));
     }
 
     public static function profileMatches(LedgerRow $target, RequestProfile $profile): bool

@@ -2,44 +2,40 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\SourceEvent;
-use App\Dto\Procurement\Crawler\SourceFailure;
 use App\Dto\Procurement\Network\DecodedTextBody;
 use App\Dto\Procurement\Network\HttpAttemptResult;
 use App\Dto\Procurement\Network\ResponseEnvelope;
 use App\Dto\Procurement\Network\RetryRoutePreference;
 use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Network\TransportMetrics;
 use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
-use App\Enums\Procurement\Crawler\CrawlerEventCode;
-use App\Enums\Procurement\Crawler\RunPurpose;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\SourceFailureKind;
-use App\Enums\Procurement\Crawler\SourceStage;
+use App\Dto\Procurement\Process\ArtifactRef;
+use App\Dto\Procurement\Process\HandlerFaultEvidence;
+use App\Dto\Procurement\Process\StageFailedItem;
 use App\Enums\Procurement\Network\AdapterVerdict;
 use App\Enums\Procurement\Network\TransportFailure;
 use App\Enums\Procurement\Process\ControlMode;
+use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Enums\Procurement\Process\StageCode;
-use App\Events\Procurement\SourceIncidentRecorded;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\User;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\Process\ControlRepository;
-use App\Services\Procurement\CrawlerRunManager;
 use App\Services\Procurement\Network\AcquisitionEligibility;
 use App\Services\Procurement\Network\HealthPolicy;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\WorkFinalizer;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\Proxy\RoutePolicy;
-use App\Services\Procurement\SourceControl\SourceEventReporter;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\Http\AdapterFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
@@ -74,58 +70,41 @@ function sourceAdapterAuthority(): AdapterFixtures
     return $f;
 }
 
-function canonicalSourceEvent(int $platform, SourceFailureKind $kind, SourceStage $stage = SourceStage::Listing): void
+function canonicalInputFailures(int $count): object
 {
-    $event = SourceEvent::forFailure(CrawlerEventCode::forFailure($stage, $kind),
-        new SourceFailure($platform, $stage, $kind, 'тест'), 'тест');
-    $reporter = app(SourceEventReporter::class);
-    if ($kind === SourceFailureKind::NotFound) {
-        $reporter->log($event);
-    } else {
-        $reporter->report($event);
-    }
-}
-
-function canonicalInputFailures(int $count): Run
-{
-    $crawler = Crawler::factory()->create();
-    $runs = app(CrawlerRunManager::class);
+    FinalizeFixtures::authority([StageCode::Listing]);
+    $work = ExecutionFixtures::listingWork();
     for ($index = 0; $index < $count; $index++) {
-        $run = $runs->startOrResume($crawler, RunPurpose::Profile, null);
-        expect($runs->acquireExecutionLease($run))->toBeTrue();
-        $runs->recordInputFailure($run, hash('sha256', 'same-input'), 50);
-        if ($index + 1 < $count) {
-            DB::table('prc_crawler_runs')->where('id', $run->id)->update(['next_retry_at' => now()->subMinute()]);
-        }
+        $lease = $index === 0 ? FinalizeFixtures::running($work) : FinalizeFixtures::rerun($work);
+        app(WorkFinalizer::class)->finish($lease, new StageFailedItem(ItemFailureReason::ContractRejected,
+            new ArtifactRef('fixture', 'same-input', LedgerFixtures::hash('same-input'))));
     }
 
-    return $run;
+    return ExecutionFixtures::work($work);
 }
 
 test('отказ ниже порога: этап работает, событие отказа записано, ожидания нет', function (): void {
     $f = sourceNetworkAuthority();
     $proxy = $f->proxy();
-    $platform = DB::table('prc_source_targets')->where('id', $f->permits->target->value)->sole()->platform_id;
-    canonicalSourceEvent($platform, SourceFailureKind::SourceBlocked);
     $f->outcome(HealthFixtures::failure(TransportFailure::ProxyConnect), $proxy);
     expect(DB::table('prc_route_health')->where('route_id', $proxy->id->value)->sole()->consecutive_failures)->toBe(1)
         ->and(DB::table('prc_route_health')->where('route_id', $proxy->id->value)->sole()->state)->toBe('closed')
-        ->and(SourceIncident::query()->pluck('type')->all())->toBe([CrawlerEventCode::CsvSourceBlocked]);
+        ->and(DB::table('prc_observations')->where('kind', 'network_transport')->count())->toBe(1)
+        ->and(SourceIncident::query()->count())->toBe(0);
 });
 
 test('порог: ожидание на интервал, событие об ожидании, доменное событие', function (): void {
     $f = sourceNetworkAuthority();
     $proxy = $f->proxy();
-    Event::fake([SourceIncidentRecorded::class]);
-    $platform = DB::table('prc_source_targets')->where('id', $f->permits->target->value)->sole()->platform_id;
-    canonicalSourceEvent($platform, SourceFailureKind::SourceUnavailable);
     foreach (range(1, app(HealthPolicy::class)->globalFailures) as $ignored) {
         $f->outcome(HealthFixtures::failure(TransportFailure::ProxyConnect), $proxy);
     }
     $row = DB::table('prc_route_health')->where('route_id', $proxy->id->value)->sole();
     expect($row->state)->toBe('open')->and($row->open_until)->not->toBeNull()
-        ->and(DB::table('prc_source_circuits')->count())->toBe(0);
-    Event::assertDispatched(SourceIncidentRecorded::class);
+        ->and(Schema::hasTable('prc_source_circuits'))->toBeFalse();
+    // Transport evidence replaces the retired source event publisher; old incidents remain read-only.
+    expect(DB::table('prc_observations')->where('kind', 'network_transport')->count())->toBe(app(HealthPolicy::class)->globalFailures)
+        ->and(SourceIncident::query()->count())->toBe(0);
 });
 
 test('изменилась структура и порог: этап остановлен до оператора, таймера нет', function (): void {
@@ -143,16 +122,22 @@ test('изменилась структура и порог: этап остан
 
 test('ошибки нашего кода и пустое тело не считаются брейкером, но пишутся в журнал и лог', function (): void {
     $f = sourceNetworkAuthority();
-    $platform = DB::table('prc_source_targets')->where('id', $f->permits->target->value)->sole()->platform_id;
     Log::spy();
+    FinalizeFixtures::authority([StageCode::Detail]);
     foreach (range(1, 2) as $ignored) {
-        canonicalSourceEvent($platform, SourceFailureKind::CodeError, SourceStage::Detail);
-        canonicalSourceEvent($platform, SourceFailureKind::EmptyBody);
+        $work = DB::transaction(fn () => ExecutionFixtures::detailWork());
+        app(WorkFinalizer::class)->finishHandlerFault(FinalizeFixtures::running($work),
+            HandlerFaultEvidence::fromThrowable(new LogicException('fixture code failure')));
+        $f->outcome(new HttpAttemptResult(new ResponseEnvelope(200, [], new DecodedTextBody('', 'UTF-8'), 0, 0),
+            null, 0, 0, metrics: TransportMetrics::fromCurlStats(['http_code' => 200])));
     }
-    expect(SourceIncident::query()->where('type', CrawlerEventCode::CardCodeError)->count())->toBe(2)
+    expect(DB::table('prc_process_transitions')->where('reason_code', 'handler_fault')->count())->toBe(2)
+        ->and(DB::table('prc_process_attempts')->whereNotNull('finished_at')->count())->toBe(2)
+        ->and(DB::table('prc_observations')->where('kind', 'network_transport')->count())->toBe(2)
+        ->and(SourceIncident::query()->count())->toBe(0)
         ->and(DB::table('prc_route_health')->sole()->consecutive_failures)->toBe(0);
-    Log::shouldHaveReceived('log')->with('error', Mockery::pattern('/^CRAWLER_CARD_CODE_ERROR: /'), Mockery::any())->twice();
-    Log::shouldHaveReceived('log')->with('critical', Mockery::pattern('/^CRAWLER_CSV_EMPTY: /'), Mockery::any())->twice();
+    Log::shouldHaveReceived('info')->with('work.deferred', Mockery::on(fn (array $context): bool => $context['reason'] === 'handler_fault'))->twice();
+    Log::shouldHaveReceived('info')->with('Crawler outbound attempt', Mockery::any())->twice();
 });
 
 test('после ожидания этап просто работает снова — без пробных запросов', function (): void {
@@ -176,13 +161,14 @@ test('успех сбрасывает сетевой счётчик; ошибк�
     $f->outcome(HealthFixtures::success(), $proxy);
     $run = canonicalInputFailures(1);
     expect(DB::table('prc_route_health')->where('route_id', $proxy->id->value)->sole()->consecutive_failures)->toBe(0)
-        ->and($run->attempts)->toBe(1)->and($run->failed_permanently)->toBeFalse();
+        ->and($run->item_failures)->toBe(1)->and($run->state)->toBe('deferred');
 });
 
 test('постоянные ошибки отдельных строк ограничены числом повторов', function (): void {
-    $run = canonicalInputFailures(50);
-    expect($run->attempts)->toBe(50)->and($run->failed_permanently)->toBeTrue()->and($run->status)->toBe(RunStatus::Paused)
-        ->and($run->execution_owner_token)->toBeNull()->and($run->cursor->get('blockFrom'))->toBe(1)
+    $run = canonicalInputFailures(3);
+    expect($run->item_failures)->toBe(3)->and($run->state)->toBe('failed_item')
+        ->and($run->owner_token)->toBeNull()
+        ->and(DB::table('prc_crawl_blocks')->where('id', $run->crawl_block_id)->value('head_generation'))->toBe(1)
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
 });
 
@@ -217,7 +203,7 @@ test('пороги из админки применяются к следующ�
     $f->outcome(HealthFixtures::failure(TransportFailure::ProxyConnect), $proxy);
     $row = DB::selectOne('SELECT state,extract(epoch FROM open_until-clock_timestamp()) AS seconds FROM prc_route_health WHERE route_id=?', [$proxy->id->value]);
     expect($row->state)->toBe('open')->and((float) $row->seconds)->toBeGreaterThan(1790)
-        ->and(DB::table('prc_source_circuits')->count())->toBe(0);
+        ->and(Schema::hasTable('prc_source_circuits'))->toBeFalse();
 });
 
 test('оператор: пауза и «возобновить сейчас» снимает паузу, остановку и ожидание', function (): void {
@@ -250,13 +236,13 @@ test('счётчики раздельны: сетевой шум не сбрас
 test('404 по умолчанию — только лог: ни журнала, ни счёта, этап работает', function (): void {
     $f = sourceNetworkAuthority();
     Log::spy();
-    $platform = DB::table('prc_source_targets')->where('id', $f->permits->target->value)->sole()->platform_id;
     foreach (range(1, 5) as $ignored) {
-        canonicalSourceEvent($platform, SourceFailureKind::NotFound);
+        $f->outcome(new HttpAttemptResult(new ResponseEnvelope(404, [], new DecodedTextBody('none', 'UTF-8'), 4, 4),
+            null, 4, 4, metrics: TransportMetrics::fromCurlStats(['http_code' => 404])));
     }
-    $f->outcome(new HttpAttemptResult(new ResponseEnvelope(404, [], new DecodedTextBody('none', 'UTF-8'), 4, 4), null, 4, 4));
-    expect(SourceIncident::query()->count())->toBe(0)->and(DB::table('prc_route_health')->sole()->consecutive_failures)->toBe(0);
-    Log::shouldHaveReceived('log')->with('warning', Mockery::pattern('/^CRAWLER_CSV_NOT_FOUND: /'), Mockery::any())->times(5);
+    expect(SourceIncident::query()->count())->toBe(0)->and(DB::table('prc_route_health')->sole()->consecutive_failures)->toBe(0)
+        ->and(DB::table('prc_observations')->where('kind', 'network_transport')->count())->toBe(5);
+    Log::shouldHaveReceived('info')->with('Crawler outbound attempt', Mockery::on(fn (array $context): bool => $context['http_status'] === 404))->times(5);
 });
 
 test('одна строка конфига делает 404 отказом площадки', function (): void {
@@ -268,7 +254,7 @@ test('одна строка конфига делает 404 отказом пл�
     $f->outcome($response);
     expect(DB::table('prc_route_health')->sole()->state)->toBe('closed')
         ->and(DB::table('prc_target_health')->sole()->state)->toBe('closed')
-        ->and(DB::table('prc_source_circuits')->count())->toBe(0);
+        ->and(Schema::hasTable('prc_source_circuits'))->toBeFalse();
 });
 
 test('пороги: пустое поле в админке — из конфига, заполненное — перекрывает', function (): void {

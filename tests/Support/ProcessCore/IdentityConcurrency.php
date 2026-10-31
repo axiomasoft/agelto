@@ -4,57 +4,58 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Enums\Procurement\Crawler\RunPurpose;
-use App\Models\Procurement\Crawler\Crawler;
+use App\Dto\Procurement\Acquisition\ListingResult;
+use App\Dto\Procurement\Process\StageSucceeded;
+use App\Enums\Procurement\Process\CompletionStatus;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Acquisition\IdentityResolver;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
-use App\Services\Procurement\CrawlerRunManager;
-use App\Support\Database\PostgresAdvisoryLock;
+use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
+use App\Repositories\Procurement\Process\LedgerRow;
+use App\Services\Procurement\Process\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
-use Tests\Support\Procurement\SnapshotFactory;
 
 final class IdentityConcurrency
 {
-    /** @return array<string, int|bool> */
+    /** @return array<string, int|string|bool> */
     public static function worker(int $registryId, int $port, string $barrier, bool $first): array
     {
         $registry = Registry::query()->findOrFail($registryId);
-        // The fixture server counts actual requests. Fetch precedes the DB publication transaction.
+        // Exactly one real HTTP read per worker, before any publication transaction.
         $body = file_get_contents('http://127.0.0.1:'.$port.'/identity');
         if ($body !== '00042') {
             throw new \RuntimeException('Identity fixture fetch failed.');
         }
-        $snapshot = SnapshotFactory::make($registry, ['registryNumber' => $body]);
-        $crawler = Crawler::factory()->create(['registry_id' => $registryId]);
-        $manager = app(CrawlerRunManager::class);
-        $run = $manager->startOrResume($crawler, RunPurpose::Profile, null);
-        if (! $manager->acquireExecutionLease($run)) {
-            throw new \RuntimeException('Fixture run lease unavailable.');
-        }
-        $pid = (int) DB::scalar('SELECT pg_backend_pid()');
-        if (! $first) {
-            self::until(fn (): bool => is_file($barrier.'/held'));
+        ListingFixtures::bindLocal();
+        $f = ListingFixtures::run(registry: $registry);
+        $lease = FinalizeFixtures::running($f['work']);
+        $pid = LedgerRow::one('SELECT pg_backend_pid() AS pid')?->int('pid')
+            ?? throw new \LogicException('Missing PostgreSQL backend identity.');
+        if ($first) {
+            self::until(fn (): bool => is_file($barrier.'/waiter'));
+        } else {
+            // Both real attempts must be admitted before the holder takes the prefix.
             file_put_contents($barrier.'/waiter', (string) $pid);
+            self::until(fn (): bool => is_file($barrier.'/held'));
         }
-        $procurement = $manager->withinExecutionLease($run, function () use ($first, $barrier, $snapshot, $manager, $run) {
+        $result = new StageSucceeded(new ListingResult(app(ListingStoreRepository::class)->task($f['input']),
+            ListingFixtures::page([ListingFixtures::summary($body)])));
+        DB::transaction(function () use ($first, $barrier, $lease, $result): void {
+            $finished = app(WorkFinalizer::class)->finish($lease, $result);
+            if ($finished->status !== CompletionStatus::Applied) {
+                throw new \RuntimeException('Listing publication did not apply.');
+            }
             if ($first) {
-                app(PostgresAdvisoryLock::class)->acquireProcurement(app(IdentityResolver::class)->resolve($snapshot->registryId, $snapshot->identity));
                 file_put_contents($barrier.'/held', '1');
-                self::until(fn (): bool => is_file($barrier.'/waiter'));
                 $waiter = (int) file_get_contents($barrier.'/waiter');
-                self::until(fn (): bool => (bool) DB::scalar("SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=? AND locktype='advisory' AND NOT granted)", [$waiter]));
+                // The full Process prefix may serialize at capacity before identity.
+                // Inspect PostgreSQL's actual wait; neither handler nor persistence is mocked.
+                self::until(fn (): bool => (bool) DB::scalar('SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=? AND NOT granted)', [$waiter]));
             }
-            $procurement = app(SnapshotFinalizer::class)->ingest($snapshot, $run->id);
-            if (! $manager->updateCursor($run, new ListingCursor(blockFrom: 501))) {
-                throw new \RuntimeException('Cursor did not commit.');
-            }
-
-            return $procurement;
         });
+        $procurement = Procurement::query()->where('registry_id', $registryId)->where('source_identity_value', $body)->sole();
 
-        return ['procurement_id' => $procurement->id, 'run_id' => $run->id, 'pid' => $pid, 'committed' => true];
+        return ['procurement_id' => $procurement->id, 'run_id' => $f['run']->value,
+            'work_id' => $f['work']->value->value, 'pid' => $pid, 'committed' => true];
     }
 
     private static function until(\Closure $predicate): void

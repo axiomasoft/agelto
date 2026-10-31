@@ -36,6 +36,13 @@ return new class extends Migration
 
             // uid вложения в filestore ЕИС.
             $table->text('external_id')->nullable();
+            // Acquisition catalog. Legacy document/manual writers remain until their P3 cutover.
+            $table->text('source_document_key')->nullable()->collation('C');
+            $table->integer('source_key_version')->nullable();
+            $table->jsonb('access_descriptor')->nullable();
+            $table->integer('access_schema_version')->nullable();
+            $table->bigInteger('access_descriptor_version')->nullable();
+            $table->timestampTz('reference_observed_at', precision: 6)->nullable();
 
             $table->text('title');
             $table->text('kind')->nullable()->comment('извещение/протокол/контракт/… — свободный текст источника');
@@ -67,8 +74,18 @@ return new class extends Migration
         DB::statement(
             'ALTER TABLE prc_documents '
             .'ADD CONSTRAINT prc_documents_head_generation_check CHECK (head_generation >= 1), '
-            .'ADD CONSTRAINT prc_documents_acquisition_cycle_seq_check CHECK (acquisition_cycle_seq >= 0)',
+            .'ADD CONSTRAINT prc_documents_acquisition_cycle_seq_check CHECK (acquisition_cycle_seq >= 0), '
+            .'ADD CONSTRAINT prc_documents_reference_check CHECK ((source_document_key IS NULL AND source_key_version IS NULL AND access_descriptor IS NULL AND access_schema_version IS NULL AND access_descriptor_version IS NULL AND reference_observed_at IS NULL) OR '
+            ."(source_document_key IS NOT NULL AND octet_length(source_document_key) BETWEEN 1 AND 1024 AND source_key_version IS NOT NULL AND source_key_version>=1 AND access_descriptor IS NOT NULL AND jsonb_typeof(access_descriptor)='object' AND access_schema_version IS NOT NULL AND access_schema_version=1 AND access_descriptor_version IS NOT NULL AND access_descriptor_version>=1 AND reference_observed_at IS NOT NULL))",
         );
+        DB::statement('CREATE UNIQUE INDEX prc_documents_source_key_unique ON prc_documents(platform_id,source_document_key) WHERE source_document_key IS NOT NULL');
+        Schema::create('prc_procurement_documents', function (Blueprint $table): void {
+            $table->foreignId('procurement_id')->constrained('prc_procurements')->noActionOnDelete();
+            $table->foreignId('document_id')->constrained('prc_documents')->noActionOnDelete();
+            $table->timestampTz('observed_at', precision: 6);
+            $table->timestampTz('removed_at', precision: 6)->nullable();
+            $table->primary(['procurement_id', 'document_id']);
+        });
 
         // Partial unique index: external_id уникален в рамках закупки только когда не null.
         DB::statement(
@@ -79,6 +96,7 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::dropIfExists('prc_procurement_documents');
         DB::statement('DROP INDEX IF EXISTS prc_documents_procurement_external_id_unique');
         Schema::dropIfExists($this->table());
     }

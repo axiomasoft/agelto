@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
-use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Repositories\Procurement\Network\RouteRepository;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
+use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\Support\ProcessCore\LegacyBusinessNetwork;
@@ -40,7 +40,7 @@ test('пароль прокси не сериализуется моделью',
 
 test('резолвер выдаёт лизу с расшифрованными учётными данными узла', function (): void {
     $proxy = secretReferenceProxy();
-    $crawler = Crawler::factory()->withProxies($proxy)->create();
+    $crawler = EisCrawlerFactory::new()->withProxies($proxy)->create();
     $policy = app(ProxyBindingResolver::class)->forCrawler($crawler);
     $binding = array_values($policy->bindings)[0];
     expect($binding->credentials())->toBe('user:p@ss:word')

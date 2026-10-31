@@ -2,76 +2,70 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Crawler\RunPurpose;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Exceptions\Procurement\Crawler\CrawlerInputRecoveryRequired;
-use App\Jobs\Procurement\CrawlRunJob;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Procurement;
+use App\Dto\Procurement\Acquisition\DetailProgress;
+use App\Dto\Procurement\Process\ArtifactRef;
+use App\Dto\Procurement\Process\MissingParts;
+use App\Dto\Procurement\Process\StageFailedItem;
+use App\Dto\Procurement\Process\StagePartial;
+use App\Enums\Procurement\Process\ItemFailureReason;
+use App\Enums\Procurement\Process\OperatorCommandStatus;
 use App\Models\User;
-use App\Repositories\Procurement\ProcurementStoreRepository;
-use App\Services\Procurement\Crawler\StartCrawlerRunAction;
-use App\Services\Procurement\CrawlerRunManager;
-use App\Services\Procurement\PlatformAdapterRegistry;
+use App\Services\Procurement\Process\ProcessOperatorCommands;
+use App\Services\Procurement\Process\WorkFeeder;
+use App\Services\Procurement\Process\WorkFinalizer;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Queue;
-use Tests\Support\ProcessCore\Http\CallerFixtures as C;
-use Tests\Support\ProcessCore\Http\PermitFixtures as F;
-use Tests\Support\ProcessCore\Http\WireFixture;
-
-beforeEach(fn () => F::clean());
-afterEach(fn () => F::clean());
+use Tests\Support\ProcessCore\DetailFixtures;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\LedgerFixtures;
 
 test('input retry budget пауза и release lease атомарны; автоматический старт не снимает hold', function (): void {
-    $wire = new WireFixture;
-    try {
-        $registry = C::platform($wire);
-        $crawler = Crawler::factory()->for($registry)->create();
-        $runs = app(CrawlerRunManager::class);
-        for ($attempt = 1; $attempt <= 3; $attempt++) {
-            $run = $runs->startOrResume($crawler, RunPurpose::Profile, null);
-            expect($runs->acquireExecutionLease($run))->toBeTrue();
-            $runs->recordInputFailure($run, hash('sha256', 'same_input'), 3);
-            expect($run->status)->toBe(RunStatus::Paused)->and($run->attempts)->toBe($attempt)
-                ->and($run->execution_owner_token)->toBeNull()->and($run->execution_lease_expires_at)->toBeNull()
-                ->and($run->failed_permanently)->toBe($attempt === 3);
-            $again = $runs->startOrResume($crawler, RunPurpose::Profile, null);
-            expect($again->status)->toBe(RunStatus::Paused)->and($runs->acquireExecutionLease($again))->toBeFalse();
-            if ($attempt < 3) {
-                DB::table('prc_crawler_runs')->where('id', $run->id)->update(['next_retry_at' => now()->subSecond()]);
-            }
-        }
-        expect($wire->receipts())->toBe([]);
-        Queue::fake();
-        $starter = app(StartCrawlerRunAction::class);
-        expect(fn () => $starter->resume($crawler))->toThrow(CrawlerInputRecoveryRequired::class);
-        $actor = User::factory()->create();
-        $starter->resume($crawler, actorId: $actor->id, reason: 'Проверены исходные данные');
-        Queue::assertPushed(CrawlRunJob::class);
-        $again = $runs->startOrResume($crawler, RunPurpose::Profile, null);
-        expect($again->status)->toBe(RunStatus::Running)->and($again->attempts)->toBe(0)
-            ->and($again->failed_permanently)->toBeFalse()->and($runs->acquireExecutionLease($again))->toBeTrue();
-    } finally {
-        $wire->stop();
+    DetailFixtures::bind();
+    $f = DetailFixtures::work();
+    $failure = new StageFailedItem(ItemFailureReason::ContractRejected,
+        new ArtifactRef('fixture', 'same_input', LedgerFixtures::hash('same_input')));
+    for ($attempt = 1; $attempt <= 3; $attempt++) {
+        $lease = $attempt === 1 ? FinalizeFixtures::running($f['work']) : FinalizeFixtures::rerun($f['work']);
+        app(WorkFinalizer::class)->finish($lease, $failure);
+        $row = ExecutionFixtures::work($f['work']);
+        expect($row->item_failures)->toBe($attempt)
+            ->and($row->owner_token)->toBeNull()->and($row->lease_until)->toBeNull()
+            ->and($row->state)->toBe($attempt === 3 ? 'failed_item' : 'deferred')
+            ->and(app(WorkFeeder::class)->tick('acquisition'))->toBe(0);
     }
+    expect(DB::table('prc_request_attempts')->count())->toBe(0);
+    $this->artisan('guard:sync-roles')->assertSuccessful();
+    $operator = User::factory()->create();
+    $operator->assignRole('operator');
+    $analyst = User::factory()->create();
+    $analyst->assignRole('analyst');
+    $commands = app(ProcessOperatorCommands::class);
+    $command = LedgerFixtures::uuid();
+    expect(fn () => $commands->retryFailedItem($analyst, $f['work'], $row->transition_seq, $command, 'Проверены исходные данные'))
+        ->toThrow(AuthorizationException::class);
+    $result = $commands->retryFailedItem($operator, $f['work'], $row->transition_seq, $command, 'Проверены исходные данные');
+    expect($result->status)->toBe(OperatorCommandStatus::Applied)->and($result->successor)->not->toBeNull()
+        ->and(ExecutionFixtures::work($f['work'])->item_failures)->toBe(3)
+        ->and(ExecutionFixtures::work($result->successor)->item_failures)->toBe(0)
+        ->and(ExecutionFixtures::work($result->successor)->state)->toBe('ready');
 })->group('t05', 'p26');
 
 test('partial projection metrics не стирают локальную историю layout failures карточки', function (): void {
-    $wire = new WireFixture;
-    try {
-        $registry = C::platform($wire);
-        $procurement = Procurement::factory()->for($registry)->create();
-        $contract = app(PlatformAdapterRegistry::class)->adapterContract('eis', 'detail');
-        $store = app(ProcurementStoreRepository::class);
-        $store->recordDetailContractFailure($procurement, $contract, 'detail.layout_drift', 3);
-        $store->markDetailFailed($procurement, 'Required detail snapshots are incomplete.', now()->addMinute(), false,
-            ['documents' => ['snapshot_status' => 'incomplete']]);
-        expect($procurement->detail_parse_outcome['input_validation']['failures'])->toBe(1)
-            ->and($procurement->detail_parse_outcome['documents']['snapshot_status'])->toBe('incomplete');
-        $store->recordDetailContractFailure($procurement, $contract, 'detail.layout_drift', 3);
-        expect($procurement->detail_parse_outcome['input_validation']['failures'])->toBe(2)
-            ->and($procurement->detail_attempts)->toBe(1)->and($procurement->detail_failed)->toBeFalse();
-    } finally {
-        $wire->stop();
-    }
+    DetailFixtures::bind();
+    $f = DetailFixtures::work();
+    $failure = new StageFailedItem(ItemFailureReason::ContractRejected,
+        new ArtifactRef('fixture', 'detail.layout_drift', LedgerFixtures::hash('layout')));
+    app(WorkFinalizer::class)->finish(FinalizeFixtures::running($f['work']), $failure);
+    $lease = FinalizeFixtures::rerun($f['work']);
+    app(WorkFinalizer::class)->finish($lease, new StagePartial(
+        new DetailProgress(['attributes' => new ArtifactRef('fixture', 'attributes', LedgerFixtures::hash('attributes'))]),
+        new MissingParts(['documents'])));
+    expect(ExecutionFixtures::work($f['work'])->item_failures)->toBe(1)
+        ->and(ExecutionFixtures::work($f['work'])->state)->toBe('ready');
+    app(WorkFinalizer::class)->finish(FinalizeFixtures::running($f['work']), $failure);
+    expect(ExecutionFixtures::work($f['work'])->item_failures)->toBe(2)
+        ->and(ExecutionFixtures::work($f['work'])->state)->toBe('deferred')
+        ->and(DB::table('prc_process_attempts')->where('work_id', $f['work']->value->value)->count())->toBe(3)
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
 })->group('t05', 'p26');

@@ -62,7 +62,8 @@ test('T27 listing сохраняет typed extension, историю и дейс
     $summary = new ProcurementSummary($snapshot->identity, $p->title, $p->source_stage,
         DateTimeImmutable::createFromInterface($p->published_at),
         DateTimeImmutable::createFromInterface($p->source_updated_at ?? $p->published_at), ContentHash::of('unchanged listing'),
-        updatedAtDayPrecision: $p->source_updated_has_day_precision, initialPrice: $p->initial_price, currency: $p->currency);
+        updatedAtDayPrecision: $p->source_updated_has_day_precision, initialPrice: $p->initial_price, currency: $p->currency,
+        updatedBefore: $p->source_updated_before === null ? null : DateTimeImmutable::createFromInterface($p->source_updated_before));
     ListingFixtures::finish($listing['work'], $listing['input'], ListingFixtures::page([$summary]));
     $after = $read->findLatestRevision($p->id) ?? throw new LogicException('Missing listing revision');
     expect($after->id)->toBe($before->id)->and($after->snapshot)->toBe($before->snapshot)
@@ -124,7 +125,8 @@ test('T27 explicit CompleteEmpty очищает extension, а следующий
     $summary = new ProcurementSummary($f['request']->identity, $p->title, $p->source_stage,
         DateTimeImmutable::createFromInterface($p->published_at),
         DateTimeImmutable::createFromInterface($p->source_updated_at ?? $p->published_at), ContentHash::of('empty extension listing'),
-        updatedAtDayPrecision: $p->source_updated_has_day_precision, initialPrice: $p->initial_price, currency: $p->currency);
+        updatedAtDayPrecision: $p->source_updated_has_day_precision, initialPrice: $p->initial_price, currency: $p->currency,
+        updatedBefore: $p->source_updated_before === null ? null : DateTimeImmutable::createFromInterface($p->source_updated_before));
     ListingFixtures::finish($listing['work'], $listing['input'], ListingFixtures::page([$summary]));
     expect($read->findLatestRevision($p->id)?->snapshot)->toBe($before->snapshot)
         ->and($read->findLatestRevision($p->id)?->id)->toBe($before->id)

@@ -545,6 +545,34 @@ with rig.project_lock():
             with self.subTest(invalid=invalid), self.assertRaises(rig.GuardError):
                 rig.compare_scenarios(invalid, [moved], moves)
 
+    def test_d18_transfer_requires_every_exact_passed_target_and_preserves_original_accounting(self):
+        source = {"file": "tests/Unit/OldTest.php", "name": "edge with data set win1251", "status": "passed"}
+        target = {"file": "tests/Unit/NewTest.php", "name": "bounded decoder win1251", "status": "passed"}
+        transfer = {"source": {"file": source["file"], "name": source["name"]},
+                    "replacements": [{"file": target["file"], "name": target["name"]}],
+                    "reason": "The typed decoder owns source decoding after the acquisition cutover.",
+                    "contract": "knowledge/legacy-inventory#li-purpose"}
+        proof = rig.compare_scenarios([source], [target], [], [transfer])
+        self.assertEqual(proof["preserved_cases"], 1)
+        self.assertEqual(proof["missing"], [])
+        self.assertEqual(proof["transferred"], [transfer])
+        for after in [[], [{**target, "status": "skipped"}], [{**target, "status": "failed"}],
+                      [{**target, "name": "other dataset"}], [target, target]]:
+            with self.subTest(after=after):
+                proof = rig.compare_scenarios([source], after, [], [transfer])
+                self.assertEqual(proof["preserved_cases"], 0)
+                self.assertEqual(len(proof["missing"]), 1)
+        for transfers in [[transfer, transfer], [{**transfer, "reason": ""}],
+                          [{**transfer, "replacements": []}],
+                          [{**transfer, "source": {"file": source["file"], "name": "unknown source"}}],
+                          [{**transfer, "replacements": [transfer["source"]]}]]:
+            with self.subTest(transfers=transfers), self.assertRaises(rig.GuardError):
+                rig.compare_scenarios([source], [target], [], transfers)
+        chained = {**transfer, "source": transfer["replacements"][0],
+                   "replacements": [{"file": "tests/Unit/ThirdTest.php", "name": "third"}]}
+        with self.assertRaisesRegex(rig.GuardError, "chain or cycle"):
+            rig.compare_scenarios([source, target], [target], [], [transfer, chained])
+
     def test_scenario_proof_records_missing_case_before_failing(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(rig, "ROOT", Path(temp)):
             fixtures = Path(temp) / "tests/Fixtures/ProcessCore"

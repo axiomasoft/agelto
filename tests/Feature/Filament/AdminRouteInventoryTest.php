@@ -71,10 +71,15 @@ function declaredAdminRouteExtensions(): array
 test('runtime admin routes exactly match committed resource and role matrix', function (): void {
     $runtimeRoutes = adminRouteInventory();
     $historical = committedAdminRouteInventory();
-    $retiredEdit = 'filament.admin.resources.procurement.crawler.source-circuits.edit';
-    expect(array_column($historical, 'name'))->toContain($retiredEdit);
-    // P2.6 explicit delta. Frozen historical matrix remains byte-identical.
-    $current = array_values(array_filter($historical, static fn (array $route): bool => $route['name'] !== $retiredEdit));
+    $retired = [
+        'filament.admin.resources.procurement.crawler.source-circuits.edit',
+        'filament.admin.resources.procurement.crawler.source-circuits.index',
+        'filament.admin.resources.procurement.crawler.runs.index',
+        'filament.admin.resources.procurement.crawler.runs.view',
+    ];
+    expect(array_column($historical, 'name'))->toContain(...$retired);
+    // Explicit P2.6/P2.18 delta; the frozen historical matrix remains byte-identical.
+    $current = array_values(array_filter($historical, static fn (array $route): bool => ! in_array($route['name'], $retired, true)));
     foreach ($current as &$route) {
         if ($route['name'] === 'filament.admin.pages.crawler-proxy-settings') {
             $route['name'] = 'filament.admin.pages.network-route-profiles';
@@ -88,7 +93,7 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     usort($runtimeRoutes, static fn (array $a, array $b): int => [$a['uri'], $a['name']] <=> [$b['uri'], $b['name']]);
 
     expect($runtimeRoutes)
-        ->toHaveCount(64)
+        ->toHaveCount(61)
         ->toEqual($matrixRoutes)
         ->and(array_column($runtimeRoutes, 'name'))
         ->toHaveCount(count(array_unique(array_column($runtimeRoutes, 'name'))));

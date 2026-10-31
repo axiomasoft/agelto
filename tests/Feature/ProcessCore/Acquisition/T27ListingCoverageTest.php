@@ -116,7 +116,7 @@ test('T27 open boundary retains closing debt beyond fresh horizon with immutable
     expect($coverage->verifiedThrough)->toBeNull()->and($coverage->observedThrough)->toBe($day)
         ->and($coverage->debt)->toHaveCount(1)
         ->and(app(ListingCoverageRepository::class)->due($run['stream'], new DateTimeImmutable('+90 days')))->toHaveCount(1)
-        ->and($coverage->debt[0]->filter->serializedPayload)->toBe('{"ids":["123"],"stages":[],"search":null}');
+        ->and($coverage->debt[0]->filter->serializedPayload)->toBe('{"ids":["123"],"stages":[],"search":null,"morphology":false,"sortBy":"UPDATE_DATE"}');
 });
 
 test('T07 stale owner and mandatory journal failure leave zero summaries cursor successors and receipts', function (): void {

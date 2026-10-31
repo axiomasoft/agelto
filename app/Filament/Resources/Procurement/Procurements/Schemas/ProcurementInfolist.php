@@ -10,7 +10,6 @@ use App\Services\Procurement\History\ProcurementTimelineBuilder;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Platform\PlatformUiResolver;
 use Carbon\CarbonInterval;
-use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
@@ -149,20 +148,9 @@ class ProcurementInfolist
                     ->label('Карточка получена')
                     ->dateTime()
                     ->placeholder('-'),
-                TextEntry::make('detail_attempts')
-                    ->label('Попыток получить карточку')
-                    ->numeric(),
-                TextEntry::make('detail_last_error')
-                    ->label('Последняя ошибка карточки')
-                    ->placeholder('-')
-                    ->columnSpanFull(),
-                TextEntry::make('detail_next_retry_at')
-                    ->label('Следующая попытка карточки')
-                    ->dateTime()
-                    ->placeholder('-'),
-                IconEntry::make('detail_failed')
-                    ->label('Получение карточки не удалось')
-                    ->boolean(),
+                TextEntry::make('detail_work_state')->label('Состояние получения')->placeholder('Не запланировано'),
+                TextEntry::make('detail_work_reason_code')->label('Причина ожидания или ошибки')->placeholder('-'),
+                TextEntry::make('detail_work_due_at')->label('Следующая попытка')->dateTime()->placeholder('-'),
                 TextEntry::make('current_revision_id')
                     ->label('Текущая редакция')
                     ->numeric()

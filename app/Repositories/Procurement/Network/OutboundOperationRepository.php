@@ -40,6 +40,7 @@ final readonly class OutboundOperationRepository
         int $deadlineSeconds,
         ?ProcessUuid $probeToken = null,
         ?ProviderKey $providerKey = null,
+        ?ProcessUuid $parentAttemptId = null,
     ): OutboundOperationHandle {
         CallerTransaction::require('Outbound operation open');
         if ($leaseSeconds < 1 || $deadlineSeconds < 1 || $controlScopeKeys === []) {
@@ -51,6 +52,9 @@ final readonly class OutboundOperationRepository
         if (($kind === OutboundOperationKind::Probe) !== ($probeToken !== null)) {
             throw new \InvalidArgumentException('Only a probe operation carries a probe token.');
         }
+        if ($parentAttemptId !== null && $kind !== OutboundOperationKind::Probe) {
+            throw new \InvalidArgumentException('Only a probe can be attached to a Process attempt.');
+        }
         if ($providerKey !== null && ($platformId !== null || ! in_array('provider:'.$providerKey->value, $controlScopeKeys, true))) {
             throw new \InvalidArgumentException('Provider operation requires its exact provider control.');
         }
@@ -58,15 +62,15 @@ final readonly class OutboundOperationRepository
 
         $row = LedgerRow::one(
             "INSERT INTO prc_outbound_operations
-               (id, operation_key, kind, platform_id, provider_key, caller_code, state, owner_token, generation, lease_until, deadline_at, created_at, probe_token, policy_hash)
+               (id, operation_key, kind, platform_id, provider_key, caller_code, state, owner_token, generation, lease_until, deadline_at, created_at, probe_token, policy_hash, parent_attempt_id)
              SELECT ?, ?, ?, ?, ?, ?, 'open', ?, 1, least(n.t + make_interval(secs => ?), n.t + make_interval(secs => ?)),
-                    n.t + make_interval(secs => ?), n.t, ?, decode(?, 'hex')
+                     n.t + make_interval(secs => ?), n.t, ?, decode(?, 'hex'), ?
              FROM (SELECT clock_timestamp() AS t) n
              RETURNING floor(extract(epoch FROM lease_until) * 1000000)::bigint AS lease_us,
                        floor(extract(epoch FROM deadline_at) * 1000000)::bigint AS deadline_us",
             [
                 $id->value, $id->value, $kind->value, $platformId, $providerKey?->value, $callerCode, $ownerToken->value,
-                $leaseSeconds, $deadlineSeconds, $deadlineSeconds, $probeToken?->value, $policyHash->hex,
+                $leaseSeconds, $deadlineSeconds, $deadlineSeconds, $probeToken?->value, $policyHash->hex, $parentAttemptId?->value,
             ],
         ) ?? throw new \LogicException('Outbound operation insert returned no row.');
         foreach ($controls as $control) {

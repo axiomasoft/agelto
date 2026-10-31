@@ -16,7 +16,9 @@ use App\Dto\Procurement\Acquisition\ProcurementSnapshot;
 use App\Dto\Procurement\Acquisition\SnapshotPart;
 use App\Dto\Procurement\Details\CommonInfoData;
 use App\Dto\Procurement\Document\DocumentReference;
+use App\Dto\Procurement\Document\SourceDocumentKey;
 use App\Dto\Procurement\Network\DecodedTextBody;
+use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\ResponseEnvelope;
 use App\Dto\Procurement\Network\SafeUrl;
@@ -36,13 +38,19 @@ use App\Enums\Procurement\ProtocolType;
 use App\Services\Platforms\Eis\Card\EisDetailParser;
 use App\Services\Procurement\Platform\Contracts\DetailPartsSource;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
+use App\Services\Procurement\Platform\Contracts\StatusSource;
 use Illuminate\Support\Str;
 use Symfony\Component\DomCrawler\Crawler;
 
-final readonly class EisDetailSource implements DetailPartsSource
+final readonly class EisDetailSource implements DetailPartsSource, StatusSource
 {
     public function __construct(private EisPolicy $policy, private EisCardRoutes $routes,
         private EisDetailParser $parser, private PlatformOutbound $outbound, private ProcessUuid $targetId) {}
+
+    public function refresh(DetailRequest $request, ExecutionContext|OutboundExecutionContext $context): DetailFetchResult
+    {
+        return $this->fetchPart(new DetailRequest($request->registry, $request->identity, $request->locator, statusOnly: true), 'common-info', $context);
+    }
 
     /** @return array<string,OutboundRequestPlan|null> */
     public function plans(DetailRequest $request): array
@@ -76,7 +84,7 @@ final readonly class EisDetailSource implements DetailPartsSource
         return $plans;
     }
 
-    public function fetch(DetailRequest $request, ExecutionContext $context): DetailFetchResult
+    public function fetch(DetailRequest $request, ExecutionContext|OutboundExecutionContext $context): DetailFetchResult
     {
         $responses = [];
         foreach ($this->plans($request) as $tab => $plan) {
@@ -105,7 +113,7 @@ final readonly class EisDetailSource implements DetailPartsSource
         return ['common-info', 'documents', 'event-journal', 'supplier-results'];
     }
 
-    public function fetchPart(DetailRequest $request, string $part, ExecutionContext $context): DetailFetchResult
+    public function fetchPart(DetailRequest $request, string $part, ExecutionContext|OutboundExecutionContext $context): DetailFetchResult
     {
         $plans = $this->plans($request);
         if (! array_key_exists($part, $plans)) {
@@ -220,7 +228,9 @@ final readonly class EisDetailSource implements DetailPartsSource
 
                                 continue;
                             }
-                            $documents[] = new DocumentReference($request->identity, $document->externalId, $document->title, new SafeUrl($document->sourceUrl));
+                            $documents[] = new DocumentReference($request->identity, $document->externalId, $document->title, new SafeUrl($document->sourceUrl),
+                                new SourceDocumentKey(json_encode(
+                                    ['attachment', $request->identity->type->value, $request->identity->value->value, $document->externalId], JSON_THROW_ON_ERROR), 1));
                         }
                         $count = count($documents);
                         break;

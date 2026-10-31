@@ -12,6 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withCommands([__DIR__.'/../app/Console/Platforms'])
     ->withMiddleware(function (Middleware $middleware): void {
         // Сквозной trace_id (P7.5, D25) — на все HTTP-запросы, дегидрируется в jobs-payload.
         $middleware->append(AssignTraceId::class);

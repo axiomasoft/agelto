@@ -64,8 +64,8 @@ test('периметр ядра собран правилом вычитания
     // 105 = 103 + два provider-agnostic document lifecycle job:
     // `DownloadDocumentJob` и `RevalidateDocumentJob`; оба работают с общим Document contract
     // и не импортируют поверхность конкретного типа документа.
-    // 103 = 102 + `App\Jobs\Procurement\FetchProcurementDetailJob`: detail-очередь не знает
-    // типа документа, а после успешной карточки передаёт их в общий PipelineDispatcher.
+    // Историческая detail job входила в счётчик 103; P2.18 передаёт исполнение Process,
+    // а документные обязательства создаются в fenced publication без inline dispatch.
     // 102 = 98 + четыре файла ядра: `App\Enums\Llm\FinishReason` (терминальный исход LLM),
     // `App\Jobs\Procurement\Crawler\CrawlRunJob` (очередной прогон),
     // `App\Services\Procurement\Proxy\OutboundProxy` (транспортный прокси) и
@@ -85,9 +85,9 @@ test('периметр ядра собран правилом вычитания
     // 111 = 110 + ExecuteWorkJob (P1.10): общая доставка work envelope без знания типа документа.
     // 113 = 111 + generic Llm endpoint declaration and configured provider reader (P2.6).
     // 114 = 113 + generic DiagnosticSourceMethod full-validation capability (D49).
-    expect($classes)->toHaveCount(114)
+    // P2.18 removes two acquisition jobs and their obsolete cooperative contract.
+    expect($classes)->toHaveCount(111)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
-        ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\CooperativeListingSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
 });

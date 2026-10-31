@@ -3,26 +3,18 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
+use App\Enums\Procurement\Network\AdapterVerdict;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Health\Checks\CardParseCheck;
 use App\Services\Procurement\Health\HealthBaselineReader;
-
-function measuredCardOutcome(): array
-{
-    return [
-        'common-info' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
-        'documents' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
-        'event-journal' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
-        'supplier-results' => ['status' => 'measured', 'anchors_missing_critical' => 0, 'key_fields_expected' => 0, 'key_fields_filled' => 0],
-    ];
-}
+use Carbon\CarbonImmutable;
+use Tests\Support\ProcessCore\AdapterObservationFixtures as F;
 
 test('проверка разбора карточек подтверждает здоровый штатный исход', function (): void {
     $platform = Platform::factory()->create(['code' => 'eis']);
     $registry = Registry::factory()->create(['platform_id' => $platform->id]);
-    Procurement::factory()->create(['registry_id' => $registry->id, 'detail_fetched_at' => now(), 'detail_parse_outcome' => measuredCardOutcome()]);
+    F::detail($platform->code, AdapterVerdict::Accepted);
 
     $result = app(CardParseCheck::class)->run($platform, app(HealthBaselineReader::class)->read(), now()->subDay(), now());
 
@@ -32,9 +24,8 @@ test('проверка разбора карточек подтверждает 
 test('проверка разбора карточек считает пропавший якорь поломкой', function (): void {
     $platform = Platform::factory()->create(['code' => 'eis']);
     $registry = Registry::factory()->create(['platform_id' => $platform->id]);
-    $outcome = measuredCardOutcome();
-    $outcome['documents']['anchors_missing_critical'] = 1;
-    Procurement::factory()->create(['registry_id' => $registry->id, 'detail_fetched_at' => now(), 'detail_parse_outcome' => $outcome]);
+    // Missing critical anchors are already assessed by the registered adapter.
+    F::detail($platform->code, AdapterVerdict::ContractFailure);
 
     $result = app(CardParseCheck::class)->run($platform, app(HealthBaselineReader::class)->read(), now()->subDay(), now());
 
@@ -53,7 +44,6 @@ test('production baseline считает пустые поля при сохра
     $platform = Platform::factory()->create(['code' => 'eis']);
     $registry = Registry::factory()->create(['platform_id' => $platform->id]);
     $baseline = app(HealthBaselineReader::class)->read();
-    $outcome = [];
 
     foreach ($baseline->cardTabs as $tab => $description) {
         if (($description['status'] ?? null) === 'known_broken') {
@@ -62,21 +52,32 @@ test('production baseline считает пустые поля при сохра
 
         $keyFields = $description['key_fields'] ?? [];
         expect($keyFields)->not->toBeEmpty();
-        $outcome[$tab] = [
-            'status' => 'measured',
-            'anchors_missing_critical' => 0,
-            'key_fields_expected' => count($keyFields),
-            'key_fields_filled' => 0,
-        ];
     }
 
-    Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'detail_fetched_at' => now(),
-        'detail_parse_outcome' => $outcome,
-    ]);
+    // Empty required fields yield a rejected validation fact, never a successful detail flag.
+    F::detail($platform->code, AdapterVerdict::ContractFailure);
 
     $result = app(CardParseCheck::class)->run($platform, $baseline, now()->subDay(), now());
 
     expect($result->verdict)->toBe(PlatformCheckVerdict::Broken);
+});
+
+test('passive card health excludes stale validation and facts of another platform', function (): void {
+    $platform = Platform::factory()->create(['code' => 'eis']);
+    F::detail('eis', AdapterVerdict::Accepted, stale: true);
+    F::detail('other_fixture', AdapterVerdict::Accepted);
+
+    $result = app(CardParseCheck::class)->run($platform, app(HealthBaselineReader::class)->read(), now()->subDay(), now());
+    expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)->and($result->sampleSize)->toBe(0);
+});
+
+test('passive card health preserves microsecond window boundaries', function (): void {
+    $platform = Platform::factory()->create(['code' => 'eis']);
+    $at = new CarbonImmutable('2026-10-31T12:00:00.500000Z');
+    F::detail('eis', AdapterVerdict::Accepted, occurredAt: $at);
+    $check = app(CardParseCheck::class);
+    $baseline = app(HealthBaselineReader::class)->read();
+
+    expect($check->run($platform, $baseline, $at->subMicrosecond(), $at->addMicrosecond())->sampleSize)->toBe(1)
+        ->and($check->run($platform, $baseline, $at->addMicrosecond(), $at->addSecond())->sampleSize)->toBe(0);
 });

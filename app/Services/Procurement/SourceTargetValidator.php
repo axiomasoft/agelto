@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
+use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
 use InvalidArgumentException;
 use UnexpectedValueException;
 
-final readonly class SourceTargetValidator
+final readonly class SourceTargetValidator implements DocumentUrlPolicy
 {
     public function assertDocumentUrl(string $url): void
     {

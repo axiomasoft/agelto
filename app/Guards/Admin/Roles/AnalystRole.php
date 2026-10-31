@@ -7,9 +7,9 @@ namespace App\Guards\Admin\Roles;
 use App\Guards\Admin\Permissions\AnalysisPermission;
 use App\Guards\Admin\Permissions\EstimatePermission;
 use App\Guards\Admin\Permissions\FixturePermission;
+use App\Guards\Admin\Permissions\ProcessRunPermission;
 use App\Guards\Admin\Permissions\ProcurementPermission;
 use App\Guards\Admin\Permissions\PromptSuggestionPermission;
-use App\Guards\Admin\Permissions\RunPermission;
 use AzGuard\Roles\BaseRole;
 use UnitEnum;
 
@@ -31,8 +31,8 @@ final class AnalystRole extends BaseRole
         return [
             ProcurementPermission::ViewAny,
             ProcurementPermission::View,
-            RunPermission::ViewAny,
-            RunPermission::View,
+            ProcessRunPermission::ViewAny,
+            ProcessRunPermission::View,
             AnalysisPermission::ViewAny,
             AnalysisPermission::View,
             FixturePermission::ViewAny,

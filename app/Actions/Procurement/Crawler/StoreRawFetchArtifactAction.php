@@ -24,7 +24,7 @@ final readonly class StoreRawFetchArtifactAction
         $path = "{$prefix}/{$identityHash}/{$contentHash}.{$extension}";
         DB::table((new RawArtifact)->getTable())->upsert([
             ['id' => hash('sha256', $disk.':'.$path), 'disk' => $disk, 'path' => $path, 'last_seen_at' => now()],
-        ], ['id'], ['last_seen_at']);
+        ], ['id'], ['last_seen_at' => DB::raw('GREATEST(prc_raw_artifacts.last_seen_at, EXCLUDED.last_seen_at)')]);
         try {
             return $this->write($disk, $path, $contents, $contentHash);
         } catch (FilesystemException $failure) {

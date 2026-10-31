@@ -9,6 +9,7 @@ use App\Services\Platforms\Eis\Csv\EisCsvParser;
 use App\Services\Platforms\Eis\EisListingSource;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Config\Repository;
+use PHPUnit\Framework\Assert;
 use PHPUnit\Framework\ExpectationFailedException;
 use Tests\Support\Platforms\Contract\AdapterContractKit;
 use Tests\Support\Platforms\Contract\ContractCase;
@@ -23,6 +24,33 @@ use Tests\Support\Platforms\JsonProcurement\JsonProcurementDefinition;
 use Tests\Support\ProcessCore\ContractFixtures;
 
 pest()->group('t39', 'p22');
+
+/** Static inventory proof; the rig separately requires every exact replacement to execute and pass. */
+function assertPreservedParserScenario(string $file, string $scenario, array $before, array $transfers, array $moves): void
+{
+    $paths = array_column($moves, 'new', 'old');
+    $path = static fn (string $name): string => $paths[explode('::', $name, 2)[0]] ?? explode('::', $name, 2)[0];
+    $source = file_get_contents(base_path($file));
+    if (str_contains($source, $scenario)) {
+        return;
+    }
+    $cases = array_values(array_filter($before, static fn (array $case): bool => $path($case['file']) === $file
+        && ($case['name'] === $scenario || str_starts_with($case['name'], $scenario.' with data set '))));
+    Assert::assertNotEmpty($cases, 'Missing original parser scenario: '.$file.'::'.$scenario);
+    foreach ($cases as $case) {
+        $mapped = array_values(array_filter($transfers, static fn (array $transfer): bool => $path($transfer['source']['file']) === $file && $transfer['source']['name'] === $case['name']));
+        Assert::assertCount(1, $mapped, 'Missing exact D18 parser transfer: '.$case['name']);
+        Assert::assertNotEmpty($mapped[0]['reason']);
+        Assert::assertNotEmpty($mapped[0]['contract']);
+        Assert::assertNotEmpty($mapped[0]['replacements']);
+        foreach ($mapped[0]['replacements'] as $target) {
+            Assert::assertTrue(str_starts_with($target['file'], 'tests/') && ! str_contains($target['file'], '..'));
+            Assert::assertFileExists(base_path($target['file']));
+            $name = explode(' with data set ', $target['name'], 2)[0];
+            Assert::assertStringContainsString($name, file_get_contents(base_path($target['file'])));
+        }
+    }
+}
 
 test('T39 registered capability manifests исполняют golden semantics обеих площадок', function (): void {
     $manifests = ContractRegistry::manifests();
@@ -78,17 +106,35 @@ test('T39 настоящая parser mutation без overflow guard наруша�
 
 test('T39 прежние parser guards и datasets сохранены без удаления сценариев', function (): void {
     $inventory = json_decode(file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/parser-scenarios.json')), true, 512, JSON_THROW_ON_ERROR);
+    $before = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/original-executed-scenarios.json')), true, 512, JSON_THROW_ON_ERROR)['cases'];
+    $transfers = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/scenario-transfers.json')), true, 512, JSON_THROW_ON_ERROR)['transfers'];
+    $moves = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/platforms-move-map.json')), true, 512, JSON_THROW_ON_ERROR)['moves'];
     $count = 0;
     foreach ($inventory['files'] as $entry) {
         expect(is_file(base_path($entry['path'])))->toBeTrue();
         expect(hash_file('sha256', base_path($entry['path'])))->toBe($entry['sha256']);
-        $source = file_get_contents(base_path($entry['path']));
         foreach ($entry['scenarios'] as $scenario) {
-            expect($source)->toContain($scenario);
+            assertPreservedParserScenario($entry['path'], $scenario, $before, $transfers, $moves);
             $count++;
         }
     }
     expect($count)->toBe(133);
+});
+
+test('T39 D18 inventory rejects a missing dataset transfer and a replacement with no real assertions', function (): void {
+    $before = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/original-executed-scenarios.json')), true, 512, JSON_THROW_ON_ERROR)['cases'];
+    $transfers = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/scenario-transfers.json')), true, 512, JSON_THROW_ON_ERROR)['transfers'];
+    $file = 'tests/Feature/Crawler/CardCollectDetailsTest.php';
+    $scenario = 'таймаут карточки сохраняет числовые фазы транспорта без URL и credentials';
+    $index = array_key_first(array_filter($transfers, static fn (array $t): bool => $t['source']['file'] === $file && str_starts_with($t['source']['name'], $scenario)));
+    expect($index)->not->toBeNull();
+    $missing = $transfers;
+    unset($missing[$index]);
+    expect(fn () => assertPreservedParserScenario($file, $scenario, $before, array_values($missing), []))
+        ->toThrow(ExpectationFailedException::class, 'Missing exact D18 parser transfer');
+    $invalid = $transfers;
+    $invalid[$index]['replacements'][0]['name'] = 'nonexistent parser assertion';
+    expect(fn () => assertPreservedParserScenario($file, $scenario, $before, $invalid, []))->toThrow(ExpectationFailedException::class);
 });
 
 test('T39 сохранены точные CSV resource bounds и UTF8 BOM', function (): void {

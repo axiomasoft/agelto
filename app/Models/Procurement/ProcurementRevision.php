@@ -33,7 +33,7 @@ use Illuminate\Support\Carbon;
     'snapshot_hash',
     'source_updated_at',
     'detected_at',
-    'crawler_run_id',
+    'process_run_id',
 ])]
 #[Table(name: 'prc_revisions', keyType: 'int')]
 final class ProcurementRevision extends Model

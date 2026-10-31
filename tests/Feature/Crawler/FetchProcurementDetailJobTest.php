@@ -2,151 +2,109 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Dto\Procurement\ProcurementDetails;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Enums\Procurement\Document\DocumentStatus;
-use App\Enums\Procurement\Proxy\ProxyScope;
-use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
-use App\Jobs\Procurement\DownloadDocumentJob;
-use App\Jobs\Procurement\FetchProcurementDetailJob;
-use App\Jobs\Procurement\PrepareDocumentJob;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Proxy;
-use App\Models\Procurement\Document\Document;
-use App\Models\Procurement\Platform\Registry;
-use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Contracts\SourceMethod;
-use App\Services\Procurement\Modes\DetailAnalysisProcessor;
-use App\Services\Procurement\PipelineDispatcher;
+use App\Dto\Procurement\Acquisition\DetailFetched;
+use App\Dto\Procurement\Acquisition\DetailProgress;
+use App\Dto\Procurement\Acquisition\FetchDeferred;
+use App\Dto\Procurement\Acquisition\ProcurementSnapshot;
+use App\Dto\Procurement\Document\DocumentReference;
+use App\Dto\Procurement\Document\SourceDocumentKey;
+use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Process\RetryAt;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
+use App\Enums\Procurement\Process\StageCode;
+use App\Jobs\Procurement\Process\ExecuteWorkJob;
+use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
+use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Procurement\Acquisition\DetailArtifacts;
+use App\Services\Procurement\Acquisition\DetailHandler;
+use App\Services\Procurement\Platform\FetchOutcomeBridge;
+use App\Services\Procurement\Process\RecoveryReconciler;
+use App\Services\Procurement\Process\StageQueueMap;
+use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Process\WorkFeeder;
+use App\Services\Procurement\Process\WorkRunner;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Sleep;
-use Tests\Support\Doubles\Crawler\CardHtmlFixture;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
+use Tests\Support\ProcessCore\DetailFixtures as F;
+use Tests\Support\ProcessCore\DetailFixtureSource;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\FixtureProviderRecoveryResolver;
+use Tests\Support\ProcessCore\LedgerFixtures;
 
-final class DetailJobBudgetExhaustedSourceMethod implements SourceMethod
+function detailProcessJob(array $f, DetailFixtureSource $source): ExecuteWorkJob
 {
-    public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
-    {
-        throw PlatformBudgetExhaustedException::forHost(host: 'eis.test', maxWaitSeconds: 0);
-    }
+    app(StageRegistry::class)->bindHandler(StageCode::Detail, new DetailHandler(
+        app(DetailSnapshotRepository::class), $source, app(DetailArtifacts::class), new FetchOutcomeBridge));
+    app(WorkFeeder::class)->tick('acquisition');
 
-    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
-    {
-        throw PlatformBudgetExhaustedException::forHost(host: 'eis.test', maxWaitSeconds: 0);
-    }
-
-    public function isAvailable(): bool
-    {
-        return true;
-    }
+    return new ExecuteWorkJob($f['work']->value->value, ExecutionFixtures::delivery($f['work'])->value, LedgerFixtures::uuid()->value);
 }
 
-function detailJobRegistry(): Registry
-{
-    return Registry::factory()->eis()->create([
-        'code' => 'fz44',
-        'settings' => [
-            'procedure_url_types' => ['Электронный аукцион' => 'ea20'],
-            'card_url_templates' => [
-                'ea20' => [
-                    'common-info' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber={regNumber}',
-                    'documents' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/documents.html?regNumber={regNumber}',
-                    'event-journal' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/event-journal.html?regNumber={regNumber}',
-                    'supplier-results' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/supplier-results.html?regNumber={regNumber}',
-                ],
-            ],
-        ],
-    ]);
-}
+beforeEach(fn () => F::bind());
 
-function detailJobEventJournalHtml(): string
-{
-    return (string) file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/event-journal.html'));
-}
-
-function fakeDetailJobHttp(): void
-{
-    Http::fake([
-        '*view/common-info.html*' => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
-        '*view/documents.html*' => Http::response(body: CardHtmlFixture::documents(), status: 200),
-        '*view/event-journal.html*' => Http::response(body: detailJobEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => Http::response(body: CardHtmlFixture::supplierResults(), status: 200),
-        '*filestore*' => Http::response(body: 'binary-content', status: 200),
-    ]);
-}
-
-beforeEach(fn () => LegacyBusinessNetwork::install());
-
-test('job вызывает детальный процессор и мост в pipeline после успеха', function (): void {
+test('Process detail delivery publishes document references and pending intents without a pipeline bridge', function (): void {
     Queue::fake();
-    Sleep::fake();
-    Storage::fake('s3');
-    Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlDetail])->create();
-    Proxy::factory()->country('RU')->withScopes([ProxyScope::DocumentDownload])->create();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => detailJobRegistry()->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-    ]);
-    fakeDetailJobHttp();
-
-    (new FetchProcurementDetailJob(procurementId: $procurement->id))->handle(
-        app(DetailAnalysisProcessor::class),
-        app(PipelineDispatcher::class),
-    );
-
-    expect($procurement->refresh()->detail_fetched_at)->not->toBeNull();
-    expect(Document::query()->where('procurement_id', $procurement->id)->where('status', DocumentStatus::Discovered)->exists())->toBeTrue();
-    Queue::assertPushed(DownloadDocumentJob::class);
-    Queue::assertNotPushed(PrepareDocumentJob::class);
+    $f = F::work();
+    $base = F::snapshot($f['request'], 'documents');
+    $reference = new DocumentReference($base->identity, 'attachment', 'Estimate',
+        new SafeUrl('https://example.org/file?sig=fixture'), new SourceDocumentKey('attachment:1', 1));
+    $snapshot = new ProcurementSnapshot($base->identity, $base->title, $base->sourceStage,
+        [], [], [], [$reference], $base->parts);
+    $source = new DetailFixtureSource([new DetailFetched($snapshot), new DetailFetched($snapshot)], ['documents']);
+    $job = detailProcessJob($f, $source);
+    $job->handle(app(WorkRunner::class));
+    $job->handle(app(WorkRunner::class));
+    expect(ExecutionFixtures::work($f['work'])->state)->toBe('succeeded')
+        ->and($source->calls)->toBe(['documents', 'documents'])
+        ->and(DB::table('prc_detail_snapshots')->where('part_key', 'like', '%:published')->count())->toBe(1)
+        ->and(DB::table('prc_procurement_documents')->count())->toBe(1)
+        ->and(DB::table('prc_operation_intents')->where('stage', 'download')->sole()->state)->toBe('pending')
+        ->and(DB::table('prc_operation_intents')->where('stage', 'download')->sole()->pending_reason)->toBe('handler_not_activated');
+    Queue::assertNothingPushed();
 });
 
-test('job тихо заканчивается при исчерпанном бюджете и не вызывает мост', function (): void {
+test('Process detail network budget defers without consuming item failures or dispatching documents', function (): void {
     Queue::fake();
-    Sleep::fake();
-    config(['crawler.platforms.eis.source_methods.'.SourceMethodEnum::Csv->value => DetailJobBudgetExhaustedSourceMethod::class]);
-    $procurement = Procurement::factory()->create(['detail_attempts' => 2]);
-
-    (new FetchProcurementDetailJob(procurementId: $procurement->id))->handle(
-        app(DetailAnalysisProcessor::class),
-        app(PipelineDispatcher::class),
-    );
-
-    expect($procurement->refresh()->detail_attempts)->toBe(2)
-        ->and($procurement->detail_fetched_at)->toBeNull();
-    Queue::assertNotPushed(PrepareDocumentJob::class);
+    $f = F::work();
+    DB::table('prc_process_work')->where('id', $f['work']->value->value)->update(['item_failures' => 2]);
+    $retry = new RetryAt(new DateTimeImmutable('+1 hour'));
+    $source = new DetailFixtureSource([new FetchDeferred(NetworkDeferralReason::RateLimit, $retry)]);
+    detailProcessJob($f, $source)->handle(app(WorkRunner::class));
+    $row = ExecutionFixtures::work($f['work']);
+    expect($row->state)->toBe('deferred')->and($row->reason_code)->toBe('rate_limit')
+        ->and($row->item_failures)->toBe(2)->and($row->owner_token)->toBeNull()
+        ->and(new DateTimeImmutable($row->due_at))->toBeGreaterThanOrEqual($retry->value)
+        ->and(DB::table('prc_operation_intents')->where('stage', 'download')->count())->toBe(0);
+    Queue::assertNothingPushed();
 });
 
-test('job стоит на detail-очереди и держит unique-lock по id закупки', function (): void {
-    $job = new FetchProcurementDetailJob(procurementId: 42);
-
-    expect(class_implements($job))->toHaveKey(ShouldQueue::class)
-        ->and(class_implements($job))->toHaveKey(ShouldBeUnique::class)
-        ->and($job->queue)->toBe('crawl_detail')
-        ->and($job->uniqueId())->toBe('42')
-        ->and($job->uniqueFor())->toBe(360);
+test('Process detail delivery uses the registered queue and PostgreSQL identity without a Redis unique lock', function (): void {
+    $f = F::work();
+    $route = app(StageQueueMap::class)->forStage(StageCode::Detail);
+    $job = new ExecuteWorkJob($f['work']->value->value, 1, LedgerFixtures::uuid()->value);
+    expect($job)->toBeInstanceOf(ShouldQueue::class)->not->toBeInstanceOf(ShouldBeUnique::class)
+        ->and($job->workId)->toBe($f['work']->value->value)
+        ->and($route->connection)->toBe('process_short')->and($route->queue)->toBe('process-acquisition')
+        ->and($route->jobTimeout)->toBeLessThan($route->horizonTimeout)
+        ->and($route->retryAfter)->toBeLessThan($route->leaseSeconds);
 });
 
-test('worker failure callback учитывает оборванный timeout как доменную detail-попытку', function (): void {
-    $procurement = Procurement::factory()->create([
-        'detail_attempts' => 0,
-        'detail_fetched_at' => null,
-        'detail_failed' => false,
-    ]);
-
-    (new FetchProcurementDetailJob(procurementId: $procurement->id))->failed(
-        new RuntimeException('worker timeout'),
-    );
-
-    expect($procurement->refresh()->detail_attempts)->toBe(1)
-        ->and($procurement->detail_last_error)->toBe('worker timeout')
-        ->and($procurement->detail_next_retry_at)->not->toBeNull()
-        ->and($procurement->detail_failed)->toBeFalse();
+test('Process detail worker timeout callback is telemetry only and durable recovery retains budget and checkpoint', function (): void {
+    $f = F::work();
+    $lease = FinalizeFixtures::running($f['work']);
+    app(WorkStoreRepository::class)->checkpoint($lease, new DetailProgress, 0);
+    $before = AcquisitionProfileFixtures::workSnapshot($f['work']->value->value);
+    (new ExecuteWorkJob($f['work']->value->value, 1, LedgerFixtures::uuid()->value))->failed(new RuntimeException('worker timeout'));
+    expect(AcquisitionProfileFixtures::workSnapshot($f['work']->value->value))->toBe($before);
+    FinalizeFixtures::expire($f['work']);
+    FixtureProviderRecoveryResolver::install();
+    expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1)
+        ->and(ExecutionFixtures::work($f['work'])->state)->toBe('ready')
+        ->and(ExecutionFixtures::work($f['work'])->item_failures)->toBe(0)
+        ->and(ExecutionFixtures::work($f['work'])->checkpoint)->not->toBeNull()
+        ->and(ExecutionFixtures::work($f['work'])->owner_token)->toBeNull();
 });

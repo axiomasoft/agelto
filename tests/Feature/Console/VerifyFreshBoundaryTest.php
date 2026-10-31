@@ -2,109 +2,84 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Models\Procurement\Crawler\Crawler;
+use App\Dto\Procurement\Health\CheckResult;
+use App\Dto\Procurement\Platform\PlatformCode;
+use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Models\Procurement\Platform\Okpd2Node;
-use App\Models\Procurement\Platform\Registry;
-use Database\Seeders\Platforms\Eis\EisPlatformSeeder;
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Sleep;
-use Illuminate\Support\Str;
-use Tests\Support\Platforms\Eis\EisCsvFixture;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use App\Repositories\Procurement\Network\RouteRepository;
+use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;
+use App\Services\Procurement\Acquisition\AcquisitionDiagnostic;
+use App\Services\Procurement\Acquisition\DiagnosticRunner;
+use App\Services\Procurement\Health\HealthBaselineReader;
+use App\Services\Procurement\Network\OutboundPolicy;
+use App\Services\Procurement\Network\SourceCatalogSync;
+use App\Services\Procurement\Platform\PlatformRegistry;
+use App\Services\Procurement\Process\ProcessTransaction;
+use Database\Factories\Platforms\Eis\EisCrawlerFactory;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\Http\PermitFixtures as F;
+use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\RawEvidenceFixtures;
 
-/** @return array{input: string, output: string} */
-function freshBoundaryCarriers(): array
-{
-    $directory = storage_path('framework/testing/p4-a1-'.Str::uuid());
-    mkdir($directory, recursive: true);
-    $scopePath = $directory.'/P4-live-scope.json';
-    $outputPath = $directory.'/P4-a1-live-verification.json';
-    $scope = [
-        'schema_version' => 'p4-live-scope/v1',
-        'plan_id' => '2026.09.10-№1-PARSING-PRODUCTION-REMEDIATION',
-        'item_id' => 'P4.1',
-        'source' => ['registry' => 'eis-44fz', 'host' => 'zakupki.gov.ru', 'transport' => 'application-production-http-boundary'],
-        'purposes' => ['a1-boundary-day-ordering', 'b2-document-uid-revision-pairs'],
-        'a1' => [
-            'published_window' => ['from' => '2026-07-27T00:00:00+03:00', 'to' => '2026-08-05T23:59:59+03:00'],
-            'max_pages' => 2,
-        ],
-        'b2' => ['procurement_registry_numbers' => ['0338300047926000272']],
-        'request_policy' => ['total_request_ceiling' => 10, 'minimum_interval_ms' => 5000, 'max_consecutive_transport_errors' => 3, 'retry_after_required' => true],
-        'evidence_policy' => ['store_response_bodies' => false, 'store_credentials' => false, 'store_signed_query_parameters' => false, 'sanitize_urls' => true],
-        'stop_conditions' => ['request-ceiling-reached'],
-    ];
-    file_put_contents($scopePath, json_encode($scope, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-    $authorization = [
-        'schema_version' => 'p4-live-authorization/v1',
-        'plan_id' => $scope['plan_id'],
-        'item_id' => 'P4.1',
-        'decision' => 'authorized',
-        'authorized_by' => 'repository-owner',
-        'authorized_at' => now()->subMinute()->toIso8601String(),
-        'expires_at' => now()->addHour()->toIso8601String(),
-        'authorized_actions' => ['perform-read-only-a1-b2-live-eis-probes'],
-        'scope_path' => basename($scopePath),
-        'scope_sha256' => hash_file('sha256', $scopePath),
-    ];
-    file_put_contents($directory.'/P4-live-authorization.json', json_encode($authorization, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-
-    return ['input' => $scopePath, 'output' => $outputPath];
-}
-
-beforeEach(fn () => LegacyBusinessNetwork::install());
-
-test('live A1 command uses bounded listing route and writes the exact sanitized schema', function () {
-    Sleep::fake();
-    $this->seed(EisPlatformSeeder::class);
-    $registry = Registry::query()->where('code', 'fz44')->firstOrFail();
-    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
-    Crawler::factory()->for($registry)->create([
-        'mode' => CrawlerMode::Fresh,
-        'route_profile_id' => null,
-    ]);
-    Http::fake([
-        config('crawler.eis.csv_endpoint').'*' => Http::sequence()
-            ->push(body: EisCsvFixture::body(), status: 200)
-            ->push(body: EisCsvFixture::body(), status: 200),
-    ]);
-    $paths = freshBoundaryCarriers();
-
-    $this->artisan('crawler:verify-fresh-boundary', ['--input' => $paths['input'], '--output' => $paths['output']])
-        ->assertExitCode(Command::SUCCESS);
-
-    $artifact = json_decode((string) file_get_contents($paths['output']), true, flags: JSON_THROW_ON_ERROR);
-
-    expect(array_keys($artifact))->toBe([
-        'schema_version', 'git_anchor', 'authority_sha256', 'scope_sha256', 'requests', 'pages',
-        'boundary_days', 'stop_reasons', 'verdict', 'evidence_ids',
-    ])->and($artifact['schema_version'])->toBe('p4-a1-live-verification/v1')
-        ->and($artifact['requests'])->toHaveCount(2)
-        ->and($artifact['pages'])->toHaveCount(2)
-        ->and($artifact['evidence_ids'])->not->toBeEmpty()
-        ->and(json_encode($artifact, JSON_THROW_ON_ERROR))->not->toContain('Закупки по;');
-    Http::assertSentCount(2);
+beforeEach(function (): void {
+    F::clean();
+    $this->rawEvidence = new RawEvidenceFixtures;
+});
+afterEach(function (): void {
+    F::clean();
+    $this->rawEvidence->clean();
 });
 
-test('непроверенный CSV в bounded probe фиксирует отказ без ложной пустой страницы', function () {
-    Sleep::fake();
-    $this->seed(EisPlatformSeeder::class);
-    $registry = Registry::query()->where('code', 'fz44')->firstOrFail();
-    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921']);
-    Crawler::factory()->for($registry)->create(['mode' => CrawlerMode::Fresh, 'route_profile_id' => null]);
-    Http::fake(['*' => static fn () => Http::response('<html>Access denied</html>', 200)]);
-    $paths = freshBoundaryCarriers();
+function runBoundaryDiagnostic(WireFixture $wire): CheckResult
+{
+    $fixture = new F;
+    config(['platforms.eis.endpoints.listing.url' => $wire->url('/listing')->reveal()]);
+    $definition = (new PlatformRegistry(config()))->get(new PlatformCode('eis'));
+    $profile = EisCrawlerFactory::new()->create();
+    Okpd2Node::factory()->create(['platform_id' => $profile->registry->platform_id, 'code' => '43', 'external_id' => '123']);
+    app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+    app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile(
+        app(OutboundPolicy::class)->defaultRouteProfile, $fixture->route->routeId->value));
+    app()->instance(AcquisitionDiagnostic::class, app()->makeWith(AcquisitionDiagnostic::class, ['urls' => $wire->policy()]));
 
-    $this->artisan('crawler:verify-fresh-boundary', ['--input' => $paths['input'], '--output' => $paths['output']])->assertExitCode(Command::SUCCESS);
+    return app(DiagnosticRunner::class)->run(new ListingFilterCheck, $definition, $profile->registry->platform_id,
+        app(HealthBaselineReader::class)->read(), new DateTimeImmutable('2026-11-01T12:00:00Z'));
+}
 
-    $artifact = json_decode((string) file_get_contents($paths['output']), true, flags: JSON_THROW_ON_ERROR);
-    expect($artifact['requests'])->toHaveCount(3)
-        ->and(array_column($artifact['requests'], 'response_error'))->toBe(['invalid_csv_header', 'invalid_csv_header', 'invalid_csv_header'])
-        ->and($artifact['pages'])->toBe([])
-        ->and($artifact['stop_reasons'])->toBe(['three-consecutive-response-errors'])
-        ->and($artifact['verdict']['status'])->toBe('insufficient_live_boundary_evidence')
-        ->and(json_encode($artifact))->not->toContain('Access denied');
-    Http::assertSentCount(3);
+test('Process boundary diagnostic uses two bounded reads and stores sanitized evidence only', function (): void {
+    $wire = new WireFixture;
+    try {
+        $body = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Csv/neutral-valid.csv'));
+        $wire->respond('/listing', $body, headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
+        $wire->respond('/listing', str_replace('00042', '00043', $body), headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
+        $result = runBoundaryDiagnostic($wire);
+        expect($result->verdict)->toBe(PlatformCheckVerdict::Ok)->and($result->requestsUsed)->toBe(2)
+            ->and($wire->receipts())->toHaveCount(2)->and(DB::table('prc_request_attempts')->count())->toBe(2)
+            ->and(DB::table('prc_procurements')->count())->toBe(0)->and(DB::table('prc_process_work')->count())->toBe(0);
+        foreach ($wire->receipts() as $receipt) {
+            parse_str(parse_url($receipt['path'], PHP_URL_QUERY) ?? '', $query);
+            expect($query['from'])->toBe('1')->and($query['to'])->toBe('500')
+                ->and($query['publishDateFrom'])->toBe('31.10.2026')->and($query['publishDateTo'])->toBe('31.10.2026');
+        }
+        $facts = DB::table('prc_observations')->where('kind', 'adapter_validation')->pluck('details')->all();
+        expect($facts)->toHaveCount(2)->and(json_encode($facts, JSON_THROW_ON_ERROR))->not->toContain($body);
+    } finally {
+        $wire->stop();
+    }
+});
+
+test('Process boundary diagnostic stops on invalid CSV without false empty pages or blind parser retries', function (): void {
+    $wire = new WireFixture;
+    try {
+        $wire->respond('/listing', '<html>Access denied</html>', headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
+        $result = runBoundaryDiagnostic($wire);
+        expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)->and($result->requestsUsed)->toBe(1)
+            ->and($wire->receipts())->toHaveCount(1)->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and(DB::table('prc_process_work')->count())->toBe(0)->and(DB::table('prc_procurements')->count())->toBe(0);
+        $facts = DB::table('prc_observations')->where('kind', 'adapter_validation')->pluck('details')->all();
+        expect($facts)->toHaveCount(1)->and(json_decode($facts[0], true)['verdict'])->toBe('contract_failure')
+            ->and(json_encode([$result->toArray(), $facts], JSON_THROW_ON_ERROR))->not->toContain('Access denied');
+    } finally {
+        $wire->stop();
+    }
 });

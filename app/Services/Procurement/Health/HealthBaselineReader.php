@@ -8,7 +8,6 @@ use App\Dto\Procurement\Health\HealthBaseline;
 use App\Exceptions\Procurement\Health\HealthBaselineUnavailableException;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\PlatformAdapterRegistry;
 use JsonException;
 
 final readonly class HealthBaselineReader
@@ -18,9 +17,8 @@ final readonly class HealthBaselineReader
         $expectedPlatform = $registry === null ? $platform : $registry->platform;
         $code = $expectedPlatform?->getAttribute('code');
         $platformCode = is_string($code) ? $code : '';
-        $configuredPath = $registry !== null
-            ? app(PlatformAdapterRegistry::class)->baselinePath(registry: $registry)
-            : ($platform === null ? config('crawler.health.baseline_path') : config("crawler.platforms.{$platformCode}.baseline_path"));
+        $configuredPath = $expectedPlatform === null ? config('crawler.health.baseline_path')
+            : config("crawler.health.platform_baselines.{$platformCode}");
 
         if (! is_string($configuredPath) || $configuredPath === '') {
             throw new HealthBaselineUnavailableException('путь к эталону должен быть непустой строкой');

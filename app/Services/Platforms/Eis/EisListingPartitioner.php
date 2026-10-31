@@ -30,11 +30,11 @@ final readonly class EisListingPartitioner implements ListingFilterCodec, Listin
 
     public function restoreFilter(CursorEnvelope $snapshot): EisListingFilter
     {
-        if ($snapshot->codecId !== 'eis.filter' || $snapshot->schemaVersion !== 1) {
+        if ($snapshot->codecId !== 'eis.filter' || ! in_array($snapshot->schemaVersion, [1, 2], true)) {
             throw new \InvalidArgumentException('Unsupported EIS filter snapshot.');
         }
         $v = json_decode($snapshot->serializedPayload, true, 16, JSON_THROW_ON_ERROR);
-        if (! is_array($v) || count($v) !== 3 || ! is_array($v['ids'] ?? null) || ! is_array($v['stages'] ?? null)
+        if (! is_array($v) || count($v) !== ($snapshot->schemaVersion === 1 ? 3 : 5) || ! is_array($v['ids'] ?? null) || ! is_array($v['stages'] ?? null)
             || ! array_key_exists('search', $v) || ($v['search'] !== null && ! is_string($v['search']))) {
             throw new \InvalidArgumentException('Invalid EIS filter snapshot.');
         }
@@ -54,13 +54,21 @@ final readonly class EisListingPartitioner implements ListingFilterCodec, Listin
         /** @var list<string> $stages */
         $stages = $v['stages'];
 
-        return new EisListingFilter($ids, $stages, $v['search']);
+        if ($snapshot->schemaVersion === 2 && (! is_bool($v['morphology'] ?? null) || ! is_string($v['sortBy'] ?? null))) {
+            throw new \InvalidArgumentException('Invalid EIS filter options.');
+        }
+
+        $morphology = $snapshot->schemaVersion === 1 ? false : $v['morphology'];
+        $sortBy = $snapshot->schemaVersion === 1 ? 'UPDATE_DATE' : $v['sortBy'];
+
+        return new EisListingFilter($ids, $stages, $v['search'], $morphology, $sortBy);
     }
 
     public function snapshot(EisListingFilter $filter): CursorEnvelope
     {
-        return new CursorEnvelope('eis.filter', 1, json_encode(['ids' => $filter->okpd2Ids,
-            'stages' => $filter->stages, 'search' => $filter->search], JSON_THROW_ON_ERROR));
+        return new CursorEnvelope('eis.filter', 2, json_encode(['ids' => $filter->okpd2Ids,
+            'stages' => $filter->stages, 'search' => $filter->search, 'morphology' => $filter->morphology,
+            'sortBy' => $filter->sortBy], JSON_THROW_ON_ERROR));
     }
 
     /** Pure bounded root allocation; the unallocated tail is explicit, never silently dropped. */

@@ -22,7 +22,9 @@ use App\Dto\Procurement\Acquisition\SnapshotPart;
 use App\Dto\Procurement\Details\OrganizationData;
 use App\Dto\Procurement\Details\PartyData;
 use App\Dto\Procurement\Document\DocumentReference;
+use App\Dto\Procurement\Document\SourceDocumentKey;
 use App\Dto\Procurement\Network\DecodedTextBody;
+use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\ResponseEnvelope;
 use App\Dto\Procurement\Network\SafeUrl;
@@ -82,7 +84,7 @@ final readonly class JsonProcurementSource implements ResponseValidator
         return $this->plan('?'.http_build_query(['collection' => $filter->collection, 'after' => $request->cursor->serializedPayload]), TrafficClass::FreshListing);
     }
 
-    public function fetchListing(ListingRequest $request, ExecutionContext $context): ListingFetchResult
+    public function fetchListing(ListingRequest $request, ExecutionContext|OutboundExecutionContext $context): ListingFetchResult
     {
         $outcome = $this->outbound->execute($this->listingPlan($request), $context);
 
@@ -143,7 +145,7 @@ final readonly class JsonProcurementSource implements ResponseValidator
         }
     }
 
-    public function fetchDetail(DetailRequest $request, ExecutionContext $context): DetailFetchResult
+    public function fetchDetail(DetailRequest $request, ExecutionContext|OutboundExecutionContext $context): DetailFetchResult
     {
         $this->definition->validateIdentity($request->registry, $request->identity);
         $outcome = $this->outbound->execute($this->plan('/'.rawurlencode($request->identity->value->value), TrafficClass::Detail), $context);
@@ -182,7 +184,8 @@ final readonly class JsonProcurementSource implements ResponseValidator
                 $row = $this->object($raw);
                 $this->keys($row, ['key', 'name', 'signedUrl', 'expires']);
                 $documents[] = new DocumentReference($summary->identity, $this->string($row['key']), $this->string($row['name']),
-                    new SafeUrl($this->string($row['signedUrl'])), $this->instant($row['expires']));
+                    new SafeUrl($this->string($row['signedUrl'])), new SourceDocumentKey(json_encode(
+                        ['attachment', $summary->identity->type->value, $summary->identity->value->value, $this->string($row['key'])], JSON_THROW_ON_ERROR), 1), $this->instant($row['expires']));
             }
             $parts = [];
             foreach (['attributes' => 1, 'parties' => count($parties), 'documents' => count($documents)] as $name => $count) {

@@ -261,7 +261,9 @@ final readonly class NetworkPermitRepository
         // No expired permit/lease may be revived even at the last authorization statement.
         $liveOwner = $owner instanceof ExecutionLease
             ? "SELECT 1 FROM prc_process_work WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'running' AND lease_until > n.t"
-            : "SELECT 1 FROM prc_outbound_operations WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'open' AND lease_until > n.t
+            : "SELECT 1 FROM prc_outbound_operations o WHERE o.id = ? AND o.generation = ? AND o.owner_token = ? AND o.state = 'open' AND o.lease_until > n.t
+                AND (o.parent_attempt_id IS NULL OR EXISTS (SELECT 1 FROM prc_process_attempts a JOIN prc_process_work w ON w.id=a.work_id AND w.generation=a.generation
+                    WHERE a.id=o.parent_attempt_id AND a.finished_at IS NULL AND w.state='running' AND w.lease_until > n.t))
                 AND deadline_at >= n.t + make_interval(secs => ".($ticket->plan->profile->totalSeconds + 15).')';
         $ownerId = $owner instanceof ExecutionLease ? $owner->workId->value->value : $owner->id->value;
         $token = $owner instanceof ExecutionLease ? $owner->token->value : $owner->ownerToken->value;
@@ -318,7 +320,7 @@ final readonly class NetworkPermitRepository
         $origins = LedgerRow::all("SELECT b.id FROM prc_network_budgets b WHERE b.scope_key LIKE 'origin:%' AND (
             EXISTS (SELECT 1 FROM prc_network_demands d WHERE d.origin_budget_id = b.id AND d.state = 'queued' AND (
                 d.expires_at <= clock_timestamp() OR d.operation_deadline <= clock_timestamp()
-                OR (d.operation_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_outbound_operations o WHERE o.id = d.operation_id AND o.generation = d.operation_generation AND o.state = 'open' AND o.lease_until > clock_timestamp()))
+                OR (d.operation_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_outbound_operations o WHERE o.id = d.operation_id AND o.generation = d.operation_generation AND o.state = 'open' AND o.lease_until > clock_timestamp() AND (o.parent_attempt_id IS NULL OR EXISTS (SELECT 1 FROM prc_process_attempts pa JOIN prc_process_work pw ON pw.id=pa.work_id AND pw.generation=pa.generation WHERE pa.id=o.parent_attempt_id AND pa.finished_at IS NULL AND pw.state='running' AND pw.lease_until > clock_timestamp()))))
                 OR (d.work_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_process_work w WHERE w.id = d.work_id AND w.generation = d.work_generation AND w.state = 'running' AND w.lease_until > clock_timestamp()))))
             OR EXISTS (SELECT 1 FROM prc_network_demands d JOIN prc_network_permits p ON p.demand_id = d.id
                 WHERE d.origin_budget_id = b.id AND p.state IN ('reserved','sent') AND p.expires_at <= clock_timestamp()))
@@ -346,7 +348,9 @@ final readonly class NetworkPermitRepository
     {
         return ($owner instanceof ExecutionLease
             ? LedgerRow::one("SELECT 1 AS live FROM prc_process_work WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'running' AND lease_until > clock_timestamp()", [$owner->workId->value->value, $owner->generation, $owner->token->value])
-            : LedgerRow::one("SELECT 1 AS live FROM prc_outbound_operations WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'open' AND lease_until > clock_timestamp() AND deadline_at > clock_timestamp()", [$owner->id->value, $owner->generation, $owner->ownerToken->value])) !== null;
+            : LedgerRow::one("SELECT 1 AS live FROM prc_outbound_operations o WHERE o.id = ? AND o.generation = ? AND o.owner_token = ? AND o.state = 'open' AND o.lease_until > clock_timestamp() AND o.deadline_at > clock_timestamp()
+                AND (o.parent_attempt_id IS NULL OR EXISTS (SELECT 1 FROM prc_process_attempts a JOIN prc_process_work w ON w.id=a.work_id AND w.generation=a.generation
+                    WHERE a.id=o.parent_attempt_id AND a.finished_at IS NULL AND w.state='running' AND w.lease_until > clock_timestamp()))", [$owner->id->value, $owner->generation, $owner->ownerToken->value])) !== null;
     }
 
     private function matches(LedgerRow $row, ExecutionLease|OutboundOperationHandle $owner, OutboundRequestPlan $plan, NetworkRouteSelection $route): bool
@@ -376,7 +380,7 @@ final readonly class NetworkPermitRepository
         $expired = DB::update("UPDATE prc_network_demands d SET state = 'expired' WHERE d.id IN (
             SELECT q.id FROM prc_network_demands q WHERE q.origin_budget_id = ? AND q.state = 'queued' AND (
                 q.expires_at <= clock_timestamp() OR q.operation_deadline <= clock_timestamp()
-                OR (q.operation_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_outbound_operations o WHERE o.id = q.operation_id AND o.generation = q.operation_generation AND o.state = 'open' AND o.lease_until > clock_timestamp()))
+                OR (q.operation_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_outbound_operations o WHERE o.id = q.operation_id AND o.generation = q.operation_generation AND o.state = 'open' AND o.lease_until > clock_timestamp() AND (o.parent_attempt_id IS NULL OR EXISTS (SELECT 1 FROM prc_process_attempts pa JOIN prc_process_work pw ON pw.id=pa.work_id AND pw.generation=pa.generation WHERE pa.id=o.parent_attempt_id AND pa.finished_at IS NULL AND pw.state='running' AND pw.lease_until > clock_timestamp()))))
                 OR (q.work_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_process_work w WHERE w.id = q.work_id AND w.generation = q.work_generation AND w.state = 'running' AND w.lease_until > clock_timestamp())))
             ORDER BY q.ticket_seq LIMIT 64)", [$originId]);
 

@@ -15,10 +15,14 @@ final readonly class EisListingFilter implements ListingFilter
      * @param  list<string>  $okpd2Ids
      * @param  list<string>  $stages
      */
-    public function __construct(public array $okpd2Ids, public array $stages = [], public ?string $search = null)
+    public function __construct(public array $okpd2Ids, public array $stages = [], public ?string $search = null,
+        public bool $morphology = false, public string $sortBy = 'UPDATE_DATE')
     {
         CollectionGuard::check($okpd2Ids, 'string', 256);
         CollectionGuard::check($stages, 'string', 4);
+        if (! in_array($sortBy, ['UPDATE_DATE', 'PUBLISH_DATE'], true)) {
+            throw new \InvalidArgumentException('Invalid EIS sort field.');
+        }
         if ($okpd2Ids === [] || array_diff($stages, ['af', 'ca', 'pc', 'pa']) !== []) {
             throw new \InvalidArgumentException('Invalid EIS filter scope.');
         }
@@ -43,6 +47,12 @@ final readonly class EisListingFilter implements ListingFilter
         }
         if ($this->search !== null) {
             $query['searchString'] = $this->search;
+            if ($this->morphology) {
+                $query['morphology'] = 'on';
+            }
+        }
+        if ($this->sortBy !== 'UPDATE_DATE') {
+            $query['sortBy'] = $this->sortBy;
         }
         ksort($query, SORT_STRING);
 

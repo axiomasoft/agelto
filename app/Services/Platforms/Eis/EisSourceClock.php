@@ -11,7 +11,7 @@ use Illuminate\Support\Carbon;
  * Единая точка разбора дат источника ЕИС.
  *
  * ЕИС отдаёт «наивные» локальные дату-время без смещения. Они читаются в часовом поясе
- * источника (`crawler.platforms.eis.source_timezone`, env `EIS_SOURCE_TIMEZONE`,
+ * источника (`platforms.eis.source_timezone`, env `EIS_SOURCE_TIMEZONE`,
  * по умолчанию `Europe/Moscow`) и возвращаются в UTC — в UTC же хранятся в БД.
  *
  * Значения без времени (`d.m.Y`) — календарные даты, а не моменты: они возвращаются
@@ -23,9 +23,9 @@ final readonly class EisSourceClock
 
     public function __construct(?string $timezone = null)
     {
-        $configured = $timezone ?? config('crawler.platforms.eis.source_timezone', 'Europe/Moscow');
+        $configured = $timezone ?? config()->string('platforms.eis.source_timezone', 'Europe/Moscow');
 
-        $this->sourceTimezone = new CarbonTimeZone(is_string($configured) && $configured !== '' ? $configured : 'Europe/Moscow');
+        $this->sourceTimezone = new CarbonTimeZone($configured !== '' ? $configured : 'Europe/Moscow');
     }
 
     public function endOfSourceDay(Carbon $start): Carbon

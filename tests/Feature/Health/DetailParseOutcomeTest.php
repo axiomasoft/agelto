@@ -2,98 +2,59 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Dto\Procurement\ProcurementDetails;
-use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
-use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Platform\Registry;
-use App\Models\Procurement\Procurement;
-use App\Repositories\Procurement\ProcurementStoreRepository;
-use App\Services\Procurement\Contracts\SourceMethod;
-use App\Services\Procurement\Modes\DetailAnalysisProcessor;
-use Illuminate\Support\Carbon;
-use Tests\Support\Doubles\Crawler\CardHtmlFixture;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use App\Dto\Procurement\Acquisition\DetailFetched;
+use App\Enums\Procurement\Platform\Completeness;
+use App\Exceptions\Procurement\Health\HealthBaselineUnavailableException;
+use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
+use App\Services\Procurement\Acquisition\DetailArtifacts;
+use App\Services\Procurement\Acquisition\DetailHandler;
+use App\Services\Procurement\Health\HealthBaselineReader;
+use App\Services\Procurement\Platform\FetchOutcomeBridge;
+use App\Services\Procurement\Process\ExecutionContextFactory;
+use App\Services\Procurement\Process\WorkFinalizer;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\DetailFixtures as F;
+use Tests\Support\ProcessCore\DetailFixtureSource;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FinalizeFixtures;
 
-final class DetailParseOutcomeSourceMethod implements SourceMethod
+function detailOutcomeAttempt(array $f, array $responses): void
 {
-    public function collectListing(Crawler $crawler, ListingCursor $cursor): ListingBatch
-    {
-        return new ListingBatch(
-            rows: [],
-            rawBody: '',
-            dedupSignature: null,
-            rowsTotal: 0,
-            httpStatus: 200,
-            durationMs: 0,
-            requestParams: [],
-        );
-    }
-
-    public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
-    {
-        return new ProcurementDetails(
-            registryNumber: $registryNumber,
-            procedureUrlType: 'ea20',
-            commonInfoHtml: CardHtmlFixture::commonInfo(),
-            documentsHtml: CardHtmlFixture::documents(),
-        );
-    }
-
-    public function isAvailable(): bool
-    {
-        return true;
-    }
+    $lease = FinalizeFixtures::running($f['work']);
+    $handler = new DetailHandler(app(DetailSnapshotRepository::class), new DetailFixtureSource($responses, ['attributes']),
+        app(DetailArtifacts::class), new FetchOutcomeBridge);
+    app(WorkFinalizer::class)->finish($lease,
+        $handler->execute($f['input'], app(ExecutionContextFactory::class)->open($lease)));
 }
 
-beforeEach(fn () => LegacyBusinessNetwork::install());
+beforeEach(fn () => F::bind());
 
-test('репозиторий перезаписывает последний исход разбора', function (): void {
-    $procurement = Procurement::factory()->create();
-    $repository = app(ProcurementStoreRepository::class);
-
-    $repository->markDetailFetched(
-        procurement: $procurement,
-        fetchedAt: Carbon::parse('2026-08-08 10:00:00'),
-        detailParseOutcome: ['common-info' => ['status' => 'measured']],
-    );
-    $repository->markDetailFetched(
-        procurement: $procurement,
-        fetchedAt: Carbon::parse('2026-08-08 11:00:00'),
-        detailParseOutcome: ['common-info' => ['status' => 'probe_failed']],
-    );
-
-    expect($procurement->refresh()->detail_parse_outcome)->toBe([
-        'common-info' => ['status' => 'probe_failed'],
-    ]);
+test('Process detail retains incomplete attempt evidence and publishes only the later coherent outcome', function (): void {
+    $f = F::work();
+    detailOutcomeAttempt($f, [new DetailFetched(F::snapshot($f['request'], 'attributes', Completeness::Partial))]);
+    expect(ExecutionFixtures::work($f['work'])->state)->toBe('ready')
+        ->and(DB::table('prc_detail_snapshots')->where('part_key', 'like', '%:published')->count())->toBe(0);
+    $complete = new DetailFetched(F::snapshot($f['request'], 'attributes'));
+    detailOutcomeAttempt($f, [$complete, $complete]);
+    expect(ExecutionFixtures::work($f['work'])->state)->toBe('succeeded')
+        ->and(ExecutionFixtures::work($f['work'])->item_failures)->toBe(0)
+        ->and(DB::table('prc_process_attempts')->where('work_id', $f['work']->value->value)->whereNotNull('finished_at')->count())->toBe(2)
+        ->and(DB::table('prc_detail_snapshots')->where('part_key', 'like', '%:published')->count())->toBe(1);
 });
 
-test('отсутствие эталона откладывает разбор, после исправления конфигурации карточка восстанавливается', function (): void {
-    config([
-        'crawler.platforms.eis.source_methods.'.SourceMethodEnum::Csv->value => DetailParseOutcomeSourceMethod::class,
-        'crawler.health.enabled' => true,
-        'crawler.platforms.eis.baseline_path' => 'tests/Fixtures/Health/missing-baseline.json',
-    ]);
-    $registry = Registry::factory()->eis()->create();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'detail_attempts' => 2,
-    ]);
-
-    $result = app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    $procurement->refresh();
-
-    expect($result)->toBeFalse()
-        ->and($procurement->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(2)
-        ->and($procurement->detail_failed)->toBeFalse()
-        ->and($procurement->detail_next_retry_at)->toBeNull();
-
-    config(['crawler.platforms.eis.baseline_path' => 'resources/crawler/health/eis-baseline.json']);
-
-    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeTrue()
-        ->and($procurement->refresh()->detail_fetched_at)->not->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(0);
+test('missing diagnostic baseline fails closed without consuming detail budget and corrected configuration recovers', function (): void {
+    $f = F::work();
+    $configured = config('crawler.health.baseline_path');
+    config(['crawler.health.baseline_path' => 'tests/Fixtures/Health/missing-baseline.json']);
+    expect(fn () => app(HealthBaselineReader::class)->read())->toThrow(HealthBaselineUnavailableException::class)
+        ->and(ExecutionFixtures::work($f['work'])->state)->toBe('ready')
+        ->and(ExecutionFixtures::work($f['work'])->item_failures)->toBe(0)
+        ->and(DB::table('prc_process_attempts')->count())->toBe(0)
+        ->and(DB::table('prc_detail_snapshots')->where('part_key', 'like', '%:published')->count())->toBe(0);
+    config(['crawler.health.baseline_path' => $configured]);
+    expect(app(HealthBaselineReader::class)->read()->sha256)->toHaveLength(64);
+    $complete = new DetailFetched(F::snapshot($f['request'], 'attributes'));
+    detailOutcomeAttempt($f, [$complete, $complete]);
+    expect(ExecutionFixtures::work($f['work'])->state)->toBe('succeeded')
+        ->and(ExecutionFixtures::work($f['work'])->item_failures)->toBe(0);
 });

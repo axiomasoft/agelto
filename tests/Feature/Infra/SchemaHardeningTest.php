@@ -2,15 +2,19 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Process\VersionedPayload;
+use App\Enums\Procurement\Process\RunKind;
 use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\AnalysisRun;
-use App\Models\Procurement\Crawler\Run;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use App\Models\Procurement\PurchaseItem;
+use App\Repositories\Procurement\Process\RunStoreRepository;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\LedgerFixtures;
 
 test('расширенная точность prc_items.quantity сохраняет и читает шесть знаков после запятой', function () {
     $item = PurchaseItem::factory()->create(['quantity' => '123.456789']);
@@ -26,10 +30,15 @@ test('ON DELETE RESTRICT запрещает удаление закупки с �
 });
 
 test('FK prc_revisions.crawler_run_id запрещает удаление прогона, на который ссылается ревизия', function () {
-    $run = Run::factory()->create();
-    ProcurementRevision::factory()->create(['crawler_run_id' => $run->id]);
+    $run = LedgerFixtures::uuid();
+    app(RunStoreRepository::class)->storeRun($run, RunKind::Manual, null, null,
+        new VersionedPayload('{"fixture":"revision-fk"}', 1), null, LedgerFixtures::uuid(), LedgerFixtures::uuid());
+    ProcurementRevision::factory()->create(['process_run_id' => $run->value]);
 
-    expect(fn () => $run->delete())->toThrow(QueryException::class);
+    // Isolate this FK from the run's own journal FK, which would mask its absence.
+    DB::table('prc_process_transitions')->where('run_id', $run->value)->delete();
+    expect(fn () => DB::table('prc_process_runs')->where('id', $run->value)->delete())
+        ->toThrow(QueryException::class, 'prc_revisions_process_run_fk');
 });
 
 test('FK llm_calls.analysis_run_id запрещает удаление прогона анализа, на который ссылается вызов', function () {

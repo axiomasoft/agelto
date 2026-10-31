@@ -6,7 +6,9 @@ namespace App\Services\Platforms\Eis;
 
 use App\Dto\Platforms\Eis\EisDetailExtension;
 use App\Dto\Platforms\Eis\EisPolicy;
+use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Network\AdapterContractRef;
+use App\Dto\Procurement\Platform\AcquisitionProfileDescriptor;
 use App\Dto\Procurement\Platform\AdapterVersion;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
 use App\Dto\Procurement\Platform\DiagnosticChecks;
@@ -22,6 +24,7 @@ use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Dto\Procurement\Platform\SupportedDetailCapability;
 use App\Dto\Procurement\Platform\SupportedListingCapability;
 use App\Dto\Procurement\Platform\SupportedListingPartitioningCapability;
+use App\Dto\Procurement\Platform\SupportedStatusCapability;
 use App\Dto\Procurement\Platform\UnsupportedCapability;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
@@ -81,7 +84,7 @@ final readonly class EisDefinition implements PlatformDefinitionProvider
             endpoints: $this->policy->endpoints,
             listing: new SupportedListingCapability(EisListingSource::class, ['listing']),
             detail: new SupportedDetailCapability(EisDetailSource::class, ['card']),
-            status: new UnsupportedCapability('Status adapter belongs to acquisition cutover.'),
+            status: new SupportedStatusCapability(EisDetailSource::class, ['card']),
             documents: new UnsupportedCapability('Document access adapter belongs to document cutover.'),
             checks: new DiagnosticChecks(['listing_filter' => Diagnostics\ListingFilterCheck::class]),
             sourceTargets: $this->targets,
@@ -89,6 +92,8 @@ final readonly class EisDefinition implements PlatformDefinitionProvider
             extension: new ExtensionDescriptor(EisDetailExtension::class,
                 EisExtensionPersister::class, new AdapterVersion('1'), new AdapterVersion('1')),
             uiExtension: EisUiExtension::class,
+            acquisitionProfile: new AcquisitionProfileDescriptor(
+                EisSearchFilter::class, Listing\EisProfilePreparer::class, 'ОКПД2.'),
         );
     }
 }

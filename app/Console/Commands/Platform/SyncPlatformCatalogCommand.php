@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Platform;
 
+use App\Enums\Procurement\Process\StageCode;
+use App\Services\Procurement\Acquisition\AcquisitionRuntime;
 use App\Services\Procurement\Network\SourceCatalogSync;
+use App\Services\Procurement\Process\ProcessAuthoritySync;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -33,6 +36,14 @@ final class SyncPlatformCatalogCommand extends Command
             }
             if ($codes !== null && $providerKeys !== []) {
                 $reports = [...$sync->syncRegistered($codes), ...$sync->syncProviders($providerKeys)];
+            }
+            if ($reports !== []) {
+                $authority = app(ProcessAuthoritySync::class);
+                $authority->ensureBaseline();
+                foreach ([StageCode::Listing, StageCode::Detail,
+                    StageCode::StatusRefresh] as $stage) {
+                    $authority->registerHandler($stage, AcquisitionRuntime::VERSION);
+                }
             }
         } catch (\InvalidArgumentException $exception) {
             $this->error('Source catalog отклонён: '.$exception->getMessage());

@@ -22,9 +22,14 @@ final readonly class ProcurementSummary
         public ?string $currency = null,
         public ?CursorEnvelope $detailLocator = null,
         public bool $updatedAtDayPrecision = false,
+        public ?ListingFacts $facts = null,
+        public ?\DateTimeImmutable $updatedBefore = null,
     ) {
         if ($initialPrice !== null && ! preg_match('/^\\d{1,15}(?:\\.\\d{1,2})?$/D', $initialPrice)) {
             throw new \InvalidArgumentException('Invalid decimal price.');
+        }
+        if ($updatedAtDayPrecision !== ($updatedBefore !== null) || ($updatedBefore !== null && $updatedBefore <= $updatedAt)) {
+            throw new \InvalidArgumentException('Source-day precision requires its exclusive upper bound.');
         }
     }
 }

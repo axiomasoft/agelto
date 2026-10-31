@@ -65,7 +65,8 @@ final class ProcessRunsTable
                     ->label('Отменить запуск')
                     ->color('danger')
                     ->authorize(static fn (): bool => self::actor()->hasPermission(ProcessControlPermission::CancelRun))
-                    ->visible(static fn (ProcessRun $record): bool => $record->cancel_requested_at === null)
+                    ->visible(static fn (ProcessRun $record): bool => $record->cancel_requested_at === null
+                        && ! (self::runState($record)?->terminal() ?? true))
                     ->schema([OperatorActionInput::versionField('cancel_run'), Textarea::make('reason')->label('Причина')->required()->maxLength(OperatorActionInput::REASON_LIMIT)])
                     ->requiresConfirmation()
                     ->modalDescription('Отменяется намерение запуска. Общая работа, нужная другим запускам, не отменяется.')

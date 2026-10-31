@@ -6,15 +6,23 @@ namespace App\Filament\Platforms\Eis;
 
 use App\Contracts\Procurement\Platform\PlatformUiExtension;
 use App\Models\Platforms\Eis\EisDetails;
+use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 
 final readonly class EisUiExtension implements PlatformUiExtension
 {
     public function profileFormSchema(): array
     {
-        return [];
+        return [Fieldset::make('ЕИС')->schema(static function (Get $get): array {
+            $id = $get('registry_id');
+            $registry = is_numeric($id) ? Registry::query()->find((int) $id) : null;
+
+            return $registry === null ? [] : app(EisCrawlerPlatformForm::class)->components($registry);
+        })];
     }
 
     public function procurementInfolistSections(Procurement $procurement): array

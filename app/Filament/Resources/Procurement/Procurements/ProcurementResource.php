@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Реестр закупок — read-only (index + view). Продукт пайплайна: оператор
@@ -50,7 +51,18 @@ class ProcurementResource extends Resource
     // Eager-load связи, показанной в таблице (registry.name) — против N+1 в реестре.
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with('registry');
+        $query = parent::getEloquentQuery()->with('registry')->addSelect([
+            'detail_fetched_at' => DB::table('prc_detail_snapshots')->selectRaw('max(created_at)')
+                ->whereColumn('procurement_id', 'prc_procurements.id')->where('part_key', 'like', '%:published')
+                ->where('completeness', 'complete'),
+        ])->withCasts(['detail_fetched_at' => 'datetime']);
+        foreach (['state', 'reason_code', 'due_at'] as $field) {
+            $query->addSelect(['detail_work_'.$field => DB::table('prc_process_work')
+                ->select($field)->whereColumn('procurement_id', 'prc_procurements.id')->where('stage', 'detail')
+                ->orderByDesc('created_at')->orderByDesc('id')->limit(1)]);
+        }
+
+        return $query;
     }
 
     public static function getPages(): array

@@ -114,6 +114,8 @@ test('T41 lock encoding не смешивает delimiters и не меняет 
 
 test('T41 два concurrent blocks commit одну identity без повторного HTTP', function (): void {
     $fixture = ConcurrentTransactions::execute(<<<'PHP'
+\Tests\Support\ProcessCore\ExecutionFixtures::truncateLedger();
+\Tests\Support\ProcessCore\ListingFixtures::bind();
 $registry = \App\Models\Procurement\Platform\Registry::factory()->eis()->create();
 return ['registry' => $registry->id, 'platform' => $registry->platform_id];
 PHP);
@@ -131,11 +133,15 @@ PHP);
             ->and($workers['first']['procurement_id'])->toBe($workers['second']['procurement_id'])
             ->and($workers['first']['committed'])->toBeTrue()->and($workers['second']['committed'])->toBeTrue()
             ->and($wire->receipts())->toHaveCount(2);
-        $procurement = Procurement::query()->where('registry_id', $fixture['registry'])->sole();
-        expect($procurement->revision_count)->toBe(1)
-            ->and(DB::table('prc_revisions')->where('procurement_id', $procurement->id)->count())->toBe(1)
-            ->and(DB::table('prc_crawler_runs')->whereIn('id', array_column($workers, 'run_id'))->where('cursor->blockFrom', 501)->count())->toBe(2)
-            ->and(DB::table('prc_process_handler_holds')->where('state', 'held')->count())->toBe(0);
+        // Read committed state on a separate connection too: retaining parent SELECT locks
+        // would block the child's ledger cleanup at the end of this transactional test.
+        $committed = ConcurrentTransactions::execute('
+            $p = \\App\\Models\\Procurement\\Procurement::query()->where("registry_id", '.$fixture['registry'].')->sole();
+            return ["revisions" => $p->revision_count,
+                "history" => \\Illuminate\\Support\\Facades\\DB::table("prc_revisions")->where("procurement_id", $p->id)->count(),
+                "completed" => \\Illuminate\\Support\\Facades\\DB::table("prc_process_work")->whereIn("id", '.var_export(array_column($workers, 'work_id'), true).')->where("state", "succeeded")->count(),
+                "held" => \\Illuminate\\Support\\Facades\\DB::table("prc_process_handler_holds")->where("state", "held")->count()];');
+        expect($committed)->toBe(['revisions' => 1, 'history' => 1, 'completed' => 2, 'held' => 0]);
     } finally {
         $wire->stop();
         foreach (glob($barrier.'/*') ?: [] as $file) {
@@ -143,12 +149,10 @@ PHP);
         }
         rmdir($barrier);
         ConcurrentTransactions::execute('
+            \\Tests\\Support\\ProcessCore\\ExecutionFixtures::truncateLedger();
             $ids = \\Illuminate\\Support\\Facades\\DB::table("prc_procurements")->where("registry_id", '.$fixture['registry'].')->pluck("id");
             foreach (["prc_events", "prc_revisions"] as $table) { \\Illuminate\\Support\\Facades\\DB::table($table)->whereIn("procurement_id", $ids)->delete(); }
             \\Illuminate\\Support\\Facades\\DB::table("prc_procurements")->whereIn("id", $ids)->delete();
-            $crawlers = \\Illuminate\\Support\\Facades\\DB::table("prc_crawlers")->where("registry_id", '.$fixture['registry'].')->pluck("id");
-            \\Illuminate\\Support\\Facades\\DB::table("prc_crawler_runs")->whereIn("crawler_id", $crawlers)->delete();
-            \\Illuminate\\Support\\Facades\\DB::table("prc_crawlers")->where("registry_id", '.$fixture['registry'].')->delete();
             \\Illuminate\\Support\\Facades\\DB::table("prc_status_mappings")->where("registry_id", '.$fixture['registry'].')->delete();
             \\Illuminate\\Support\\Facades\\DB::table("prc_registries")->where("id", '.$fixture['registry'].')->delete();
             \\Illuminate\\Support\\Facades\\DB::table("prc_platforms")->where("id", '.$fixture['platform'].')->delete();

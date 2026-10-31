@@ -6,10 +6,11 @@ use App\Dto\Procurement\Network\AdapterContractRef;
 use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
+use App\Dto\Procurement\Platform\PlatformCode;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\PlatformAdapterRegistry;
+use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\NetworkFixtures;
@@ -22,7 +23,8 @@ test('явные версии адаптера читаются без I/O и н
     DB::listen(function ($query) use (&$queries): void {
         $queries[] = $query->sql;
     });
-    $ref = app(PlatformAdapterRegistry::class)->adapterContract('eis', 'listing');
+    $definition = app(PlatformRegistry::class)->get(new PlatformCode('eis'));
+    $ref = $definition->sourceTargets->targets[$definition->endpoints->get('listing')->targetKey]->adapterContract;
     expect($ref->toArray())->toBe(['platform_code' => 'eis', 'capability' => 'listing', 'adapter_version' => '1', 'contract_version' => '1'])
         ->and(AdapterContractRef::fromArray(array_reverse($ref->toArray(), true))->equals($ref))->toBeTrue()
         ->and($ref->fingerprint()->hex)->toBe((new AdapterContractRef('eis', 'listing', '1', '1'))->fingerprint()->hex)

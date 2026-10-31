@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use Database\Seeders\Platforms\Eis\EisCrawlerProfileSeeder;
 use Database\Seeders\Platforms\Eis\EisPlatformSeeder;
-use Database\Seeders\Procurement\CrawlerProfileSeeder;
 use Database\Seeders\Procurement\Okpd2NodeSeeder;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Artisan;
@@ -23,7 +23,7 @@ final class BaseSeeder extends Seeder
             EisPlatformSeeder::class,
             StatusMappingSeeder::class,
             Okpd2NodeSeeder::class,
-            CrawlerProfileSeeder::class,
+            EisCrawlerProfileSeeder::class,
         ]);
     }
 }

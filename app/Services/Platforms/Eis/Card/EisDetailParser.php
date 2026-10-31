@@ -8,9 +8,8 @@ use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\DocumentsSnapshot;
 use App\Dto\Procurement\Details\JournalEntryData;
 use App\Dto\Procurement\Details\SupplierResultsData;
-use App\Services\Procurement\Contracts\DetailParser;
 
-final readonly class EisDetailParser implements DetailParser
+final readonly class EisDetailParser
 {
     public function __construct(
         private CommonInfoParser $common,

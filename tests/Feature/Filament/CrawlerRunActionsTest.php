@@ -3,335 +3,146 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Dto\Procurement\Crawler\ListingCursor;
-use App\Enums\Procurement\Crawler\CrawlerExecutionLane;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Enums\Procurement\Crawler\RunStatus;
-use App\Enums\Procurement\Crawler\RunStopKind;
-use App\Exceptions\Procurement\Crawler\ArchiveWindowMissing;
-use App\Exceptions\Procurement\Crawler\CrawlerRunAlreadyActive;
+use App\Enums\Procurement\Process\AccountingRole;
+use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\RunWorkRelation;
+use App\Filament\Resources\Procurement\Crawler\Crawlers\CrawlerResource;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\ListCrawlers;
-use App\Filament\Resources\Procurement\Crawler\Runs\Pages\ListRuns;
-use App\Filament\Resources\Procurement\Crawler\Runs\Pages\ViewRun;
-use App\Guards\Admin\Roles\AnalystRole;
-use App\Guards\Admin\Roles\OperatorRole;
-use App\Jobs\Procurement\CrawlRunJob;
+use App\Filament\Resources\Procurement\Process\ControlScopes\ControlScopeResource;
+use App\Filament\Resources\Procurement\Process\ControlScopes\Pages\ListControlScopes;
+use App\Filament\Resources\Procurement\Process\Runs\Pages\ListProcessRuns;
+use App\Filament\Resources\Procurement\Process\Runs\ProcessRunResource;
+use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Run;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Process\ControlScope;
+use App\Models\Procurement\Process\ProcessRun;
 use App\Models\User;
-use App\Services\Procurement\Crawler\StartCrawlerRunAction;
+use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Procurement\Acquisition\LaunchAcquisition;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures as F;
+use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ListingFixtures as L;
 
-use function Pest\Laravel\actingAs;
-use function Pest\Laravel\artisan;
+beforeEach(function (): void {
+    L::bind();
+    $this->artisan('guard:sync-roles')->assertSuccessful();
+    $this->operator = User::factory()->create();
+    $this->operator->assignRole('operator');
+    $this->actingAs($this->operator);
+});
 
-// `artisan()` без потребления возврата откладывает выполнение до __destruct() — форсируем
-// синхронный прогон явным assertExitCode (тот же приём, что FixtureRunScreenTest).
-beforeEach(fn () => artisan('guard:sync-roles')->assertExitCode(0));
-
-function actAsRunActionsOperator(): User
+function launchUiProfile(Crawler $profile, ?string $command = null): void
 {
-    $operator = User::factory()->create();
-    $operator->assignRole(OperatorRole::class);
-    actingAs($operator);
-
-    return $operator;
+    Livewire::test(ListCrawlers::class)->callTableAction('start', $profile, [
+        OperatorActionInput::FIELD => OperatorActionInput::issue('launch_acquisition', (string) $profile->id, $profile->profile_version),
+        'command_id' => $command ?? LedgerFixtures::uuid()->value,
+    ])->assertHasNoTableActionErrors();
 }
 
-test('оператор видит «Запустить» на профиле без активного и приостановленного прогона', function (): void {
-    actAsRunActionsOperator();
-
-    $crawler = Crawler::factory()->create();
-
-    Livewire::test(ListCrawlers::class)
-        ->assertTableActionVisible('start', record: $crawler)
-        ->assertTableActionHidden('resume', record: $crawler);
+test('Process launch remains visible with active work and distinct commands create independent runs', function (): void {
+    $profile = F::create();
+    $command = LedgerFixtures::uuid()->value;
+    launchUiProfile($profile, $command);
+    Livewire::test(ListCrawlers::class)->assertTableActionVisible('start', $profile);
+    launchUiProfile($profile, $command);
+    expect(DB::table('prc_process_runs')->count())->toBe(1);
+    $first = DB::table('prc_process_work')->sole();
+    $snapshot = F::workSnapshot($first->id);
+    launchUiProfile($profile);
+    expect(DB::table('prc_process_runs')->count())->toBe(2)
+        ->and(F::workSnapshot($first->id))->toBe($snapshot)
+        ->and(DB::table('prc_process_work')->where('state', 'ready')->count())->toBe(2)
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
 });
 
-test('«Запустить» ставит CrawlRunJob(mode: профиля) в очередь', function (): void {
-    actAsRunActionsOperator();
-    Queue::fake();
-
-    $crawler = Crawler::factory()->create(['mode' => CrawlerMode::Fresh]);
-
-    Livewire::test(ListCrawlers::class)
-        ->callTableAction('start', record: $crawler)
-        ->assertNotified('Поставлено в очередь');
-
-    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
-        && $job->mode === CrawlerMode::Fresh
-        && $job->executionLane === CrawlerExecutionLane::Standard
-        && $job->connection === 'redis'
-        && $job->queue === 'crawl');
-});
-
-test('«Запустить» при активном прогоне не виден на строке профиля', function (): void {
-    actAsRunActionsOperator();
-
-    $crawler = Crawler::factory()->create();
-    Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
-
-    Livewire::test(ListCrawlers::class)
-        ->assertTableActionHidden('start', record: $crawler)
-        ->assertTableActionHidden('restart', record: $crawler)
-        ->assertTableActionHidden('resume', record: $crawler);
-});
-
-test('прямой вызов StartCrawlerRunAction на активном прогоне отказывает и не ставит второй job', function (): void {
-    Queue::fake();
-
-    $crawler = Crawler::factory()->create();
-    $activeRun = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
-
-    expect(fn () => app(StartCrawlerRunAction::class)->start($crawler))
-        ->toThrow(CrawlerRunAlreadyActive::class, "уже идёт прогон #{$activeRun->id}");
-
-    Queue::assertNotPushed(CrawlRunJob::class);
-});
-
-test('«Продолжить» видна только когда у профиля есть приостановленный прогон', function (): void {
-    actAsRunActionsOperator();
-
-    $crawler = Crawler::factory()->create();
-    Run::factory()->for($crawler)->create(['status' => RunStatus::Paused]);
-
-    Livewire::test(ListCrawlers::class)
-        ->assertTableActionVisible('resume', record: $crawler)
-        ->assertTableActionHidden('start', record: $crawler);
-});
-
-test('«Запустить с начала» обнуляет курсор приостановленного прогона', function (): void {
-    actAsRunActionsOperator();
-    Queue::fake();
-
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create([
-        'status' => RunStatus::Paused,
-        'cursor' => (new ListingCursor(blockFrom: 7, reachedKnown: true))->toArray(),
-        'stats' => [
-            'execution_context' => ['mode' => 'archive', 'from' => '2025-01-01', 'to' => '2025-12-31'],
-            'automatic_recovery_pending' => true,
-            'previous_observation' => 1,
-        ],
-    ]);
-
-    Livewire::test(ListCrawlers::class)
-        ->callTableAction('restart', record: $crawler)
-        ->assertNotified('Поставлено в очередь');
-
-    $cursor = $run->refresh()->cursor->toArray();
-    $expectedCursor = (new ListingCursor)->toArray();
-    ksort($cursor);
-    ksort($expectedCursor);
-
-    expect($cursor)->toBe($expectedCursor)
-        ->and($run->stats->has('execution_context'))->toBeFalse()
-        ->and($run->stats->has('automatic_recovery_pending'))->toBeFalse()
-        ->and($run->stats['previous_observation'])->toBe(1);
-
-    Queue::assertPushed(CrawlRunJob::class);
-});
-
-test('«Остановить» на строке прогона пишет запрос кооперативной остановки', function (): void {
-    actAsRunActionsOperator();
-
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
-
-    Livewire::test(ListRuns::class)
-        ->callTableAction('pause', record: $run)
-        ->assertNotified('Остановка запрошена — прогон завершится на текущем блоке');
-
-    $run->refresh();
-
-    expect($run->stop_kind)->toBe(RunStopKind::Pause)
-        ->and($run->stop_requested_at)->not->toBeNull()
-        ->and($run->status)->toBe(RunStatus::Running);
-});
-
-test('«Отменить» на карточке прогона пишет запрос кооперативной остановки', function (): void {
-    $operator = actAsRunActionsOperator();
-
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
-
-    Livewire::test(ViewRun::class, ['record' => $run->getKey()])
-        ->callAction('cancel')
-        ->assertNotified('Остановка запрошена — прогон завершится на текущем блоке');
-
-    $run->refresh();
-
-    expect($run->stop_kind)->toBe(RunStopKind::Cancel)
-        ->and($run->stop_requested_by)->toBe($operator->id);
-});
-
-test('«Остановить»/«Отменить» не видны на терминальном прогоне', function (): void {
-    actAsRunActionsOperator();
-
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Completed, 'finished_at' => now()]);
-
-    Livewire::test(ListRuns::class)
-        ->assertTableActionHidden('pause', record: $run)
-        ->assertTableActionHidden('cancel', record: $run);
-});
-
-test('повторный запрос того же вида остановки — no-op, второй запрос другого вида меняет kind', function (): void {
-    actAsRunActionsOperator();
-
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
-
-    $page = Livewire::test(ListRuns::class);
-
-    $page->callTableAction('pause', record: $run);
-    $firstRequestedAt = $run->refresh()->stop_requested_at;
-
-    $page->callTableAction('pause', record: $run);
-    expect($run->refresh()->stop_requested_at->equalTo($firstRequestedAt))->toBeTrue();
-
-    $page->callTableAction('cancel', record: $run);
-    expect($run->refresh()->stop_kind)->toBe(RunStopKind::Cancel);
-});
-
-test('без RunPermission::Update кнопки остановки прогона не видны', function (): void {
+test('Process launch gateway enforces actor and profile version without a second execution owner', function (): void {
+    $profile = F::create();
     $analyst = User::factory()->create();
-    $analyst->assignRole(AnalystRole::class);
-    actingAs($analyst);
-
-    $crawler = Crawler::factory()->create();
-    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
-
-    Livewire::test(ListRuns::class)
-        ->assertTableActionHidden('pause', record: $run)
-        ->assertTableActionHidden('cancel', record: $run);
+    $analyst->assignRole('analyst');
+    expect(fn () => app(LaunchAcquisition::class)->execute($analyst, $profile, $profile->profile_version, LedgerFixtures::uuid()))
+        ->toThrow(AuthorizationException::class);
+    $version = $profile->profile_version;
+    $profile->update(['name' => 'Edited']);
+    expect(fn () => app(LaunchAcquisition::class)->execute($this->operator, $profile, $version, LedgerFixtures::uuid()))
+        ->toThrow(InvalidArgumentException::class)
+        ->and(DB::table('prc_process_runs')->count())->toBe(0);
 });
 
-/**
- * P3.8 (D113): профиль в кейсах архивного окна заводится ЯВНО с `mode: CrawlerMode::Archive` —
- * дефолт `CrawlerFactory` равен `Fresh`, и именно поэтому окно раньше не тестировалось (Анти-
- * самообман item'а).
- */
-function crawlerArchiveWithWindow(): Crawler
-{
-    return Crawler::factory()
-        ->filter(new EisSearchFilter(
-            okpd2Codes: ['43'],
-            publishedFrom: CarbonImmutable::parse('2025-01-01'),
-            publishedTo: CarbonImmutable::parse('2025-12-31'),
-        ))
-        ->create(['mode' => CrawlerMode::Archive, 'execution_lane' => CrawlerExecutionLane::Long]);
-}
-
-test('archive-профиль с окном: «Запустить» ставит CrawlRunJob(mode: Archive) с окном профиля', function (): void {
-    actAsRunActionsOperator();
-    Queue::fake();
-
-    $crawler = crawlerArchiveWithWindow();
-
-    Livewire::test(ListCrawlers::class)
-        ->callTableAction('start', record: $crawler)
-        ->assertNotified('Поставлено в очередь');
-
-    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
-        && $job->mode === CrawlerMode::Archive
-        && $job->executionLane === CrawlerExecutionLane::Long
-        && $job->connection === 'redis_crawl_long'
-        && $job->queue === 'crawl_long'
-        && str_starts_with((string) $job->from, '2025-01-01')
-        && str_starts_with((string) $job->to, '2025-12-31'));
+test('archive UI launch pins every profile day and replay preserves the existing work', function (): void {
+    $profile = F::create(AcquisitionKind::Archive);
+    $profile->update(['filter' => new EisSearchFilter(okpd2Codes: ['43'],
+        publishedFrom: CarbonImmutable::parse('2025-01-01'), publishedTo: CarbonImmutable::parse('2025-01-03'))]);
+    $command = LedgerFixtures::uuid()->value;
+    launchUiProfile($profile, $command);
+    $before = DB::table('prc_process_work')->orderBy('id')->pluck('id')->all();
+    launchUiProfile($profile, $command);
+    expect(F::cursors($profile))->toHaveCount(3)
+        ->and(array_map(fn ($cursor) => $cursor->day, F::cursors($profile)))->toEqualCanonicalizing(['2025-01-01', '2025-01-02', '2025-01-03'])
+        ->and(DB::table('prc_process_work')->orderBy('id')->pluck('id')->all())->toBe($before)
+        ->and(DB::table('prc_process_runs')->count())->toBe(1);
 });
 
-test('archive-профиль с окном: «Запустить с начала» обнуляет курсор и ставит job с окном профиля', function (): void {
-    actAsRunActionsOperator();
-    Queue::fake();
-
-    $crawler = crawlerArchiveWithWindow();
-    Run::factory()->for($crawler)->create([
-        'status' => RunStatus::Paused,
-        'cursor' => (new ListingCursor(blockFrom: 7, reachedKnown: true))->toArray(),
-    ]);
-
-    Livewire::test(ListCrawlers::class)
-        ->callTableAction('restart', record: $crawler)
-        ->assertNotified('Поставлено в очередь');
-
-    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
-        && $job->mode === CrawlerMode::Archive
-        && $job->executionLane === CrawlerExecutionLane::Long
-        && $job->connection === 'redis_crawl_long'
-        && $job->queue === 'crawl_long'
-        && str_starts_with((string) $job->from, '2025-01-01')
-        && str_starts_with((string) $job->to, '2025-12-31'));
+test('archive UI launch rejects an absent range before creating a run', function (): void {
+    $profile = F::create(AcquisitionKind::Archive);
+    $profile->update(['filter' => new EisSearchFilter(okpd2Codes: ['43'])]);
+    launchUiProfile($profile);
+    expect(DB::table('prc_process_runs')->count())->toBe(0)
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
 });
 
-test('archive-профиль с окном: «Продолжить» ставит job с окном профиля', function (): void {
-    actAsRunActionsOperator();
-    Queue::fake();
-
-    $crawler = crawlerArchiveWithWindow();
-    Run::factory()->for($crawler)->create(['status' => RunStatus::Paused]);
-
-    Livewire::test(ListCrawlers::class)
-        ->callTableAction('resume', record: $crawler)
-        ->assertNotified('Поставлено в очередь');
-
-    Queue::assertPushed(CrawlRunJob::class, fn (CrawlRunJob $job): bool => $job->crawlerId === $crawler->id
-        && $job->mode === CrawlerMode::Archive
-        && $job->executionLane === CrawlerExecutionLane::Long
-        && $job->connection === 'redis_crawl_long'
-        && $job->queue === 'crawl_long'
-        && str_starts_with((string) $job->from, '2025-01-01')
-        && str_starts_with((string) $job->to, '2025-12-31'));
+test('Process UI pause resume preserves work checkpoint and audits both scope versions', function (): void {
+    $f = L::run();
+    $before = F::workSnapshot($f['work']->value->value);
+    $scope = ControlScope::query()->where('scope_key', 'acquisition')->sole();
+    $version = $scope->control_version;
+    Livewire::test(ListControlScopes::class)->assertTableActionVisible('pause', $scope)
+        ->callTableAction('pause', $scope, ['reason' => 'inspect source'])->assertHasNoTableActionErrors();
+    expect($scope->refresh()->desired_mode->value)->toBe('paused');
+    Livewire::test(ListControlScopes::class)->assertTableActionVisible('resume', $scope)
+        ->callTableAction('resume', $scope, ['reason' => 'source inspected'])->assertHasNoTableActionErrors();
+    expect($scope->refresh()->desired_mode->value)->toBe('enabled')->and($scope->control_version)->toBe($version + 2)
+        ->and(F::workSnapshot($f['work']->value->value))->toBe($before)
+        ->and(DB::table('prc_process_transitions')->where('entity_kind', 'control')->where('actor_id', $this->operator->id)->count())->toBe(2);
 });
 
-test('archive-профиль БЕЗ окна: «Запустить» отказывает, job не поставлен и прогон не создан', function (): void {
-    actAsRunActionsOperator();
-    Queue::fake();
-
-    $crawler = Crawler::factory()
-        ->filter(new EisSearchFilter(okpd2Codes: ['43']))
-        ->create(['mode' => CrawlerMode::Archive]);
-
-    Livewire::test(ListCrawlers::class)
-        ->callTableAction('start', record: $crawler)
-        ->assertNotified(ArchiveWindowMissing::forCrawler($crawler)->getMessage());
-
-    Queue::assertNotPushed(CrawlRunJob::class);
-    expect(Run::query()->where('crawler_id', $crawler->id)->count())->toBe(0);
+test('Process UI cancel is audited idempotent and keeps another runs required work', function (): void {
+    $f = L::run();
+    $other = L::run(registry: Registry::query()->sole());
+    app(WorkStoreRepository::class)->linkRun($other['run'], $f['work'], RunWorkRelation::Discovered, AccountingRole::Required);
+    $run = ProcessRun::query()->findOrFail($f['run']->value);
+    Livewire::test(ListProcessRuns::class)->callTableAction('cancel_run', $run, ['reason' => 'cancel this intent'])
+        ->assertHasNoTableActionErrors();
+    $version = $run->refresh()->transition_seq;
+    Livewire::test(ListProcessRuns::class)->assertTableActionHidden('cancel_run', $run);
+    expect($run->cancel_requested_at)->not->toBeNull()
+        ->and(DB::table('prc_process_runs')->where('id', $other['run']->value)->value('cancel_requested_at'))->toBeNull()
+        ->and(DB::table('prc_process_work')->where('id', $f['work']->value->value)->value('state'))->toBe('ready')
+        ->and(DB::table('prc_process_transitions')->where('run_id', $f['run']->value)->where('actor_id', $this->operator->id)->count())->toBe(1)
+        ->and($run->refresh()->transition_seq)->toBe($version);
 });
 
-test('archive-профиль с окном: «Остановить» пишет запрос кооперативной остановки', function (): void {
-    actAsRunActionsOperator();
-
-    $crawler = crawlerArchiveWithWindow();
-    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
-
-    Livewire::test(ListRuns::class)
-        ->callTableAction('pause', record: $run)
-        ->assertNotified('Остановка запрошена — прогон завершится на текущем блоке');
-
-    $run->refresh();
-
-    expect($run->stop_kind)->toBe(RunStopKind::Pause)
-        ->and($run->stop_requested_at)->not->toBeNull()
-        ->and($run->status)->toBe(RunStatus::Running);
-});
-
-test('archive-профиль с окном: «Отменить» пишет запрос кооперативной остановки', function (): void {
-    $operator = actAsRunActionsOperator();
-
-    $crawler = crawlerArchiveWithWindow();
-    $run = Run::factory()->for($crawler)->create(['status' => RunStatus::Running]);
-
-    Livewire::test(ViewRun::class, ['record' => $run->getKey()])
-        ->callAction('cancel')
-        ->assertNotified('Остановка запрошена — прогон завершится на текущем блоке');
-
-    $run->refresh();
-
-    expect($run->stop_kind)->toBe(RunStopKind::Cancel)
-        ->and($run->stop_requested_by)->toBe($operator->id);
+test('Process UI terminal runs hide cancel and an analyst cannot launch or mutate controls', function (): void {
+    $f = L::run();
+    L::finish($f['work'], $f['input'], L::page());
+    $pass = L::next($f['crawl']) ?? throw new LogicException('Missing pass');
+    L::finish($pass['work'], $pass['input'], L::page());
+    $run = ProcessRun::query()->findOrFail($f['run']->value);
+    Livewire::test(ListProcessRuns::class)->assertTableActionHidden('cancel_run', $run);
+    $analyst = User::factory()->create();
+    $analyst->assignRole('analyst');
+    $this->actingAs($analyst);
+    $profile = F::create();
+    $this->get(CrawlerResource::getUrl())->assertForbidden();
+    expect(fn () => app(LaunchAcquisition::class)->execute($analyst, $profile, $profile->profile_version, LedgerFixtures::uuid()))
+        ->toThrow(AuthorizationException::class);
+    $this->get(ControlScopeResource::getUrl())->assertForbidden();
+    $this->get(ProcessRunResource::getUrl())->assertOk();
+    $active = L::run(registry: Registry::query()->firstOrFail());
+    Livewire::test(ListProcessRuns::class)->assertTableActionHidden('cancel_run',
+        ProcessRun::query()->findOrFail($active['run']->value));
 });

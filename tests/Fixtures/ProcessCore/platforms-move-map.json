@@ -55,7 +55,8 @@
     {
       "old": "app/Services/Procurement/Eis/CsvSourceMethod.php",
       "new": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
-      "before_sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7"
+      "before_sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7",
+      "removed_in": "P2.18"
     },
     {
       "old": "app/Services/Procurement/Eis/EisCardUrlBuilder.php",
@@ -70,12 +71,14 @@
     {
       "old": "app/Services/Procurement/Eis/EisCsvRowMapper.php",
       "new": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
-      "before_sha256": "42a8ca7d361306d437f33e58585d37edcf69f15e4e4a1ca77920635f20e3be3e"
+      "before_sha256": "42a8ca7d361306d437f33e58585d37edcf69f15e4e4a1ca77920635f20e3be3e",
+      "removed_in": "P2.18"
     },
     {
       "old": "app/Services/Procurement/Eis/EisCsvUrlBuilder.php",
       "new": "app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php",
-      "before_sha256": "0bec91e645e4d9146defd60290f9ca441cfdcb401387debf8af90fba7a8d30f1"
+      "before_sha256": "0bec91e645e4d9146defd60290f9ca441cfdcb401387debf8af90fba7a8d30f1",
+      "removed_in": "P2.18"
     },
     {
       "old": "app/Services/Procurement/Eis/EisDetailParser.php",

@@ -6,7 +6,6 @@ namespace Database\Seeders\Platforms\Eis;
 
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
-use App\Models\Procurement\Crawler\Run;
 use App\Repositories\Procurement\Network\RouteRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
@@ -29,7 +28,7 @@ final class EisJanuary2025AuditSeeder extends Seeder
                 'name' => self::NAME,
             ]);
 
-            if ($crawler->exists && Run::query()->where('crawler_id', $crawler->id)->where('status', 'running')->exists()) {
+            if ($crawler->exists && DB::table('prc_process_runs as r')->join('prc_process_work as w', 'w.origin_run_id', '=', 'r.id')->where('r.profile_id', $crawler->id)->whereIn('w.state', ['admitted', 'running'])->exists()) {
                 throw new RuntimeException('Pause the audit run before reseeding its profile.');
             }
 
@@ -44,13 +43,8 @@ final class EisJanuary2025AuditSeeder extends Seeder
             $filter->priceTo = 1_000_000_000_000;
 
             $crawler->fill([
-                'execution_lane' => $source->execution_lane,
-                'mode' => $source->mode,
-                'stop_policy' => $source->stop_policy,
-                'source_method' => $source->source_method,
-                'fallback_method' => null,
+                'listing_kind' => $source->listing_kind,
                 'filter' => $filter,
-                'options' => json_decode($source->getRawOriginal('options'), associative: true, flags: JSON_THROW_ON_ERROR),
                 'schedule' => null,
                 'is_active' => true,
                 'route_profile_id' => null,

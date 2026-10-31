@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use App\Repositories\Procurement\ProcurementReadRepository;
-use App\Services\Platforms\Eis\Csv\EisCsvRowMapper;
+use App\Services\Platforms\Eis\Csv\EisSummaryParser;
 use App\Services\Procurement\Acquisition\IdentityResolver;
 use App\Services\Procurement\Acquisition\SnapshotFinalizer;
+use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Carbon;
 use Tests\Support\Procurement\SnapshotFactory;
 
@@ -45,16 +45,16 @@ test('изменение цены и статуса создаёт новую р
 });
 
 /**
- * Дефект Д-1: `EisCsvRowMapper::parseDate()` без модификатора `!` подставляет ТЕКУЩЕЕ время
+ * Дефект Д-1: прежний CSV parser без модификатора `!` подставлял ТЕКУЩЕЕ время
  * в компоненты, не указанные форматом источника (`Дата размещения` несёт только `d.m.Y`),
  * поэтому `snapshot_hash` двух парсингов одной и той же строки различался бы из-за времени
- * инжеста, а не факта источника. Снапшот собирается через РЕАЛЬНЫЙ `EisCsvRowMapper` (не
- * `SnapshotFactory` — он строит `Carbon` напрямую, минуя `parseDate`, и дефект не ловит).
+ * инжеста, а не факта источника. Снапшот собирается через РЕАЛЬНЫЙ `EisSummaryParser`
+ * и его `EisSourceClock`, чтобы проверять source date, а не дату из SnapshotFactory.
  */
 test('повторный инжест идентичного CSV-снапшота ЕИС не создаёт вторую ревизию и событие (Д-1)', function () {
-    $crawler = Crawler::factory()->create();
+    $crawler = EisCrawlerFactory::new()->create();
     $registry = $crawler->registry;
-    $mapper = app(EisCsvRowMapper::class);
+    $parser = app(EisSummaryParser::class);
     $processor = app(SnapshotFinalizer::class);
 
     $row = [
@@ -73,18 +73,25 @@ test('повторный инжест идентичного CSV-снапшот�
         'Наименование Заказчика' => 'ГБУ «Тестовое учреждение»',
     ];
 
-    $first = $processor->ingest($mapper->map(row: $row, crawler: $crawler));
+    $snapshot = static function () use ($parser, $row, $registry): ProcurementSnapshotData {
+        $summary = $parser->parse($row);
+
+        return new ProcurementSnapshotData($registry->id, $summary->identity, $summary->title, $summary->sourceStage,
+            Carbon::instance($summary->publishedAt), Carbon::instance($summary->updatedAt),
+            sourceUpdatedAtHasDayPrecision: $summary->updatedAtDayPrecision,
+            initialPrice: $summary->initialPrice, currency: $summary->currency);
+    };
+    $first = $processor->ingest($snapshot());
 
     // Первый инжест сам вправе создать больше одного события (незнакомая пара статусов
     // резолвится как newly-mapped) — базовая линия снимается ПОСЛЕ него, а не жёстко «1».
     $revisionsAfterFirst = ProcurementRevision::query()->where('procurement_id', $first->id)->count();
     $eventsAfterFirst = ProcurementEvent::query()->where('procurement_id', $first->id)->count();
 
-    // Между инжестами системное время ОБЯЗАНО отличаться (иначе тест не ловит Д-1, а совпадает
-    // случайно): пауза гарантирует переход через границу секунды.
-    usleep(1_100_000);
-
-    $second = $processor->ingest($mapper->map(row: $row, crawler: $crawler));
+    // Change the parser clock without sleeping or changing database lease time.
+    $this->travel(2)->seconds();
+    $second = $processor->ingest($snapshot());
+    $this->travelBack();
 
     expect($second->id)->toBe($first->id)
         ->and($second->revision_count)->toBe($revisionsAfterFirst);

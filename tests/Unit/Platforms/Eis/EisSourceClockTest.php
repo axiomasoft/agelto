@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Services\Platforms\Eis\EisSourceClock;
 
 test('время источника читается в Europe/Moscow по умолчанию и возвращается в UTC', function (): void {
-    config()->set('crawler.platforms.eis.source_timezone', 'Europe/Moscow');
+    config()->set('platforms.eis.source_timezone', 'Europe/Moscow');
 
     $date = (new EisSourceClock)->parseDateTime(format: '!d.m.Y H:i', value: '01.10.2026 10:15');
 
@@ -13,7 +13,7 @@ test('время источника читается в Europe/Moscow по ум�
 });
 
 test('часовой пояс источника берётся из конфигурации', function (): void {
-    config()->set('crawler.platforms.eis.source_timezone', 'Asia/Vladivostok');
+    config()->set('platforms.eis.source_timezone', 'Asia/Vladivostok');
 
     $date = (new EisSourceClock)->parseDateTime(format: '!d.m.Y H:i:s', value: '01.10.2026 03:00:00');
 

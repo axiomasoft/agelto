@@ -24,6 +24,7 @@ use App\Enums\Procurement\Process\EventCode;
 use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\WorkState;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
+use App\Exceptions\Procurement\Process\PublicationBlocked;
 use App\Repositories\Procurement\Process\AuthorityRepository;
 use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\WorkFinalizationRepository;
@@ -63,7 +64,11 @@ final readonly class WorkFinalizer
 
     public function complete(ExecutionLease $lease, ValidatedStageResult $result): CompletionResult
     {
-        return $this->apply($lease, new StageSucceeded($result));
+        try {
+            return $this->apply($lease, new StageSucceeded($result));
+        } catch (PublicationBlocked $blocked) {
+            return $this->settle($lease, new StageBlocked($blocked->reason));
+        }
     }
 
     public function settle(ExecutionLease $lease, StagePartial|StageDeferred|StageBlocked|StageFailedItem $outcome): CompletionResult

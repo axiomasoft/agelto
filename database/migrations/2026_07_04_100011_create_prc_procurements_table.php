@@ -14,8 +14,7 @@ use Illuminate\Support\Facades\Schema;
  * всегда `null`; принадлежность подмножеству гарантирует серверный фильтр профиля. Второй
  * носитель того же факта не создаётся (`findings/P1-okpd2-probe.md` §4).
  *
- * Последний измеримый исход разбора карточки хранится в `detail_parse_outcome` и перезаписывается
- * при каждом успешном снятии; история не нужна, healthcheck отбирает по `detail_fetched_at`.
+ * История снятий принадлежит prc_detail_snapshots; execution state хранится в Process.
  * Q16 закрыт D130: новые колонки инвентаря не добавляются, значения остаются в `attributes`.
  */
 return new class extends Migration
@@ -59,12 +58,6 @@ return new class extends Migration
             $table->timestampTz('summary_at')->nullable();
 
             $table->text('detail_url')->nullable();
-            $table->timestampTz('detail_fetched_at')->nullable();
-            $table->integer('detail_attempts')->default(0);
-            $table->text('detail_last_error')->nullable();
-            $table->timestampTz('detail_next_retry_at')->nullable();
-            $table->boolean('detail_failed')->default(false);
-            $table->jsonb('detail_parse_outcome')->nullable();
             $table->timestampTz('succeeded_at')->nullable();
 
             // Без constrained() — prc_revisions партиционирована, FK на неё не строится.

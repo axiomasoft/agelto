@@ -8,6 +8,7 @@ use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
+use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
@@ -103,7 +104,7 @@ test('сменившийся external_id кода активного профи�
     ]);
 
     $registry = Registry::factory()->create(['platform_id' => $platform->id, 'code' => 'fz44']);
-    Crawler::factory()->for($registry)->create(['is_active' => true, 'filter' => ['okpd2Codes' => ['43']]]);
+    EisCrawlerFactory::new()->for($registry)->create(['is_active' => true, 'filter' => ['okpd2Codes' => ['43']]]);
 
     $this->artisan('crawler:okpd2-sync')
         ->expectsOutputToContain('сменился id узла 43: 7000000 → 8873921')
@@ -126,7 +127,7 @@ test('дрейф кода, которым не фильтрует ни один 
     ]);
 
     $registry = Registry::factory()->create(['platform_id' => $platform->id, 'code' => 'fz44']);
-    Crawler::factory()->for($registry)->create(['is_active' => false, 'filter' => ['okpd2Codes' => ['43']]]);
+    EisCrawlerFactory::new()->for($registry)->create(['is_active' => false, 'filter' => ['okpd2Codes' => ['43']]]);
 
     $this->artisan('crawler:okpd2-sync')->assertExitCode(0);
 });

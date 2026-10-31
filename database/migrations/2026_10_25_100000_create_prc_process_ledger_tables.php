@@ -26,10 +26,12 @@ return new class extends Migration
         foreach ($this->statements() as $statement) {
             DB::statement($statement);
         }
+        DB::statement('ALTER TABLE prc_revisions ADD CONSTRAINT prc_revisions_process_run_fk FOREIGN KEY (process_run_id) REFERENCES prc_process_runs(id) ON DELETE NO ACTION');
     }
 
     public function down(): void
     {
+        DB::statement('ALTER TABLE prc_revisions DROP CONSTRAINT IF EXISTS prc_revisions_process_run_fk');
         foreach (array_reverse(self::TABLES) as $table) {
             DB::statement('DROP TABLE IF EXISTS '.$table);
         }
@@ -184,6 +186,7 @@ return new class extends Migration
               cycle_seq bigint NOT NULL DEFAULT 1 CHECK (cycle_seq >= 1),
               expected_head_generation bigint NOT NULL CHECK (expected_head_generation >= 1),
               state text NOT NULL CHECK (state IN ('pending','active','terminal')),
+              pending_reason text NULL CHECK (pending_reason IS NULL OR (state='pending' AND pending_reason='handler_not_activated')),
               requested_at timestamptz NOT NULL,
               next_due_at timestamptz NULL,
               CONSTRAINT prc_operation_intents_intent_key_unique UNIQUE (intent_key)

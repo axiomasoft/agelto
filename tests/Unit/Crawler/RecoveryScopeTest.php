@@ -5,26 +5,26 @@ declare(strict_types=1);
 use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\RecoveryScope;
-use App\Enums\Procurement\Crawler\CrawlerMode;
-use App\Models\Procurement\Crawler\Crawler;
+use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Models\Procurement\Platform\Registry;
+use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 test('сохраняет предметный фильтр fresh-профиля в cursor и накладывает его на archive runtime', function () {
     $registry = Registry::factory()->eis()->create();
-    $freshCrawler = Crawler::factory()
+    $freshCrawler = EisCrawlerFactory::new()
         ->filter(new EisSearchFilter(
             stageApplications: true,
             okpd2Codes: ['43'],
             priceFrom: 100,
             priceTo: 1_000,
         ))
-        ->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Fresh]);
-    $archiveCrawler = Crawler::factory()
+        ->create(['registry_id' => $registry->id, 'listing_kind' => AcquisitionKind::Fresh]);
+    $archiveCrawler = EisCrawlerFactory::new()
         ->filter(new EisSearchFilter(stageCompleted: true, okpd2Codes: ['99'], priceTo: 5_000))
-        ->create(['registry_id' => $registry->id, 'mode' => CrawlerMode::Archive]);
+        ->create(['registry_id' => $registry->id, 'listing_kind' => AcquisitionKind::Archive]);
 
     $scope = RecoveryScope::fromFreshCrawler($freshCrawler);
     $cursor = ListingCursor::fromArray((new ListingCursor(recoveryScope: $scope->toArray()))->toArray());

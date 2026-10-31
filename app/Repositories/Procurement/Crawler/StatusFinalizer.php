@@ -14,6 +14,7 @@ use App\Dto\Procurement\Process\WorkInput;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
+use App\Services\Procurement\Acquisition\AcquisitionProvenance;
 use App\Services\Procurement\Acquisition\DetailValueCodec;
 use App\Services\Procurement\Acquisition\HeadSnapshot;
 use App\Services\Procurement\Acquisition\IdentityResolver;
@@ -56,7 +57,8 @@ final readonly class StatusFinalizer implements StageResultRepository
             $identity = $this->identities->resolve($p->registry_id, $request->identity);
             $tx = LedgerRow::one('SELECT txid_current()::text AS id') ?? throw new \LogicException('Missing tx');
             $p = $this->snapshots->persistLocked($this->heads->make($p, $request->identity, $result->snapshot->title, $result->snapshot->sourceStage),
-                new LockedProcurement($identity, $p, $tx->string('id')), observedAt: Carbon::instance($result->observedAt));
+                new LockedProcurement($identity, $p, $tx->string('id')),
+                processRunId: AcquisitionProvenance::runFor($input), observedAt: Carbon::instance($result->observedAt));
             $this->unknown->record($p);
             if ($p->head_generation !== $oldHead) {
                 DB::update("UPDATE prc_operation_intents SET next_due_at=clock_timestamp() WHERE subject_kind='prc_procurements'

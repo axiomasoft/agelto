@@ -128,14 +128,14 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_04_100008_create_ref_kbk_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100009_create_org_organizations_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100010_create_prc_procurement_parties_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100011_create_prc_procurements_table.php` | adapt | P2.14 | Canonical platform-scoped primary identity and single EIS extension writer baseline cutover. |
-| `2026_07_04_100012_create_prc_revisions_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100011_create_prc_procurements_table.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
+| `2026_07_04_100012_create_prc_revisions_table.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_07_04_100013_create_prc_events_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100014_create_prc_lots_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100015_create_prc_items_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100016_create_prc_financing_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100017_create_prc_eis_details_table.php` | adapt | P2.14 | Canonical platform-scoped primary identity and single EIS extension writer baseline cutover. |
-| `2026_07_04_100018_create_prc_documents_table.php` | edit_create | P1.6 | P1.6 добавляет head_generation/acquisition_cycle_seq/next_revalidation_due_at в исходный CREATE (execution#subject-locks). |
+| `2026_07_04_100018_create_prc_documents_table.php` | adapt_baseline | P2.18 | Atomic acquisition cutover; versioned source document reference descriptor. |
 | `2026_07_04_100019_create_prc_document_versions_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100020_create_prc_protocols_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100021_create_prc_bids_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
@@ -155,10 +155,9 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_04_100035_create_prc_estimate_items_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100036_create_prc_estimate_resources_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100037_create_prc_estimate_totals_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100038_create_prc_crawlers_table.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
-| `2026_07_04_100039_create_prc_crawler_runs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100038_create_prc_crawlers_table.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_07_04_100040_create_prc_proxies_table.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
-| `2026_07_04_100041_create_prc_fetches_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100041_create_prc_fetches_table.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_07_04_100044_create_prc_ignored_items_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100046_create_prc_operation_logs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100047_setup_pg_partman.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
@@ -184,20 +183,19 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_08_09_100092_add_applicability_to_prc_status_mappings_table.php` | fold_into_create | P2.14 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_08_12_100092_add_screening_summary_search_index.php` | fold_index_into_create | P3.13 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_09_10_100093_repair_partition_coverage.php` | remove_after_clean_proof | P1.1–P1.4 | Кандидат на удаление только owning пунктом после доказанного clean install без repair; P1.1 не удаляет. |
-| `2026_09_10_100094_add_execution_lease_to_prc_crawler_runs.php` | delete_with_owner | P2.18 | Удалить вместе с owning legacy table и последними consumers. |
 | `2026_09_12_100095_preserve_2025_procurement_events.php` | remove_after_clean_proof | P1.1–P1.4 | Кандидат на удаление только owning пунктом после доказанного clean install без repair; P1.1 не удаляет. |
-| `2026_10_07_100096_create_prc_source_control_tables.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_10_07_100096_create_prc_source_control_tables.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_10_08_100101_verify_partition_bounds.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
-| `2026_10_08_100102_add_source_resume_claim.php` | delete_with_owner | P2.18 | Удалить вместе с owning legacy table и последними consumers. |
 | `2026_10_08_100103_store_source_time_precision.php` | fold_into_create | P2.14 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_10_08_100104_catalog_raw_artifacts.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_10_18_170000_add_eis_identity_to_org_organizations.php` | fold_into_create | Organization | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_10_23_100000_create_org_organization_identifiers_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_10_25_100000_create_prc_process_ledger_tables.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
-| `2026_10_25_100000_create_prc_process_network_tables.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
+| `2026_10_25_100000_create_prc_process_ledger_tables.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
+| `2026_10_25_100000_create_prc_process_network_tables.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_10_25_100001_create_prc_request_observation_tables.php` | create | P1.6 | P1.6 durable request attempt/observation carriers execution#s04; network FKs добавляет P2.1. |
 | `2026_10_28_100000_create_prc_process_projection_tables.php` | create | P1.15 | P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured. |
 | `2026_10_28_100002_create_prc_acquisition_snapshot_tables.php` | create | P2.16 | Durable immutable detail observations and recurring status cycles; runtime binding remains P2.18. |
+| `2026_10_31_100000_create_prc_acquisition_schedules_table.php` | create | P2.18 | Durable profile/kind schedule; allocation and next_due advancement share one transaction. |
 
 ### Legacy lifecycle
 
@@ -414,6 +412,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | cycle_seq | bigint | no | cycle_seq bigint NOT NULL DEFAULT 1 CHECK (cycle_seq >= 1) |
 | expected_head_generation | bigint | no | expected_head_generation bigint NOT NULL CHECK (expected_head_generation >= 1) |
 | state | text | no | state text NOT NULL CHECK (state IN ('pending','active','terminal')) |
+| pending_reason | text | yes | pending_reason text NULL CHECK (pending_reason IS NULL OR (state='pending' AND pending_reason='handler_not_activated')) |
 | requested_at | timestamptz | no | requested_at timestamptz NOT NULL |
 | next_due_at | timestamptz | yes | next_due_at timestamptz NULL |
 
@@ -520,15 +519,19 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | terminal_kind | text | yes | terminal_kind text NULL CHECK (terminal_kind IN ('succeeded','partial','deferred','blocked','failed_item','interrupted','cancelled','superseded','lost_ownership')) |
 | worker_host | text | no | worker_host text NOT NULL |
 | worker_pid | integer | no | worker_pid integer NOT NULL |
+| adapter_health_id | uuid | yes | adapter_health_id uuid NULL REFERENCES prc_adapter_health(id) → prc_adapter_health(id) ON DELETE NO ACTION @P2.18 |
+| adapter_health_epoch | bigint | yes | adapter_health_epoch bigint NULL CHECK(adapter_health_epoch IS NULL OR adapter_health_epoch >= 1) |
 
 Constraints:
 - `CONSTRAINT prc_process_attempts_work_generation_unique UNIQUE (work_id, generation)`
 - `CONSTRAINT prc_attempt_work_pair UNIQUE (id, work_id)`
+- `CONSTRAINT prc_process_attempts_adapter_pair CHECK((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL))`
 
 Indexes:
 - `CREATE INDEX prc_process_attempts_fault_idx ON prc_process_attempts (handler_version, fault_signature, finished_at) WHERE fault_signature IS NOT NULL;`
 - `CREATE INDEX prc_process_attempts_work_fault_idx ON prc_process_attempts(work_id,handler_version) WHERE fault_signature IS NOT NULL AND finished_at IS NOT NULL;`
 - `CREATE INDEX prc_process_attempts_fault_policy_pending_idx ON prc_process_attempts (finished_at,id) WHERE fault_signature IS NOT NULL AND fault_policy_checked_at IS NULL;`
+- `CREATE INDEX prc_process_attempts_adapter_live ON prc_process_attempts(adapter_health_id, adapter_health_epoch) WHERE finished_at IS NULL AND adapter_health_id IS NOT NULL`
 
 #### prc_admission_groups
 
@@ -681,6 +684,7 @@ Create: P2.1; activation boundary: P2.6; owner: `Repositories/Procurement/Networ
 | provider_key | text | yes | provider_key text NULL CHECK(provider_key ~ '^[a-z][a-z0-9_.:-]{0,95}$') |
 | adapter_health_id | uuid | yes | adapter_health_id uuid NULL REFERENCES prc_adapter_health(id) → prc_adapter_health(id) ON DELETE NO ACTION @P2.6 |
 | adapter_health_epoch | bigint | yes | adapter_health_epoch bigint NULL CHECK(adapter_health_epoch >= 1) |
+| parent_attempt_id | uuid | yes | parent_attempt_id uuid NULL REFERENCES prc_process_attempts(id) CHECK(parent_attempt_id IS NULL OR kind='probe') → prc_process_attempts(id) ON DELETE NO ACTION @P2.18 |
 | caller_code | text | no | caller_code text NOT NULL |
 | state | text | no | state text NOT NULL CHECK(state IN ('open','closed','expired')) |
 | owner_token | uuid | no | owner_token uuid NOT NULL |
@@ -1194,12 +1198,14 @@ Indexes:
 
 #### prc_procurement_documents
 
-Create: P2.18; activation boundary: P2.18; owner: `Repositories/Procurement/Crawler`; retention: business. Contract: implementation-blueprint#bp-ddl-core.
+Create: P2.18; activation boundary: P2.18; owner: `Repositories/Procurement/Document`; retention: business. Contract: implementation-blueprint#bp-ddl-core.
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
 | procurement_id | bigint | no | procurement_id bigint NOT NULL REFERENCES prc_procurements(id) → prc_procurements(id) ON DELETE NO ACTION @P2.14 |
 | document_id | bigint | no | document_id bigint NOT NULL REFERENCES prc_documents(id) → prc_documents(id) ON DELETE NO ACTION @P2.14 |
+| observed_at | timestamptz | no | observed_at timestamptz NOT NULL |
+| removed_at | timestamptz | yes | removed_at timestamptz NULL |
 
 Constraints:
 - `PRIMARY KEY(procurement_id,document_id)`
@@ -1621,23 +1627,21 @@ Constraints:
 
 #### prc_documents @P2.18
 
-Stable source key включает adapter scope; manual UUID namespace; signed URL rotation не меняет identity. Existing prc_documents сохраняется, pending acquisition intent до P3.5.
+Canonical references use platform/source key; CHECK requires the full descriptor/version/observation tuple. Nullable only for surviving manual/legacy document rows until P3.5. Observed title/external_id use existing columns. Access rotation increments descriptor version, not content head.
 
 | Column | Type | Nullable | Target declaration |
 | --- | --- | --- | --- |
-| platform_id | bigint | yes | platform_id bigint NULL REFERENCES prc_platforms(id) |
-| source_document_key | text | no | source_document_key text NOT NULL |
-| source_key_version | smallint | no | source_key_version smallint NOT NULL CHECK(source_key_version>0) |
-| access_descriptor | jsonb | no | access_descriptor jsonb NOT NULL |
-| access_descriptor_schema_version | smallint | no | access_descriptor_schema_version smallint NOT NULL CHECK(access_descriptor_schema_version>0) |
-| access_descriptor_version | bigint | no | access_descriptor_version bigint NOT NULL DEFAULT 1 CHECK(access_descriptor_version>=1) |
-| observed_metadata | jsonb | no | observed_metadata jsonb NOT NULL |
-| observed_metadata_schema_version | smallint | no | observed_metadata_schema_version smallint NOT NULL CHECK(observed_metadata_schema_version>0) |
+| source_document_key | text | yes | source_document_key text COLLATE "C" NULL |
+| source_key_version | integer | yes | source_key_version integer NULL |
+| access_descriptor | jsonb | yes | access_descriptor jsonb NULL |
+| access_schema_version | integer | yes | access_schema_version integer NULL |
+| access_descriptor_version | bigint | yes | access_descriptor_version bigint NULL |
+| reference_observed_at | timestamptz | yes | reference_observed_at timestamptz NULL |
 
 Remove at this cutover: none.
 
 Constraints:
-- `UNIQUE NULLS NOT DISTINCT(platform_id,source_document_key)`
+- `CHECK ((((source_document_key IS NULL) AND (source_key_version IS NULL) AND (access_descriptor IS NULL) AND (access_schema_version IS NULL) AND (access_descriptor_version IS NULL) AND (reference_observed_at IS NULL)) OR ((source_document_key IS NOT NULL) AND ((octet_length(source_document_key) >= 1) AND (octet_length(source_document_key) <= 1024)) AND (source_key_version IS NOT NULL) AND (source_key_version >= 1) AND (access_descriptor IS NOT NULL) AND (jsonb_typeof(access_descriptor) = 'object'::text) AND (access_schema_version IS NOT NULL) AND (access_schema_version = 1) AND (access_descriptor_version IS NOT NULL) AND (access_descriptor_version >= 1) AND (reference_observed_at IS NOT NULL))))`
 
 #### prc_crawlers @P2.6
 
@@ -1653,15 +1657,14 @@ Constraints:
 
 #### prc_crawlers @P2.18
 
-Profile schema/destructive rename вместе с последними acquisition consumers.
+Profile/version/listing kind select typed capabilities through registered PlatformDefinition; prepared immutable configuration pins filter, route policy and adapter versions. No parallel mutable capability JSON.
 
 | Column | Type | Nullable | Target declaration |
 | --- | --- | --- | --- |
 | listing_kind | text | no | listing_kind text NOT NULL CHECK(listing_kind IN ('fresh','archive','delta')) |
-| capability_selection | jsonb | no | capability_selection jsonb NOT NULL |
-| capability_selection_schema_version | smallint | no | capability_selection_schema_version smallint NOT NULL CHECK(capability_selection_schema_version>0) |
+| profile_version | bigint | no | profile_version bigint NOT NULL DEFAULT 1 |
 
-Remove at this cutover: mode, source_method, fallback_method, execution_lane, stop_policy.
+Remove at this cutover: mode, source_method, fallback_method, execution_lane, stop_policy, options.
 
 Constraints:
 
@@ -2191,6 +2194,31 @@ Constraints:
 
 Indexes:
 - `password_reset_tokens_pkey`: `CREATE UNIQUE INDEX password_reset_tokens_pkey ON public.password_reset_tokens USING btree (email)`
+
+#### prc_acquisition_schedules
+
+Owner: AcquisitionScheduler; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| profile_id | bigint / int8 | NO | bigint NOT NULL |
+| acquisition_kind | text / text | NO | text NOT NULL |
+| cron | text / text | NO | text NOT NULL |
+| timezone | text / text | NO | text NOT NULL |
+| profile_version | bigint / int8 | NO | bigint NOT NULL |
+| next_due_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_acquisition_schedules_acquisition_kind_check`: `CHECK ((acquisition_kind = ANY (ARRAY['fresh'::text, 'archive'::text, 'delta'::text])))`
+- `prc_acquisition_schedules_cron_check`: `CHECK (((length(cron) >= 1) AND (length(cron) <= 200)))`
+- `prc_acquisition_schedules_pkey`: `PRIMARY KEY (profile_id, acquisition_kind)`
+- `prc_acquisition_schedules_profile_id_fkey`: `FOREIGN KEY (profile_id) REFERENCES prc_crawlers(id)`
+- `prc_acquisition_schedules_profile_version_check`: `CHECK ((profile_version > 0))`
+- `prc_acquisition_schedules_timezone_check`: `CHECK (((length(timezone) >= 1) AND (length(timezone) <= 100)))`
+
+Indexes:
+- `prc_acquisition_schedules_due_idx`: `CREATE INDEX prc_acquisition_schedules_due_idx ON public.prc_acquisition_schedules USING btree (next_due_at, profile_id, acquisition_kind)`
+- `prc_acquisition_schedules_pkey`: `CREATE UNIQUE INDEX prc_acquisition_schedules_pkey ON public.prc_acquisition_schedules USING btree (profile_id, acquisition_kind)`
 
 #### prc_adapter_health
 
@@ -2810,50 +2838,6 @@ Indexes:
 - `prc_crawl_runs_pkey`: `CREATE UNIQUE INDEX prc_crawl_runs_pkey ON public.prc_crawl_runs USING btree (id)`
 - `prc_crawl_runs_process_run_id_unique`: `CREATE UNIQUE INDEX prc_crawl_runs_process_run_id_unique ON public.prc_crawl_runs USING btree (process_run_id)`
 
-#### prc_crawler_runs
-
-Owner: Procurement; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| crawler_id | bigint / int8 | NO | bigint NOT NULL |
-| status | text / text | NO | text NOT NULL |
-| purpose | text / text | NO | text DEFAULT 'profile'::text NOT NULL |
-| subject_key | text / text | YES | text |
-| cursor | jsonb / jsonb | YES | jsonb |
-| stats | jsonb / jsonb | YES | jsonb |
-| started_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| finished_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| last_heartbeat_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| attempts | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| last_error | text / text | YES | text |
-| last_error_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| next_retry_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| failed_permanently | boolean / bool | NO | boolean DEFAULT false NOT NULL |
-| stop_requested_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| stop_kind | text / text | YES | text |
-| stop_requested_by | bigint / int8 | YES | bigint |
-| queue_job_id | text / text | YES | text |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| execution_owner_token | uuid / uuid | YES | uuid |
-| execution_lease_expires_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| source_resume_claimed_until | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| source_resume_checked_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-
-Constraints:
-- `prc_crawler_runs_crawler_id_foreign`: `FOREIGN KEY (crawler_id) REFERENCES prc_crawlers(id)`
-- `prc_crawler_runs_pkey`: `PRIMARY KEY (id)`
-- `prc_crawler_runs_stop_requested_by_foreign`: `FOREIGN KEY (stop_requested_by) REFERENCES users(id) ON DELETE SET NULL`
-
-Indexes:
-- `prc_crawler_runs_crawler_id_index`: `CREATE INDEX prc_crawler_runs_crawler_id_index ON public.prc_crawler_runs USING btree (crawler_id)`
-- `prc_crawler_runs_crawler_id_running_unique`: `CREATE UNIQUE INDEX prc_crawler_runs_crawler_id_running_unique ON public.prc_crawler_runs USING btree (crawler_id) WHERE (status = 'running'::text)`
-- `prc_crawler_runs_execution_lease_expires_at_index`: `CREATE INDEX prc_crawler_runs_execution_lease_expires_at_index ON public.prc_crawler_runs USING btree (execution_lease_expires_at)`
-- `prc_crawler_runs_pkey`: `CREATE UNIQUE INDEX prc_crawler_runs_pkey ON public.prc_crawler_runs USING btree (id)`
-- `prc_runs_source_resume_due`: `CREATE INDEX prc_runs_source_resume_due ON public.prc_crawler_runs USING btree (source_resume_claimed_until, source_resume_checked_at, id) WHERE ((status = 'paused'::text) AND (purpose = 'profile'::text) AND ((stats ->> 'source_suspended'::text) = 'true'::text))`
-
 #### prc_crawlers
 
 Owner: Procurement; retention: business.
@@ -2863,20 +2847,17 @@ Owner: Procurement; retention: business.
 | id | bigint / int8 | NO | bigint NOT NULL |
 | registry_id | bigint / int8 | NO | bigint NOT NULL |
 | name | text / text | NO | text NOT NULL |
-| mode | text / text | NO | text NOT NULL |
-| source_method | text / text | NO | text NOT NULL |
-| fallback_method | text / text | YES | text |
+| profile_version | bigint / int8 | NO | bigint DEFAULT '1'::bigint NOT NULL |
+| listing_kind | text / text | NO | text DEFAULT 'fresh'::text NOT NULL |
 | filter | jsonb / jsonb | YES | jsonb |
 | schedule | text / text | YES | text |
-| options | jsonb / jsonb | YES | jsonb |
 | route_profile_id | uuid / uuid | YES | uuid |
-| stop_policy | text / text | NO | text DEFAULT 'default'::text NOT NULL |
-| execution_lane | text / text | NO | text DEFAULT 'standard'::text NOT NULL |
 | is_active | boolean / bool | NO | boolean DEFAULT true NOT NULL |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 
 Constraints:
+- `prc_crawlers_listing_kind_check`: `CHECK ((listing_kind = ANY (ARRAY['fresh'::text, 'archive'::text, 'delta'::text])))`
 - `prc_crawlers_pkey`: `PRIMARY KEY (id)`
 - `prc_crawlers_registry_id_foreign`: `FOREIGN KEY (registry_id) REFERENCES prc_registries(id)`
 - `prc_crawlers_route_profile_id_foreign`: `FOREIGN KEY (route_profile_id) REFERENCES prc_network_route_profiles(id)`
@@ -2991,6 +2972,12 @@ Owner: Repositories/Procurement (subject authority; Process head fields from P1.
 | procurement_id | bigint / int8 | YES | bigint |
 | platform_id | bigint / int8 | NO | bigint NOT NULL |
 | external_id | text / text | YES | text |
+| source_document_key | text / text | YES | text COLLATE pg_catalog."C" |
+| source_key_version | integer / int4 | YES | integer |
+| access_descriptor | jsonb / jsonb | YES | jsonb |
+| access_schema_version | integer / int4 | YES | integer |
+| access_descriptor_version | bigint / int8 | YES | bigint |
+| reference_observed_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
 | title | text / text | NO | text NOT NULL |
 | kind | text / text | YES | text |
 | source_url | text / text | YES | text |
@@ -3017,6 +3004,7 @@ Constraints:
 - `prc_documents_pkey`: `PRIMARY KEY (id)`
 - `prc_documents_platform_id_foreign`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
 - `prc_documents_procurement_id_foreign`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id) ON DELETE RESTRICT`
+- `prc_documents_reference_check`: `CHECK ((((source_document_key IS NULL) AND (source_key_version IS NULL) AND (access_descriptor IS NULL) AND (access_schema_version IS NULL) AND (access_descriptor_version IS NULL) AND (reference_observed_at IS NULL)) OR ((source_document_key IS NOT NULL) AND ((octet_length(source_document_key) >= 1) AND (octet_length(source_document_key) <= 1024)) AND (source_key_version IS NOT NULL) AND (source_key_version >= 1) AND (access_descriptor IS NOT NULL) AND (jsonb_typeof(access_descriptor) = 'object'::text) AND (access_schema_version IS NOT NULL) AND (access_schema_version = 1) AND (access_descriptor_version IS NOT NULL) AND (access_descriptor_version >= 1) AND (reference_observed_at IS NOT NULL))))`
 - `prc_documents_uuid_unique`: `UNIQUE (uuid)`
 
 Indexes:
@@ -3024,6 +3012,7 @@ Indexes:
 - `prc_documents_platform_id_index`: `CREATE INDEX prc_documents_platform_id_index ON public.prc_documents USING btree (platform_id)`
 - `prc_documents_procurement_external_id_unique`: `CREATE UNIQUE INDEX prc_documents_procurement_external_id_unique ON public.prc_documents USING btree (procurement_id, external_id) WHERE (external_id IS NOT NULL)`
 - `prc_documents_procurement_id_index`: `CREATE INDEX prc_documents_procurement_id_index ON public.prc_documents USING btree (procurement_id)`
+- `prc_documents_source_key_unique`: `CREATE UNIQUE INDEX prc_documents_source_key_unique ON public.prc_documents USING btree (platform_id, source_document_key) WHERE (source_document_key IS NOT NULL)`
 - `prc_documents_unprocessable_reason_index`: `CREATE INDEX prc_documents_unprocessable_reason_index ON public.prc_documents USING btree (unprocessable_reason)`
 - `prc_documents_uuid_unique`: `CREATE UNIQUE INDEX prc_documents_uuid_unique ON public.prc_documents USING btree (uuid)`
 
@@ -3354,7 +3343,6 @@ Owner: Procurement; retention: requests.
 | proxy_source | text / text | YES | text |
 
 Constraints:
-- `prc_fetches_crawler_run_id_foreign`: `FOREIGN KEY (crawler_run_id) REFERENCES prc_crawler_runs(id)`
 - `prc_fetches_pkey`: `PRIMARY KEY (id, fetched_at)`
 - `prc_fetches_procurement_id_foreign`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
 - `prc_fetches_proxy_id_foreign`: `FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id)`
@@ -3781,11 +3769,13 @@ Owner: Repositories/Procurement/Process; retention: authority.
 | cycle_seq | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
 | expected_head_generation | bigint / int8 | NO | bigint NOT NULL |
 | state | text / text | NO | text NOT NULL |
+| pending_reason | text / text | YES | text |
 | requested_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
 | next_due_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
 
 Constraints:
 - `prc_operation_intents_access_policy_hash_check`: `CHECK ((octet_length(access_policy_hash) = 32))`
+- `prc_operation_intents_check`: `CHECK (((pending_reason IS NULL) OR ((state = 'pending'::text) AND (pending_reason = 'handler_not_activated'::text))))`
 - `prc_operation_intents_cycle_seq_check`: `CHECK ((cycle_seq >= 1))`
 - `prc_operation_intents_expected_head_generation_check`: `CHECK ((expected_head_generation >= 1))`
 - `prc_operation_intents_intent_key_check`: `CHECK ((octet_length(intent_key) = 32))`
@@ -3855,6 +3845,7 @@ Owner: Repositories/Procurement/Network; retention: requests.
 | provider_key | text / text | YES | text |
 | adapter_health_id | uuid / uuid | YES | uuid |
 | adapter_health_epoch | bigint / int8 | YES | bigint |
+| parent_attempt_id | uuid / uuid | YES | uuid |
 | caller_code | text / text | NO | text NOT NULL |
 | state | text / text | NO | text NOT NULL |
 | owner_token | uuid / uuid | NO | uuid NOT NULL |
@@ -3871,12 +3862,14 @@ Constraints:
 - `prc_outbound_operations_adapter_health_id_fkey`: `FOREIGN KEY (adapter_health_id) REFERENCES prc_adapter_health(id)`
 - `prc_outbound_operations_check`: `CHECK (((platform_id IS NULL) OR (provider_key IS NULL)))`
 - `prc_outbound_operations_check1`: `CHECK (((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL)))`
-- `prc_outbound_operations_check2`: `CHECK ((lease_until <= deadline_at))`
-- `prc_outbound_operations_check3`: `CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL)))`
-- `prc_outbound_operations_check4`: `CHECK (((state = 'open'::text) = (finished_at IS NULL)))`
+- `prc_outbound_operations_check2`: `CHECK (((parent_attempt_id IS NULL) OR (kind = 'probe'::text)))`
+- `prc_outbound_operations_check3`: `CHECK ((lease_until <= deadline_at))`
+- `prc_outbound_operations_check4`: `CHECK (((kind = 'probe'::text) = (probe_token IS NOT NULL)))`
+- `prc_outbound_operations_check5`: `CHECK (((state = 'open'::text) = (finished_at IS NULL)))`
 - `prc_outbound_operations_generation_check`: `CHECK ((generation >= 1))`
 - `prc_outbound_operations_kind_check`: `CHECK ((kind = ANY (ARRAY['legacy_bridge'::text, 'diagnostic'::text, 'probe'::text])))`
 - `prc_outbound_operations_operation_key_key`: `UNIQUE (operation_key)`
+- `prc_outbound_operations_parent_attempt_id_fkey`: `FOREIGN KEY (parent_attempt_id) REFERENCES prc_process_attempts(id)`
 - `prc_outbound_operations_pkey`: `PRIMARY KEY (id)`
 - `prc_outbound_operations_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
 - `prc_outbound_operations_policy_hash_check`: `CHECK ((octet_length(policy_hash) = 32))`
@@ -3965,9 +3958,14 @@ Owner: Repositories/Procurement/Process; retention: authority.
 | terminal_kind | text / text | YES | text |
 | worker_host | text / text | NO | text NOT NULL |
 | worker_pid | integer / int4 | NO | integer NOT NULL |
+| adapter_health_id | uuid / uuid | YES | uuid |
+| adapter_health_epoch | bigint / int8 | YES | bigint |
 
 Constraints:
 - `prc_attempt_work_pair`: `UNIQUE (id, work_id)`
+- `prc_process_attempts_adapter_health_epoch_check`: `CHECK (((adapter_health_epoch IS NULL) OR (adapter_health_epoch >= 1)))`
+- `prc_process_attempts_adapter_health_id_fkey`: `FOREIGN KEY (adapter_health_id) REFERENCES prc_adapter_health(id)`
+- `prc_process_attempts_adapter_pair`: `CHECK (((adapter_health_id IS NULL) = (adapter_health_epoch IS NULL)))`
 - `prc_process_attempts_fault_signature_check`: `CHECK (((fault_signature IS NULL) OR (octet_length(fault_signature) = 32)))`
 - `prc_process_attempts_generation_check`: `CHECK ((generation >= 1))`
 - `prc_process_attempts_owner_token_fingerprint_check`: `CHECK ((octet_length(owner_token_fingerprint) = 32))`
@@ -3978,6 +3976,7 @@ Constraints:
 
 Indexes:
 - `prc_attempt_work_pair`: `CREATE UNIQUE INDEX prc_attempt_work_pair ON public.prc_process_attempts USING btree (id, work_id)`
+- `prc_process_attempts_adapter_live`: `CREATE INDEX prc_process_attempts_adapter_live ON public.prc_process_attempts USING btree (adapter_health_id, adapter_health_epoch) WHERE ((finished_at IS NULL) AND (adapter_health_id IS NOT NULL))`
 - `prc_process_attempts_fault_idx`: `CREATE INDEX prc_process_attempts_fault_idx ON public.prc_process_attempts USING btree (handler_version, fault_signature, finished_at) WHERE (fault_signature IS NOT NULL)`
 - `prc_process_attempts_fault_policy_pending_idx`: `CREATE INDEX prc_process_attempts_fault_policy_pending_idx ON public.prc_process_attempts USING btree (finished_at, id) WHERE ((fault_signature IS NOT NULL) AND (fault_policy_checked_at IS NULL))`
 - `prc_process_attempts_pkey`: `CREATE UNIQUE INDEX prc_process_attempts_pkey ON public.prc_process_attempts USING btree (id)`
@@ -4489,12 +4488,6 @@ Owner: Repositories/Procurement (subject authority; Process head fields from P1.
 | bidding_ends_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
 | summary_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
 | detail_url | text / text | YES | text |
-| detail_fetched_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| detail_attempts | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| detail_last_error | text / text | YES | text |
-| detail_next_retry_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| detail_failed | boolean / bool | NO | boolean DEFAULT false NOT NULL |
-| detail_parse_outcome | jsonb / jsonb | YES | jsonb |
 | succeeded_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
 | current_revision_id | bigint / int8 | YES | bigint |
 | current_revision_detected_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
@@ -4707,13 +4700,13 @@ Owner: Procurement; retention: business.
 | snapshot_hash | text / text | NO | text NOT NULL |
 | source_updated_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
 | detected_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| crawler_run_id | bigint / int8 | YES | bigint |
+| process_run_id | uuid / uuid | YES | uuid |
 | created_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
 | updated_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
 
 Constraints:
-- `prc_revisions_crawler_run_id_foreign`: `FOREIGN KEY (crawler_run_id) REFERENCES prc_crawler_runs(id)`
 - `prc_revisions_pkey`: `PRIMARY KEY (id, detected_at)`
+- `prc_revisions_process_run_fk`: `FOREIGN KEY (process_run_id) REFERENCES prc_process_runs(id)`
 - `prc_revisions_procurement_id_foreign`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id) ON DELETE RESTRICT`
 
 Indexes:
@@ -4814,40 +4807,6 @@ Constraints:
 Indexes:
 - `prc_settings_group_name_unique`: `CREATE UNIQUE INDEX prc_settings_group_name_unique ON public.prc_settings USING btree ("group", name)`
 - `prc_settings_pkey`: `CREATE UNIQUE INDEX prc_settings_pkey ON public.prc_settings USING btree (id)`
-
-#### prc_source_circuits
-
-Owner: Procurement; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| platform_id | bigint / int8 | NO | bigint NOT NULL |
-| stage | text / text | NO | text NOT NULL |
-| enabled | boolean / bool | NO | boolean DEFAULT true NOT NULL |
-| manually_paused | boolean / bool | NO | boolean DEFAULT false NOT NULL |
-| failure_threshold | integer / int4 | YES | integer |
-| layout_threshold | integer / int4 | YES | integer |
-| retry_interval_minutes | integer / int4 | YES | integer |
-| consecutive_failures | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| consecutive_layout_failures | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| consecutive_skips | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| retry_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| held_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| last_failure_kind | text / text | YES | text |
-| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| changed_by | text / text | YES | text |
-| created_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| updated_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-
-Constraints:
-- `prc_source_circuits_pkey`: `PRIMARY KEY (id)`
-- `prc_source_circuits_platform_id_foreign`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id) ON DELETE CASCADE`
-- `prc_source_circuits_platform_id_stage_unique`: `UNIQUE (platform_id, stage)`
-
-Indexes:
-- `prc_source_circuits_pkey`: `CREATE UNIQUE INDEX prc_source_circuits_pkey ON public.prc_source_circuits USING btree (id)`
-- `prc_source_circuits_platform_id_stage_unique`: `CREATE UNIQUE INDEX prc_source_circuits_platform_id_stage_unique ON public.prc_source_circuits USING btree (platform_id, stage)`
 
 #### prc_source_incidents
 
@@ -5245,7 +5204,34 @@ Indexes:
 - `users_email_unique`: `CREATE UNIQUE INDEX users_email_unique ON public.users USING btree (email)`
 - `users_pkey`: `CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)`
 
+#### prc_procurement_documents
+
+Owner: DocumentCatalogRepository; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| procurement_id | bigint / int8 | NO | bigint NOT NULL |
+| document_id | bigint / int8 | NO | bigint NOT NULL |
+| observed_at | timestamp with time zone / timestamptz | NO | timestamp(6) with time zone NOT NULL |
+| removed_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
+
+Constraints:
+- `prc_procurement_documents_document_id_foreign`: `FOREIGN KEY (document_id) REFERENCES prc_documents(id)`
+- `prc_procurement_documents_pkey`: `PRIMARY KEY (procurement_id, document_id)`
+- `prc_procurement_documents_procurement_id_foreign`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
+
+Indexes:
+- `prc_procurement_documents_pkey`: `CREATE UNIQUE INDEX prc_procurement_documents_pkey ON public.prc_procurement_documents USING btree (procurement_id, document_id)`
+
 <!-- schema-inventory:end -->
+
+<!-- schema-inventory:end -->
+
+<!-- schema-inventory:end -->
+
+<!-- schema-inventory:end -->
+
+
 
 ## Передача P1.4 → P1.6–P1.12
 

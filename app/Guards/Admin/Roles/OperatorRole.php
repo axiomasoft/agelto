@@ -22,8 +22,6 @@ use App\Guards\Admin\Permissions\PromptSuggestionPermission;
 use App\Guards\Admin\Permissions\ProviderPermission;
 use App\Guards\Admin\Permissions\ProxyPermission;
 use App\Guards\Admin\Permissions\RegistryPermission;
-use App\Guards\Admin\Permissions\RunPermission;
-use App\Guards\Admin\Permissions\SourceCircuitPermission;
 use App\Guards\Admin\Permissions\SourceIncidentPermission;
 use App\Guards\Admin\Permissions\StatusMappingPermission;
 use App\Guards\Admin\Permissions\WorkItemPermission;
@@ -55,9 +53,6 @@ final class OperatorRole extends BaseRole
             ...$this->crud(PromptPermission::class),
             ...$this->crud(DatasetExamplePermission::class),
             // Прогоны: наблюдение + управление (возобновить/сброс), без create/delete.
-            RunPermission::ViewAny,
-            RunPermission::View,
-            RunPermission::Update,
             OperationLogPermission::ViewAny,
             OperationLogPermission::View,
             // AI-анализы (P9.2): операторский цикл (проверено/коррекция/re-run) — наблюдение +
@@ -86,12 +81,10 @@ final class OperatorRole extends BaseRole
             // История healthcheck (P5.6): только чтение — витрина не меняет ни ожидания, ни факт.
             PlatformCheckPermission::ViewAny,
             PlatformCheckPermission::View,
-            // Контур управления источником: оператор видит состояние брейкера и журнал инцидентов,
-            // ставит источник на паузу/возобновляет, правит пороги (Update) и отмечает инциденты
-            // разобранными. Create/Delete нет: строки брейкера создаёт автоматика, журнал append-only.
-            SourceCircuitPermission::ViewAny,
-            SourceCircuitPermission::View,
-            SourceCircuitPermission::Update,
+            ProcessControlPermission::ValidateAdapter,
+            ProcessControlPermission::LaunchRun,
+            ProcessControlPermission::RetryFailedItem,
+            // Legacy incidents remain readable until the incident UI cutover.
             SourceIncidentPermission::ViewAny,
             SourceIncidentPermission::View,
             SourceIncidentPermission::Update,

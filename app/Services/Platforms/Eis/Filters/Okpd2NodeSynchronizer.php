@@ -4,22 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis\Filters;
 
-use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Dto\Procurement\Crawler\StageSettings;
 use App\Dto\Procurement\Network\HttpRequestPayload;
 use App\Dto\Procurement\Network\SafeUrl;
-use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Network\TrafficClass;
-use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
 use App\Repositories\Procurement\Platform\Okpd2NodeStoreRepository;
-use App\Services\Procurement\CrawlSettingsResolver;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\Proxy\RoutePolicy;
-use App\Services\Procurement\SourceTlsTrust;
 use Illuminate\Http\Client\Response;
 use RuntimeException;
 
@@ -50,7 +44,6 @@ final readonly class Okpd2NodeSynchronizer
         private Okpd2NodeStoreRepository $store,
         private ProxyResolver $proxyResolver,
         private LegacyOutbound $outbound,
-        private CrawlSettingsResolver $crawlSettings,
     ) {}
 
     /**
@@ -63,7 +56,7 @@ final readonly class Okpd2NodeSynchronizer
      *     missing: list<array{code: string, external_id: string}>,
      *     changed: list<array{code: string, external_id: string, stored_external_id: string}>,
      *     not_traversed: list<string>,
-     *     drifted_active_codes: list<string>,
+     *     drifted_codes: list<string>,
      *     written: bool,
      * }
      */
@@ -135,10 +128,7 @@ final readonly class Okpd2NodeSynchronizer
             'missing' => $missing,
             'changed' => $changed,
             'not_traversed' => $notTraversed,
-            'drifted_active_codes' => $this->activeProfileCodesAmong(
-                platformId: (int) $platform->id,
-                codes: $driftedCodes,
-            ),
+            'drifted_codes' => $driftedCodes,
             'written' => ! $dryRun,
         ];
     }
@@ -154,7 +144,6 @@ final readonly class Okpd2NodeSynchronizer
     {
         $endpoint = $this->configString('crawler.okpd2.children_endpoint');
         $lease = $this->proxyResolver->profile();
-        $settings = $this->crawlSettings->forStage(stage: CrawlStage::Listing, platform: $platform);
 
         // Корень поддерева в карту НЕ пишется: его `parent_code` неизвестен, а дети получают
         // `parent_code = null` — ровно та форма, в которой карту снял и засидировал P1.2/P2.1.
@@ -174,7 +163,7 @@ final readonly class Okpd2NodeSynchronizer
                 continue;
             }
 
-            $children = $this->fetchChildren(lease: $lease, endpoint: $endpoint, parentId: $current['external_id'], settings: $settings);
+            $children = $this->fetchChildren(lease: $lease, endpoint: $endpoint, parentId: $current['external_id']);
             $requests++;
             $expandedCodes[] = $current['code'];
 
@@ -245,35 +234,6 @@ final readonly class Okpd2NodeSynchronizer
     }
 
     /**
-     * Коды дрейфа, которыми фильтрует хотя бы один АКТИВНЫЙ профиль этой площадки — именно они
-     * дают ненулевой код возврата (Scope Included п. 6): дрейф у кода, которым никто не
-     * фильтрует, — наблюдение, а не инцидент.
-     *
-     * @param  list<string>  $codes
-     * @return list<string>
-     */
-    private function activeProfileCodesAmong(int $platformId, array $codes): array
-    {
-        if ($codes === []) {
-            return [];
-        }
-
-        $profileCodes = Crawler::query()
-            ->where('is_active', true)
-            ->whereHas('registry', static fn ($query) => $query->where('platform_id', $platformId))
-            ->with('registry')
-            ->get()
-            ->flatMap(static function (Crawler $crawler): array {
-                $filter = $crawler->filter;
-
-                return $filter instanceof EisSearchFilter ? $filter->okpd2Codes : [];
-            })
-            ->all();
-
-        return array_values(array_unique(array_intersect($codes, $profileCodes)));
-    }
-
-    /**
      * Ответ `children.html` — JSON-массив узлов с ОТДЕЛЬНЫМИ полями `code`/`key`/`name`/
      * `hasChildren` (`findings/P1-okpd2-map.md` §1): разбирать `title` не требуется. Форма,
      * отличная от снятой, — не повод «догадаться», а отказ с parentId в тексте: тихая догадка
@@ -309,9 +269,9 @@ final readonly class Okpd2NodeSynchronizer
     /**
      * @return list<array<string, mixed>>
      */
-    private function fetchChildren(RoutePolicy $lease, string $endpoint, string $parentId, StageSettings $settings): array
+    private function fetchChildren(RoutePolicy $lease, string $endpoint, string $parentId): array
     {
-        $response = $this->request(lease: $lease, endpoint: $endpoint, parentId: $parentId, settings: $settings);
+        $response = $this->request(lease: $lease, endpoint: $endpoint, parentId: $parentId);
 
         if ($response->failed()) {
             throw new RuntimeException(
@@ -349,7 +309,7 @@ final readonly class Okpd2NodeSynchronizer
         return $children;
     }
 
-    private function request(RoutePolicy $lease, string $endpoint, string $parentId, StageSettings $settings): Response
+    private function request(RoutePolicy $lease, string $endpoint, string $parentId): Response
     {
         $platform = $this->requirePlatform();
         $url = $endpoint.(str_contains($endpoint, '?') ? '&' : '?').http_build_query(['parentId' => $parentId]);

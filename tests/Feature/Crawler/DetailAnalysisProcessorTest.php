@@ -2,493 +2,138 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\ProcurementDetails;
-use App\Enums\Procurement\Crawler\CrawlerEventCode;
-use App\Enums\Procurement\Crawler\SourceFailureKind;
-use App\Enums\Procurement\Crawler\SourceMethod;
-use App\Enums\Procurement\Document\DocumentStatus;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\ProcurementStatus;
-use App\Enums\Procurement\Proxy\ProxyScope;
+use App\Dto\Procurement\Acquisition\FetchItemRejected;
+use App\Dto\Procurement\Network\DecodedTextBody;
+use App\Dto\Procurement\Platform\ResponseAssessment;
+use App\Dto\Procurement\Process\StageFailedItem;
+use App\Dto\Procurement\Process\StageOutcome;
+use App\Dto\Procurement\Process\StagePartial;
+use App\Dto\Procurement\Process\StageSucceeded;
 use App\Models\Platforms\Eis\EisDetails;
-use App\Models\Procurement\Crawler\Proxy;
-use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Document\Document;
-use App\Models\Procurement\Platform\Registry;
-use App\Models\Procurement\Procurement;
-use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\Protocol;
-use App\Services\Procurement\DetailRefetchSelector;
-use App\Services\Procurement\Health\CardLayoutPreflight;
-use App\Services\Procurement\Modes\DetailAnalysisProcessor;
-use App\Services\Procurement\Network\AcquisitionEligibility;
+use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
+use App\Repositories\Procurement\Crawler\RefreshRepository;
+use App\Services\Procurement\Acquisition\AcquisitionArtifacts;
+use App\Services\Procurement\Acquisition\AcquisitionAssessment;
+use App\Services\Procurement\Acquisition\AcquisitionSources;
+use App\Services\Procurement\Acquisition\DetailArtifacts;
+use App\Services\Procurement\Acquisition\DetailHandler;
+use App\Services\Procurement\Platform\FetchOutcomeBridge;
+use App\Services\Procurement\Process\ExecutionContextFactory;
+use App\Services\Procurement\Process\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Sleep;
-use Tests\Support\Doubles\Crawler\CardHtmlFixture;
-use Tests\Support\Doubles\Crawler\FakeSourceMethod;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
+use Tests\Support\Platforms\Eis\EisDetailFixtures as D;
+use Tests\Support\ProcessCore\DetailFixtures as F;
+use Tests\Support\ProcessCore\ExecutionFixtures as E;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\LedgerFixtures;
 
-/**
- * Активные узлы скоупов `crawl_detail` и `document_download` (research/02 §9.1, P1.6) —
- * стадия детального анализа снимает и вкладку карточки, и файлы документов.
- */
-function activeDetailAnalysisProxies(): void
+beforeEach(function (): void {
+    F::bind();
+    Storage::fake('s3');
+});
+
+function detailProcessAttempt(array $f, array $bodies): StageOutcome
 {
-    Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlDetail])->create();
-    Proxy::factory()->country('RU')->withScopes([ProxyScope::DocumentDownload])->create();
-}
-
-function detailAnalysisRegistry(): Registry
-{
-    return Registry::factory()->eis()->create([
-        'code' => 'fz44',
-        'settings' => [
-            'procedure_url_types' => ['Электронный аукцион' => 'ea20'],
-            'card_url_templates' => [
-                'ea20' => [
-                    'common-info' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html?regNumber={regNumber}',
-                    'documents' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/documents.html?regNumber={regNumber}',
-                    'event-journal' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/event-journal.html?regNumber={regNumber}',
-                    'supplier-results' => 'https://zakupki.gov.ru/epz/order/notice/ea20/view/supplier-results.html?regNumber={regNumber}',
-                ],
-            ],
-        ],
-    ]);
-}
-
-function detailAnalysisEventJournalHtml(): string
-{
-    return (string) file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/event-journal.html'));
-}
-
-function detailAnalysisSupplierResultsHtml(): string
-{
-    return CardHtmlFixture::supplierResults();
-}
-
-beforeEach(fn () => LegacyBusinessNetwork::install());
-
-test('supplier-results mismatch остаётся retryable и следующий полный проход сходится', function (): void {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDetailAnalysisProxies();
-    $registry = detailAnalysisRegistry();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Awarded,
-    ]);
-    $supplierAttempts = 0;
-    Http::fake([
-        '*view/common-info.html*' => fn () => Http::response(CardHtmlFixture::commonInfo(), 200),
-        '*view/documents.html*' => fn () => Http::response(CardHtmlFixture::documents(), 200),
-        '*view/event-journal.html*' => fn () => Http::response(detailAnalysisEventJournalHtml(), 200),
-        '*view/supplier-results.html*' => function () use (&$supplierAttempts) {
-            $supplierAttempts++;
-
-            return $supplierAttempts === 1
-                ? Http::response('<html>temporary protection page</html>', 200)
-                : Http::response(detailAnalysisSupplierResultsHtml(), 200);
-        },
-    ]);
-
-    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse()
-        ->and($procurement->fresh()->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(0)
-        ->and($procurement->detail_next_retry_at)->not->toBeNull();
-
-    $this->travel((int) config('crawler.detail_retry_backoff_minutes', 15) + 1)->minutes();
-
-    $result = app(DetailAnalysisProcessor::class)->run(procurement: $procurement->fresh());
-
-    expect($result)->toBeTrue((string) $procurement->fresh()->detail_last_error)
-        ->and($procurement->fresh()->detail_fetched_at)->not->toBeNull()
-        ->and(Protocol::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue();
-});
-
-function fakeDetailAnalysisHttp(): void
-{
-    Http::fake([
-        '*view/common-info.html*' => fn () => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
-        '*view/documents.html*' => fn () => Http::response(body: CardHtmlFixture::documents(), status: 200),
-        '*view/event-journal.html*' => fn () => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => fn () => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
-        '*filestore*' => fn () => Http::response(body: 'binary-content', status: 200),
-    ]);
-}
-
-test('неполные стороны оставляют карточку retryable до подтверждённого полного повтора', function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDetailAnalysisProxies();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => detailAnalysisRegistry()->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-    ]);
-    Http::fake([
-        '*view/common-info.html*' => Http::sequence()
-            ->push(file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/common-info.html')), 200)
-            ->push(CardHtmlFixture::commonInfo(), 200),
-        '*view/documents.html*' => fn () => Http::response(CardHtmlFixture::documents(), 200),
-        '*view/event-journal.html*' => fn () => Http::response(detailAnalysisEventJournalHtml(), 200),
-    ]);
-
-    expect(app(DetailAnalysisProcessor::class)->run($procurement))->toBeFalse()
-        ->and($procurement->refresh()->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(1)
-        ->and($procurement->detail_next_retry_at)->not->toBeNull();
-
-    $this->travel((int) config('crawler.detail_retry_backoff_minutes', 15) + 1)->minutes();
-    expect(app(DetailAnalysisProcessor::class)->run($procurement))->toBeTrue()
-        ->and($procurement->refresh()->detail_fetched_at)->not->toBeNull()
-        ->and(ProcurementParty::query()->where('procurement_id', $procurement->id)->count())->toBe(2);
-});
-
-test('run наполняет все вкладки-таблицы и ставит detail_fetched_at', function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDetailAnalysisProxies();
-    $registry = detailAnalysisRegistry();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Awarded,
-    ]);
-    fakeDetailAnalysisHttp();
-
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    $procurement->refresh();
-
-    expect($procurement->detail_fetched_at)->not->toBeNull()
-        ->and($procurement->detail_failed)->toBeFalse()
-        ->and($procurement->detail_last_error)->toBeNull();
-
-    expect(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue();
-    expect(ProcurementParty::query()->where('procurement_id', $procurement->id)->count())->toBe(2)
-        ->and($procurement->customer_org_id)->not->toBeNull();
-    // 6 документов (не 2) — реальная вкладка documents несёт 6 вложений (P4.13, findings/
-    // P4-card-layout.md §2); эта ассерция уже была неверна ДО P4.14 (не обнаруживалась —
-    // тест падал раньше, на detail_fetched_at), правка мимоходом при первом реальном достижении.
-    expect(Document::query()->where('procurement_id', $procurement->id)->count())->toBe(6);
-    expect(ProcurementEvent::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue();
-    // Даже несостоявшаяся закупка содержит опубликованный протокол; участники и award
-    // при этом отсутствуют (D128).
-    expect(Protocol::query()->where('procurement_id', $procurement->id)->exists())->toBeTrue();
-});
-
-test('run индексирует документы как discovered без inline-скачивания', function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDetailAnalysisProxies();
-    $registry = detailAnalysisRegistry();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-    ]);
-    fakeDetailAnalysisHttp();
-
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    expect(Document::query()->where('procurement_id', $procurement->id)->where('status', DocumentStatus::Discovered)->count())->toBe(6);
-});
-
-test('incomplete documents page не снимает ранее известные вложения', function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDetailAnalysisProxies();
-    $registry = detailAnalysisRegistry();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-    ]);
-    fakeDetailAnalysisHttp();
-
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    Http::fake([
-        '*view/common-info.html*' => fn () => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
-        '*view/documents.html*' => fn () => Http::response(body: '<html><body>Защитная страница</body></html>', status: 200),
-        '*view/event-journal.html*' => fn () => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => fn () => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
-        '*filestore*' => fn () => Http::response(body: 'binary-content', status: 200),
-    ]);
-
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    expect(Document::query()->where('procurement_id', $procurement->id)->whereNull('removed_at')->count())->toBe(6);
-});
-
-test('падение снятия карточки уходит в error-блок, detail_fetched_at не ставится, другие закупки не затронуты', function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDetailAnalysisProxies();
-    $registry = detailAnalysisRegistry();
-    $healthy = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-    ]);
-    $broken = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0173200009999000009',
-        'procedure_type' => 'unmapped_procedure_type',
-        'procedure_type_raw' => 'Неизвестный способ вне карты',
-        'status' => ProcurementStatus::Bidding,
-    ]);
-    fakeDetailAnalysisHttp();
-
-    $processor = app(DetailAnalysisProcessor::class);
-    $processor->run(procurement: $healthy);
-    $processor->run(procurement: $broken);
-
-    $healthy->refresh();
-    $broken->refresh();
-
-    expect($healthy->detail_fetched_at)->not->toBeNull();
-
-    expect($broken->detail_fetched_at)->toBeNull()
-        ->and($broken->detail_attempts)->toBe(1)
-        ->and($broken->detail_last_error)->not->toBeNull()
-        ->and($broken->detail_failed)->toBeFalse()
-        ->and($broken->detail_next_retry_at)->not->toBeNull();
-});
-
-test('common-info вернул страницу без запрошенного реестрового номера (Д-8) — detail_last_error непуст, detail_fetched_at пуст, prc_eis_details не создана', function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDetailAnalysisProxies();
-    $registry = detailAnalysisRegistry();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-    ]);
-    Http::fake([
-        '*view/common-info.html*' => fn () => Http::response(body: '<html><body>Страница не найдена</body></html>', status: 200),
-        '*view/documents.html*' => fn () => Http::response(body: CardHtmlFixture::documents(), status: 200),
-        '*view/event-journal.html*' => fn () => Http::response(body: detailAnalysisEventJournalHtml(), status: 200),
-        '*view/supplier-results.html*' => fn () => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
-        '*filestore*' => fn () => Http::response(body: 'binary-content', status: 200),
-    ]);
-
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    $procurement->refresh();
-
-    expect($procurement->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(0)
-        ->and($procurement->detail_last_error)->not->toBeNull();
-
-    expect(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse();
-});
-
-test('исчерпание попыток ставит detail_failed', function () {
-    Sleep::fake();
-    Storage::fake('s3');
-    $registry = detailAnalysisRegistry();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0173200009999000009',
-        'procedure_type' => 'unmapped_procedure_type',
-        'procedure_type_raw' => 'Неизвестный способ вне карты',
-        'status' => ProcurementStatus::Bidding,
-        'detail_attempts' => (int) config('crawler.detail_max_attempts', 5) - 1,
-    ]);
-    fakeDetailAnalysisHttp();
-
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    expect($procurement->refresh()->detail_failed)->toBeTrue()
-        ->and($procurement->detail_next_retry_at)->toBeNull();
-});
-
-test('страница-заглушка без базовых селекторов не обрабатывается: попытка не тратится, карточка остаётся в due', function (): void {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDetailAnalysisProxies();
-    $registry = detailAnalysisRegistry();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-        'detail_fetched_at' => null,
-        'current_revision_detected_at' => now()->subDay(),
-    ]);
-    Http::fake(['*' => fn () => Http::response("<html><body>{$procurement->source_identity_value} Temporary maintenance</body></html>", 200)]);
-
-    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
-
-    $procurement->refresh();
-
-    expect($procurement->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(0)
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardLayoutDrift)->count())->toBe(1);
-
-    expect(app(DetailRefetchSelector::class)->due(limit: 10)->pluck('id')->all())->not->toContain($procurement->id);
-    $this->travel(31)->seconds();
-    expect(app(DetailRefetchSelector::class)->due(limit: 10)->pluck('id')->all())
-        ->toContain($procurement->id);
-});
-
-test('легитимно пустой complete documents snapshot завершает detail без вечного retry', function (): void {
-    Sleep::fake();
-    Storage::fake('s3');
-    activeDetailAnalysisProxies();
-    $registry = detailAnalysisRegistry();
-    $procurement = Procurement::factory()->create([
-        'registry_id' => $registry->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Bidding,
-    ]);
-    Http::fake([
-        '*view/common-info.html*' => fn () => Http::response(CardHtmlFixture::commonInfo(), 200),
-        '*view/documents.html*' => fn () => Http::response('<div>0338200009125000001</div><div class="blockFilesTabDocs"></div>', 200),
-        '*view/event-journal.html*' => fn () => Http::response(detailAnalysisEventJournalHtml(), 200),
-        '*view/supplier-results.html*' => fn () => Http::response(detailAnalysisSupplierResultsHtml(), 200),
-    ]);
-
-    $result = app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    expect($result)->toBeTrue((string) $procurement->fresh()->detail_last_error)
-        ->and($procurement->fresh()->detail_fetched_at)->not->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(0);
-});
-
-function detailAnalysisProcurement(): Procurement
-{
-    activeDetailAnalysisProxies();
-
-    return Procurement::factory()->create([
-        'registry_id' => detailAnalysisRegistry()->id,
-        'source_identity_value' => '0338200009125000001',
-        'procedure_type' => 'electronic_auction',
-        'procedure_type_raw' => 'Электронный аукцион',
-        'status' => ProcurementStatus::Awarded,
-    ]);
-}
-
-test('нет базовых селекторов на любой вкладке — карточка не обрабатывается целиком, попытка не тратится', function (): void {
-    Sleep::fake();
-    Storage::fake('s3');
-    $procurement = detailAnalysisProcurement();
-    Http::fake([
-        '*view/common-info.html*' => fn () => Http::response(body: CardHtmlFixture::commonInfo(), status: 200),
-        '*view/documents.html*' => fn () => Http::response(body: CardHtmlFixture::documents(), status: 200),
-        '*view/event-journal.html*' => fn () => Http::response(body: '<html><body><p>0338200009125000001 новая вёрстка</p></body></html>', status: 200),
-        '*view/supplier-results.html*' => fn () => Http::response(body: detailAnalysisSupplierResultsHtml(), status: 200),
-    ]);
-
-    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
-    $procurement->refresh();
-
-    expect($procurement->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(0)
-        // common-info валиден, но страница не разобрана вообще: ни одной вкладки в БД
-        ->and(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
-        ->and(Document::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardLayoutDrift)->sole()->context['missing_selectors'])
-        ->toHaveKey('event-journal')
-        // дрейф считается отдельным счётчиком структуры, сетевой счётчик не трогается
-        ->and($procurement->detail_parse_outcome['input_validation']['failures'])->toBe(1)
-        ->and($procurement->detail_attempts)->toBe(0);
-});
-
-test('недоступный эталон не позволяет подтверждать успешный разбор карточки', function (): void {
-    Sleep::fake();
-    Storage::fake('s3');
-    $procurement = detailAnalysisProcurement();
-    config(['crawler.platforms.eis.baseline_path' => '/missing-audit-baseline.json']);
-    Http::fake(['*' => fn () => Http::response(body: CardHtmlFixture::commonInfo(), status: 200)]);
-
-    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse()
-        ->and($procurement->refresh()->detail_fetched_at)->toBeNull()
-        ->and($procurement->detail_attempts)->toBe(0)
-        ->and($procurement->detail_next_retry_at)->toBeNull()
-        ->and(EisDetails::query()->where('procurement_id', $procurement->id)->exists())->toBeFalse()
-        ->and(SourceIncident::query()->where('type', CrawlerEventCode::CardCodeError)->count())->toBe(0);
-    Http::assertNothingSent();
-});
-
-test('якоря, зависящие от данных (нет участников, нет вложений), базовыми не считаются', function (): void {
-    $details = new ProcurementDetails(registryNumber: '0338200009125000001', procedureUrlType: 'ea20', supplierResultsHtml: CardHtmlFixture::supplierResults(), documentsHtml: '<html><body><div class="blockFilesTabDocs"></div></body></html>');
-
-    expect(app(CardLayoutPreflight::class)->missingBaseSelectors(details: $details))->toBe([]);
-});
-
-test('этап карточек в ожидании — карточка не запрашивается и остаётся в очереди; листинг не затронут', function (): void {
-    $procurement = detailAnalysisProcurement();
-    $platformId = $procurement->registry->platform_id;
-    $target = DB::table('prc_source_targets')->where('platform_id', $platformId)->where('capability', 'detail')->sole();
-    DB::table('prc_target_health')->where('target_id', $target->id)->update([
-        'state' => 'open', 'open_until' => DB::raw("clock_timestamp() + interval '10 minutes'")]);
-    Http::fake();
-
-    expect(app(DetailAnalysisProcessor::class)->run(procurement: $procurement))->toBeFalse();
-
-    Http::assertNothingSent();
-    expect($procurement->refresh()->detail_attempts)->toBe(0)
-        ->and(app(AcquisitionEligibility::class)->excludedPlatforms(StageCode::Listing))->not->toContain($platformId);
-});
-
-test('отказ скачивания карточки учитывается брейкером этапа карточек, карточка — в штатный повтор', function (): void {
-    Sleep::fake();
-    $procurement = detailAnalysisProcurement();
-    Http::fake(['*' => fn () => Http::response('', 503)]);
-
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
-
-    expect($procurement->refresh()->detail_attempts)->toBe(0)
-        ->and($procurement->detail_failed)->toBeFalse()
-        ->and(DB::table('prc_source_circuits')->count())->toBe(0);
-});
-
-test('ошибка нашего кода при обработке карточки: брейкер не считает, событие ERROR, карточка в штатный повтор', function (): void {
-    $procurement = detailAnalysisProcurement();
-    $source = new class extends FakeSourceMethod
-    {
-        public function collectDetails(string $registryNumber, Registry $registry): ProcurementDetails
-        {
-            throw new LogicException('bug in our parser');
+    $outbound = D::outbound($bodies);
+    $assessment = new AcquisitionAssessment(function ($rejection) use ($bodies) {
+        foreach ($bodies as $body) {
+            if (hash('sha256', $body) === $rejection->assessment->bodyHash->hex) {
+                $artifact = app(AcquisitionArtifacts::class)->rejected(
+                    LedgerFixtures::uuid(), new DecodedTextBody($body, 'UTF-8'));
+                $a = $rejection->assessment;
+
+                return new FetchItemRejected($rejection->reason,
+                    new ResponseAssessment($a->completeness, $a->reason, $a->bodyHash, $a->confidence, $artifact));
+            }
         }
+        throw new LogicException('No matching assessed fixture bytes.');
+    });
+    $source = AcquisitionSources::detail(D::source($outbound), $assessment);
+    $handler = new DetailHandler(app(DetailSnapshotRepository::class), $source, app(DetailArtifacts::class), new FetchOutcomeBridge);
+    $lease = E::work($f['work'])->state === 'deferred' ? FinalizeFixtures::rerun($f['work']) : FinalizeFixtures::running($f['work']);
+    $context = app(ExecutionContextFactory::class)->open($lease);
+    $outcome = $handler->execute($f['input'], $context);
+    app(WorkFinalizer::class)->finish($context->lease(), $outcome);
 
-        public function isAvailable(): bool
-        {
-            return true;
-        }
-    };
-    app()->instance($source::class, $source);
-    config()->set('crawler.detail_source_method', SourceMethod::Csv->value);
-    config()->set('crawler.platforms.eis.source_methods', [SourceMethod::Csv->value => $source::class]);
+    return $outcome;
+}
 
-    app(DetailAnalysisProcessor::class)->run(procurement: $procurement);
+function detailCompleteBodies(): array
+{
+    return [...array_values(D::completeBodies()), D::bodies()['common-info']];
+}
 
-    $incident = SourceIncident::query()->sole();
+test('Process complete EIS detail publishes all tab projections and pending documents without inline downloads', function (): void {
+    Queue::fake();
+    $f = F::work(value: '0338200009125000001');
+    expect(detailProcessAttempt($f, detailCompleteBodies()))->toBeInstanceOf(StageSucceeded::class)
+        ->and(E::work($f['work'])->state)->toBe('succeeded')
+        ->and(EisDetails::query()->where('procurement_id', $f['p']->id)->count())->toBe(1)
+        ->and(ProcurementParty::query()->where('procurement_id', $f['p']->id)->count())->toBe(2)
+        ->and(Protocol::query()->where('procurement_id', $f['p']->id)->count())->toBeGreaterThan(0)
+        ->and(Document::query()->where('procurement_id', $f['p']->id)->count())->toBe(6)
+        ->and(Document::query()->where('procurement_id', $f['p']->id)->whereNotNull('source_url')->count())->toBe(0)
+        ->and(DB::table('prc_operation_intents')->where('stage', 'download')->where('state', 'pending')->count())->toBe(6)
+        ->and(DB::table('prc_detail_snapshots')->where('procurement_id', $f['p']->id)->where('part_key', 'like', '%:published')->count())->toBe(1);
+    Queue::assertNothingPushed();
+});
 
-    expect($procurement->refresh()->detail_attempts)->toBe(1)
-        ->and($incident->type)->toBe(CrawlerEventCode::CardCodeError)
-        ->and($incident->failure_kind)->toBe(SourceFailureKind::CodeError)
-        ->and(DB::table('prc_source_circuits')->count())->toBe(0);
+test('Process EIS incomplete supplier results resume saved parts and publish only the coherent later outcome', function (): void {
+    $f = F::work(value: '0338200009125000001');
+    $bad = array_values(D::completeBodies());
+    $bad[3] = '<html>temporary protection page</html>';
+    expect(detailProcessAttempt($f, $bad))->toBeInstanceOf(StagePartial::class)
+        ->and(E::work($f['work'])->item_failures)->toBe(0)
+        ->and(Document::query()->count())->toBe(0)->and(EisDetails::query()->count())->toBe(0);
+    expect(detailProcessAttempt($f, [D::completeBodies()['supplier-results'], D::bodies()['common-info']]))->toBeInstanceOf(StageSucceeded::class)
+        ->and(E::work($f['work'])->state)->toBe('succeeded')->and(Protocol::query()->count())->toBeGreaterThan(0)
+        ->and(Document::query()->count())->toBe(6);
+});
+
+test('Process EIS incomplete document refresh preserves all previously published attachment links', function (): void {
+    $f = F::work(value: '0338200009125000001');
+    detailProcessAttempt($f, detailCompleteBodies());
+    $before = Document::query()->where('procurement_id', $f['p']->id)->orderBy('id')->pluck('id')->all();
+    DB::table('prc_operation_intents')->where('id', $f['input']->intentId->value)->update(['next_due_at' => DB::raw("clock_timestamp()-interval '1 second'")]);
+    $work = app(RefreshRepository::class)->scheduleDetail($f['p']->id);
+    expect($work)->not->toBeNull();
+    $f['work'] = $work;
+    $f['input'] = F::input($work);
+    expect(detailProcessAttempt($f, [D::bodies()['common-info'], '<html>unknown documents</html>']))->toBeInstanceOf(StagePartial::class)
+        ->and(Document::query()->where('procurement_id', $f['p']->id)->whereNull('removed_at')->orderBy('id')->pluck('id')->all())->toBe($before)
+        ->and(E::work($work)->item_failures)->toBe(0);
+});
+
+test('Process EIS explicit complete empty document container finishes detail instead of retrying forever', function (): void {
+    $f = F::work(value: '0338200009125000001');
+    $bodies = detailCompleteBodies();
+    $bodies[1] = '<a class="cardMainInfo__purchaseLink">№ 0338200009125000001</a><div class="blockFilesTabDocs"></div>';
+    expect(detailProcessAttempt($f, $bodies))->toBeInstanceOf(StageSucceeded::class)
+        ->and(E::work($f['work'])->state)->toBe('succeeded')->and(Document::query()->count())->toBe(0)
+        ->and(E::work($f['work'])->item_failures)->toBe(0);
+});
+
+test('Process EIS missing parties remain incomplete until a complete common info page is revalidated', function (): void {
+    $f = F::work(value: '0338200009125000001');
+    $common = D::bodies()['common-info'].'<section class="organizations-block"><table class="parties-table"><tbody><tr><td>unknown role</td></tr></tbody></table></section>';
+    expect(detailProcessAttempt($f, [$common]))->toBeInstanceOf(StagePartial::class)
+        ->and(ProcurementParty::query()->count())->toBe(0)->and(E::work($f['work'])->item_failures)->toBe(0);
+    expect(detailProcessAttempt($f, detailCompleteBodies()))->toBeInstanceOf(StageSucceeded::class)
+        ->and(ProcurementParty::query()->count())->toBe(2);
+});
+
+test('Process EIS wrong card identity rejects only its work and never creates platform detail rows', function (): void {
+    $f = F::work(value: '0338200009125000001');
+    $other = F::work(registry: $f['p']->registry, value: '0338200009125000002');
+    $common = str_replace('0338200009125000001', '9999999999999999999', D::bodies()['common-info']);
+    expect(detailProcessAttempt($f, [$common]))->toBeInstanceOf(StageFailedItem::class)
+        ->and(E::work($f['work'])->state)->toBe('deferred')->and(E::work($f['work'])->item_failures)->toBe(1)
+        ->and(EisDetails::query()->count())->toBe(0)->and(Document::query()->count())->toBe(0)
+        ->and(E::work($other['work'])->state)->toBe('admitted')->and(E::work($other['work'])->execution_attempts)->toBe(0)
+        ->and(E::work($other['work'])->item_failures)->toBe(0);
 });

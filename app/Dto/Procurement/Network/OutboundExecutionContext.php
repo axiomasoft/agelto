@@ -6,6 +6,7 @@ namespace App\Dto\Procurement\Network;
 
 use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
 use Closure;
 
@@ -25,7 +26,8 @@ final class OutboundExecutionContext
 
     public function bindAdapter(AdapterValidationClaim $claim): void
     {
-        if ($this->adapterClaim !== null || $claim->operationId->value !== $this->handle->id->value) {
+        if ($this->adapterClaim !== null || $claim->ownerId->value !== $this->handle->id->value
+            || $claim->ownerKind !== AdapterValidationOwnerKind::OutboundOperation) {
             throw new \LogicException('An adapter claim belongs to exactly one full-validation owner.');
         }
         $this->adapterClaim = $claim;

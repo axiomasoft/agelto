@@ -311,7 +311,7 @@
       "adapter_version": "1",
       "provenance": "Synthetic offline CSV corpus authored in the test: 1200 rows, inclusive offsets, blank response and date-only updates. Assertions are independent of parser implementation.",
       "captured_at": "2026-10-31",
-      "sha256": "bef0b9d62b7404ac0d8c1e14e37dc26e3aa912c2f3b521aef81bffa21b2c8409",
+      "sha256": "c58ae7d3b57bb7cba628bf969c4eed3708081069e8b4b8095ceabe347a2984bf",
       "expected": {
         "schema_version": 1,
         "assessment": "500/500/200 valid rows; blank body rejected; 5000 is not terminal proof"
@@ -320,7 +320,9 @@
         "T07",
         "T27"
       ],
-      "coverage": "offline_listing_parser_handler"
+      "coverage": "offline_listing_parser_handler",
+      "original_sha256": "bef0b9d62b7404ac0d8c1e14e37dc26e3aa912c2f3b521aef81bffa21b2c8409",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json."
     },
     {
       "id": "p216-t12detailpartstest",
@@ -349,7 +351,7 @@
       "adapter_version": "1",
       "provenance": "Synthetic deterministic canonical snapshots and real PostgreSQL ownership/barriers; manually authored assertions.",
       "captured_at": "2026-10-31",
-      "sha256": "4c5d621e0f0a5c4944d3b6ecd25d402abc95172acd4fe3163987f82d444a8813",
+      "sha256": "9064b97d4ee44b87e9fe463e8961dc30f6f083cf722480609818c2f8187fbdd6",
       "expected": {
         "schema_version": 1,
         "assessment": "Unchanged status uses new cycle; stale response history-only; due detail retains supplier results and documents."
@@ -358,7 +360,10 @@
         "T17",
         "T22"
       ],
-      "coverage": "durable_detail_status"
+      "coverage": "durable_detail_status",
+      "original_sha256": "4c5d621e0f0a5c4944d3b6ecd25d402abc95172acd4fe3163987f82d444a8813",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
     },
     {
       "id": "p216-t17refreshconcurrencytest",
@@ -396,17 +401,57 @@
         "T40"
       ],
       "coverage": "durable_detail_status"
+    },
+    {
+      "id": "p218-scenario-transfers",
+      "kind": "scenario_transfers",
+      "path": "tests/Fixtures/ProcessCore/scenario-transfers.json",
+      "platform": null,
+      "adapter_version": "acquisition/1",
+      "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
+      "captured_at": "2026-10-31",
+      "sha256": "160ceef56c66281f2481dbfb9460c7bfe23b724ec6fa9ef429017ffefa21d69d",
+      "expected": {
+        "assessment": "exact_executed_replacements",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T17",
+        "T18",
+        "T33",
+        "T39"
+      ],
+      "coverage": "scenario_transfer_only",
+      "original_sha256": "b84a6969f30b39cc562caf30f3aeae7df951aa99a36b9e5d58ec11620d8a53a5",
+      "original_path": "tests/Fixtures/ProcessCore/scenario-transfers.json",
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
+    },
+    {
+      "id": "p218-listing-facts",
+      "kind": "acquisition_integration",
+      "path": "tests/Feature/ProcessCore/Acquisition/T17ListingFactsCutoverTest.php",
+      "platform": null,
+      "adapter_version": "acquisition/1",
+      "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
+      "captured_at": "2026-10-31",
+      "sha256": "4759f4236999742d7b8b7ee772c1c55d1ce8cf18838787807891d8bcadd67c0a",
+      "expected": {
+        "assessment": "fenced_listing_facts",
+        "schema_version": 2
+      },
+      "scenario_ids": [
+        "T17",
+        "T27",
+        "T42"
+      ],
+      "coverage": "targeted_integration",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "original_sha256": "bbe3f420f28f3970882c9c17ecf6fd09ff6497cfb5789173ba2f3370fd09f396",
+      "accepted_change_item": "P2.18"
     }
   ],
   "files": [
-    {
-      "path": "tests/bootstrap.php",
-      "sha256": "7632503a56f874595293ff5662f1c2ec782ebee06bf09d556ffe8fb73f21fcb3",
-      "original_sha256": "d9c814de51ac4b71937fe42007f26e4a3be7f000da26e620eab02a595215aa32",
-      "accepted_change_item": "P4.1",
-      "accepted_change_commit": "943b0d6d781a9180a438c97eefa4a5dea8dcf7bb",
-      "change_reason": "P4.1 isolated harness bootstrap/guard/filesystem isolation change; preserve original pre-harness provenance"
-    },
     {
       "path": "tests/Feature/Ai/AiRoutingSeederTest.php",
       "sha256": "39f6719cf2983e3e23a8d88784c91e8651bddd2f2bed8881c93028dac9524a1c",
@@ -789,17 +834,6 @@
       ]
     },
     {
-      "path": "tests/Feature/Ai/PromptsSyncTest.php",
-      "sha256": "807f4d3bf8923053a73474940c6bf9c60e7067f4f9d138ba5196f1b6839d4dd4",
-      "scenarios": [
-        "без --check синхронизирует канон и печатает подтверждение",
-        "--check на актуальном каноне — дрейф не обнаружен, ничего не пишет",
-        "--check находит расхождение файл ≠ БД и завершается ошибкой",
-        "откат канона гасит осиротевшую старшую версию, --check зелёный после sync",
-        "--check находит protected-запись, исчезнувшую из файлов"
-      ]
-    },
-    {
       "path": "tests/Feature/Ai/PromptSuggestTest.php",
       "sha256": "e534aa3b51e5039270b9e3cce4fddba597f2f12294633f5449cb7a95b3fb234b",
       "scenarios": [
@@ -810,6 +844,17 @@
         "повторный прогон на том же diff не плодит дубль",
         "вызов критика идёт без файлов/tools — только systemPart и userParts",
         "--dry-run показывает вход критика и не делает ни одного вызова"
+      ]
+    },
+    {
+      "path": "tests/Feature/Ai/PromptsSyncTest.php",
+      "sha256": "807f4d3bf8923053a73474940c6bf9c60e7067f4f9d138ba5196f1b6839d4dd4",
+      "scenarios": [
+        "без --check синхронизирует канон и печатает подтверждение",
+        "--check на актуальном каноне — дрейф не обнаружен, ничего не пишет",
+        "--check находит расхождение файл ≠ БД и завершается ошибкой",
+        "откат канона гасит осиротевшую старшую версию, --check зелёный после sync",
+        "--check находит protected-запись, исчезнувшую из файлов"
       ]
     },
     {
@@ -901,26 +946,34 @@
     },
     {
       "path": "tests/Feature/Console/FetchDetailsTest.php",
-      "sha256": "fbbad900ba0df41ec5347d5453e88125f25d163dbda87a3d517eafabc28c7790",
+      "sha256": "ca22b9407abc7121e1ed90fd886d5d09fe6753bb6037b64ede15c922025af71a",
       "scenarios": [
-        "явный id ставит одну детальную закупку в очередь",
-        "несуществующий id закупки — FAILURE с сообщением об ошибке",
-        "без аргумента ставит в очередь только ограниченную due-пачку"
+        "manual detail retry targets exact Process work and preserves the exhausted source history",
+        "an explicit missing Process work returns not-found without allocation",
+        "periodic detail producer allocates only its bounded due batch and leaves fresh templates untouched"
       ],
       "original_sha256": "dc39436e0bb8db59694825ef7a69d9fc632214b602eeec23018c8612daba2e43",
       "original_path": "tests/Feature/Console/FetchDetailsTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "original_scenarios": [
+        "явный id ставит одну детальную закупку в очередь",
+        "несуществующий id закупки — FAILURE с сообщением об ошибке",
+        "без аргумента ставит в очередь только ограниченную due-пачку"
+      ]
     },
     {
       "path": "tests/Feature/Console/FreshCrawlerScheduleTest.php",
-      "sha256": "8149301fb43b09a5a79069f93695c4cc559ab7ada81286279ea10f66c84e0928",
+      "sha256": "413b1e2a6daee66b14ffdb019fbc160e055dfbe724b62bab1bdf9a3d8e24c169",
       "scenarios": [
         "активный fresh-профиль регистрируется по своему cron",
         "пустое расписание не запускает профиль по cron, как обещает форма краулера",
         "невалидный cron одного профиля пропускается с ошибкой в логе и не ломает планировщик",
         "недоступная БД не роняет загрузку console.php и оставляет задачи без таблиц",
         "сбой чтения профилей после успешной проверки схемы не роняет console.php"
-      ]
+      ],
+      "original_sha256": "8149301fb43b09a5a79069f93695c4cc559ab7ada81286279ea10f66c84e0928",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved."
     },
     {
       "path": "tests/Feature/Console/MaintainPartitionsTest.php",
@@ -932,14 +985,15 @@
     },
     {
       "path": "tests/Feature/Console/RescanBacklogTest.php",
-      "sha256": "c484c08679098491f7174a36ab89615e1ec768cce1375b3a3f55a940bfb74f3b",
+      "sha256": "590ec77deeb8ff339568bc441680fd3b6a43526f37fa68c0e9e403886ee1d59d",
       "scenarios": [
-        "делегирует BacklogRescanProcessor и репортит число обработанных прогонов",
-        "нет прогонов с cap_hit — репортит ноль"
+        "Process recovery replaces backlog command with idempotent durable continuation allocation",
+        "Process recovery without coverage debt allocates nothing"
       ],
       "original_sha256": "7a281a8d11c1dc866cf453d066da849990683568bbc4dd7f8691dad781662fc5",
       "original_path": "tests/Feature/Console/RescanBacklogTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Console/ResetAdminPasswordTest.php",
@@ -951,8 +1005,21 @@
     },
     {
       "path": "tests/Feature/Console/RunArchiveCrawlerTest.php",
-      "sha256": "a0b29385d5e798774f09464bf72d0283108c9ac2189435ad790c4bd3a33f9571",
+      "sha256": "8c6b9b499be4466f1b3efc5d1ebdf4959ce23f04517b8c0776b1892321db0745",
       "scenarios": [
+        "process run allocates archive day roots for explicit bounds without direct dispatch",
+        "archive launch with a sync queue cannot report success before work publication",
+        "process archive run resolves the profile by name",
+        "process archive run rejects missing profile ids and names without a run",
+        "archive launch without a start bound fails closed when the profile has no date window",
+        "archive launch uses the immutable profile date window when bounds are omitted",
+        "explicit archive bounds override the profile window and preserve every declared day"
+      ],
+      "original_path": "tests/Feature/Console/RunArchiveCrawlerTest.php",
+      "original_sha256": "1c6b7ef1e2991f060b5ee6e5d07d423320a3568c9d9fad2a95d2f27d69599efd",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Archive) с окном from/to",
         "без faked-очереди job исполняется синхронно (sync-driver) и доводит archive-прогон до completed",
         "резолвит профиль по name",
@@ -960,22 +1027,39 @@
         "без --from профиль БЕЗ окна — FAILURE без запуска прогона (P3.8, D113)",
         "без --from профиль С окном берёт окно профиля (P3.8, D113)",
         "--from/--to перекрывают окно профиля (P3.8, D113)"
-      ],
-      "original_path": "tests/Feature/Console/RunArchiveCrawlerTest.php",
-      "original_sha256": "1c6b7ef1e2991f060b5ee6e5d07d423320a3568c9d9fad2a95d2f27d69599efd",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Console/RunDeltaScanTest.php",
-      "sha256": "2ba38f7ff9a9b39a83e1c0e47b0478a3715ec8b7c1d3df1afd5cc141e9514fe8",
+      "sha256": "84f7ca2e6fe35b3c3e221b036ddaea2bc7d969fb91032cc7f047f5b89abf1e20",
       "scenarios": [
+        "repeated delta command preserves an active Process owner and its update partition"
+      ],
+      "original_sha256": "2ba38f7ff9a9b39a83e1c0e47b0478a3715ec8b7c1d3df1afd5cc141e9514fe8",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "original_scenarios": [
         "отдельно сообщает busy, когда delta-run уже исполняется другим owner"
       ]
     },
     {
       "path": "tests/Feature/Console/RunFreshCrawlerTest.php",
-      "sha256": "e8ffe730ee918ae44be272c5151b65fb30717d85d5430e6d812a55b486066c35",
+      "sha256": "e3fa3514fd1e00a68647250d59acd6547a3e2277375d7b55f89f31381e070d89",
       "scenarios": [
+        "process run resolves a numeric profile and commits required fresh work without dispatch",
+        "process run with a sync queue leaves discovery collecting until the durable executor finishes",
+        "process run resolves a profile name and records its immutable settings",
+        "process run rejects a missing profile id or name without any allocation",
+        "minute producer allocates active scheduled fresh profiles and ignores inactive or unscheduled profiles",
+        "one unresolved profile cannot prevent another scheduled profile from allocating",
+        "repeating a command while its work is running preserves the current owner and one run",
+        "an existing manual run does not prevent scheduled allocation for another profile"
+      ],
+      "original_sha256": "c3fac8b65c6e3a8574419a7b68df3adf85451889a4cc516ea908bb89fa815487",
+      "original_path": "tests/Feature/Console/RunFreshCrawlerTest.php",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "резолвит профиль по числовому id и диспатчит CrawlRunJob(mode: Fresh)",
         "без faked-очереди job исполняется синхронно (sync-driver) и доводит прогон до completed",
         "резолвит профиль по name и диспатчит CrawlRunJob",
@@ -984,10 +1068,7 @@
         "сбой одного профиля сохраняет его курсор на паузе, остальные профили обработаны",
         "активный прогон профиля — команда отказывает, второй job не ставится",
         "мульти-профильный вызов: активный прогон одного профиля не мешает запуску свободного"
-      ],
-      "original_sha256": "c3fac8b65c6e3a8574419a7b68df3adf85451889a4cc516ea908bb89fa815487",
-      "original_path": "tests/Feature/Console/RunFreshCrawlerTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Console/VerifyDocumentUidTest.php",
@@ -1001,33 +1082,51 @@
     },
     {
       "path": "tests/Feature/Console/VerifyFreshBoundaryTest.php",
-      "sha256": "50e16fd7499a83c642912680b26c126c878996e46c3fa13fb50a9fffa1c6e882",
+      "sha256": "6fbe85eb1643e57d89c32b9a4bc46b698bcaf1689d070629dc799bdfe6766472",
       "scenarios": [
-        "live A1 command uses bounded listing route and writes the exact sanitized schema",
-        "непроверенный CSV в bounded probe фиксирует отказ без ложной пустой страницы"
+        "Process boundary diagnostic uses two bounded reads and stores sanitized evidence only",
+        "Process boundary diagnostic stops on invalid CSV without false empty pages or blind parser retries"
       ],
       "original_sha256": "df24d16be39c5e762dd09e8167a100ff6a5564cf64ce0f5c172c40e723f2fa56",
       "harness_correction": "P4.1 D24: fresh HTTP response per request because the reader closes each stream; HTML without Content-Type has precise reason invalid_csv_header. Both scenario names and all request/page/stop/verdict/sanitization assertions retained.",
       "original_path": "tests/Feature/Console/VerifyFreshBoundaryTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/ArchiveRunProcessorTest.php",
-      "sha256": "37da8f9d7453cc847342b413c4efea11597ffc045df540c38a527d694fc3e1ab",
+      "sha256": "1156c0f6861f1395e691f5a66d89c10317413c860976afba483864170689c33f",
       "scenarios": [
+        "Process archive covers both assigned days and closes discovery with required detail obligations",
+        "Process archive resumes remaining day without recreating completed day work",
+        "Process archive pause between days retains ready assignments and prohibits the next grant",
+        "Process archive hard cancellation stops remaining exclusive days without claiming coverage"
+      ],
+      "original_sha256": "d673e96c6e1b069abf861ecf04193a3ca3c92e2e46cfde87f2c94128fc72d98d",
+      "original_path": "tests/Feature/Crawler/ArchiveRunProcessorTest.php",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "период из 2 дней — scan вызван на каждый день, курсор прошёл оба дня, run completed",
         "оборванный прогон (paused с курсором на 2-м дне) резюмится со 2-го дня, не с 1-го",
         "стоп-сигнал Pause между днями останавливает archive-прогон целиком, следующий день не обходится",
         "стоп-сигнал Cancel между днями останавливает archive-прогон целиком, статус терминален"
-      ],
-      "original_sha256": "d673e96c6e1b069abf861ecf04193a3ca3c92e2e46cfde87f2c94128fc72d98d",
-      "original_path": "tests/Feature/Crawler/ArchiveRunProcessorTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
-      "sha256": "bffe539e1c004495b434ac2612e75b1db5711b1b08f45c5507f27b14ddee11b6",
+      "sha256": "c04951a3519e30fabe8ad9b990c563a7623c4ca8692b992b049a1e64688c4720",
       "scenarios": [
+        "Process archive split preserves overlapping inclusive cents and immutable filter bounds",
+        "Process archive minimum interval cap retains explicit debt with no false coverage",
+        "Process archive publication failure rolls back the next page while retaining committed previous purchases",
+        "Process archive repeated page detection survives the persisted successor and drains both required split branches"
+      ],
+      "original_path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
+      "original_sha256": "67e406ddeb254db05d05e614366db06df6923b71ae0e7387f87b0e06086557f0",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "окно дренируется на частичном блоке, стек опустошён",
         "cap по повтору dedup_signature делит интервал пополам, обе половины дренируются",
         "archive max-block detector survives checkpoints and consumes one listing block per continuation",
@@ -1037,16 +1136,21 @@
         "отказ блока сохраняет интервал и курсор, инцидент записан вне транзакции",
         "системный отказ в archive: курсор остаётся на блоке, прогон на паузе источника",
         "ошибка записи блока откатывает транзакцию и сохраняет курсор, прежние данные целы"
-      ],
-      "original_path": "tests/Feature/Crawler/ArchiveWindowScannerTest.php",
-      "original_sha256": "67e406ddeb254db05d05e614366db06df6923b71ae0e7387f87b0e06086557f0",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/AuditReliabilityRegressionTest.php",
-      "sha256": "b4fc32b563530e7ec142fb94cf8c9faf5e5f212c1befb2601b6de3a2cdddfd8e",
+      "sha256": "21aa653d9d8e28800b99d4e4ea1a005b94ff13915b409c59a0b4a6dba93dc01d",
       "scenarios": [
+        "Process stale listing result cannot publish after a newer owner acquires the same page",
+        "Process duplicate queued delivery cannot disturb an active owner or emit a second wake",
+        "Process expired-work recovery cannot shorten a newer absolute target cooldown"
+      ],
+      "original_sha256": "34b6e14e8776b1ffe0abae1d2f32d6525c063d9bafc26d8f535b88f265bc54a7",
+      "original_path": "tests/Feature/Crawler/AuditReliabilityRegressionTest.php",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "deadline листинга даёт checkpoint без инцидента и без продвижения курсора",
         "архив не начинает новый бюджет времени при переходе на следующий день",
         "единичный отказ листинга сохраняет курсор и повторяет тот же блок после backoff",
@@ -1054,15 +1158,37 @@
         "сбой очереди не теряет автоматическое возобновление прогона",
         "устаревший тик не снимает новое ожидание брейкера",
         "повторная job при активном владельце завершается без ошибки и запросов"
-      ],
-      "original_sha256": "34b6e14e8776b1ffe0abae1d2f32d6525c063d9bafc26d8f535b88f265bc54a7",
-      "original_path": "tests/Feature/Crawler/AuditReliabilityRegressionTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Crawler/AuditRemediationTest.php",
-      "sha256": "527c6f9bdc46138a6f54650f24ebf686ccc807dfe7d9538fae505e89ca321419",
+      "sha256": "002f9d59567b8ea5b92ee1b7c583f111637b96545a634ccc3aa36235d468e100",
       "scenarios": [
+        "typed document parser accepts a known empty container and rejects an unrecognized page",
+        "Process detail admission visits a small platform cohort before consuming the large cohort backlog",
+        "поздний ingest старого дневного наблюдения не откатывает более поздний HTTP снимок",
+        "более новый source day сохраняет время собственного HTTP снимка",
+        "Process producer invalid profiles cannot starve later due profiles or multiply one due allocation",
+        "actual Redis refusal leaves a durable Process wake unclaimed and recoverable after queue restoration",
+        "Process progress reports a durable wait reason independently from delivery activity",
+        "direct raw catalog registration preserves the newest usage of an immutable repeated path",
+        "acquisition raw catalog respects independently configured listing and detail disks",
+        "распакованное тело ограничено фактическими байтами и поток закрывается после отказа",
+        "просроченный deadline закрывает тело до его чтения",
+        "plaintext прокси обновляется идемпотентно без изменения уже зашифрованного пароля",
+        "повреждённый ciphertext блокирует весь upgrade без частичной перезаписи",
+        "чужой APP_KEY не превращает ciphertext в новый plaintext",
+        "граница суток хранит 23 и 25 часов в зоне с DST",
+        "частично покрытый месяц достраивается по границам а имя чужой таблицы не считается покрытием",
+        "секреты скрываются в URL SQL и вложенном контексте",
+        "retention удаляет ограниченную порцию просроченных объектов и оставляет свежие",
+        "четыре процесса не расходуют больше одного общего HTTP слота"
+      ],
+      "original_path": "tests/Feature/Crawler/AuditRemediationTest.php",
+      "original_sha256": "b8802ab121b995eecd0467070aa140cee74d8a52994c846e5f735a04c8982675",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "распакованное тело ограничено фактическими байтами и поток закрывается после отказа",
         "просроченный deadline закрывает тело до его чтения",
         "documents допускает пустой контейнер и отклоняет заглушку",
@@ -1088,16 +1214,21 @@
         "backfill различает диски HTML карточек и CSV листинга",
         "HTTP 200 с ошибкой схемы не обновляет время успешного блока",
         "более новый source day сохраняет время собственного HTTP снимка"
-      ],
-      "original_path": "tests/Feature/Crawler/AuditRemediationTest.php",
-      "original_sha256": "b8802ab121b995eecd0467070aa140cee74d8a52994c846e5f735a04c8982675",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/BacklogRescanProcessorTest.php",
-      "sha256": "3dfc8a30fec643d33b3fc041823f793d3d3fb08f9bd8adacc7e2349770583964",
+      "sha256": "506a35190042c00cb439bd0014cf5435ad08a5d3b38d1712c3fc2c8a8ef2321a",
       "scenarios": [
+        "Process reconciliation uses the original fresh scope after profile edits without an archive profile",
+        "Process reconciliation acknowledges coverage only after complete stable recovery passes",
+        "Process reconciliation pause and intent cancellation never erase unresolved coverage debt"
+      ],
+      "original_path": "tests/Feature/Crawler/BacklogRescanProcessorTest.php",
+      "original_sha256": "e712c6c5f1ff3f10abdd1d2893b681778fd5a6179ac42ebee02134f9b972b4dd",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "cap_hit с живым archive-профилем реестра — scan вызван по update-окну, флаг помечен",
         "backlog использует scope из fresh-run, если профиль изменили после cap_hit",
         "повторный sweep() уже помеченный run не берёт",
@@ -1111,16 +1242,13 @@
         "стоп-сигнал Pause между днями останавливает рескан целиком, fresh-прогон не помечается rescanned",
         "стоп-сигнал Cancel между днями останавливает рескан целиком, fresh-прогон не помечается rescanned",
         "источник бросает — archive-run ждёт на текущем блоке, backlog не помечен обработанным"
-      ],
-      "original_path": "tests/Feature/Crawler/BacklogRescanProcessorTest.php",
-      "original_sha256": "e712c6c5f1ff3f10abdd1d2893b681778fd5a6179ac42ebee02134f9b972b4dd",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Crawler/BudgetExhaustionTest.php",
-      "sha256": "a2cfe8b46b72dca0c96e0528901dfbd61ff65c8105ef8ea47f0d56fd15c51877",
+      "sha256": "c569efc70675395b9f07f885b0e639126561e73e5d79ce5857132279e0374182",
       "original_sha256": "4c9c3f5927d7b70e857db7416da468a5b6bad3de3f36e94cdfa280f6a81e0311",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
       "scenarios": [
         "исчерпание бюджета листинга завершает срез чекпоинтом без падения прогона",
         "исчерпание бюджета archive сохраняет недренированный день и не переводит run в failed",
@@ -1129,12 +1257,23 @@
         "исчерпание бюджета карточки не растит detail_attempts и не двигает retry",
         "исчерпание бюджета документа не записывает error-блок документа"
       ],
-      "original_path": "tests/Feature/Crawler/BudgetExhaustionTest.php"
+      "original_path": "tests/Feature/Crawler/BudgetExhaustionTest.php",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-      "sha256": "59bf32cde8b61df53ce0dcde5659d1a0037fd2a45b4c7bc2d5d9b84298a35916",
+      "sha256": "f1dc04e6b4932d12127ec8c21e38352736fcfb37c91ee723679fb09ecacc9510",
       "scenarios": [
+        "typed EIS card plans pin the requested identity in every tab URL without database writes",
+        "typed EIS optional supplier results use explicit NotApplicable and no physical send",
+        "typed EIS status refresh reads only common info and leaves the supplier tab untouched",
+        "typed EIS unknown procedure fails before acquiring a network request"
+      ],
+      "original_path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
+      "original_sha256": "2cd90c422113c6fbe8bd7fd876526c0b7281d3e46178d02830529445de432bc8",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "таймаут карточки сохраняет числовые фазы транспорта без URL и credentials",
         "collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)",
         "collectDetails возвращает ProcurementDetails с сырым HTML всех вкладок завершённой закупки",
@@ -1145,26 +1284,39 @@
         "collectDetails бросает исключение при отсутствии URL-шаблона для типа процедуры",
         "collectDetails у типа без вкладки supplier-results (маркер null, D121) снимает три вкладки без исключения",
         "collectDetails без активной proxy-привязки идёт напрямую и пишет это в лог"
-      ],
-      "original_path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-      "original_sha256": "2cd90c422113c6fbe8bd7fd876526c0b7281d3e46178d02830529445de432bc8",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/ChangeTrackingWindowTest.php",
-      "sha256": "7c028ea49e53a46a94ec496c8ff349af20d8ff77186d4c6f6d6e4a89a6de5059",
+      "sha256": "dd889888953b4d2d924ed860e15b9b783ab7a4c0fb1b37500d8b3c93c40e44ac",
       "scenarios": [
         "обновление, попавшее в стык окон, не теряется — перекрытие расширяет рескан назад"
       ],
       "original_sha256": "d70979fcd3c0943a4ba2dacaa581fff8c549daca46fafa502e04e47b0d170fcd",
       "original_path": "tests/Feature/Crawler/ChangeTrackingWindowTest.php",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
+    },
+    {
+      "path": "tests/Feature/Crawler/CrawlRunJobTest.php",
+      "sha256": "daf817ce87d25ac8eddd40525c1d537e4f47a1822c456acd2404197c1ef78d79",
+      "scenarios": [
+        "Process listing delivery uses the registered handler and finishes only after stable full passes",
+        "Process duplicate delivery cannot execute its parser or publish a second successor",
+        "different Process work identities execute independently without a profile wide Redis lock",
+        "Process listing queue route and timeout belong to the stage with no unique lock TTL",
+        "Process slice exhaustion commits progress releases admission and resumes without self dispatch",
+        "Process resource debt remains explicit without a busy continuation dispatch loop",
+        "Process archive continuation preserves the original typed filter and route after profile edits"
+      ],
+      "original_path": "tests/Feature/Crawler/CrawlRunJobTest.php",
+      "original_sha256": "da2b957da315ad5f9b9a7ae9e85a81c1465d79eb8ad283e0d6096e0c9bd5ea14",
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/CrawlerFilterContractTest.php",
-      "sha256": "73828649d05a87b9822e812a927e8a7b5806f1590a043dd012d2c457cf927c8d",
+      "sha256": "6aae4daa7c5f63011667ef47246f996626fe413bbaa90901b4426323b107e896",
       "scenarios": [
         "filter профиля читается типизированным объектом, а не мешком ключей",
         "filter хранится прежним jsonb — в БД лежат ключи контракта, а не сериализованный объект",
@@ -1185,7 +1337,8 @@
       ],
       "original_path": "tests/Feature/Crawler/CrawlerFilterContractTest.php",
       "original_sha256": "d4641fae1ed8d674dfe7b6f14b0c14dce63f5a41934dc3408b022d30c622a501",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/CrawlerProxySettingsStorageTest.php",
@@ -1200,90 +1353,79 @@
     },
     {
       "path": "tests/Feature/Crawler/CrawlerProxySettingsTest.php",
-      "sha256": "ca00615da0dd60a2c7ba162ef787546b88d21b3194a44bd764ba2481e28bd980",
+      "sha256": "1599b7ee6956e3f8bb6cf20c5ed78d5da59ed87df94fa95271c0bae524aadcc7",
       "scenarios": [
-        "FreshRunProcessor останавливается при изменении proxy маршрута между блоками",
-        "ArchiveWindowScanner перечитывает proxy_mode/proxy_country профиля перед каждой итерацией",
+        "fresh work pins route access and does not adopt a profile edit between blocks",
+        "archive continuation retains immutable route snapshot while a new launch uses the edited profile",
         "фабрика по умолчанию сохраняет default-профиль, а withProxies задаёт profile mode",
         "профиль с включёнными прокси без явной привязки не сохраняется"
       ],
       "original_sha256": "10226d5337be2b041ddabb2f75c844a9e023646db65dcb7eedda4c74b6acbbde",
       "original_path": "tests/Feature/Crawler/CrawlerProxySettingsTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/CrawlerRunExecutionLeaseTest.php",
-      "sha256": "607d71f42a18503ad5df90e876df561fc00f8047a125e1c404b128929f2e3e6f",
+      "sha256": "0e9fc4428c83adb110a9030837f9020f5b983b718f63b35345231c6e62a8b0a1",
       "scenarios": [
         "два PostgreSQL процесса впускают в execution lease только одного owner и expiry продолжает тот же cursor",
         "не владеющий token не меняет cursor, status или lease",
         "прежний owner после takeover не меняет cursor, stats, status или lease"
-      ]
+      ],
+      "original_sha256": "607d71f42a18503ad5df90e876df561fc00f8047a125e1c404b128929f2e3e6f",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "original_path": "tests/Feature/Crawler/CrawlerRunExecutionLeaseTest.php"
     },
     {
       "path": "tests/Feature/Crawler/CrawlerRunManagerTest.php",
-      "sha256": "23a59d99d0f136bb85ac0c27e4ad164d4d8c9744428f7b67d54f4f68354c4ff1",
+      "sha256": "aafb0186c5a844dd307708dbe230ee4afd599aa478286af75de2661301360737",
       "scenarios": [
-        "первый startOrResume создаёт один running-прогон",
-        "повторный startOrResume резюмит тот же running, второго не заводит",
-        "второй running руками падает на unique-индексе",
-        "paused-прогон резюмится в running при startOrResume",
-        "другой owner не получает running-прогон и не меняет его курсор",
-        "backlog owner не резюмирует другой subject",
-        "два PostgreSQL worker одновременно стартуют одного owner в один run",
-        "recoverStale переводит протухший running в paused и не трогает свежий",
-        "recoverStale не ставит на паузу прогон с действующим execution lease",
-        "recoverStale поднимает протухший run с owner token без expiry",
-        "execution lease использует часы PostgreSQL, а не замороженные часы PHP",
-        "crawler:recover-stale поднимает протухший прогон и печатает число поднятых",
-        "crawler:recover-stale повторно ставит точное archive-продолжение, но не операторскую паузу",
-        "heartbeat обновляет last_heartbeat_at",
-        "updateCursor пишет курсор через ListingCursor::toArray",
-        "legacy cursor JSON получает безопасные defaults cap-detector",
-        "pause переводит running в paused, пишет stats.stop_reason и гасит запрос остановки",
-        "cancel переводит running в cancelled, ставит finished_at и пишет stats.stop_reason",
-        "recordCheckpoint наращивает stats.checkpoints, не трогая другие ключи",
-        "complete на прогоне, который уже НЕ Running — тихий no-op, статус и finished_at не меняются",
-        "complete ставит терминальный статус и finished_at"
-      ]
+        "Process recovery revokes only an expired lease and preserves a live concurrent work",
+        "Process schema rejects an owner token without an execution lease before it can become stale",
+        "Process execution lease uses PostgreSQL clock independently of frozen PHP dates",
+        "Process heartbeat refreshes the database timestamp and lease through the owning token",
+        "Process checkpoint sequence advances only on successful CAS and preserves immutable input and other progress",
+        "EIS cursor rejects legacy unversioned defaults and roundtrips explicit cap and partition policy",
+        "Process terminal publication is idempotent and a repeated stale completion changes no accepted result"
+      ],
+      "original_sha256": "23a59d99d0f136bb85ac0c27e4ad164d4d8c9744428f7b67d54f4f68354c4ff1",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "original_path": "tests/Feature/Crawler/CrawlerRunManagerTest.php"
     },
     {
       "path": "tests/Feature/Crawler/CrawlerRuntimeOptionsTest.php",
-      "sha256": "7bc660342d192917611555b05f43b2384f33b07cbed316c76b29cb735aeb0ad8",
+      "sha256": "0745cf31cefd1951d0e7274dacccd685d474ff698dab317b97e508054bdf353e",
       "scenarios": [
-        "typed options проходят сериализацию и сохранение другого профиля без потери значений",
+        "adapter filter survives profile copy while validated endpoint policy owns block size retries and required columns",
         "неизвестные ключи и конфликтующие варианты имени options отклоняются"
-      ]
-    },
-    {
-      "path": "tests/Feature/Crawler/CrawlRunJobTest.php",
-      "sha256": "54a982b8a5f33d5894b1a47d83222a9daa610fd0305b3da428155c98d55974ae",
-      "scenarios": [
-        "job резолвит fresh-режим и вызывает FreshRunProcessor",
-        "job резолвит archive-режим и вызывает ArchiveRunProcessor за окно from/to",
-        "повторный диспатч на тот же crawlerId дедуплицируется unique-локом",
-        "диспатч на РАЗНЫЕ crawlerId не делит unique-лок",
-        "long lane задаёт отдельные connection и queue, а constructor без lane сохраняет standard",
-        "исчерпание бюджета checkpoint_seconds оставляет running и job самодиспатчит продолжение",
-        "fresh hard-cap самодиспатчит ровно одно продолжение и завершает его на следующем slice",
-        "продолжение ставится после освобождения аренды: немедленно забранное (sync) не падает и доводит прогон",
-        "request-budget checkpoint archive сохраняет execution lane и самодиспатчит continuation",
-        "archive continuation использует неизменяемый typed filter snapshot исходного completed-2025 корпуса",
-        "operator debt композиция scanner processor job ставит archive на паузу без busy self-dispatch",
-        "self-dispatch continuation сохраняет long lane и оба маршрута",
-        "сигнал Pause останавливает fresh-прогон между блоками с сохранённым курсором и stats.stop_reason",
-        "сигнал Cancel даёт cancelled прогону",
-        "uniqueFor CrawlRunJob задаёт TTL unique-лока — без него SETNX на Redis держит лок вечно"
       ],
-      "original_path": "tests/Feature/Crawler/CrawlRunJobTest.php",
-      "original_sha256": "da2b957da315ad5f9b9a7ae9e85a81c1465d79eb8ad283e0d6096e0c9bd5ea14",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      "original_sha256": "7bc660342d192917611555b05f43b2384f33b07cbed316c76b29cb735aeb0ad8",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved."
     },
     {
       "path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
-      "sha256": "4c8410f3b51860ce280ac516c0ec6ca6ab1451592312eabb6f22fe75586c94bd",
+      "sha256": "c9c46e12b8816f48e18b90e525b0a7e390ddbc1fa4b7ba0572d481e0fd973543",
       "scenarios": [
+        "Process CSV publication creates canonical purchases revisions and discovered events together",
+        "Process CSV preserves earliest source day precision independently from publication dates",
+        "Process CSV replay counts parsed observations without second revisions or events",
+        "Process CSV receipt retains a full content digest cardinality and terminal proof without legacy fetch rows",
+        "Process CSV explicit registry denylist skips only requested identities without publishing detail obligations",
+        "Process CSV duplicate observations retain 510 membership entries but first identity content wins 500 publications",
+        "Process CSV invalid row rejects the entire page without partial canonical writes",
+        "Process CSV malformed record contributes cardinality but cannot prove page completeness",
+        "Process CSV invalid responses remain evidence without source incident writes or canonical data",
+        "Process CSV semantic empty requires the complete mandatory header"
+      ],
+      "original_sha256": "f21a2a9e2d79c32818dd1f28527abdb13550091366f4cb028f224f4197367023",
+      "original_path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "фикстурный блок создаёт закупки, ревизии и события discovered",
         "передаёт точность самой старой даты обновления из маппера",
         "неизменившаяся строка считается распарсенной, а не ошибкой",
@@ -1301,16 +1443,24 @@
         "нет обязательной колонки в заголовке — ответ не по формату, строки не разбираются",
         "HTML вместо CSV с HTTP 200 ловится проверкой заголовка, даже если записей нет",
         "пустое тело при 2xx — отдельный вид отказа, блок пропускается"
-      ],
-      "original_sha256": "f21a2a9e2d79c32818dd1f28527abdb13550091366f4cb028f224f4197367023",
-      "original_path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-      "sha256": "059ea81e15a355443390fcc668feb591eee8fc305e80a6e5ffaeb3e48faaf8cb",
+      "sha256": "50922d58a2087f1df252ce76bf5b60104267a7d2d4fd8a28f2c9f8d79e38e172",
       "scenarios": [
+        "поле в кавычках с переводом строки остаётся одной записью листинга",
+        "обратный слэш в конце поля не склеивает соседние поля",
+        "битая запись учитывается в rowsTotal, чтобы неполный блок не считался последним",
+        "лимиты bytes records и field останавливают fresh без продвижения курсора",
+        "typed EIS page digest uses all observations rather than only the first registry number",
+        "typed EIS parser deadline fails before returning any partial page as successful"
+      ],
+      "original_path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
+      "original_sha256": "2b034439b6fd0c89d17422303b37091eca7aed1668ce8a444ced7b5000e611de",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "истёкший deadline листинга запрещает новый HTTP-запрос",
         "collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре",
         "dedupSignature вычисляется по колонке «Реестровый номер закупки» первой строки блока",
@@ -1330,16 +1480,21 @@
         "обратный слэш в конце поля не склеивает соседние поля",
         "битая запись учитывается в rowsTotal, чтобы неполный блок не считался последним",
         "лимиты bytes records и field останавливают fresh без продвижения курсора"
-      ],
-      "original_path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-      "original_sha256": "2b034439b6fd0c89d17422303b37091eca7aed1668ce8a444ced7b5000e611de",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/DeltaScanTest.php",
-      "sha256": "dbe9f1b4bc42e6121a459236bbfbc0bac4368504f3e6723013c121f7fbca7169",
+      "sha256": "edb20c2fd206be7a1315396c34f5f426a187738013cca319de1d3f97e08666d6",
       "scenarios": [
+        "Process delta uses its own update windows and needs no separate archive profile",
+        "Process delta covers the requested update days without claiming success before stability",
+        "Process delta pause between days prohibits the next grant and keeps the update cursor"
+      ],
+      "original_path": "tests/Feature/Crawler/DeltaScanTest.php",
+      "original_sha256": "6ee672e164521013e6585fc69578f43b0d0c293d5242730c27a6d9a00a33e3e7",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "нет активного archive-профиля реестра — warning, run не создаётся",
         "чужой running archive-прогон даёт busy без сканирования и completion",
         "занятый execution lease того же delta owner не входит в scanner и не меняет cursor",
@@ -1348,15 +1503,24 @@
         "активный archive-профиль реестра — дренирует окно [сегодня − overlap; сегодня] по update, run завершён",
         "стоп-сигнал Pause между днями останавливает delta-scan целиком, следующий день не обходится",
         "стоп-сигнал Cancel между днями останавливает delta-scan целиком, статус терминален"
-      ],
-      "original_path": "tests/Feature/Crawler/DeltaScanTest.php",
-      "original_sha256": "6ee672e164521013e6585fc69578f43b0d0c293d5242730c27a6d9a00a33e3e7",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Crawler/DetailAnalysisProcessorTest.php",
-      "sha256": "27abfbef15737798361c281803828dda183ca81befd658a00e4019770696d049",
+      "sha256": "553899541e930a75fdf1e8eb007779d2318f834239014b54ac5c20d4380a091f",
       "scenarios": [
+        "Process complete EIS detail publishes all tab projections and pending documents without inline downloads",
+        "Process EIS incomplete supplier results resume saved parts and publish only the coherent later outcome",
+        "Process EIS incomplete document refresh preserves all previously published attachment links",
+        "Process EIS explicit complete empty document container finishes detail instead of retrying forever",
+        "Process EIS missing parties remain incomplete until a complete common info page is revalidated",
+        "Process EIS wrong card identity rejects only its work and never creates platform detail rows"
+      ],
+      "original_path": "tests/Feature/Crawler/DetailAnalysisProcessorTest.php",
+      "original_sha256": "b99d8a55d37c350c2ff5f51af399b59114b9109fc5f0065dbd7808699c65a200",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "supplier-results mismatch остаётся retryable и следующий полный проход сходится",
         "неполные стороны оставляют карточку retryable до подтверждённого полного повтора",
         "run наполняет все вкладки-таблицы и ставит detail_fetched_at",
@@ -1373,26 +1537,26 @@
         "этап карточек в ожидании — карточка не запрашивается и остаётся в очереди; листинг не затронут",
         "отказ скачивания карточки учитывается брейкером этапа карточек, карточка — в штатный повтор",
         "ошибка нашего кода при обработке карточки: брейкер не считает, событие ERROR, карточка в штатный повтор"
-      ],
-      "original_path": "tests/Feature/Crawler/DetailAnalysisProcessorTest.php",
-      "original_sha256": "b99d8a55d37c350c2ff5f51af399b59114b9109fc5f0065dbd7808699c65a200",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/DetailDispatcherTest.php",
-      "sha256": "c2a4752776f579c2cec0b909f7212e81e7f70b561b003e0d05b7b038fbb7fa90",
+      "sha256": "3170e98a36a0aa1666d63572a0637a071edaf816e47e09e0db0460c8f8e388e2",
       "scenarios": [
-        "диспетчер подаёт не больше лимита за тик",
-        "повторный тик не создаёт второй detail-job для той же закупки"
+        "Process detail producer выделяет не больше лимита за тик без прямого dispatch",
+        "повторный tick сохраняет один active detail intent и work без второго dispatch"
       ],
       "original_sha256": "179f9d8f1899b77e4b268510dace5b9ecd299873dc3c762fa0a925949856641c",
       "original_path": "tests/Feature/Crawler/DetailDispatcherTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "original_scenarios": [
+        "диспетчер подаёт не больше лимита за тик",
+        "повторный тик не создаёт второй detail-job для той же закупки"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/EisCardUrlBuilderTest.php",
-      "sha256": "e6311810cc30ecc620e8f465979aca0857e16c81024b3b334758c1f3d65f321d",
+      "sha256": "8ae99aaed6fe32bc257942e9565bbdcfcb6b6906143deabaf4a692a79d1cf091",
       "scenarios": [
         "resolveProcedureUrlType резолвит СЫРУЮ метку способа закупки в сегмент URL по settings.procedure_url_types (П-8)",
         "resolveProcedureUrlType бросает исключение при отсутствии маппинга типа процедуры",
@@ -1404,44 +1568,44 @@
       ],
       "original_path": "tests/Feature/Crawler/EisCardUrlBuilderTest.php",
       "original_sha256": "8e3582eb0da1fb9778e3c7e4456138caefa304380612a16743f3418d9cf9f0cf",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/EisCsvUrlBuilderTest.php",
-      "sha256": "1c4049e8779763a59292d334b78feaf3011b8e8f8a0714682782cf32faba295d",
+      "sha256": "b4ac361bab967499bf263786c6e1a5a341af96acc15e4db18058751edd4c887f",
       "scenarios": [
-        "buildQueryParams переводит поля типизированного фильтра в параметры ЕИС и добавляет from/to/sort",
-        "buildQueryParams не эмитит ключ выключенного этапа и незаполненного поля",
-        "buildQueryParams форматирует даты фильтра в d.m.Y, а типизированное значение остаётся в DTO",
-        "buildQueryParams переносит searchString и morphology как есть",
-        "buildQueryParams archive-ветка перекрывает даты фильтра окном сканера",
-        "buildQueryParams добавляет column=on только для true-колонок options.columns",
-        "buildQueryParams выставляет флаг реестра fz44=on по crawler.registry.code",
-        "buildQueryParams выставляет флаг реестра fz223=on по crawler.registry.code",
-        "buildQueryParams без filter и без options.columns собирает только from/to/registry/sort/registryNumberCsv",
-        "buildQueryParams всегда запрашивает registryNumberCsv даже если он выключен в options.columns",
-        "buildQueryParams с cursor->day archive-ветка добавляет publishDateFrom/To+price+sortDirection=true",
-        "buildQueryParams с cursor->day и cursor->dateField=update маппится на updateDateFrom/To",
-        "buildQueryParams с окном профиля и update-курсором снимает окно публикации",
-        "buildQueryParams с окном профиля и publish-курсором сохраняет archive-параметры",
-        "buildQueryParams без cursor или с cursor->day=null — прежний fresh-набор без регресса",
-        "buildQueryParams резолвит okpd2Codes в okpd2Ids по коду и добавляет okpd2IdsWithNested=on",
-        "buildQueryParams выбор одного листового кода тоже добавляет okpd2IdsWithNested=on",
-        "buildQueryParams порядок okpd2Ids не зависит от порядка кодов в профиле",
-        "buildQueryParams на нерезолвящемся коде ОКПД2 отказывает исключением с именем кода",
-        "buildQueryParams переводит поле сортировки профиля в sortBy для обоих значений",
-        "buildQueryParams переводит sortAscending профиля в sortDirection для обоих направлений (инверсия)",
-        "buildQueryParams профиль без поля сортировки даёт прежнюю пару sortBy/sortDirection",
-        "buildQueryParams archive-курсор перекрывает sortDirection профиля безусловно"
+        "EIS query preserves stages search morphology inclusive prices and classifier scope",
+        "EIS query omits unset optional filters and retains all required CSV columns",
+        "EIS query uses a bounded source day with inclusive pagination and kopeck prices",
+        "EIS update query removes profile publication bounds without losing scope",
+        "EIS publication query narrows the profile range to the requested source day",
+        "EIS query rejects unsupported registry and unscoped profile before HTTP",
+        "EIS query resolves sorted classifier IDs independently of profile order and foreign platform",
+        "EIS query resolves a leaf classifier with nested descendants enabled",
+        "EIS query rejects unresolved classifier before HTTP",
+        "EIS query pins declared sort field and always scans partition in ascending order",
+        "EIS query bounds fresh reads to a source day as well as archive reads"
       ],
       "original_path": "tests/Feature/Crawler/EisCsvUrlBuilderTest.php",
       "original_sha256": "3a536b94c6368c0ccadc79ecaf0ab339ddd5367b2794a53233b73c5951839ced",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/EisListingReliabilityTest.php",
-      "sha256": "767c4c60c598686aab781f9f203e4b3eb83ffca5dd56eb91cfb3dae1a77e174e",
+      "sha256": "d1796446e4caee5966446809d861c10719b6c5fb2c1de34f9aa7ff2ff18f9954",
       "scenarios": [
+        "Process EIS invalid required identity and dates never prove an empty source day",
+        "Process EIS semantic empty requires valid CSV content type as well as complete headers",
+        "actual acquisition checks current Process pause cancellation and ownership before sending any bytes",
+        "actual acquisition exhausted network retries cannot reuse a previous HTTP error as final input"
+      ],
+      "original_path": "tests/Feature/Crawler/EisListingReliabilityTest.php",
+      "original_sha256": "bb2209f961fb3fdbca63c51fe82b3ca044ff70952f639e59e52137125d409378",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "невалидный ответ сохраняет raw evidence и не дренирует день",
         "валидный header-only CSV дренирует пустой день",
         "ошибка обязательного поля приостанавливает обход и сохраняет курсор дня",
@@ -1453,29 +1617,37 @@
         "журнал попыток сохраняет стабильную идентичность и enum без transport secrets",
         "исчерпание сети ограничено пятью попытками и не раскрывает исходный transport error",
         "HTML content type отклоняет даже тело с формально правильным CSV заголовком"
-      ],
-      "original_path": "tests/Feature/Crawler/EisListingReliabilityTest.php",
-      "original_sha256": "bb2209f961fb3fdbca63c51fe82b3ca044ff70952f639e59e52137125d409378",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Crawler/FetchProcurementDetailJobTest.php",
-      "sha256": "6f4c68c06ed44ff51be435ac21b8e1e0876f5c184844cf6581ec41d041ae9b20",
+      "sha256": "cac0e63d68fdadabe6e62f0a9f1cb5e89b9008e8977be1433e50758a89486178",
       "scenarios": [
-        "job вызывает детальный процессор и мост в pipeline после успеха",
-        "job тихо заканчивается при исчерпанном бюджете и не вызывает мост",
-        "job стоит на detail-очереди и держит unique-lock по id закупки",
-        "worker failure callback учитывает оборванный timeout как доменную detail-попытку"
+        "Process detail delivery publishes document references and pending intents without a pipeline bridge",
+        "Process detail network budget defers without consuming item failures or dispatching documents",
+        "Process detail delivery uses the registered queue and PostgreSQL identity without a Redis unique lock",
+        "Process detail worker timeout callback is telemetry only and durable recovery retains budget and checkpoint"
       ],
       "original_path": "tests/Feature/Crawler/FetchProcurementDetailJobTest.php",
       "original_sha256": "04f0d9f9ae187e0920281ee98b1b6c32622dbb5a8b677ebf1a2dde7a2e8f76f5",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/FreshRunProcessorTest.php",
-      "sha256": "4c2a74dd65ce92df4b185383021180c156d4bcd72d06d31601533f88b9d1c2f5",
+      "sha256": "72c9c4d3e97b6a0eaaf489d2db874ac649c9de93d7a011e5a84ba8c9c806974c",
       "scenarios": [
+        "Process fresh scans every page of known source days until two full passes agree",
+        "Process fresh network waits and route holds preserve cursor and cannot claim source exhaustion",
+        "Process fresh manual pause prohibits grants and retains the durable page assignment",
+        "Process coverage replaces legacy only-fresh stop policy and scan-gap heuristics",
+        "Process fresh command after completed discovery creates a distinct run without rewriting history"
+      ],
+      "original_path": "tests/Feature/Crawler/FreshRunProcessorTest.php",
+      "original_sha256": "40e69e34d6288aafe1885fb5be4792ac6e8a086c4d60ff601f9be2734b7b9f97",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "нераспознанный блок сохраняет evidence и курсор для повторной обработки",
         "страница ошибки (403) сохраняет текущий блок и приостанавливает fresh",
         "массовые отказы уводят листинг в ожидание: прогон приостановлен на том же блоке, а не провален",
@@ -1495,10 +1667,7 @@
         "политика only_fresh без предыдущего завершённого прогона не останавливает — первый скан дренирует как обычно",
         "политика only_fresh: граница «ровно на пороге» останавливает прогон детерминированно",
         "профиль archive с stop_policy=only_fresh не сохраняется"
-      ],
-      "original_path": "tests/Feature/Crawler/FreshRunProcessorTest.php",
-      "original_sha256": "40e69e34d6288aafe1885fb5be4792ac6e8a086c4d60ff601f9be2734b7b9f97",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Crawler/PlatformRequestBudgetTest.php",
@@ -1536,19 +1705,26 @@
     },
     {
       "path": "tests/Feature/Crawler/ProxyBindingResolverTest.php",
-      "sha256": "ec166fd8d52e40986b803366c6b1cf7eb65af78d793d2d15e77d7c6d8e884334",
+      "sha256": "17c663cbad85767c564de65e6377722c01d09754f0d80197537b43b2bb8ab8c3",
       "scenarios": [
         "резолвер профиля возвращает только явно привязанные узлы",
         "резолвер стадии объединяет только наборы активных proxy-профилей реестра закупки",
-        "резолвер стадии выбирает default без profile и direct только при явном opt-out всех профилей"
+        "резолвер стадии выбирает default без profile и direct только при явном opt-out всех профилей",
+        "разные активные профили закупки дают явный configuration hold без расширения маршрутов"
       ],
       "original_sha256": "0b3eecc67e548ea0c2d7849067e124bda9ec2e591cfe8ff941ab861dd2251ad4",
       "original_path": "tests/Feature/Crawler/ProxyBindingResolverTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
+        "резолвер профиля возвращает только явно привязанные узлы",
+        "резолвер стадии объединяет только наборы активных proxy-профилей реестра закупки",
+        "резолвер стадии выбирает default без profile и direct только при явном opt-out всех профилей"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/ProxyCredentialStorageTest.php",
-      "sha256": "64d221801daee88da095668f9149d89939fd6f5a08dbe19c23391083b438105e",
+      "sha256": "3801c9c5964305184b4d6da107703a9a112ffb47c8d032e36e8b1f7a28c541d4",
       "scenarios": [
         "пароль прокси хранится в БД зашифрованным, а модель читает открытое значение",
         "пароль прокси не сериализуется моделью",
@@ -1556,7 +1732,8 @@
       ],
       "original_sha256": "bf7d91edc20ace8bace2730ac34a00b9540d9b102992d00605dc4c64aad560bb",
       "original_path": "tests/Feature/Crawler/ProxyCredentialStorageTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/ProxyOutcomeConcurrencyTest.php",
@@ -1603,7 +1780,7 @@
     },
     {
       "path": "tests/Feature/Crawler/RawArtifactIdentityTest.php",
-      "sha256": "580f80f2dac23c213fcbb8ef2662e3ab752412b47cf3377d62a9d5e57ecfc286",
+      "sha256": "1bd5ba457cd3604ad79383523700c51d24b40c741ca17c19a97bd15096cefe42",
       "scenarios": [
         "distinct CSV request windows retain their own immutable bytes",
         "identical CSV replay reuses its immutable object reference",
@@ -1612,12 +1789,21 @@
       ],
       "original_sha256": "0e41d913fd543fb622a785a772542dec312d67b99d394ab975102c1780d26461",
       "original_path": "tests/Feature/Crawler/RawArtifactIdentityTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/RunStopGateTest.php",
-      "sha256": "60aad729242c2b0e321d2c9c3bae48748262f60ffa72a1aec5677e1e6cabb2fa",
+      "sha256": "7dd9ed199ebab1cc4439996d1419998ed76e69fc1cefa21123923afa0c96c23b",
       "scenarios": [
+        "enabled Process authority grants a claim without a stop signal",
+        "Process pause refuses the next claim and preserves its admitted reservation",
+        "Process hard cancel fences the work and releases the whole admission group",
+        "a stale work snapshot and delivery cannot hide a newly committed cancel"
+      ],
+      "original_sha256": "60aad729242c2b0e321d2c9c3bae48748262f60ffa72a1aec5677e1e6cabb2fa",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "original_scenarios": [
         "без stop_requested_at сигнала нет",
         "stop_requested_at + stop_kind=pause отдаёт RunStopKind::Pause",
         "stop_requested_at + stop_kind=cancel отдаёт RunStopKind::Cancel",
@@ -1626,7 +1812,7 @@
     },
     {
       "path": "tests/Feature/Crawler/SourceCircuitBreakerTest.php",
-      "sha256": "00061d14cda0d83e270ed06254ee19127a8700c02a03fcedcf4f64161551b23e",
+      "sha256": "5996e11375373c75c49d87eaac60ff3628f64c4a85d44f9ab80b62bcebca26c5",
       "scenarios": [
         "отказ ниже порога: этап работает, событие отказа записано, ожидания нет",
         "порог: ожидание на интервал, событие об ожидании, доменное событие",
@@ -1646,12 +1832,24 @@
       ],
       "original_sha256": "b254655d9897362fe739a98669f53f9670e39d16ca965a899a0a7e806958e343",
       "original_path": "tests/Feature/Crawler/SourceCircuitBreakerTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Crawler/SourceControlScenariosTest.php",
-      "sha256": "c81309d125361938dce32c01ecad4b684b93cba17326a5facc567cec983d45c4",
+      "sha256": "ba5ea6d880a5b77ac1b3261d4fc69ece85e1878702f586e502c81beace4d2b4a",
       "scenarios": [
+        "Process repeated handler faults retain cursor and block the work without consuming item budget or source health",
+        "late handler failure cannot resurrect cancelled Process work or publish a misleading incident",
+        "database dependency interruption leaves durable running work for recovery without a false failure",
+        "EIS unrecognized card stays bounded incomplete and preserves canonical documents",
+        "legacy incident navigation and badge remain readable while every acquisition incident writer is absent"
+      ],
+      "original_sha256": "dc3f0766148d3c28f80a656d6dd6f00422d94656466981339b77c850e11762f8",
+      "original_path": "tests/Feature/Crawler/SourceControlScenariosTest.php",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "пул прокси лёг: 5 отказов → ожидание, прогон на паузе на том же блоке; через 10 мин продолжает, данные целы",
         "всплеск 503 ниже порога: тот же блок повторён после ожидания, обход завершён без пропусков",
         "смена формата на 3 попытках одного блока → остановка до оператора; таймер её не снимает; «Возобновить» продолжает",
@@ -1668,16 +1866,24 @@
         "карточки: новая вёрстка на 3 карточках → остановка; попытки карточек не тратятся",
         "находка: тики планировщика во время остановки не плодят «прогон приостановлен»",
         "находка: при ожидании этапа карточек диспетчер не ставит холостые job и не занимает лимит"
-      ],
-      "original_sha256": "dc3f0766148d3c28f80a656d6dd6f00422d94656466981339b77c850e11762f8",
-      "original_path": "tests/Feature/Crawler/SourceControlScenariosTest.php",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/StageOneIsolationTest.php",
-      "sha256": "ab95a9f921fd6e0a688a61f6a9386319531e3709fe0929481142e8cbfe1a5fd0",
+      "sha256": "dfd335127b82cc160cc725efc6ddcae3bfbc021884e8290bc3ab0fb174c35787",
       "scenarios": [
+        "legacy downstream pause blocks document backlog retry and revalidation without claims",
+        "CSV-only останавливает уже поставленные document jobs до чтения данных и lease",
+        "legacy downstream pause leaves acquisition detail cycles durable without dispatch",
+        "CSV-only блокирует ручные AI входы до изменения анализа и fixture",
+        "отключённая стадия называет причину отказа fixture без рабочей копии и dispatch",
+        "enabling legacy downstream does not restore direct detail jobs or bypass Process",
+        "CSV-only не диспатчит подготовку извлечённого дочернего документа архива"
+      ],
+      "original_sha256": "5b9343e79639322f502a99852e6efa3911ee78d6280589bb807dc3675afbcd26",
+      "original_path": "tests/Feature/Crawler/StageOneIsolationTest.php",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "original_scenarios": [
         "CSV-only запрещает прямой и пакетный detail, backlog, retry и revalidation без claims",
         "CSV-only останавливает уже поставленные document jobs до чтения данных и lease",
         "CSV-only останавливает уже поставленный detail job до чтения закупки",
@@ -1685,24 +1891,30 @@
         "отключённая стадия называет причину отказа fixture без рабочей копии и dispatch",
         "включение downstream возвращает штатный detail dispatch",
         "CSV-only не диспатчит подготовку извлечённого дочернего документа архива"
-      ],
-      "original_sha256": "5b9343e79639322f502a99852e6efa3911ee78d6280589bb807dc3675afbcd26",
-      "original_path": "tests/Feature/Crawler/StageOneIsolationTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Crawler/SuspendedRunResumerTest.php",
-      "sha256": "159c050d4aafbd3c6da9765b24572cfde891b9e2872dfbc33100ca5d5cb15c03",
+      "sha256": "4ae99cb666d4c6ababae13ff7c546d88f7998a0ff385c07ce9499a08438acbb5",
       "scenarios": [
+        "Process feeder emits one durable wake when a suspended work becomes due and retains progress",
+        "automatic Process retry waits for RetryAt and cannot clear an operator pause",
+        "operator resume preserves the network wait and item budget rather than restarting a legacy run",
+        "delta and recovery share the same durable deferral mechanism without legacy resumer commands",
+        "expired target cooldown does not clear a manual pause or rewrite health from the work resumer",
+        "absolute network RetryAt survives pause and repeated scans without an item failure"
+      ],
+      "original_sha256": "4472e68d01e1a941b2466edb873fdc2d6397b73a4ef4c07de4ce6bc8ee407e12",
+      "original_path": "tests/Feature/Crawler/SuspendedRunResumerTest.php",
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "автоповтор отправляет job и сохраняет метку до фактического возобновления",
         "автоповтор ждёт retry_at и не трогает ручную паузу",
         "оператор возобновляет сразу, минуя ожидание: ожидание снято, прогон поставлен",
         "delta/backlog сохраняют метку и продолжаются своим планировщиком",
         "ожидание этапа карточек истекает без прогонов: снимается только retry_at"
-      ],
-      "original_sha256": "4472e68d01e1a941b2466edb873fdc2d6397b73a4ef4c07de4ce6bc8ee407e12",
-      "original_path": "tests/Feature/Crawler/SuspendedRunResumerTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Doctor/ApplicationReadinessDiagnosticTest.php",
@@ -1842,7 +2054,7 @@
     },
     {
       "path": "tests/Feature/Filament/AdminPanelAccessTest.php",
-      "sha256": "1af18174bf520cdcee3744d982ae33d25da8c04cad9caef262b9eb40094b7ca1",
+      "sha256": "d12cdd9e4c00cecf936da7548d90d045bedee742632dd9f7ffcfaeb3bb3e2e75",
       "scenarios": [
         "суперадмин проходит на admin-панель, пользователь без ролей — нет",
         "оператор имеет CRUD на конфигурации, управляет прогонами, но не трогает реестр и роли",
@@ -1852,17 +2064,22 @@
         "view-only ресурсы Run и Procurement не имеют create/edit страниц",
         "PromptResource вне enum-RBAC каталога, остальные ресурсы и коарс-право на промты не задеты",
         "PromptResource: без права на промты viewAny/view/create denied несмотря на исключение из enum-каталога"
-      ]
+      ],
+      "original_sha256": "1af18174bf520cdcee3744d982ae33d25da8c04cad9caef262b9eb40094b7ca1",
+      "original_path": "tests/Feature/Filament/AdminPanelAccessTest.php",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover: preserved scenario names and original hashes; current bytes include Process callers and fenced publication/schema assertions. Executed checks are separate evidence."
     },
     {
       "path": "tests/Feature/Filament/AdminRouteInventoryTest.php",
-      "sha256": "027dc15d08c344490781aa3a7187667ff8e0d116ed25ce3218dcedaa331a7570",
+      "sha256": "83ca13a9b789a77ab5caeb9d34dd6469a890fe5aa250e53f03041c7398efadbe",
       "scenarios": [
         "runtime admin routes exactly match committed resource and role matrix"
       ],
       "original_sha256": "ab43e9fc7aa9c0ffe0dd4ae75bfbc49f83221b2c0157485783b8bf7df87bdcb6",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
-      "original_path": "tests/Feature/Filament/AdminRouteInventoryTest.php"
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "original_path": "tests/Feature/Filament/AdminRouteInventoryTest.php",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Filament/AnalysisResourceTest.php",
@@ -1879,8 +2096,26 @@
     },
     {
       "path": "tests/Feature/Filament/CrawlerFormTest.php",
-      "sha256": "18a1bcc08edae87c22eb2899631f1f36c6b33fd6963b12e0bed20f23fd817fae",
+      "sha256": "d2eee1fe8033fe91b6ce57a6e9c39da1e27c5e8dc3f63d7a56d1112f75349940",
       "scenarios": [
+        "сохранение профиля формой даёт типизированный фильтр и acquisition kind",
+        "execution lanes and source fallback are owned by Process and cannot be changed by a profile",
+        "mandatory CSV columns and request retry policy cannot be disabled by the profile form",
+        "невалидное cron-выражение отклоняется на форме",
+        "неизвестный ключ фильтра отклоняется формой так же, как моделью",
+        "опции ОКПД2 сгруппированы по родительскому узлу и находятся поиском по коду и по названию",
+        "the profile UI uses the registered extension and does not offer a legacy CSV URL preview",
+        "форма сохраняет профиль с полями сортировки",
+        "fresh and archive profiles cannot reintroduce the legacy stop policy",
+        "форма отклоняет профиль fz44 без выбранного узла ОКПД2",
+        "форма сначала сохраняет direct-профиль с привязкой, затем разрешает профильный режим",
+        "форма показывает привязки и страну только для профильного режима"
+      ],
+      "original_path": "tests/Feature/Filament/CrawlerFormTest.php",
+      "original_sha256": "3db58cb3648f5b7398d1cacceca4098943e50332723aa0d7ddb3ea1c039d2619",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "сохранение профиля формой даёт типизированный фильтр и обязательные колонки",
         "форма сохраняет long execution lane как профильный enum",
         "обязательные колонки нельзя снять даже при попытке отправить фильтр без них",
@@ -1894,10 +2129,7 @@
         "форма отклоняет профиль fz44 без выбранного узла ОКПД2",
         "форма сначала сохраняет direct-профиль с привязкой, затем разрешает профильный режим",
         "форма показывает привязки и страну только для профильного режима"
-      ],
-      "original_path": "tests/Feature/Filament/CrawlerFormTest.php",
-      "original_sha256": "3db58cb3648f5b7398d1cacceca4098943e50332723aa0d7ddb3ea1c039d2619",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Filament/CrawlerProxySettingsPageTest.php",
@@ -1913,41 +2145,36 @@
     },
     {
       "path": "tests/Feature/Filament/CrawlerRunActionsTest.php",
-      "sha256": "0893bd78f5fdae5c004ef1aa3b14680c55d26c4fcab94fc209e93d56a82f5a46",
+      "sha256": "eb38c5a20da559b25625062493e8aa76ec3b9f2658067972e3cdd3b0c2eb12c0",
       "scenarios": [
-        "оператор видит «Запустить» на профиле без активного и приостановленного прогона",
-        "«Запустить» ставит CrawlRunJob(mode: профиля) в очередь",
-        "«Запустить» при активном прогоне не виден на строке профиля",
-        "прямой вызов StartCrawlerRunAction на активном прогоне отказывает и не ставит второй job",
-        "«Продолжить» видна только когда у профиля есть приостановленный прогон",
-        "«Запустить с начала» обнуляет курсор приостановленного прогона",
-        "«Остановить» на строке прогона пишет запрос кооперативной остановки",
-        "«Отменить» на карточке прогона пишет запрос кооперативной остановки",
-        "«Остановить»/«Отменить» не видны на терминальном прогоне",
-        "повторный запрос того же вида остановки — no-op, второй запрос другого вида меняет kind",
-        "без RunPermission::Update кнопки остановки прогона не видны",
-        "archive-профиль с окном: «Запустить» ставит CrawlRunJob(mode: Archive) с окном профиля",
-        "archive-профиль с окном: «Запустить с начала» обнуляет курсор и ставит job с окном профиля",
-        "archive-профиль с окном: «Продолжить» ставит job с окном профиля",
-        "archive-профиль БЕЗ окна: «Запустить» отказывает, job не поставлен и прогон не создан",
-        "archive-профиль с окном: «Остановить» пишет запрос кооперативной остановки",
-        "archive-профиль с окном: «Отменить» пишет запрос кооперативной остановки"
+        "Process launch remains visible with active work and distinct commands create independent runs",
+        "Process launch gateway enforces actor and profile version without a second execution owner",
+        "archive UI launch pins every profile day and replay preserves the existing work",
+        "archive UI launch rejects an absent range before creating a run",
+        "Process UI pause resume preserves work checkpoint and audits both scope versions",
+        "Process UI cancel is audited idempotent and keeps another runs required work",
+        "Process UI terminal runs hide cancel and an analyst cannot launch or mutate controls"
       ],
       "original_path": "tests/Feature/Filament/CrawlerRunActionsTest.php",
       "original_sha256": "14a32ce5cea5ba7e140885d21fcdba652e552e05b34899eb9fe3ebc3b386174e",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Filament/CrawlerRunHistoryTest.php",
-      "sha256": "4527228f542b59e30233aa2d93f98a583ca197dabe7f73054cdd046c22de2a19",
+      "sha256": "72b707786d578a404d360724680092a64c16c5893499a73e544b18b5b35f4478",
       "scenarios": [
         "таблица показывает статус и агрегаты собранных блоков",
         "прогон без блоков показывает нулевые агрегаты, а не падает",
         "фильтр по статусу отбирает ожидаемые прогоны",
-        "карточка прогона показывает причину остановки и расшифрованный курсор",
-        "карточка прогона без stats показывает «—», а не ноль или пустую строку",
+        "Process work history shows a bounded reason and absolute retry without platform cursor leakage",
+        "Process history with no retry or reason renders the explicit placeholder",
         "число запросов списка не растёт с числом собранных блоков прогона"
-      ]
+      ],
+      "original_sha256": "4527228f542b59e30233aa2d93f98a583ca197dabe7f73054cdd046c22de2a19",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "original_path": "tests/Feature/Filament/CrawlerRunHistoryTest.php"
     },
     {
       "path": "tests/Feature/Filament/DatasetExampleResourceTest.php",
@@ -2106,14 +2333,15 @@
     },
     {
       "path": "tests/Feature/Filament/NavigationLabelsTest.php",
-      "sha256": "bb908f1525c9c85a6cd10328e85690c9e5e7f43e4df13080d334cb4b66dc2146",
+      "sha256": "7bb3934780a6491eae22c27bc9e82fa96ca99e838587cb4cf6df2e9adffb2b4d",
       "scenarios": [
         "назначает всем обнаруженным ресурсам осмысленные русские navigation labels",
         "фиксирует точный порядок групп и application pages"
       ],
       "original_sha256": "6fba9167bb547c818abc910c6985ba24052ba654374420601abf1330cc385c07",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
-      "original_path": "tests/Feature/Filament/NavigationLabelsTest.php"
+      "change_reason": "P2.18 acquisition cutover: preserved scenario names and original hashes; current bytes include Process callers and fenced publication/schema assertions. Executed checks are separate evidence.",
+      "original_path": "tests/Feature/Filament/NavigationLabelsTest.php",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Filament/OperationLogResourceTest.php",
@@ -2212,16 +2440,23 @@
     },
     {
       "path": "tests/Feature/Filament/SourceControlResourceTest.php",
-      "sha256": "b939b0c5dd48cb736f2a04158cb5c3359f01c54c732cbbc11644fd1773ea093f",
+      "sha256": "7e035e13d9f5a1a3b41f418ad69ba1ce980d2843422eb73c91366bd4326bd3c1",
       "scenarios": [
         "оператор ставит источник на паузу из админки: инцидент с автором",
         "«Возобновить сейчас» снимает ожидание и ставит приостановленные прогоны в очередь без ожидания",
-        "оператор правит пороги брейкера",
+        "legacy circuits routes and schema are gone while the complete operator sidebar renders",
         "журнал инцидентов: оператор отмечает разобранным; аналитик журнал не видит"
       ],
       "original_sha256": "22c264defc5532b59536b446bd4fe10af53c046abd006ad8661f87932cb6f233",
       "original_path": "tests/Feature/Filament/SourceControlResourceTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
+        "оператор ставит источник на паузу из админки: инцидент с автором",
+        "«Возобновить сейчас» снимает ожидание и ставит приостановленные прогоны в очередь без ожидания",
+        "оператор правит пороги брейкера",
+        "журнал инцидентов: оператор отмечает разобранным; аналитик журнал не видит"
+      ]
     },
     {
       "path": "tests/Feature/Filament/StatusMappingResourceTest.php",
@@ -2271,24 +2506,30 @@
     },
     {
       "path": "tests/Feature/Health/CardParseCheckTest.php",
-      "sha256": "9fd3d1d652ca958fa432f8521aa1f0b9d06ddc4c1f178091b38488afc51f83d8",
+      "sha256": "6d80b1e0d1908ecbddec3b47eb11f2b568ecff05d03852ecfcd0f481919103bd",
       "scenarios": [
         "проверка разбора карточек подтверждает здоровый штатный исход",
         "проверка разбора карточек считает пропавший якорь поломкой",
         "проверка разбора карточек не называет пустоту здоровьем",
-        "production baseline считает пустые поля при сохранных якорях поломкой"
-      ]
+        "production baseline считает пустые поля при сохранных якорях поломкой",
+        "passive card health excludes stale validation and facts of another platform",
+        "passive card health preserves microsecond window boundaries"
+      ],
+      "original_sha256": "9fd3d1d652ca958fa432f8521aa1f0b9d06ddc4c1f178091b38488afc51f83d8",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved."
     },
     {
       "path": "tests/Feature/Health/DetailParseOutcomeTest.php",
-      "sha256": "25974513dd7c44179090e269cdbc1ab5399490a8fdfbdfcb552d6f1d04833b6b",
+      "sha256": "cb0e4f0bcc0987dd4cf45fa84f6b405f8dcecd828e9c0b0df1b65449b07126f6",
       "scenarios": [
-        "репозиторий перезаписывает последний исход разбора",
-        "отсутствие эталона откладывает разбор, после исправления конфигурации карточка восстанавливается"
+        "Process detail retains incomplete attempt evidence and publishes only the later coherent outcome",
+        "missing diagnostic baseline fails closed without consuming detail budget and corrected configuration recovers"
       ],
       "original_sha256": "6799aee810df177cb0a84bdd48d5c6f673af1680d0d740a54100688ab28f35e6",
       "original_path": "tests/Feature/Health/DetailParseOutcomeTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Health/EstimateFieldsCheckTest.php",
@@ -2324,8 +2565,21 @@
     },
     {
       "path": "tests/Feature/Health/ListingFilterCheckTest.php",
-      "sha256": "8291461f4f9e306e7f811a54fc660fd908a5420093e9539fc07a4f027f8f2c3a",
+      "sha256": "44de6a8d7e4d675aa7ad776ffd5800509e4f259ef038fa859d5690e8005303ca",
       "scenarios": [
+        "проверка подтверждает действие ОКПД2 на двух проверенных ответах",
+        "проверка считает совпавшие множества реестровых номеров поломкой фильтра",
+        "проверка считает пустой непроверенный ответ недостатком данных",
+        "проверка называет исчерпание бюджета недостатком данных",
+        "проверка называет недоступность прокси недостатком данных",
+        "проверка называет сетевой отказ недостатком данных",
+        "проверка не допускает третьего logical request и не исполняет сеть при оценке"
+      ],
+      "original_path": "tests/Feature/Health/ListingFilterCheckTest.php",
+      "original_sha256": "2c8027edbfa34becb12ed6c1f1697f27d12d03e18ac3f811fde7a0284bbdf539",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "проверка подтверждает действие ОКПД2 и отправляет два запроса боевым путём",
         "проверка считает совпавшие множества реестровых номеров поломкой фильтра",
         "проверка считает пустой ответ недостатком данных",
@@ -2333,21 +2587,22 @@
         "проверка называет недоступность прокси недостатком данных",
         "проверка называет сетевой отказ недостатком данных",
         "проверка не повторяет ответ площадки и не делает третий запрос"
-      ],
-      "original_path": "tests/Feature/Health/ListingFilterCheckTest.php",
-      "original_sha256": "2c8027edbfa34becb12ed6c1f1697f27d12d03e18ac3f811fde7a0284bbdf539",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Health/ListingShapeCheckTest.php",
-      "sha256": "73c39ec139ab99a394b5a27330c4c3b6162944ad9c03194d265cce9a3dcfb444",
+      "sha256": "266a0699eb4b6ef6361c68855bcc9aa8f64f66940542659bb22a65e9c07500b1",
       "scenarios": [
         "проверка формы листинга подтверждает неизменившийся распарсенный блок",
         "проверка формы листинга считает полностью ошибочный блок broken среди healthy samples",
         "проверка формы листинга отражает частичные ошибки по доле строк",
         "проверка формы листинга считает исторические null-метрики неизвестными",
         "проверка формы листинга не называет отсутствие блоков здоровьем"
-      ]
+      ],
+      "original_sha256": "73c39ec139ab99a394b5a27330c4c3b6162944ad9c03194d265cce9a3dcfb444",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "original_path": "tests/Feature/Health/ListingShapeCheckTest.php"
     },
     {
       "path": "tests/Feature/Health/NotifyPlatformHealthChangedTest.php",
@@ -2365,14 +2620,17 @@
     },
     {
       "path": "tests/Feature/Health/PlatformHealthChangedEventTest.php",
-      "sha256": "3e614172a6bc993e8b7fea6f4f0c9eba48106b27866eb763c26da7cbb7ece05c",
+      "sha256": "043fe95bf6e075d134406f0449b9cbf4c9d3bf2ff3f1e9205f264a5ef5396c62",
       "scenarios": [
         "ухудшение здоровья площадки порождает событие с предыдущим вердиктом",
         "восстановление здоровья площадки до ok порождает событие",
         "неизменившийся плохой вердикт внутри окна напоминания не порождает событие",
         "неизменившийся плохой вердикт после окна напоминания порождает событие",
         "событие смены здоровья автоматически связано со слушателем"
-      ]
+      ],
+      "original_sha256": "3e614172a6bc993e8b7fea6f4f0c9eba48106b27866eb763c26da7cbb7ece05c",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved."
     },
     {
       "path": "tests/Feature/HealthCheckTest.php",
@@ -2412,14 +2670,18 @@
     },
     {
       "path": "tests/Feature/Infra/SchemaHardeningTest.php",
-      "sha256": "bdfd46aa9c44e30cdcaaa67341f8758f1a5513a66bf0b478847e5d0faa85bb80",
+      "sha256": "315b428e9ff2c1c4db86f0d7477bfd8691be2274b835858c716065ea37a01605",
       "scenarios": [
         "расширенная точность prc_items.quantity сохраняет и читает шесть знаков после запятой",
         "ON DELETE RESTRICT запрещает удаление закупки с аудитным документом",
         "FK prc_revisions.crawler_run_id запрещает удаление прогона, на который ссылается ревизия",
         "FK llm_calls.analysis_run_id запрещает удаление прогона анализа, на который ссылается вызов",
         "предсозданные исторические партиции принимают событие с occurred_at в прошлом"
-      ]
+      ],
+      "original_path": "tests/Feature/Infra/SchemaHardeningTest.php",
+      "original_sha256": "bdfd46aa9c44e30cdcaaa67341f8758f1a5513a66bf0b478847e5d0faa85bb80",
+      "change_reason": "P2.18 provenance FK moved to Process; original scenario identity retained, exact revision constraint asserted.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Infra/StorageLifecycleTest.php",
@@ -2612,6 +2874,179 @@
         "резолвер отказывает названию без идентификаторов",
         "гонка создания внешнего ключа откатывает лишнюю организацию и повторяет полный поиск"
       ]
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T12DocumentReferenceTest.php",
+      "sha256": "7174d4a6a8c21670cffbfaedbb961b2eb64dc555628e63e9646943cc3c8aa4be",
+      "original_sha256": "bcdc52b938e1021cdff97408d329f214ac947bdf6d5393b143f6f9a6665228b1",
+      "accepted_change_item": "P2.18",
+      "scenarios": [
+        "T12 detail publication atomically hands references to pending document intent without dispatch",
+        "T18 failure after reference persistence rolls back document link and pending intent"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Owning acquisition assertions; execution results are separate evidence."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionDiagnosticTest.php",
+      "sha256": "31b8cbea72fe3f138c290bc3e0033e67510cfbc2d3fa8bdfcef748cda8d54fdd",
+      "scenarios": [
+        "T17 standalone adapter canary validates through the new owner without domain publication",
+        "T17 registered diagnostic runner prepares two bounded reads and keeps canonical state untouched",
+        "T17 diagnostic failures retain physical evidence without publishing or blindly retrying parsing"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "original_sha256": "7a7c3b1e927625e47b14f3c3c57c8c68a54ed6d5157f441f47352a9eaeaefd20",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
+        "T17 standalone adapter canary validates through the new owner without domain publication",
+        "T17 registered diagnostic runner prepares two bounded reads and keeps canonical state untouched",
+        "T17 diagnostic failures retain physical evidence without publishing or blindly retrying parsing"
+      ]
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionEntryPointsTest.php",
+      "sha256": "2833cbd366a697e6328737b70d5ad73388cc47cc28841cd70cfe2b9e2a765d24",
+      "scenarios": [
+        "real minute producer allocates all acquisition kinds once without dispatching old jobs",
+        "empty and invalid cron do not launch while another profile progresses",
+        "operator launch is versioned deduplicated and rejects an unauthorized actor",
+        "profile UI launch uses a signed version and durable command identity"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Owning acquisition assertions; execution results are separate evidence.",
+      "original_sha256": "9335dde7827956e6f50d689d18a1e19497ceb329897191476c51b1d930dc8a7b"
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionProducerTest.php",
+      "sha256": "37277c2d88dbb21786d762901ba487e02fef76f58d408f0abb9a0ac49962f9b5",
+      "scenarios": [
+        "T17 одна scheduled тройка создаёт один run, разные acquisition kinds создают разные runs",
+        "T17 manual command UUID сохраняется при повторе, закрытый пустой discovery завершён явно",
+        "T18 real producers share required detail work and cancelling one run preserves the other requirement",
+        "T17 profile edits after preparation cannot allocate a stale manual run",
+        "T18 отказ mandatory journal откатывает run, work и перенос next_due",
+        "T17 устаревшая версия профиля не выделяет работу и не переносит next_due",
+        "T17 повтор конфигурации сохраняет due, конфликт той же версии отклоняется",
+        "T17 manual replay retains resolved defaults but rejects changed explicit bounds",
+        "T17 acquisition configuration rejects unknown keys malformed dates and invalid versions"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Owning acquisition assertions; execution results are separate evidence."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionRuntimeTest.php",
+      "sha256": "88e128f0b79f2a90c56cddea150de7652ea73b1dac3f555d2716ba4c6cdd9879",
+      "scenarios": [
+        "real EIS producer work runs through registry composition local HTTP canary and fenced publication"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "original_sha256": "3ea9ce30092f6befadffe31bbabf7b12127d897bb285b11819e7b9445f76c2ca",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
+        "real EIS producer work runs through registry composition local HTTP canary and fenced publication"
+      ]
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T17ItemRetryTest.php",
+      "sha256": "89e5ff689351ca1f8e46db1db88e8bc936f523cf6b228a3ff3e2924eb424b5bc",
+      "scenarios": [
+        "T17 item retry is audited deduplicated and preserves failures and cancelled shared-run provenance"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Owning acquisition assertions; execution results are separate evidence."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T17ProducerConcurrencyTest.php",
+      "sha256": "e6336d1f387774f777c3f104eea4e9863dd554e14caf472de5c56f82d76519fe",
+      "scenarios": [
+        "T17 two due producers serialize on the schedule and allocate one required graph"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "original_sha256": "dd6211056116aaec39dec2910d3b07f92dfdadd398497a37304a09b34c8ecfb5",
+      "original_path": "tests/Feature/ProcessCore/Acquisition/T17ProducerConcurrencyTest.php",
+      "accepted_change_item": "P2.18"
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T17ProfilePreparationTest.php",
+      "sha256": "72fe1e2f1f2411d8ea727f894cc52ca1c7fd4ba48fc8d090387c3497521d85a9",
+      "scenarios": [
+        "T17 registered profile preparation pins scope price sort route and bounded archive continuation",
+        "T17 unresolved reference and absent archive range cannot silently widen a profile",
+        "T38 profile descriptor rejects an implementation outside its typed contract"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Owning acquisition assertions; execution results are separate evidence."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T17RefreshCyclesTest.php",
+      "sha256": "9064b97d4ee44b87e9fe463e8961dc30f6f083cf722480609818c2f8187fbdd6",
+      "scenarios": [
+        "T17 unchanged status allocates two distinct cycles and fetches twice with closed required runs",
+        "T17 status received before a newer head is history only and requests reconciliation",
+        "T12 due detail with unchanged control retains supplier results and creates a new intent"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Owning acquisition assertions; execution results are separate evidence."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T35AdapterAdmissionConcurrencyTest.php",
+      "sha256": "861ca30171c1a7f5ccf4696d8466cd16b626dafb3e25e7e86d71aa6ce7bb25dd",
+      "scenarios": [
+        "work and standalone validation owners serialize on one adapter capacity"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Owning acquisition assertions; execution results are separate evidence."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T35ValidatedPublicationTest.php",
+      "sha256": "23e181d500b0b7c7562b5131438f2601632da1b61225b105229f388e3b704fed",
+      "scenarios": [
+        "acquisition publishes only a current complete validation receipt and uses a separate bounded canary"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "original_sha256": "054e99326207e1843ea86d1e876e8d979fa5ccf0b3f8e3790b4a34adbb4e8f38",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
+        "acquisition publishes only a current complete validation receipt and uses a separate bounded canary"
+      ]
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T35WorkAdapterValidationTest.php",
+      "sha256": "60fb6670ea56baca4eec8a85c95a09446fed7195cfbe41e2cdf445313baacb57",
+      "scenarios": [
+        "Process validation uses its live attempt and physical provenance without an ordinary bridge",
+        "Process send rejects epoch takeover lease loss and forged operation identity after reservation",
+        "a real-work canary cannot send after its parent loses authority"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "original_sha256": "972019528107af413475e8ed80d560abb2279f9458545e5ce7f61b72f6e33257",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
+        "Process validation uses its live attempt and physical provenance without an ordinary bridge",
+        "Process send rejects epoch takeover lease loss and forged operation identity after reservation",
+        "a real-work canary cannot send after its parent loses authority"
+      ]
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Acquisition/T42ExtensionSingleWriterTest.php",
+      "sha256": "64a8186e2d0f90a387747aa00ba619085895c3ae5c085ca496dc5f2e2c36753c",
+      "scenarios": [
+        "T42 complete empty extension clears prior common fields while listing metadata stays",
+        "T42 actual listing ingestor propagates extension failure and rolls back the whole block",
+        "T42 ошибка real extension writer откатывает canonical history и fenced cursor",
+        "T42 generic DTO не имеет полей ЕИС и extension требует caller transaction"
+      ],
+      "introduced_in": "P2.18",
+      "change_reason": "P2.18 acquisition cutover: preserved scenario names and original hashes; current bytes include Process callers and fenced publication/schema assertions. Executed checks are separate evidence.",
+      "original_sha256": "68e19e095c9eb752ea363c016a77da571a8cb8c80d3dfe5066992fc5e3c3acc0",
+      "original_path": "tests/Feature/ProcessCore/Acquisition/T42ExtensionSingleWriterTest.php",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Procurement/Ai/AnalysisStoreRepositoryConcurrencyTest.php",
@@ -2836,19 +3271,32 @@
     },
     {
       "path": "tests/Feature/Procurement/DetailLayerTest.php",
-      "sha256": "7636b5f57bb6b361a403a781181b69ecd2b89c4e2f80a1511c9157df209bb11c",
+      "sha256": "009faa449bf59d26dd2540aa4916b336799e5251bb609842819d1e5f4ec7c4ee",
       "scenarios": [
-        "снятие детального слоя заполняет items/financing/eis_details/parties и проставляет detail_fetched_at",
-        "провал детальной карточки помечает detail_next_retry_at/detail_failed для ретрая по detail_fetched_at IS NULL"
+        "Process detail publication records successful snapshot and preserves items financing extension and parties relations",
+        "Process detail failure retains retry evidence and budget exhaustion without a successful snapshot"
       ],
       "original_path": "tests/Feature/Procurement/DetailLayerTest.php",
       "original_sha256": "6b51cb73d91113066232946e1c3b7d1b593d14025faa7fe2fc6c21d9f5d451b7",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Procurement/DetailRefetchSelectorTest.php",
-      "sha256": "2ddf60dc50564ffa0e1c3bafe0433ca46785699269d27cd58d031dcb178b4044",
+      "sha256": "4eb9a3d01d3af9afca6b5761bbcdc4070353b22e2187a16b903a72751f2fd433",
       "scenarios": [
+        "listing discovery allocates initial detail work without a polling selector",
+        "a newly published source head retains a detail obligation for the new generation",
+        "an elapsed item retry resumes the same durable detail work without a new intent",
+        "due terminal procurements allocate a new full detail revalidation cycle",
+        "recently completed detail without a due trigger allocates no new work",
+        "automatic due scans cannot create another work to bypass an exhausted item budget",
+        "other procurement timestamps cannot bypass a future retry on the same immutable input",
+        "bounded periodic allocation preserves independently discovered initial detail work"
+      ],
+      "original_sha256": "2ddf60dc50564ffa0e1c3bafe0433ca46785699269d27cd58d031dcb178b4044",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "original_scenarios": [
         "due отбирает закупки, ни разу не снятые",
         "due отбирает закупки с новой ревизией после последнего снятия",
         "due отбирает закупки с наступившим detail_next_retry_at",
@@ -3137,11 +3585,15 @@
     },
     {
       "path": "tests/Feature/Procurement/PlatformExtensionContractTest.php",
-      "sha256": "067a357d887d0b39909a9fa5b89147b3aebbb549ea6fa54866d6c5cbe5d29286",
+      "sha256": "670919b00d0aa9ed229d408f0921859b2c8a9261e6715d94a8b48781b2af57c6",
       "scenarios": [
         "две площадки с совпадающим registry code получают независимые capability",
         "удалённая capability завершается explicit fail-closed ошибкой"
-      ]
+      ],
+      "original_sha256": "067a357d887d0b39909a9fa5b89147b3aebbb549ea6fa54866d6c5cbe5d29286",
+      "original_path": "tests/Feature/Procurement/PlatformExtensionContractTest.php",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover: preserved scenario names and original hashes; current bytes include Process callers and fenced publication/schema assertions. Executed checks are separate evidence."
     },
     {
       "path": "tests/Feature/Procurement/PlatformOnboardingTest.php",
@@ -3404,7 +3856,7 @@
     },
     {
       "path": "tests/Feature/Procurement/RevisionTest.php",
-      "sha256": "176143b2177996197b2cddb2f9d91d6d09eb8dfffdfbf825cdb692630d61a310",
+      "sha256": "a9d24841e1b5a1988854b8a8feb749569046684a7bc741a07704a896ec9a2b28",
       "scenarios": [
         "изменение цены и статуса создаёт новую ревизию и события price_changed/status_changed",
         "повторный инжест идентичного CSV-снапшота ЕИС не создаёт вторую ревизию и событие (Д-1)",
@@ -3415,8 +3867,8 @@
       ],
       "original_path": "tests/Feature/Procurement/RevisionTest.php",
       "original_sha256": "de014b47534acb80a84ac523eef6829bd94775910524e719898e70756308e4e1",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Procurement/Screening/ScreeningBranchingTest.php",
@@ -3522,7 +3974,7 @@
     },
     {
       "path": "tests/Feature/Procurement/SyncOkpd2NodesTest.php",
-      "sha256": "7e57045959f3eb848d1979f38414bf1ba662d728b4dd2c6795bd5ee2b4abfb31",
+      "sha256": "c4a8f283ed0c77dc28a6d35876322a9d12f3c5241dbfd6cf717fe861c835e1bc",
       "scenarios": [
         "обход собирает узлы поддерева и пишет их в карту с synced_at",
         "сменившийся external_id кода активного профиля даёт ненулевой код возврата",
@@ -3533,7 +3985,8 @@
       ],
       "original_path": "tests/Feature/Procurement/SyncOkpd2NodesTest.php",
       "original_sha256": "2082ac243a9c229a5c0900b9b55966ef512fa06fefffa9491ed228812f33f3f4",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Reference/ClassifierResolverTest.php",
@@ -3568,7 +4021,7 @@
     },
     {
       "path": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
-      "sha256": "8af0fadb587b9517c7ecb523353e00a0df77b15a795dae817a6c30d351d2d4f3",
+      "sha256": "213f5787273215909ce5b56a17e0cc1e898358b0ffe043a6bfde879520210cc2",
       "scenarios": [
         "сид прокси декодирует реквизиты и разрешает только CSV листинг",
         "повторный сид обновляет пароль существующего прокси без дубля",
@@ -3579,11 +4032,12 @@
       ],
       "original_path": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
       "original_sha256": "660c4387f0eafbc6ce4b0b9dd20fbdc8016350223b41a9d0bee5af3b6c870e48",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Seeders/EisSeedersTest.php",
-      "sha256": "476c9973bdcbe0b3bf5047b56a9a22f48878cdc339050472b32bfe7404d099dd",
+      "sha256": "9b35689174b4ea391766455ca160bee0fc47784ba86b79d8ef447d97c3648a21",
       "scenarios": [
         "сид заводит площадку ЕИС и реестр fz44 с настройками карточки",
         "повторный прогон сида площадки идемпотентен — без дублей и ротации UUID реестра",
@@ -3599,7 +4053,8 @@
       ],
       "original_path": "tests/Feature/Seeders/EisSeedersTest.php",
       "original_sha256": "311fcad409f65c497cf668b09dc38423288eb13ffac9ceedfdf617f02b01d453",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Feature/Storage/DiskBackfillTest.php",
@@ -3715,13 +4170,6 @@
       "sha256": "a904d68a7b9407d2e921210cc56201deea4b4f4d42837be424b81a7f8de09424"
     },
     {
-      "path": "tests/Support/Platforms/Eis/EisCsvFixture.php",
-      "sha256": "a559b9ddfc8fe0ec9f087a45224ac6e14eac24c977afc1c83e29c6de1de0a0eb",
-      "original_path": "tests/Support/Doubles/Crawler/EisCsvFixture.php",
-      "original_sha256": "e520c72b638a53ad73fe98a36b3c38c513d3069413db5b55bf2670b5c140b751",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
-    },
-    {
       "path": "tests/Support/Doubles/Crawler/FakeAvailableSourceMethod.php",
       "sha256": "a20cc636b6b33196e24cf81551ae1139ca2d6e33afa02878ad2ef8308d91d641"
     },
@@ -3783,8 +4231,18 @@
       "scenarios": []
     },
     {
+      "path": "tests/Support/Platforms/Eis/EisCsvFixture.php",
+      "sha256": "a559b9ddfc8fe0ec9f087a45224ac6e14eac24c977afc1c83e29c6de1de0a0eb",
+      "original_path": "tests/Support/Doubles/Crawler/EisCsvFixture.php",
+      "original_sha256": "e520c72b638a53ad73fe98a36b3c38c513d3069413db5b55bf2670b5c140b751",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+    },
+    {
       "path": "tests/Support/Postgres/ConcurrentTransactions.php",
-      "sha256": "7213082c64c18cae2e62a14c1d104baeeaca628b950dc38e6040e75ae47308f6"
+      "sha256": "a634dde49875795e826be542e4cde040ca6e20f9a03c1cbcb328c01f4876f91d",
+      "original_sha256": "7213082c64c18cae2e62a14c1d104baeeaca628b950dc38e6040e75ae47308f6",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
     },
     {
       "path": "tests/Support/Procurement/SnapshotFactory.php",
@@ -3811,11 +4269,14 @@
     },
     {
       "path": "tests/TestCase.php",
-      "sha256": "63312f076231d00f83b03076bb3df9dd19bd6fe7cffcf46f6d03e4b986fa865d"
+      "sha256": "cffae2e6affa0d4da98095731049d0464db3dc66484de13b9f53e298e16764ea",
+      "original_sha256": "63312f076231d00f83b03076bb3df9dd19bd6fe7cffcf46f6d03e4b986fa865d",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
     },
     {
       "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "sha256": "574939985df42c028a884bbd59b2410c75f2e17e7e80580ee7a6e373d2dd0ef3",
+      "sha256": "37c0f8cd3702f131f7629c7bc87a84e57c9ad5cbab52c485016701ed0e75c59c",
       "scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -3823,8 +4284,14 @@
       ],
       "original_sha256": "e8b967abe0a3214efa331b93cfd41887239c3959d7c8b2b9071b3e441ef22370",
       "harness_correction": "P4.1 checks.2: canary 109 -> 110 for the existing neutral CooperativeListingSourceMethod added by 60d6162c; original case names retained and explicit membership asserted.",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
-      "original_path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php"
+      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "original_path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
+        "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
+        "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
+        "ядро не несёт идентификатор Estimate/литерал \\'estimate\\' кроме AiDocumentType::Estimate — (г) §6.3"
+      ]
     },
     {
       "path": "tests/Unit/Architecture/DocumentFormatRegistryTest.php",
@@ -3891,72 +4358,43 @@
       ]
     },
     {
-      "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
-      "sha256": "4423c5a5c5f1cbdc73ada1c1e77f17a75d7387482b7e4740784af8d6478b8d69",
-      "scenarios": [
-        "parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info, P4.14)",
-        "parse разбирает площадку и контактное лицо из раздельных section (не общий dd со ссылкой)",
-        "parse транспонирует таблицу «год — колонка» в строки финансирования, без «Всего» и «Последующих годов»",
-        "parse разбирает позицию объекта закупки из #positionKTRU с кодом ОКПД2",
-        "parse распознаёт КТРУ по дефис-суффиксу, ОКПД2 — префиксом до дефиса",
-        "parse проставляет детерминированные fallback-номера позициям вне зависимости от содержимого первой ячейки",
-        "parse возвращает classifierScheme unknown при пустой ячейке кода классификатора",
-        "parse не падает и возвращает null-поля ИКЗ при отсутствии соответствующего section",
-        "parse помечает snapshot неполным, если нет контейнера позиций",
-        "parse помечает snapshot неполным без подтверждённого financing container",
-        "добавление недоступных parties сохраняет независимый status common-info",
-        "служебные раскрываемые строки заказчика не делают полную карточку неполной",
-        "служебные строки не сдвигают номера следующих позиций без явного номера",
-        "заявленный источником итог не позволяет принять пропущенную позицию за полный snapshot",
-        "повреждённая строка позиции не становится допустимой служебной строкой"
-      ],
-      "original_path": "tests/Unit/Crawler/CommonInfoParserTest.php",
-      "original_sha256": "ea6aade40e66e288e53a4fbe02e2ace7e712ccae9367b0c832864fed3d6b8869",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
-    },
-    {
       "path": "tests/Unit/Crawler/CrawlSettingsResolverTest.php",
-      "sha256": "aeedcd6aebb5929f734f9b8f57f2fa1fdcce3f96fee4aa763508dbd0905428dc",
+      "sha256": "47f5455fee16c9e71d151a169b168271e77787115b4799156d6199b83edfcbf5",
       "scenarios": [
-        "переопределение профиля листинга выигрывает у площадки и конфига",
-        "настройка площадки выигрывает при пустом профиле",
-        "дефолт конфига применяется при пустых настройках профиля и площадки",
-        "явный ноль профиля не наследует паузу площадки",
-        "лимит detail-пачки резолвится из настройки площадки или config-default"
-      ]
-    },
-    {
-      "path": "tests/Unit/Platforms/Eis/Card/DocumentsParserTest.php",
-      "sha256": "206c4e37c6d9a3e37f3ce383310430f78e6006baca92b4fd1cfe5182546be553",
-      "scenarios": [
-        "parse разбирает документы вкладки documents с external_id из ссылки filestore на реальной вёрстке",
-        "parse пропускает строку без файла-ссылки",
-        "parse помечает отсутствующий контейнер прикреплённых файлов как incomplete",
-        "parse помечает selector drift с нераспознанными filestore ссылками как incomplete",
-        "parse считает пустой подтверждённый контейнер complete snapshot",
-        "parse отклоняет абсолютную ссылку вне allowlist как failed snapshot"
+        "endpoint policy overrides legacy acquisition retry settings",
+        "listing and detail use independently configured typed endpoint policies",
+        "acquisition endpoint defaults retain bounded attempts delay and timeout",
+        "explicit zero retry delay survives typed endpoint policy without fallback",
+        "missing endpoint retry policy fails closed instead of reviving legacy defaults"
       ],
-      "original_path": "tests/Unit/Crawler/DocumentsParserTest.php",
-      "original_sha256": "5970498bfa03a6460e5b223a1b25d99e866a896c667ff690033ecb84e1cfbee0",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
-    },
-    {
-      "path": "tests/Unit/Platforms/Eis/Csv/EisCsvParserTest.php",
-      "sha256": "a8c988551d0cb903bc1a84c2b29c215d7794953857932b48f453dbc982d5f772",
-      "scenarios": [
-        "потоковый CSV сохраняет 500 записей, CR/LF, разделители и экранированные кавычки",
-        "валидный CSV только с заголовком означает пустую выдачу",
-        "повреждённая структура CSV не превращается в неполную или пустую выдачу"
-      ],
-      "original_path": "tests/Unit/Crawler/EisCsvParserTest.php",
-      "original_sha256": "78f8d4740654e592574374715a032503e624d855b71ce6ce37368dd790dd8d7d",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "original_sha256": "aeedcd6aebb5929f734f9b8f57f2fa1fdcce3f96fee4aa763508dbd0905428dc",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved."
     },
     {
       "path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
-      "sha256": "364d239d5cdd762e307a99f27cc0af55f1192a166a0cce9eb8d1402c8249c488",
+      "sha256": "2581788feb76cddec71505b2a2a5e233a66c223541bbdca7e4348c7ea01f4398",
       "scenarios": [
+        "44-ФЗ способ закупки из закрытой карты маппится в procedure_type enum",
+        "unknown procedure labels retain raw text while an unregistered registry fails closed",
+        "44-ФЗ способ, которого нет в закрытой карте, тоже уходит в procedure_type_raw без исключения",
+        "НМЦК с разделителем тысяч и запятой нормализуется в numeric-строку с точкой",
+        "даты размещения/обновления/подачи заявок сохраняются в immutable summary facts",
+        "дата парсится без подстановки текущего времени (модификатор `!`)",
+        "суточная точность даты обновления передаётся явно, а не выводится из полуночи",
+        "пустой registry_number вызывает ошибку обязательного поля",
+        "отсутствующий registry_number вызывает ошибку обязательного поля",
+        "непарсящаяся дата размещения вызывает ошибку обязательного поля",
+        "отсутствующая дата обновления вызывает ошибку обязательного поля",
+        "префикс «№» перед реестровым номером снимается (живая проба P4.9 — 500/500 строк блока несут его)",
+        "/\\r\\n|\\r|\\n/",
+        "реальная фикстура: initial_price/customer_name/procedure_type_raw непусты, registry_number без префикса «№»"
+      ],
+      "original_path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
+      "original_sha256": "59d8952d3a0aa08c89b7a9a8d13e9b06d146370b449586a3fb7e2c5cadb0c6bb",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "accepted_change_item": "P2.18",
+      "original_scenarios": [
         "44-ФЗ способ закупки из закрытой карты маппится в procedure_type enum",
         "223-ФЗ способ закупки остаётся свободным текстом без procedure_type",
         "44-ФЗ способ, которого нет в закрытой карте, тоже уходит в procedure_type_raw без исключения",
@@ -3970,56 +4408,21 @@
         "отсутствующая дата обновления вызывает ошибку обязательного поля",
         "префикс «№» перед реестровым номером снимается (живая проба P4.9 — 500/500 строк блока несут его)",
         "реальная фикстура: initial_price/customer_name/procedure_type_raw непусты, registry_number без префикса «№»"
-      ],
-      "original_path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
-      "original_sha256": "59d8952d3a0aa08c89b7a9a8d13e9b06d146370b449586a3fb7e2c5cadb0c6bb",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
-    },
-    {
-      "path": "tests/Unit/Platforms/Eis/EisProcedureTypeTest.php",
-      "sha256": "b0f9b4f2a5cc1add384c604422461841e2b0c124cfb9e8c35c4a1eccbec3d69f",
-      "scenarios": [
-        "все девять наблюдённых сырых меток способа закупки резолвятся в case",
-        "неизвестная метка возвращает null"
-      ],
-      "original_path": "tests/Unit/Crawler/EisProcedureTypeTest.php",
-      "original_sha256": "8c67a809baa6d6ea81e3923c5ff7d441498d5e6336164bb37b35aa68cadb8cec",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
-    },
-    {
-      "path": "tests/Unit/Platforms/Eis/Card/EventJournalParserTest.php",
-      "sha256": "3c979636241af97824f34860d7098ac2f56f15b39132ce668f8415eb6c571df9",
-      "scenarios": [
-        "parse разбирает строки журнала событий с датой и текстом (реальная вкладка event-journal, P4.14)",
-        "parse возвращает пустой список при отсутствии таблицы #event",
-        "parse пропускает строку с нераспознаваемой датой без падения"
-      ],
-      "original_path": "tests/Unit/Crawler/EventJournalParserTest.php",
-      "original_sha256": "deb40f86009873e38599a1e7abd3d5375d886a45a1325978d07688efc30db53a",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
-    },
-    {
-      "path": "tests/Unit/Platforms/Eis/Card/PartiesParserTest.php",
-      "sha256": "039bad8abc0ee456bb595c42dbb08ee1b78decba2db0a50519cea535492cea82",
-      "scenarios": [
-        "реальная январская карточка различает заказчика и размещающую организацию",
-        "историческая усечённая fixture без организаций не разрешает удаление ролей",
-        "parse разбирает известные роли организаций и пропускает неизвестную роль-строку без падения (совместимая табличная раскладка)",
-        "parse возвращает пустой список при отсутствии блока organizations-block",
-        "authorizesReconciliation разрешает пустой complete контейнер и запрещает отсутствующий",
-        "неполные и противоречивые стороны запрещают reconciliation",
-        "совместная закупка даёт каждого заказчика по собственному ИКЗ",
-        "gate не принимает произвольное подмножество разобранных ролей"
-      ],
-      "original_path": "tests/Unit/Crawler/PartiesParserTest.php",
-      "original_sha256": "e7b1f01f25aac27d7f5c012a82aa88aca962ffc91798ed7d538cc33ce53bd282",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      ]
     },
     {
       "path": "tests/Unit/Crawler/PlatformAdapterRegistryTest.php",
-      "sha256": "9cb454580b4e9822781d89474a93e454ab6636cf67b0c4b595c2a8d56130f0ba",
+      "sha256": "dea52302e26f43da1f7291525aabdf4fb734bc9895055c41ce68906f5da90bb7",
       "scenarios": [
+        "the same registry code on two platforms resolves independent typed capabilities",
+        "missing platforms and registries fail closed with their exact identity",
+        "invalid provider class strings are rejected before runtime capability resolution",
+        "untyped definition maps are rejected during registry construction",
+        "two incompatible adapters retain their own parsers endpoints and policies in one registry"
+      ],
+      "original_sha256": "9cb454580b4e9822781d89474a93e454ab6636cf67b0c4b595c2a8d56130f0ba",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "original_scenarios": [
         "одинаковый код реестра на разных площадках резолвит разные typed capabilities",
         "отсутствующая площадка, метод или filter fail-closed с exact identity",
         "невалидные class-string maps отклоняются до runtime resolution",
@@ -4057,28 +4460,37 @@
     },
     {
       "path": "tests/Unit/Crawler/RecoveryScopeTest.php",
-      "sha256": "51dcb7bb59406e1f9d1e1ab033e63b9151f1691e9cea7302422c852aceee0e9e",
+      "sha256": "caa4caf36cf90d80ff81bb0d604a783ad50feed399ea4a189e7e369aca6e92fd",
       "scenarios": [
         "сохраняет предметный фильтр fresh-профиля в cursor и накладывает его на archive runtime"
       ],
       "original_path": "tests/Unit/Crawler/RecoveryScopeTest.php",
       "original_sha256": "4eb17cfa11b9f85f09d6f9cc4584d61436ae4255ca0b4713becd3e90be333331",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "tests/Unit/Crawler/SourceMethodFactoryTest.php",
-      "sha256": "1013de2205b0a7392afbd64c666fa3a3bf6bf392387c2f3ef6e13f8871bbfb14",
+      "sha256": "d184f26f8c7e27817a242b4b9a6049bcd755d008eb358a655b62c5a37c719267",
       "scenarios": [
+        "typed definition resolves the exact listing implementation and profile preparer",
+        "an unsupported capability stays explicit and never falls back to another platform",
+        "missing definitions reject resolution even when legacy primary and fallback config are present",
+        "missing profile capability cannot resolve an implicit default preparer",
+        "a registry absent from the exact platform definition fails closed before preparation",
+        "an invalid registered provider fails at construction without resolving a fallback"
+      ],
+      "original_path": "tests/Unit/Crawler/SourceMethodFactoryTest.php",
+      "original_sha256": "e13dfd146815751a85369a88f7749c21298cebd4f7eeeb5decb78c37db4bf59d",
+      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "original_scenarios": [
         "make резолвит реализацию из exact platform definition",
         "makeWithFallback переключается на fallback когда primary недоступен",
         "makeWithFallback кидает исключение когда primary и fallback недоступны",
         "makeWithFallback кидает исключение когда primary недоступен и fallback не задан",
         "make кидает fail-closed исключение когда метод не замаплен в platform definition",
         "makeWithFallback кидает fail-closed исключение когда fallback не замаплен в platform definition"
-      ],
-      "original_path": "tests/Unit/Crawler/SourceMethodFactoryTest.php",
-      "original_sha256": "e13dfd146815751a85369a88f7749c21298cebd4f7eeeb5decb78c37db4bf59d",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      ]
     },
     {
       "path": "tests/Unit/Crawler/SourceTlsTrustTest.php",
@@ -4092,23 +4504,6 @@
       "original_sha256": "954c8f7ce18b70024f02eca2c20b097f6eb854679e2b1248d22ce7a619805aaa",
       "original_path": "tests/Unit/Crawler/SourceTlsTrustTest.php",
       "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
-    },
-    {
-      "path": "tests/Unit/Platforms/Eis/Card/SupplierResultsParserTest.php",
-      "sha256": "6f55a42a66c506c36e725ec03c1320cf86c12fa2d5ee5307d71f71086d3cac85",
-      "scenarios": [
-        "parse разбирает протокол из живой success-фикстуры",
-        "parse разбирает анонимную заявку победителя и цену из живой success-фикстуры",
-        "parse создаёт award без выдуманной организации по подтверждённому рангу победителя",
-        "parse сохраняет протокол несостоявшейся закупки, но не создаёт заявки и award",
-        "parse не создаёт заявки и award после удаления таблицы участников из живой фикстуры",
-        "parse использует дату формирования результата после удаления протокола из живой фикстуры",
-        "parse возвращает пустой результат при отсутствии распознаваемой вкладки",
-        "parse возвращает пустой результат для пустой строки"
-      ],
-      "original_path": "tests/Unit/Crawler/SupplierResultsParserTest.php",
-      "original_sha256": "282c5b35482753437be02a0254516084c7659d8eba53ae4ee2ff914dfc41a04e",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Docs/DocsIntegrityTest.php",
@@ -4272,6 +4667,131 @@
       ]
     },
     {
+      "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
+      "sha256": "4423c5a5c5f1cbdc73ada1c1e77f17a75d7387482b7e4740784af8d6478b8d69",
+      "scenarios": [
+        "parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info, P4.14)",
+        "parse разбирает площадку и контактное лицо из раздельных section (не общий dd со ссылкой)",
+        "parse транспонирует таблицу «год — колонка» в строки финансирования, без «Всего» и «Последующих годов»",
+        "parse разбирает позицию объекта закупки из #positionKTRU с кодом ОКПД2",
+        "parse распознаёт КТРУ по дефис-суффиксу, ОКПД2 — префиксом до дефиса",
+        "parse проставляет детерминированные fallback-номера позициям вне зависимости от содержимого первой ячейки",
+        "parse возвращает classifierScheme unknown при пустой ячейке кода классификатора",
+        "parse не падает и возвращает null-поля ИКЗ при отсутствии соответствующего section",
+        "parse помечает snapshot неполным, если нет контейнера позиций",
+        "parse помечает snapshot неполным без подтверждённого financing container",
+        "добавление недоступных parties сохраняет независимый status common-info",
+        "служебные раскрываемые строки заказчика не делают полную карточку неполной",
+        "служебные строки не сдвигают номера следующих позиций без явного номера",
+        "заявленный источником итог не позволяет принять пропущенную позицию за полный snapshot",
+        "повреждённая строка позиции не становится допустимой служебной строкой"
+      ],
+      "original_path": "tests/Unit/Crawler/CommonInfoParserTest.php",
+      "original_sha256": "ea6aade40e66e288e53a4fbe02e2ace7e712ccae9367b0c832864fed3d6b8869",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14"
+    },
+    {
+      "path": "tests/Unit/Platforms/Eis/Card/DocumentsParserTest.php",
+      "sha256": "206c4e37c6d9a3e37f3ce383310430f78e6006baca92b4fd1cfe5182546be553",
+      "scenarios": [
+        "parse разбирает документы вкладки documents с external_id из ссылки filestore на реальной вёрстке",
+        "parse пропускает строку без файла-ссылки",
+        "parse помечает отсутствующий контейнер прикреплённых файлов как incomplete",
+        "parse помечает selector drift с нераспознанными filestore ссылками как incomplete",
+        "parse считает пустой подтверждённый контейнер complete snapshot",
+        "parse отклоняет абсолютную ссылку вне allowlist как failed snapshot"
+      ],
+      "original_path": "tests/Unit/Crawler/DocumentsParserTest.php",
+      "original_sha256": "5970498bfa03a6460e5b223a1b25d99e866a896c667ff690033ecb84e1cfbee0",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+    },
+    {
+      "path": "tests/Unit/Platforms/Eis/Card/EventJournalParserTest.php",
+      "sha256": "3c979636241af97824f34860d7098ac2f56f15b39132ce668f8415eb6c571df9",
+      "scenarios": [
+        "parse разбирает строки журнала событий с датой и текстом (реальная вкладка event-journal, P4.14)",
+        "parse возвращает пустой список при отсутствии таблицы #event",
+        "parse пропускает строку с нераспознаваемой датой без падения"
+      ],
+      "original_path": "tests/Unit/Crawler/EventJournalParserTest.php",
+      "original_sha256": "deb40f86009873e38599a1e7abd3d5375d886a45a1325978d07688efc30db53a",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+    },
+    {
+      "path": "tests/Unit/Platforms/Eis/Card/PartiesParserTest.php",
+      "sha256": "039bad8abc0ee456bb595c42dbb08ee1b78decba2db0a50519cea535492cea82",
+      "scenarios": [
+        "реальная январская карточка различает заказчика и размещающую организацию",
+        "историческая усечённая fixture без организаций не разрешает удаление ролей",
+        "parse разбирает известные роли организаций и пропускает неизвестную роль-строку без падения (совместимая табличная раскладка)",
+        "parse возвращает пустой список при отсутствии блока organizations-block",
+        "authorizesReconciliation разрешает пустой complete контейнер и запрещает отсутствующий",
+        "неполные и противоречивые стороны запрещают reconciliation",
+        "совместная закупка даёт каждого заказчика по собственному ИКЗ",
+        "gate не принимает произвольное подмножество разобранных ролей"
+      ],
+      "original_path": "tests/Unit/Crawler/PartiesParserTest.php",
+      "original_sha256": "e7b1f01f25aac27d7f5c012a82aa88aca962ffc91798ed7d538cc33ce53bd282",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+    },
+    {
+      "path": "tests/Unit/Platforms/Eis/Card/SupplierResultsParserTest.php",
+      "sha256": "6f55a42a66c506c36e725ec03c1320cf86c12fa2d5ee5307d71f71086d3cac85",
+      "scenarios": [
+        "parse разбирает протокол из живой success-фикстуры",
+        "parse разбирает анонимную заявку победителя и цену из живой success-фикстуры",
+        "parse создаёт award без выдуманной организации по подтверждённому рангу победителя",
+        "parse сохраняет протокол несостоявшейся закупки, но не создаёт заявки и award",
+        "parse не создаёт заявки и award после удаления таблицы участников из живой фикстуры",
+        "parse использует дату формирования результата после удаления протокола из живой фикстуры",
+        "parse возвращает пустой результат при отсутствии распознаваемой вкладки",
+        "parse возвращает пустой результат для пустой строки"
+      ],
+      "original_path": "tests/Unit/Crawler/SupplierResultsParserTest.php",
+      "original_sha256": "282c5b35482753437be02a0254516084c7659d8eba53ae4ee2ff914dfc41a04e",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+    },
+    {
+      "path": "tests/Unit/Platforms/Eis/Csv/EisCsvParserTest.php",
+      "sha256": "a8c988551d0cb903bc1a84c2b29c215d7794953857932b48f453dbc982d5f772",
+      "scenarios": [
+        "потоковый CSV сохраняет 500 записей, CR/LF, разделители и экранированные кавычки",
+        "валидный CSV только с заголовком означает пустую выдачу",
+        "повреждённая структура CSV не превращается в неполную или пустую выдачу"
+      ],
+      "original_path": "tests/Unit/Crawler/EisCsvParserTest.php",
+      "original_sha256": "78f8d4740654e592574374715a032503e624d855b71ce6ce37368dd790dd8d7d",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+    },
+    {
+      "path": "tests/Unit/Platforms/Eis/EisProcedureTypeTest.php",
+      "sha256": "b0f9b4f2a5cc1add384c604422461841e2b0c124cfb9e8c35c4a1eccbec3d69f",
+      "scenarios": [
+        "все девять наблюдённых сырых меток способа закупки резолвятся в case",
+        "неизвестная метка возвращает null"
+      ],
+      "original_path": "tests/Unit/Crawler/EisProcedureTypeTest.php",
+      "original_sha256": "8c67a809baa6d6ea81e3923c5ff7d441498d5e6336164bb37b35aa68cadb8cec",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+    },
+    {
+      "path": "tests/Unit/Platforms/Eis/EisSourceClockTest.php",
+      "sha256": "b4c631df52bbda709d4f0272b7d3e9d61cb766dc1e4fe0ed74a192282e728a7d",
+      "scenarios": [
+        "время источника читается в Europe/Moscow по умолчанию и возвращается в UTC",
+        "часовой пояс источника берётся из конфигурации",
+        "календарная дата без времени не сдвигается часовым поясом",
+        "метка МСК±N задаёт фиксированное смещение",
+        "некорректное значение даёт null",
+        "невозможная календарная дата не нормализуется в другой день"
+      ],
+      "original_path": "tests/Unit/Procurement/Eis/EisSourceClockTest.php",
+      "original_sha256": "35fcc8a95cf76aa2a466e3bcf7b52f994a298a58fbeac30a324c4c7d816765b8",
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
+    },
+    {
       "path": "tests/Unit/Procurement/Ai/EstimateContractsTest.php",
       "sha256": "3803557a94274fbc251c4dee86dfb7e1be9ea033068278fddc2621caa196b899",
       "scenarios": [
@@ -4368,21 +4888,6 @@
         "estimate_start без последующего estimate_end (конец документа) — сегмент suspicious, страницы не теряются",
         "сегментация детерминирована — повторный вызов с тем же набором маркеров даёт тот же результат"
       ]
-    },
-    {
-      "path": "tests/Unit/Platforms/Eis/EisSourceClockTest.php",
-      "sha256": "6e395b17840599112c7c50f9504ca9678f531204591c6c0d49d2c8ff85c9eb11",
-      "scenarios": [
-        "время источника читается в Europe/Moscow по умолчанию и возвращается в UTC",
-        "часовой пояс источника берётся из конфигурации",
-        "календарная дата без времени не сдвигается часовым поясом",
-        "метка МСК±N задаёт фиксированное смещение",
-        "некорректное значение даёт null",
-        "невозможная календарная дата не нормализуется в другой день"
-      ],
-      "original_path": "tests/Unit/Procurement/Eis/EisSourceClockTest.php",
-      "original_sha256": "35fcc8a95cf76aa2a466e3bcf7b52f994a298a58fbeac30a324c4c7d816765b8",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Procurement/Estimate/EstimateRowContractTest.php",
@@ -4490,6 +4995,14 @@
         "temporary file создаётся сразу с нужным расширением без base-file утечки",
         "stale sweeper удаляет файлы и workspaces старше безопасного окна"
       ]
+    },
+    {
+      "path": "tests/bootstrap.php",
+      "sha256": "7632503a56f874595293ff5662f1c2ec782ebee06bf09d556ffe8fb73f21fcb3",
+      "original_sha256": "d9c814de51ac4b71937fe42007f26e4a3be7f000da26e620eab02a595215aa32",
+      "accepted_change_item": "P4.1",
+      "accepted_change_commit": "943b0d6d781a9180a438c97eefa4a5dea8dcf7bb",
+      "change_reason": "P4.1 isolated harness bootstrap/guard/filesystem isolation change; preserve original pre-harness provenance"
     }
   ],
   "migrations": [
@@ -4546,14 +5059,17 @@
     },
     {
       "path": "database/migrations/2026_07_04_100011_create_prc_procurements_table.php",
-      "sha256": "1fc5eab91a6769758661ded2570cb49c08b8478e54dcf1843d142235d89e2b19",
+      "sha256": "c3c4bfea9d566d4389405e1cccb6aa2f52334c544fb2b0aba9a51d3bd8de1ade",
       "original_sha256": "10afa35b633ff5114aa573b787dcd5e9b3c59f787e106395594e1dc8f03f9dce",
-      "accepted_change_item": "P2.14",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios."
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
     },
     {
       "path": "database/migrations/2026_07_04_100012_create_prc_revisions_table.php",
-      "sha256": "771a631ecf85b0f448e70a7041b530437c137842a711c2ae6047483f0565f77f"
+      "sha256": "5bc6574f7262dc17280e669e05c0b88b1c708707d891807ff91aea85c47c99b4",
+      "original_sha256": "771a631ecf85b0f448e70a7041b530437c137842a711c2ae6047483f0565f77f",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
     },
     {
       "path": "database/migrations/2026_07_04_100013_create_prc_events_table.php",
@@ -4581,7 +5097,11 @@
     },
     {
       "path": "database/migrations/2026_07_04_100018_create_prc_documents_table.php",
-      "sha256": "a769960769a0a117f566f8f5b2e4c6688cb3d9bdec0c755a6093d97ea7e0ba91"
+      "sha256": "05fca4c9dce4a6fd33194f9141775d7a11fdeac691f5625f7d613fa49295a534",
+      "original_sha256": "a769960769a0a117f566f8f5b2e4c6688cb3d9bdec0c755a6093d97ea7e0ba91",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover: preserved scenario names and original hashes; current bytes include Process callers and fenced publication/schema assertions. Executed checks are separate evidence.",
+      "original_path": "database/migrations/2026_07_04_100018_create_prc_documents_table.php"
     },
     {
       "path": "database/migrations/2026_07_04_100019_create_prc_document_versions_table.php",
@@ -4661,14 +5181,11 @@
     },
     {
       "path": "database/migrations/2026_07_04_100038_create_prc_crawlers_table.php",
-      "sha256": "e20b64a96dc2ead3edf83ad68b11f879e2e7127341df86637980c58767c95ffd",
+      "sha256": "3c47d66bb2e4601df3e8d379dcf862f2c7ab33fe14499a6567067a46c0138b12",
       "original_path": "database/migrations/2026_07_04_100038_create_prc_crawlers_table.php",
       "original_sha256": "c714c432418bf62e77fcd3218467b0ee52d73190364b7d394da34ddd67fe52b7",
-      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
-    },
-    {
-      "path": "database/migrations/2026_07_04_100039_create_prc_crawler_runs_table.php",
-      "sha256": "d4716b27a02ba2176cbed56e342ddd3e9c72d73fe3d2f61d164516f6df89601b"
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "database/migrations/2026_07_04_100040_create_prc_proxies_table.php",
@@ -4679,7 +5196,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100041_create_prc_fetches_table.php",
-      "sha256": "0bd546c4fdf2b14f67da4c387c4fdc4a6bcae5c89d2e5472141e8e24c7269279"
+      "sha256": "61ed0603252facabc3b7ca2c33c43230d134938f0505b01ac6c9a7eb090b600f",
+      "original_sha256": "0bd546c4fdf2b14f67da4c387c4fdc4a6bcae5c89d2e5472141e8e24c7269279",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
     },
     {
       "path": "database/migrations/2026_07_04_100044_create_prc_ignored_items_table.php",
@@ -4782,24 +5302,19 @@
       "sha256": "98152778d1670af2b64ebb8c50baa4892d944ed3d65cb87258b1bbb2c8ba1a57"
     },
     {
-      "path": "database/migrations/2026_09_10_100094_add_execution_lease_to_prc_crawler_runs.php",
-      "sha256": "87edf09d965a63d898f5d4c9ae22e1cbc2e0ff662767dab7e848558159ac2757"
-    },
-    {
       "path": "database/migrations/2026_09_12_100095_preserve_2025_procurement_events.php",
       "sha256": "d2350a7c035319e77273180e0c2776fd5664e665c3444266769c59e6f3c0b332"
     },
     {
       "path": "database/migrations/2026_10_07_100096_create_prc_source_control_tables.php",
-      "sha256": "8c27c3b743053ecf21484a2fd9c8ba0ace57b0dbf7c1f2f0273295aba18042ee"
+      "sha256": "85999657e5683e248cd067801d808d3cee56f5652356ffa154a7c4fc9c7a1e74",
+      "original_sha256": "8c27c3b743053ecf21484a2fd9c8ba0ace57b0dbf7c1f2f0273295aba18042ee",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
     },
     {
       "path": "database/migrations/2026_10_08_100101_verify_partition_bounds.php",
       "sha256": "eaf3436002de00953f4625637a5982f34457d3e47f29639d37be442aaf0c9aa4"
-    },
-    {
-      "path": "database/migrations/2026_10_08_100102_add_source_resume_claim.php",
-      "sha256": "36b7d6db6ad3718b5ae58d85665a792c841b5f75d9984c28031bc421d5f29c9e"
     },
     {
       "path": "database/migrations/2026_10_08_100103_store_source_time_precision.php",
@@ -4819,17 +5334,19 @@
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
-      "sha256": "a29630c1121207edbc9948e621f24e68028cd5bea7b5326759652ca5e08eaec8",
+      "sha256": "8a2cdcd09067735d14ee3e879970b065cdd479e90275b754d920819a29562291",
       "original_path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
       "original_sha256": "1d0dfa0b99f6b4665b7c37928306175aff8a9bbcdccb45195e1b2c93bdd57002",
-      "change_reason": "P2.1 adds the composite attempt/work unique FK authority required by network demand ownership; legacy consumers remain active."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_network_tables.php",
-      "sha256": "0db045f6b5f9e9d9f3d2f4e6b0c316d10e3b5f9b74266e597be23ba0fdce0e7a",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
+      "sha256": "af2b3078e01934a31beab81f0bf78485007233a2b3625846502afd4a1207da7a",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
       "original_path": "database/migrations/2026_10_25_100000_create_prc_process_network_tables.php",
-      "original_sha256": "93b42fcc30eba2012529206754f2db3ed9b323218ac54c7e486aae9879b92911"
+      "original_sha256": "93b42fcc30eba2012529206754f2db3ed9b323218ac54c7e486aae9879b92911",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "database/migrations/2026_10_25_100001_create_prc_request_observation_tables.php",
@@ -4875,11 +5392,12 @@
     {
       "path": "app/Filament/Platforms/Eis/EisCrawlerPlatformForm.php",
       "fqcn": "App\\Filament\\Platforms\\Eis\\EisCrawlerPlatformForm",
-      "sha256": "9c8477a8b0d49ef0e381f11959f3132c2188fd4b77be4a0421b5f5893a48b4a5",
+      "sha256": "70c3ad6cabd15b2228cddc3427980591c1ac7063c767977baab72be0f2d37e42",
       "original_path": "app/Filament/Resources/Procurement/Crawler/Crawlers/Schemas/EisCrawlerPlatformForm.php",
       "original_sha256": "af37a97fe20f8ae9ef63a4f0c28fe895819dad67ee1ad84b714c542ed65184eb",
       "original_fqcn": "App\\Filament\\Resources\\Procurement\\Crawler\\Crawlers\\Schemas\\EisCrawlerPlatformForm",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "app/Models/Platforms/Eis/EisDetails.php",
@@ -4904,12 +5422,12 @@
     {
       "path": "app/Services/Platforms/Eis/Card/DocumentsParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\DocumentsParser",
-      "sha256": "c62497635e5ea96c216842c010e15490a9d1a6eb5bf4007245930b2511169be5",
+      "sha256": "a0a57a94bafb5310773d2d9303a4eacd17962772f5e31b736726317d04a1f33c",
       "original_path": "app/Services/Procurement/Eis/Card/DocumentsParser.php",
       "original_sha256": "df8b0e7c965660e92dd2e68c563d1d42327b7f1e0899e885fca8cebde81d3ab3",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\DocumentsParser",
-      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
-      "accepted_change_item": "P2.10"
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "app/Services/Platforms/Eis/Card/EventJournalParser.php",
@@ -4942,23 +5460,14 @@
       "accepted_change_item": "P2.10"
     },
     {
-      "path": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
-      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod",
-      "sha256": "c91fbd29238e809f6831a906866c1dac410ba395fadf359443f51c1ab6deeef8",
-      "original_path": "app/Services/Procurement/Eis/CsvSourceMethod.php",
-      "original_sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7",
-      "original_fqcn": "App\\Services\\Procurement\\Eis\\CsvSourceMethod",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
-    },
-    {
       "path": "app/Services/Platforms/Eis/Card/EisCardUrlBuilder.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\EisCardUrlBuilder",
-      "sha256": "db033ab1a10c4b269455fbc7cb94c67ff0951b5271008c9e190be37c9d61b777",
+      "sha256": "d09f70f724d0d1947cb5cb8329d320e0405b2f3b0b039a6236498fe49a7158de",
       "original_path": "app/Services/Procurement/Eis/EisCardUrlBuilder.php",
       "original_sha256": "4ed9b58e53d4657fc39981459f73d249a134258dfe6e61c966dc3c6c05d8b310",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCardUrlBuilder",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "app/Services/Platforms/Eis/Csv/EisCsvParser.php",
@@ -4971,61 +5480,44 @@
       "accepted_change_item": "P2.10"
     },
     {
-      "path": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
-      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvRowMapper",
-      "sha256": "0d0102c92c24569946fbcea661af6baeba9a193e4ce1f0bc6c9a3f28d298893e",
-      "original_path": "app/Services/Procurement/Eis/EisCsvRowMapper.php",
-      "original_sha256": "42a8ca7d361306d437f33e58585d37edcf69f15e4e4a1ca77920635f20e3be3e",
-      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvRowMapper",
-      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
-      "accepted_change_item": "P2.14"
-    },
-    {
-      "path": "app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php",
-      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvUrlBuilder",
-      "sha256": "2c0e3ef10d18f805df23a67d5d7b96f1207c1806af97e36dae9c595d69f27fdd",
-      "original_path": "app/Services/Procurement/Eis/EisCsvUrlBuilder.php",
-      "original_sha256": "0bec91e645e4d9146defd60290f9ca441cfdcb401387debf8af90fba7a8d30f1",
-      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvUrlBuilder",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
-    },
-    {
       "path": "app/Services/Platforms/Eis/Card/EisDetailParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\EisDetailParser",
-      "sha256": "ef4201c6f9feab084dbaddaaf416ffc84683fed26b186bf64a4842d991e07fd2",
+      "sha256": "63e561e412c54e6710fca888ff9a35d157abc0691fe219ebd52fcdc52195354b",
       "original_path": "app/Services/Procurement/Eis/EisDetailParser.php",
       "original_sha256": "1431e8b0b3dd658ad58b91a3c135b2ee640d42adfada5d14892ab5eaf059bf62",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\EisDetailParser",
-      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
-      "accepted_change_item": "P2.10"
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "app/Services/Platforms/Eis/EisSourceClock.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\EisSourceClock",
-      "sha256": "ba147e7028b5c6d9ade40619bc20166ec78de990d41829058f66084b02c57f6f",
+      "sha256": "957adbd05845b52860b9cbcfd8063ba8d79201cc116f84605272524f3cd88de3",
       "original_path": "app/Services/Procurement/Eis/EisSourceClock.php",
       "original_sha256": "934aa8d3b38495977e937af423dece55c083f1d6a3eb77095f495df1e6e685ab",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\EisSourceClock",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Filters\\Okpd2NodeSynchronizer",
-      "sha256": "d4a91784992da56f22cba3aef566b5500f6cdec2760dfcb33ca43a8263a0ec08",
+      "sha256": "108176c8b6edf6592dd04fda18de44a5ecdc030aae5f6994f1f5b5fa84da2b14",
       "original_path": "app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php",
       "original_sha256": "785c129b65dc11a206fd4a30ba9a4d6dfb4bebc964bd07750867a6740fe47d61",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Okpd2NodeSynchronizer",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Diagnostics\\ListingFilterCheck",
-      "sha256": "4f1a8f293b9c3a2a9b59eaf8edbce2423e75cd1d71c2bcf6538d4321bd06ebf7",
+      "sha256": "bb39385d8ab137bf12ccd7c741346bdba73a719470e72069a7ec2d2896b7afab",
       "original_path": "app/Services/Procurement/Health/Checks/ListingFilterCheck.php",
       "original_sha256": "66e898e2f24d08930703ac3aa88b2521ecc381f76cae1408447125119e8e0775",
       "original_fqcn": "App\\Services\\Procurement\\Health\\Checks\\ListingFilterCheck",
-      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
-      "accepted_change_item": "P2.10"
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "database/factories/Platforms/Eis/EisDetailsFactory.php",
@@ -5048,20 +5540,22 @@
     {
       "path": "database/seeders/Platforms/Eis/EisJanuary2025AuditSeeder.php",
       "fqcn": "Database\\Seeders\\Platforms\\Eis\\EisJanuary2025AuditSeeder",
-      "sha256": "5bdae52fe454a2cb4d2031dd17e20aa271700490998823a692f4a48346998c25",
+      "sha256": "14377ffa472f485d7cfcf64db2fccacaf0633b80b1a436c4e399ebbbb843e050",
       "original_path": "database/seeders/Procurement/EisJanuary2025AuditSeeder.php",
       "original_sha256": "6d3b7fe000dc1e5ba12dae1086f1713ac35a187353c23e8721481430d07b0cee",
       "original_fqcn": "Database\\Seeders\\Procurement\\EisJanuary2025AuditSeeder",
-      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "accepted_change_item": "P2.18"
     },
     {
       "path": "database/seeders/Platforms/Eis/EisPlatformSeeder.php",
       "fqcn": "Database\\Seeders\\Platforms\\Eis\\EisPlatformSeeder",
-      "sha256": "07b1ea4e3e307235142b4050760e7c6773ed85e799a94b586e9dca2284ed8743",
+      "sha256": "26e4f9c042aceeb2b29fd4aeb8bb3578afca4f993fbe9856dab7d4142187ad71",
       "original_path": "database/seeders/Procurement/EisPlatformSeeder.php",
       "original_sha256": "b39c7fc02edf4dc4f7f6b88fc1e163a5d74a539bd0ce8e05ec8f4d88077a7b53",
       "original_fqcn": "Database\\Seeders\\Procurement\\EisPlatformSeeder",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.18 approved profile preparation and canonical document reference handoff; legacy scenarios retained. Partial candidate, runtime cutover pending Network ownership decision.",
+      "accepted_change_item": "P2.18"
     }
   ],
   "retired_migrations": [
@@ -5084,6 +5578,61 @@
       "path": "database/migrations/2026_08_09_100087_replace_crawler_use_proxy_with_mode.php",
       "sha256": "aefda0919ce01f0fb5a9c938ca4b880f708caf67f8fffecbf6787f98921e71b3",
       "retired_at": "P2.6"
+    },
+    {
+      "path": "database/migrations/2026_07_04_100039_create_prc_crawler_runs_table.php",
+      "sha256": "d4716b27a02ba2176cbed56e342ddd3e9c72d73fe3d2f61d164516f6df89601b",
+      "retired_in": "P2.18",
+      "reason": "Atomic acquisition owner cutover; original path/hash retained. Legacy test migration remains incomplete and is not certified by retirement."
+    },
+    {
+      "path": "database/migrations/2026_09_10_100094_add_execution_lease_to_prc_crawler_runs.php",
+      "sha256": "87edf09d965a63d898f5d4c9ae22e1cbc2e0ff662767dab7e848558159ac2757",
+      "retired_in": "P2.18",
+      "reason": "Atomic acquisition owner cutover; original path/hash retained. Legacy test migration remains incomplete and is not certified by retirement."
+    },
+    {
+      "path": "database/migrations/2026_10_08_100102_add_source_resume_claim.php",
+      "sha256": "36b7d6db6ad3718b5ae58d85665a792c841b5f75d9984c28031bc421d5f29c9e",
+      "retired_in": "P2.18",
+      "reason": "Atomic acquisition owner cutover; original path/hash retained. Legacy test migration remains incomplete and is not certified by retirement."
+    }
+  ],
+  "retired_source_classes": [
+    {
+      "path": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod",
+      "sha256": "c91fbd29238e809f6831a906866c1dac410ba395fadf359443f51c1ab6deeef8",
+      "original_path": "app/Services/Procurement/Eis/CsvSourceMethod.php",
+      "original_sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\CsvSourceMethod",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14",
+      "retired_in": "P2.18",
+      "reason": "Atomic acquisition owner cutover; original path/hash retained. Legacy test migration remains incomplete and is not certified by retirement."
+    },
+    {
+      "path": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvRowMapper",
+      "sha256": "0d0102c92c24569946fbcea661af6baeba9a193e4ce1f0bc6c9a3f28d298893e",
+      "original_path": "app/Services/Procurement/Eis/EisCsvRowMapper.php",
+      "original_sha256": "42a8ca7d361306d437f33e58585d37edcf69f15e4e4a1ca77920635f20e3be3e",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvRowMapper",
+      "change_reason": "Atomic canonical identity/extension reader-writer cutover; preserve original provenance and existing scenarios.",
+      "accepted_change_item": "P2.14",
+      "retired_in": "P2.18",
+      "reason": "Atomic acquisition owner cutover; original path/hash retained. Legacy test migration remains incomplete and is not certified by retirement."
+    },
+    {
+      "path": "app/Services/Platforms/Eis/Csv/EisCsvUrlBuilder.php",
+      "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvUrlBuilder",
+      "sha256": "2c0e3ef10d18f805df23a67d5d7b96f1207c1806af97e36dae9c595d69f27fdd",
+      "original_path": "app/Services/Procurement/Eis/EisCsvUrlBuilder.php",
+      "original_sha256": "0bec91e645e4d9146defd60290f9ca441cfdcb401387debf8af90fba7a8d30f1",
+      "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvUrlBuilder",
+      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved.",
+      "retired_in": "P2.18",
+      "reason": "Atomic acquisition owner cutover; original path/hash retained. Legacy test migration remains incomplete and is not certified by retirement."
     }
   ]
 }

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Services\Procurement\Process\StageRegistry;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\Console\Input\ArgvInput;
@@ -22,6 +23,7 @@ InstallClock::configure();
 $app = require dirname(__DIR__, 3).'/bootstrap/app.php';
 $kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
+$app->instance(StageRegistry::class, new StageRegistry);
 
 TestFilesystemIsolation::configure($app);
 TestEnvironmentGuard::assertBootstrapTestDatabase($app);

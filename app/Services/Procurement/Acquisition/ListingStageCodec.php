@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Acquisition;
 
 use App\Dto\Procurement\Acquisition\ListingCheckpoint;
+use App\Dto\Procurement\Acquisition\ListingFacts;
 use App\Dto\Procurement\Acquisition\ListingPage;
 use App\Dto\Procurement\Acquisition\ListingResult;
 use App\Dto\Procurement\Acquisition\ListingTask;
@@ -31,6 +32,8 @@ use App\Services\Procurement\Process\StagePayloadCodec;
 
 final readonly class ListingStageCodec implements StagePayloadCodec
 {
+    public function __construct(private DetailValueCodec $values = new DetailValueCodec) {}
+
     public function stage(): StageCode
     {
         return StageCode::Listing;
@@ -68,8 +71,10 @@ final readonly class ListingStageCodec implements StagePayloadCodec
             $summaries[] = ['platform' => $s->identity->platform->value, 'type' => $s->identity->type->value,
                 'value' => $s->identity->value->value, 'title' => $s->title, 'stage' => $s->sourceStage,
                 'published' => $s->publishedAt->format(DATE_ATOM), 'updated' => $s->updatedAt->format(DATE_ATOM),
+                'updatedBefore' => $s->updatedBefore?->format(DATE_ATOM),
                 'fingerprint' => $s->fingerprint->hex, 'revision' => $s->sourceRevision, 'price' => $s->initialPrice,
-                'precision' => $s->updatedAtDayPrecision ? 1 : 0, 'currency' => $s->currency, 'locator' => $s->detailLocator === null ? null : ListingTask::envelope($s->detailLocator)];
+                'precision' => $s->updatedAtDayPrecision ? 1 : 0, 'currency' => $s->currency, 'locator' => $s->detailLocator === null ? null : ListingTask::envelope($s->detailLocator),
+                'facts' => $s->facts === null ? null : $this->values->encode($s->facts)];
         }
 
         return new VersionedPayload(json_encode(['observedAt' => $result->observedAt->format('Y-m-d\TH:i:s.uP'), 'task' => $result->task->json(), 'summaries' => $summaries,
@@ -80,12 +85,12 @@ final readonly class ListingStageCodec implements StagePayloadCodec
             'terminal' => $page->terminalProof->value,
             'next' => $page->nextCursor === null ? null : ListingTask::envelope($page->nextCursor),
             'split' => $result->split === null ? null : ['children' => array_map(ListingTask::envelope(...), $result->split->children),
-                'reason' => $result->split->incompleteReason?->value]], JSON_THROW_ON_ERROR), 1);
+                'reason' => $result->split->incompleteReason?->value]], JSON_THROW_ON_ERROR), 3);
     }
 
     public function decodeResult(VersionedPayload $payload): ValidatedStageResult
     {
-        $r = $this->reader($payload);
+        $r = $this->reader($payload, 3);
         $r->keys(['observedAt', 'task', 'summaries', 'rows', 'completeness', 'reason', 'bodyHash', 'confidence', 'artifact', 'terminal', 'next', 'split']);
         $items = [];
         foreach ($this->list($r, 'summaries', 1000) as $value) {
@@ -93,13 +98,18 @@ final readonly class ListingStageCodec implements StagePayloadCodec
                 throw new \InvalidArgumentException('Invalid summary.');
             }
             $s = new PayloadReader($value);
-            $s->keys(['platform', 'type', 'value', 'title', 'stage', 'published', 'updated', 'fingerprint', 'revision', 'price', 'currency', 'locator', 'precision']);
+            $s->keys(['platform', 'type', 'value', 'title', 'stage', 'published', 'updated', 'updatedBefore', 'fingerprint', 'revision', 'price', 'currency', 'locator', 'precision', 'facts']);
+            $facts = $s->isNull('facts') ? null : $this->values->decode($s->string('facts'));
+            if ($facts !== null && ! $facts instanceof ListingFacts) {
+                throw new \InvalidArgumentException('Invalid listing facts.');
+            }
             $items[] = new ProcurementSummary(new SourceIdentity(new PlatformCode($s->string('platform')),
                 new SourceIdentifierType($s->string('type')), new SourceIdentifierValue($s->string('value'))),
                 $s->string('title'), $s->string('stage'), new \DateTimeImmutable($s->string('published')), new \DateTimeImmutable($s->string('updated')),
                 new ContentHash($s->string('fingerprint')), $s->isNull('revision') ? null : $s->string('revision'),
                 $s->isNull('price') ? null : $s->string('price'), $s->isNull('currency') ? null : $s->string('currency'),
-                $s->isNull('locator') ? null : $this->cursor($s->object('locator')), $this->precision($s));
+                $s->isNull('locator') ? null : $this->cursor($s->object('locator')), $this->precision($s), $facts,
+                $s->isNull('updatedBefore') ? null : new \DateTimeImmutable($s->string('updatedBefore')));
         }
         $split = null;
         if (! $r->isNull('split')) {
@@ -141,9 +151,9 @@ final readonly class ListingStageCodec implements StagePayloadCodec
         return $value === 1;
     }
 
-    private function reader(VersionedPayload $payload): PayloadReader
+    private function reader(VersionedPayload $payload, int $version = 1): PayloadReader
     {
-        if ($payload->schemaVersion !== 1 || $payload->json === null) {
+        if ($payload->schemaVersion !== $version || $payload->json === null) {
             throw new \InvalidArgumentException('Unsupported listing schema.');
         }
 

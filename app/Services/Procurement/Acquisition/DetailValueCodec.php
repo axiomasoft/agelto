@@ -8,6 +8,7 @@ use App\Dto\Organization\OrganizationIdentifierData;
 use App\Dto\Procurement\Acquisition\DetailProgress;
 use App\Dto\Procurement\Acquisition\DetailRequest;
 use App\Dto\Procurement\Acquisition\DetailResult;
+use App\Dto\Procurement\Acquisition\ListingFacts;
 use App\Dto\Procurement\Acquisition\ProcurementSnapshot;
 use App\Dto\Procurement\Acquisition\SnapshotPart;
 use App\Dto\Procurement\Acquisition\StatusProgress;
@@ -22,6 +23,7 @@ use App\Dto\Procurement\Details\ProtocolData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
 use App\Dto\Procurement\Details\SupplierResultsData;
 use App\Dto\Procurement\Document\DocumentReference;
+use App\Dto\Procurement\Document\SourceDocumentKey;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Platform\CursorEnvelope;
 use App\Dto\Procurement\Platform\PlatformCode;
@@ -46,10 +48,25 @@ final readonly class DetailValueCodec
         PurchaseItemRowData::class, FinancingRowData::class, JournalEntryData::class, SupplierResultsData::class,
         BidData::class, AwardData::class, ProtocolData::class, SourceIdentity::class, PlatformCode::class,
         SourceIdentifierType::class, SourceIdentifierValue::class, ArtifactRef::class, ContentHash::class,
-        DocumentReference::class, OrganizationIdentifierData::class];
+        DocumentReference::class, SourceDocumentKey::class, OrganizationIdentifierData::class,
+        ListingFacts::class];
 
-    /** Trusted registry descriptor, never obtained from the payload. @param class-string|null $extensionType */
-    public function __construct(private ?string $extensionType = null) {}
+    /** @var list<class-string> */
+    private array $extensionTypes;
+
+    /**
+     * Trusted registry descriptors, never obtained from the payload.
+     *
+     * @param  class-string|array<array-key,class-string>|null  $extensionType
+     */
+    public function __construct(string|array|null $extensionType = null)
+    {
+        $types = is_string($extensionType) ? [$extensionType] : ($extensionType ?? []);
+        if (! array_is_list($types) || count(array_unique($types)) !== count($types)) {
+            throw new \InvalidArgumentException('Invalid extension descriptors.');
+        }
+        $this->extensionTypes = $types;
+    }
 
     public function encode(object $value): string
     {
@@ -92,7 +109,7 @@ final readonly class DetailValueCodec
             return ['array' => array_map($this->pack(...), $value)];
         }
         if (is_object($value)) {
-            if (! in_array($value::class, self::TYPES, true) && $value::class !== $this->extensionType) {
+            if (! in_array($value::class, self::TYPES, true) && ! in_array($value::class, $this->extensionTypes, true)) {
                 throw new \InvalidArgumentException('Unsupported detail value.');
             }
 
@@ -143,7 +160,7 @@ final readonly class DetailValueCodec
 
             return $type::from($data);
         }
-        if ((! in_array($type, self::TYPES, true) && $type !== $this->extensionType) || ! is_array($data)) {
+        if ((! in_array($type, self::TYPES, true) && ! in_array($type, $this->extensionTypes, true)) || ! is_array($data)) {
             throw new \InvalidArgumentException('Unregistered detail type.');
         }
         if (! class_exists($type)) {
@@ -171,7 +188,7 @@ final readonly class DetailValueCodec
             $name = $t->getName();
             $valid = $v === null ? $t->allowsNull() : match ($name) {
                 'string' => is_string($v), 'int' => is_int($v), 'bool' => is_bool($v), 'float' => is_float($v) || is_int($v),
-                'array' => is_array($v), 'object' => is_object($v) && $v::class === $this->extensionType,
+                'array' => is_array($v), 'object' => is_object($v) && in_array($v::class, $this->extensionTypes, true),
                 default => $v instanceof $name,
             };
             if (! $valid) {

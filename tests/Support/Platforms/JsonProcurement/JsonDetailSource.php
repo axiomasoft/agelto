@@ -6,6 +6,7 @@ namespace Tests\Support\Platforms\JsonProcurement;
 
 use App\Dto\Procurement\Acquisition\DetailFetchResult;
 use App\Dto\Procurement\Acquisition\DetailRequest;
+use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Services\Procurement\Platform\Contracts\DetailPartsSource;
 
@@ -13,7 +14,7 @@ final readonly class JsonDetailSource implements DetailPartsSource
 {
     public function __construct(private JsonProcurementSource $source) {}
 
-    public function fetch(DetailRequest $request, ExecutionContext $context): DetailFetchResult
+    public function fetch(DetailRequest $request, ExecutionContext|OutboundExecutionContext $context): DetailFetchResult
     {
         return $this->source->fetchDetail($request, $context);
     }
@@ -23,7 +24,7 @@ final readonly class JsonDetailSource implements DetailPartsSource
         return ['record'];
     }
 
-    public function fetchPart(DetailRequest $request, string $part, ExecutionContext $context): DetailFetchResult
+    public function fetchPart(DetailRequest $request, string $part, ExecutionContext|OutboundExecutionContext $context): DetailFetchResult
     {
         if ($part !== 'record') {
             throw new \InvalidArgumentException('Unknown JSON detail part.');

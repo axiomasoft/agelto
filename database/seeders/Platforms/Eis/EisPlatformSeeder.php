@@ -6,6 +6,7 @@ namespace Database\Seeders\Platforms\Eis;
 
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
+use App\Services\Platforms\Eis\Card\EisCardCatalog;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -43,8 +44,8 @@ final class EisPlatformSeeder extends Seeder
         $attributes = [
             'name' => '44-ФЗ — Контрактная система в сфере закупок товаров, работ, услуг',
             'settings' => [
-                'procedure_url_types' => $this->procedureUrlTypes(),
-                'card_url_templates' => $this->cardUrlTemplates(),
+                'procedure_url_types' => (new EisCardCatalog)->procedureUrlTypes(),
+                'card_url_templates' => (new EisCardCatalog)->cardUrlTemplates(),
             ],
         ];
 
@@ -101,62 +102,4 @@ final class EisPlatformSeeder extends Seeder
      *
      * @return array<string, string>
      */
-    private function procedureUrlTypes(): array
-    {
-        return [
-            'Электронный аукцион' => 'ea20',
-            'Электронный аукцион на проведение работ по строительству, реконструкции, кап. ремонту, '
-            .'сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона № 44-ФЗ' => 'ea20',
-            'Запрос котировок в электронной форме' => 'zk20',
-            'Запрос котировок в электронной форме на проведение работ по строительству, реконструкции, '
-            .'кап. ремонту, сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона '
-            .'№ 44-ФЗ' => 'zk20',
-            'Открытый конкурс в электронной форме' => 'ok20',
-            'Открытый конкурс в электронной форме на проведение работ по строительству, реконструкции, '
-            .'кап. ремонту, сносу объекта кап. строительства в соответствии с п. 8 ч. 1 ст. 33 Закона '
-            .'№ 44-ФЗ' => 'ok20',
-            'Закупка, осуществляемая в соответствии с частью 12 статьи 93 Закона № 44-ФЗ' => 'ezt20',
-            'Электронный аукцион на оказание услуг или выполнение работ по капитальному ремонту общего '
-            .'имущества в многоквартирном доме' => 'ea615',
-            'Предварительный отбор квалифицированных подрядных организаций' => 'po615',
-        ];
-    }
-
-    /**
-     * Шаблоны URL детальной карточки по сегменту типа + вкладке — `{regNumber}` резолвит
-     * `EisCardUrlBuilder::buildUrl()`. `supplier-results` у `ea615`/`po615` — явный маркер
-     * `null` (D121): вкладка отвечает 404 у обоих типов «по природе» (разведка §`_observed`),
-     * а не «справочник не заполнен» — `EisCardUrlBuilder` отличает эти два случая по
-     * `array_key_exists`.
-     *
-     * @return array<string, array<string, ?string>>
-     */
-    private function cardUrlTemplates(): array
-    {
-        $tabs = ['common-info', 'documents', 'event-journal', 'supplier-results'];
-        $withoutSupplierResults = ['common-info', 'documents', 'event-journal'];
-
-        $templates = [];
-
-        foreach (['ea20', 'zk20', 'ok20', 'ezt20'] as $type) {
-            foreach ($tabs as $tab) {
-                $templates[$type][$tab] = $this->cardUrl(type: $type, tab: $tab);
-            }
-        }
-
-        foreach (['ea615', 'po615'] as $type) {
-            foreach ($withoutSupplierResults as $tab) {
-                $templates[$type][$tab] = $this->cardUrl(type: $type, tab: $tab);
-            }
-
-            $templates[$type]['supplier-results'] = null;
-        }
-
-        return $templates;
-    }
-
-    private function cardUrl(string $type, string $tab): string
-    {
-        return "https://zakupki.gov.ru/epz/order/notice/{$type}/view/{$tab}.html?regNumber={regNumber}";
-    }
 }

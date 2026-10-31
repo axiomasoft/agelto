@@ -8,12 +8,12 @@ use App\Dto\Procurement\Health\CheckResult;
 use App\Dto\Procurement\Health\HealthBaseline;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Models\Procurement\Platform\Platform;
-use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Health\HealthCheckResultFactory;
-use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
+use App\Services\Procurement\Health\PassiveHealthCheck;
 use Carbon\CarbonInterface;
 
-final readonly class CardParseCheck implements DiagnosticCheck
+final readonly class CardParseCheck implements PassiveHealthCheck
 {
     public function __construct(private HealthCheckResultFactory $results) {}
 
@@ -24,49 +24,23 @@ final readonly class CardParseCheck implements DiagnosticCheck
 
     public function run(Platform $platform, HealthBaseline $baseline, CarbonInterface $from, CarbonInterface $to): CheckResult
     {
-        $procurements = Procurement::query()
-            ->whereBetween('detail_fetched_at', [$from, $to])
-            ->whereHas('registry', fn ($query) => $query->where('platform_id', $platform->id))
-            ->get(['id', 'detail_parse_outcome']);
-
-        $bad = 0;
-        $knownBrokenTabs = 0;
-
-        foreach ($procurements as $procurement) {
-            $outcomes = $procurement->detail_parse_outcome;
-            $outcomes = is_array($outcomes) ? $outcomes : [];
-            $procurementIsBad = false;
-
-            foreach ($baseline->cardTabs as $tab => $description) {
-                if (($description['status'] ?? null) === 'known_broken') {
-                    $knownBrokenTabs++;
-
-                    continue;
-                }
-
-                $outcome = $outcomes[$tab] ?? null;
-
-                if (! is_array($outcome)) {
-                    $procurementIsBad = true;
-
-                    continue;
-                }
-
-                $outcome = self::stringKeyedMap($outcome);
-
-                if (($outcome['status'] ?? null) !== 'measured'
-                    || self::nonNegativeInt($outcome, 'anchors_missing_critical') > 0
-                    || (self::nonNegativeInt($outcome, 'key_fields_expected') > 0
-                        && self::nonNegativeInt($outcome, 'key_fields_filled') === 0)
-                ) {
-                    $procurementIsBad = true;
-                }
-            }
-
-            $bad += $procurementIsBad ? 1 : 0;
+        $code = $platform->getAttribute('code');
+        if (! is_string($code)) {
+            throw new \LogicException('Missing platform code.');
         }
-
-        $sample = $procurements->count();
+        // One latest non-stale assessment per immutable input. A complete parser contract,
+        // including declared optional sections, is assessed by the registered adapter.
+        $row = LedgerRow::one("SELECT count(*) FILTER (WHERE verdict IN ('accepted','contract_failure'))::bigint AS sample,
+            count(*) FILTER (WHERE verdict='contract_failure')::bigint AS bad FROM (
+                SELECT DISTINCT ON (input_hash) details->>'verdict' AS verdict
+                FROM prc_observations WHERE kind='adapter_validation' AND stale=false
+                AND details->'contract'->>'platform_code'=? AND details->'contract'->>'capability'='detail'
+                AND occurred_at BETWEEN ? AND ? ORDER BY input_hash,occurred_at DESC,observation_id DESC
+            ) observations", [$code, $from->format('Y-m-d H:i:s.uP'), $to->format('Y-m-d H:i:s.uP')])
+            ?? throw new \LogicException('Missing diagnostic aggregate.');
+        $sample = $row->int('sample');
+        $bad = $row->int('bad');
+        $knownBrokenTabs = 0;
         $share = $sample === 0 ? 0 : $bad / $sample;
 
         return $this->results->make(
@@ -76,29 +50,5 @@ final readonly class CardParseCheck implements DiagnosticCheck
             sampleSize: $sample,
             badShares: [$share],
         );
-    }
-
-    /** @param array<string, mixed> $outcome */
-    private static function nonNegativeInt(array $outcome, string $key): int
-    {
-        $value = $outcome[$key] ?? 0;
-
-        return is_int($value) && $value >= 0 ? $value : 0;
-    }
-
-    /** @param array<mixed> $value
-     * @return array<string, mixed>
-     */
-    private static function stringKeyedMap(array $value): array
-    {
-        $result = [];
-
-        foreach ($value as $key => $entry) {
-            if (is_string($key)) {
-                $result[$key] = $entry;
-            }
-        }
-
-        return $result;
     }
 }

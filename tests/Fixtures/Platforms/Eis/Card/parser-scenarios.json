@@ -3,10 +3,10 @@
   "files": [
     {
       "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-      "sha256": "59bf32cde8b61df53ce0dcde5659d1a0037fd2a45b4c7bc2d5d9b84298a35916",
+      "sha256": "f1dc04e6b4932d12127ec8c21e38352736fcfb37c91ee723679fb09ecacc9510",
       "original_sha256": "9240eac6b1dd8468da157516f5aaaf4f68a7eb303c7ca1c71fa849f98434c22b",
-      "accepted_change_item": "P2.14",
-      "change_reason": "Canonical identity reader/fixture cutover; scenario names, datasets and assertions preserved.",
+      "accepted_change_item": "P2.18",
+      "change_reason": "D18 acquisition cutover: all 133 original parser vector declarations remain in this inventory. Exact executed-case replacements and reasons are in scenario-transfers.json; T39 rejects missing dataset mappings or targets, and full regression enforces their actual execution.",
       "scenarios": [
         "таймаут карточки сохраняет числовые фазы транспорта без URL и credentials",
         "collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)",
@@ -19,14 +19,27 @@
         "collectDetails у типа без вкладки supplier-results (маркер null, D121) снимает три вкладки без исключения",
         "collectDetails без активной proxy-привязки идёт напрямую и пишет это в лог"
       ],
-      "disposition": "P2.12: preserved in place; only catalog setup switched to actual Definition; scenario names, datasets and assertions retained"
+      "disposition": "P2.12: preserved in place; only catalog setup switched to actual Definition; scenario names, datasets and assertions retained",
+      "previous_cutover_sha256": "59bf32cde8b61df53ce0dcde5659d1a0037fd2a45b4c7bc2d5d9b84298a35916",
+      "original_scenarios": [
+        "таймаут карточки сохраняет числовые фазы транспорта без URL и credentials",
+        "collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)",
+        "collectDetails возвращает ProcurementDetails с сырым HTML всех вкладок завершённой закупки",
+        "collectDetails не забирает supplier-results для незавершённой закупки",
+        "каждый transport retry карточки заново расходует общий request budget",
+        "collectDetails кладёт сырой HTML в storage gzip при включённом retention",
+        "collectDetails не пишет в storage когда retention выключен",
+        "collectDetails бросает исключение при отсутствии URL-шаблона для типа процедуры",
+        "collectDetails у типа без вкладки supplier-results (маркер null, D121) снимает три вкладки без исключения",
+        "collectDetails без активной proxy-привязки идёт напрямую и пишет это в лог"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-      "sha256": "059ea81e15a355443390fcc668feb591eee8fc305e80a6e5ffaeb3e48faaf8cb",
+      "sha256": "50922d58a2087f1df252ce76bf5b60104267a7d2d4fd8a28f2c9f8d79e38e172",
       "original_sha256": "91cd9ffc8980a5e9fadb5d0c973dc5e689eab3f292418aad27203a2e03cb6098",
-      "accepted_change_item": "P2.14",
-      "change_reason": "Canonical identity reader/fixture cutover; scenario names, datasets and assertions preserved.",
+      "accepted_change_item": "P2.18",
+      "change_reason": "D18 acquisition cutover: all 133 original parser vector declarations remain in this inventory. Exact executed-case replacements and reasons are in scenario-transfers.json; T39 rejects missing dataset mappings or targets, and full regression enforces their actual execution.",
       "scenarios": [
         "истёкший deadline листинга запрещает новый HTTP-запрос",
         "collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре",
@@ -48,11 +61,33 @@
         "битая запись учитывается в rowsTotal, чтобы неполный блок не считался последним",
         "лимиты bytes records и field останавливают fresh без продвижения курсора"
       ],
-      "disposition": "P2.12: preserved in place; only catalog setup switched to actual Definition; scenario names, datasets and assertions retained"
+      "disposition": "P2.12: preserved in place; only catalog setup switched to actual Definition; scenario names, datasets and assertions retained",
+      "previous_cutover_sha256": "059ea81e15a355443390fcc668feb591eee8fc305e80a6e5ffaeb3e48faaf8cb",
+      "original_scenarios": [
+        "истёкший deadline листинга запрещает новый HTTP-запрос",
+        "collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре",
+        "dedupSignature вычисляется по колонке «Реестровый номер закупки» первой строки блока",
+        "ретрай на 500 забирает второй ответ фикстуры",
+        "пустой ответ 200 повторяется и итог собирается из второго ответа",
+        "query-параметры запроса содержат from/to, флаг реестра и сортировку",
+        "собранный ListingBatch несёт id узла, который резолвер выдал под скоуп crawl_listing",
+        "default-профиль выдаёт сохранённый listing-узел и typed source",
+        "закрытый breaker у привязанного прокси не переводит listing на direct и запрос не уходит",
+        "профиль с proxy_country=RU при пуле из RU и DE получает только RU-узел",
+        "direct-профиль получает typed direct lease от резолвера",
+        "detail fetch сохраняет source default в partitioned evidence",
+        "успешный запрос листинга пишет latency_ms_avg узла (не NULL)",
+        "запрос листинга несёт verify из карты crawler.tls.bundles для хоста площадки",
+        "isAvailable возвращает true без сетевых запросов",
+        "поле в кавычках с переводом строки остаётся одной записью листинга",
+        "обратный слэш в конце поля не склеивает соседние поля",
+        "битая запись учитывается в rowsTotal, чтобы неполный блок не считался последним",
+        "лимиты bytes records и field останавливают fresh без продвижения курсора"
+      ]
     },
     {
       "path": "tests/Feature/Crawler/EisCardUrlBuilderTest.php",
-      "sha256": "e6311810cc30ecc620e8f465979aca0857e16c81024b3b334758c1f3d65f321d",
+      "sha256": "8ae99aaed6fe32bc257942e9565bbdcfcb6b6906143deabaf4a692a79d1cf091",
       "scenarios": [
         "resolveProcedureUrlType резолвит СЫРУЮ метку способа закупки в сегмент URL по settings.procedure_url_types (П-8)",
         "resolveProcedureUrlType бросает исключение при отсутствии маппинга типа процедуры",
@@ -62,11 +97,23 @@
         "buildUrl возвращает null для явного маркера «вкладки нет по природе» (D121), а не бросает исключение",
         "buildUrl различает маркер null и отсутствующий ключ — отсутствие ключа остаётся ошибкой конфигурации (D121)"
       ],
-      "disposition": "preserved in place; original datasets and assertions retained"
+      "disposition": "preserved in place; original datasets and assertions retained",
+      "previous_cutover_sha256": "e6311810cc30ecc620e8f465979aca0857e16c81024b3b334758c1f3d65f321d",
+      "original_scenarios": [
+        "resolveProcedureUrlType резолвит СЫРУЮ метку способа закупки в сегмент URL по settings.procedure_url_types (П-8)",
+        "resolveProcedureUrlType бросает исключение при отсутствии маппинга типа процедуры",
+        "resolveProcedureUrlType бросает исключение при null procedure_type_raw",
+        "buildUrl строит полный URL вкладки из card_url_templates с подстановкой regNumber",
+        "buildUrl бросает исключение при отсутствии шаблона для типа+вкладки",
+        "buildUrl возвращает null для явного маркера «вкладки нет по природе» (D121), а не бросает исключение",
+        "buildUrl различает маркер null и отсутствующий ключ — отсутствие ключа остаётся ошибкой конфигурации (D121)"
+      ],
+      "accepted_change_item": "P2.18",
+      "change_reason": "Acquisition caller cutover; original scenarios and dataset obligations retained. Row mapper uses typed SummaryParser/ListingFacts; exact renamed cases are in scenario-transfers.json."
     },
     {
       "path": "tests/Feature/Crawler/EisCsvUrlBuilderTest.php",
-      "sha256": "1c4049e8779763a59292d334b78feaf3011b8e8f8a0714682782cf32faba295d",
+      "sha256": "b4ac361bab967499bf263786c6e1a5a341af96acc15e4db18058751edd4c887f",
       "scenarios": [
         "buildQueryParams переводит поля типизированного фильтра в параметры ЕИС и добавляет from/to/sort",
         "buildQueryParams не эмитит ключ выключенного этапа и незаполненного поля",
@@ -92,11 +139,40 @@
         "buildQueryParams профиль без поля сортировки даёт прежнюю пару sortBy/sortDirection",
         "buildQueryParams archive-курсор перекрывает sortDirection профиля безусловно"
       ],
-      "disposition": "preserved in place; original datasets and assertions retained"
+      "disposition": "preserved in place; original datasets and assertions retained",
+      "original_sha256": "1c4049e8779763a59292d334b78feaf3011b8e8f8a0714682782cf32faba295d",
+      "original_scenarios": [
+        "buildQueryParams переводит поля типизированного фильтра в параметры ЕИС и добавляет from/to/sort",
+        "buildQueryParams не эмитит ключ выключенного этапа и незаполненного поля",
+        "buildQueryParams форматирует даты фильтра в d.m.Y, а типизированное значение остаётся в DTO",
+        "buildQueryParams переносит searchString и morphology как есть",
+        "buildQueryParams archive-ветка перекрывает даты фильтра окном сканера",
+        "buildQueryParams добавляет column=on только для true-колонок options.columns",
+        "buildQueryParams выставляет флаг реестра fz44=on по crawler.registry.code",
+        "buildQueryParams выставляет флаг реестра fz223=on по crawler.registry.code",
+        "buildQueryParams без filter и без options.columns собирает только from/to/registry/sort/registryNumberCsv",
+        "buildQueryParams всегда запрашивает registryNumberCsv даже если он выключен в options.columns",
+        "buildQueryParams с cursor->day archive-ветка добавляет publishDateFrom/To+price+sortDirection=true",
+        "buildQueryParams с cursor->day и cursor->dateField=update маппится на updateDateFrom/To",
+        "buildQueryParams с окном профиля и update-курсором снимает окно публикации",
+        "buildQueryParams с окном профиля и publish-курсором сохраняет archive-параметры",
+        "buildQueryParams без cursor или с cursor->day=null — прежний fresh-набор без регресса",
+        "buildQueryParams резолвит okpd2Codes в okpd2Ids по коду и добавляет okpd2IdsWithNested=on",
+        "buildQueryParams выбор одного листового кода тоже добавляет okpd2IdsWithNested=on",
+        "buildQueryParams порядок okpd2Ids не зависит от порядка кодов в профиле",
+        "buildQueryParams на нерезолвящемся коде ОКПД2 отказывает исключением с именем кода",
+        "buildQueryParams переводит поле сортировки профиля в sortBy для обоих значений",
+        "buildQueryParams переводит sortAscending профиля в sortDirection для обоих направлений (инверсия)",
+        "buildQueryParams профиль без поля сортировки даёт прежнюю пару sortBy/sortDirection",
+        "buildQueryParams archive-курсор перекрывает sortDirection профиля безусловно"
+      ],
+      "previous_cutover_sha256": "1c4049e8779763a59292d334b78feaf3011b8e8f8a0714682782cf32faba295d",
+      "accepted_change_item": "P2.18",
+      "change_reason": "D18 acquisition cutover: all 133 original parser vector declarations remain in this inventory. Exact executed-case replacements and reasons are in scenario-transfers.json; T39 rejects missing dataset mappings or targets, and full regression enforces their actual execution."
     },
     {
       "path": "tests/Feature/Crawler/EisListingReliabilityTest.php",
-      "sha256": "767c4c60c598686aab781f9f203e4b3eb83ffca5dd56eb91cfb3dae1a77e174e",
+      "sha256": "d1796446e4caee5966446809d861c10719b6c5fb2c1de34f9aa7ff2ff18f9954",
       "scenarios": [
         "невалидный ответ сохраняет raw evidence и не дренирует день",
         "валидный header-only CSV дренирует пустой день",
@@ -110,15 +186,50 @@
         "исчерпание сети ограничено пятью попытками и не раскрывает исходный transport error",
         "HTML content type отклоняет даже тело с формально правильным CSV заголовком"
       ],
-      "disposition": "preserved in place; original datasets and assertions retained"
+      "disposition": "preserved in place; original datasets and assertions retained",
+      "previous_cutover_sha256": "767c4c60c598686aab781f9f203e4b3eb83ffca5dd56eb91cfb3dae1a77e174e",
+      "original_scenarios": [
+        "невалидный ответ сохраняет raw evidence и не дренирует день",
+        "валидный header-only CSV дренирует пустой день",
+        "ошибка обязательного поля приостанавливает обход и сохраняет курсор дня",
+        "пауза и отмена между HTTP попытками не запускают следующий запрос",
+        "пауза прерывает длинное retry ожидание за один секундный slice",
+        "пауза прерывает budget ожидание до запроса",
+        "listing deadline возвращает checkpoint без изменения курсора и HTTP запроса",
+        "потеря execution lease между попытками запрещает следующий запрос",
+        "журнал попыток сохраняет стабильную идентичность и enum без transport secrets",
+        "исчерпание сети ограничено пятью попытками и не раскрывает исходный transport error",
+        "HTML content type отклоняет даже тело с формально правильным CSV заголовком"
+      ],
+      "accepted_change_item": "P2.18",
+      "change_reason": "D18 acquisition cutover: all 133 original parser vector declarations remain in this inventory. Exact executed-case replacements and reasons are in scenario-transfers.json; T39 rejects missing dataset mappings or targets, and full regression enforces their actual execution.",
+      "original_sha256": "eb877202505332feaceeef7099041ac5c8c54f8c1c06cc6d8b13ebf062d3d3c1"
     },
     {
       "path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
-      "sha256": "364d239d5cdd762e307a99f27cc0af55f1192a166a0cce9eb8d1402c8249c488",
+      "sha256": "2581788feb76cddec71505b2a2a5e233a66c223541bbdca7e4348c7ea01f4398",
       "original_sha256": "2469a164aa9288b17ebe6d0061d10076513fcc9bf894cfb4aed06669114eb210",
-      "accepted_change_item": "P2.14",
-      "change_reason": "Assertions read the canonical SourceIdentity value; original scenarios and expected values preserved.",
+      "accepted_change_item": "P2.18",
+      "change_reason": "Acquisition caller cutover; original scenarios and dataset obligations retained. Row mapper uses typed SummaryParser/ListingFacts; exact renamed cases are in scenario-transfers.json.",
       "scenarios": [
+        "44-ФЗ способ закупки из закрытой карты маппится в procedure_type enum",
+        "unknown procedure labels retain raw text while an unregistered registry fails closed",
+        "44-ФЗ способ, которого нет в закрытой карте, тоже уходит в procedure_type_raw без исключения",
+        "НМЦК с разделителем тысяч и запятой нормализуется в numeric-строку с точкой",
+        "даты размещения/обновления/подачи заявок сохраняются в immutable summary facts",
+        "дата парсится без подстановки текущего времени (модификатор `!`)",
+        "суточная точность даты обновления передаётся явно, а не выводится из полуночи",
+        "пустой registry_number вызывает ошибку обязательного поля",
+        "отсутствующий registry_number вызывает ошибку обязательного поля",
+        "непарсящаяся дата размещения вызывает ошибку обязательного поля",
+        "отсутствующая дата обновления вызывает ошибку обязательного поля",
+        "префикс «№» перед реестровым номером снимается (живая проба P4.9 — 500/500 строк блока несут его)",
+        "/\\r\\n|\\r|\\n/",
+        "реальная фикстура: initial_price/customer_name/procedure_type_raw непусты, registry_number без префикса «№»"
+      ],
+      "disposition": "preserved in place; original datasets and assertions retained",
+      "previous_cutover_sha256": "364d239d5cdd762e307a99f27cc0af55f1192a166a0cce9eb8d1402c8249c488",
+      "original_scenarios": [
         "44-ФЗ способ закупки из закрытой карты маппится в procedure_type enum",
         "223-ФЗ способ закупки остаётся свободным текстом без procedure_type",
         "44-ФЗ способ, которого нет в закрытой карте, тоже уходит в procedure_type_raw без исключения",
@@ -133,8 +244,7 @@
         "префикс «№» перед реестровым номером снимается (живая проба P4.9 — 500/500 строк блока несут его)",
         "/\\r\\n|\\r|\\n/",
         "реальная фикстура: initial_price/customer_name/procedure_type_raw непусты, registry_number без префикса «№»"
-      ],
-      "disposition": "preserved in place; original datasets and assertions retained"
+      ]
     },
     {
       "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
@@ -226,7 +336,7 @@
     },
     {
       "path": "tests/Unit/Platforms/Eis/EisSourceClockTest.php",
-      "sha256": "6e395b17840599112c7c50f9504ca9678f531204591c6c0d49d2c8ff85c9eb11",
+      "sha256": "b4c631df52bbda709d4f0272b7d3e9d61cb766dc1e4fe0ed74a192282e728a7d",
       "scenarios": [
         "время источника читается в Europe/Moscow по умолчанию и возвращается в UTC",
         "часовой пояс источника берётся из конфигурации",

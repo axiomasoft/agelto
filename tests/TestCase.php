@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Services\Procurement\Process\StageRegistry;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\Http;
@@ -22,6 +23,9 @@ abstract class TestCase extends BaseTestCase
         TestEnvironmentGuard::assertBootstrapTestDatabase($app);
         TestEnvironmentGuard::assertIsolatedTestFilesystem($app);
         Http::preventStrayRequests();
+        // Core fixtures bind their own handlers explicitly. Runtime composition tests resolve
+        // the application registration after forgetting this deliberately empty fixture registry.
+        $app->instance(StageRegistry::class, new StageRegistry);
 
         return $app;
     }

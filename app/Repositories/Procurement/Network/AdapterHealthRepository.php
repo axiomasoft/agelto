@@ -15,8 +15,10 @@ use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\RetryAt;
+use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
 use App\Enums\Procurement\Network\AdapterVerdict;
 use App\Enums\Procurement\Network\DemandPurpose;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
@@ -62,12 +64,10 @@ final readonly class AdapterHealthRepository
     }
 
     /** Caller owns its prefix before this row; counts never lock another operation owner. */
-    public function admit(AdapterContractRef $contract, OutboundExecutionContext $context): AdapterValidationClaim|TransportBlocked|TransportDeferred
+    public function admit(AdapterContractRef $contract, OutboundExecutionContext|ExecutionContext $context): AdapterValidationClaim|TransportBlocked|TransportDeferred
     {
         CallerTransaction::require('Full adapter validation admission');
-        LedgerRow::one("SELECT id FROM prc_control_scopes WHERE scope_key = 'system' FOR SHARE")
-            ?? throw new \LogicException('Control authority is missing.');
-        $owner = $this->owners->lock($context->lease(), null);
+        $owner = $this->owners->lock($context->lease(), $this->owners->snapshot($context->lease()));
         if ($owner instanceof TransportBlocked) {
             return $owner;
         }
@@ -76,7 +76,7 @@ final readonly class AdapterHealthRepository
             WHERE t.platform_id = ? AND p.code = ? AND t.capability = ? AND t.retired_at IS NULL
                 AND t.endpoint_policy_schema_version = 2 AND t.endpoint_policy->'adapter_contract' = ?::jsonb LIMIT 1",
             [$owner->platformId, $contract->platformCode, $contract->capability, json_encode($contract->toArray(), JSON_THROW_ON_ERROR)]);
-        if ($current === null || $owner->operationId === null) {
+        if ($current === null || ($owner->operationId === null && $owner->attemptId === null)) {
             return $denied();
         }
         $row = LedgerRow::one('SELECT h.* FROM prc_adapter_health h
@@ -98,7 +98,8 @@ final readonly class AdapterHealthRepository
         $wait = static fn (): TransportDeferred => new TransportDeferred(
             NetworkDeferralReason::CapacityWait,
             new RetryAt($now->modify('+1 second')));
-        if ($holder !== null && $holder->string('id') !== $context->lease()->id->value) {
+        $ownerId = $context instanceof ExecutionContext ? $context->lease()->attemptId : $context->lease()->id;
+        if ($holder !== null && ($context instanceof ExecutionContext || $holder->string('id') !== $ownerId->value)) {
             return $wait();
         }
         if ($token !== null && $holder === null) {
@@ -109,7 +110,7 @@ final readonly class AdapterHealthRepository
             return $denied();
         }
         $canary = in_array($row->string('state'), ['validating', 'suspect'], true) || $owner->purpose === DemandPurpose::Probe;
-        if ($canary && ($owner->purpose !== DemandPurpose::Probe || $owner->probeToken !== $context->lease()->ownerToken->value)) {
+        if ($canary && ($context instanceof ExecutionContext || $owner->purpose !== DemandPurpose::Probe || $owner->probeToken !== $context->lease()->ownerToken->value)) {
             return $denied();
         }
         // Epoch fences new application. Explicit reset/rejection bounds semantic history;
@@ -129,17 +130,26 @@ final readonly class AdapterHealthRepository
         $active = LedgerRow::one("SELECT count(*)::bigint AS n FROM prc_outbound_operations
             WHERE adapter_health_id = ? AND adapter_health_epoch = ? AND id <> ? AND state = 'open'
                 AND lease_until > clock_timestamp() AND deadline_at > clock_timestamp()",
-            [$row->string('id'), $epoch, $context->lease()->id->value]);
-        if (($active?->int('n') ?? 0) >= $capacity) {
+            [$row->string('id'), $epoch, $ownerId->value]);
+        $attempts = LedgerRow::one("SELECT count(*)::bigint AS n FROM prc_process_attempts a
+            JOIN prc_process_work w ON w.id = a.work_id AND w.generation = a.generation
+            WHERE a.adapter_health_id = ? AND a.adapter_health_epoch = ? AND a.id <> ?
+                AND a.finished_at IS NULL AND w.state = 'running' AND w.lease_until > clock_timestamp()",
+            [$row->string('id'), $epoch, $ownerId->value]);
+        if (($active?->int('n') ?? 0) + ($attempts?->int('n') ?? 0) >= $capacity) {
             return $wait();
         }
-        if (LedgerRow::one('SELECT observation_id FROM prc_observations WHERE observation_id = ?', [$context->lease()->id->value]) !== null) {
+        if (LedgerRow::one('SELECT observation_id FROM prc_observations WHERE observation_id = ?', [$ownerId->value]) !== null) {
             return $denied();
         }
-        $attached = DB::update("UPDATE prc_outbound_operations SET adapter_health_id = ?, adapter_health_epoch = ?
+        $attached = $context instanceof ExecutionContext
+            ? DB::update('UPDATE prc_process_attempts SET adapter_health_id = ?, adapter_health_epoch = ?
+                WHERE id = ? AND work_id = ? AND generation = ? AND finished_at IS NULL',
+                [$row->string('id'), $epoch, $ownerId->value, $context->lease()->workId->value->value, $context->lease()->generation])
+            : DB::update("UPDATE prc_outbound_operations SET adapter_health_id = ?, adapter_health_epoch = ?
             WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'open'
                 AND lease_until > clock_timestamp() AND deadline_at > clock_timestamp()",
-            [$row->string('id'), $epoch, $context->lease()->id->value, $context->lease()->generation, $context->lease()->ownerToken->value]);
+                [$row->string('id'), $epoch, $context->lease()->id->value, $context->lease()->generation, $context->lease()->ownerToken->value]);
         if ($attached !== 1) {
             return new TransportBlocked(NetworkBlockedReason::OwnerLost);
         }
@@ -151,7 +161,8 @@ final readonly class AdapterHealthRepository
         }
 
         return new AdapterValidationClaim(new ProcessUuid($row->string('id')),
-            $epoch, $contract, $context->lease()->id, $canary);
+            $epoch, $contract, $ownerId, $canary,
+            $context instanceof ExecutionContext ? AdapterValidationOwnerKind::WorkAttempt : AdapterValidationOwnerKind::OutboundOperation);
     }
 
     /**
@@ -160,17 +171,15 @@ final readonly class AdapterHealthRepository
      *
      * @param  AdapterInspection<mixed>  $inspection
      */
-    public function observe(OutboundExecutionContext $context,
+    public function observe(OutboundExecutionContext|ExecutionContext $context,
         ContentHash $input, AdapterInspection $inspection): AdapterValidationReceipt
     {
         CallerTransaction::require('Full adapter validation outcome');
-        LedgerRow::one("SELECT id FROM prc_control_scopes WHERE scope_key = 'system' FOR SHARE")
-            ?? throw new \LogicException('Control authority is missing.');
         $claim = $context->adapterClaim() ?? throw new \LogicException('Validation has no admitted contract.');
-        $owner = $this->owners->lock($context->lease(), null);
+        $owner = $this->owners->lock($context->lease(), $this->owners->snapshot($context->lease()));
         $row = LedgerRow::one('SELECT * FROM prc_adapter_health WHERE id = ? FOR UPDATE', [$claim->healthId->value])
             ?? throw new \LogicException('Adapter authority disappeared.');
-        $previous = LedgerRow::one("SELECT encode(input_hash, 'hex') AS hash, details, stale FROM prc_observations WHERE observation_id = ?", [$claim->operationId->value]);
+        $previous = LedgerRow::one("SELECT encode(input_hash, 'hex') AS hash, details, stale FROM prc_observations WHERE observation_id = ?", [$claim->ownerId->value]);
         if ($previous !== null) {
             $fact = json_decode($previous->string('details'), true, flags: JSON_THROW_ON_ERROR);
             $requests = $context->successfulRequestIds();
@@ -180,12 +189,13 @@ final readonly class AdapterHealthRepository
                 || ($fact['signature_hash'] ?? null) !== $inspection->signature?->hex
                 || ($fact['known_defect'] ?? null) !== $inspection->knownDefect
                 || ($fact['contract'] ?? null) != $claim->contract->toArray()
+                || ($fact['owner_kind'] ?? null) !== $claim->ownerKind->value
                 || ($fact['request_ids'] ?? null) !== array_map(static fn ($id): string => $id->value, $requests)) {
                 throw new \LogicException('A validation identity cannot be reused for another fact.');
             }
 
             return new AdapterValidationReceipt($claim->healthId, $claim->epoch, $claim->contract,
-                $input, $claim->operationId, $claim->operationId, $requests, $previous->bool('stale'), $inspection->verdict);
+                $input, $claim->ownerId, $claim->ownerId, $requests, $previous->bool('stale'), $inspection->verdict, $claim->ownerKind);
         }
         $current = LedgerRow::one("SELECT t.id FROM prc_source_targets t JOIN prc_platforms p ON p.id = t.platform_id
             WHERE t.platform_id = ? AND p.code = ? AND t.capability = ? AND t.retired_at IS NULL
@@ -194,25 +204,29 @@ final readonly class AdapterHealthRepository
                 json_encode($claim->contract->toArray(), JSON_THROW_ON_ERROR)]);
         $now = HealthRepository::now();
         $stale = $current === null || $owner instanceof TransportBlocked
-            || $owner->operationId?->value !== $claim->operationId->value
+            || ! $owner->ownsValidation($claim)
             || $owner->adapterHealthId?->value !== $claim->healthId->value || $owner->adapterHealthEpoch !== $claim->epoch
             || $row->int('health_epoch') !== $claim->epoch || $row->string('state') === 'held'
             || (! $claim->canary && in_array($row->string('state'), ['validating', 'suspect'], true))
-            || ($claim->canary && ($row->nullableString('probe_token') !== $context->lease()->ownerToken->value
+            || ($claim->canary && (! $context instanceof OutboundExecutionContext || $row->nullableString('probe_token') !== $context->lease()->ownerToken->value
                 || new \DateTimeImmutable($row->string('probe_until')) <= $now));
         $requests = $context->successfulRequestIds();
         if ($requests === []) {
             throw new \LogicException('Full validation requires real physical response provenance.');
         }
         foreach ($requests as $id) {
-            if (LedgerRow::one('SELECT a.request_id FROM prc_request_attempts a JOIN prc_network_demands d ON d.id = a.demand_id
-                WHERE a.request_id = ? AND d.operation_id = ? AND a.finished_at IS NOT NULL', [$id->value, $claim->operationId->value]) === null) {
+            $ownerColumn = $claim->ownerKind === AdapterValidationOwnerKind::WorkAttempt ? 'attempt_id' : 'operation_id';
+            $generationColumn = $claim->ownerKind === AdapterValidationOwnerKind::WorkAttempt ? 'work_generation' : 'operation_generation';
+            if (LedgerRow::one("SELECT a.request_id FROM prc_request_attempts a JOIN prc_network_demands d ON d.id = a.demand_id
+                WHERE a.request_id = ? AND d.{$ownerColumn} = ? AND d.{$generationColumn} = ? AND a.finished_at IS NOT NULL",
+                [$id->value, $claim->ownerId->value, $context->lease()->generation]) === null) {
                 throw new \LogicException('Validation response belongs to another physical owner.');
             }
         }
         $key = $claim->epochKey();
         $version = $row->int('state_version') + 1;
         $details = ['schema_version' => 1, 'verdict' => $inspection->verdict->value,
+            'owner_kind' => $claim->ownerKind->value,
             'check_code' => $inspection->checkCode, 'signature_hash' => $inspection->signature?->hex,
             'contract' => $claim->contract->toArray(), 'known_defect' => $inspection->knownDefect,
             'request_ids' => array_map(static fn ($id): string => $id->value, $requests),
@@ -220,18 +234,18 @@ final readonly class AdapterHealthRepository
         $inserted = DB::insert("INSERT INTO prc_observations (observation_id, request_id, kind, reason_code, input_hash,
             generation, epochs, epochs_schema_version, stale, details, details_schema_version, occurred_at)
             VALUES (?, ?, 'adapter_validation', ?, decode(?, 'hex'), ?, ?::jsonb, 1, ?, ?::jsonb, 1, ?)
-            ON CONFLICT (observation_id) DO NOTHING", [$claim->operationId->value, $requests[array_key_last($requests)]->value,
+            ON CONFLICT (observation_id) DO NOTHING", [$claim->ownerId->value, $requests[array_key_last($requests)]->value,
             $inspection->checkCode, $input->hex, $context->lease()->generation, json_encode([$key => $claim->epoch], JSON_THROW_ON_ERROR),
             $stale, json_encode($details, JSON_THROW_ON_ERROR), $now->format('Y-m-d H:i:s.uP')]);
         // SQL INSERT ... ON CONFLICT returns true even on a duplicate: application identity is
         // the durable idempotency fence and the stored logical fact must agree.
-        $stored = LedgerRow::one("SELECT encode(input_hash, 'hex') AS hash, details, stale FROM prc_observations WHERE observation_id = ?", [$claim->operationId->value]);
+        $stored = LedgerRow::one("SELECT encode(input_hash, 'hex') AS hash, details, stale FROM prc_observations WHERE observation_id = ?", [$claim->ownerId->value]);
         if (! $inserted || $stored === null || $stored->string('hash') !== $input->hex
             || json_decode($stored->string('details'), true, flags: JSON_THROW_ON_ERROR) != $details) {
             throw new \LogicException('A validation identity cannot be reused for another fact.');
         }
         $applied = DB::affectingStatement('INSERT INTO prc_observation_applications (observation_id, projection_key, reducer_version, applied_at)
-            VALUES (?, ?, 1, ?) ON CONFLICT DO NOTHING', [$claim->operationId->value, $key, $now->format('Y-m-d H:i:s.uP')]);
+            VALUES (?, ?, 1, ?) ON CONFLICT DO NOTHING', [$claim->ownerId->value, $key, $now->format('Y-m-d H:i:s.uP')]);
         if (! $stale && $applied === 1) {
             $accepted = $inspection->verdict === AdapterVerdict::Accepted;
             $partial = $inspection->verdict === AdapterVerdict::Partial;
@@ -255,41 +269,48 @@ final readonly class AdapterHealthRepository
             // still uses the one-owner validation path until a full success is accepted.
             // Revoke earlier ordinary owners when entering suspect: their late successes
             // cannot restore normal admission or authorize another physical send.
+            $ownerSql = $context instanceof ExecutionContext
+                ? "SELECT 1 FROM prc_process_work WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'running' AND lease_until > clock_timestamp()"
+                : "SELECT 1 FROM prc_outbound_operations o WHERE o.id = ? AND o.generation = ? AND o.owner_token = ? AND o.state = 'open' AND o.lease_until > clock_timestamp() AND o.deadline_at > clock_timestamp()
+                    AND (o.parent_attempt_id IS NULL OR EXISTS (SELECT 1 FROM prc_process_attempts a JOIN prc_process_work w ON w.id=a.work_id AND w.generation=a.generation
+                        WHERE a.id=o.parent_attempt_id AND a.finished_at IS NULL AND w.state='running' AND w.lease_until > clock_timestamp()))";
+            $ownerParameters = $context instanceof ExecutionContext
+                ? [$context->lease()->workId->value->value, $context->lease()->generation, $context->lease()->token->value]
+                : [$context->lease()->id->value, $context->lease()->generation, $context->lease()->ownerToken->value];
             $changed = DB::update('UPDATE prc_adapter_health SET state = ?, state_version = ?, health_epoch = health_epoch + ?::int,
                 reason_code = ?, last_success_at = CASE WHEN ?::boolean THEN ?::timestamptz ELSE last_success_at END,
                 last_failure_at = CASE WHEN ?::boolean THEN last_failure_at ELSE ?::timestamptz END,
                 stable_since = CASE WHEN ?::boolean THEN coalesce(stable_since, ?::timestamptz) ELSE NULL END,
                 recent_openings = recent_openings + ?::int, probe_token = NULL, probe_until = NULL WHERE id = ?
                 AND health_epoch = ? AND (?::boolean = false OR probe_until > clock_timestamp())
-                AND EXISTS (SELECT 1 FROM prc_outbound_operations WHERE id = ? AND generation = ? AND owner_token = ?
-                    AND state = \'open\' AND lease_until > clock_timestamp() AND deadline_at > clock_timestamp())',
+                AND EXISTS ('.$ownerSql.')',
                 [$state, $version, $revoke ? 1 : 0, $accepted ? null : $inspection->checkCode,
                     $accepted, $now, $accepted || $partial, $now, $accepted || $partial, $now, $held ? 1 : 0, $claim->healthId->value,
-                    $claim->epoch, $claim->canary, $context->lease()->id->value, $context->lease()->generation, $context->lease()->ownerToken->value]);
+                    $claim->epoch, $claim->canary, ...$ownerParameters]);
             if ($changed !== 1) {
                 $stale = true;
-                DB::update("UPDATE prc_observations SET stale = true, details = jsonb_set(details, '{applied_state_version}', 'null'::jsonb) WHERE observation_id = ?", [$claim->operationId->value]);
+                DB::update("UPDATE prc_observations SET stale = true, details = jsonb_set(details, '{applied_state_version}', 'null'::jsonb) WHERE observation_id = ?", [$claim->ownerId->value]);
             }
             if ($held && ! $stale) {
                 $signature = $inspection->signature ?? throw new \LogicException('Held adapter lacks contract evidence.');
                 $this->incidents->open(new ContentHash(hash('sha256', $key.':'.$claim->epoch)),
                     'acquisition:platform:'.$claim->contract->platformCode, 'adapter_contract_held',
-                    ['adapter_health_id' => $claim->healthId->value, 'observation_id' => $claim->operationId->value,
+                    ['adapter_health_id' => $claim->healthId->value, 'observation_id' => $claim->ownerId->value,
                         'signature_hash' => $signature->hex, 'health_epoch' => $claim->epoch],
                     self::uuid(), self::uuid(), self::uuid());
             }
         }
 
         return new AdapterValidationReceipt($claim->healthId, $claim->epoch, $claim->contract,
-            $input, $claim->operationId, $claim->operationId, $requests, $stale, $inspection->verdict);
+            $input, $claim->ownerId, $claim->ownerId, $requests, $stale, $inspection->verdict, $claim->ownerKind);
     }
 
     /** Release only this exact full-validator claim; network abandonment is no semantic reset. */
-    public function release(OutboundExecutionContext $context): void
+    public function release(OutboundExecutionContext|ExecutionContext $context): void
     {
         CallerTransaction::require('Full validation claim release');
         $claim = $context->adapterClaim();
-        if ($claim === null || ! $claim->canary) {
+        if ($claim === null || ! $claim->canary || ! $context instanceof OutboundExecutionContext) {
             return;
         }
         LedgerRow::one('SELECT id FROM prc_outbound_operations WHERE id = ? FOR UPDATE', [$context->lease()->id->value]);
@@ -334,12 +355,12 @@ final readonly class AdapterHealthRepository
             WHERE o.observation_id = ? AND a.projection_key = ? AND NOT o.stale
                 AND o.kind = 'adapter_validation' AND o.details->>'verdict' = ?
                 AND o.details->'contract' = ?::jsonb AND o.input_hash = decode(?, 'hex')
-                AND o.epochs->>? = ? AND o.details->'request_ids' = ?::jsonb",
+                AND o.epochs->>? = ? AND o.details->'request_ids' = ?::jsonb AND o.details->>'owner_kind' = ?",
             [$receipt->observationId->value, 'prc_adapter_health:'.$receipt->healthId->value, $receipt->verdict->value,
                 json_encode($receipt->contract->toArray(), JSON_THROW_ON_ERROR), $receipt->inputHash->hex,
                 'prc_adapter_health:'.$receipt->healthId->value, (string) $receipt->epoch,
-                json_encode(array_map(static fn ($id): string => $id->value, $receipt->requestIds), JSON_THROW_ON_ERROR)]);
-        if ($receipt->observationId->value !== $receipt->operationId->value || ! in_array($receipt->verdict, [AdapterVerdict::Accepted, AdapterVerdict::Partial], true) || $receipt->stale || $row === null || $row->int('health_epoch') !== $receipt->epoch || $row->string('state') === 'held' || $fact === null
+                json_encode(array_map(static fn ($id): string => $id->value, $receipt->requestIds), JSON_THROW_ON_ERROR), $receipt->ownerKind->value]);
+        if ($receipt->observationId->value !== $receipt->ownerId->value || ! in_array($receipt->verdict, [AdapterVerdict::Accepted, AdapterVerdict::Partial], true) || $receipt->stale || $row === null || $row->int('health_epoch') !== $receipt->epoch || $row->string('state') === 'held' || $fact === null
             || LedgerRow::one("SELECT id FROM prc_source_targets WHERE retired_at IS NULL AND capability = ?
                 AND endpoint_policy->'adapter_contract' = ?::jsonb LIMIT 1", [$receipt->contract->capability,
                 json_encode($receipt->contract->toArray(), JSON_THROW_ON_ERROR)]) === null) {
@@ -421,7 +442,7 @@ final readonly class AdapterHealthRepository
         if ($claim === null || ! $claim->contract->equals($contract) || $target->nullableInt('platform_id') === null
             || $owner->platformId !== $target->nullableInt('platform_id')
             || $target->string('capability') !== $contract->capability
-            || $owner->operationId?->value !== $claim->operationId->value
+            || ! $owner->ownsValidation($claim)
             || $owner->adapterHealthId?->value !== $claim->healthId->value || $owner->adapterHealthEpoch !== $claim->epoch) {
             return $denied();
         }

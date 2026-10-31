@@ -108,7 +108,7 @@ test('T07 valid handler result roundtrips a closed codec and publishes full sour
         throw new LogicException('Invalid fixture payload');
     }
     $invalid['surprise'] = 1;
-    expect(fn () => $codec->decodeResult(new VersionedPayload(json_encode($invalid, JSON_THROW_ON_ERROR), 1)))->toThrow(InvalidArgumentException::class);
+    expect(fn () => $codec->decodeResult(new VersionedPayload(json_encode($invalid, JSON_THROW_ON_ERROR), $payload->schemaVersion)))->toThrow(InvalidArgumentException::class);
     app(WorkFinalizer::class)->finish($lease, $outcome);
     expect(DB::table('prc_procurements')->value('source_identity_value'))->toBe('42')
         ->and(DB::table('prc_procurements')->value('source_updated_has_day_precision'))->toBeTrue()

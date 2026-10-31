@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Network;
 
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
 
-/** A live operation owns full validation; HTTP permits cover only each physical transfer. */
+/** A live attempt or bounded operation owns full validation; permits cover each physical transfer. */
 final readonly class AdapterValidationClaim
 {
     public function __construct(public ProcessUuid $healthId, public int $epoch, public AdapterContractRef $contract,
-        public ProcessUuid $operationId, public bool $canary)
+        public ProcessUuid $ownerId, public bool $canary,
+        public AdapterValidationOwnerKind $ownerKind = AdapterValidationOwnerKind::OutboundOperation)
     {
-        if ($epoch < 1) {
+        if ($epoch < 1 || ($canary && $ownerKind === AdapterValidationOwnerKind::WorkAttempt)) {
             throw new \InvalidArgumentException('Invalid adapter health epoch.');
         }
     }

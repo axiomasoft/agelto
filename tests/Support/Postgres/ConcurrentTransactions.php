@@ -100,6 +100,7 @@ putenv('DB_DATABASE=agelto_test');
 require {$autoloadExport};
 \$app = require {$bootstrapExport};
 \$app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+\$app->instance(\App\Services\Procurement\Process\StageRegistry::class, new \App\Services\Procurement\Process\StageRegistry);
 config(['database.connections.pgsql.database' => 'agelto_test']);
 \Illuminate\Support\Facades\DB::purge('pgsql');
 \Tests\Support\TestFilesystemIsolation::configure(\$app);

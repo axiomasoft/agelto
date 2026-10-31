@@ -83,6 +83,45 @@ final class PlatformSourceRules
     public static function rolePermissions(): array
     {
         return [
+            // Explicit composition roles; no fetch/parser permission is widened.
+            'app/Providers/AppServiceProvider.php' => [
+                'App\\Dto\\Platforms\\Eis\\EisCardRoutes',
+                'App\\Dto\\Platforms\\Eis\\EisPolicy',
+                'App\\Services\\Platforms\\Eis\\Card\\EisCardCatalog',
+                'App\\Services\\Platforms\\Eis\\EisSourceClock',
+            ],
+            'app/Console/Platforms/Eis/SyncOkpd2Nodes.php' => [
+                'App\\Models\\Procurement\\Crawler\\Crawler',
+            ],
+            'app/Console/Platforms/Eis/VerifyDocumentUid.php' => [
+                'App\\Models\\Procurement\\Platform\\Registry',
+                'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',
+                'App\\Services\\Procurement\\Proxy\\ProxyResolver',
+            ],
+            'database/factories/Platforms/Eis/EisCrawlerFactory.php' => [
+                'App\\Models\\Procurement\\Crawler\\Crawler',
+                'App\\Models\\Procurement\\Crawler\\Proxy',
+                'App\\Models\\Procurement\\Platform\\Platform',
+                'App\\Models\\Procurement\\Platform\\Registry',
+                'App\\Repositories\\Procurement\\Network\\RouteRepository',
+                'App\\Services\\Procurement\\Network\\OutboundPolicy',
+                'App\\Services\\Procurement\\Process\\ProcessTransaction',
+                'Illuminate\\Support\\Facades\\DB',
+            ],
+            'database/seeders/Platforms/Eis/EisCrawlerProfileSeeder.php' => [
+                'App\\Models\\Procurement\\Crawler\\Crawler',
+                'App\\Models\\Procurement\\Platform\\Platform',
+                'App\\Models\\Procurement\\Platform\\Registry',
+            ],
+            // Q2: profile preparation is an application integration role, outside fetch/parser purity.
+            'app/Services/Platforms/Eis/Listing/EisProfilePreparer.php' => [
+                'App\\Models\\Procurement\\Crawler\\Crawler',
+                'App\\Repositories\\Procurement\\Crawler\\ListingCoverageRepository',
+                'App\\Repositories\\Procurement\\Platform\\Okpd2NodeReadRepository',
+                'App\\Repositories\\Procurement\\Process\\LedgerRow',
+                'App\\Services\\Procurement\\Acquisition\\Contracts\\AcquisitionProfilePreparer',
+                'App\\Services\\Procurement\\Network\\OutboundPolicy',
+            ],
             'app/Services/Platforms/Eis/EisDefinition.php' => [
                 'App\\Filament\\Platforms\\Eis\\EisUiExtension',
             ],
@@ -90,6 +129,7 @@ final class PlatformSourceRules
                 'App\\Repositories\\Procurement\\Process\\CallerTransaction',
             ],
             'app/Filament/Platforms/Eis/EisUiExtension.php' => [
+                'App\\Models\\Procurement\\Platform\\Registry',
                 'App\\Contracts\\Procurement\\Platform\\PlatformUiExtension',
                 'App\\Models\\Procurement\\Procurement',
             ],
@@ -105,15 +145,6 @@ final class PlatformSourceRules
             ],
             'app/Services/Platforms/Eis/Csv/EisCsvParser.php' => [
                 'App\\Services\\Procurement\\Network\\BoundedResponseReader',
-            ],
-            'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php' => [
-                'App\\Repositories\\Procurement\\ProcurementReadRepository',
-                'App\\Services\\Procurement\\Acquisition\\IdentityResolver',
-                'App\\Services\\Procurement\\Contracts\\DiagnosticSourceMethod',
-                'App\\Services\\Procurement\\Network\\AdapterInputInspector',
-                'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',
-                'App\\Services\\Procurement\\Proxy\\ProxyBindingResolver',
-                'App\\Services\\Procurement\\Proxy\\RoutePolicy',
             ],
             'app/Models/Platforms/Eis/EisDetails.php' => [
                 'App\Models\Procurement\Procurement',
@@ -152,17 +183,10 @@ final class PlatformSourceRules
                 'App\\Repositories\\Procurement\\Network\\RouteRepository',
                 'App\Models\Procurement\Crawler\Crawler',
                 'App\Models\Procurement\Crawler\Proxy',
-                'App\Models\Procurement\Crawler\Run',
                 'Illuminate\Support\Facades\DB',
             ],
-            'config/crawler.php' => [
-                'App\Dto\Platforms\Eis\EisSearchFilter',
-                'App\Filament\Platforms\Eis\EisCrawlerPlatformForm',
-                'App\Services\Platforms\Eis\Csv\CsvSourceMethod',
-                'App\Services\Platforms\Eis\Csv\EisCsvRowMapper',
-                'App\Services\Platforms\Eis\Card\EisDetailParser',
-            ],
             'database/seeders/BaseSeeder.php' => [
+                'Database\\Seeders\\Platforms\\Eis\\EisCrawlerProfileSeeder',
                 'Database\Seeders\Platforms\Eis\EisPlatformSeeder',
             ],
             'database/migrations/2026_07_04_100017_create_prc_eis_details_table.php' => [
