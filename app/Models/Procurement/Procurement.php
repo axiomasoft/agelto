@@ -31,6 +31,15 @@ use Illuminate\Support\Str;
  * @property string $source_identity_value
  * @property string $title
  * @property string|null $currency
+ * @property string|null $procedure_type
+ * @property string|null $advance_percent
+ * @property string|null $okved_code
+ * @property string|null $okved_additional
+ * @property string|null $region_code
+ * @property string|null $detail_url
+ * @property Carbon|null $bidding_starts_at
+ * @property Carbon|null $bidding_ends_at
+ * @property Carbon|null $summary_at
  * @property int|null $customer_org_id
  * @property int $detail_attempts
  * @property Carbon|null $detail_fetched_at

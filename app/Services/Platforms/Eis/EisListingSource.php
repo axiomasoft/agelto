@@ -31,6 +31,7 @@ use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Platform\AssessmentReason;
 use App\Enums\Procurement\Platform\Completeness;
 use App\Enums\Procurement\Platform\TerminalProof;
+use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\SourceResponseLimitExceeded;
 use App\Services\Platforms\Eis\Csv\EisCsvParser;
@@ -75,7 +76,7 @@ final readonly class EisListingSource implements ListingSource, ResponseValidato
 
         return new OutboundRequestPlan(new ProcessUuid((string) Str::uuid()), $this->targetId, 'GET',
             new SafeUrl($endpoint->url.'?'.http_build_query($query)), $endpoint->profile,
-            TrafficClass::ArchiveListing, IdempotencyClass::ReadOnly);
+            $request->kind === AcquisitionKind::Archive ? TrafficClass::ArchiveListing : TrafficClass::FreshListing, IdempotencyClass::ReadOnly);
     }
 
     public function fetch(ListingRequest $request, ExecutionContext $context): ListingFetchResult

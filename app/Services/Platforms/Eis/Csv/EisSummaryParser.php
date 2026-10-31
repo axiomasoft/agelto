@@ -43,6 +43,7 @@ final readonly class EisSummaryParser
             $published, $updated, ContentHash::of(json_encode($row, JSON_THROW_ON_ERROR)),
             initialPrice: $price, currency: $row['Валюта'] ?? null,
             detailLocator: $procedure === '' ? null : new CursorEnvelope('eis.procedure', 1, $procedure),
+            updatedAtDayPrecision: preg_match('/^\d{2}\.\d{2}\.\d{4}$/D', trim($row['Дата обновления'])) === 1,
         );
     }
 

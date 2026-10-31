@@ -302,6 +302,25 @@
         "T39"
       ],
       "coverage": "offline_adapter_contract"
+    },
+    {
+      "id": "p215-eis-listing-csv",
+      "kind": "adapter_response",
+      "path": "tests/Feature/ProcessCore/Acquisition/T07ListingHandlerTest.php",
+      "platform": "eis",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline CSV corpus authored in the test: 1200 rows, inclusive offsets, blank response and date-only updates. Assertions are independent of parser implementation.",
+      "captured_at": "2026-10-31",
+      "sha256": "bef0b9d62b7404ac0d8c1e14e37dc26e3aa912c2f3b521aef81bffa21b2c8409",
+      "expected": {
+        "schema_version": 1,
+        "assessment": "500/500/200 valid rows; blank body rejected; 5000 is not terminal proof"
+      },
+      "scenario_ids": [
+        "T07",
+        "T27"
+      ],
+      "coverage": "offline_listing_parser_handler"
     }
   ],
   "files": [

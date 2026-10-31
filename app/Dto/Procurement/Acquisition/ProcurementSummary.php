@@ -21,6 +21,7 @@ final readonly class ProcurementSummary
         public ?string $initialPrice = null,
         public ?string $currency = null,
         public ?CursorEnvelope $detailLocator = null,
+        public bool $updatedAtDayPrecision = false,
     ) {
         if ($initialPrice !== null && ! preg_match('/^\\d{1,15}(?:\\.\\d{1,2})?$/D', $initialPrice)) {
             throw new \InvalidArgumentException('Invalid decimal price.');

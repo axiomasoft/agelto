@@ -25,6 +25,7 @@ use App\Enums\Procurement\Process\HandlerEligibility;
 use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
+use App\Services\Procurement\Process\Contracts\PublicationLocks;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\StageRegistry;
@@ -169,7 +170,7 @@ final readonly class AuthorityRepository
      *
      * @param  list<AuthoritySnapshot>  $eligibilitySnapshots
      */
-    public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork, array $eligibilitySnapshots = []): LockedPrefix|PrefixFailure
+    public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork, array $eligibilitySnapshots = [], ?PublicationLocks $publication = null): LockedPrefix|PrefixFailure
     {
         CallerTransaction::require('Process lock prefix');
 
@@ -248,10 +249,12 @@ final readonly class AuthorityRepository
         }
 
         // Tier 3: полный subject set FOR UPDATE в порядке (table key, PK) снимка; heads сверяются.
+        $publication?->lockIdentities();
         $subjects = $this->lockSubjects($snapshot);
         if ($subjects instanceof PrefixFailure) {
             return $subjects;
         }
+        $publication?->lockSubjects();
 
         // Tier 4: work — последний lock prefix.
         $work = LedgerRow::one(

@@ -42,6 +42,17 @@ final readonly class SnapshotFinalizer
     {
         CallerTransaction::require('Snapshot subject locking');
         $this->locks->acquireProcurements($identities);
+
+        return $this->lockRows($identities);
+    }
+
+    /** @param list<ProcurementIdentity> $identities
+     * @return list<LockedProcurement>
+     *                                 Caller has already acquired sorted identity authorities before its subject tier.
+     */
+    public function lockRows(array $identities): array
+    {
+        CallerTransaction::require('Snapshot row locking');
         $rows = [];
         foreach ($identities as $identity) {
             $row = $this->read->findProcurement($identity);

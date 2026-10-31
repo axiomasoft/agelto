@@ -302,3 +302,37 @@ caller transaction и negative writer ownership fixtures. core-test-acquisition 
 Schema inventory фиксирует фактические три изменённые таблицы; marker current_item остаётся
 последним полностью активированным carrier stage, без ранней активации future carriers.
 Двукратный isolated install и полную regression запускает conductor (V3/V4).
+
+## P2.15: listing coverage до активации P2.18
+
+Новый `ListingHandler` получает одну immutable page assignment и делает fetch вне
+транзакции. `ListingFinalizer` под Process ownership сохраняет summaries, detail intents,
+page receipt, cursor successors и required run edges вместе с transition/outbox.
+Невалидный ответ не продвигает cursor. Старые runtime consumers переключаются в P2.18.
+
+EIS planner использует inclusive rows с 1, default block 500 (локальные bounds 1..1000),
+дневные окна и decimal price bisection с перекрытием midpoint. Число 5000 не является
+доказательством конца: overflow/repeated page требует split либо явного incomplete debt.
+Начальный план ограничен 400 окнами, страницы — 12 на pass, passes — 3, split depth — 20,
+общий allocation budget — максимум 10000. Не размещённый хвост остаётся durable debt.
+
+Закрытый partition complete только после двух последовательных непрерванных полных
+passes с одинаковыми identity+revision/content fingerprints. Повтор после takeover
+не засчитывает прерванный pass как stability proof. Open day сохраняется observed;
+после source-local closing boundary он попадает в due reconciliation даже после
+долгого простоя. Offset pagination остаётся best-observed: overlap и повторные scans
+снижают риск пропусков, но не доказывают атомарный снимок изменяемого источника.
+
+`ListingCoverageRepository` восстанавливает verified/observed watermarks и debt из
+immutable assignments и fenced receipts в `prc_crawl_blocks`; отдельной mutable
+watermark authority нет. Publish/update имеют разные stream keys; меняющийся horizon
+не меняет stream identity. Verified watermark не перескакивает незакрытый gap,
+recovery сохраняет filter snapshot, access policy, adapter version и decimal bounds.
+Split parent не закрывает discovery, пока не учтены все дочерние blocks. Required
+detail works удерживают drain run отдельно от закрытия discovery.
+
+Для P2.16 `ListingStoreRepository::detailReference(intentId)` возвращает сохранённый
+`ListingDetailReference` с opaque locator/revision/fingerprint. Detail intent dedup
+учитывает content и policy; несовместимый concurrent intent остаётся pending. Его
+активация/retirement и detail/status handlers принадлежат P2.16/P2.18. Listing не
+запускает document pipeline. Схема P2.15 использует существующие subject carriers.

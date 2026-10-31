@@ -7,6 +7,8 @@ namespace App\Repositories\Procurement\Process;
 use App\Dto\Procurement\Process\AuthoritySnapshot;
 use App\Dto\Procurement\Process\CompletionResult;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\DetailInput;
+use App\Dto\Procurement\Process\DownloadInput;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\HandlerFaultEvidence;
 use App\Dto\Procurement\Process\ProcessUuid;
@@ -28,6 +30,7 @@ use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\ProviderRecoveryMode;
 use App\Enums\Procurement\Process\RunWorkRelation;
 use App\Enums\Procurement\Process\WorkState;
+use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\StageRegistry;
@@ -91,7 +94,11 @@ final readonly class WorkFinalizationRepository
     ): CompletionResult|PrefixFailure {
         CallerTransaction::require('Work finalize');
         $accepted = null;
-        $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: false);
+        $publication = $outcome instanceof StageSucceeded ? $this->registry->resultRepository($lease->stage) : null;
+        $publication = $publication instanceof StagePublicationRepository ? $publication : null;
+        $locks = $publication !== null && $outcome instanceof StageSucceeded
+            ? $publication->publicationLocks($snapshot->input, $outcome->result) : null;
+        $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: false, publication: $locks);
         if ($prefix === PrefixFailure::WorkMissing) {
             return CompletionResult::invariantViolation();
         }
@@ -167,6 +174,7 @@ final readonly class WorkFinalizationRepository
         }
         $this->works->releaseGroupLocked($group, count($prefix->members), $decision['terminal_kind']);
         $this->storeSuccessors($lease->workId, $work, $successors, $successorIds);
+        $publication?->afterSuccessors($snapshot->input, $lease->workId, $ids['incident_event'], $ids['incident_projection']);
         if ($decision['exhausted'] !== null) {
             $this->incidents->open(
                 fingerprint: ContentHash::of('handler-fault-limit:v1:'.$lease->workId->value->value.':'.$attempt->string('handler_version')),
@@ -305,7 +313,8 @@ final readonly class WorkFinalizationRepository
                     id: $successorId,
                     input: $input,
                     inputRevision: 1,
-                    intentId: null,
+                    intentId: $input instanceof DetailInput ? $input->intentId
+                        : ($input instanceof DownloadInput ? $input->acquisitionIntentId : null),
                     cohortKey: $work->string('cohort_key'),
                     platformId: $work->nullableInt('platform_id'),
                     originRunId: ($origin = $work->nullableString('origin_run_id')) === null ? null : new ProcessUuid($origin),

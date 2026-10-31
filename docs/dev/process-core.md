@@ -820,3 +820,24 @@ caller transaction и negative writer ownership fixtures. core-test-acquisition 
 Schema inventory фиксирует фактические три изменённые таблицы; marker current_item остаётся
 последним полностью активированным carrier stage, без ранней активации future carriers.
 Двукратный isolated install и полную regression запускает conductor (V3/V4).
+
+## P2.15: listing implementation и адресные proofs
+
+`ListingHandler`, `ListingStageCodec`, `ListingFinalizer` и `ListingStoreRepository`
+реализуют bounded page work на существующих crawl subjects. Production binding и
+producer cutover остаются P2.18; fixture registry связывает настоящий handler/finalizer
+с Process core уже сейчас. `StagePublicationRepository` добавляет typed publication
+locks до work lock и discovery closure после создания successors в той же transaction.
+
+| Assertions | Файл | Group / owning target |
+|---|---|---|
+| T07: real EIS parser, partial rejection, full codec/publication | `T07ListingHandlerTest.php` | t07,p23 / core-test-acquisition |
+| T27: inclusive/decimal, deletion-before-offset, content stability, outage, split/debt, closing reconciliation, interrupted passes, rollback | `T27ListingCoverageTest.php` | t27,p23 / core-test-acquisition |
+| T09/T27: two actual PG owners, one accepted publication and successor graph | `T27ListingConcurrencyTest.php` | t09,t27,p23 / core-test-acquisition |
+
+Файлы находятся в `tests/Feature/ProcessCore/Acquisition/`. Адресные логи и hashes
+текущего candidate: `storage/app/testing/process-core/reports/p215-executor/`.
+Это доказательства P2.15, не приёмка всей группы P2.14–P2.19. DDL не меняется;
+watermarks rebuildable из durable page receipts. Исторический объём coverage projection
+растёт с числом runs: bounded allocation не является обещанием постоянной стоимости
+полного rebuild. Детальный operational rollout и cadence принадлежат producer cutover.
