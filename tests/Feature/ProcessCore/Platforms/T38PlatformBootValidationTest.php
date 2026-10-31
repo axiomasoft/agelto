@@ -79,7 +79,7 @@ test('T38 единый registry читает ЕИС и JSON из config без D
         ->and($eis->registries->get('fz44')->primaryIdentityType->value)->toBe('registry:44fz')
         ->and($json->registries->get('fz44')->primaryIdentityType->value)->toBe('opaque:notice');
     // Reflect a real diagnostic whose constructor requires the HTTP adapter; never instantiate it.
-    (new PlatformBootValidator)->validate(t38Definition(['checks' => new DiagnosticChecks(['listing' => ListingFilterCheck::class])]), 'json');
+    (new PlatformBootValidator)->validate(t38Definition(['checks' => new DiagnosticChecks(['listing' => ListingFilterCheck::class])]), 'json', config());
     Http::assertNothingSent();
 });
 
@@ -105,16 +105,16 @@ test('T38 target origin profile и extension DTO pairing проверяются 
     $definition = t38Definition();
     $endpoint = $definition->endpoints->get('detail');
     $wrong = new EndpointDefinition('detail', 'json.detail', 'https://wrong.example/detail', $endpoint->profile);
-    expect(fn () => $validator->validate(t38Definition(['endpoints' => new EndpointCatalog([$wrong])]), 'json'))
+    expect(fn () => $validator->validate(t38Definition(['endpoints' => new EndpointCatalog([$wrong])]), 'json', config()))
         ->toThrow(InvalidPlatformDefinition::class, 'target/origin/profile mismatch');
     $version = new AdapterVersion('1');
     $descriptor = new ExtensionDescriptor(T38FixtureExtension::class, T38FixtureWriter::class, $version, $version);
-    $validator->validate(t38Definition(['extension' => $descriptor]), 'json');
+    $validator->validate(t38Definition(['extension' => $descriptor]), 'json', config());
     $mismatched = new ExtensionDescriptor(SourceIdentifierValue::class, T38FixtureWriter::class, $version, $version);
-    expect(fn () => $validator->validate(t38Definition(['extension' => $mismatched]), 'json'))
+    expect(fn () => $validator->validate(t38Definition(['extension' => $mismatched]), 'json', config()))
         ->toThrow(InvalidPlatformDefinition::class, 'exact fully qualified DTO');
     $wrongVersion = new ExtensionDescriptor(T38FixtureExtension::class, T38FixtureWriter::class, $version, new AdapterVersion('2'));
-    expect(fn () => $validator->validate(t38Definition(['extension' => $wrongVersion]), 'json'))
+    expect(fn () => $validator->validate(t38Definition(['extension' => $wrongVersion]), 'json', config()))
         ->toThrow(InvalidPlatformDefinition::class, 'adapter version mismatch');
 });
 
@@ -141,11 +141,11 @@ test('T38 config cache сохраняет definitions и вложенную poli
 test('T38 advertised missing wrong abstract implementations и unknown endpoints fail closed', function (): void {
     $validator = new PlatformBootValidator;
     foreach (['MissingListingSource', stdClass::class] as $class) {
-        expect(fn () => $validator->validate(t38Definition(['listing' => new SupportedListingCapability($class, ['detail'])]), 'json'))
+        expect(fn () => $validator->validate(t38Definition(['listing' => new SupportedListingCapability($class, ['detail'])]), 'json', config()))
             ->toThrow(InvalidPlatformDefinition::class, 'platforms.definitions.json.listing');
     }
     foreach (['MissingCheck', stdClass::class, DiagnosticCheck::class] as $class) {
-        expect(fn () => $validator->validate(t38Definition(['checks' => new DiagnosticChecks(['check' => $class])]), 'json'))
+        expect(fn () => $validator->validate(t38Definition(['checks' => new DiagnosticChecks(['check' => $class])]), 'json', config()))
             ->toThrow(InvalidPlatformDefinition::class, 'platforms.definitions.json.checks.check');
     }
     expect(fn () => t38Definition()->endpoints->get('missing'))->toThrow(InvalidPlatformDefinition::class, 'Unknown endpoint');
@@ -200,4 +200,30 @@ test('T38 CLI validate не синхронизирует DB catalog и возв�
     $this->artisan('platform:validate', ['code' => 'unknown'])->assertExitCode(1);
     config(['platforms.definitions.eis' => stdClass::class]);
     $this->artisan('platform:validate')->assertExitCode(1);
+});
+
+test('T38 CLI отвергает невозможный timeout с точными config paths до DB HTTP', function (): void {
+    config(['platforms.eis.endpoints.listing.profile.total_seconds' => 240]);
+    DB::shouldReceive('connection')->never();
+    Http::fake();
+    Http::preventStrayRequests();
+    $this->artisan('platform:validate', ['code' => 'eis'])
+        ->expectsOutput('platforms.eis.endpoints.listing.profile.total_seconds: full timeout 240 + outbound.scheduling.max_inline_wait_seconds 20 + process.execution.finalization_reserve_seconds 15 must fit process.stages.listing.slice 240.')
+        ->assertExitCode(1);
+    Http::assertNothingSent();
+});
+
+test('T38 shared JSON endpoint проверяется для каждой calling lane без DB HTTP', function (): void {
+    $config = new Repository(config()->all());
+    $config->set('platforms.definitions', ['json' => JsonProcurementDefinition::class]);
+    $config->set('process.stages.listing.slice', 45);
+    DB::shouldReceive('connection')->never();
+    Http::fake();
+    Http::preventStrayRequests();
+    expect((new PlatformRegistry($config))->get(new PlatformCode('json'))->endpoints->get('detail')->profile->totalSeconds)->toBe(10);
+    // Target declares detail (slice 90), but listing also uses this endpoint.
+    $config->set('process.stages.listing.slice', 44);
+    expect(fn () => new PlatformRegistry($config))->toThrow(InvalidPlatformDefinition::class,
+        'platforms.json.endpoints.detail.profile.total_seconds: full timeout 10 + outbound.scheduling.max_inline_wait_seconds 20 + process.execution.finalization_reserve_seconds 15 must fit process.stages.listing.slice 44.');
+    Http::assertNothingSent();
 });

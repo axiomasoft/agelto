@@ -121,7 +121,7 @@ function p210DetailRequest(): DetailRequest
 
 test('T02 обе definitions рекламируют реальные typed listing/detail без runtime activation', function (): void {
     foreach ([(new EisDefinition(config()))->definition(), (new JsonProcurementDefinition)->definition()] as $definition) {
-        (new PlatformBootValidator)->validate($definition, $definition->code->value);
+        (new PlatformBootValidator)->validate($definition, $definition->code->value, config());
         expect(is_a($definition->listing->implementation, ListingSource::class, true))->toBeTrue()
             ->and(is_a($definition->detail->implementation, DetailSource::class, true))->toBeTrue();
     }

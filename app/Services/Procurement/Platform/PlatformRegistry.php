@@ -51,7 +51,7 @@ final readonly class PlatformRegistry
                 throw new InvalidPlatformDefinition($path.': invalid provider.');
             }
             $definition = $provider->definition();
-            $validator->validate($definition, $key);
+            $validator->validate($definition, $key, $config);
             $definitions[$key] = $definition;
         }
         ksort($definitions, SORT_STRING);

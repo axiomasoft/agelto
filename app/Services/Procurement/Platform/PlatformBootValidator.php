@@ -5,20 +5,30 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Platform;
 
 use App\Dto\Procurement\Platform\CanonicalOrigin;
+use App\Dto\Procurement\Platform\EndpointDefinition;
 use App\Dto\Procurement\Platform\PlatformDefinition;
 use App\Dto\Procurement\Platform\UnsupportedCapability;
+use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
+use App\Services\Procurement\Network\OutboundPolicy;
+use App\Services\Procurement\Process\ProcessPolicy;
+use Illuminate\Contracts\Config\Repository;
 use ReflectionClass;
 
 /** Pure declaration validation. No container resolution, source requests or catalog synchronization. */
 final class PlatformBootValidator
 {
-    public function validate(PlatformDefinition $definition, string $key): void
+    public function validate(PlatformDefinition $definition, string $key, Repository $config): void
     {
         $path = 'platforms.definitions.'.$key;
         if ($key !== $definition->code->value || $definition->sourceTargets->platformCode !== $key) {
             throw new InvalidPlatformDefinition($path.': platform code/key/source-target mismatch.');
+        }
+        $process = new ProcessPolicy($config);
+        $outbound = new OutboundPolicy($config);
+        if ($process->finalizationReserveSeconds < 15) {
+            throw new InvalidPlatformDefinition('process.execution.finalization_reserve_seconds: expected at least 15 seconds.');
         }
         foreach ($definition->endpoints->endpoints as $endpoint) {
             $target = $definition->sourceTargets->targets[$endpoint->targetKey] ?? null;
@@ -26,6 +36,12 @@ final class PlatformBootValidator
                 || ! isset($target->profiles[$endpoint->profile->code])
                 || $target->profiles[$endpoint->profile->code]->toArray() !== $endpoint->profile->toArray()) {
                 throw new InvalidPlatformDefinition($path.'.endpoints.'.$endpoint->code.': target/origin/profile mismatch.');
+            }
+            // Declared download targets must fit even before the document resolver is activated.
+            // Diagnostic/reference targets have no process stage; their bounds belong to Network.
+            $stage = StageCode::tryFrom($target->capability);
+            if ($stage !== null) {
+                $this->requestFit($endpoint, $stage, $key, $process, $outbound);
             }
         }
         // These interfaces become available with their owning adapters. Unsupported declarations
@@ -44,7 +60,19 @@ final class PlatformBootValidator
             }
             $this->implementation($capability->implementation, $contract, $path.'.'.$field);
             foreach ($capability->endpoints as $endpoint) {
-                $definition->endpoints->get($endpoint);
+                $endpoint = $definition->endpoints->get($endpoint);
+                // An endpoint shared by capabilities must fit every calling stage, not just
+                // its target's primary capability. Partitioning itself performs no requests.
+                $stage = match ($field) {
+                    'listing' => StageCode::Listing,
+                    'detail' => StageCode::Detail,
+                    'status' => StageCode::StatusRefresh,
+                    'documents' => StageCode::Download,
+                    default => null,
+                };
+                if ($stage !== null) {
+                    $this->requestFit($endpoint, $stage, $key, $process, $outbound);
+                }
             }
         }
         foreach ($definition->checks->implementations as $code => $implementation) {
@@ -70,6 +98,21 @@ final class PlatformBootValidator
         }
         if ($definition->uiExtension !== null) {
             $this->implementation($definition->uiExtension, 'App\\Contracts\\Procurement\\Platform\\PlatformUiExtension', $path.'.uiExtension');
+        }
+    }
+
+    private function requestFit(EndpointDefinition $endpoint, StageCode $stage, string $key, ProcessPolicy $process, OutboundPolicy $outbound): void
+    {
+        $slice = $process->sliceSeconds($stage);
+        $wait = $outbound->maxInlineWaitSeconds;
+        $reserve = $process->finalizationReserveSeconds;
+        // Compare by subtraction: huge positive timeout declarations cannot overflow a sum.
+        // This is one physical attempt, not attempts * total or a shortened timeout.
+        if ($endpoint->profile->totalSeconds > $slice - $wait - $reserve) {
+            throw new InvalidPlatformDefinition(sprintf(
+                'platforms.%s.endpoints.%s.profile.total_seconds: full timeout %d + outbound.scheduling.max_inline_wait_seconds %d + process.execution.finalization_reserve_seconds %d must fit process.stages.%s.slice %d.',
+                $key, $endpoint->code, $endpoint->profile->totalSeconds, $wait, $reserve, $stage->value, $slice,
+            ));
         }
     }
 

@@ -27,6 +27,17 @@ Definition validation не выполняет catalog sync, migrations, DNS ил
 ошибка содержит config path. Network сохраняет единственное владение rate/permit/retry/TLS.
 Новая policy не копирует origin budget или TrafficClass policy в адаптер.
 
+Boot validator сопоставляет каждый stage-bound endpoint с его target и всеми объявившими его
+capabilities: полный timeout одной physical attempt + `outbound.scheduling.max_inline_wait_seconds`
++ `process.execution.finalization_reserve_seconds` должны помещаться в `process.stages.<stage>.slice`.
+Равенство допустимо; timeout не сокращается и не умножается на attempts. Listing использует свою
+lane, detail/status — свои short lanes, document — download, в том числе до активации resolver.
+Общий endpoint проверяется для каждой calling stage. Настройки читаются через существующие
+ProcessPolicy/OutboundPolicy; reserve меньше 15 секунд отвергается. Ошибка называет
+`platforms.<code>.endpoints.<endpoint>.profile.total_seconds` и участвующие timing config paths.
+Diagnostic/reference targets без process stage сохраняют Network bounds. Проверка не делает
+DB/network I/O; runtime `canStart` по-прежнему проверяет фактический остаток перед send.
+
 `RegistryDefinitions` отвергает повтор code и повтор primary identity namespace внутри площадки.
 ЕИС явно объявляет `fz44 → registry:44fz`; testing-only JsonProcurement использует
 `fz44 → opaque:notice`. `SourceIdentity` состоит из platform/type/value. Opaque value сохраняет
