@@ -20,10 +20,25 @@ final readonly class EisPolicy
 
     public EndpointCatalog $endpoints;
 
+    public EisListingPolicy $listing;
+
     public function __construct(Repository $config)
     {
         $root = $config->get('platforms.eis');
-        $this->keys($root, ['block_size', 'source_timezone', 'endpoints'], 'platforms.eis');
+        $this->keys($root, ['block_size', 'source_timezone', 'endpoints', 'listing_bounds'], 'platforms.eis');
+        $bounds = $root['listing_bounds'];
+        $this->keys($bounds, ['max_blocks', 'min_interval_cents', 'max_depth', 'max_partitions', 'parser_seconds'], 'platforms.eis.listing_bounds');
+        foreach ($bounds as $key => $value) {
+            if (! is_int($value)) {
+                throw new InvalidPlatformDefinition('platforms.eis.listing_bounds.'.$key.': expected integer.');
+            }
+        }
+        try {
+            $this->listing = new EisListingPolicy($bounds['max_blocks'], $bounds['min_interval_cents'],
+                $bounds['max_depth'], $bounds['max_partitions'], $bounds['parser_seconds']);
+        } catch (\InvalidArgumentException $exception) {
+            throw new InvalidPlatformDefinition('platforms.eis.listing_bounds: invalid bounds.', previous: $exception);
+        }
         $size = $root['block_size'];
         if (! is_int($size) || $size < 1 || $size > 1000) {
             throw new InvalidPlatformDefinition('platforms.eis.block_size: expected integer 1..1000.');

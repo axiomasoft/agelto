@@ -23,7 +23,7 @@ final readonly class DocumentsParser
 {
     public function __construct(private SourceTargetValidator $targetValidator) {}
 
-    public function parse(string $html): DocumentsSnapshot
+    public function parse(string $html, bool $strict = false): DocumentsSnapshot
     {
         try {
             $crawler = new Crawler($html);
@@ -61,6 +61,9 @@ final readonly class DocumentsParser
                 documents: $documents,
             );
         } catch (\Throwable $exception) {
+            if ($strict) {
+                throw $exception;
+            }
             Log::warning('Разбор вкладки documents провалился целиком; snapshot failed', [
                 'exception' => $exception->getMessage(),
             ]);

@@ -6,6 +6,13 @@ declare(strict_types=1);
 return [
     'block_size' => 500,
     'source_timezone' => env('EIS_SOURCE_TIMEZONE', 'Europe/Moscow'),
+    'listing_bounds' => [
+        'max_blocks' => 12,
+        'min_interval_cents' => 100000,
+        'max_depth' => 20,
+        'max_partitions' => 10000,
+        'parser_seconds' => 5,
+    ],
     'endpoints' => [
         'listing' => [
             'target' => 'eis.listing',

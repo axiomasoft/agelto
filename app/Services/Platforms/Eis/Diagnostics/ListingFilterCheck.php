@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace App\Services\Platforms\Eis\Diagnostics;
 
 use App\Dto\Platforms\Eis\EisListingQueryOverrides;
+use App\Dto\Procurement\Acquisition\ListingPage;
+use App\Dto\Procurement\Acquisition\ProcurementSummary;
 use App\Dto\Procurement\Crawler\ListingBatch;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Health\CheckResult;
 use App\Dto\Procurement\Health\HealthBaseline;
+use App\Dto\Procurement\Platform\ResponseAssessment;
+use App\Dto\Procurement\Process\ContentHash;
 use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\SourceMethod;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
+use App\Enums\Procurement\Platform\AssessmentReason;
+use App\Enums\Procurement\Platform\Completeness;
 use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
 use App\Exceptions\Procurement\Crawler\PlatformBudgetExhaustedException;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
@@ -37,6 +43,34 @@ final readonly class ListingFilterCheck implements DiagnosticCheck
     private const string REGISTRY_NUMBER_COLUMN = 'Реестровый номер закупки';
 
     public function __construct(private CsvSourceMethod $source) {}
+
+    /** Pure new-boundary assessment; acquisition diagnostics supplies two bounded reads. */
+    public static function assessPages(
+        ListingPage $unfiltered,
+        ListingPage $filtered,
+        float $maxOverlapShare,
+    ): ResponseAssessment {
+        if (! is_finite($maxOverlapShare) || $maxOverlapShare < 0 || $maxOverlapShare > 1) {
+            throw new \InvalidArgumentException('Invalid filter overlap threshold.');
+        }
+        $hash = ContentHash::of($unfiltered->assessment->bodyHash->hex.$filtered->assessment->bodyHash->hex);
+        if (! $unfiltered->assessment->usable() || ! $filtered->assessment->usable()
+            || $unfiltered->summaries->items === [] || $filtered->summaries->items === []) {
+            return new ResponseAssessment(
+                Completeness::Unavailable,
+                AssessmentReason::InvalidResponse, $hash);
+        }
+        $identities = static fn (ListingPage $page): array => array_unique(array_map(
+            static fn (ProcurementSummary $summary): string => json_encode($summary->identity->toArray(), JSON_THROW_ON_ERROR),
+            $page->summaries->items,
+        ));
+        $all = $identities($unfiltered);
+        $share = count(array_intersect($all, $identities($filtered))) / count($all);
+
+        return new ResponseAssessment(
+            $share > $maxOverlapShare ? Completeness::Partial : Completeness::Complete,
+            $share > $maxOverlapShare ? AssessmentReason::FilterMismatch : AssessmentReason::Valid, $hash);
+    }
 
     public function kind(): PlatformCheckKind
     {

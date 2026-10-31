@@ -161,6 +161,10 @@ final class PlatformSourceRules
 
     public static function platformCode(string $path): ?string
     {
+        if (str_starts_with($path, 'tests/Support/Platforms/Contract/')) {
+            return null;
+        }
+
         return preg_match('~^(?:app/[^/]+|database/(?:factories|seeders)|tests/Support)/Platforms/([^/]+)/~', $path, $matches) === 1
             ? $matches[1] : null;
     }
@@ -305,7 +309,8 @@ final class PlatformSourceRules
     {
         $platform = self::platformCode($path);
 
-        if ($platform === null || ! in_array($platform, $codes, strict: true)) {
+        $contractKit = preg_match('~^tests/Support/Platforms/Contract/[^/]+\.php$~', $path) === 1;
+        if (! $contractKit && ($platform === null || ! in_array($platform, $codes, strict: true))) {
             return ['unknown platform directory: '.$path];
         }
 

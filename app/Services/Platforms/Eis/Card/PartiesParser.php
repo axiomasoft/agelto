@@ -32,23 +32,30 @@ final readonly class PartiesParser
     ];
 
     /** @return list<PartyData> */
-    public function parse(string $html): array
+    public function parse(string $html, bool $strict = false): array
     {
         try {
             return $this->snapshot($html)['parties'];
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            if ($strict) {
+                throw $exception;
+            }
+
             return [];
         }
     }
 
     /** @param list<PartyData> $parties */
-    public function authorizesReconciliation(string $html, array $parties): bool
+    public function authorizesReconciliation(string $html, array $parties, bool $strict = false): bool
     {
         try {
             $snapshot = $this->snapshot($html);
 
             return $snapshot['complete'] && $snapshot['parties'] == $parties;
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            if ($strict) {
+                throw $exception;
+            }
             Log::warning('Вкладка common-info не содержит подтверждённый полный набор сторон.');
 
             return false;

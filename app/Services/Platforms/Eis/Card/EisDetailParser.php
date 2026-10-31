@@ -20,29 +20,29 @@ final readonly class EisDetailParser implements DetailParser
         private SupplierResultsParser $results,
     ) {}
 
-    public function commonInfo(string $html): CommonInfoSnapshot
+    public function commonInfo(string $html, bool $strict = false): CommonInfoSnapshot
     {
-        $parties = $this->parties->parse(html: $html);
+        $parties = $this->parties->parse(html: $html, strict: $strict);
 
-        return $this->common->parse(html: $html)->withParties(
+        return $this->common->parse(html: $html, strict: $strict)->withParties(
             parties: $parties,
-            partiesComplete: $this->parties->authorizesReconciliation(html: $html, parties: $parties),
+            partiesComplete: $this->parties->authorizesReconciliation(html: $html, parties: $parties, strict: $strict),
         );
     }
 
-    public function documents(string $html): DocumentsSnapshot
+    public function documents(string $html, bool $strict = false): DocumentsSnapshot
     {
-        return $this->documentsParser->parse(html: $html);
+        return $this->documentsParser->parse(html: $html, strict: $strict);
     }
 
     /** @return list<JournalEntryData> */
-    public function eventJournal(string $html): array
+    public function eventJournal(string $html, bool $strict = false): array
     {
-        return $this->journal->parse(html: $html);
+        return $this->journal->parse(html: $html, strict: $strict);
     }
 
-    public function supplierResults(string $html): SupplierResultsData
+    public function supplierResults(string $html, bool $strict = false): SupplierResultsData
     {
-        return $this->results->parse(html: $html);
+        return $this->results->parse(html: $html, strict: $strict);
     }
 }

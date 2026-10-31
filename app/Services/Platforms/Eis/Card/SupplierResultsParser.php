@@ -47,7 +47,7 @@ final readonly class SupplierResultsParser
         'обоснования выбора единственного поставщика' => ProtocolType::SingleSupplierJustification,
     ];
 
-    public function parse(string $html): SupplierResultsData
+    public function parse(string $html, bool $strict = false): SupplierResultsData
     {
         try {
             $crawler = new Crawler($html);
@@ -60,6 +60,9 @@ final readonly class SupplierResultsParser
 
             return new SupplierResultsData(protocol: $protocol, bids: $bids, award: $award);
         } catch (\Throwable $exception) {
+            if ($strict) {
+                throw $exception;
+            }
             Log::warning('Разбор вкладки supplier-results провалился целиком, вкладка пропущена', [
                 'exception' => $exception->getMessage(),
             ]);

@@ -41,20 +41,78 @@ descriptor — против readonly DTO и `ExtensionPersister`, с exact fully
 PHPDoc generic `@implements`. Adapter/parser version обязаны совпадать. Writer constructor
 при проверке не вызывается. Транзакционный writer и UI activation принадлежат своим cutovers.
 
-Граница staging: P2.9 ещё не активирует typed fetch API. Listing/detail/documents/partitioning
-в EIS/JSON Definition явно `UnsupportedCapability(reason)`; контрактный interface должен
-существовать до объявления Supported. P2.10 поставляет реальные fetch contracts и адаптеры,
-включая validator/cursor/filter contracts; P2.11 — общий fixture kit. P2.12 атомарно переводит
+Граница staging: P2.10 объявляет Supported listing/detail для EIS и JSON и partitioning для EIS.
+Документы и status остаются явно Unsupported до owning implementations. P2.10 поставляет
+fetch/results, validator/cursor/filter contracts; P2.11 — общий fixture kit. P2.12 атомарно переводит
 factory, catalog sync и consumers на эту Definition, удаляет `PlatformAdapterRegistry`,
 `SourceMethodFactory`, mixed `PlatformAdapterDefinition` и старую registration map.
 До этого legacy runtime использует прежнюю карту, а новая Definition используется только
 offline validation и contract tests: второй runtime lookup/fallback не подключён.
 Схема identity и CommonInfoProcessor/ProcurementDetails меняются в acquisition cutover.
-JSON пока доказывает независимую регистрацию и namespace identity, не работу JSON parser.
+JSON теперь разбирает собственный JSON layout, opaque identity/cursor и один detail endpoint.
 
 Адресные assertions находятся в
 `tests/Feature/ProcessCore/Platforms/T38PlatformBootValidationTest.php` и `T43EisPolicyTest.php`.
-Они не доказывают T39/T41/T42/T45 или полноту следующего среза.
+P2.10 добавляет `T39AdapterResultsTest.php` (groups t02/t27/t39/p22). Он не доказывает
+durable acquisition/finalizer, T41/T42/T45 или полноту следующего среза.
+
+## Neutral results и планы запросов (P2.10)
+
+`ListingSource::fetch` / `DetailSource::fetch` получают typed request и ExecutionContext.
+`PlatformOutbound` — узкий порт к существующему `OutboundExecutor`; его
+`ExecutorPlatformOutbound` передаёт неизменный OutboundRequestPlan, gate, URL policy и budget.
+Retry, redirect, leases, health и persistence не принадлежат парсеру. Composition передаёт
+проверенный target UUID из каталога; до P2.12 новый binding не активирует runtime.
+
+Результат — ListingFetched/DetailFetched либо FetchDeferred/FetchBlocked/FetchItemRejected.
+Deferred сохраняет точный RetryAt; отсутствие результата не превращается в пустую карточку.
+Невалидный listing возвращает Partial assessment без next cursor и terminal proof. Assessment
+содержит reason, failureScope, confidence, body digest и optional artifact reference.
+Raw тела не входят в canonical snapshot. ResponseValidator проверяет тот же parser result
+относительно ExpectedResource, а не только HTTP 200.
+
+ЕИС использует immutable EisListingFilter с уже разрешёнными platform-local OKPD2 IDs.
+EisListingCursor содержит день, выбранную дату, inclusive цены в копейках, first row и filter hash;
+только адаптер декодирует его. Запросы начинают с 1; to = from + blockSize − 1.
+Фильтр стадии, дата и цена проверяются по строкам, comparative ListingFilterCheck оценивает
+изменение выборки. Это bounded диагностическое свидетельство, а не доказательство source-side
+семантики OKPD2 для каждой строки. Scope неизвестных цен не объявляется покрытым.
+
+CSV header-only — semantic empty; blank, неверная ширина/quoting, дата, identity или price —
+не terminal. rowsTotal считает записи до dedup и mapping. Лимиты CSV остаются 1000 records,
+262144 bytes/field, 256 columns и 128000 separators; parser deadline и ExecutionContext tick
+проверяются во время чтения. `platforms.eis.listing_bounds` задаёт локальные resource bounds,
+не source SLA. Повтор digest или исчерпание blocks даёт incomplete; 5000 не является cap proof.
+Price split создаёт [lo,mid] и [mid,hi]; depth/partition/min-interval bound возвращает явную
+причину incomplete. Создание required successors и сохранение debt выполняет P2.15.
+
+ProcurementSummaries сортирует normalized observations для digest, сохраняя cardinality.
+ListingEvidence сравнивает полные последовательные passes одной immutable partition:
+два одинаковых — Stable, open — ObservedOpen, три несовпадающих — Incomplete. Это чистая
+оценка evidence; durable membership/full-pass aggregation и watermarks принадлежат acquisition.
+Offset listing не обещает абсолютную полноту изменяемого источника.
+
+DetailRequest может передавать opaque locator из ProcurementSummary. ЕИС переносит исходную
+метку способа закупки в `eis.procedure`; EisCardRoutes получает exact label→procedure и
+procedure→tabs из доверенного registry snapshot. Missing mapping — явный отказ, fallback нет.
+Обязательные common-info/documents и явно объявленные optional tabs дают нейтральные parts
+attributes/parties/documents/events/results. Part содержит hash и fetchedAt. Несовпавший
+точный номер карточки rejected; отсутствующая required section оставляет snapshot partial.
+Strict parser path не маскирует programming Throwable; legacy signatures сохраняют своё
+поведение до атомарного переключения потребителей.
+
+EisDetailExtension содержит специфичные identifiers/IKZ/ETP/contact fields. Контракт
+`ExtensionPersister<TExtension>` и pairing descriptor уже определены; concrete writer
+и его activation выполняет P2.14. Сейчас нет второго writer `prc_eis_details`.
+ProcurementDetails/CommonInfoData/CommonInfoProcessor остаются legacy carriers до P2.14,
+как требует cutover; нейтральный путь использует ProcurementSnapshot.
+
+Testing-only JsonProcurement использует epoch seconds, opaque ключи (включая пробелы и регистр),
+`notices/paging` для listing и `notice/participants/attachments` для одной detail response.
+JSON не содержит CSV headers. Unknown/missing keys, неверные типы, count/end/cursor conflicts
+и identity mismatch отвергаются. Signed document references сохраняют expiry; разрешение
+и обновление истёкших ссылок принадлежит document access capability, пока Unsupported.
+Fixture hashes и вручную заданные ожидания находятся в process-core manifest.
 
 ## Сохраняемый runtime до P2.12
 

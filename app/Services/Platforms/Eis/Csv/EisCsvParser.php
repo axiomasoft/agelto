@@ -28,7 +28,7 @@ final readonly class EisCsvParser
     }
 
     /** @return array{rows: list<array<string, string>>, records: int, malformed: int, header: list<string>|null} */
-    public function parseBatch(string $body, ?float $deadlineAt = null, int $maxRecords = 1000, int $maxFieldBytes = 262_144): array
+    public function parseBatch(string $body, ?float $deadlineAt = null, int $maxRecords = 1000, int $maxFieldBytes = 262_144, ?\Closure $tick = null): array
     {
         if (substr_count($body, ';') > 128_000) {
             throw new SourceResponseLimitExceeded('CSV separator count exceeds the resource limit.');
@@ -49,7 +49,7 @@ final readonly class EisCsvParser
             $records = 0;
             $malformed = 0;
 
-            foreach ($this->records($stream, $deadlineAt, $maxFieldBytes) as $values) {
+            foreach ($this->records($stream, $deadlineAt, $maxFieldBytes, $tick) as $values) {
                 BoundedResponseReader::assertTime($deadlineAt);
                 if (count($values) > 256) {
                     throw new SourceResponseLimitExceeded('CSV column count exceeds the resource limit.');
@@ -93,7 +93,7 @@ final readonly class EisCsvParser
      * @param  resource  $stream
      * @return \Generator<int, list<string>>
      */
-    private function records($stream, ?float $deadlineAt, int $maxFieldBytes): \Generator
+    private function records($stream, ?float $deadlineAt, int $maxFieldBytes, ?\Closure $tick): \Generator
     {
         $fields = [];
         $field = '';
@@ -104,6 +104,7 @@ final readonly class EisCsvParser
 
         while (($char = fgetc($stream)) !== false) {
             if (++$bytes % 8192 === 0) {
+                $tick?->__invoke();
                 BoundedResponseReader::assertTime($deadlineAt);
             }
             if (strlen($field) > $maxFieldBytes || count($fields) > 255) {

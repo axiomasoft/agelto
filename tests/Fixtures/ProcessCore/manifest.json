@@ -40,6 +40,106 @@
         "T22"
       ],
       "coverage": "pure_codec_only"
+    },
+    {
+      "id": "p210-eis-neutral-empty",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/Platforms/Eis/Csv/neutral-empty.csv",
+      "platform": "eis",
+      "adapter_version": "1",
+      "provenance": "Hand-authored sanitized fixture for P2.10; expected canonical fields reviewed independently of parser output; no live I/O.",
+      "captured_at": "2026-10-31",
+      "sha256": "5cc320a3df0f61ebb64858c0653d2f6fde226fb311ed2bee20aaecffd60b7c6e",
+      "expected": {
+        "assessment": "complete_empty",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T02",
+        "T27",
+        "T39"
+      ],
+      "coverage": "pure_adapter_contract_only"
+    },
+    {
+      "id": "p210-eis-neutral-valid",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/Platforms/Eis/Csv/neutral-valid.csv",
+      "platform": "eis",
+      "adapter_version": "1",
+      "provenance": "Hand-authored sanitized fixture for P2.10; expected canonical fields reviewed independently of parser output; no live I/O.",
+      "captured_at": "2026-10-31",
+      "sha256": "e3a151bde84c6413f3b7fdb7dba6ec3baac33c94b3925a2d0dc8ae866e587bfc",
+      "expected": {
+        "assessment": "complete: identity 00042, decimal 1250000.50",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T02",
+        "T27",
+        "T39"
+      ],
+      "coverage": "pure_adapter_contract_only"
+    },
+    {
+      "id": "p210-json-listing-empty",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/ProcessCore/JsonPlatform/listing-empty.json",
+      "platform": "json",
+      "adapter_version": "1",
+      "provenance": "Hand-authored sanitized fixture for P2.10; expected canonical fields reviewed independently of parser output; no live I/O.",
+      "captured_at": "2026-10-31",
+      "sha256": "840eecbeb46124322d8a17220b8203ad2672d42311b8408633f5c85a2186f1fb",
+      "expected": {
+        "assessment": "complete_empty",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T02",
+        "T27",
+        "T39"
+      ],
+      "coverage": "pure_adapter_contract_only"
+    },
+    {
+      "id": "p210-json-listing",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/ProcessCore/JsonPlatform/listing.json",
+      "platform": "json",
+      "adapter_version": "1",
+      "provenance": "Hand-authored sanitized fixture for P2.10; expected canonical fields reviewed independently of parser output; no live I/O.",
+      "captured_at": "2026-10-31",
+      "sha256": "05c5a440dd469130c23db7a2c97e13d2b2af708b057977e2b9a9ec4ec740f80f",
+      "expected": {
+        "assessment": "complete: opaque identity and next cursor preserved byte-for-byte",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T02",
+        "T27",
+        "T39"
+      ],
+      "coverage": "pure_adapter_contract_only"
+    },
+    {
+      "id": "p210-json-detail",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/ProcessCore/JsonPlatform/detail.json",
+      "platform": "json",
+      "adapter_version": "1",
+      "provenance": "Hand-authored sanitized fixture for P2.10; expected canonical fields reviewed independently of parser output; no live I/O.",
+      "captured_at": "2026-10-31",
+      "sha256": "bc279a60cf2af1b8ee66b6f377d86029ce5a50ab5f1dd7ba9c2c938d28a7c9ff",
+      "expected": {
+        "assessment": "complete: one party, one signed document reference, no extension",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T02",
+        "T27",
+        "T39"
+      ],
+      "coverage": "pure_adapter_contract_only"
     }
   ],
   "files": [
@@ -3441,7 +3541,7 @@
     },
     {
       "path": "tests/Unit/Architecture/DomainLayoutTest.php",
-      "sha256": "ca9799d633a15050ca2212af4cdd917d2c6d49127a4d2dcee4023217a806ff3d",
+      "sha256": "c87445efa6c5cee44dd1b39d7184c7b49b2f93b6ab6dc0c37787750e27264cc7",
       "scenarios": [
         "в корне выровненных слоёв раскладки нет файлов сверх реестра root-legal классов",
         "namespace каждого файла выровненных слоёв совпадает с его путём",
@@ -3449,7 +3549,7 @@
       ],
       "original_path": "tests/Unit/Architecture/DomainLayoutTest.php",
       "original_sha256": "01928226c2909b569254785ae9c2f297a44833f7abc076b249cb04637864f381",
-      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved. P1.6 registers the Process repository subarea. P1.8 registers the Process exceptions subarea (typed control exits). P2.1 registers neutral Network enums/DTO/repositories/exceptions and Platform DTO subareas; original scenario names and assertions preserved. P2.9 registers the Platform exceptions subarea for InvalidPlatformDefinition; original scenario names and assertions preserved."
+      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; P1.2 registers the Process DTO/enum subareas. Original scenario names preserved. P1.6 registers the Process repository subarea. P1.8 registers the Process exceptions subarea (typed control exits). P2.1 registers neutral Network enums/DTO/repositories/exceptions and Platform DTO subareas; original scenario names and assertions preserved. P2.9 registers the Platform exceptions subarea for InvalidPlatformDefinition; original scenario names and assertions preserved. P2.10 registers the approved Platform enum and Acquisition/Document DTO subareas from structure#s01; original scenario names and assertions preserved."
     },
     {
       "path": "tests/Unit/Architecture/HistoryModulePlatformAgnosticTest.php",
@@ -4484,47 +4584,52 @@
     {
       "path": "app/Services/Platforms/Eis/Card/CommonInfoParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\CommonInfoParser",
-      "sha256": "50268085ca65a44c1e69ce987d8a55a0d70c5c978dca92bc3925a038af668d57",
+      "sha256": "b683314cf4f557050174f442825f89626c340289b78a2c50947d278c4b94718b",
       "original_path": "app/Services/Procurement/Eis/Card/CommonInfoParser.php",
       "original_sha256": "3652b366991a0e1b0d724b054ad7ec9762386039beafa19a06dc60b87f451b0c",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\CommonInfoParser",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
+      "accepted_change_item": "P2.10"
     },
     {
       "path": "app/Services/Platforms/Eis/Card/DocumentsParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\DocumentsParser",
-      "sha256": "6f4aaf1588997780d5c03dbe3d3d21e2da814c78aa912c559b047e5c798eb6e5",
+      "sha256": "c62497635e5ea96c216842c010e15490a9d1a6eb5bf4007245930b2511169be5",
       "original_path": "app/Services/Procurement/Eis/Card/DocumentsParser.php",
       "original_sha256": "df8b0e7c965660e92dd2e68c563d1d42327b7f1e0899e885fca8cebde81d3ab3",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\DocumentsParser",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
+      "accepted_change_item": "P2.10"
     },
     {
       "path": "app/Services/Platforms/Eis/Card/EventJournalParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\EventJournalParser",
-      "sha256": "cc47cbb0742939c85c127ebd147374a09154fbf9d8fceb092ee0d51c2750ef72",
+      "sha256": "d2daf8328504b913b33c219557ed6319bed05f48b3d8d89221048fc3adbb0d16",
       "original_path": "app/Services/Procurement/Eis/Card/EventJournalParser.php",
       "original_sha256": "6dfa3b302489cf021fd9a35a1ad96d96b1402e578848eedef2afa1772075e4c3",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\EventJournalParser",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
+      "accepted_change_item": "P2.10"
     },
     {
       "path": "app/Services/Platforms/Eis/Card/PartiesParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\PartiesParser",
-      "sha256": "5b07dd26f5ab4ce09145762be53708face1953b477a3229d0ec6d195e590c07f",
+      "sha256": "1c82778a35495ad07b84e34163ddb9cd7621fefff1084ff294f779ab7fe720e5",
       "original_path": "app/Services/Procurement/Eis/Card/PartiesParser.php",
       "original_sha256": "1bf577b7eeea4a7792f26a92f6d63c96a58be2046fefc072e29566f00731cbd7",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\PartiesParser",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
+      "accepted_change_item": "P2.10"
     },
     {
       "path": "app/Services/Platforms/Eis/Card/SupplierResultsParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\SupplierResultsParser",
-      "sha256": "422acad9f6499d2967a6782b38fb243fdd3e1e7132fde246a5f711238a2c4776",
+      "sha256": "8c41a03f1cdefcd35885893e605d94dc36c17c1d7a20d58d1a83d78ee617d385",
       "original_path": "app/Services/Procurement/Eis/Card/SupplierResultsParser.php",
       "original_sha256": "11f1baa359ad34ba3d4d5d5aa5c5bd5ff4e6ddb02742dcaa115012677d871243",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\SupplierResultsParser",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
+      "accepted_change_item": "P2.10"
     },
     {
       "path": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
@@ -4547,11 +4652,12 @@
     {
       "path": "app/Services/Platforms/Eis/Csv/EisCsvParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvParser",
-      "sha256": "9d46fa132829885a9f8df9f4c6da1d41e78d1418e958f42d188f9fd87b1ee820",
+      "sha256": "6cdb315754473d42b73f7f1fdd1fa21dec011e0f82f372b73a69751037ec2444",
       "original_path": "app/Services/Procurement/Eis/EisCsvParser.php",
       "original_sha256": "9f6e6543e4b0dd6e7f99c3f541d1efe07c8f502794af73e9d9e53d98507157a3",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvParser",
-      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
+      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
+      "accepted_change_item": "P2.10"
     },
     {
       "path": "app/Services/Platforms/Eis/Csv/EisCsvRowMapper.php",
@@ -4574,11 +4680,12 @@
     {
       "path": "app/Services/Platforms/Eis/Card/EisDetailParser.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Card\\EisDetailParser",
-      "sha256": "4736c16e4574f6388213fd0b1ac06ce448801db6a959b20da726f57c7a3a2db1",
+      "sha256": "ef4201c6f9feab084dbaddaaf416ffc84683fed26b186bf64a4842d991e07fd2",
       "original_path": "app/Services/Procurement/Eis/EisDetailParser.php",
       "original_sha256": "1431e8b0b3dd658ad58b91a3c135b2ee640d42adfada5d14892ab5eaf059bf62",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\EisDetailParser",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
+      "accepted_change_item": "P2.10"
     },
     {
       "path": "app/Services/Platforms/Eis/EisSourceClock.php",
@@ -4601,11 +4708,12 @@
     {
       "path": "app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Diagnostics\\ListingFilterCheck",
-      "sha256": "55771f1d36bccdb4c744d7d20f412da82a65fc2c14b8d319ee1a6f376d7f33c5",
+      "sha256": "4f1a8f293b9c3a2a9b59eaf8edbce2423e75cd1d71c2bcf6538d4321bd06ebf7",
       "original_path": "app/Services/Procurement/Health/Checks/ListingFilterCheck.php",
       "original_sha256": "66e898e2f24d08930703ac3aa88b2521ecc381f76cae1408447125119e8e0775",
       "original_fqcn": "App\\Services\\Procurement\\Health\\Checks\\ListingFilterCheck",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.10 neutral adapter contracts; strict parser entrypoints preserve legacy default behavior, and Contract support root is neutral. Original provenance and scenarios retained.",
+      "accepted_change_item": "P2.10"
     },
     {
       "path": "database/factories/Platforms/Eis/EisDetailsFactory.php",

@@ -28,7 +28,7 @@ final readonly class EventJournalParser
     /**
      * @return list<JournalEntryData>
      */
-    public function parse(string $html): array
+    public function parse(string $html, bool $strict = false): array
     {
         try {
             $crawler = new Crawler($html);
@@ -54,6 +54,9 @@ final readonly class EventJournalParser
 
             return $entries;
         } catch (\Throwable $exception) {
+            if ($strict) {
+                throw $exception;
+            }
             Log::warning('Разбор вкладки event-journal провалился целиком, журнал пропущен', [
                 'exception' => $exception->getMessage(),
             ]);

@@ -17,6 +17,8 @@ use App\Dto\Procurement\Platform\RequestProfile;
 use App\Dto\Procurement\Platform\SourceIdentifierType;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Platform\SupportedDetailCapability;
+use App\Dto\Procurement\Platform\SupportedListingCapability;
 use App\Dto\Procurement\Platform\UnsupportedCapability;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Services\Procurement\Platform\Contracts\PlatformDefinitionProvider;
@@ -35,8 +37,8 @@ final readonly class JsonProcurementDefinition implements PlatformDefinitionProv
             version: new AdapterVersion('1'),
             registries: new RegistryDefinitions([new RegistryDefinition('fz44', new SourceIdentifierType('opaque:notice'))]),
             endpoints: new EndpointCatalog([$endpoint]),
-            listing: $pending,
-            detail: $pending,
+            listing: new SupportedListingCapability(JsonListingSource::class, ['detail']),
+            detail: new SupportedDetailCapability(JsonDetailSource::class, ['detail']),
             status: $pending,
             documents: $pending,
             checks: new DiagnosticChecks([]),

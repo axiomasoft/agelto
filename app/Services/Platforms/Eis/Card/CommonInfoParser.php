@@ -36,7 +36,7 @@ final readonly class CommonInfoParser
 
     private const string TERM_FINANCING_TOTAL = 'Финансовое обеспечение закупки (всего)';
 
-    public function parse(string $html): CommonInfoSnapshot
+    public function parse(string $html, bool $strict = false): CommonInfoSnapshot
     {
         try {
             $crawler = new Crawler($html);
@@ -75,6 +75,9 @@ final readonly class CommonInfoParser
                 ),
             );
         } catch (\Throwable $exception) {
+            if ($strict) {
+                throw $exception;
+            }
             Log::warning('Разбор вкладки common-info провалился целиком; snapshot failed', [
                 'exception' => $exception->getMessage(),
             ]);

@@ -15,6 +15,9 @@ use App\Dto\Procurement\Platform\RegistryDefinitions;
 use App\Dto\Procurement\Platform\SourceIdentifierType;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Platform\SupportedDetailCapability;
+use App\Dto\Procurement\Platform\SupportedListingCapability;
+use App\Dto\Procurement\Platform\SupportedListingPartitioningCapability;
 use App\Dto\Procurement\Platform\UnsupportedCapability;
 use App\Services\Procurement\Platform\Contracts\PlatformDefinitionProvider;
 use Illuminate\Contracts\Config\Repository;
@@ -42,13 +45,13 @@ final readonly class EisDefinition implements PlatformDefinitionProvider
             version: new AdapterVersion('1'),
             registries: new RegistryDefinitions([new RegistryDefinition('fz44', new SourceIdentifierType('registry:44fz'))]),
             endpoints: $this->policy->endpoints,
-            listing: $pending,
-            detail: $pending,
+            listing: new SupportedListingCapability(EisListingSource::class, ['listing']),
+            detail: new SupportedDetailCapability(EisDetailSource::class, ['card']),
             status: new UnsupportedCapability('Status adapter belongs to acquisition cutover.'),
             documents: $pending,
-            checks: new DiagnosticChecks([]),
+            checks: new DiagnosticChecks(['listing_filter' => Diagnostics\ListingFilterCheck::class]),
             sourceTargets: new SourceTargetDefinitions('eis', $targets),
-            partitioning: $pending,
+            partitioning: new SupportedListingPartitioningCapability(EisListingPartitioner::class, ['listing']),
         );
     }
 }

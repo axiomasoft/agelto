@@ -32,7 +32,8 @@ function alignedDomainLayoutLayers(): array
                 'DetailSnapshotStatus',
             ],
             // P2.1: подобласть `Network` — typed network authority/transport enums (structure#s01).
-            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Network', 'Process', 'Proxy'],
+            // P2.10: Platform — neutral adapter assessment/completeness enums (structure#s01).
+            'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Network', 'Platform', 'Process', 'Proxy'],
         ],
         // P3.3, Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
         // `InvalidEvalDiffPayload` обслуживает корневой estimate CLI-контур, а не отдельную подобласть.
@@ -49,7 +50,8 @@ function alignedDomainLayoutLayers(): array
             'root' => ['ProcurementDetails', 'ProcurementSnapshotData', 'StatusResolution'],
             // P2.1: `Network` — outbound plan/result/owner DTO; `Platform` — нейтральные части Definition
             // (RequestProfile, CanonicalOrigin, SourceTargetDefinitions) без кода конкретной площадки.
-            'subareas' => ['Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Fixture', 'Gold', 'Health', 'History', 'Network', 'Platform', 'Prepare', 'Process', 'Proxy'],
+            // P2.10: Acquisition — neutral fetch results; Document — immutable references (structure#s01).
+            'subareas' => ['Acquisition', 'Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Document', 'Fixture', 'Gold', 'Health', 'History', 'Network', 'Platform', 'Prepare', 'Process', 'Proxy'],
         ],
         // P3.3, Completion Notes: три ядровых репозитория закупки остаются в корне.
         // P2.1 (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
