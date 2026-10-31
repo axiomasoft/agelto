@@ -364,6 +364,11 @@ common-info. В этом срезе новые document references сохран�
 
 Mapping сохраняет порядок exact registry → platform default → unknown. Один новый
 raw status открывает один incident на platform/registry/hash; item budget не тратится.
+INSERT первого unknown выполняется в savepoint: конкурентный exact unique conflict
+откатывает только эту попытку, затем сервис перечитывает mapping победителя в той же
+publication transaction. Обе закупки сохраняют revision/event history без повторного
+fetch; 23505/25P02 не входят в общий transaction retry. T40 проверяет эту гонку двумя
+PostgreSQL connections с barrier после exact lookup.
 `StatusRemapper` перечитывает текущий source_stage под subject lock и проверяет
 expected head. Исправленный mapping публикует обычную revision и status_changed;
 bulk UPDATE статуса не используется. Любая новая canonical revision увеличивает

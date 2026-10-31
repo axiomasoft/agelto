@@ -14,11 +14,13 @@ final readonly class StatusMappingStoreRepository
 
     public function createExactUnknown(int $registryId, string $sourceStage): StatusMapping
     {
-        return StatusMapping::query()->create([
+        // Roll back only this INSERT on a concurrent discovery. The caller's publication
+        // transaction must remain usable when StatusMappingService rereads the winner.
+        return (new StatusMapping)->getConnection()->transaction(fn (): StatusMapping => StatusMapping::query()->create([
             'registry_id' => $registryId,
             'source_stage' => $sourceStage,
             'canonical_status' => ProcurementStatus::Unknown->value,
-        ]);
+        ]));
     }
 
     public function isExactRegistryRace(UniqueConstraintViolationException $exception): bool
