@@ -22,6 +22,7 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
+use App\Services\Platforms\Eis\EisDefinition;
 use App\Services\Procurement\Modes\FreshRunProcessor;
 use App\Services\Procurement\Network\OutboundPolicy;
 use App\Services\Procurement\Network\SourceCatalogSync;
@@ -69,8 +70,9 @@ function csvWireScenario(bool $proxy = false, bool $tls = false): array
     $wire = new WireFixture($tls ? 443 : 0);
     $registry = CallerFixtures::platform($wire);
     if ($tls) {
-        config(['crawler.eis.csv_endpoint' => $wire->url('/csv', true)->reveal()]);
-        app(SourceCatalogSync::class)->sync(app(CsvSourceMethod::class)->sourceTargets());
+        config(['crawler.eis.csv_endpoint' => $wire->url('/csv', true)->reveal(),
+            'platforms.eis.endpoints.listing.url' => $wire->url('/csv', true)->reveal()]);
+        app(SourceCatalogSync::class)->syncRegistered(['eis']);
     }
     Okpd2Node::query()->firstOrCreate(['platform_id' => $registry->platform_id, 'code' => '43'],
         Okpd2Node::factory()->make(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '8873921'])->getAttributes());
@@ -447,7 +449,7 @@ test('лимиты bytes records и field останавливают fresh бе�
     if ($limit === 'response_max_bytes') {
         [$wire, $crawler] = csvWireScenario();
         try {
-            $catalog = app(CsvSourceMethod::class)->sourceTargets();
+            $catalog = (new EisDefinition(config()))->definition()->sourceTargets;
             $targets = [];
             foreach ($catalog->targets as $target) {
                 if ($target->capability === 'listing') {

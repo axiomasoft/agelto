@@ -3,7 +3,7 @@
   "files": [
     {
       "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-      "sha256": "08f12e8798b43eab79832be0832fb9be97885f3331ff7fba797a13098029b0a0",
+      "sha256": "9240eac6b1dd8468da157516f5aaaf4f68a7eb303c7ca1c71fa849f98434c22b",
       "scenarios": [
         "таймаут карточки сохраняет числовые фазы транспорта без URL и credentials",
         "collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)",
@@ -16,11 +16,11 @@
         "collectDetails у типа без вкладки supplier-results (маркер null, D121) снимает три вкладки без исключения",
         "collectDetails без активной proxy-привязки идёт напрямую и пишет это в лог"
       ],
-      "disposition": "preserved in place; original datasets and assertions retained"
+      "disposition": "P2.12: preserved in place; only catalog setup switched to actual Definition; scenario names, datasets and assertions retained"
     },
     {
       "path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-      "sha256": "f2e5defaa79a9f582895b5f7edef0f729f80068cbce31bf2724c12428761095c",
+      "sha256": "91cd9ffc8980a5e9fadb5d0c973dc5e689eab3f292418aad27203a2e03cb6098",
       "scenarios": [
         "истёкший deadline листинга запрещает новый HTTP-запрос",
         "collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре",
@@ -42,7 +42,7 @@
         "битая запись учитывается в rowsTotal, чтобы неполный блок не считался последним",
         "лимиты bytes records и field останавливают fresh без продвижения курсора"
       ],
-      "disposition": "preserved in place; original datasets and assertions retained"
+      "disposition": "P2.12: preserved in place; only catalog setup switched to actual Definition; scenario names, datasets and assertions retained"
     },
     {
       "path": "tests/Feature/Crawler/EisCardUrlBuilderTest.php",

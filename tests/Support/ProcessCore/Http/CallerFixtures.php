@@ -9,7 +9,6 @@ use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\SourceCatalogSync;
@@ -20,13 +19,17 @@ final class CallerFixtures
     public static function platform(WireFixture $wire): Registry
     {
         config(['crawler.eis.csv_endpoint' => $wire->url('/csv')->reveal(),
+            'platforms.eis.endpoints.listing.url' => $wire->url('/csv')->reveal(),
+            'platforms.eis.endpoints.card.url' => $wire->url('/card')->reveal(),
+            'platforms.eis.endpoints.document.url' => $wire->url('/')->reveal(),
+            'platforms.eis.endpoints.document.target' => 'document.'.substr($wire->url('/')->origin->hash()->hex, 0, 16),
             'crawler.okpd2.children_endpoint' => $wire->url('/children')->reveal(),
             'crawler.documents_allowed_hosts' => ['fixture.test'],
             'outbound.http.tls_bundles' => ['fixture.test' => $wire->root.'/cert.pem']]);
         app()->instance(LegacyOutbound::class, app()->makeWith(LegacyOutboundClient::class, ['urls' => $wire->policy()]));
         $platform = Platform::query()->firstOrCreate(['code' => 'eis'], ['name' => 'ЕИС', 'base_url' => $wire->url('/')->reveal(), 'is_active' => true]);
         $registry = Registry::query()->firstOrCreate(['platform_id' => $platform->id, 'code' => 'fz44'], ['name' => '44-ФЗ', 'settings' => []]);
-        app(SourceCatalogSync::class)->sync(app(CsvSourceMethod::class)->sourceTargets());
+        app(SourceCatalogSync::class)->syncRegistered(['eis']);
         self::healthReady();
 
         return $registry;

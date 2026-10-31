@@ -1,7 +1,6 @@
 <?php
 
 declare(strict_types=1);
-use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
 
 /*
  * Versioned outbound policy v1 (platform-transport#defaults, implementation-blueprint#bp-rate-gcra,
@@ -57,11 +56,8 @@ return [
         'max_deadline_seconds' => 420,
     ],
 
-    // Config-only провайдеры source catalog (class strings): actual Definitions подключает
-    // P2.9–P2.12. Boot их не вызывает; читает только явный platform:sync-catalog.
-    'catalog_providers' => [
-        CsvSourceMethod::class,
-    ],
+    // Non-procurement provider catalogs only. Platform targets come from platforms.definitions.
+    'catalog_providers' => [],
 
     'routing' => ['default_profile' => 'default', 'provider_profile' => 'llm'],
 

@@ -12,6 +12,7 @@ use App\Services\Procurement\Network\SourceCatalogRegistry;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\ProcessCore\NetworkFixtureDefinition;
 use Tests\Support\ProcessCore\NetworkFixtures;
 
 beforeEach(function (): void {
@@ -70,7 +71,7 @@ test('retire сохраняет tombstone и explicit sync не оживляет
 });
 
 test('config-only registry и dependency resolution не делают DB или HTTP I/O', function (): void {
-    config()->set('outbound.catalog_providers', [NetworkFixtures::class]);
+    config()->set('platforms.definitions', ['fixture' => NetworkFixtureDefinition::class]);
     DB::enableQueryLog();
     DB::flushQueryLog();
     $policy = app(OutboundPolicy::class);

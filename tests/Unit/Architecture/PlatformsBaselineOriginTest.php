@@ -8,10 +8,15 @@ test('T33 legacy baseline остаётся подмножеством исход
     $map = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/platforms-move-map.json')), associative: true, flags: JSON_THROW_ON_ERROR);
     $origin = $map['dependency_origin'];
     $baseline = require __DIR__.'/platforms-dependency-baseline.php';
+    // Owner-approved cutover clarification: surviving original P2.12 pairs belong to P2.18.
+    // Original inventory remains immutable; no new file/import pair is admitted.
+    $cutoverOrigin = array_map(static fn (array $entry): array => [
+        ...$entry, 'owner' => $entry['owner'] === 'P2.12' ? 'P2.18' : $entry['owner'],
+    ], $origin['pairs']);
 
     expect($origin['commit'])->toBe('02f41f9dbcc5e50237abcf4ee54b953d052de068')
         ->and($origin['pairs'])->not->toBeEmpty()
-        ->and(PlatformSourceRules::baselineGrowthViolations(baseline: $baseline, origin: $origin['pairs']))->toBe([]);
+        ->and(PlatformSourceRules::baselineGrowthViolations(baseline: $baseline, origin: $cutoverOrigin))->toBe([]);
 
     foreach ($baseline as $entry) {
         expect(PlatformSourceRules::rolePermissions()[$entry['file']] ?? [])->not->toContain($entry['import']);

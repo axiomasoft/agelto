@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-// Definition policy only until the explicit P2.12 adapter/catalog cutover.
+// Config-only Definition policy, used by validation and explicit catalog sync.
 return [
     'block_size' => 500,
     'source_timezone' => env('EIS_SOURCE_TIMEZONE', 'Europe/Moscow'),
@@ -15,7 +15,7 @@ return [
     ],
     'endpoints' => [
         'listing' => [
-            'target' => 'eis.listing',
+            'target' => 'csv',
             'url' => 'https://zakupki.gov.ru/epz/order/orderCsvSettings/download.html',
             'profile' => [
                 'code' => 'eis.csv_export',
@@ -34,7 +34,7 @@ return [
             ],
         ],
         'card' => [
-            'target' => 'eis.card',
+            'target' => 'card',
             'url' => 'https://zakupki.gov.ru/epz/order/notice/',
             'profile' => [
                 'code' => 'eis.card_tab',
@@ -53,7 +53,7 @@ return [
             ],
         ],
         'document' => [
-            'target' => 'eis.document',
+            'target' => 'document.'.substr(hash('sha256', 'origin:v1:https://zakupki.gov.ru:443'), 0, 16),
             'url' => 'https://zakupki.gov.ru/',
             'profile' => [
                 'code' => 'eis.document',

@@ -43,11 +43,11 @@ PHPDoc generic `@implements`. Adapter/parser version обязаны совпад
 
 Граница staging: P2.10 объявляет Supported listing/detail для EIS и JSON и partitioning для EIS.
 Документы и status остаются явно Unsupported до owning implementations. P2.10 поставляет
-fetch/results, validator/cursor/filter contracts; P2.11 — общий fixture kit. P2.12 атомарно переводит
-factory, catalog sync и consumers на эту Definition, удаляет `PlatformAdapterRegistry`,
-`SourceMethodFactory`, mixed `PlatformAdapterDefinition` и старую registration map.
-До этого legacy runtime использует прежнюю карту, а новая Definition используется только
-offline validation и contract tests: второй runtime lookup/fallback не подключён.
+fetch/results, validator/cursor/filter contracts; P2.11 — общий fixture kit. P2.12 подключает
+Definition к catalog sync, CLI validation и optional UI resolver. По уточнённой границе cutover
+`PlatformAdapterRegistry`, `SourceMethodFactory`, `PlatformAdapterDefinition` и `crawler.platforms`
+обслуживают только действующие acquisition consumers до их атомарного переключения в P2.18.
+Новые consumers используют PlatformRegistry; compatibility descriptor и второй state owner не вводятся.
 Схема identity и CommonInfoProcessor/ProcurementDetails меняются в acquisition cutover.
 JSON теперь разбирает собственный JSON layout, opaque identity/cursor и один detail endpoint.
 
@@ -62,7 +62,7 @@ durable acquisition/finalizer, T41/T42/T45 или полноту следующ�
 `PlatformOutbound` — узкий порт к существующему `OutboundExecutor`; его
 `ExecutorPlatformOutbound` передаёт неизменный OutboundRequestPlan, gate, URL policy и budget.
 Retry, redirect, leases, health и persistence не принадлежат парсеру. Composition передаёт
-проверенный target UUID из каталога; до P2.12 новый binding не активирует runtime.
+проверенный target UUID из каталога. Catalog activation не запускает новые acquisition handlers.
 
 Результат — ListingFetched/DetailFetched либо FetchDeferred/FetchBlocked/FetchItemRejected.
 Deferred сохраняет точный RetryAt; отсутствие результата не превращается в пустую карточку.
@@ -161,21 +161,49 @@ no-route, exhausted, rate, held, truncated listing, required detail/schema и т
 fetch после exhaustion. Outbound здесь deterministic recording port: эти тесты не заявляют новых
 HTTP/concurrency доказательств. Новый bridge пока не активирует acquisition runtime.
 
-Для P2.12: сохранить fixture registry и реальные definitions согласованными при activation;
-не удалять acquisition/UI baseline раньше их owning cutovers. P2.14 использует bridge с настоящими
+Fixture registry и реальные definitions согласованы при catalog activation;
+acquisition/UI baseline сохраняется до owning cutovers. P2.14 использует bridge с настоящими
 artifact persistence, checkpoints и publication contracts; ledger не переносится в адаптер.
 
-## Сохраняемый runtime до P2.12
+## Каталог и optional UI seam (P2.12)
+
+`platform:sync-catalog` получает procurement targets только из `platforms.definitions`.
+`outbound.catalog_providers` предназначен для non-procurement provider catalogs; platform catalog
+в этом списке отвергается. Команда выполняется явно после migrations, до запуска workers.
+Routine boot и `platform:validate` не выполняют DB/network I/O. Invalid или missing definition
+возвращает failure; fixture corpus запускается отдельно, без зависимости production CLI от Pest.
+
+EisDefinition сохраняет действующие target keys `csv`, `card`, `okpd2`, `document.<origin hash>`
+и adapter bindings listing/detail. Diagnostics получает отдельный bounded target. Default profiles
+берутся из `platforms.eis`; reference endpoint и дополнительные document hosts пока читаются
+при сборке Definition из `crawler.okpd2.children_endpoint` и `crawler.documents_allowed_hosts`.
+Это config-only декларации для сохраняемых consumers, не дополнительный catalog provider.
+При изменении legacy CSV/card URL до P2.18 соответствующие `platforms.eis.endpoints` меняются
+согласованно. Идемпотентный sync сохраняет overrides, debt, health и policy versions; aliases
+одного origin разделяют budget. Retired targets не оживляются и не получают новых grants/sends.
+
+`PlatformUiResolver::resolve(PlatformCode)` возвращает optional `PlatformUiExtension` из Definition.
+Отсутствующее расширение возвращает null; неизвестный code и несовместимый DI binding отвергаются.
+Общие sections дополняются через `extension?->profileFormSchema() ?? []` или
+`extension?->procurementInfolistSections($procurement) ?? []`. Validator не создаёт UI components.
+Полная интеграция EIS sections в Resources и T48 остаются в P3.16–P3.19; сейчас EIS/JSON не
+объявляют UI extension. Никакого table extras API или hardcoded relation не добавлено.
+
+`T45SourceCatalogSyncTest` в Platforms проверяет actual EIS/JSON definitions, repeat sync,
+overrides, retirement до claimSend и отказ нового permit. Существующий Network/T45 сохраняет
+machinery cases. `PlatformUiExtensionTest` проверяет optional seam и CLI без I/O.
+
+## Сохраняемый acquisition runtime до P2.18
 
 Площадка в данных и crawl-capability — разные вещи. `Platform`/`Registry` можно завести для
 справочника без кода; обход становится доступен только после exact definition в
 `config/crawler.php` для `Platform.code`.
 
-## Контур расширения
+### Legacy registration для действующих consumers
 
 1. Создайте `Platform` и `Registry` в данных. Одинаковый `Registry.code` допустим у разных
    площадок, но пара `(platform_id, code)` уникальна.
-2. Добавьте typed definition в `config/crawler.php` → `crawler.platforms`: supported source method
+2. Сохраняемая registration map в `config/crawler.php` → `crawler.platforms`: supported source method
    и nested registry filter/form, `listing_mapper`, `detail_parser`, `detail_source_method`,
    `baseline_path`, `block_size` (1–1000). `PlatformAdapterRegistry` — единственный reader этой карты.
 3. Поместите source-specific adapter в `app/Services/Platforms/<Code>/`; текущий descriptor живёт в
@@ -183,7 +211,7 @@ artifact persistence, checkpoints и publication contracts; ledger не пере
    `app/Filament/Platforms/<Code>/`. Не добавляйте branch в factory, model, repository или generic Filament form.
 4. Добавьте status mapping как platform default либо exact registry override. Exact registry имеет
    приоритет; неизвестный raw stage создаёт только exact-registry `unknown`.
-5. Скопируйте synthetic matrix из `tests/Feature/Procurement/PlatformExtensionContractTest.php`:
+5. Сохраняется synthetic matrix из `tests/Feature/Procurement/PlatformExtensionContractTest.php`:
    две площадки с одинаковым registry code должны резолвить разные filter/source-method classes,
    а missing platform, method или filter — завершаться explicit fail-closed exception.
 
@@ -252,15 +280,19 @@ extension model может ссылаться на Procurement, platform form ч
 seed composition и schema model binding имеют отдельные exact permissions. UI process writes
 проверяются отдельно; import graph сам по себе не доказывает transactional ownership.
 Транспортные и acquisition зависимости остаются в sorted
-`tests/Unit/Architecture/platforms-dependency-baseline.php` с owning items P2.6/P2.12/P2.18/P3.17.
+`tests/Unit/Architecture/platforms-dependency-baseline.php` с owning items P2.6/P2.18/P3.17.
 Новая пара запрещена; исчезнувшую надо удалить из baseline. Reference/UI permissions не дают
 остальным parsers права импортировать все Models/Repositories.
 Поле `dependency_origin` в move map фиксирует 50 пар и owners из commit P4.2. Отдельный
 `PlatformsBaselineOriginTest` запрещает расширить baseline одновременно с добавлением import,
-переназначить owner или спрятать permanent role в legacy exceptions. Удаление пар разрешено;
+произвольно переназначить owner или спрятать permanent role в legacy exceptions. Единственное
+согласованное изменение owners — исходные P2.12 → P2.18 для сохраняемых acquisition dependencies.
+Все 12 таких пар ещё используются, поэтому удаление их сейчас было бы ложным shrink. Удалены
+устаревшие exact catalog permissions для config/outbound.php и CsvSourceMethod; новые baseline
+пары не добавлены. Удаление исчезнувших пар обязательно;
 P3.17 удаляет сам baseline при своём cutover. Origin inventory остаётся evidence переноса.
 
-Текущие runtime config keys остаются в `config/crawler.php` до атомарного P2.12 cutover.
+Текущие acquisition runtime config keys остаются в `config/crawler.php` до атомарного P2.18 cutover.
 P2.9 добавляет config-only definitions и `platforms.eis` для нового контракта; существующие
 readers переключаются вместе с адаптерами. Registry хранится под `platforms.definitions`:
 top-level code `eis` был бы перезаписан вложенным config.
@@ -287,4 +319,4 @@ probe, а законно пустые documents должны сохранять 
 
 Пример совместного исполнения двух несовместимых адаптеров находится в
 `tests/Unit/Crawler/PlatformAdapterRegistryTest.php`. Общие бюджеты независимы по хосту;
-атомарный claim слота защищён короткой блокировкой в том же cache store, что использует limiter.
+атомарный claim слота выполняется единственным PostgreSQL NetworkPermitRepository.

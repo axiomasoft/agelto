@@ -300,7 +300,10 @@ test('повтор после 5xx берёт слот бюджета площа�
 
 test('исчерпанные повторы 429 не превышают настроенное число запросов', function (): void {
     documentNetworkScenario(function ($wire, $document): void {
-        $db = DB::table('prc_source_targets')->where('capability', 'download');
+        $db = DB::table('prc_source_targets')->where('capability', 'download')
+            ->where('platform_id', $document->platform_id)
+            ->where('canonical_origin', $wire->url('/document', true)->origin->value())
+            ->whereNull('retired_at');
         $row = $db->sole();
         $policy = json_decode($row->endpoint_policy, true, flags: JSON_THROW_ON_ERROR);
         $policy['profiles'][0]['attempts'] = 2;

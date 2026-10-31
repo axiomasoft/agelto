@@ -1037,7 +1037,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-      "sha256": "08f12e8798b43eab79832be0832fb9be97885f3331ff7fba797a13098029b0a0",
+      "sha256": "9240eac6b1dd8468da157516f5aaaf4f68a7eb303c7ca1c71fa849f98434c22b",
       "scenarios": [
         "таймаут карточки сохраняет числовые фазы транспорта без URL и credentials",
         "collectDetails отправляет карточный URL с query-строкой regNumber, а не голый endpoint (Д-8)",
@@ -1052,7 +1052,7 @@
       ],
       "original_path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
       "original_sha256": "2cd90c422113c6fbe8bd7fd876526c0b7281d3e46178d02830529445de432bc8",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.12 catalog declarations/setup switched to actual EisDefinition; acquisition methods, original provenance and scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/ChangeTrackingWindowTest.php",
@@ -1209,7 +1209,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-      "sha256": "f2e5defaa79a9f582895b5f7edef0f729f80068cbce31bf2724c12428761095c",
+      "sha256": "91cd9ffc8980a5e9fadb5d0c973dc5e689eab3f292418aad27203a2e03cb6098",
       "scenarios": [
         "истёкший deadline листинга запрещает новый HTTP-запрос",
         "collectListing конвертирует win1251-тело в UTF-8 и строит ListingBatch по фикстуре",
@@ -1233,7 +1233,7 @@
       ],
       "original_path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
       "original_sha256": "2b034439b6fd0c89d17422303b37091eca7aed1668ce8a444ced7b5000e611de",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.12 catalog declarations/setup switched to actual EisDefinition; acquisition methods, original provenance and scenario identities retained."
     },
     {
       "path": "tests/Feature/Crawler/DeltaScanTest.php",
@@ -1617,7 +1617,7 @@
     },
     {
       "path": "tests/Feature/Document/DocumentDownloaderTest.php",
-      "sha256": "2807286bfd5687119242ec3adcd5bfd0987da892ab883f5c5ebfd71015b87f47",
+      "sha256": "590a9168b07c35f00141904d841898fb7673e4a15ff5b662564a9befb9f41f70",
       "scenarios": [
         "download первого файла создаёт версию, кладёт файл в storage и пишет событие document_added",
         "download того же контента повторно — no-op, версия не дублируется",
@@ -1641,7 +1641,7 @@
       ],
       "original_sha256": "ca97e4df9cf40b36ddbd922a588b6ec71c0d420d46d9718d01af1dc51c095900",
       "original_path": "tests/Feature/Document/DocumentDownloaderTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.12 V4 correction: bounded factory platform code and exact platform/origin download target selection; original scenarios and assertions retained."
     },
     {
       "path": "tests/Feature/Document/DocumentIndexerTest.php",
@@ -4796,11 +4796,11 @@
     {
       "path": "app/Services/Platforms/Eis/Csv/CsvSourceMethod.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod",
-      "sha256": "f45b97f5c0397b9792a63dec53827e096b1c313711dc657bdb57c047fbb6350c",
+      "sha256": "d50558b46c75045ea211c138ffe44b23f8b287f0f033b082095dc3b3695de135",
       "original_path": "app/Services/Procurement/Eis/CsvSourceMethod.php",
       "original_sha256": "6b3a71168de8a2480ca0de6a8f36b32db115c8e3c16a1e60fdbc8ab9ee3941e7",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\CsvSourceMethod",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.12 catalog declarations/setup switched to actual EisDefinition; acquisition methods, original provenance and scenario identities retained."
     },
     {
       "path": "app/Services/Platforms/Eis/Card/EisCardUrlBuilder.php",

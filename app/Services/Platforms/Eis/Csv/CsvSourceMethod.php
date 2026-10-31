@@ -17,10 +17,6 @@ use App\Dto\Procurement\Network\HttpRequestPayload;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Network\TransportDeferred;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\RequestProfile;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\RetryAt;
@@ -29,7 +25,6 @@ use App\Enums\Procurement\Crawler\CrawlerMode;
 use App\Enums\Procurement\Crawler\CrawlStage;
 use App\Enums\Procurement\Network\AdapterVerdict;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
-use App\Enums\Procurement\Network\ResponseKind;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Exceptions\Procurement\Crawler\InvalidListingResponse;
@@ -46,7 +41,6 @@ use App\Services\Procurement\Contracts\DeadlineAwareSourceMethod;
 use App\Services\Procurement\Contracts\DiagnosticSourceMethod;
 use App\Services\Procurement\Network\AdapterInputInspector;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
-use App\Services\Procurement\Network\Contracts\SourceCatalogProvider;
 use App\Services\Procurement\PlatformAdapterRegistry;
 use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Services\Procurement\Proxy\RoutePolicy;
@@ -59,7 +53,7 @@ use Illuminate\Support\Facades\Log;
  * (`02-crawling.md` §3). Кодировка источника — Windows-1251, конвертация
  * в UTF-8 обязательна до парсинга; иначе закупки с кириллицей тихо теряются.
  */
-final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, DeadlineAwareSourceMethod, DiagnosticSourceMethod, SourceCatalogProvider
+final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, DeadlineAwareSourceMethod, DiagnosticSourceMethod
 {
     /**
      * Заголовок колонки «Реестровый номер закупки» в CSV-экспорте ЕИС
@@ -92,39 +86,6 @@ final readonly class CsvSourceMethod implements CooperativeListingSourceMethod, 
         private ProxyBindingResolver $proxyBindingResolver,
         private StoreRawFetchArtifactAction $rawArtifacts,
     ) {}
-
-    /** Config-only network catalog; the full platform Definition remains owned by P2.9–P2.12. */
-    public function sourceTargets(): SourceTargetDefinitions
-    {
-        $csv = CanonicalOrigin::fromUrl(config()->string('crawler.eis.csv_endpoint'));
-        $targets = [
-            new SourceTargetDefinition('csv', 'listing', $csv, [
-                new RequestProfile('eis.csv_export', 5, 30, 90, 16_777_216, 50_331_648, 3, 3, 2, [200, 600], ResponseKind::Text, 'Windows-1251', 1),
-            ], adapterContract: app(PlatformAdapterRegistry::class)->adapterContract('eis', 'listing')),
-            new SourceTargetDefinition('card', 'detail', $csv, [
-                new RequestProfile('eis.card_tab', 5, 15, 30, 8_388_608, 25_165_824, 3, 3, 2, [200, 600], ResponseKind::Text, 'Windows-1251', 1),
-            ], adapterContract: app(PlatformAdapterRegistry::class)->adapterContract('eis', 'detail')),
-            new SourceTargetDefinition('okpd2', 'reference_sync',
-                CanonicalOrigin::fromUrl(config()->string('crawler.okpd2.children_endpoint')), [
-                    new RequestProfile('eis.reference', 5, 10, 20, 2_097_152, 6_291_456, 3, 2, 2, [200], ResponseKind::Text, 'UTF-8', 1),
-                ]),
-        ];
-        $hosts = config('crawler.documents_allowed_hosts');
-        if (! is_array($hosts) || $hosts === []) {
-            throw new \InvalidArgumentException('Document source origins are not configured.');
-        }
-        foreach ($hosts as $host) {
-            if (! is_string($host) || $host === '') {
-                throw new \InvalidArgumentException('Document source host is invalid.');
-            }
-            $origin = CanonicalOrigin::of('https', $host);
-            $targets[] = new SourceTargetDefinition('document.'.substr($origin->hash()->hex, 0, 16), 'download', $origin, [
-                new RequestProfile('eis.document', 5, 30, 240, 268_435_456, null, 3, 3, 2, [200, 600], ResponseKind::Binary, null, 1),
-            ]);
-        }
-
-        return new SourceTargetDefinitions('eis', $targets);
-    }
 
     public function diagnoseListing(Crawler $crawler, ListingCursor $cursor, float $deadlineAt): ListingBatch
     {

@@ -15,6 +15,7 @@ use App\Models\Procurement\Crawler\RawArtifact;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Services\Platforms\Eis\Csv\CsvSourceMethod;
+use App\Services\Platforms\Eis\EisDefinition;
 use App\Services\Procurement\Exceptions\CardUrlTemplateMissingException;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use Illuminate\Support\Facades\DB;
@@ -100,7 +101,7 @@ test('таймаут карточки сохраняет числовые фаз
         $settings['card_url_templates']['ea20']['common-info'] = $wire->url($httpCode === 0 ? '/stall' : '/body-partial-stall')->reveal();
         $registry->update(['settings' => $settings]);
         $targets = [];
-        foreach (app(CsvSourceMethod::class)->sourceTargets()->targets as $target) {
+        foreach ((new EisDefinition(config()))->definition()->sourceTargets->targets as $target) {
             if ($target->capability === 'detail') {
                 $profile = array_values($target->profiles)[0];
                 $short = RequestProfile::fromArray(array_replace($profile->toArray(), ['connect_seconds' => 1, 'low_speed_seconds' => 1, 'total_seconds' => 2]));

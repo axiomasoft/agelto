@@ -40,7 +40,7 @@ final class SyncPlatformCatalogCommand extends Command
             return self::FAILURE;
         }
         if ($reports === []) {
-            $this->info('Нет зарегистрированных source catalogs (outbound.catalog_providers пуст).');
+            $this->info('Нет зарегистрированных catalogs в platforms.definitions или provider configuration.');
 
             return self::SUCCESS;
         }

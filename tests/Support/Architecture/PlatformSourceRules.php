@@ -90,9 +90,6 @@ final class PlatformSourceRules
             'config/platforms.php' => [
                 'App\\Services\\Platforms\\Eis\\EisDefinition',
             ],
-            'config/outbound.php' => [
-                'App\\Services\\Platforms\\Eis\\Csv\\CsvSourceMethod',
-            ],
             'app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php' => [
                 'App\\Services\\Procurement\\Network\\Contracts\\DiagnosticCheck',
             ],
@@ -100,7 +97,6 @@ final class PlatformSourceRules
                 'App\\Services\\Procurement\\Network\\BoundedResponseReader',
             ],
             'app/Services/Platforms/Eis/Csv/CsvSourceMethod.php' => [
-                'App\\Services\\Procurement\\Network\\Contracts\\SourceCatalogProvider',
                 'App\\Services\\Procurement\\Contracts\\DiagnosticSourceMethod',
                 'App\\Services\\Procurement\\Network\\AdapterInputInspector',
                 'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',

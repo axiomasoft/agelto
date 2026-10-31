@@ -7,33 +7,25 @@ namespace App\Services\Procurement\Network;
 use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Services\Procurement\Network\Contracts\SourceCatalogProvider;
+use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Contracts\Container\Container;
 
 /**
- * Pure сборка source catalogs из `outbound.catalog_providers`: pure contract validation
+ * Platform catalogs come exclusively from validated Definitions; outbound.catalog_providers
+ * is reserved for non-procurement providers. Pure contract validation
  * (уникальная площадка на provider, валидные definitions). Не пишет и не читает БД — authority
  * rows создаёт только явный `platform:sync-catalog`.
  */
 final readonly class SourceCatalogRegistry
 {
-    public function __construct(private OutboundPolicy $policy, private Container $container) {}
+    public function __construct(private OutboundPolicy $policy, private Container $container, private PlatformRegistry $platforms) {}
 
     /** @return array<string, SourceTargetDefinitions> platform code → targets, стабильный порядок */
     public function catalogs(): array
     {
         $catalogs = [];
-        foreach ($this->policy->catalogProviders as $class) {
-            $provider = $this->container->make($class);
-            if (! $provider instanceof SourceCatalogProvider) {
-                throw new \InvalidArgumentException('Invalid outbound policy: outbound.catalog_providers '.$class.' is not a SourceCatalogProvider');
-            }
-            $targets = $provider->sourceTargets();
-            if ($targets instanceof ProviderTargetDefinitions) {
-                continue;
-            }
-            if (isset($catalogs[$targets->platformCode])) {
-                throw new \InvalidArgumentException('Duplicate source catalog for platform '.$targets->platformCode);
-            }
+        foreach ($this->platforms->all() as $definition) {
+            $targets = $definition->sourceTargets;
             $catalogs[$targets->platformCode] = $targets;
         }
         $origins = [];
@@ -63,7 +55,7 @@ final readonly class SourceCatalogRegistry
             }
             $targets = $provider->sourceTargets();
             if (! $targets instanceof ProviderTargetDefinitions) {
-                continue;
+                throw new \InvalidArgumentException('Platform catalogs must be registered through platforms.definitions.');
             }
             $key = $targets->providerKey->value;
             if (isset($catalogs[$key])) {

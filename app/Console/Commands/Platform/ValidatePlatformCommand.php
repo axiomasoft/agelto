@@ -23,6 +23,7 @@ final class ValidatePlatformCommand extends Command
             $definitions = is_string($code) ? [$registry->get(new PlatformCode($code))] : $registry->all();
             foreach ($definitions as $definition) {
                 $this->info($definition->code->value.': definition '.$definition->version->value.' valid');
+                $this->line('  source targets: '.count($definition->sourceTargets->targets));
             }
         } catch (\InvalidArgumentException $exception) {
             $this->error($exception->getMessage());

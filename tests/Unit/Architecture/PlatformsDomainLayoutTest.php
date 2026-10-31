@@ -48,7 +48,7 @@ test('T33 dependency baseline содержит ровно существующи
         ->and(count(array_unique($keys)))->toBe(count($keys));
 
     foreach ($baseline as $entry) {
-        expect($entry['owner'])->toBeIn(['P2.6', 'P2.12', 'P2.18', 'P3.17']);
+        expect($entry['owner'])->toBeIn(['P2.6', 'P2.18', 'P3.17']);
     }
 
     expect(PlatformSourceRules::dependencyViolations(sources: platformArchitectureSources(), baseline: $baseline))->toBe([]);
