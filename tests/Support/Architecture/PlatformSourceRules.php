@@ -83,6 +83,10 @@ final class PlatformSourceRules
     public static function rolePermissions(): array
     {
         return [
+            'tests/Support/Platforms/Contract/ContractRegistry.php' => [
+                'Tests\\Support\\Platforms\\Eis\\EisContractManifest',
+                'Tests\\Support\\Platforms\\JsonProcurement\\JsonContractManifest',
+            ],
             'config/platforms.php' => [
                 'App\\Services\\Platforms\\Eis\\EisDefinition',
             ],
@@ -171,6 +175,10 @@ final class PlatformSourceRules
 
     public static function dependencyPlatform(string $dependency): ?string
     {
+        if (str_starts_with($dependency, 'Tests\\Support\\Platforms\\Contract\\')) {
+            return null;
+        }
+
         return preg_match('/^(?:App\\\\[^\\\\]+|Database\\\\(?:Factories|Seeders)|Tests\\\\Support)\\\\Platforms\\\\([^\\\\]+)\\\\/', $dependency, $matches) === 1
             ? $matches[1] : null;
     }

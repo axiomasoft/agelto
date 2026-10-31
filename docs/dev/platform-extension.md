@@ -114,6 +114,57 @@ JSON не содержит CSV headers. Unknown/missing keys, неверные �
 и обновление истёкших ссылок принадлежит document access capability, пока Unsupported.
 Fixture hashes и вручную заданные ожидания находятся в process-core manifest.
 
+## Offline contract kit (P2.11)
+
+`tests/Support/Platforms/Contract/ContractRegistry.php` — единственная test composition точка:
+регистрирует `EisContractManifest` и `JsonContractManifest`. `AdapterContractKit` получает реальные
+Definitions из PlatformRegistry и требует manifest для каждой. Новая площадка добавляет свой
+manifest и регистрацию; общий validator не знает CSV, DOM, кодов площадок или их URL.
+Exact architecture permission разрешает registry только эти manifests; нейтральный kit по-прежнему
+не может импортировать адаптер. Площадочные manifests могут использовать общие contract helpers.
+
+Обязательные semantic cases выводятся из Supported capabilities: listing valid/empty/truncated/
+overflow/loop/identity determinism; detail valid/required sections/wrong identity/status/redaction;
+partitioning split/bounds. Unsupported status/document access не требуют несуществующих fixtures.
+Их runtime invocation остаётся fail-closed обязанностью capability dispatcher при activation.
+Площадочный manifest может потребовать дополнительные случаи: ЕИС blank/login, JSON wrong total.
+Удаление любого обязательного case или fixture, отсутствие manifest, duplicate case и stale input
+hash дают ошибку до semantic execution. Golden observations написаны отдельно от parser results:
+exact identity, title, raw source stage, decimal price, terminal/cursor и required/optional parts.
+Проверка raw stage здесь не заменяет T40 status mapping/remap следующего acquisition среза.
+
+Response corpus и SHA-256/provenance зарегистрированы в `tests/Fixtures/ProcessCore/manifest.json`.
+`tests/Fixtures/Platforms/Eis/Card/parser-scenarios.json` фиксирует 133 именованных сценария в 13
+сохраняемых parser/clock/URL/legacy transport test files; hashes защищают также datasets и assertions.
+Это доказательство сохранности, а не новый pass всей legacy regression. Windows-1251 и quoted
+newlines сохраняются в прежних tests; новый T39 дополнительно исполняет BOM и точные parser bounds.
+Negative mutation создаёт отдельный in-memory вариант настоящего EisListingSource без overflow
+guard: тот же golden case обязан его отвергнуть. Рабочие product files не мутируются.
+
+`FetchOutcomeBridge` — чистая граница failure/partial для будущих handlers. Он сохраняет RetryAt:
+no_route/rate_limit/capacity_wait/slice_exhausted остаются одноимёнными reasons;
+status quota → rate_limit; exhausted attempts/dependency unavailable → target_cooldown.
+AdapterHeld → handler_hold; configuration/credential/retired/URL-policy outcomes → policy_review;
+OwnerLost прерывает выполнение через LeaseLost. WorkFinalizer остаётся единственным владельцем
+budget/state и может добавить штатный неотрицательный jitter к RetryAt.
+
+Schema/layout assessment не расходует item budget и становится blocked(handler_hold). Только
+item-scoped rejection с сохранённым artifact и совпадающим body hash даёт StageFailedItem.
+Handler должен сохранить bytes и прикрепить ArtifactRef до bridge; digest сам по себе не artifact.
+ЕИС отсутствие identity selector (login/changed layout) даёт partial section; явно чужой номер —
+item rejection. Partial принимает durable checkpoint вызывающего handler и перечисляет missing
+required parts. Complete result требует собственного validated publication; bridge его не создаёт.
+
+`T39FetchOutcomeBridgeTest` проводит EIS/JSON fetch через настоящий WorkRunner/PG finalizer:
+no-route, exhausted, rate, held, truncated listing, required detail/schema и три genuine rejects.
+Проверяются state/reason/due, отдельные counters, отсутствие canonical publication и четвёртого
+fetch после exhaustion. Outbound здесь deterministic recording port: эти тесты не заявляют новых
+HTTP/concurrency доказательств. Новый bridge пока не активирует acquisition runtime.
+
+Для P2.12: сохранить fixture registry и реальные definitions согласованными при activation;
+не удалять acquisition/UI baseline раньше их owning cutovers. P2.14 использует bridge с настоящими
+artifact persistence, checkpoints и publication contracts; ledger не переносится в адаптер.
+
 ## Сохраняемый runtime до P2.12
 
 Площадка в данных и crawl-capability — разные вещи. `Platform`/`Registry` можно завести для

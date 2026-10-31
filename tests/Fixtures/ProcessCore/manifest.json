@@ -140,6 +140,168 @@
         "T39"
       ],
       "coverage": "pure_adapter_contract_only"
+    },
+    {
+      "id": "p211-eis-contract-truncated",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/Platforms/Eis/Csv/contract-truncated.csv",
+      "platform": "eis",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline P2.11 corpus; golden semantic expectations authored separately in registered ContractManifest; existing common-info markup retained.",
+      "captured_at": "2026-10-31",
+      "sha256": "99aa89e53c10874d328f6c77ebc129839c84bd01769dcd25cab802ec5a6a7766",
+      "expected": {
+        "assessment": "ContractRegistry golden semantic case",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T39"
+      ],
+      "coverage": "offline_adapter_contract"
+    },
+    {
+      "id": "p211-eis-contract-overflow",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/Platforms/Eis/Csv/contract-overflow.csv",
+      "platform": "eis",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline P2.11 corpus; golden semantic expectations authored separately in registered ContractManifest; existing common-info markup retained.",
+      "captured_at": "2026-10-31",
+      "sha256": "49dcc578a6d11021929ecad3a59b9f5a0e2aa0ad360ef509316669b1c4c34894",
+      "expected": {
+        "assessment": "ContractRegistry golden semantic case",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T39"
+      ],
+      "coverage": "offline_adapter_contract"
+    },
+    {
+      "id": "p211-eis-contract-blank",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/Platforms/Eis/Csv/contract-blank.csv",
+      "platform": "eis",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline P2.11 corpus; golden semantic expectations authored separately in registered ContractManifest; existing common-info markup retained.",
+      "captured_at": "2026-10-31",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "expected": {
+        "assessment": "ContractRegistry golden semantic case",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T39"
+      ],
+      "coverage": "offline_adapter_contract"
+    },
+    {
+      "id": "p211-eis-contract-common",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/Platforms/Eis/Card/contract-common.html",
+      "platform": "eis",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline P2.11 corpus; golden semantic expectations authored separately in registered ContractManifest; existing common-info markup retained.",
+      "captured_at": "2026-10-31",
+      "sha256": "05d659b065fc5f3e4731bad744fe895d3fbbe19a0aacbe724b0172d9fe007d2b",
+      "expected": {
+        "assessment": "ContractRegistry golden semantic case",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T39"
+      ],
+      "coverage": "offline_adapter_contract"
+    },
+    {
+      "id": "p211-eis-contract-documents",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/Platforms/Eis/Card/contract-documents.html",
+      "platform": "eis",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline P2.11 corpus; golden semantic expectations authored separately in registered ContractManifest; existing common-info markup retained.",
+      "captured_at": "2026-10-31",
+      "sha256": "1a4f347de0db15fd5087a24676217f5a954a0ed23e3c913f09c7e903c7e91a28",
+      "expected": {
+        "assessment": "ContractRegistry golden semantic case",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T39"
+      ],
+      "coverage": "offline_adapter_contract"
+    },
+    {
+      "id": "p211-eis-contract-login",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/Platforms/Eis/Card/contract-login.html",
+      "platform": "eis",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline P2.11 corpus; golden semantic expectations authored separately in registered ContractManifest; existing common-info markup retained.",
+      "captured_at": "2026-10-31",
+      "sha256": "2f93a53ec1f1cea244acf1790bab343762c5ba600e967ae4feeb978e421dcf9f",
+      "expected": {
+        "assessment": "ContractRegistry golden semantic case",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T39"
+      ],
+      "coverage": "offline_adapter_contract"
+    },
+    {
+      "id": "p211-json-contract-truncated",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/ProcessCore/JsonPlatform/contract-truncated.json",
+      "platform": "json",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline P2.11 corpus; golden semantic expectations authored separately in registered ContractManifest; existing common-info markup retained.",
+      "captured_at": "2026-10-31",
+      "sha256": "fcc6d1aa503320dc880621c7cd7cb87a0bafde38f86a50b241bef3be7c5ae81f",
+      "expected": {
+        "assessment": "ContractRegistry golden semantic case",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T39"
+      ],
+      "coverage": "offline_adapter_contract"
+    },
+    {
+      "id": "p211-json-contract-wrong-total",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/ProcessCore/JsonPlatform/contract-wrong-total.json",
+      "platform": "json",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline P2.11 corpus; golden semantic expectations authored separately in registered ContractManifest; existing common-info markup retained.",
+      "captured_at": "2026-10-31",
+      "sha256": "6e21c6665df63c9ea0987e8adb7b628856e26aefed30480df5c462ec363700fe",
+      "expected": {
+        "assessment": "ContractRegistry golden semantic case",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T39"
+      ],
+      "coverage": "offline_adapter_contract"
+    },
+    {
+      "id": "p211-json-contract-overflow",
+      "kind": "adapter_response",
+      "path": "tests/Fixtures/ProcessCore/JsonPlatform/contract-overflow.json",
+      "platform": "json",
+      "adapter_version": "1",
+      "provenance": "Synthetic offline P2.11 corpus; golden semantic expectations authored separately in registered ContractManifest; existing common-info markup retained.",
+      "captured_at": "2026-10-31",
+      "sha256": "4f1529d7c34e2692f518c73484bccf631b859b62b93b148b592f8b51656a84e1",
+      "expected": {
+        "assessment": "ContractRegistry golden semantic case",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T39"
+      ],
+      "coverage": "offline_adapter_contract"
     }
   ],
   "files": [

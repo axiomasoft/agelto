@@ -140,7 +140,12 @@ final readonly class EisDetailSource implements DetailSource
             }
             $dom = new Crawler($body);
             $identity = $dom->filter('.cardMainInfo__purchaseLink');
-            if ($identity->count() !== 1 || trim(preg_replace('/^№\\s*/u', '', trim($identity->text())) ?? '') !== $request->identity->value->value) {
+            if ($identity->count() !== 1) {
+                $parts[] = new SnapshotPart($section, Completeness::Partial, true, $hash, $fetchedAt);
+
+                continue;
+            }
+            if (trim(preg_replace('/^№\\s*/u', '', trim($identity->text())) ?? '') !== $request->identity->value->value) {
                 return new FetchItemRejected(ItemFailureReason::ContractRejected,
                     new ResponseAssessment(Completeness::Unavailable, AssessmentReason::IdentityMismatch, $hash));
             }
