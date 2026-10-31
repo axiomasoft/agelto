@@ -132,11 +132,11 @@ class SchemaInventoryTest(unittest.TestCase):
                 self.assertRejected(error, actual=actual)
 
     def test_complete_inventory_and_full_document_pass(self):
-        # P2.6: canonical network owners/routes are active; obsolete binding/health tables are absent.
-        self.assertEqual(self.inventory["current_item"], "P2.6")
-        self.assertEqual(len(self.inventory["migrations"]), 81)
-        self.assertEqual(len(self.inventory["baseline"]["tables"]), 108)
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1314)
+        # P2.16 adds durable detail snapshots and status refresh cycles to the network baseline.
+        self.assertEqual(self.inventory["current_item"], "P2.16")
+        self.assertEqual(len(self.inventory["migrations"]), 82)
+        self.assertEqual(len(self.inventory["baseline"]["tables"]), 110)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1330)
         adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
                            for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]
                            if c["column_name"] in ("adapter_health_id", "adapter_health_epoch")}
@@ -157,7 +157,7 @@ class SchemaInventoryTest(unittest.TestCase):
         self.assertRejected("created carrier missing from installed baseline: prc_process_work")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["baseline"]["tables"]["prc_analysis_windows"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
-        self.assertRejected("future carrier activated in P2.6 baseline: prc_analysis_windows")
+        self.assertRejected("future carrier activated in P2.16 baseline: prc_analysis_windows")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["current_item"] = "P1.1"
         self.assertRejected("future carrier activated in P1.1 baseline: prc_process_work")

@@ -110,6 +110,7 @@ final readonly class ProcurementStoreRepository
         // it newer than a response captured later. Monotonic observation applies only to
         // subsequent confirmations of the same content.
         DB::table($procurement->getTable())->where('id', $procurement->id)->update([
+            'head_generation' => $procurement->head_generation + ($revisionCount > 1 ? 1 : 0),
             'source_observed_at' => ($observedAt ?? $seenAt)->format('Y-m-d H:i:s.uP'),
         ]);
     }

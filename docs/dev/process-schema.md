@@ -197,6 +197,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_10_25_100000_create_prc_process_network_tables.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
 | `2026_10_25_100001_create_prc_request_observation_tables.php` | create | P1.6 | P1.6 durable request attempt/observation carriers execution#s04; network FKs добавляет P2.1. |
 | `2026_10_28_100000_create_prc_process_projection_tables.php` | create | P1.15 | P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured. |
+| `2026_10_28_100002_create_prc_acquisition_snapshot_tables.php` | create | P2.16 | Durable immutable detail observations and recurring status cycles; runtime binding remains P2.18. |
 
 ### Legacy lifecycle
 
@@ -1148,7 +1149,7 @@ Indexes:
 
 #### prc_detail_snapshots
 
-Create: P2.14; activation boundary: P2.18; owner: `Repositories/Procurement/Crawler`; retention: business. Contract: implementation-blueprint#bp-ddl-core.
+Create: P2.16; activation boundary: P2.18; owner: `Repositories/Procurement/Crawler`; retention: business. Contract: implementation-blueprint#bp-ddl-core.
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
@@ -1164,13 +1165,16 @@ Create: P2.14; activation boundary: P2.18; owner: `Repositories/Procurement/Craw
 
 Constraints:
 - `UNIQUE(procurement_id,input_revision,part_key)`
-- `CHECK (result_ref_schema_version > 0)`
+- `CHECK (result_ref_schema_version = 1)`
+- `CHECK (completeness IN ('complete','complete_empty','partial','unavailable','not_applicable'))`
+- `CHECK (char_length(part_key) BETWEEN 1 AND 160)`
+- `CHECK (jsonb_typeof(result_ref) = 'object')`
 
 Indexes:
 
 #### prc_status_refreshes
 
-Create: P2.14; activation boundary: P2.18; owner: `Repositories/Procurement/Crawler`; retention: business. Contract: implementation-blueprint#bp-ddl-core.
+Create: P2.16; activation boundary: P2.18; owner: `Repositories/Procurement/Crawler`; retention: business. Contract: implementation-blueprint#bp-ddl-core.
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
@@ -1184,12 +1188,13 @@ Create: P2.14; activation boundary: P2.18; owner: `Repositories/Procurement/Craw
 
 Constraints:
 - `UNIQUE(procurement_id,cycle_seq)`
+- `UNIQUE(intent_id)`
 
 Indexes:
 
 #### prc_procurement_documents
 
-Create: P2.14; activation boundary: P2.18; owner: `Repositories/Procurement/Crawler`; retention: business. Contract: implementation-blueprint#bp-ddl-core.
+Create: P2.18; activation boundary: P2.18; owner: `Repositories/Procurement/Crawler`; retention: business. Contract: implementation-blueprint#bp-ddl-core.
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
@@ -1614,7 +1619,7 @@ Constraints:
 - `INDEX(ikz)`
 - `INDEX(registry_guid)`
 
-#### prc_documents @P2.14
+#### prc_documents @P2.18
 
 Stable source key включает adapter scope; manual UUID namespace; signed URL rotation не меняет identity. Existing prc_documents сохраняется, pending acquisition intent до P3.5.
 
@@ -2879,6 +2884,36 @@ Constraints:
 Indexes:
 - `prc_crawlers_pkey`: `CREATE UNIQUE INDEX prc_crawlers_pkey ON public.prc_crawlers USING btree (id)`
 - `prc_crawlers_registry_id_index`: `CREATE INDEX prc_crawlers_registry_id_index ON public.prc_crawlers USING btree (registry_id)`
+
+#### prc_detail_snapshots
+
+Owner: Repositories/Procurement/Crawler; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| procurement_id | bigint / int8 | NO | bigint NOT NULL |
+| input_revision | bigint / int8 | NO | bigint NOT NULL |
+| part_key | text / text | NO | text NOT NULL |
+| completeness | text / text | NO | text NOT NULL |
+| result_ref | jsonb / jsonb | NO | jsonb NOT NULL |
+| result_ref_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| source_version | text / text | YES | text |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_detail_snapshots_completeness_check`: `CHECK ((completeness = ANY (ARRAY['complete'::text, 'complete_empty'::text, 'partial'::text, 'unavailable'::text, 'not_applicable'::text])))`
+- `prc_detail_snapshots_input_revision_check`: `CHECK ((input_revision >= 1))`
+- `prc_detail_snapshots_part_key_check`: `CHECK (((char_length(part_key) >= 1) AND (char_length(part_key) <= 160)))`
+- `prc_detail_snapshots_pkey`: `PRIMARY KEY (id)`
+- `prc_detail_snapshots_procurement_id_fkey`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
+- `prc_detail_snapshots_procurement_id_input_revision_part_key_key`: `UNIQUE (procurement_id, input_revision, part_key)`
+- `prc_detail_snapshots_result_ref_check`: `CHECK ((jsonb_typeof(result_ref) = 'object'::text))`
+- `prc_detail_snapshots_result_ref_schema_version_check`: `CHECK ((result_ref_schema_version = 1))`
+
+Indexes:
+- `prc_detail_snapshots_pkey`: `CREATE UNIQUE INDEX prc_detail_snapshots_pkey ON public.prc_detail_snapshots USING btree (id)`
+- `prc_detail_snapshots_procurement_id_input_revision_part_key_key`: `CREATE UNIQUE INDEX prc_detail_snapshots_procurement_id_input_revision_part_key_key ON public.prc_detail_snapshots USING btree (procurement_id, input_revision, part_key)`
 
 #### prc_document_representations
 
@@ -4904,6 +4939,33 @@ Indexes:
 - `prc_status_mappings_pkey`: `CREATE UNIQUE INDEX prc_status_mappings_pkey ON public.prc_status_mappings USING btree (id)`
 - `prc_status_mappings_platform_source_stage_unique`: `CREATE UNIQUE INDEX prc_status_mappings_platform_source_stage_unique ON public.prc_status_mappings USING btree (platform_id, source_stage) WHERE (platform_id IS NOT NULL)`
 - `prc_status_mappings_registry_source_stage_unique`: `CREATE UNIQUE INDEX prc_status_mappings_registry_source_stage_unique ON public.prc_status_mappings USING btree (registry_id, source_stage) WHERE (registry_id IS NOT NULL)`
+
+#### prc_status_refreshes
+
+Owner: Repositories/Procurement/Crawler; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| procurement_id | bigint / int8 | NO | bigint NOT NULL |
+| intent_id | uuid / uuid | NO | uuid NOT NULL |
+| cycle_seq | bigint / int8 | NO | bigint NOT NULL |
+| next_due_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| source_version | text / text | YES | text |
+| observed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `prc_status_refreshes_cycle_seq_check`: `CHECK ((cycle_seq >= 1))`
+- `prc_status_refreshes_intent_id_fkey`: `FOREIGN KEY (intent_id) REFERENCES prc_operation_intents(id)`
+- `prc_status_refreshes_intent_id_key`: `UNIQUE (intent_id)`
+- `prc_status_refreshes_pkey`: `PRIMARY KEY (id)`
+- `prc_status_refreshes_procurement_id_cycle_seq_key`: `UNIQUE (procurement_id, cycle_seq)`
+- `prc_status_refreshes_procurement_id_fkey`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
+
+Indexes:
+- `prc_status_refreshes_intent_id_key`: `CREATE UNIQUE INDEX prc_status_refreshes_intent_id_key ON public.prc_status_refreshes USING btree (intent_id)`
+- `prc_status_refreshes_pkey`: `CREATE UNIQUE INDEX prc_status_refreshes_pkey ON public.prc_status_refreshes USING btree (id)`
+- `prc_status_refreshes_procurement_id_cycle_seq_key`: `CREATE UNIQUE INDEX prc_status_refreshes_procurement_id_cycle_seq_key ON public.prc_status_refreshes USING btree (procurement_id, cycle_seq)`
 
 #### prc_target_health
 

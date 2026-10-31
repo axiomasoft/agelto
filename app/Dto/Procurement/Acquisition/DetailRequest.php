@@ -9,5 +9,6 @@ use App\Dto\Procurement\Platform\SourceIdentity;
 
 final readonly class DetailRequest
 {
-    public function __construct(public string $registry, public SourceIdentity $identity, public ?CursorEnvelope $locator = null) {}
+    public function __construct(public string $registry, public SourceIdentity $identity, public ?CursorEnvelope $locator = null,
+        public bool $statusOnly = false) {}
 }

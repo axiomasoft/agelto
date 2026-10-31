@@ -321,6 +321,81 @@
         "T27"
       ],
       "coverage": "offline_listing_parser_handler"
+    },
+    {
+      "id": "p216-t12detailpartstest",
+      "kind": "acquisition_integration",
+      "path": "tests/Feature/ProcessCore/Acquisition/T12DetailPartsTest.php",
+      "platform": "platform-neutral",
+      "adapter_version": "1",
+      "provenance": "Synthetic deterministic canonical snapshots and real PostgreSQL ownership/barriers; manually authored assertions.",
+      "captured_at": "2026-10-31",
+      "sha256": "611b4555694ec98d1800e7a675201e73937bdae6eff78f93914a8e130ab545a5",
+      "expected": {
+        "schema_version": 1,
+        "assessment": "Independent parts survive failure; unstable source bounded; stale owner and journal rollback cannot publish."
+      },
+      "scenario_ids": [
+        "T07",
+        "T12"
+      ],
+      "coverage": "durable_detail_status"
+    },
+    {
+      "id": "p216-t17refreshcyclestest",
+      "kind": "acquisition_integration",
+      "path": "tests/Feature/ProcessCore/Acquisition/T17RefreshCyclesTest.php",
+      "platform": "platform-neutral",
+      "adapter_version": "1",
+      "provenance": "Synthetic deterministic canonical snapshots and real PostgreSQL ownership/barriers; manually authored assertions.",
+      "captured_at": "2026-10-31",
+      "sha256": "4c5d621e0f0a5c4944d3b6ecd25d402abc95172acd4fe3163987f82d444a8813",
+      "expected": {
+        "schema_version": 1,
+        "assessment": "Unchanged status uses new cycle; stale response history-only; due detail retains supplier results and documents."
+      },
+      "scenario_ids": [
+        "T17",
+        "T22"
+      ],
+      "coverage": "durable_detail_status"
+    },
+    {
+      "id": "p216-t17refreshconcurrencytest",
+      "kind": "acquisition_integration",
+      "path": "tests/Feature/ProcessCore/Acquisition/T17RefreshConcurrencyTest.php",
+      "platform": "platform-neutral",
+      "adapter_version": "1",
+      "provenance": "Synthetic deterministic canonical snapshots and real PostgreSQL ownership/barriers; manually authored assertions.",
+      "captured_at": "2026-10-31",
+      "sha256": "0ce8803f237ec8568a96f5512ff3874133ed54b35d030ad1be8905f6bbe22bce",
+      "expected": {
+        "schema_version": 1,
+        "assessment": "Real PostgreSQL scheduler and remap races serialize without stale publication."
+      },
+      "scenario_ids": [
+        "T17",
+        "T40"
+      ],
+      "coverage": "durable_detail_status"
+    },
+    {
+      "id": "p216-t40unmappedstatustest",
+      "kind": "acquisition_integration",
+      "path": "tests/Feature/ProcessCore/Acquisition/T40UnmappedStatusTest.php",
+      "platform": "platform-neutral",
+      "adapter_version": "1",
+      "provenance": "Synthetic deterministic canonical snapshots and real PostgreSQL ownership/barriers; manually authored assertions.",
+      "captured_at": "2026-10-31",
+      "sha256": "c7bf9e0a773e9c79ec3a2e713ef96412eaed68264bdd1d3180f848b4b7939f42",
+      "expected": {
+        "schema_version": 1,
+        "assessment": "Fifty unknown items, one scoped incident, zero faults; exact/default priority and coherent remap history."
+      },
+      "scenario_ids": [
+        "T40"
+      ],
+      "coverage": "durable_detail_status"
     }
   ],
   "files": [
@@ -4762,6 +4837,11 @@
       "original_path": "database/migrations/2026_10_25_100001_create_prc_request_observation_tables.php",
       "original_sha256": "0e5a551bb1776878cbecb28e53799faa4e2264dac8a60dbd9157439226ddcbad",
       "change_reason": "P2.1 adds real network demand/request references and standalone outbound ownership without fake ProcessAttempt rows; legacy request consumers remain supported."
+    },
+    {
+      "path": "database/migrations/2026_10_28_100002_create_prc_acquisition_snapshot_tables.php",
+      "sha256": "e893c335272dbd661f07d29cb63f0213dd0ffd72af237be47cd270ba38f93590",
+      "change_reason": "P2.16 immutable detail checkpoints and status refresh cycle ledger."
     }
   ],
   "source_classes": [

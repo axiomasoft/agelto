@@ -34,12 +34,12 @@ use App\Enums\Procurement\Platform\Completeness;
 use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Enums\Procurement\ProtocolType;
 use App\Services\Platforms\Eis\Card\EisDetailParser;
-use App\Services\Procurement\Platform\Contracts\DetailSource;
+use App\Services\Procurement\Platform\Contracts\DetailPartsSource;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use Illuminate\Support\Str;
 use Symfony\Component\DomCrawler\Crawler;
 
-final readonly class EisDetailSource implements DetailSource
+final readonly class EisDetailSource implements DetailPartsSource
 {
     public function __construct(private EisPolicy $policy, private EisCardRoutes $routes,
         private EisDetailParser $parser, private PlatformOutbound $outbound, private ProcessUuid $targetId) {}
@@ -70,7 +70,7 @@ final readonly class EisDetailSource implements DetailSource
                 throw new \InvalidArgumentException('EIS card route origin mismatch.');
             }
             $plans[$tab] = new OutboundRequestPlan(new ProcessUuid((string) Str::uuid()), $this->targetId, 'GET',
-                $safe, $endpoint->profile, TrafficClass::Detail, IdempotencyClass::ReadOnly);
+                $safe, $endpoint->profile, $request->statusOnly ? TrafficClass::StatusRefresh : TrafficClass::Detail, IdempotencyClass::ReadOnly);
         }
 
         return $plans;
@@ -98,6 +98,49 @@ final readonly class EisDetailSource implements DetailSource
         }
 
         return $this->parse($request, $responses);
+    }
+
+    public function parts(DetailRequest $request): array
+    {
+        return ['common-info', 'documents', 'event-journal', 'supplier-results'];
+    }
+
+    public function fetchPart(DetailRequest $request, string $part, ExecutionContext $context): DetailFetchResult
+    {
+        $plans = $this->plans($request);
+        if (! array_key_exists($part, $plans)) {
+            throw new \InvalidArgumentException('Unknown EIS part.');
+        }
+        $responses = [];
+        if ($plans[$part] !== null) {
+            $context->tick();
+            $outcome = $this->outbound->execute($plans[$part], $context);
+            if ($outcome instanceof TransportDeferred) {
+                return new FetchDeferred($outcome->reason, $outcome->retryAt);
+            }
+            if ($outcome instanceof TransportBlocked) {
+                return new FetchBlocked($outcome->reason);
+            }
+            if (! $outcome instanceof TransportSucceeded) {
+                throw new \LogicException('Unknown transport outcome.');
+            }
+            $responses[$part] = $outcome->response;
+        }
+        $outcome = $this->parse($request, $responses);
+        if (! $outcome instanceof DetailFetched) {
+            return $outcome;
+        }
+        $s = $outcome->snapshot;
+        $names = match ($part) {
+            'common-info' => ['attributes', 'parties'], 'documents' => ['documents'],
+            'event-journal' => ['events'], 'supplier-results' => ['results'],
+            default => throw new \InvalidArgumentException('Unknown EIS part.'),
+        };
+
+        return new DetailFetched(new ProcurementSnapshot($s->identity, $s->title, $s->sourceStage,
+            $s->parties, $s->items, $s->financing, $s->documents,
+            array_values(array_filter($s->parts, static fn (SnapshotPart $p): bool => in_array($p->name, $names, true))),
+            $s->extension, $s->sourceRevision, $s->events, $s->results));
     }
 
     /** @param array<string,ResponseEnvelope> $responses */

@@ -336,3 +336,41 @@ detail works удерживают drain run отдельно от закрыти
 учитывает content и policy; несовместимый concurrent intent остаётся pending. Его
 активация/retirement и detail/status handlers принадлежат P2.16/P2.18. Listing не
 запускает document pipeline. Схема P2.15 использует существующие subject carriers.
+
+## P2.16: части карточки и повторяемые циклы
+
+`DetailHandler` сохраняет каждую полную независимую часть как immutable artifact и
+fenced checkpoint. Повтор продолжает недостающие части того же intent/pass; partial,
+transport defer и stale ownership не публикуют смешанную карточку и не удаляют старые
+стороны, документы или результаты поставщика. В конце повторно читается контрольная
+часть. При несовпадении начинается новый bounded pass (максимум три); согласованный
+revisionless snapshot помечается `bounded_revalidated`, а не доказанным атомарным
+снимком источника. Изменение отдельной вкладки и ABA контрольной части могут остаться
+незаметными. Hashes и fetched_at каждой части остаются в сохранённом результате.
+
+`RefreshRepository` под lock закупки атомарно выделяет cycle/intent/work, required
+run link, закрывает конечный discovery и переносит next_due. Неизменившийся статус
+завершает собственный цикл; следующий due создаёт новую работу и новый fetch.
+Настраиваемый `RefreshPolicy` задаёт стартовые интервалы 6 часов для активных, 24 часа
+для недавно закрытых (30 дней), 7 дней для старых terminal и 24 часа для полной
+detail revalidation. Cadence не заменяет request-layer status capacity cap.
+
+Status publication меняет canonical head через revision/event finalizer. Ответ к
+уже изменившемуся head сохраняется только как observation и назначает reconciliation.
+Полный detail revalidation читает supplier/results/documents даже при неизменном
+common-info. В этом срезе новые document references сохраняются в coherent snapshot;
+их catalog handoff и переключение runtime остаются у следующих owning пунктов.
+Старые документные записи здесь не удаляются и downloader не вызывается.
+
+Mapping сохраняет порядок exact registry → platform default → unknown. Один новый
+raw status открывает один incident на platform/registry/hash; item budget не тратится.
+`StatusRemapper` перечитывает текущий source_stage под subject lock и проверяет
+expected head. Исправленный mapping публикует обычную revision и status_changed;
+bulk UPDATE статуса не используется. Любая новая canonical revision увеличивает
+head_generation, чтобы старые detail результаты не заменяли текущую голову.
+
+Real runtime registration, pending-intent activation и legacy owner removal остаются
+P2.18. Текущие tests подключают новые handlers/codecs/finalizers явно; production
+schedule не активирован. Проверки T12/T17/T40 включают реальные PostgreSQL barriers
+для двух due schedulers и обоих порядков remap/new-head, checkpoint takeover и
+rollback при отказе mandatory journal.

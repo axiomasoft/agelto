@@ -30,6 +30,11 @@ use Illuminate\Support\Str;
  * @property string $source_identity_type
  * @property string $source_identity_value
  * @property string $title
+ * @property string $source_stage
+ * @property Carbon $published_at
+ * @property string|null $initial_price
+ * @property bool $source_updated_has_day_precision
+ * @property Carbon|null $source_updated_before
  * @property string|null $currency
  * @property string|null $procedure_type
  * @property string|null $advance_percent
@@ -49,7 +54,7 @@ use Illuminate\Support\Str;
  * @property array<string, array<string, mixed>>|null $detail_parse_outcome
  * @property-read Registry|null $registry
  * @property-read string|null $procedure_type_raw
- * @property-read int $head_generation Process subject head; не fillable, пишет только Process ledger.
+ * @property-read int $head_generation Subject head, advanced by canonical publication under the subject lock.
  * @property-read int $detail_cycle_seq
  * @property-read int $status_cycle_seq
  * @property-read Carbon|null $next_status_due_at

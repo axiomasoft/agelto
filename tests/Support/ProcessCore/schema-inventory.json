@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P2.6",
+  "current_item": "P2.16",
   "conventions": {
     "work_states": [
       "ready",
@@ -92,7 +92,7 @@
       "app/Models/Procurement/Platform/Platform.php": "89f23dcc04041683f58a5839bb8c693ccb1beae02b59da42bb744d658979de6b",
       "app/Models/Procurement/Platform/Registry.php": "f8541fad51c97d9405af5ec0ee61a80b17c0212f7539b1e54237eb4082867cc3",
       "app/Models/Procurement/Platform/StatusMapping.php": "c87735e8fc61f82a2b592b71c4042f6e2a327fb271b7d8546f09670e0291442d",
-      "app/Models/Procurement/Procurement.php": "bfca7a021a52ea5d6ddc3aeee3338257e810e8298a9180e6f18b76dfafff8398",
+      "app/Models/Procurement/Procurement.php": "0c626b8cbe1e45e4737a1f3ad478e964c480105f199b3f8d63e19fcad7145a78",
       "app/Models/Procurement/ProcurementEvent.php": "d736f094bc2fcb5e8d613bc032f22cf06fbcaa654e782ac67ee157dd1b6b5455",
       "app/Models/Procurement/ProcurementParty.php": "61c67c9f332750e0847ffe040c5eae35961751990f4f816dcc3d2124a3972b8f",
       "app/Models/Procurement/ProcurementRevision.php": "12475d73bc8846ad0a7c8341ffb0b546b39c075d5920687ab3fe711553425c4e",
@@ -232,6 +232,15 @@
         "report": "20261028T050912.940443Z-1348025",
         "candidate_input_tree_sha256": "934dd469739cf97c7ba34b1e26d77ede9323be9430417feb79a39fdf112f6c19",
         "note": "Real isolated clean-reset catalog, captured before schema inventory gate; original P1.6 provenance retained. Raw artifact retention deferred to its document/storage owner P3.1."
+      },
+      {
+        "item": "P2.16",
+        "reason": "Actual isolated PostgreSQL catalog for detail/status carriers. Document catalog staging remains at acquisition activation boundary; no document consumers activated.",
+        "catalog_sha256": "a84d3edb67a668c8f4d9070483def9daac68a100a09335ded246cde01f47139e",
+        "tables": [
+          "prc_detail_snapshots",
+          "prc_status_refreshes"
+        ]
       }
     ],
     "p21_catalog": {
@@ -852,6 +861,13 @@
       "action": "create",
       "owner_item": "P1.15",
       "reason": "P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured."
+    },
+    {
+      "path": "database/migrations/2026_10_28_100002_create_prc_acquisition_snapshot_tables.php",
+      "sha256": "e893c335272dbd661f07d29cb63f0213dd0ffd72af237be47cd270ba38f93590",
+      "action": "create",
+      "owner_item": "P2.16",
+      "reason": "Durable immutable detail observations and recurring status cycles; runtime binding remains P2.18."
     }
   ],
   "baseline": {
@@ -7265,6 +7281,175 @@
           }
         ],
         "definition": "CREATE TABLE public.prc_crawlers (\n    id bigint NOT NULL,\n    registry_id bigint NOT NULL,\n    name text NOT NULL,\n    mode text NOT NULL,\n    source_method text NOT NULL,\n    fallback_method text,\n    filter jsonb,\n    schedule text,\n    options jsonb,\n    route_profile_id uuid,\n    stop_policy text DEFAULT 'default'::text NOT NULL,\n    execution_lane text DEFAULT 'standard'::text NOT NULL,\n    is_active boolean DEFAULT true NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
+      },
+      "prc_detail_snapshots": {
+        "owner": "Repositories/Procurement/Crawler",
+        "retention": "business",
+        "columns": [
+          {
+            "table_schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "column_name": "id",
+            "ordinal_position": 1,
+            "data_type": "uuid",
+            "udt_name": "uuid",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "column_name": "procurement_id",
+            "ordinal_position": 2,
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "column_name": "input_revision",
+            "ordinal_position": 3,
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "column_name": "part_key",
+            "ordinal_position": 4,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "column_name": "completeness",
+            "ordinal_position": 5,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "column_name": "result_ref",
+            "ordinal_position": 6,
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "column_name": "result_ref_schema_version",
+            "ordinal_position": 7,
+            "data_type": "smallint",
+            "udt_name": "int2",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "column_name": "source_version",
+            "ordinal_position": 8,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "column_name": "created_at",
+            "ordinal_position": 9,
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "NO",
+            "column_default": null
+          }
+        ],
+        "constraints": [
+          {
+            "schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "name": "prc_detail_snapshots_completeness_check",
+            "type": "c",
+            "definition": "CHECK ((completeness = ANY (ARRAY['complete'::text, 'complete_empty'::text, 'partial'::text, 'unavailable'::text, 'not_applicable'::text])))"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "name": "prc_detail_snapshots_input_revision_check",
+            "type": "c",
+            "definition": "CHECK ((input_revision >= 1))"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "name": "prc_detail_snapshots_part_key_check",
+            "type": "c",
+            "definition": "CHECK (((char_length(part_key) >= 1) AND (char_length(part_key) <= 160)))"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "name": "prc_detail_snapshots_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "name": "prc_detail_snapshots_procurement_id_fkey",
+            "type": "f",
+            "definition": "FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "name": "prc_detail_snapshots_procurement_id_input_revision_part_key_key",
+            "type": "u",
+            "definition": "UNIQUE (procurement_id, input_revision, part_key)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "name": "prc_detail_snapshots_result_ref_check",
+            "type": "c",
+            "definition": "CHECK ((jsonb_typeof(result_ref) = 'object'::text))"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_detail_snapshots",
+            "name": "prc_detail_snapshots_result_ref_schema_version_check",
+            "type": "c",
+            "definition": "CHECK ((result_ref_schema_version = 1))"
+          }
+        ],
+        "indexes": [
+          {
+            "schemaname": "public",
+            "tablename": "prc_detail_snapshots",
+            "indexname": "prc_detail_snapshots_pkey",
+            "indexdef": "CREATE UNIQUE INDEX prc_detail_snapshots_pkey ON public.prc_detail_snapshots USING btree (id)"
+          },
+          {
+            "schemaname": "public",
+            "tablename": "prc_detail_snapshots",
+            "indexname": "prc_detail_snapshots_procurement_id_input_revision_part_key_key",
+            "indexdef": "CREATE UNIQUE INDEX prc_detail_snapshots_procurement_id_input_revision_part_key_key ON public.prc_detail_snapshots USING btree (procurement_id, input_revision, part_key)"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_detail_snapshots (\n    id uuid NOT NULL,\n    procurement_id bigint NOT NULL,\n    input_revision bigint NOT NULL,\n    part_key text NOT NULL,\n    completeness text NOT NULL,\n    result_ref jsonb NOT NULL,\n    result_ref_schema_version smallint NOT NULL,\n    source_version text,\n    created_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_detail_snapshots_completeness_check CHECK ((completeness = ANY (ARRAY['complete'::text, 'complete_empty'::text, 'partial'::text, 'unavailable'::text, 'not_applicable'::text]))),\n    CONSTRAINT prc_detail_snapshots_input_revision_check CHECK ((input_revision >= 1)),\n    CONSTRAINT prc_detail_snapshots_part_key_check CHECK (((char_length(part_key) >= 1) AND (char_length(part_key) <= 160))),\n    CONSTRAINT prc_detail_snapshots_result_ref_check CHECK ((jsonb_typeof(result_ref) = 'object'::text)),\n    CONSTRAINT prc_detail_snapshots_result_ref_schema_version_check CHECK ((result_ref_schema_version = 1))\n);"
       },
       "prc_document_representations": {
         "owner": "Procurement",
@@ -19592,6 +19777,147 @@
         ],
         "definition": "CREATE TABLE public.prc_status_mappings (\n    id bigint NOT NULL,\n    registry_id bigint,\n    source_stage character varying(255) NOT NULL,\n    canonical_status character varying(255) NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    platform_id bigint,\n    CONSTRAINT prc_status_mappings_exactly_one_applicability_check CHECK (((platform_id IS NOT NULL) <> (registry_id IS NOT NULL)))\n);"
       },
+      "prc_status_refreshes": {
+        "owner": "Repositories/Procurement/Crawler",
+        "retention": "business",
+        "columns": [
+          {
+            "table_schema": "public",
+            "table_name": "prc_status_refreshes",
+            "column_name": "id",
+            "ordinal_position": 1,
+            "data_type": "uuid",
+            "udt_name": "uuid",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_status_refreshes",
+            "column_name": "procurement_id",
+            "ordinal_position": 2,
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_status_refreshes",
+            "column_name": "intent_id",
+            "ordinal_position": 3,
+            "data_type": "uuid",
+            "udt_name": "uuid",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_status_refreshes",
+            "column_name": "cycle_seq",
+            "ordinal_position": 4,
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_status_refreshes",
+            "column_name": "next_due_at",
+            "ordinal_position": 5,
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_status_refreshes",
+            "column_name": "source_version",
+            "ordinal_position": 6,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_status_refreshes",
+            "column_name": "observed_at",
+            "ordinal_position": 7,
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
+          }
+        ],
+        "constraints": [
+          {
+            "schema": "public",
+            "table_name": "prc_status_refreshes",
+            "name": "prc_status_refreshes_cycle_seq_check",
+            "type": "c",
+            "definition": "CHECK ((cycle_seq >= 1))"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_status_refreshes",
+            "name": "prc_status_refreshes_intent_id_fkey",
+            "type": "f",
+            "definition": "FOREIGN KEY (intent_id) REFERENCES prc_operation_intents(id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_status_refreshes",
+            "name": "prc_status_refreshes_intent_id_key",
+            "type": "u",
+            "definition": "UNIQUE (intent_id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_status_refreshes",
+            "name": "prc_status_refreshes_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_status_refreshes",
+            "name": "prc_status_refreshes_procurement_id_cycle_seq_key",
+            "type": "u",
+            "definition": "UNIQUE (procurement_id, cycle_seq)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_status_refreshes",
+            "name": "prc_status_refreshes_procurement_id_fkey",
+            "type": "f",
+            "definition": "FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)"
+          }
+        ],
+        "indexes": [
+          {
+            "schemaname": "public",
+            "tablename": "prc_status_refreshes",
+            "indexname": "prc_status_refreshes_intent_id_key",
+            "indexdef": "CREATE UNIQUE INDEX prc_status_refreshes_intent_id_key ON public.prc_status_refreshes USING btree (intent_id)"
+          },
+          {
+            "schemaname": "public",
+            "tablename": "prc_status_refreshes",
+            "indexname": "prc_status_refreshes_pkey",
+            "indexdef": "CREATE UNIQUE INDEX prc_status_refreshes_pkey ON public.prc_status_refreshes USING btree (id)"
+          },
+          {
+            "schemaname": "public",
+            "tablename": "prc_status_refreshes",
+            "indexname": "prc_status_refreshes_procurement_id_cycle_seq_key",
+            "indexdef": "CREATE UNIQUE INDEX prc_status_refreshes_procurement_id_cycle_seq_key ON public.prc_status_refreshes USING btree (procurement_id, cycle_seq)"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_status_refreshes (\n    id uuid NOT NULL,\n    procurement_id bigint NOT NULL,\n    intent_id uuid NOT NULL,\n    cycle_seq bigint NOT NULL,\n    next_due_at timestamp with time zone NOT NULL,\n    source_version text,\n    observed_at timestamp with time zone,\n    CONSTRAINT prc_status_refreshes_cycle_seq_check CHECK ((cycle_seq >= 1))\n);"
+      },
       "prc_target_health": {
         "owner": "Repositories/Procurement/Network",
         "retention": "authority",
@@ -24361,7 +24687,7 @@
       "contract": "platform-transport#s06; implementation-blueprint#bp-ddl-network"
     },
     "prc_detail_snapshots": {
-      "create_at": "P2.14",
+      "create_at": "P2.16",
       "activate_at": "P2.18",
       "owner": "Repositories/Procurement/Crawler",
       "retention": "business",
@@ -24422,13 +24748,16 @@
       },
       "constraints": [
         "UNIQUE(procurement_id,input_revision,part_key)",
-        "CHECK (result_ref_schema_version > 0)"
+        "CHECK (result_ref_schema_version = 1)",
+        "CHECK (completeness IN ('complete','complete_empty','partial','unavailable','not_applicable'))",
+        "CHECK (char_length(part_key) BETWEEN 1 AND 160)",
+        "CHECK (jsonb_typeof(result_ref) = 'object')"
       ],
       "indexes": [],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
     "prc_status_refreshes": {
-      "create_at": "P2.14",
+      "create_at": "P2.16",
       "activate_at": "P2.18",
       "owner": "Repositories/Procurement/Crawler",
       "retention": "business",
@@ -24486,13 +24815,14 @@
         }
       },
       "constraints": [
-        "UNIQUE(procurement_id,cycle_seq)"
+        "UNIQUE(procurement_id,cycle_seq)",
+        "UNIQUE(intent_id)"
       ],
       "indexes": [],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
     "prc_procurement_documents": {
-      "create_at": "P2.14",
+      "create_at": "P2.18",
       "activate_at": "P2.18",
       "owner": "Repositories/Procurement/Crawler",
       "retention": "business",
@@ -25865,7 +26195,7 @@
     },
     {
       "table": "prc_documents",
-      "at": "P2.14",
+      "at": "P2.18",
       "columns": {
         "platform_id": {
           "type": "bigint",
