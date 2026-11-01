@@ -61,10 +61,16 @@ version fence, retirement tombstone и config-only registry без DB/HTTP I/O. 
 переключение старых consumers здесь не объявляются проверенными; их добавляют owning P2.2–P2.7.
 JUnit/evidence capture отвергает пустую выборку, skips и отсутствие assertions.
 
-`core-test-observability`, `core-test-platforms`,
-`core-test-acquisition`, `core-test-documents`, `core-test-ai`,
+`core-test-observability` (P1.14–P1.18), `core-test-platforms` (P2.9–P2.12) и
+`core-test-acquisition` (P2.14–P2.19) реализованы: guarded clean reset, затем только пути
+`SUITE_PATHS` из `docker/tests/process-core/rig.py`. Acquisition запускает
+`tests/Feature/ProcessCore/Acquisition` и `tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php`:
+T07/T12/T27 listing/detail/coverage, T17/T18 run lifecycle через настоящий `AcquisitionScheduler`
+(open/closed empty, shared required, cancel, superseded successor, pending document handoff),
+T02 независимость площадок, T40–T42 identity/status/extension, T35 adapter validation и EXR-01
+sidebar после circuits cutover. `core-test-documents`, `core-test-ai`,
 `core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
-с exit 78 и JSON `suite_not_implemented`. Их реализуют owning P1/P2/P3 packages. Это не green skip.
+с exit 78 и JSON `suite_not_implemented`. Их реализуют owning P3 packages. Это не green skip.
 Browser service отдельный, доступен через профиль `browser`; operator E2E ещё не реализован.
 Horizon потребляет только `process-core-fixtures`, scheduler работает с пустым business baseline.
 Нет live crawling, paid model eval, production deployment или уведомлений.

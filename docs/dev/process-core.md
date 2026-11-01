@@ -841,3 +841,26 @@ locks до work lock и discovery closure после создания successors
 watermarks rebuildable из durable page receipts. Исторический объём coverage projection
 растёт с числом runs: bounded allocation не является обещанием постоянной стоимости
 полного rebuild. Детальный operational rollout и cadence принадлежат producer cutover.
+
+## P2.19: приёмка полного acquisition
+
+P2.19 сверяет producer cutover P2.18 с contracts `observability#s04` и `execution#s10`
+на настоящих `AcquisitionScheduler`, `ListingFinalizer` и `DetailFinalizer`.
+Новые сценарии находятся в `tests/Feature/ProcessCore/Acquisition/T18RunLifecycleProducerTest.php`
+(groups t17,t18,t02,p23; target `core-test-acquisition`).
+
+| Сценарий | Результат на кандидате P2.18 |
+|---|---|
+| Две стабильные passes закрывают discovery; detail публикует document reference; pending download intent без work не удерживает run (`completed`, observes=0) | проходит |
+| T02: пауза `acquisition:platform:<A>` не блокирует claim, listing и закрытие discovery площадки B; после resume A завершается | проходит |
+| EXR-01: sidebar с реальным acquisition run без `prc_source_circuits` и маршрутов `source-circuits` | проходит |
+| Superseded required detail заменяется successor для всех нуждающихся runs; intent не остаётся зависшим | **падает** |
+
+Известный дефект: повторный listing той же закупки с изменённым содержимым увеличивает
+`head_generation` и создаёт новый detail intent в состоянии `pending`, а также сразу work для него.
+Прежняя работа уходит в `superseded` при claim (`input_invalidated`), новая — при admission,
+потому что её intent не active. Successor и перенос required links не создаются. Прежний intent
+остаётся `active`, новый — `pending`: перехода `pending → active` и завершения intent при
+superseded, `failed_item` или cancel нет. `RefreshRepository::allocate` после этого не выделяет новые
+detail-циклы для закупки. Исправление принадлежит P2.15/P2.16 (intent lifecycle listing/detail) и общему
+supersede-пути Process core. P2.19 закрыт как `blocked` с эскалацией на reopen owning items.
