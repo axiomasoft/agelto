@@ -132,7 +132,7 @@ final readonly class ArtifactRepository
             $this->capacity->lockDomains([$request->domainId]);
             $row = LedgerRow::one('SELECT * FROM prc_storage_reservations WHERE id=? FOR UPDATE', [$request->id->value]) ?? throw new \LogicException('Missing reservation.');
             $this->capacity->assertIdentity($request, $row);
-            if (! in_array($row->string('status'), ['reserved', 'staged', 'cleaning', 'cleaned'], true)) {
+            if (! in_array($row->string('status'), ['reserved', 'staged', 'cleaning', 'cleaned'], true) || $this->checkpointed($row)) {
                 return false;
             }
             if ($row->string('status') !== 'cleaned') {
@@ -154,6 +154,17 @@ final readonly class ArtifactRepository
             }
             DB::update("UPDATE prc_storage_reservations SET status='cleaned',cleanup_verified_at=COALESCE(cleanup_verified_at,clock_timestamp()) WHERE id=?", [$request->id->value]);
         });
+    }
+
+    private function checkpointed(LedgerRow $row): bool
+    {
+        $workId = $row->nullableString('work_id');
+
+        return $workId !== null && $row->string('status') === 'staged'
+            && DB::table('prc_process_work')->where('id', $workId)
+                ->whereNotIn('state', ['succeeded', 'failed_item', 'cancelled', 'superseded'])
+                ->whereRaw("checkpoint->'stage_progress'->'payload'->'batches' @> jsonb_build_array(jsonb_build_object('artifact', jsonb_build_object('id', ?::text)))", [$row->string('id')])
+                ->exists();
     }
 
     private function referenced(BlobReference $blob): bool

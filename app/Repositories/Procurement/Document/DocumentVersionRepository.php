@@ -49,6 +49,7 @@ final readonly class DocumentVersionRepository
         if ($current !== null && $current->string('blob_id') === $blob->id->value) {
             return new DocumentRevision($current->int('id'), $current->int('revision_no'), $head, $blob);
         }
+        $this->artifacts->referenceLocked($blob);
         $revision = ($current?->int('revision_no') ?? 0) + 1;
         $row = LedgerRow::one('INSERT INTO prc_document_versions(document_id,revision_no,blob_id,content_hash,size_bytes,filename,extension,mime,storage_path,disk,downloaded_at,
             etag,last_modified,first_seen_at,parent_version_id,normalized_entry_path,archive_entry_path,child_ordinal,created_at,updated_at)

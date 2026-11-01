@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\Duration;
+use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\StageBlocked;
 use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\StageSucceeded;
@@ -12,9 +15,15 @@ use App\Enums\Procurement\Process\ControlMode;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
 use App\Exceptions\Procurement\Process\LeaseLost;
+use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
+use App\Repositories\Procurement\Document\StorageCapacityRepository;
+use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Procurement\Document\ArtifactGarbageCollector;
 use App\Services\Procurement\Document\DocumentRevalidator;
 use App\Services\Procurement\Document\DownloadStageCodec;
+use App\Services\Procurement\Process\Contracts\ProcessClock;
+use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\WorkFinalizer;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -249,3 +258,32 @@ test('pause и handler hold до storage reservation сразу дают typed b
     expect(app(WorkFinalizer::class)->finish($context->lease(), $outcome)->state)->toBe(WorkState::Blocked)
         ->and(DB::table('prc_process_work')->where('id', $work->value->value)->value('item_failures'))->toBe(0);
 })->with([true, false]);
+
+test('GC mark-before-delete во время finalize переводит work в deferred storage_unavailable без item failure до завершения удаления', function (): void {
+    $this->wire->respond('/document', P32_PDF);
+    $f = new DownloadFixtures($this->wire);
+    $domain = DB::table('prc_storage_domains')->where('domain_key', config('documents.download.durable_domain'))->value('id');
+    $orphan = DocumentStorageFixtures::upload(P32_PDF, new ProcessUuid($domain));
+    $blob = app(ProcessTransaction::class)->run(function () use ($orphan) {
+        app(StorageCapacityRepository::class)->lockDomains([$orphan->reservation->domainId]);
+
+        return app(ArtifactRepository::class)->acquireLocked($orphan);
+    });
+    DB::update("UPDATE prc_document_blobs SET verified_at=clock_timestamp()-interval '1 hour' WHERE id=?", [$blob->id->value]);
+    $ticket = app(ArtifactRepository::class)->markDeletion($blob, 900);
+    expect($ticket)->not->toBeNull();
+    [$input, $work, $context] = $f->running();
+    $outcome = $f->handler()->execute($input, $context);
+    expect($outcome)->toBeInstanceOf(StageSucceeded::class);
+    $deferred = app(WorkFinalizer::class)->finish($context->lease(), $outcome);
+    expect($deferred->state)->toBe(WorkState::Deferred)
+        ->and(DB::table('prc_process_work')->where('id', $work->value->value)->value('reason_code'))->toBe('storage_unavailable')
+        ->and(DB::table('prc_process_work')->where('id', $work->value->value)->value('item_failures'))->toBe(0)
+        ->and(DB::table('prc_document_versions')->count())->toBe(0);
+    expect(app(ArtifactGarbageCollector::class)->deleteMarked($ticket))->toBeTrue();
+    $retryLease = FinalizeFixtures::rerun($work);
+    $retryContext = new ExecutionContext($retryLease, app(WorkStoreRepository::class), app(ProcessClock::class),
+        Duration::seconds(300), Duration::seconds(420), Duration::seconds(15), Duration::seconds(15), Duration::seconds(30));
+    expect(app(WorkFinalizer::class)->finish($retryLease, $f->handler()->execute($input, $retryContext))->state)->toBe(WorkState::Succeeded)
+        ->and(DB::table('prc_document_versions')->count())->toBe(1);
+});

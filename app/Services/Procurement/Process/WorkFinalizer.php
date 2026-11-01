@@ -11,6 +11,7 @@ use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\HandlerFaultEvidence;
 use App\Dto\Procurement\Process\ProcessEventEnvelope;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\RetryAt;
 use App\Dto\Procurement\Process\StageBlocked;
 use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\StageFailedItem;
@@ -20,14 +21,17 @@ use App\Dto\Procurement\Process\StageSucceeded;
 use App\Dto\Procurement\Process\ValidatedStageResult;
 use App\Enums\Procurement\Process\AuthorityGap;
 use App\Enums\Procurement\Process\CompletionStatus;
+use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\EventCode;
 use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\WorkState;
+use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Exceptions\Procurement\Process\PublicationBlocked;
 use App\Repositories\Procurement\Process\AuthorityRepository;
 use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\WorkFinalizationRepository;
+use App\Services\Procurement\Process\Contracts\ProcessClock;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Str;
 
@@ -50,6 +54,7 @@ final readonly class WorkFinalizer
         private IncidentRepository $incidents,
         private ProcessTransaction $transaction,
         private PostCommitSinks $sinks,
+        private ProcessClock $clock,
     ) {}
 
     public function finish(ExecutionLease $lease, StageOutcome $outcome): CompletionResult
@@ -68,6 +73,8 @@ final readonly class WorkFinalizer
             return $this->apply($lease, new StageSucceeded($result));
         } catch (PublicationBlocked $blocked) {
             return $this->settle($lease, new StageBlocked($blocked->reason));
+        } catch (ArtifactUnavailable) {
+            return $this->settle($lease, new StageDeferred(DeferralReason::StorageUnavailable, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))));
         }
     }
 

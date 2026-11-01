@@ -146,7 +146,7 @@ final readonly class PrepareHandler implements StageHandler
                 $failed = $progress->failed;
                 $next = $progress->nextBatchSize;
                 try {
-                    $batch = $this->tools->batch($path, $directory, $range, $execution, $this->clock->monotonicNs() / 1e9 + $this->policy->batchSeconds);
+                    $batch = $this->tools->batch($path, $directory, $range, $execution, min($deadline - $this->policy->persistenceSeconds, $this->clock->monotonicNs() / 1e9 + $this->policy->batchSeconds));
                     if (count($batch->pages) !== $range->length() || $batch->pages[0]->page !== $range->start + 1) {
                         throw new \LogicException('Tool returned incorrect source page mapping.');
                     }

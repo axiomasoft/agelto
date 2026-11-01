@@ -23,6 +23,7 @@ use App\Exceptions\Procurement\Prepare\ToolUnavailable;
 use App\Exceptions\Procurement\Process\LeaseLost;
 use App\Repositories\Procurement\Document\PrepareStorageRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Procurement\Document\ArtifactGarbageCollector;
 use App\Services\Procurement\Document\PrepareHandler;
 use App\Services\Procurement\Document\PrepareStageCodec;
 use App\Services\Procurement\Document\PrepareWorkspace;
@@ -138,10 +139,13 @@ test('cancel после batch checkpoint запрещает старую фин�
     $ctx = $f->context();
     $tools = new StubPdfTools(3);
     $out = $f->handler($tools)->execute($f->input, $ctx);
+    $batchReservation = $out->checkpoint->batches[0]->artifact->reservation;
+    expect(app(ArtifactGarbageCollector::class)->cleanup($batchReservation))->toBeFalse();
     $stale = $ctx->lease();
     expect(FinalizeFixtures::revoke($f->work, cancel: true))->toBeTrue();
     expect(app(WorkFinalizer::class)->finish($stale, $out)->status)->toBe(CompletionStatus::LostOwnership)
-        ->and(DB::table('prc_document_representations')->count())->toBe(0);
+        ->and(DB::table('prc_document_representations')->count())->toBe(0)
+        ->and(app(ArtifactGarbageCollector::class)->cleanup($batchReservation))->toBeTrue();
 });
 
 test('tmp остаётся charged до подтверждённого stop и cleanup retry идемпотентен', function (): void {

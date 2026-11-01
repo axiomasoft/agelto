@@ -41,6 +41,7 @@ final readonly class DocumentRepresentationRepository
 
             return $existing->int('id');
         }
+        $this->artifacts->referenceLocked($blob);
         $row = LedgerRow::one("INSERT INTO prc_document_representations(document_version_id,kind,blob_id,preparation_recipe_hash,content_hash,range_key,tool_version,coverage_manifest,
             coverage_manifest_schema_version,storage_path,disk,size_bytes,mime,generated_at,created_at,updated_at)
             VALUES (?,?,?,decode(?,'hex'),decode(?,'hex'),?,?,?::jsonb,1,?,?,?,?,clock_timestamp(),clock_timestamp(),clock_timestamp()) RETURNING id",
