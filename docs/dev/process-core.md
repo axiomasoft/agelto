@@ -854,6 +854,7 @@ P2.19 сверяет producer cutover P2.18 с contracts `observability#s04` и 
 | Две стабильные passes, detail с document reference | discovery `complete`; pending download intent без work не удерживает run (`completed`, observes=0) |
 | Superseded successor и очередь intents | устаревшая detail work заменяется successor на текущем head в той же tx; required links всех runs переходят на successor; pending intent исполняется после active; оба runs `completed` без superseded/failed required |
 | failed_item и cancel | terminal work освобождает intent, следующий pending активируется; после очереди `RefreshRepository` снова выделяет detail-цикл |
+| Manual retry failed_item detail | manual retry завершает active intent и закрывает run как на неизменном head, так и после supersede re-pin на новом head |
 | T02 | пауза `acquisition:platform:<A>` не блокирует claim, listing и закрытие discovery площадки B |
 | EXR-01 | sidebar с реальным acquisition run без `prc_source_circuits` и маршрутов `source-circuits` |
 
@@ -868,10 +869,15 @@ P2.19 сверяет producer cutover P2.18 с contracts `observability#s04` и 
 Исправление (Process core, без изменения DDL):
 
 - `WorkStoreRepository::supersedeLocked` для `DetailInput`, устаревшей из-за нового subject
-  head, в той же transaction создаёт successor под тем же intent с `expected_head_generation`
-  текущего head (derived stable IDs), обновляет pin intent и переносит links через
-  `carryRunLinks`: required → successor, прежняя связь → observes; cancelled run required не
-  получает. Если intent уже terminal, successor — существующая work того же intent на текущем head.
+  head, в той же transaction создаёт successor под актуальным `intent_id` work-строки (с fallback
+  на `DetailInput::$intentId`) и `expected_head_generation` текущего head (derived stable IDs),
+  обновляет pin intent и переносит links через `carryRunLinks`: required → successor, прежняя
+  связь → observes; cancelled run required не получает. Если intent уже terminal, successor —
+  существующая work того же intent на текущем head.
+- `DetailFinalizer`, `StatusFinalizer`, `DetailSnapshotRepository` и `AcquisitionProvenance`
+  согласованы с manual retry (`prc_process_work.intent_id` как authority active intent при
+  сохранении immutable `WorkInput`), а неиспользуемые legacy-носители `RunStatus`, `FetchResult`
+  и `CrawlerRuntimeOptions` удалены.
 - `AdmissionRepository` не выбирает и не supersede-ит work, чей intent `pending`
   (`LockedPrefix::intentPending`): она ждёт очереди в `ready`.
 - `IntentRepository` ведёт очередь (stage, subject): terminal work без successor

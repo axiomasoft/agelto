@@ -25,6 +25,16 @@ final readonly class DetailSnapshotRepository
     public function request(int $procurement, ProcessUuid $intent): DetailRequest
     {
         $row = LedgerRow::one('SELECT result_ref::text AS payload FROM prc_detail_snapshots WHERE procurement_id=? AND part_key=?', [$procurement, $intent->value.':request']);
+        $knownIntent = $row !== null || LedgerRow::one(
+            "SELECT 1 AS ok FROM prc_operation_intents WHERE id=? AND subject_kind='prc_procurements' AND subject_id=?",
+            [$intent->value, (string) $procurement],
+        ) !== null;
+        if ($row === null && $knownIntent) {
+            $row = LedgerRow::one(
+                "SELECT result_ref::text AS payload FROM prc_detail_snapshots WHERE procurement_id=? AND part_key LIKE '%:request' ORDER BY input_revision DESC, created_at DESC LIMIT 1",
+                [$procurement],
+            );
+        }
         if ($row !== null) {
             $request = $this->codec->decode($row->string('payload'));
             if (! $request instanceof DetailRequest) {
@@ -33,7 +43,8 @@ final readonly class DetailSnapshotRepository
 
             return $request;
         }
-        $reference = $this->listing->detailReference($intent);
+        $reference = $this->listing->detailReference($intent)
+            ?? ($knownIntent ? $this->listing->detailReferenceForProcurement($procurement) : null);
         if ($reference === null || $reference->procurementId !== $procurement) {
             throw new \LogicException('Missing immutable detail request.');
         }

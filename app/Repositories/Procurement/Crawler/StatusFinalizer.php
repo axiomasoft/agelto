@@ -44,13 +44,17 @@ final readonly class StatusFinalizer implements StageResultRepository
             throw new \InvalidArgumentException('Status result required.');
         }
         $intent = $this->refreshes->intent($input);
-        $row = LedgerRow::one('SELECT expected_head_generation FROM prc_operation_intents WHERE id=?', [$intent->value]) ?? throw new \LogicException('Missing status intent.');
+        $activeIntentId = LedgerRow::one(
+            "SELECT intent_id FROM prc_process_work WHERE procurement_id=? AND stage='status_refresh' AND state='running' AND intent_id IS NOT NULL ORDER BY updated_at DESC, id DESC LIMIT 1",
+            [$input->procurementId],
+        )?->string('intent_id') ?? $intent->value;
+        $row = LedgerRow::one('SELECT expected_head_generation FROM prc_operation_intents WHERE id=?', [$activeIntentId]) ?? throw new \LogicException('Missing status intent.');
         $p = Procurement::query()->findOrFail($input->procurementId);
         $request = $this->details->request($p->id, $intent);
         if ($request->identity->toArray() !== $result->snapshot->identity->toArray()) {
             throw new \InvalidArgumentException('Status result identity mismatch.');
         }
-        $this->details->insert($p->id, $row->int('expected_head_generation'), $intent->value.':status', 'complete', $this->codec->encode($result), $result->snapshot->sourceRevision);
+        $this->details->insert($p->id, $row->int('expected_head_generation'), $activeIntentId.':status', 'complete', $this->codec->encode($result), $result->snapshot->sourceRevision);
         $current = $p->head_generation === $row->int('expected_head_generation') && $p->status_cycle_seq === $input->cycleSeq;
         if ($current) {
             $oldHead = $p->head_generation;
@@ -70,7 +74,7 @@ final readonly class StatusFinalizer implements StageResultRepository
         DB::update("UPDATE prc_procurements SET next_status_due_at=clock_timestamp()+(? * interval '1 second') WHERE id=?", [$seconds, $p->id]);
         DB::update('UPDATE prc_status_refreshes SET source_version=?,observed_at=?,next_due_at=(SELECT next_status_due_at FROM prc_procurements WHERE id=?) WHERE id=?',
             [$result->snapshot->sourceRevision, $result->observedAt->format('Y-m-d H:i:s.uP'), $p->id, $intent->value]);
-        if (DB::update("UPDATE prc_operation_intents SET state='terminal' WHERE id=? AND state='active'", [$intent->value]) !== 1) {
+        if (DB::update("UPDATE prc_operation_intents SET state='terminal' WHERE id=? AND state='active'", [$activeIntentId]) !== 1) {
             throw new \LogicException('Status intent fence failed.');
         }
 

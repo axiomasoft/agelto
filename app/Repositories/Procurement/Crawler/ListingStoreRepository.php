@@ -98,6 +98,15 @@ final readonly class ListingStoreRepository
         return $row === null ? null : ListingDetailReference::fromJson($row->string('reference'));
     }
 
+    public function detailReferenceForProcurement(int $procurementId): ?ListingDetailReference
+    {
+        $row = LedgerRow::one("SELECT d.value AS reference FROM prc_crawl_blocks b,
+            LATERAL jsonb_array_elements_text(COALESCE(b.terminal_proof->'details','[]'::jsonb)) d(value)
+            WHERE (d.value::jsonb->>'procurement')::int=? ORDER BY b.id DESC LIMIT 1", [$procurementId]);
+
+        return $row === null ? null : ListingDetailReference::fromJson($row->string('reference'));
+    }
+
     public function storeTask(ProcessUuid $crawlRun, ProcessUuid $id, ?ProcessUuid $parent, ListingTask $task): ListingInput
     {
         $this->crawl->storeCrawlBlock($id, $crawlRun, $parent, 'listing:'.$task->rootBlockId->value.':'.$task->pass.':'.$task->page,

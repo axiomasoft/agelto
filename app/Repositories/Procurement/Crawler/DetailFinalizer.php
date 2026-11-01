@@ -104,10 +104,17 @@ final readonly class DetailFinalizer implements StagePublicationRepository
         if (isset($complete['documents'])) {
             $this->documents->reconcile($p->id, $references);
         }
+        $activeIntentId = LedgerRow::one(
+            "SELECT intent_id FROM prc_process_work WHERE procurement_id=? AND stage='detail' AND state='running' AND intent_id IS NOT NULL ORDER BY updated_at DESC, id DESC LIMIT 1",
+            [$p->id],
+        )?->string('intent_id') ?? $input->intentId->value;
         $this->parts->progress($input, $result->progress);
-        $this->parts->insert($p->id, $input->expectedHeadGeneration, $input->intentId->value.':published', 'complete', $this->codec->encode($result), $s->sourceRevision);
+        if ($activeIntentId !== $input->intentId->value) {
+            $this->parts->saveRequest($p->id, $input->expectedHeadGeneration, new ProcessUuid($activeIntentId), $request);
+        }
+        $this->parts->insert($p->id, $input->expectedHeadGeneration, $activeIntentId.':published', 'complete', $this->codec->encode($result), $s->sourceRevision);
         $this->unknown->record($p);
-        if (DB::update("UPDATE prc_operation_intents SET state='terminal', next_due_at=clock_timestamp()+(? * interval '1 second') WHERE id=? AND state='active'", [$this->policy->detailSeconds, $input->intentId->value]) !== 1) {
+        if (DB::update("UPDATE prc_operation_intents SET state='terminal', next_due_at=clock_timestamp()+(? * interval '1 second') WHERE id=? AND state='active'", [$this->policy->detailSeconds, $activeIntentId]) !== 1) {
             throw new \LogicException('Detail intent fence failed.');
         }
         DB::update('UPDATE prc_procurements SET next_status_due_at=COALESCE(next_status_due_at,clock_timestamp()) WHERE id=?', [$p->id]);

@@ -265,6 +265,79 @@ test('T17 failed_item и cancel освобождают detail intent: очере
     expect(app(RefreshRepository::class)->scheduleDetail($procurement))->not->toBeNull();
 });
 
+test('T17 manual retry failed_item detail завершает active intent на неизменном head и после supersede re-pin', function (): void {
+    $this->artisan('guard:sync-roles')->assertSuccessful();
+    $operator = User::factory()->create();
+    $operator->assignRole('operator');
+    $commands = app(ProcessOperatorCommands::class);
+    $profile = EisCrawlerFactory::new()->create();
+    $scheduler = app(AcquisitionScheduler::class);
+    $launch = lifecycleLaunch($profile);
+
+    $runA = $scheduler->manual($launch, ListingStoreRepository::id('retry-lifecycle-a'), null);
+    lifecycleDrainListing($runA, [ListingFixtures::summary('retry-lifecycle-item', 'v1')]);
+    $procurement = (int) DB::table('prc_procurements')->value('id');
+    $failure = new StageFailedItem(ItemFailureReason::ContractRejected, new ArtifactRef('fixture', 'reject', ContentHash::of('reject')));
+
+    for ($attempt = 1; $attempt <= 3; $attempt++) {
+        if ($attempt > 1) {
+            DB::update("UPDATE prc_process_work SET due_at = clock_timestamp() - interval '1 second' WHERE stage = 'detail' AND state = 'deferred'");
+        }
+        $lease = lifecycleClaimNextDetail() ?? throw new LogicException('Initial detail was not claimed.');
+        app(WorkFinalizer::class)->finish($lease, $failure);
+    }
+
+    $failedRow = DB::table('prc_process_work')->where('stage', 'detail')->where('state', 'failed_item')->sole();
+    $retry1 = $commands->retryFailedItem($operator, new WorkId(new ProcessUuid($failedRow->id)), $failedRow->transition_seq, ListingStoreRepository::id('retry-cmd-1'), 'retry after source fix');
+    expect($retry1->status->value)->toBe('applied')->and($retry1->successor)->not->toBeNull();
+
+    // На неизменном head manual retry сам доходит до failed_item, а повторный manual retry переживает advance head и supersede re-pin.
+    for ($attempt = 1; $attempt <= 3; $attempt++) {
+        if ($attempt > 1) {
+            DB::update("UPDATE prc_process_work SET due_at = clock_timestamp() - interval '1 second' WHERE stage = 'detail' AND state = 'deferred'");
+        }
+        $lease = lifecycleClaimNextDetail() ?? throw new LogicException('First retry detail was not claimed.');
+        app(WorkFinalizer::class)->finish($lease, $failure);
+    }
+
+    $failedRetryRow = DB::table('prc_process_work')->where('id', $retry1->successor->value->value)->sole();
+    $retry2 = $commands->retryFailedItem($operator, $retry1->successor, $failedRetryRow->transition_seq, ListingStoreRepository::id('retry-cmd-2'), 'second retry before head advance');
+    expect($retry2->status->value)->toBe('applied')->and($retry2->successor)->not->toBeNull();
+
+    // Второй run продвигает head закупки, пока manual retry ждёт claim: carrySupersededRequirement обязан перенести required link на re-pinned successor.
+    $runB = $scheduler->manual($launch, ListingStoreRepository::id('retry-lifecycle-b'), null);
+    lifecycleDrainListing($runB, [ListingFixtures::summary('retry-lifecycle-item', 'v2')]);
+    expect(lifecycleDetailIntents($procurement, 'active'))->toHaveCount(1)
+        ->and(lifecycleDetailIntents($procurement, 'pending'))->toHaveCount(1);
+
+    $repinnedLease = lifecycleClaimNextDetail() ?? throw new LogicException('Re-pinned manual retry successor was not claimed.');
+    expect(DB::table('prc_process_work')->where('id', $retry2->successor->value->value)->value('state'))->toBe('superseded')
+        ->and(DB::table('prc_process_run_work')->where('run_id', $runA->value)->where('work_id', $repinnedLease->workId->value->value)->value('accounting_role'))->toBe('required');
+    lifecycleFinishDetail($repinnedLease, 'v2-retry');
+    expect(app(RunProjector::class)->summary($runA)?->state)->toBe(ProcessRunState::Completed);
+
+    // Очередной pending intent второго run активируется, затем доводится до failed_item и успешно завершается через manual retry без смены head.
+    for ($attempt = 1; $attempt <= 3; $attempt++) {
+        if ($attempt > 1) {
+            DB::update("UPDATE prc_process_work SET due_at = clock_timestamp() - interval '1 second' WHERE stage = 'detail' AND state = 'deferred'");
+        }
+        $leaseB = lifecycleClaimNextDetail() ?? throw new LogicException('Run B detail was not claimed.');
+        app(WorkFinalizer::class)->finish($leaseB, $failure);
+    }
+    $failedB = DB::table('prc_process_work')->where('stage', 'detail')->where('state', 'failed_item')->orderByDesc('created_at')->first()
+        ?? throw new LogicException('Missing failed Run B detail.');
+    $retryB = $commands->retryFailedItem($operator, new WorkId(new ProcessUuid($failedB->id)), $failedB->transition_seq, ListingStoreRepository::id('retry-cmd-b'), 'retry on unchanged head');
+    expect($retryB->status->value)->toBe('applied')->and($retryB->successor)->not->toBeNull();
+
+    $unchangedLease = lifecycleClaimNextDetail() ?? throw new LogicException('Unchanged-head manual retry was not claimed.');
+    expect($unchangedLease->workId->value->value)->toBe($retryB->successor->value->value);
+    lifecycleFinishDetail($unchangedLease, 'v2-final');
+
+    expect(app(RunProjector::class)->summary($runB)?->state)->toBe(ProcessRunState::Completed)
+        ->and(lifecycleDetailIntents($procurement, 'active'))->toBe([])
+        ->and(lifecycleDetailIntents($procurement, 'pending'))->toBe([]);
+});
+
 test('T02 actual producer: пауза площадки A не блокирует listing и закрытие discovery площадки B', function (): void {
     $eis = EisCrawlerFactory::new()->create();
     $other = Registry::factory()->create();

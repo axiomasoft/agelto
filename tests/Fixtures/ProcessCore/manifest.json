@@ -1397,14 +1397,14 @@
     },
     {
       "path": "tests/Feature/Crawler/CrawlerRuntimeOptionsTest.php",
-      "sha256": "0745cf31cefd1951d0e7274dacccd685d474ff698dab317b97e508054bdf353e",
+      "sha256": "9edc0c40aeffb2eb558113be7a0b9f94cfe833e6e9d5364d525b397968916a0f",
       "scenarios": [
         "adapter filter survives profile copy while validated endpoint policy owns block size retries and required columns",
         "неизвестные ключи и конфликтующие варианты имени options отклоняются"
       ],
       "original_sha256": "7bc660342d192917611555b05f43b2384f33b07cbed316c76b29cb735aeb0ad8",
-      "accepted_change_item": "P2.18",
-      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved."
+      "accepted_change_item": "P2.19",
+      "change_reason": "P2.19 P220-02 removal of dead CrawlerRuntimeOptions DTO; test asserts StageSettings validation while preserving D18 scenario baseline."
     },
     {
       "path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",

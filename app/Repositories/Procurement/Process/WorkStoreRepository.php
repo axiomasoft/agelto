@@ -220,11 +220,12 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         if ($owner->headGeneration === $input->expectedHeadGeneration) {
             return;
         }
-        $intent = LedgerRow::one('SELECT state FROM prc_operation_intents WHERE id = ? FOR UPDATE', [$input->intentId->value]);
+        $intentId = new ProcessUuid($prefix->work->nullableString('intent_id') ?? $input->intentId->value);
+        $intent = LedgerRow::one('SELECT state FROM prc_operation_intents WHERE id = ? FOR UPDATE', [$intentId->value]);
         if ($intent === null || $intent->string('state') === IntentState::Pending->value) {
             return;
         }
-        $repinned = new DetailInput($input->procurementId, $input->intentId, $owner->headGeneration,
+        $repinned = new DetailInput($input->procurementId, $intentId, $owner->headGeneration,
             $input->semanticPolicyHash, $input->accessPolicyHash, $input->adapterVersion);
         $identity = new WorkIdentity($repinned);
         $existing = LedgerRow::one(
@@ -246,7 +247,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
                 id: $successor,
                 input: $repinned,
                 inputRevision: $snapshot->inputRevision,
-                intentId: $input->intentId,
+                intentId: $intentId,
                 cohortKey: $work->string('cohort_key'),
                 platformId: $work->nullableInt('platform_id'),
                 originRunId: $origin === null ? null : new ProcessUuid($origin),
@@ -255,7 +256,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
                 projectionMessageId: self::derivedId($eventId, 'superseded-successor:projection'),
             );
             DB::update('UPDATE prc_operation_intents SET expected_head_generation = ? WHERE id = ?',
-                [$owner->headGeneration, $input->intentId->value]);
+                [$owner->headGeneration, $intentId->value]);
         } else {
             return;
         }
