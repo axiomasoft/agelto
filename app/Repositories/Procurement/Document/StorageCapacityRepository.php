@@ -6,6 +6,7 @@ namespace App\Repositories\Procurement\Document;
 
 use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Enums\Procurement\Document\StoragePhase;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Process\ProcessTransaction;
@@ -85,6 +86,21 @@ final readonly class StorageCapacityRepository
                 throw new \LogicException('Upload writer ownership changed.');
             }
             DB::update("UPDATE prc_storage_reservations SET status='staged' WHERE id=?", [$request->id->value]);
+        });
+    }
+
+    /** Idempotent factual stop acknowledgement, called only after verified workspace deletion. */
+    public function finishStoppedWrite(StorageReservationRequest $request): void
+    {
+        if ($request->phase !== StoragePhase::Prepare) {
+            throw new \InvalidArgumentException('Prepare workspace required.');
+        }
+        $this->mutate($request, function (LedgerRow $row) use ($request): void {
+            if ($row->string('status') === 'writing') {
+                DB::update("UPDATE prc_storage_reservations SET status='staged' WHERE id=?", [$request->id->value]);
+            } elseif (! in_array($row->string('status'), ['staged', 'cleaning', 'cleaned'], true)) {
+                throw new \LogicException('Workspace stop acknowledgement has no writer.');
+            }
         });
     }
 

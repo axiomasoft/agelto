@@ -969,3 +969,53 @@ PostgreSQL + cURL HTTP/proxy, bounded failures, no direct fallback, corrupt/over
 bytes, signed refresh, source outage после bytes, stale head/takeover/expiry, journal rollback,
 A→B→A и два процесса due allocator. Prepare/analysis independence проверяется следующими
 owning пунктами; source-off DB publication не заявляется полной downstream приёмкой T10.
+
+## P3.3: page-batched prepare (runtime cutover P3.5)
+
+`Document/PrepareHandler` и `PrepareFinalizer` готовят immutable PDF bytes без source/crawler
+health. Один Prepare WorkItem выполняет один whole-page batch за delivery и сохраняет
+`PrepareOcrCheckpoint` v1 через `ExecutionContext::checkpoint`. Checkpoint содержит source/recipe
+hashes, original page count, pending half-open ranges с retry counts, verified artifact refs и
+per-page statuses. Текст не сериализуется в work. Initial batch — 5 pages; target 150 s,
+adaptive next batch 1–20. Chain ceiling 200 s включает copy/probes/tools/persistence; reserve
+не менее 30 s внутри prepare slice 240 s. Внутри chain выделены setup/probes 30 s,
+tool batch 150 s и persistence 20 s. Не помещающийся после setup полный batch даёт
+blocked(converter_policy_incompatible), без page failures и пустого Partial. Resource/profile policy находится в `documents.prepare`.
+
+`PrepareStageCodec` отвергает unknown fields/version, coercion и пересекающееся/неполное
+accounting страниц. Multi-page tool failure делится left-first; singleton допускает ровно две
+подтверждённые ошибки. Control/dependency/storage exits не расходуют page/item failure budget.
+После каждого batch source/recipe/current-head/lease guards защищают checkpoint. Finalizer берёт
+storage capacity до document/version/work и публикует только complete required coverage. Общий
+resolver расширен preloaded document ancestor для prepare; immutable version mapping проверяется
+снова под subject locks. Это composition seam, не новый state owner.
+
+`Prepare/PageBatchOcr` использует qpdf, OCRmyPDF `--skip-text --jobs 1`, затем page-preserving
+pdftotext из выходного PDF. Native text сохраняется; sidecar остаётся evidence внутри временной
+цепочки и не используется как полная копия. Manifest различает native_text, ocr_text,
+proved_blank (только с evidence), unrecognized, failed, not_attempted. Лимит 300 не меняет
+original page count: 301-я страница остаётся missing, source incomplete. Threshold 10% — только
+operational quality label. Пустой текст, timeout skip с exit 0 и отсутствующая required page
+дают blocked(document_quality), никогда complete/verified. Исходный PDF остаётся доступен.
+Tool identities/options входят в recipe; drift требует нового recipe, а не смены tools на resume.
+
+`Prepare/BoundedToolProcess` запускает независимый Linux supervisor (Python stdlib) без shell.
+Он ограничивает wall/CPU/address-space/file size, следит за совокупным workspace size, останавливает
+TERM→KILL process group и reaps adopted descendants через subreaper. PHP poll 100 ms вызывает
+cooperative tick. При SIGKILL PHP wrapper продолжает hard deadline и оставляет stop receipt.
+`PrepareWorkspace` удерживает quota, пока активен tool marker или прежний PHP owner; PID/start
+identity и explicit PHP-finished marker позволяют повторить orphan cleanup. Stop receipt,
+подтверждённое удаление каталога и DB cleanup acknowledgement предшествуют освобождению bytes.
+Workspace size polling — дополнительный контроль, не filesystem quota; production sandbox/egress
+activation этим срезом не подтверждается. Acceptance работает в internal Docker network.
+
+Global handler registration, feeder/jobs switch, ordinary document bridge removal и archive/native
+strategy consumers остаются границей P3.5. Legacy strategies/guards/tests сохранены до этого
+cutover; новый PDF handler не вызывает их status writers. Другие форматы возвращают явный hold
+до composition через format registry. Реальный AI не активирован. Schema не изменялась.
+
+T26 fixtures: `Documents/prepare-v1.json`, mixed native/scanned/empty PDF; deterministic corpus
+проверяет ≥3 deliveries, restart/no-repeat, split/singleton exhaustion, truncation301, recipe
+mismatch, stale publication и tmp accounting. Real tools проверяют sidecar omission и successful
+exit с tesseract timeout; реальные процессы — stall, lease loss и PHP SIGKILL/orphan reap.
+Archive safety corpus по-прежнему выполняется `make core-test-documents`.

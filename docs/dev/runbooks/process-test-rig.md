@@ -394,3 +394,18 @@ future feeder, OCR batching, fairness or paid AI stages are activated or accepte
 The historical audit document required by legacy regression is a byte-identical test fixture under
 `tests/Support/ProcessCore/RuntimeInputs/`. `runtime-inputs.json` records its original Git blob and
 SHA-256 and preserves its runtime path. The research worktree is not restored or mounted.
+
+## P3.3 prepare assertions
+
+`make core-test-documents` дополнительно исполняет T26 manifest/checkpoint и real-tool tests.
+Fixture `tests/Fixtures/ProcessCore/Documents/prepare-v1.json` фиксирует original page mapping и
+hash mixed PDF. OCRmyPDF/qpdf/Tesseract/Poppler запускаются внутри того же isolated app;
+AI не вызывается. Проверяются native+scanned text, sidecar omission, exit0 tesseract timeout,
+restart/split/singleton/truncation, stale head и stop/reap after PHP SIGKILL.
+
+PHP converter supervisor использует Linux `/proc`, process groups и subreaper. Смена image/tools
+требует нового `documents.prepare.tools_version` и preparation recipe, иначе prepare получает
+явный hold. `PrepareWorkspace::cleanup` повторяется только по local owner/stop receipts;
+active marker или неподтверждённое удаление сохраняют charge. Внешний reconciler, который
+выбирает такие workspaces, подключается при runtime cutover P3.5. Одно истечение lease не
+разрешает release storage. Full T10/T11 и feeder acceptance остаются P3.5/P3.6.

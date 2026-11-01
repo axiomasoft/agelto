@@ -222,3 +222,18 @@ bytes. После получения bytes source availability больше не
 До P3.5 новый owner проверяется отдельно от legacy jobs/dispatcher; runtime consumers ещё не
 переключены. Prepare/OCR и независимый feeder имеют собственные пункты P3.3/P3.5.
 Подробные guards и граница приёмки: [process-core](../dev/process-core.md).
+
+### Page-batched prepare (P3.3, подключение в P3.5)
+
+Новый PDF prepare работает по immutable version/blob. Каждый batch сохраняет текст с исходными
+`[page:N]` anchors и page manifest до guarded checkpoint; restart продолжает pending ranges.
+Native text берётся из PDF, OCR sidecar не заменяет полный текст. Повторные ошибки делятся до
+singleton с конечным budget. Truncation, skipped/failed/unrecognized required pages сохраняют
+incomplete coverage и дают `blocked(document_quality)`; порог 10% меняет только quality label.
+Текущий safe default не разрешает degraded input. Original bytes остаются неизменными.
+
+Конвертеры выполняются под независимым bounded supervisor с TERM/KILL/reap и cooperative lease
+tick. Tmp quota освобождается после подтверждённой остановки и удаления workspace; смерть PHP
+сама по себе этого не доказывает. Оставшиеся локальные workspaces допускают повторный cleanup
+по сохранённым stop/owner receipts. Подробности и граница runtime activation —
+[process-core](../dev/process-core.md#p33-page-batched-prepare-runtime-cutover-p35).

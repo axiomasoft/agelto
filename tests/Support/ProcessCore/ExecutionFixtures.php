@@ -37,6 +37,7 @@ final class ExecutionFixtures
         'detail' => 'fixture-detail/1',
         'status_refresh' => 'fixture-status/1',
         'download' => 'fixture-download/1',
+        'prepare' => 'fixture-prepare/1',
     ];
 
     /** Ledger tables, которые многопроцессные tests очищают TRUNCATE (только isolated agelto_test). */

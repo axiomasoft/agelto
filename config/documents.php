@@ -3,6 +3,25 @@
 declare(strict_types=1);
 
 return [
+    'prepare' => [
+        'max_ocr_pages' => 300,
+        'chain_seconds' => 200,
+        'setup_seconds' => 30,
+        'batch_seconds' => 150,
+        'persistence_seconds' => 20,
+        'reserve_seconds' => 30,
+        'tmp_bytes' => 1073741824,
+        'artifact_bytes' => 8388608,
+        'quality_threshold' => 0.10,
+        'allow_degraded_representation' => false,
+        'languages' => 'rus+eng',
+        'tesseract_timeout_seconds' => 60,
+        'tools_version' => 'qpdf version 12.2.0 16.7.0+dfsg1 tesseract 5.5.0 pdftotext version 25.03.0 pdfinfo version 25.03.0',
+        'durable_domain' => 'documents.originals',
+        'temporary_domain' => 'documents.temporary',
+        'disk' => 'local',
+        'temporary_disk' => 'local',
+    ],
     'download' => [
         'max_bytes' => 268435456,
         'revalidation_seconds' => 2592000,

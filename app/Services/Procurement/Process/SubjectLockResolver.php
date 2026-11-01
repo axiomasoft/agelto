@@ -8,6 +8,7 @@ use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\DownloadInput;
 use App\Dto\Procurement\Process\ListingInput;
 use App\Dto\Procurement\Process\LockedSubject;
+use App\Dto\Procurement\Process\PrepareInput;
 use App\Dto\Procurement\Process\StatusRefreshInput;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\WorkInput;
@@ -22,13 +23,14 @@ use App\Enums\Procurement\Process\SubjectKind;
 final readonly class SubjectLockResolver
 {
     /** @return non-empty-list<SubjectKey> */
-    public function subjects(WorkInput $input): array
+    public function subjects(WorkInput $input, ?int $documentId = null): array
     {
         return match (true) {
             $input instanceof ListingInput => [new SubjectKey(SubjectKind::CrawlBlock, $input->crawlBlockId)],
             $input instanceof DetailInput => [new SubjectKey(SubjectKind::Procurement, $input->procurementId)],
             $input instanceof StatusRefreshInput => [new SubjectKey(SubjectKind::Procurement, $input->procurementId)],
             $input instanceof DownloadInput => [new SubjectKey(SubjectKind::Document, $input->documentId)],
+            $input instanceof PrepareInput => [new SubjectKey(SubjectKind::Document, $documentId ?? throw new \InvalidArgumentException('Preloaded document ancestor required.')), new SubjectKey(SubjectKind::DocumentVersion, $input->documentVersionId)],
             default => throw new \InvalidArgumentException('Stage is not schema-supported by the current baseline: '.$input->stage()->value),
         };
     }
@@ -43,6 +45,14 @@ final readonly class SubjectLockResolver
      */
     public function inputInvalidated(WorkInput $input, int $inputRevision, array $locked): bool
     {
+        if ($input instanceof PrepareInput) {
+            foreach ($locked as $subject) {
+                if ($subject->subject->kind === SubjectKind::Document) {
+                    return $subject->headGeneration !== $inputRevision || $subject->currentDocumentVersionId !== $input->documentVersionId;
+                }
+            }
+            throw new \LogicException('Prepare requires a locked document ancestor.');
+        }
         $owner = $locked[$this->subjects($input)[0]->key()]
             ?? throw new \LogicException('Owner subject must be locked before invalidation check.');
 

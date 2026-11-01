@@ -11,6 +11,7 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ControlSnapshot;
 use App\Dto\Procurement\Process\HandlerAuthoritySnapshot;
 use App\Dto\Procurement\Process\LockedSubject;
+use App\Dto\Procurement\Process\PrepareInput;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScopeDefinition;
 use App\Dto\Procurement\Process\SubjectAuthoritySnapshot;
@@ -129,13 +130,22 @@ final readonly class AuthorityRepository
         }
         $laneIds = array_map(static fn (LedgerRow $lane): string => $lane->string('id'), $lanes);
 
+        $documentId = null;
+        if ($input instanceof PrepareInput) {
+            $documentId = LedgerRow::one('SELECT document_id FROM prc_document_versions WHERE id=?', [$input->documentVersionId])?->int('document_id');
+            if ($documentId === null) {
+                return AuthorityGap::SubjectMissing;
+            }
+        }
         $subjects = [];
-        foreach ($this->resolver->subjects($input) as $subject) {
-            $row = LedgerRow::one('SELECT head_generation FROM '.$subject->kind->value.' WHERE id = ?', [self::subjectId($subject)]);
+        foreach ($this->resolver->subjects($input, $documentId) as $subject) {
+            $headColumn = $subject->kind === SubjectKind::DocumentVersion ? '1::bigint AS head_generation' : 'head_generation';
+            $row = LedgerRow::one('SELECT '.$headColumn.' FROM '.$subject->kind->value.' WHERE id = ?', [self::subjectId($subject)]);
             if ($row === null) {
                 return AuthorityGap::SubjectMissing;
             }
-            $subjects[] = new SubjectAuthoritySnapshot($subject, null, $row->int('head_generation'), null, null);
+            $parent = $subject->kind === SubjectKind::DocumentVersion && $documentId !== null ? new SubjectKey(SubjectKind::Document, $documentId) : null;
+            $subjects[] = new SubjectAuthoritySnapshot($subject, $parent, $row->int('head_generation'), null, null);
         }
 
         return new AuthoritySnapshot(
@@ -317,14 +327,30 @@ final readonly class AuthorityRepository
         $subjects = [];
         foreach ($snapshot->subjects->subjects as $expected) {
             $revision = $expected->subject->kind === SubjectKind::CrawlBlock ? 'input_revision' : 'NULL::bigint';
+            $headColumn = $expected->subject->kind === SubjectKind::DocumentVersion ? '1::bigint AS head_generation' : 'head_generation';
+            $currentVersion = $expected->subject->kind === SubjectKind::Document ? 'current_version_id' : 'NULL::bigint';
             $row = LedgerRow::one(
-                "SELECT head_generation, {$revision} AS input_revision FROM {$expected->subject->kind->value} WHERE id = ? FOR UPDATE",
+                "SELECT {$headColumn}, {$revision} AS input_revision, {$currentVersion} AS current_version_id FROM {$expected->subject->kind->value} WHERE id = ? FOR UPDATE",
                 [self::subjectId($expected->subject)],
             );
             if ($row === null || $row->int('head_generation') !== $expected->headGeneration) {
                 return PrefixFailure::SnapshotChanged;
             }
-            $subjects[$expected->subject->key()] = new LockedSubject($expected->subject, $row->int('head_generation'), $row->nullableInt('input_revision'));
+            $subjects[$expected->subject->key()] = new LockedSubject($expected->subject, $row->int('head_generation'), $row->nullableInt('input_revision'), $row->nullableInt('current_version_id'));
+        }
+
+        if ($snapshot->input instanceof PrepareInput) {
+            $version = LedgerRow::one('SELECT v.document_id,d.current_version_id FROM prc_document_versions v JOIN prc_documents d ON d.id=v.document_id WHERE v.id=?', [$snapshot->input->documentVersionId]);
+            $parent = null;
+            foreach ($snapshot->subjects->subjects as $s) {
+                if ($s->subject->kind === SubjectKind::Document) {
+                    $parent = self::subjectId($s->subject);
+                }
+            }
+            if ($version === null || $version->int('document_id') !== $parent) {
+                return PrefixFailure::SnapshotChanged;
+            }
+
         }
 
         return $subjects;

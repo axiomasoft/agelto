@@ -468,6 +468,44 @@
         "T12"
       ],
       "coverage": "immutable_storage_only"
+    },
+    {
+      "id": "p33-mixed-native-scanned",
+      "kind": "pdf",
+      "path": "tests/Fixtures/ProcessCore/Documents/mixed-native-scan-blank.pdf",
+      "platform": null,
+      "adapter_version": null,
+      "provenance": "Hand-authored synthetic P3.3 OCR corpus; PDF source preserves original native, scanned and empty page anchors. No application AI or external I/O.",
+      "captured_at": "2026-11-01",
+      "sha256": "4edf05f1bf65607e5f380d9728b8ca975ddf042984acf14008ea9f5fb549461a",
+      "expected": {
+        "assessment": "incomplete_without_blank_proof",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T26",
+        "T25"
+      ],
+      "coverage": "real_tools_and_durable_checkpoint"
+    },
+    {
+      "id": "p33-prepare-corpus",
+      "kind": "prepare_contract",
+      "path": "tests/Fixtures/ProcessCore/Documents/prepare-v1.json",
+      "platform": null,
+      "adapter_version": null,
+      "provenance": "Hand-authored synthetic P3.3 OCR corpus; PDF source preserves original native, scanned and empty page anchors. No application AI or external I/O.",
+      "captured_at": "2026-11-01",
+      "sha256": "0a9e3efc2eb4bd4d5e5dcee6bf5862ffc85940e15f79c5231226aa6f4d3c1791",
+      "expected": {
+        "assessment": "incomplete_without_blank_proof",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T26",
+        "T25"
+      ],
+      "coverage": "real_tools_and_durable_checkpoint"
     }
   ],
   "files": [
