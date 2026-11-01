@@ -129,7 +129,7 @@ afterEach(function (): void {
     if (DB::transactionLevel() !== 0) {
         return;
     }
-    DB::statement('TRUNCATE TABLE prc_revisions, prc_status_refreshes, prc_network_permit_scopes, prc_network_permits, prc_network_demands, prc_outbound_operation_controls, prc_outbound_operations, prc_process_projection_receipts, prc_process_metric_totals, prc_process_projection_states, prc_observation_applications, prc_observations, prc_request_attempts, prc_process_reservations, prc_admission_groups, prc_process_attempts, prc_process_run_work, prc_process_transitions, prc_process_outbox, prc_process_work, prc_operation_intents, prc_crawl_blocks, prc_crawl_runs, prc_process_handler_holds, prc_process_incidents, prc_process_runs, prc_process_daemon_heartbeats, prc_process_lanes, prc_control_scopes RESTART IDENTITY');
+    DB::statement('TRUNCATE TABLE prc_storage_reservations, prc_revisions, prc_status_refreshes, prc_network_permit_scopes, prc_network_permits, prc_network_demands, prc_outbound_operation_controls, prc_outbound_operations, prc_process_projection_receipts, prc_process_metric_totals, prc_process_projection_states, prc_observation_applications, prc_observations, prc_request_attempts, prc_process_reservations, prc_admission_groups, prc_process_attempts, prc_process_run_work, prc_process_transitions, prc_process_outbox, prc_process_work, prc_operation_intents, prc_crawl_blocks, prc_crawl_runs, prc_process_handler_holds, prc_process_incidents, prc_process_runs, prc_process_daemon_heartbeats, prc_process_lanes, prc_control_scopes RESTART IDENTITY');
 });
 
 test('sink failure после commit не повторяет handler: work succeeded, один transition, следующие sinks вызваны, delivery повтор — Rejected', function (): void {

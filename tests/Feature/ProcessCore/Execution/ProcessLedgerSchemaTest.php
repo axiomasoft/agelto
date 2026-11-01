@@ -62,7 +62,7 @@ test('P1.6 baseline создаёт весь ledger в порядке FK и не 
         ->toBe(['prc_process_reservations→prc_admission_groups:c']);
 
     // Future owner columns без FK на ещё не созданные таблицы.
-    expect(collect($foreignKeys)->filter(fn (string $fk): bool => str_contains($fk, 'version') || str_contains($fk, 'analysis'))->all())->toBe([]);
+    expect(collect($foreignKeys)->filter(fn (string $fk): bool => str_contains($fk, 'version') || str_contains($fk, 'analysis'))->values()->all())->toBe(['prc_process_work→prc_document_versions:a']);
 });
 
 test('partial indexes due lease claim fairness provider recovery и fault budget существуют с точными predicates', function (): void {
@@ -88,13 +88,13 @@ test('partial indexes due lease claim fairness provider recovery и fault budget
 test('stage CHECK всех stage-bearing таблиц совпадает с SchemaSupportedStages, а work state CHECK — с девятью WorkState', function (): void {
     $supported = array_map(fn (StageCode $stage): string => $stage->value, SchemaSupportedStages::stages());
 
-    expect($supported)->toBe(['listing', 'detail', 'status_refresh', 'download']);
+    expect($supported)->toBe(['listing', 'detail', 'status_refresh', 'download', 'prepare', 'screening']);
     foreach (['prc_process_work', 'prc_operation_intents', 'prc_process_reservations', 'prc_process_handler_holds'] as $table) {
         expect(processLedgerCheckValues(processLedgerConstraints($table)[$table.'_stage_check']))->toBe($supported, $table);
     }
     expect(processLedgerCheckValues(processLedgerConstraints('prc_process_work')['prc_process_work_state_check']))
         ->toBe(array_column(WorkState::cases(), 'value'));
-    foreach ([StageCode::Prepare, StageCode::Screening, StageCode::Extraction, StageCode::Publication] as $stage) {
+    foreach ([StageCode::Extraction, StageCode::Publication] as $stage) {
         expect(SchemaSupportedStages::supports($stage))->toBeFalse();
     }
 });
@@ -109,8 +109,8 @@ test('owner tuple CHECK требует ровно один owner своей ст
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['crawl_block_id' => null, 'procurement_id' => $procurementId])))->toBe('23514')
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['stage' => 'detail', 'crawl_block_id' => null])))->toBe('23514')
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['stage' => 'detail', 'crawl_block_id' => null, 'procurement_id' => $procurementId])))->toBeNull()
-        // Future stage недопустима до P3.1 даже с её owner column; future owner без FK тоже не принимается.
-        ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['stage' => 'prepare', 'crawl_block_id' => null, 'document_version_id' => 7])))->toBe('23514')
+        // P3.1 prepare теперь schema-supported, но несуществующая version отвергается настоящим FK.
+        ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['stage' => 'prepare', 'crawl_block_id' => null, 'document_version_id' => 7])))->toBe('23503')
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['document_version_id' => 7])))->toBe('23514')
         // Нет fake owner rows: несуществующий crawl block/procurement отвергается FK.
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork(LedgerFixtures::uuid())))->toBe('23503')
@@ -182,7 +182,7 @@ test('остальные null pairs и entity CHECK journal, crawl block и hand
         ->and(LedgerFixtures::sqlState($transition([])))->toBe('23505')
         ->and(LedgerFixtures::sqlState($hold([])))->toBeNull()
         ->and(LedgerFixtures::sqlState($hold(['state' => 'held'])))->toBe('23514')
-        ->and(LedgerFixtures::sqlState($hold(['stage' => 'prepare'])))->toBe('23514');
+        ->and(LedgerFixtures::sqlState($hold(['stage' => 'extraction'])))->toBe('23514');
 });
 
 test('discovery_outcome только collecting/complete/incomplete с согласованными closed_at и reason', function (string $case, string $outcome, bool $closed, ?string $reason, ?string $expected): void {

@@ -382,3 +382,15 @@ circuits readers/table удалены. См. [acquisition-scheduler.md](acquisit
 не становится отдельным отказом входа. Сетевой отказ следующей попытки не наследует тело
 предыдущего ответа. Журнал транспорта содержит только разрешённые числовые метрики,
 без URL, заголовков авторизации и исходного текста transport error.
+
+## P3.1 documents suite
+
+`make core-test-documents` is implemented and fails on missing/empty/skipped assertions. It runs
+`tests/Feature/ProcessCore/Documents`, the two T12 storage concurrency files, and the retained
+`tests/Feature/Procurement/Prepare` / `tests/Feature/Document/DocumentDownloaderTest.php` safety
+corpus after a guarded clean reset. It proves this immutable/storage slice; it does not claim the
+future feeder, OCR batching, fairness or paid AI stages are activated or accepted.
+
+The historical audit document required by legacy regression is a byte-identical test fixture under
+`tests/Support/ProcessCore/RuntimeInputs/`. `runtime-inputs.json` records its original Git blob and
+SHA-256 and preserves its runtime path. The research worktree is not restored or mounted.

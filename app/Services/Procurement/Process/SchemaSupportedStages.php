@@ -20,6 +20,8 @@ final class SchemaSupportedStages
         'detail' => ['column' => 'procurement_id', 'subject' => SubjectKind::Procurement],
         'status_refresh' => ['column' => 'procurement_id', 'subject' => SubjectKind::Procurement],
         'download' => ['column' => 'document_id', 'subject' => SubjectKind::Document],
+        'prepare' => ['column' => 'document_version_id', 'subject' => SubjectKind::DocumentVersion],
+        'screening' => ['column' => 'document_version_id', 'subject' => SubjectKind::DocumentVersion],
     ];
 
     /** Все concrete owner columns work: ровно одна непустая на строку. */

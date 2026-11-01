@@ -115,7 +115,7 @@ test('ensureBaseline материализует scopes и lanes только sch
 
     expect($scopes->keys()->sort()->values()->all())->toBe([
         'acquisition', 'acquisition:stage:detail', 'acquisition:stage:listing', 'acquisition:stage:status_refresh',
-        'documents', 'documents:stage:download', 'system',
+        'documents', 'documents:stage:download', 'documents:stage:prepare', 'documents:stage:screening', 'system',
     ])
         ->and($scopes['system']->parent_id)->toBeNull()
         ->and($scopes['acquisition']->parent_id)->toBe($scopes['system']->id)
@@ -124,8 +124,8 @@ test('ensureBaseline материализует scopes и lanes только sch
         ->and($scopes['documents:stage:download']->parent_id)->toBe($scopes['documents']->id)
         // Default-enabled — состояние существующей authority row, а не отсутствие row.
         ->and($scopes->every(fn (ControlScope $scope): bool => $scope->desired_mode === ControlMode::Enabled && $scope->control_version === 1))->toBeTrue()
-        // Lanes будущих stages (prepare/analysis/publication) не создаются заранее.
-        ->and($lanes->keys()->sort()->values()->all())->toBe(['acquisition', 'acquisition.detail', 'acquisition.listing', 'acquisition.status_refresh', 'download'])
+        // P3.1 добавляет prepare и screening с общим analysis parent; real handlers ещё не активированы.
+        ->and($lanes->keys()->sort()->values()->all())->toBe(['acquisition', 'acquisition.detail', 'acquisition.listing', 'acquisition.status_refresh', 'analysis', 'analysis.screening', 'download', 'prepare'])
         ->and($lanes['acquisition.listing']->parent_lane_id)->toBe($lanes['acquisition']->id)
         ->and([$lanes['acquisition.listing']->max_outstanding, $lanes['acquisition.listing']->max_running])->toBe([10, 2])
         ->and([

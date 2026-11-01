@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create((new RawArtifact)->getTable(), function (Blueprint $table): void {
             $table->string('id', 64)->primary();
+            $table->bigInteger('deletion_generation')->default(0);
+            $table->timestampTz('deletion_marked_at')->nullable();
             $table->string('disk');
             $table->text('path');
             $table->timestampTz('last_seen_at')->index();

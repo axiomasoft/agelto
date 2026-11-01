@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\PrepareInput;
+use App\Dto\Procurement\Process\ExtractionWindowInput;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\VersionedPayload;
@@ -129,7 +129,7 @@ test('тот же immutable input не создаёт вторую work: work_ke
 });
 
 test('неподдерживаемая стадия и чужой subject отвергаются до INSERT без NULL owner rows', function (): void {
-    expect(fn () => LedgerFixtures::storeWork(new PrepareInput(42, LedgerFixtures::hash('recipe'))))
+    expect(fn () => LedgerFixtures::storeWork(new ExtractionWindowInput(LedgerFixtures::uuid(), 'window:0', LedgerFixtures::hash('recipe'))))
         ->toThrow(InvalidArgumentException::class, 'not schema-supported')
         ->and(fn () => app(WorkStoreRepository::class)->storeIntent(
             id: LedgerFixtures::uuid(),

@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P2.18",
+  "current_item": "P3.1",
   "conventions": {
     "work_states": [
       "ready",
@@ -283,6 +283,26 @@
         "source": "Read-only catalog after T12DocumentReferenceTest on guarded agelto_test; clean install equivalence pending coordinator.",
         "catalog_sha256": "471029c09a67665ec3ece65e58011b2e6df53a4b7b75bcb583022b0c0464563e",
         "schema_sha256": "192a360f3f519bd06cdee8de32e2c5e6a03fdc3ebdc56ebbb110a54bb9a8425a"
+      },
+      {
+        "item": "P3.1",
+        "kind": "guarded_isolated_pg17_catalog_projection",
+        "tables": [
+          "prc_storage_domains",
+          "prc_storage_reservations",
+          "prc_document_blobs",
+          "prc_documents",
+          "prc_document_versions",
+          "prc_document_representations",
+          "prc_process_work",
+          "prc_process_reservations",
+          "prc_process_handler_holds",
+          "prc_operation_intents",
+          "prc_raw_artifacts"
+        ],
+        "source_report": "storage/app/testing/process-core/reports/20261101T163730.050075Z-2057465",
+        "schema_sha256": "c4cb30ce1f8ea0a436a401db42d46b30152fe7f9f325db8f06386e2b5c440b75",
+        "note": "Actual guarded isolated reset catalog; projection capture is not acceptance. Two final clean installs still mandatory."
       }
     ],
     "p21_catalog": {
@@ -474,7 +494,7 @@
     },
     {
       "path": "database/migrations/2026_07_04_100019_create_prc_document_versions_table.php",
-      "sha256": "17a7191a08958fb58de1212525fe5c6524be83438e98573216c6b719e4f135e9",
+      "sha256": "561a79848f78d4395177b0e4dc21d4ae92b51cbe3e7cf7869bec63e0fc712d3c",
       "action": "keep",
       "owner_item": "baseline",
       "reason": "Существующий CREATE, без изменений в P1.1."
@@ -686,7 +706,7 @@
     },
     {
       "path": "database/migrations/2026_07_27_100055_create_prc_document_representations_table.php",
-      "sha256": "9cb01e6cf193b9f78b4f82a41953210a1955f2b78c48ed62ec0ee9dc5b2714eb",
+      "sha256": "222117292cd8cf321a2e33c22dd09770df1eb59649437aa526bb2840f5ec1488",
       "action": "keep",
       "owner_item": "baseline",
       "reason": "Существующий CREATE, без изменений в P1.1."
@@ -833,7 +853,7 @@
     },
     {
       "path": "database/migrations/2026_10_08_100104_catalog_raw_artifacts.php",
-      "sha256": "fa79703594e7ef629eb0553a54537ea620556d77645931d36fbd5e1a3130a77b",
+      "sha256": "0d16e09c72d80ba20489da471fe81c7c61d0f6e74e0ac2e39593bbdb7b6c65ac",
       "action": "keep",
       "owner_item": "baseline",
       "reason": "Существующий CREATE, без изменений в P1.1."
@@ -854,7 +874,7 @@
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
-      "sha256": "8a2cdcd09067735d14ee3e879970b065cdd479e90275b754d920819a29562291",
+      "sha256": "08992c6d2a285d1ce12287535884284a72e3cc076bde10c099e9e4d7abc5a25e",
       "action": "adapt_baseline",
       "owner_item": "P2.18",
       "reason": "Atomic acquisition producer, profile, provenance and adapter owner cutover.",
@@ -896,6 +916,13 @@
       "action": "create",
       "owner_item": "P2.18",
       "reason": "Durable profile/kind schedule; allocation and next_due advancement share one transaction."
+    },
+    {
+      "path": "database/migrations/2026_11_01_100000_create_prc_document_storage_tables.php",
+      "sha256": "6375c41dede894fa58fe9d6b3ff0c1a0ce2ca80b6e755b78d41141cc28d6f689",
+      "action": "CREATE",
+      "owner_item": "P3.1",
+      "reason": "Immutable document storage ownership; additive catalog staging before P3.5 cutover."
     }
   ],
   "baseline": {
@@ -7259,6 +7286,188 @@
         ],
         "definition": "CREATE TABLE public.prc_detail_snapshots (\n    id uuid NOT NULL,\n    procurement_id bigint NOT NULL,\n    input_revision bigint NOT NULL,\n    part_key text NOT NULL,\n    completeness text NOT NULL,\n    result_ref jsonb NOT NULL,\n    result_ref_schema_version smallint NOT NULL,\n    source_version text,\n    created_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_detail_snapshots_completeness_check CHECK ((completeness = ANY (ARRAY['complete'::text, 'complete_empty'::text, 'partial'::text, 'unavailable'::text, 'not_applicable'::text]))),\n    CONSTRAINT prc_detail_snapshots_input_revision_check CHECK ((input_revision >= 1)),\n    CONSTRAINT prc_detail_snapshots_part_key_check CHECK (((char_length(part_key) >= 1) AND (char_length(part_key) <= 160))),\n    CONSTRAINT prc_detail_snapshots_result_ref_check CHECK ((jsonb_typeof(result_ref) = 'object'::text)),\n    CONSTRAINT prc_detail_snapshots_result_ref_schema_version_check CHECK ((result_ref_schema_version = 1))\n);"
       },
+      "prc_document_blobs": {
+        "owner": "Repositories/Procurement/Document",
+        "retention": "artifacts",
+        "definition": "CREATE TABLE public.prc_document_blobs (\n    id uuid NOT NULL,\n    storage_domain_id uuid NOT NULL,\n    content_hash bytea NOT NULL,\n    disk text NOT NULL,\n    object_key text NOT NULL,\n    size_bytes bigint NOT NULL,\n    verified_at timestamp with time zone NOT NULL,\n    deletion_generation bigint DEFAULT 0 NOT NULL,\n    deletion_marked_at timestamp with time zone,\n    CONSTRAINT prc_document_blobs_content_hash_check CHECK ((octet_length(content_hash) = 32)),\n    CONSTRAINT prc_document_blobs_deletion_generation_check CHECK ((deletion_generation >= 0)),\n    CONSTRAINT prc_document_blobs_disk_check CHECK ((length(disk) > 0)),\n    CONSTRAINT prc_document_blobs_object_key_check CHECK ((length(object_key) > 0)),\n    CONSTRAINT prc_document_blobs_size_bytes_check CHECK ((size_bytes >= 0))\n);",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_document_blobs",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "storage_domain_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_document_blobs",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "content_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_document_blobs",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "disk",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_document_blobs",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "object_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_document_blobs",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "size_bytes",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "prc_document_blobs",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "verified_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "prc_document_blobs",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": "0",
+            "column_name": "deletion_generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "prc_document_blobs",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "deletion_marked_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 9,
+            "table_name": "prc_document_blobs",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK ((octet_length(content_hash) = 32))",
+            "name": "prc_document_blobs_content_hash_check",
+            "schema": "public",
+            "table_name": "prc_document_blobs",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((deletion_generation >= 0))",
+            "name": "prc_document_blobs_deletion_generation_check",
+            "schema": "public",
+            "table_name": "prc_document_blobs",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((length(disk) > 0))",
+            "name": "prc_document_blobs_disk_check",
+            "schema": "public",
+            "table_name": "prc_document_blobs",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (disk, object_key)",
+            "name": "prc_document_blobs_disk_object_key_key",
+            "schema": "public",
+            "table_name": "prc_document_blobs",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((length(object_key) > 0))",
+            "name": "prc_document_blobs_object_key_check",
+            "schema": "public",
+            "table_name": "prc_document_blobs",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "prc_document_blobs_pkey",
+            "schema": "public",
+            "table_name": "prc_document_blobs",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((size_bytes >= 0))",
+            "name": "prc_document_blobs_size_bytes_check",
+            "schema": "public",
+            "table_name": "prc_document_blobs",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (storage_domain_id, content_hash)",
+            "name": "prc_document_blobs_storage_domain_id_content_hash_key",
+            "schema": "public",
+            "table_name": "prc_document_blobs",
+            "type": "u"
+          },
+          {
+            "definition": "FOREIGN KEY (storage_domain_id) REFERENCES prc_storage_domains(id)",
+            "name": "prc_document_blobs_storage_domain_id_fkey",
+            "schema": "public",
+            "table_name": "prc_document_blobs",
+            "type": "f"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_document_blobs_disk_object_key_key ON public.prc_document_blobs USING btree (disk, object_key)",
+            "indexname": "prc_document_blobs_disk_object_key_key",
+            "schemaname": "public",
+            "tablename": "prc_document_blobs"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_document_blobs_pkey ON public.prc_document_blobs USING btree (id)",
+            "indexname": "prc_document_blobs_pkey",
+            "schemaname": "public",
+            "tablename": "prc_document_blobs"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_document_blobs_storage_domain_id_content_hash_key ON public.prc_document_blobs USING btree (storage_domain_id, content_hash)",
+            "indexname": "prc_document_blobs_storage_domain_id_content_hash_key",
+            "schemaname": "public",
+            "tablename": "prc_document_blobs"
+          }
+        ]
+      },
       "prc_document_representations": {
         "owner": "Procurement",
         "retention": "business",
@@ -7295,10 +7504,80 @@
           },
           {
             "column_default": null,
+            "column_name": "blob_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 4,
+            "table_name": "prc_document_representations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "preparation_recipe_hash",
+            "data_type": "bytea",
+            "is_nullable": "YES",
+            "ordinal_position": 5,
+            "table_name": "prc_document_representations",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "content_hash",
+            "data_type": "bytea",
+            "is_nullable": "YES",
+            "ordinal_position": 6,
+            "table_name": "prc_document_representations",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "range_key",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 7,
+            "table_name": "prc_document_representations",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "tool_version",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 8,
+            "table_name": "prc_document_representations",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "coverage_manifest",
+            "data_type": "jsonb",
+            "is_nullable": "YES",
+            "ordinal_position": 9,
+            "table_name": "prc_document_representations",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "coverage_manifest_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "YES",
+            "ordinal_position": 10,
+            "table_name": "prc_document_representations",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
             "column_name": "storage_path",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 4,
+            "ordinal_position": 11,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "text"
@@ -7308,7 +7587,7 @@
             "column_name": "disk",
             "data_type": "text",
             "is_nullable": "YES",
-            "ordinal_position": 5,
+            "ordinal_position": 12,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "text"
@@ -7318,7 +7597,7 @@
             "column_name": "size_bytes",
             "data_type": "bigint",
             "is_nullable": "YES",
-            "ordinal_position": 6,
+            "ordinal_position": 13,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "int8"
@@ -7328,7 +7607,7 @@
             "column_name": "page_count",
             "data_type": "integer",
             "is_nullable": "YES",
-            "ordinal_position": 7,
+            "ordinal_position": 14,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "int4"
@@ -7338,7 +7617,7 @@
             "column_name": "token_estimate",
             "data_type": "integer",
             "is_nullable": "YES",
-            "ordinal_position": 8,
+            "ordinal_position": 15,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "int4"
@@ -7348,7 +7627,7 @@
             "column_name": "mime",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 9,
+            "ordinal_position": 16,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "text"
@@ -7358,7 +7637,7 @@
             "column_name": "meta",
             "data_type": "jsonb",
             "is_nullable": "NO",
-            "ordinal_position": 10,
+            "ordinal_position": 17,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "jsonb"
@@ -7368,7 +7647,7 @@
             "column_name": "generated_at",
             "data_type": "timestamp with time zone",
             "is_nullable": "NO",
-            "ordinal_position": 11,
+            "ordinal_position": 18,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "timestamptz"
@@ -7378,7 +7657,7 @@
             "column_name": "created_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 12,
+            "ordinal_position": 19,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "timestamp"
@@ -7388,13 +7667,27 @@
             "column_name": "updated_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 13,
+            "ordinal_position": 20,
             "table_name": "prc_document_representations",
             "table_schema": "public",
             "udt_name": "timestamp"
           }
         ],
         "constraints": [
+          {
+            "definition": "FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)",
+            "name": "prc_document_representations_blob_fk",
+            "schema": "public",
+            "table_name": "prc_document_representations",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((((blob_id IS NULL) AND (preparation_recipe_hash IS NULL) AND (content_hash IS NULL) AND (range_key IS NULL) AND (tool_version IS NULL) AND (coverage_manifest IS NULL) AND (coverage_manifest_schema_version IS NULL)) OR ((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1))))",
+            "name": "prc_document_representations_canonical_tuple_check",
+            "schema": "public",
+            "table_name": "prc_document_representations",
+            "type": "c"
+          },
           {
             "definition": "FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id) ON DELETE CASCADE",
             "name": "prc_document_representations_document_version_id_foreign",
@@ -7403,18 +7696,18 @@
             "type": "f"
           },
           {
-            "definition": "UNIQUE (document_version_id, kind)",
-            "name": "prc_document_representations_document_version_id_kind_unique",
-            "schema": "public",
-            "table_name": "prc_document_representations",
-            "type": "u"
-          },
-          {
             "definition": "PRIMARY KEY (id)",
             "name": "prc_document_representations_pkey",
             "schema": "public",
             "table_name": "prc_document_representations",
             "type": "p"
+          },
+          {
+            "definition": "UNIQUE (document_version_id, preparation_recipe_hash, kind, range_key)",
+            "name": "prc_document_representations_recipe_range_unique",
+            "schema": "public",
+            "table_name": "prc_document_representations",
+            "type": "u"
           }
         ],
         "indexes": [
@@ -7425,8 +7718,8 @@
             "tablename": "prc_document_representations"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_document_representations_document_version_id_kind_unique ON public.prc_document_representations USING btree (document_version_id, kind)",
-            "indexname": "prc_document_representations_document_version_id_kind_unique",
+            "indexdef": "CREATE UNIQUE INDEX prc_document_representations_legacy_kind_unique ON public.prc_document_representations USING btree (document_version_id, kind) WHERE (preparation_recipe_hash IS NULL)",
+            "indexname": "prc_document_representations_legacy_kind_unique",
             "schemaname": "public",
             "tablename": "prc_document_representations"
           },
@@ -7435,9 +7728,15 @@
             "indexname": "prc_document_representations_pkey",
             "schemaname": "public",
             "tablename": "prc_document_representations"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_document_representations_recipe_range_unique ON public.prc_document_representations USING btree (document_version_id, preparation_recipe_hash, kind, range_key)",
+            "indexname": "prc_document_representations_recipe_range_unique",
+            "schemaname": "public",
+            "tablename": "prc_document_representations"
           }
         ],
-        "definition": "CREATE TABLE public.prc_document_representations (\n    id bigint NOT NULL,\n    document_version_id bigint NOT NULL,\n    kind text NOT NULL,\n    storage_path text NOT NULL,\n    disk text,\n    size_bytes bigint,\n    page_count integer,\n    token_estimate integer,\n    mime text NOT NULL,\n    meta jsonb DEFAULT '{}'::jsonb NOT NULL,\n    generated_at timestamp(0) with time zone NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
+        "definition": "CREATE TABLE public.prc_document_representations (\n    id bigint NOT NULL,\n    document_version_id bigint NOT NULL,\n    kind text NOT NULL,\n    blob_id uuid,\n    preparation_recipe_hash bytea,\n    content_hash bytea,\n    range_key text,\n    tool_version text,\n    coverage_manifest jsonb,\n    coverage_manifest_schema_version smallint,\n    storage_path text NOT NULL,\n    disk text,\n    size_bytes bigint,\n    page_count integer,\n    token_estimate integer,\n    mime text NOT NULL,\n    meta jsonb DEFAULT '{}'::jsonb NOT NULL,\n    generated_at timestamp(0) with time zone NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    CONSTRAINT prc_document_representations_canonical_tuple_check CHECK ((((blob_id IS NULL) AND (preparation_recipe_hash IS NULL) AND (content_hash IS NULL) AND (range_key IS NULL) AND (tool_version IS NULL) AND (coverage_manifest IS NULL) AND (coverage_manifest_schema_version IS NULL)) OR ((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1))))\n);"
       },
       "prc_document_versions": {
         "owner": "Procurement",
@@ -7465,10 +7764,80 @@
           },
           {
             "column_default": null,
+            "column_name": "revision_no",
+            "data_type": "bigint",
+            "is_nullable": "YES",
+            "ordinal_position": 3,
+            "table_name": "prc_document_versions",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "blob_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 4,
+            "table_name": "prc_document_versions",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "etag",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 5,
+            "table_name": "prc_document_versions",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "last_modified",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 6,
+            "table_name": "prc_document_versions",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "first_seen_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 7,
+            "table_name": "prc_document_versions",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "normalized_entry_path",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 8,
+            "table_name": "prc_document_versions",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "child_ordinal",
+            "data_type": "bigint",
+            "is_nullable": "YES",
+            "ordinal_position": 9,
+            "table_name": "prc_document_versions",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
             "column_name": "content_hash",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 3,
+            "ordinal_position": 10,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "text"
@@ -7478,7 +7847,7 @@
             "column_name": "size_bytes",
             "data_type": "bigint",
             "is_nullable": "NO",
-            "ordinal_position": 4,
+            "ordinal_position": 11,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "int8"
@@ -7488,7 +7857,7 @@
             "column_name": "filename",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 5,
+            "ordinal_position": 12,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "text"
@@ -7498,7 +7867,7 @@
             "column_name": "extension",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 6,
+            "ordinal_position": 13,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "text"
@@ -7508,7 +7877,7 @@
             "column_name": "mime",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 7,
+            "ordinal_position": 14,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "text"
@@ -7518,7 +7887,7 @@
             "column_name": "storage_path",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 8,
+            "ordinal_position": 15,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "text"
@@ -7528,7 +7897,7 @@
             "column_name": "disk",
             "data_type": "text",
             "is_nullable": "YES",
-            "ordinal_position": 9,
+            "ordinal_position": 16,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "text"
@@ -7538,7 +7907,7 @@
             "column_name": "downloaded_at",
             "data_type": "timestamp with time zone",
             "is_nullable": "NO",
-            "ordinal_position": 10,
+            "ordinal_position": 17,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "timestamptz"
@@ -7548,7 +7917,7 @@
             "column_name": "parent_version_id",
             "data_type": "bigint",
             "is_nullable": "YES",
-            "ordinal_position": 11,
+            "ordinal_position": 18,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "int8"
@@ -7558,7 +7927,7 @@
             "column_name": "created_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 12,
+            "ordinal_position": 19,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "timestamp"
@@ -7568,7 +7937,7 @@
             "column_name": "updated_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 13,
+            "ordinal_position": 20,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "timestamp"
@@ -7578,7 +7947,7 @@
             "column_name": "archive_entry_path",
             "data_type": "text",
             "is_nullable": "YES",
-            "ordinal_position": 14,
+            "ordinal_position": 21,
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "text"
@@ -7586,11 +7955,18 @@
         ],
         "constraints": [
           {
-            "definition": "UNIQUE (document_id, content_hash)",
-            "name": "prc_document_versions_document_id_content_hash_unique",
+            "definition": "FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)",
+            "name": "prc_document_versions_blob_fk",
             "schema": "public",
             "table_name": "prc_document_versions",
-            "type": "u"
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((((revision_no IS NULL) AND (blob_id IS NULL) AND (first_seen_at IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL) AND (etag IS NULL) AND (last_modified IS NULL)) OR ((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (content_hash ~ '^[0-9a-f]{64}$'::text) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0))))))",
+            "name": "prc_document_versions_canonical_tuple_check",
+            "schema": "public",
+            "table_name": "prc_document_versions",
+            "type": "c"
           },
           {
             "definition": "FOREIGN KEY (document_id) REFERENCES prc_documents(id)",
@@ -7600,11 +7976,32 @@
             "type": "f"
           },
           {
-            "definition": "FOREIGN KEY (parent_version_id) REFERENCES prc_document_versions(id) ON DELETE SET NULL",
+            "definition": "UNIQUE (document_id, revision_no)",
+            "name": "prc_document_versions_document_id_revision_no_unique",
+            "schema": "public",
+            "table_name": "prc_document_versions",
+            "type": "u"
+          },
+          {
+            "definition": "UNIQUE (id, document_id)",
+            "name": "prc_document_versions_id_document_id_unique",
+            "schema": "public",
+            "table_name": "prc_document_versions",
+            "type": "u"
+          },
+          {
+            "definition": "FOREIGN KEY (parent_version_id) REFERENCES prc_document_versions(id)",
             "name": "prc_document_versions_parent_version_id_foreign",
             "schema": "public",
             "table_name": "prc_document_versions",
             "type": "f"
+          },
+          {
+            "definition": "UNIQUE (parent_version_id, normalized_entry_path)",
+            "name": "prc_document_versions_parent_version_id_normalized_entry_path_u",
+            "schema": "public",
+            "table_name": "prc_document_versions",
+            "type": "u"
           },
           {
             "definition": "PRIMARY KEY (id)",
@@ -7622,14 +8019,26 @@
             "tablename": "prc_document_versions"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_document_versions_document_id_content_hash_unique ON public.prc_document_versions USING btree (document_id, content_hash)",
-            "indexname": "prc_document_versions_document_id_content_hash_unique",
+            "indexdef": "CREATE INDEX prc_document_versions_document_id_index ON public.prc_document_versions USING btree (document_id)",
+            "indexname": "prc_document_versions_document_id_index",
             "schemaname": "public",
             "tablename": "prc_document_versions"
           },
           {
-            "indexdef": "CREATE INDEX prc_document_versions_document_id_index ON public.prc_document_versions USING btree (document_id)",
-            "indexname": "prc_document_versions_document_id_index",
+            "indexdef": "CREATE UNIQUE INDEX prc_document_versions_document_id_revision_no_unique ON public.prc_document_versions USING btree (document_id, revision_no)",
+            "indexname": "prc_document_versions_document_id_revision_no_unique",
+            "schemaname": "public",
+            "tablename": "prc_document_versions"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_document_versions_id_document_id_unique ON public.prc_document_versions USING btree (id, document_id)",
+            "indexname": "prc_document_versions_id_document_id_unique",
+            "schemaname": "public",
+            "tablename": "prc_document_versions"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_document_versions_legacy_hash_unique ON public.prc_document_versions USING btree (document_id, content_hash) WHERE (revision_no IS NULL)",
+            "indexname": "prc_document_versions_legacy_hash_unique",
             "schemaname": "public",
             "tablename": "prc_document_versions"
           },
@@ -7646,13 +8055,19 @@
             "tablename": "prc_document_versions"
           },
           {
+            "indexdef": "CREATE UNIQUE INDEX prc_document_versions_parent_version_id_normalized_entry_path_u ON public.prc_document_versions USING btree (parent_version_id, normalized_entry_path)",
+            "indexname": "prc_document_versions_parent_version_id_normalized_entry_path_u",
+            "schemaname": "public",
+            "tablename": "prc_document_versions"
+          },
+          {
             "indexdef": "CREATE UNIQUE INDEX prc_document_versions_pkey ON public.prc_document_versions USING btree (id)",
             "indexname": "prc_document_versions_pkey",
             "schemaname": "public",
             "tablename": "prc_document_versions"
           }
         ],
-        "definition": "CREATE TABLE public.prc_document_versions (\n    id bigint NOT NULL,\n    document_id bigint NOT NULL,\n    content_hash text NOT NULL,\n    size_bytes bigint NOT NULL,\n    filename text NOT NULL,\n    extension text NOT NULL,\n    mime text NOT NULL,\n    storage_path text NOT NULL,\n    disk text,\n    downloaded_at timestamp(0) with time zone NOT NULL,\n    parent_version_id bigint,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    archive_entry_path text\n);"
+        "definition": "CREATE TABLE public.prc_document_versions (\n    id bigint NOT NULL,\n    document_id bigint NOT NULL,\n    revision_no bigint,\n    blob_id uuid,\n    etag text,\n    last_modified timestamp(6) with time zone,\n    first_seen_at timestamp(6) with time zone,\n    normalized_entry_path text,\n    child_ordinal bigint,\n    content_hash text NOT NULL,\n    size_bytes bigint NOT NULL,\n    filename text NOT NULL,\n    extension text NOT NULL,\n    mime text NOT NULL,\n    storage_path text NOT NULL,\n    disk text,\n    downloaded_at timestamp(0) with time zone NOT NULL,\n    parent_version_id bigint,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    archive_entry_path text,\n    CONSTRAINT prc_document_versions_canonical_tuple_check CHECK ((((revision_no IS NULL) AND (blob_id IS NULL) AND (first_seen_at IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL) AND (etag IS NULL) AND (last_modified IS NULL)) OR ((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (content_hash ~ '^[0-9a-f]{64}$'::text) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0))))))\n);"
       },
       "prc_documents": {
         "owner": "Repositories/Procurement (subject authority; Process head fields from P1.6)",
@@ -7957,6 +8372,16 @@
             "table_name": "prc_documents",
             "table_schema": "public",
             "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "current_version_id",
+            "data_type": "bigint",
+            "is_nullable": "YES",
+            "ordinal_position": 31,
+            "table_name": "prc_documents",
+            "table_schema": "public",
+            "udt_name": "int8"
           }
         ],
         "constraints": [
@@ -7966,6 +8391,13 @@
             "schema": "public",
             "table_name": "prc_documents",
             "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (current_version_id, id) REFERENCES prc_document_versions(id, document_id)",
+            "name": "prc_documents_current_version_fk",
+            "schema": "public",
+            "table_name": "prc_documents",
+            "type": "f"
           },
           {
             "definition": "CHECK ((head_generation >= 1))",
@@ -8054,7 +8486,7 @@
             "tablename": "prc_documents"
           }
         ],
-        "definition": "CREATE TABLE public.prc_documents (\n    id bigint NOT NULL,\n    uuid uuid NOT NULL,\n    procurement_id bigint,\n    platform_id bigint NOT NULL,\n    external_id text,\n    source_document_key text COLLATE pg_catalog.\"C\",\n    source_key_version integer,\n    access_descriptor jsonb,\n    access_schema_version integer,\n    access_descriptor_version bigint,\n    reference_observed_at timestamp(6) with time zone,\n    title text NOT NULL,\n    kind text,\n    source_url text,\n    status text NOT NULL,\n    first_seen_revision_id bigint,\n    removed_at timestamp(0) with time zone,\n    attempts integer DEFAULT 0 NOT NULL,\n    last_error text,\n    last_error_at timestamp(0) with time zone,\n    next_retry_at timestamp(0) with time zone,\n    failed_permanently boolean DEFAULT false NOT NULL,\n    locked_by text,\n    locked_until timestamp(0) with time zone,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    head_generation bigint DEFAULT '1'::bigint NOT NULL,\n    acquisition_cycle_seq bigint DEFAULT '0'::bigint NOT NULL,\n    next_revalidation_due_at timestamp(6) with time zone,\n    unprocessable_reason character varying(64),\n    CONSTRAINT prc_documents_acquisition_cycle_seq_check CHECK ((acquisition_cycle_seq >= 0)),\n    CONSTRAINT prc_documents_head_generation_check CHECK ((head_generation >= 1)),\n    CONSTRAINT prc_documents_reference_check CHECK ((((source_document_key IS NULL) AND (source_key_version IS NULL) AND (access_descriptor IS NULL) AND (access_schema_version IS NULL) AND (access_descriptor_version IS NULL) AND (reference_observed_at IS NULL)) OR ((source_document_key IS NOT NULL) AND ((octet_length(source_document_key) >= 1) AND (octet_length(source_document_key) <= 1024)) AND (source_key_version IS NOT NULL) AND (source_key_version >= 1) AND (access_descriptor IS NOT NULL) AND (jsonb_typeof(access_descriptor) = 'object'::text) AND (access_schema_version IS NOT NULL) AND (access_schema_version = 1) AND (access_descriptor_version IS NOT NULL) AND (access_descriptor_version >= 1) AND (reference_observed_at IS NOT NULL))))\n);"
+        "definition": "CREATE TABLE public.prc_documents (\n    id bigint NOT NULL,\n    uuid uuid NOT NULL,\n    procurement_id bigint,\n    platform_id bigint NOT NULL,\n    external_id text,\n    source_document_key text COLLATE pg_catalog.\"C\",\n    source_key_version integer,\n    access_descriptor jsonb,\n    access_schema_version integer,\n    access_descriptor_version bigint,\n    reference_observed_at timestamp(6) with time zone,\n    title text NOT NULL,\n    kind text,\n    source_url text,\n    status text NOT NULL,\n    first_seen_revision_id bigint,\n    removed_at timestamp(0) with time zone,\n    attempts integer DEFAULT 0 NOT NULL,\n    last_error text,\n    last_error_at timestamp(0) with time zone,\n    next_retry_at timestamp(0) with time zone,\n    failed_permanently boolean DEFAULT false NOT NULL,\n    locked_by text,\n    locked_until timestamp(0) with time zone,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    head_generation bigint DEFAULT '1'::bigint NOT NULL,\n    acquisition_cycle_seq bigint DEFAULT '0'::bigint NOT NULL,\n    next_revalidation_due_at timestamp(6) with time zone,\n    unprocessable_reason character varying(64),\n    current_version_id bigint,\n    CONSTRAINT prc_documents_acquisition_cycle_seq_check CHECK ((acquisition_cycle_seq >= 0)),\n    CONSTRAINT prc_documents_head_generation_check CHECK ((head_generation >= 1)),\n    CONSTRAINT prc_documents_reference_check CHECK ((((source_document_key IS NULL) AND (source_key_version IS NULL) AND (access_descriptor IS NULL) AND (access_schema_version IS NULL) AND (access_descriptor_version IS NULL) AND (reference_observed_at IS NULL)) OR ((source_document_key IS NOT NULL) AND ((octet_length(source_document_key) >= 1) AND (octet_length(source_document_key) <= 1024)) AND (source_key_version IS NOT NULL) AND (source_key_version >= 1) AND (access_descriptor IS NOT NULL) AND (jsonb_typeof(access_descriptor) = 'object'::text) AND (access_schema_version IS NOT NULL) AND (access_schema_version = 1) AND (access_descriptor_version IS NOT NULL) AND (access_descriptor_version >= 1) AND (reference_observed_at IS NOT NULL))))\n);"
       },
       "prc_eis_details": {
         "owner": "Platforms/Eis (extension writer P2.14)",
@@ -12724,7 +13156,7 @@
             "type": "c"
           },
           {
-            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))",
+            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))",
             "name": "prc_operation_intents_stage_check",
             "schema": "public",
             "table_name": "prc_operation_intents",
@@ -12758,7 +13190,7 @@
             "tablename": "prc_operation_intents"
           }
         ],
-        "definition": "CREATE TABLE public.prc_operation_intents (\n    id uuid NOT NULL,\n    intent_key bytea NOT NULL,\n    stage text NOT NULL,\n    subject_kind text NOT NULL,\n    subject_id text NOT NULL,\n    semantic_policy_hash bytea NOT NULL,\n    access_policy_hash bytea NOT NULL,\n    cycle_seq bigint DEFAULT 1 NOT NULL,\n    expected_head_generation bigint NOT NULL,\n    state text NOT NULL,\n    pending_reason text,\n    requested_at timestamp with time zone NOT NULL,\n    next_due_at timestamp with time zone,\n    CONSTRAINT prc_operation_intents_access_policy_hash_check CHECK ((octet_length(access_policy_hash) = 32)),\n    CONSTRAINT prc_operation_intents_check CHECK (((pending_reason IS NULL) OR ((state = 'pending'::text) AND (pending_reason = 'handler_not_activated'::text)))),\n    CONSTRAINT prc_operation_intents_cycle_seq_check CHECK ((cycle_seq >= 1)),\n    CONSTRAINT prc_operation_intents_expected_head_generation_check CHECK ((expected_head_generation >= 1)),\n    CONSTRAINT prc_operation_intents_intent_key_check CHECK ((octet_length(intent_key) = 32)),\n    CONSTRAINT prc_operation_intents_semantic_policy_hash_check CHECK ((octet_length(semantic_policy_hash) = 32)),\n    CONSTRAINT prc_operation_intents_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text]))),\n    CONSTRAINT prc_operation_intents_state_check CHECK ((state = ANY (ARRAY['pending'::text, 'active'::text, 'terminal'::text])))\n);"
+        "definition": "CREATE TABLE public.prc_operation_intents (\n    id uuid NOT NULL,\n    intent_key bytea NOT NULL,\n    stage text NOT NULL,\n    subject_kind text NOT NULL,\n    subject_id text NOT NULL,\n    semantic_policy_hash bytea NOT NULL,\n    access_policy_hash bytea NOT NULL,\n    cycle_seq bigint DEFAULT 1 NOT NULL,\n    expected_head_generation bigint NOT NULL,\n    state text NOT NULL,\n    pending_reason text,\n    requested_at timestamp with time zone NOT NULL,\n    next_due_at timestamp with time zone,\n    CONSTRAINT prc_operation_intents_access_policy_hash_check CHECK ((octet_length(access_policy_hash) = 32)),\n    CONSTRAINT prc_operation_intents_check CHECK (((pending_reason IS NULL) OR ((state = 'pending'::text) AND (pending_reason = 'handler_not_activated'::text)))),\n    CONSTRAINT prc_operation_intents_cycle_seq_check CHECK ((cycle_seq >= 1)),\n    CONSTRAINT prc_operation_intents_expected_head_generation_check CHECK ((expected_head_generation >= 1)),\n    CONSTRAINT prc_operation_intents_intent_key_check CHECK ((octet_length(intent_key) = 32)),\n    CONSTRAINT prc_operation_intents_semantic_policy_hash_check CHECK ((octet_length(semantic_policy_hash) = 32)),\n    CONSTRAINT prc_operation_intents_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text]))),\n    CONSTRAINT prc_operation_intents_state_check CHECK ((state = ANY (ARRAY['pending'::text, 'active'::text, 'terminal'::text])))\n);"
       },
       "prc_operation_logs": {
         "owner": "Procurement",
@@ -14125,7 +14557,7 @@
             "type": "p"
           },
           {
-            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))",
+            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))",
             "name": "prc_process_handler_holds_stage_check",
             "schema": "public",
             "table_name": "prc_process_handler_holds",
@@ -14167,7 +14599,7 @@
             "tablename": "prc_process_handler_holds"
           }
         ],
-        "definition": "CREATE TABLE public.prc_process_handler_holds (\n    id uuid NOT NULL,\n    stage text NOT NULL,\n    handler_version text NOT NULL,\n    state text DEFAULT 'healthy'::text NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    fault_signature bytea,\n    incident_id uuid,\n    held_at timestamp with time zone,\n    CONSTRAINT prc_process_handler_holds_fault_signature_check CHECK (((fault_signature IS NULL) OR (octet_length(fault_signature) = 32))),\n    CONSTRAINT prc_process_handler_holds_held_check CHECK (((state <> 'held'::text) OR ((fault_signature IS NOT NULL) AND (incident_id IS NOT NULL) AND (held_at IS NOT NULL)))),\n    CONSTRAINT prc_process_handler_holds_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text]))),\n    CONSTRAINT prc_process_handler_holds_state_check CHECK ((state = ANY (ARRAY['healthy'::text, 'held'::text]))),\n    CONSTRAINT prc_process_handler_holds_version_check CHECK ((version >= 1))\n);"
+        "definition": "CREATE TABLE public.prc_process_handler_holds (\n    id uuid NOT NULL,\n    stage text NOT NULL,\n    handler_version text NOT NULL,\n    state text DEFAULT 'healthy'::text NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    fault_signature bytea,\n    incident_id uuid,\n    held_at timestamp with time zone,\n    CONSTRAINT prc_process_handler_holds_fault_signature_check CHECK (((fault_signature IS NULL) OR (octet_length(fault_signature) = 32))),\n    CONSTRAINT prc_process_handler_holds_held_check CHECK (((state <> 'held'::text) OR ((fault_signature IS NOT NULL) AND (incident_id IS NOT NULL) AND (held_at IS NOT NULL)))),\n    CONSTRAINT prc_process_handler_holds_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text]))),\n    CONSTRAINT prc_process_handler_holds_state_check CHECK ((state = ANY (ARRAY['healthy'::text, 'held'::text]))),\n    CONSTRAINT prc_process_handler_holds_version_check CHECK ((version >= 1))\n);"
       },
       "prc_process_incidents": {
         "owner": "Repositories/Procurement/Process",
@@ -15154,7 +15586,7 @@
             "type": "p"
           },
           {
-            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))",
+            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))",
             "name": "prc_process_reservations_stage_check",
             "schema": "public",
             "table_name": "prc_process_reservations",
@@ -15189,7 +15621,7 @@
             "tablename": "prc_process_reservations"
           }
         ],
-        "definition": "CREATE TABLE public.prc_process_reservations (\n    admission_group_id uuid NOT NULL,\n    lane_id uuid NOT NULL,\n    work_id uuid NOT NULL,\n    stage text NOT NULL,\n    state text NOT NULL,\n    CONSTRAINT prc_process_reservations_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text]))),\n    CONSTRAINT prc_process_reservations_state_check CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text])))\n);"
+        "definition": "CREATE TABLE public.prc_process_reservations (\n    admission_group_id uuid NOT NULL,\n    lane_id uuid NOT NULL,\n    work_id uuid NOT NULL,\n    stage text NOT NULL,\n    state text NOT NULL,\n    CONSTRAINT prc_process_reservations_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text]))),\n    CONSTRAINT prc_process_reservations_state_check CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text])))\n);"
       },
       "prc_process_run_work": {
         "owner": "Repositories/Procurement/Process",
@@ -16340,6 +16772,13 @@
             "type": "f"
           },
           {
+            "definition": "FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)",
+            "name": "prc_process_work_document_version_id_fkey",
+            "schema": "public",
+            "table_name": "prc_process_work",
+            "type": "f"
+          },
+          {
             "definition": "CHECK (((due_at IS NULL) OR (state = 'deferred'::text)))",
             "name": "prc_process_work_due_state_check",
             "schema": "public",
@@ -16410,7 +16849,7 @@
             "type": "f"
           },
           {
-            "definition": "CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))",
+            "definition": "CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = ANY (ARRAY['prepare'::text, 'screening'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_version_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))",
             "name": "prc_process_work_owner_check",
             "schema": "public",
             "table_name": "prc_process_work",
@@ -16466,7 +16905,7 @@
             "type": "c"
           },
           {
-            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))",
+            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))",
             "name": "prc_process_work_stage_check",
             "schema": "public",
             "table_name": "prc_process_work",
@@ -16601,7 +17040,85 @@
             "tablename": "prc_process_work"
           }
         ],
-        "definition": "CREATE TABLE public.prc_process_work (\n    id uuid NOT NULL,\n    stage text NOT NULL,\n    work_key bytea NOT NULL,\n    work_identity jsonb NOT NULL,\n    work_identity_schema_version smallint NOT NULL,\n    intent_id uuid,\n    input_revision bigint NOT NULL,\n    input_hash bytea NOT NULL,\n    input_payload jsonb NOT NULL,\n    input_schema_version smallint NOT NULL,\n    state text NOT NULL,\n    reason_code text,\n    due_at timestamp with time zone,\n    provider_recovery_due_at timestamp with time zone,\n    priority smallint DEFAULT 100 NOT NULL,\n    platform_id bigint,\n    cohort_key text NOT NULL,\n    origin_run_id uuid,\n    crawl_block_id uuid,\n    procurement_id bigint,\n    document_id bigint,\n    document_version_id bigint,\n    analysis_window_id uuid,\n    analysis_run_id uuid,\n    generation bigint DEFAULT 0 NOT NULL,\n    owner_token uuid,\n    lease_until timestamp with time zone,\n    heartbeat_at timestamp with time zone,\n    dispatch_generation bigint DEFAULT 0 NOT NULL,\n    dispatch_claim_until timestamp with time zone,\n    checkpoint jsonb,\n    checkpoint_schema_version smallint,\n    checkpoint_seq bigint DEFAULT 0 NOT NULL,\n    execution_attempts bigint DEFAULT 0 NOT NULL,\n    transport_attempts bigint DEFAULT 0 NOT NULL,\n    semantic_reasks bigint DEFAULT 0 NOT NULL,\n    item_failures integer DEFAULT 0 NOT NULL,\n    infrastructure_interruptions bigint DEFAULT 0 NOT NULL,\n    transition_seq bigint DEFAULT 0 NOT NULL,\n    created_at timestamp with time zone NOT NULL,\n    updated_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_process_work_admitted_claim_check CHECK (((state = 'admitted'::text) = (dispatch_claim_until IS NOT NULL))),\n    CONSTRAINT prc_process_work_checkpoint_schema_check CHECK (((checkpoint IS NULL) = (checkpoint_schema_version IS NULL))),\n    CONSTRAINT prc_process_work_checkpoint_schema_version_check CHECK ((checkpoint_schema_version > 0)),\n    CONSTRAINT prc_process_work_checkpoint_seq_check CHECK ((checkpoint_seq >= 0)),\n    CONSTRAINT prc_process_work_deferred_due_check CHECK (((state <> 'deferred'::text) OR (due_at IS NOT NULL))),\n    CONSTRAINT prc_process_work_dispatch_generation_check CHECK ((dispatch_generation >= 0)),\n    CONSTRAINT prc_process_work_due_state_check CHECK (((due_at IS NULL) OR (state = 'deferred'::text))),\n    CONSTRAINT prc_process_work_execution_attempts_check CHECK ((execution_attempts >= 0)),\n    CONSTRAINT prc_process_work_generation_check CHECK ((generation >= 0)),\n    CONSTRAINT prc_process_work_infrastructure_interruptions_check CHECK ((infrastructure_interruptions >= 0)),\n    CONSTRAINT prc_process_work_input_hash_check CHECK ((octet_length(input_hash) = 32)),\n    CONSTRAINT prc_process_work_input_revision_check CHECK ((input_revision >= 1)),\n    CONSTRAINT prc_process_work_input_schema_version_check CHECK ((input_schema_version > 0)),\n    CONSTRAINT prc_process_work_item_failures_check CHECK (((item_failures >= 0) AND (item_failures <= 3))),\n    CONSTRAINT prc_process_work_owner_check CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL)))),\n    CONSTRAINT prc_process_work_provider_recovery_due_check CHECK ((((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text)) = (provider_recovery_due_at IS NOT NULL))),\n    CONSTRAINT prc_process_work_reason_check CHECK (((state <> ALL (ARRAY['deferred'::text, 'blocked'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])) OR (reason_code IS NOT NULL))),\n    CONSTRAINT prc_process_work_running_lease_check CHECK ((((state = 'running'::text) AND (owner_token IS NOT NULL) AND (lease_until IS NOT NULL)) OR ((state <> 'running'::text) AND (owner_token IS NULL) AND (lease_until IS NULL)))),\n    CONSTRAINT prc_process_work_semantic_reasks_check CHECK ((semantic_reasks >= 0)),\n    CONSTRAINT prc_process_work_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text]))),\n    CONSTRAINT prc_process_work_state_check CHECK ((state = ANY (ARRAY['ready'::text, 'admitted'::text, 'running'::text, 'deferred'::text, 'blocked'::text, 'succeeded'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text]))),\n    CONSTRAINT prc_process_work_transition_seq_check CHECK ((transition_seq >= 0)),\n    CONSTRAINT prc_process_work_transport_attempts_check CHECK ((transport_attempts >= 0)),\n    CONSTRAINT prc_process_work_work_identity_schema_version_check CHECK ((work_identity_schema_version > 0)),\n    CONSTRAINT prc_process_work_work_key_check CHECK ((octet_length(work_key) = 32))\n);"
+        "definition": "CREATE TABLE public.prc_process_work (\n    id uuid NOT NULL,\n    stage text NOT NULL,\n    work_key bytea NOT NULL,\n    work_identity jsonb NOT NULL,\n    work_identity_schema_version smallint NOT NULL,\n    intent_id uuid,\n    input_revision bigint NOT NULL,\n    input_hash bytea NOT NULL,\n    input_payload jsonb NOT NULL,\n    input_schema_version smallint NOT NULL,\n    state text NOT NULL,\n    reason_code text,\n    due_at timestamp with time zone,\n    provider_recovery_due_at timestamp with time zone,\n    priority smallint DEFAULT 100 NOT NULL,\n    platform_id bigint,\n    cohort_key text NOT NULL,\n    origin_run_id uuid,\n    crawl_block_id uuid,\n    procurement_id bigint,\n    document_id bigint,\n    document_version_id bigint,\n    analysis_window_id uuid,\n    analysis_run_id uuid,\n    generation bigint DEFAULT 0 NOT NULL,\n    owner_token uuid,\n    lease_until timestamp with time zone,\n    heartbeat_at timestamp with time zone,\n    dispatch_generation bigint DEFAULT 0 NOT NULL,\n    dispatch_claim_until timestamp with time zone,\n    checkpoint jsonb,\n    checkpoint_schema_version smallint,\n    checkpoint_seq bigint DEFAULT 0 NOT NULL,\n    execution_attempts bigint DEFAULT 0 NOT NULL,\n    transport_attempts bigint DEFAULT 0 NOT NULL,\n    semantic_reasks bigint DEFAULT 0 NOT NULL,\n    item_failures integer DEFAULT 0 NOT NULL,\n    infrastructure_interruptions bigint DEFAULT 0 NOT NULL,\n    transition_seq bigint DEFAULT 0 NOT NULL,\n    created_at timestamp with time zone NOT NULL,\n    updated_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_process_work_admitted_claim_check CHECK (((state = 'admitted'::text) = (dispatch_claim_until IS NOT NULL))),\n    CONSTRAINT prc_process_work_checkpoint_schema_check CHECK (((checkpoint IS NULL) = (checkpoint_schema_version IS NULL))),\n    CONSTRAINT prc_process_work_checkpoint_schema_version_check CHECK ((checkpoint_schema_version > 0)),\n    CONSTRAINT prc_process_work_checkpoint_seq_check CHECK ((checkpoint_seq >= 0)),\n    CONSTRAINT prc_process_work_deferred_due_check CHECK (((state <> 'deferred'::text) OR (due_at IS NOT NULL))),\n    CONSTRAINT prc_process_work_dispatch_generation_check CHECK ((dispatch_generation >= 0)),\n    CONSTRAINT prc_process_work_due_state_check CHECK (((due_at IS NULL) OR (state = 'deferred'::text))),\n    CONSTRAINT prc_process_work_execution_attempts_check CHECK ((execution_attempts >= 0)),\n    CONSTRAINT prc_process_work_generation_check CHECK ((generation >= 0)),\n    CONSTRAINT prc_process_work_infrastructure_interruptions_check CHECK ((infrastructure_interruptions >= 0)),\n    CONSTRAINT prc_process_work_input_hash_check CHECK ((octet_length(input_hash) = 32)),\n    CONSTRAINT prc_process_work_input_revision_check CHECK ((input_revision >= 1)),\n    CONSTRAINT prc_process_work_input_schema_version_check CHECK ((input_schema_version > 0)),\n    CONSTRAINT prc_process_work_item_failures_check CHECK (((item_failures >= 0) AND (item_failures <= 3))),\n    CONSTRAINT prc_process_work_owner_check CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = ANY (ARRAY['prepare'::text, 'screening'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_version_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL)))),\n    CONSTRAINT prc_process_work_provider_recovery_due_check CHECK ((((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text)) = (provider_recovery_due_at IS NOT NULL))),\n    CONSTRAINT prc_process_work_reason_check CHECK (((state <> ALL (ARRAY['deferred'::text, 'blocked'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])) OR (reason_code IS NOT NULL))),\n    CONSTRAINT prc_process_work_running_lease_check CHECK ((((state = 'running'::text) AND (owner_token IS NOT NULL) AND (lease_until IS NOT NULL)) OR ((state <> 'running'::text) AND (owner_token IS NULL) AND (lease_until IS NULL)))),\n    CONSTRAINT prc_process_work_semantic_reasks_check CHECK ((semantic_reasks >= 0)),\n    CONSTRAINT prc_process_work_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text]))),\n    CONSTRAINT prc_process_work_state_check CHECK ((state = ANY (ARRAY['ready'::text, 'admitted'::text, 'running'::text, 'deferred'::text, 'blocked'::text, 'succeeded'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text]))),\n    CONSTRAINT prc_process_work_transition_seq_check CHECK ((transition_seq >= 0)),\n    CONSTRAINT prc_process_work_transport_attempts_check CHECK ((transport_attempts >= 0)),\n    CONSTRAINT prc_process_work_work_identity_schema_version_check CHECK ((work_identity_schema_version > 0)),\n    CONSTRAINT prc_process_work_work_key_check CHECK ((octet_length(work_key) = 32))\n);"
+      },
+      "prc_procurement_documents": {
+        "owner": "DocumentCatalogRepository",
+        "retention": "business",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "procurement_id",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_procurement_documents",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "document_id",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_procurement_documents",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "observed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_procurement_documents",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "removed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 4,
+            "table_name": "prc_procurement_documents",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "FOREIGN KEY (document_id) REFERENCES prc_documents(id)",
+            "name": "prc_procurement_documents_document_id_foreign",
+            "schema": "public",
+            "table_name": "prc_procurement_documents",
+            "type": "f"
+          },
+          {
+            "definition": "PRIMARY KEY (procurement_id, document_id)",
+            "name": "prc_procurement_documents_pkey",
+            "schema": "public",
+            "table_name": "prc_procurement_documents",
+            "type": "p"
+          },
+          {
+            "definition": "FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)",
+            "name": "prc_procurement_documents_procurement_id_foreign",
+            "schema": "public",
+            "table_name": "prc_procurement_documents",
+            "type": "f"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_procurement_documents_pkey ON public.prc_procurement_documents USING btree (procurement_id, document_id)",
+            "indexname": "prc_procurement_documents_pkey",
+            "schemaname": "public",
+            "tablename": "prc_procurement_documents"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_procurement_documents (\n    procurement_id bigint NOT NULL,\n    document_id bigint NOT NULL,\n    observed_at timestamp(6) with time zone NOT NULL,\n    removed_at timestamp(6) with time zone\n);"
       },
       "prc_procurement_parties": {
         "owner": "Procurement",
@@ -17680,11 +18197,31 @@
             "udt_name": "varchar"
           },
           {
+            "column_default": "'0'::bigint",
+            "column_name": "deletion_generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_raw_artifacts",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "deletion_marked_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 3,
+            "table_name": "prc_raw_artifacts",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
             "column_default": null,
             "column_name": "disk",
             "data_type": "character varying",
             "is_nullable": "NO",
-            "ordinal_position": 2,
+            "ordinal_position": 4,
             "table_name": "prc_raw_artifacts",
             "table_schema": "public",
             "udt_name": "varchar"
@@ -17694,7 +18231,7 @@
             "column_name": "path",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 3,
+            "ordinal_position": 5,
             "table_name": "prc_raw_artifacts",
             "table_schema": "public",
             "udt_name": "text"
@@ -17704,7 +18241,7 @@
             "column_name": "last_seen_at",
             "data_type": "timestamp with time zone",
             "is_nullable": "NO",
-            "ordinal_position": 4,
+            "ordinal_position": 6,
             "table_name": "prc_raw_artifacts",
             "table_schema": "public",
             "udt_name": "timestamptz"
@@ -17733,7 +18270,7 @@
             "tablename": "prc_raw_artifacts"
           }
         ],
-        "definition": "CREATE TABLE public.prc_raw_artifacts (\n    id character varying(64) NOT NULL,\n    disk character varying(255) NOT NULL,\n    path text NOT NULL,\n    last_seen_at timestamp(0) with time zone NOT NULL\n);"
+        "definition": "CREATE TABLE public.prc_raw_artifacts (\n    id character varying(64) NOT NULL,\n    deletion_generation bigint DEFAULT '0'::bigint NOT NULL,\n    deletion_marked_at timestamp(0) with time zone,\n    disk character varying(255) NOT NULL,\n    path text NOT NULL,\n    last_seen_at timestamp(0) with time zone NOT NULL\n);"
       },
       "prc_registries": {
         "owner": "Procurement",
@@ -19596,6 +20133,428 @@
         ],
         "definition": "CREATE TABLE public.prc_status_refreshes (\n    id uuid NOT NULL,\n    procurement_id bigint NOT NULL,\n    intent_id uuid NOT NULL,\n    cycle_seq bigint NOT NULL,\n    next_due_at timestamp with time zone NOT NULL,\n    source_version text,\n    observed_at timestamp with time zone,\n    CONSTRAINT prc_status_refreshes_cycle_seq_check CHECK ((cycle_seq >= 1))\n);"
       },
+      "prc_storage_domains": {
+        "owner": "Repositories/Procurement/Document",
+        "retention": "artifacts",
+        "definition": "CREATE TABLE public.prc_storage_domains (\n    id uuid NOT NULL,\n    domain_key text NOT NULL,\n    capacity_bytes bigint NOT NULL,\n    high_watermark_bytes bigint NOT NULL,\n    accounted_durable_bytes bigint NOT NULL,\n    policy_version bigint NOT NULL,\n    CONSTRAINT prc_storage_domains_capacity_bytes_check CHECK ((capacity_bytes > 0)),\n    CONSTRAINT prc_storage_domains_check CHECK (((high_watermark_bytes > 0) AND (high_watermark_bytes <= capacity_bytes))),\n    CONSTRAINT prc_storage_domains_check1 CHECK (((accounted_durable_bytes >= 0) AND (accounted_durable_bytes <= capacity_bytes))),\n    CONSTRAINT prc_storage_domains_policy_version_check CHECK ((policy_version >= 1))\n);",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_storage_domains",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "domain_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_storage_domains",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "capacity_bytes",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_storage_domains",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "high_watermark_bytes",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_storage_domains",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "accounted_durable_bytes",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_storage_domains",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "policy_version",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "prc_storage_domains",
+            "table_schema": "public",
+            "udt_name": "int8"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK ((capacity_bytes > 0))",
+            "name": "prc_storage_domains_capacity_bytes_check",
+            "schema": "public",
+            "table_name": "prc_storage_domains",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((high_watermark_bytes > 0) AND (high_watermark_bytes <= capacity_bytes)))",
+            "name": "prc_storage_domains_check",
+            "schema": "public",
+            "table_name": "prc_storage_domains",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((accounted_durable_bytes >= 0) AND (accounted_durable_bytes <= capacity_bytes)))",
+            "name": "prc_storage_domains_check1",
+            "schema": "public",
+            "table_name": "prc_storage_domains",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (domain_key)",
+            "name": "prc_storage_domains_domain_key_key",
+            "schema": "public",
+            "table_name": "prc_storage_domains",
+            "type": "u"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "prc_storage_domains_pkey",
+            "schema": "public",
+            "table_name": "prc_storage_domains",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((policy_version >= 1))",
+            "name": "prc_storage_domains_policy_version_check",
+            "schema": "public",
+            "table_name": "prc_storage_domains",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_storage_domains_domain_key_key ON public.prc_storage_domains USING btree (domain_key)",
+            "indexname": "prc_storage_domains_domain_key_key",
+            "schemaname": "public",
+            "tablename": "prc_storage_domains"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_storage_domains_pkey ON public.prc_storage_domains USING btree (id)",
+            "indexname": "prc_storage_domains_pkey",
+            "schemaname": "public",
+            "tablename": "prc_storage_domains"
+          }
+        ]
+      },
+      "prc_storage_reservations": {
+        "owner": "Repositories/Procurement/Document",
+        "retention": "artifacts",
+        "definition": "CREATE TABLE public.prc_storage_reservations (\n    id uuid NOT NULL,\n    domain_id uuid NOT NULL,\n    work_id uuid,\n    attempt_id uuid,\n    operation_id uuid,\n    upload_intent_id uuid NOT NULL,\n    owner_token uuid NOT NULL,\n    generation bigint NOT NULL,\n    byte_upper_bound bigint NOT NULL,\n    phase text NOT NULL,\n    status text NOT NULL,\n    cleanup_verified_at timestamp with time zone,\n    disk text NOT NULL,\n    object_key text NOT NULL,\n    created_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_storage_reservations_byte_upper_bound_check CHECK ((byte_upper_bound > 0)),\n    CONSTRAINT prc_storage_reservations_cleanup_check CHECK (((status = 'cleaned'::text) = (cleanup_verified_at IS NOT NULL))),\n    CONSTRAINT prc_storage_reservations_disk_check CHECK ((length(disk) > 0)),\n    CONSTRAINT prc_storage_reservations_generation_check CHECK ((generation >= 1)),\n    CONSTRAINT prc_storage_reservations_object_key_check CHECK ((length(object_key) > 0)),\n    CONSTRAINT prc_storage_reservations_owner_check CHECK ((((work_id IS NULL) = (attempt_id IS NULL)) AND (NOT ((work_id IS NOT NULL) AND (operation_id IS NOT NULL))))),\n    CONSTRAINT prc_storage_reservations_phase_check CHECK ((phase = ANY (ARRAY['download'::text, 'prepare'::text]))),\n    CONSTRAINT prc_storage_reservations_status_check CHECK ((status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text, 'cleaned'::text, 'transferred'::text])))\n);",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "domain_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "work_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 3,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "attempt_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 4,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "operation_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 5,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "upload_intent_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "owner_token",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "byte_upper_bound",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "phase",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 10,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "status",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 11,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "cleanup_verified_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 12,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "disk",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 13,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "object_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 14,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "created_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 15,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)",
+            "name": "prc_storage_reservations_attempt_id_fkey",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (attempt_id, work_id) REFERENCES prc_process_attempts(id, work_id)",
+            "name": "prc_storage_reservations_attempt_work_fk",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((byte_upper_bound > 0))",
+            "name": "prc_storage_reservations_byte_upper_bound_check",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((status = 'cleaned'::text) = (cleanup_verified_at IS NOT NULL)))",
+            "name": "prc_storage_reservations_cleanup_check",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((length(disk) > 0))",
+            "name": "prc_storage_reservations_disk_check",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (disk, object_key)",
+            "name": "prc_storage_reservations_disk_object_key_key",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "u"
+          },
+          {
+            "definition": "FOREIGN KEY (domain_id) REFERENCES prc_storage_domains(id)",
+            "name": "prc_storage_reservations_domain_id_fkey",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((generation >= 1))",
+            "name": "prc_storage_reservations_generation_check",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((length(object_key) > 0))",
+            "name": "prc_storage_reservations_object_key_check",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (operation_id) REFERENCES prc_outbound_operations(id)",
+            "name": "prc_storage_reservations_operation_id_fkey",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((((work_id IS NULL) = (attempt_id IS NULL)) AND (NOT ((work_id IS NOT NULL) AND (operation_id IS NOT NULL)))))",
+            "name": "prc_storage_reservations_owner_check",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((phase = ANY (ARRAY['download'::text, 'prepare'::text])))",
+            "name": "prc_storage_reservations_phase_check",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "prc_storage_reservations_pkey",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text, 'cleaned'::text, 'transferred'::text])))",
+            "name": "prc_storage_reservations_status_check",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (upload_intent_id)",
+            "name": "prc_storage_reservations_upload_intent_id_key",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "u"
+          },
+          {
+            "definition": "FOREIGN KEY (work_id) REFERENCES prc_process_work(id)",
+            "name": "prc_storage_reservations_work_id_fkey",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "f"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE INDEX prc_storage_reservations_active_idx ON public.prc_storage_reservations USING btree (domain_id) WHERE (status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text]))",
+            "indexname": "prc_storage_reservations_active_idx",
+            "schemaname": "public",
+            "tablename": "prc_storage_reservations"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_storage_reservations_disk_object_key_key ON public.prc_storage_reservations USING btree (disk, object_key)",
+            "indexname": "prc_storage_reservations_disk_object_key_key",
+            "schemaname": "public",
+            "tablename": "prc_storage_reservations"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_storage_reservations_pkey ON public.prc_storage_reservations USING btree (id)",
+            "indexname": "prc_storage_reservations_pkey",
+            "schemaname": "public",
+            "tablename": "prc_storage_reservations"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_storage_reservations_upload_intent_id_key ON public.prc_storage_reservations USING btree (upload_intent_id)",
+            "indexname": "prc_storage_reservations_upload_intent_id_key",
+            "schemaname": "public",
+            "tablename": "prc_storage_reservations"
+          }
+        ]
+      },
       "prc_target_health": {
         "owner": "Repositories/Procurement/Network",
         "retention": "authority",
@@ -21068,84 +22027,6 @@
           }
         ],
         "definition": "CREATE TABLE public.users (\n    id bigint NOT NULL,\n    name character varying(255) NOT NULL,\n    email character varying(255) NOT NULL,\n    email_verified_at timestamp(0) without time zone,\n    password character varying(255) NOT NULL,\n    remember_token character varying(100),\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
-      },
-      "prc_procurement_documents": {
-        "owner": "DocumentCatalogRepository",
-        "retention": "business",
-        "columns": [
-          {
-            "column_default": null,
-            "column_name": "procurement_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "prc_procurement_documents",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "document_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "prc_procurement_documents",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "observed_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "NO",
-            "ordinal_position": 3,
-            "table_name": "prc_procurement_documents",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "removed_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 4,
-            "table_name": "prc_procurement_documents",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "FOREIGN KEY (document_id) REFERENCES prc_documents(id)",
-            "name": "prc_procurement_documents_document_id_foreign",
-            "schema": "public",
-            "table_name": "prc_procurement_documents",
-            "type": "f"
-          },
-          {
-            "definition": "PRIMARY KEY (procurement_id, document_id)",
-            "name": "prc_procurement_documents_pkey",
-            "schema": "public",
-            "table_name": "prc_procurement_documents",
-            "type": "p"
-          },
-          {
-            "definition": "FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)",
-            "name": "prc_procurement_documents_procurement_id_foreign",
-            "schema": "public",
-            "table_name": "prc_procurement_documents",
-            "type": "f"
-          }
-        ],
-        "indexes": [
-          {
-            "indexdef": "CREATE UNIQUE INDEX prc_procurement_documents_pkey ON public.prc_procurement_documents USING btree (procurement_id, document_id)",
-            "indexname": "prc_procurement_documents_pkey",
-            "schemaname": "public",
-            "tablename": "prc_procurement_documents"
-          }
-        ],
-        "definition": "CREATE TABLE public.prc_procurement_documents (\n    procurement_id bigint NOT NULL,\n    document_id bigint NOT NULL,\n    observed_at timestamp(6) with time zone NOT NULL,\n    removed_at timestamp(6) with time zone\n);"
       }
     },
     "extensions": [
@@ -21792,7 +22673,7 @@
         "stage": {
           "type": "text",
           "nullable": false,
-          "definition": "stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download'))"
+          "definition": "stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening'))"
         },
         "handler_version": {
           "type": "text",
@@ -22022,7 +22903,7 @@
         "stage": {
           "type": "text",
           "nullable": false,
-          "definition": "stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download'))"
+          "definition": "stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening'))"
         },
         "subject_kind": {
           "type": "text",
@@ -22097,7 +22978,7 @@
         "stage": {
           "type": "text",
           "nullable": false,
-          "definition": "stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download'))"
+          "definition": "stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening'))"
         },
         "work_key": {
           "type": "bytea",
@@ -22641,7 +23522,7 @@
         "stage": {
           "type": "text",
           "nullable": false,
-          "definition": "stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download'))"
+          "definition": "stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening'))"
         },
         "state": {
           "type": "text",
@@ -24802,10 +25683,31 @@
           "type": "timestamptz",
           "nullable": true,
           "definition": "cleanup_verified_at timestamptz NULL"
+        },
+        "disk": {
+          "type": "text",
+          "nullable": false,
+          "definition": "disk text NOT NULL"
+        },
+        "object_key": {
+          "type": "text",
+          "nullable": false,
+          "definition": "object_key text NOT NULL"
+        },
+        "created_at": {
+          "type": "timestamptz",
+          "nullable": false,
+          "definition": "created_at timestamptz NOT NULL"
         }
       },
-      "constraints": [],
-      "indexes": [],
+      "constraints": [
+        "CONSTRAINT prc_storage_reservations_owner_check CHECK ((work_id IS NULL)=(attempt_id IS NULL) AND NOT(work_id IS NOT NULL AND operation_id IS NOT NULL))",
+        "CONSTRAINT prc_storage_reservations_cleanup_check CHECK ((status='cleaned')=(cleanup_verified_at IS NOT NULL))",
+        "CONSTRAINT prc_storage_reservations_attempt_work_fk FOREIGN KEY(attempt_id,work_id) REFERENCES prc_process_attempts(id,work_id)"
+      ],
+      "indexes": [
+        "CREATE INDEX prc_storage_reservations_active_idx ON prc_storage_reservations(domain_id) WHERE status IN ('reserved','writing','staged','cleaning')"
+      ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },
     "prc_document_blobs": {
@@ -26165,13 +27067,13 @@
       "columns": {
         "revision_no": {
           "type": "bigint",
-          "nullable": false,
-          "definition": "revision_no bigint NOT NULL CHECK(revision_no>=1)"
+          "nullable": true,
+          "definition": "revision_no bigint NULL CHECK(revision_no>=1)"
         },
         "blob_id": {
           "type": "uuid",
-          "nullable": false,
-          "definition": "blob_id uuid NOT NULL REFERENCES prc_document_blobs(id)",
+          "nullable": true,
+          "definition": "blob_id uuid NULL REFERENCES prc_document_blobs(id)",
           "references": {
             "table": "prc_document_blobs",
             "columns": [
@@ -26182,9 +27084,9 @@
           }
         },
         "content_hash": {
-          "type": "bytea",
+          "type": "text",
           "nullable": false,
-          "definition": "content_hash bytea NOT NULL CHECK(octet_length(content_hash)=32)"
+          "definition": "content_hash text NOT NULL"
         },
         "etag": {
           "type": "text",
@@ -26198,8 +27100,8 @@
         },
         "first_seen_at": {
           "type": "timestamptz",
-          "nullable": false,
-          "definition": "first_seen_at timestamptz NOT NULL"
+          "nullable": true,
+          "definition": "first_seen_at timestamptz NULL"
         },
         "normalized_entry_path": {
           "type": "text",
@@ -26218,7 +27120,7 @@
         "UNIQUE(parent_version_id,normalized_entry_path)",
         "DROP UNIQUE(document_id,content_hash)"
       ],
-      "note": "A→B→A = три revisions и два blobs. Existing bigint PK/document/parent FK сохраняются; lineage и source validators не execution authority."
+      "note": "A→B→A = три revisions и два blobs. Existing bigint PK/document/parent FK сохраняются; lineage и source validators не execution authority. Coordinator-authorized additive staging: legacy rows retain NULL canonical tuple and version content_hash hex text until P3.5. Canonical tuple CHECK + immutable/reference guards are strict now. P3.5 MUST remove legacy predicates, require canonical tuple/explicit disk on ALL rows, convert versions.content_hash to bytea and remove legacy unique indexes with writer cutover."
     },
     {
       "table": "prc_document_representations",
@@ -26226,45 +27128,58 @@
       "columns": {
         "disk": {
           "type": "text",
-          "nullable": false,
-          "definition": "disk text NOT NULL"
+          "nullable": true,
+          "definition": "disk text NULL"
         },
         "preparation_recipe_hash": {
           "type": "bytea",
-          "nullable": false,
-          "definition": "preparation_recipe_hash bytea NOT NULL CHECK(octet_length(preparation_recipe_hash)=32)"
+          "nullable": true,
+          "definition": "preparation_recipe_hash bytea NULL CHECK(octet_length(preparation_recipe_hash)=32)"
         },
         "content_hash": {
           "type": "bytea",
-          "nullable": false,
-          "definition": "content_hash bytea NOT NULL CHECK(octet_length(content_hash)=32)"
+          "nullable": true,
+          "definition": "content_hash bytea NULL CHECK(octet_length(content_hash)=32)"
         },
         "range_key": {
           "type": "text",
-          "nullable": false,
-          "definition": "range_key text NOT NULL"
+          "nullable": true,
+          "definition": "range_key text NULL"
         },
         "tool_version": {
           "type": "text",
-          "nullable": false,
-          "definition": "tool_version text NOT NULL"
+          "nullable": true,
+          "definition": "tool_version text NULL"
         },
         "coverage_manifest": {
           "type": "jsonb",
-          "nullable": false,
-          "definition": "coverage_manifest jsonb NOT NULL"
+          "nullable": true,
+          "definition": "coverage_manifest jsonb NULL"
         },
         "coverage_manifest_schema_version": {
           "type": "smallint",
-          "nullable": false,
-          "definition": "coverage_manifest_schema_version smallint NOT NULL CHECK(coverage_manifest_schema_version>0)"
+          "nullable": true,
+          "definition": "coverage_manifest_schema_version smallint NULL CHECK(coverage_manifest_schema_version>0)"
+        },
+        "blob_id": {
+          "type": "uuid",
+          "nullable": true,
+          "definition": "blob_id uuid NULL REFERENCES prc_document_blobs(id)",
+          "references": {
+            "table": "prc_document_blobs",
+            "columns": [
+              "id"
+            ],
+            "on_delete": "NO ACTION",
+            "at": "P3.1"
+          }
         }
       },
       "drop_columns": [],
       "constraints": [
         "UNIQUE(document_version_id,preparation_recipe_hash,kind,range_key)"
       ],
-      "note": "Existing bigint PK; explicit immutable disk/key/hash/range and complete source page coverage."
+      "note": "Existing bigint PK; explicit immutable disk/key/hash/range and complete source page coverage. Coordinator-authorized additive staging: legacy rows retain NULL canonical tuple and version content_hash hex text until P3.5. Canonical tuple CHECK + immutable/reference guards are strict now. P3.5 MUST remove legacy predicates, require canonical tuple/explicit disk on ALL rows, convert versions.content_hash to bytea and remove legacy unique indexes with writer cutover."
     },
     {
       "table": "prc_documents",

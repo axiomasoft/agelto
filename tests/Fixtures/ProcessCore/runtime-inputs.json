@@ -164,10 +164,10 @@
       "provenance": "existing local immutable EST-GSFX-LSR-001 corpus; binary is not committed"
     },
     {
-      "source": "research/2026-10-08-audit-remediation.md",
+      "source": "tests/Support/ProcessCore/RuntimeInputs/audit-remediation-2026-10-08.md",
       "runtime": "research/2026-10-08-audit-remediation.md",
       "sha256": "818a872d0e63675dd713b0f204b9b5e92d9e5bba2aa1ecf6e83f0abee51a43c5",
-      "provenance": "tracked project source"
+      "provenance": "Byte-identical Git blob f1cf54defca3824a9f53406bc99f1ebe9633de57 from 612d6df7:research/2026-10-08-audit-remediation.md; relocated for isolated runtime; runtime path and SHA-256 unchanged"
     },
     {
       "source": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.immutable58.md",

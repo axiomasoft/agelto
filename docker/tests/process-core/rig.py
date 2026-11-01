@@ -24,8 +24,8 @@ SERVICES = {"app", "core-postgres", "core-redis", "object-storage", "fixture-htt
 VOLUMES = {"core-postgres", "core-redis", "core-objects", "core-storage", "core-bootstrap", "core-pest",
            "core-prompts", "core-estimate-prompts"}
 RUNTIME_INPUTS = ROOT / "docker/tests/process-core/runtime-inputs"
-FUTURE = {"documents", "ai", "e2e", "faults", "load"}
-IMPLEMENTED = {"up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "regression", "report", "down"}
+FUTURE = {"ai", "e2e", "faults", "load"}
+IMPLEMENTED = {"documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "regression", "report", "down"}
 # Domain suites run only the files their owning package filled with real assertions. execution:
 # P1.6 ledger/authority + P1.7 admission/claim/controls + P1.8 lease/checkpoint/finalize on real PG.
 # concurrency: only separate PHP processes/PG connections with deterministic barriers (P1.7 pause/
@@ -33,7 +33,7 @@ IMPLEMENTED = {"up", "env", "reset", "install", "unit", "execution", "concurrenc
 # network: P2.1 INITIAL contracts/catalog/owner DDL only, plus real PG catalog races.
 # Transport, actual-send permits and health reducers are supplied by their later owning points.
 # platforms: P2.9 config-only Definition/identity/policy assertions; adapter cases follow in P2.10–P2.12.
-SUITE_PATHS = {"acquisition": ["tests/Feature/ProcessCore/Acquisition", "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php"], "execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
+SUITE_PATHS = {"documents": ["tests/Feature/ProcessCore/Documents", "tests/Integration/ProcessCore/Concurrency/T12StorageCapacityTest.php", "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php", "tests/Feature/Procurement/Prepare", "tests/Feature/Document/DocumentDownloaderTest.php"], "acquisition": ["tests/Feature/ProcessCore/Acquisition", "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php"], "execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
                "concurrency": ["tests/Integration/ProcessCore/Concurrency"],
                "observability": ["tests/Feature/ProcessCore/Observability"],
                "network": ["tests/Feature/ProcessCore/Network",
@@ -689,7 +689,7 @@ def main(command):
 def execute(command, name):
     folder, result = new_report(command)
     try:
-        if name in {"reset", "install", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "regression"}:
+        if name in {"reset", "install", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "regression"}:
             clock = install_clock()
             result["install_clock"] = clock
             write_json(folder / "install-clock.json", clock)
@@ -714,8 +714,8 @@ def execute(command, name):
             write_json(folder / "install-comparison.json", {"first": before, "second": after})
             require(before == after, "two clean installs produced different manifests")
             result["manifests"] = after
-        elif name in {"unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "regression"}:
-            if name in {"execution", "concurrency", "observability", "network", "platforms", "acquisition", "regression"}:
+        elif name in {"unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "regression"}:
+            if name in {"execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "regression"}:
                 reset_folder = folder / "clean-reset"
                 reset_folder.mkdir()
                 reset(reset_folder, clock=clock)
@@ -728,7 +728,7 @@ def execute(command, name):
             identity(allow_empty=True)
             compose("--profile", "workers", "--profile", "browser", "down", "--volumes", "--remove-orphans")
         result["exit"] = 0
-    except (GuardError, ValueError, OSError) as exc:
+    except (GuardError, ValueError, OSError, ET.ParseError) as exc:
         result.update(exit=1, error=str(exc))
     write_json(folder / "result.json", result)
     print(json.dumps({"exit": result["exit"], "evidence": str(folder.relative_to(ROOT))}))

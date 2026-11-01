@@ -226,7 +226,7 @@ class RigGuardsTest(unittest.TestCase):
                 compose.assert_not_called()
 
     def test_execution_suite_runs_only_owned_paths_and_rejects_empty_or_skipped_selection(self):
-        for name in ("execution", "network", "platforms", "acquisition"):
+        for name in ("documents", "execution", "network", "platforms", "acquisition"):
             self.assertNotIn(name, rig.FUTURE)
             for cases, error in [([], "empty test selection"),
                                  ([{"name": "skipped", "skipped": True}, {"name": "claim", "skipped": False}], "failed/skipped"),
@@ -275,9 +275,30 @@ class RigGuardsTest(unittest.TestCase):
             self.assertEqual(rig.execute("core-test-concurrency", "concurrency"), 0)
         self.assertEqual(calls, [("reset", "clean-reset"), ("suite", "concurrency")])
 
+    def test_documents_suite_preserves_safety_corpus_and_runs_after_guarded_clean_reset(self):
+        self.assertIn("documents", rig.IMPLEMENTED)
+        self.assertNotIn("documents", rig.FUTURE)
+        self.assertEqual(rig.SUITE_PATHS["documents"], [
+            "tests/Feature/ProcessCore/Documents",
+            "tests/Integration/ProcessCore/Concurrency/T12StorageCapacityTest.php",
+            "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+            "tests/Feature/Procurement/Prepare",
+            "tests/Feature/Document/DocumentDownloaderTest.php",
+        ])
+        calls = []
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "ROOT", Path(temp).parent), \
+                patch.object(rig, "new_report", return_value=(Path(temp), {"command": "core-test-documents"})), \
+                patch.object(rig, "install_clock", return_value={"epoch": 1}), \
+                patch.object(rig, "reset", side_effect=lambda folder, clock: calls.append(("reset", folder.name))), \
+                patch.object(rig, "suite", side_effect=lambda folder, name: calls.append(("suite", name)) or {"executed": 1, "exit": 0}), \
+                patch.object(rig, "write_json"), patch("sys.stdout", new=io.StringIO()):
+            self.assertEqual(rig.execute("core-test-documents", "documents"), 0)
+        self.assertEqual(calls, [("reset", "clean-reset"), ("suite", "documents")])
+
     def test_network_suite_runs_initial_machinery_after_guarded_clean_reset(self):
         self.assertIn("network", rig.IMPLEMENTED)
-        self.assertEqual(rig.FUTURE, {"documents", "ai", "e2e", "faults", "load"})
+        self.assertEqual(rig.FUTURE, {"ai", "e2e", "faults", "load"})
         self.assertEqual(rig.SUITE_PATHS["network"], [
             "tests/Feature/ProcessCore/Network",
             "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php",

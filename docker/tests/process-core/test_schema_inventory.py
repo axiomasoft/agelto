@@ -132,11 +132,11 @@ class SchemaInventoryTest(unittest.TestCase):
                 self.assertRejected(error, actual=actual)
 
     def test_complete_inventory_and_full_document_pass(self):
-        # P2.18 removes crawler-run/circuit authority and activates acquisition carriers.
-        self.assertEqual(self.inventory["current_item"], "P2.18")
-        self.assertEqual(len(self.inventory["migrations"]), 80)
-        self.assertEqual(len(self.inventory["baseline"]["tables"]), 110)
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1297)
+        # P3.1 adds immutable document storage while preserving legacy consumers.
+        self.assertEqual(self.inventory["current_item"], "P3.1")
+        self.assertEqual(len(self.inventory["migrations"]), 81)
+        self.assertEqual(len(self.inventory["baseline"]["tables"]), 113)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1344)
         adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
                            for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]
                            if c["column_name"] in ("adapter_health_id", "adapter_health_epoch")}
@@ -157,7 +157,7 @@ class SchemaInventoryTest(unittest.TestCase):
         self.assertRejected("created carrier missing from installed baseline: prc_process_work")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["baseline"]["tables"]["prc_analysis_windows"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
-        self.assertRejected("future carrier activated in P2.18 baseline: prc_analysis_windows")
+        self.assertRejected("future carrier activated in P3.1 baseline: prc_analysis_windows")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["current_item"] = "P1.1"
         self.assertRejected("future carrier activated in P1.1 baseline: prc_process_work")
@@ -248,8 +248,8 @@ class SchemaInventoryTest(unittest.TestCase):
         self.assertRejected("real handler precedes owning cutover")
         self.inventory = copy.deepcopy(self.original)
         stage = self.inventory["carriers"]["prc_process_handler_holds"]["columns"]["stage"]
-        stage["definition"] = stage["definition"].replace("'download'", "'download','prepare'")
-        self.assertRejected("initial stage CHECK differs")
+        stage["definition"] = stage["definition"].replace("'download'", "'download','extraction'")
+        self.assertRejected("current stage CHECK differs")
 
     def test_missing_work_check_and_index_fail(self):
         work = self.inventory["carriers"]["prc_process_work"]

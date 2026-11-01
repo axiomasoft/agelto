@@ -264,7 +264,7 @@ final class SchemaInventory
         $work = $carriers['prc_process_work'] ?? [];
         $require(self::enumValues($work['columns']['state']['definition'] ?? '') === self::STATES, 'work state CHECK differs from nine canonical values');
         foreach (['prc_process_work', 'prc_operation_intents', 'prc_process_reservations', 'prc_process_handler_holds'] as $name) {
-            $require(self::enumValues($carriers[$name]['columns']['stage']['definition'] ?? '') === ['listing', 'detail', 'status_refresh', 'download'], 'initial stage CHECK differs from SchemaSupportedStages: '.$name);
+            $require(self::enumValues($carriers[$name]['columns']['stage']['definition'] ?? '') === ['listing', 'detail', 'status_refresh', 'download', 'prepare', 'screening'], 'current stage CHECK differs from SchemaSupportedStages: '.$name);
         }
         foreach (['provider_recovery_due_check', 'owner_check', 'checkpoint_schema_check', 'running_lease_check', 'admitted_claim_check', 'due_state_check'] as $rule) {
             $require(str_contains(implode(' ', $work['constraints'] ?? []), 'prc_process_work_'.$rule), 'missing work CHECK: '.$rule);

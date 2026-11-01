@@ -6,6 +6,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -26,6 +27,15 @@ return new class extends Migration
                 ->constrained(table: (new Document)->getTable())
                 ->onDelete('NO ACTION');
 
+            // Additive until P3.5: legacy rows have an entirely NULL canonical tuple.
+            $table->bigInteger('revision_no')->nullable();
+            $table->uuid('blob_id')->nullable();
+            $table->text('etag')->nullable();
+            $table->timestampTz('last_modified', precision: 6)->nullable();
+            $table->timestampTz('first_seen_at', precision: 6)->nullable();
+            $table->text('normalized_entry_path')->nullable();
+            $table->bigInteger('child_ordinal')->nullable();
+
             $table->text('content_hash')->comment('sha256 содержимого файла');
             $table->unsignedBigInteger('size_bytes');
             $table->text('filename');
@@ -43,13 +53,16 @@ return new class extends Migration
                 ->nullable()
                 ->index()
                 ->constrained(table: $this->table())
-                ->nullOnDelete();
+                ->noActionOnDelete();
 
             $table->timestamps();
 
-            $table->unique(['document_id', 'content_hash']);
+            $table->unique(['document_id', 'revision_no']);
+            $table->unique(['id', 'document_id']);
+            $table->unique(['parent_version_id', 'normalized_entry_path']);
             $table->index('content_hash');
         });
+        DB::statement('CREATE UNIQUE INDEX prc_document_versions_legacy_hash_unique ON prc_document_versions(document_id,content_hash) WHERE revision_no IS NULL');
     }
 
     public function down(): void

@@ -196,6 +196,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_10_28_100000_create_prc_process_projection_tables.php` | create | P1.15 | P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured. |
 | `2026_10_28_100002_create_prc_acquisition_snapshot_tables.php` | create | P2.16 | Durable immutable detail observations and recurring status cycles; runtime binding remains P2.18. |
 | `2026_10_31_100000_create_prc_acquisition_schedules_table.php` | create | P2.18 | Durable profile/kind schedule; allocation and next_due advancement share one transaction. |
+| `2026_11_01_100000_create_prc_document_storage_tables.php` | CREATE | P3.1 | Immutable document storage ownership; additive catalog staging before P3.5 cutover. |
 
 ### Legacy lifecycle
 
@@ -333,7 +334,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
 | id | uuid | no | id uuid PRIMARY KEY |
-| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download')) |
+| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')) |
 | handler_version | text | no | handler_version text NOT NULL |
 | state | text | no | state text NOT NULL DEFAULT 'healthy' CHECK (state IN ('healthy','held')) |
 | version | bigint | no | version bigint NOT NULL DEFAULT 1 CHECK (version >= 1) |
@@ -404,7 +405,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | --- | --- | --- | --- |
 | id | uuid | no | id uuid PRIMARY KEY |
 | intent_key | bytea | no | intent_key bytea NOT NULL CHECK (octet_length(intent_key)=32) |
-| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download')) |
+| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')) |
 | subject_kind | text | no | subject_kind text NOT NULL |
 | subject_id | text | no | subject_id text NOT NULL |
 | semantic_policy_hash | bytea | no | semantic_policy_hash bytea NOT NULL CHECK (octet_length(semantic_policy_hash)=32) |
@@ -429,7 +430,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
 | id | uuid | no | id uuid PRIMARY KEY |
-| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download')) |
+| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')) |
 | work_key | bytea | no | work_key bytea NOT NULL CHECK (octet_length(work_key)=32) |
 | work_identity | jsonb | no | work_identity jsonb NOT NULL |
 | work_identity_schema_version | smallint | no | work_identity_schema_version smallint NOT NULL |
@@ -564,7 +565,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | admission_group_id | uuid | no | admission_group_id uuid NOT NULL REFERENCES prc_admission_groups(id) ON DELETE CASCADE → prc_admission_groups(id) ON DELETE CASCADE @P1.6 |
 | lane_id | uuid | no | lane_id uuid NOT NULL REFERENCES prc_process_lanes(id) → prc_process_lanes(id) ON DELETE NO ACTION @P1.6 |
 | work_id | uuid | no | work_id uuid NOT NULL REFERENCES prc_process_work(id) → prc_process_work(id) ON DELETE NO ACTION @P1.6 |
-| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download')) |
+| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')) |
 | state | text | no | state text NOT NULL CHECK (state IN ('admitted','running')) |
 
 Constraints:
@@ -1247,10 +1248,17 @@ Create: P3.1; activation boundary: P3.5; owner: `Repositories/Procurement/Docume
 | phase | text | no | phase text NOT NULL |
 | status | text | no | status text NOT NULL |
 | cleanup_verified_at | timestamptz | yes | cleanup_verified_at timestamptz NULL |
+| disk | text | no | disk text NOT NULL |
+| object_key | text | no | object_key text NOT NULL |
+| created_at | timestamptz | no | created_at timestamptz NOT NULL |
 
 Constraints:
+- `CONSTRAINT prc_storage_reservations_owner_check CHECK ((work_id IS NULL)=(attempt_id IS NULL) AND NOT(work_id IS NOT NULL AND operation_id IS NOT NULL))`
+- `CONSTRAINT prc_storage_reservations_cleanup_check CHECK ((status='cleaned')=(cleanup_verified_at IS NOT NULL))`
+- `CONSTRAINT prc_storage_reservations_attempt_work_fk FOREIGN KEY(attempt_id,work_id) REFERENCES prc_process_attempts(id,work_id)`
 
 Indexes:
+- `CREATE INDEX prc_storage_reservations_active_idx ON prc_storage_reservations(domain_id) WHERE status IN ('reserved','writing','staged','cleaning')`
 
 #### prc_document_blobs
 
@@ -1706,16 +1714,16 @@ Constraints:
 
 #### prc_document_versions @P3.1
 
-A→B→A = три revisions и два blobs. Existing bigint PK/document/parent FK сохраняются; lineage и source validators не execution authority.
+A→B→A = три revisions и два blobs. Existing bigint PK/document/parent FK сохраняются; lineage и source validators не execution authority. Coordinator-authorized additive staging: legacy rows retain NULL canonical tuple and version content_hash hex text until P3.5. Canonical tuple CHECK + immutable/reference guards are strict now. P3.5 MUST remove legacy predicates, require canonical tuple/explicit disk on ALL rows, convert versions.content_hash to bytea and remove legacy unique indexes with writer cutover.
 
 | Column | Type | Nullable | Target declaration |
 | --- | --- | --- | --- |
-| revision_no | bigint | no | revision_no bigint NOT NULL CHECK(revision_no>=1) |
-| blob_id | uuid | no | blob_id uuid NOT NULL REFERENCES prc_document_blobs(id) |
-| content_hash | bytea | no | content_hash bytea NOT NULL CHECK(octet_length(content_hash)=32) |
+| revision_no | bigint | yes | revision_no bigint NULL CHECK(revision_no>=1) |
+| blob_id | uuid | yes | blob_id uuid NULL REFERENCES prc_document_blobs(id) |
+| content_hash | text | no | content_hash text NOT NULL |
 | etag | text | yes | etag text NULL |
 | last_modified | timestamptz | yes | last_modified timestamptz NULL |
-| first_seen_at | timestamptz | no | first_seen_at timestamptz NOT NULL |
+| first_seen_at | timestamptz | yes | first_seen_at timestamptz NULL |
 | normalized_entry_path | text | yes | normalized_entry_path text NULL |
 | child_ordinal | bigint | yes | child_ordinal bigint NULL CHECK(child_ordinal>=0) |
 
@@ -1728,17 +1736,18 @@ Constraints:
 
 #### prc_document_representations @P3.1
 
-Existing bigint PK; explicit immutable disk/key/hash/range and complete source page coverage.
+Existing bigint PK; explicit immutable disk/key/hash/range and complete source page coverage. Coordinator-authorized additive staging: legacy rows retain NULL canonical tuple and version content_hash hex text until P3.5. Canonical tuple CHECK + immutable/reference guards are strict now. P3.5 MUST remove legacy predicates, require canonical tuple/explicit disk on ALL rows, convert versions.content_hash to bytea and remove legacy unique indexes with writer cutover.
 
 | Column | Type | Nullable | Target declaration |
 | --- | --- | --- | --- |
-| disk | text | no | disk text NOT NULL |
-| preparation_recipe_hash | bytea | no | preparation_recipe_hash bytea NOT NULL CHECK(octet_length(preparation_recipe_hash)=32) |
-| content_hash | bytea | no | content_hash bytea NOT NULL CHECK(octet_length(content_hash)=32) |
-| range_key | text | no | range_key text NOT NULL |
-| tool_version | text | no | tool_version text NOT NULL |
-| coverage_manifest | jsonb | no | coverage_manifest jsonb NOT NULL |
-| coverage_manifest_schema_version | smallint | no | coverage_manifest_schema_version smallint NOT NULL CHECK(coverage_manifest_schema_version>0) |
+| disk | text | yes | disk text NULL |
+| preparation_recipe_hash | bytea | yes | preparation_recipe_hash bytea NULL CHECK(octet_length(preparation_recipe_hash)=32) |
+| content_hash | bytea | yes | content_hash bytea NULL CHECK(octet_length(content_hash)=32) |
+| range_key | text | yes | range_key text NULL |
+| tool_version | text | yes | tool_version text NULL |
+| coverage_manifest | jsonb | yes | coverage_manifest jsonb NULL |
+| coverage_manifest_schema_version | smallint | yes | coverage_manifest_schema_version smallint NULL CHECK(coverage_manifest_schema_version>0) |
+| blob_id | uuid | yes | blob_id uuid NULL REFERENCES prc_document_blobs(id) |
 
 Remove at this cutover: none.
 
@@ -2896,6 +2905,38 @@ Indexes:
 - `prc_detail_snapshots_pkey`: `CREATE UNIQUE INDEX prc_detail_snapshots_pkey ON public.prc_detail_snapshots USING btree (id)`
 - `prc_detail_snapshots_procurement_id_input_revision_part_key_key`: `CREATE UNIQUE INDEX prc_detail_snapshots_procurement_id_input_revision_part_key_key ON public.prc_detail_snapshots USING btree (procurement_id, input_revision, part_key)`
 
+#### prc_document_blobs
+
+Owner: Repositories/Procurement/Document; retention: artifacts.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| storage_domain_id | uuid / uuid | NO | uuid NOT NULL |
+| content_hash | bytea / bytea | NO | bytea NOT NULL |
+| disk | text / text | NO | text NOT NULL |
+| object_key | text / text | NO | text NOT NULL |
+| size_bytes | bigint / int8 | NO | bigint NOT NULL |
+| verified_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| deletion_generation | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| deletion_marked_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `prc_document_blobs_content_hash_check`: `CHECK ((octet_length(content_hash) = 32))`
+- `prc_document_blobs_deletion_generation_check`: `CHECK ((deletion_generation >= 0))`
+- `prc_document_blobs_disk_check`: `CHECK ((length(disk) > 0))`
+- `prc_document_blobs_disk_object_key_key`: `UNIQUE (disk, object_key)`
+- `prc_document_blobs_object_key_check`: `CHECK ((length(object_key) > 0))`
+- `prc_document_blobs_pkey`: `PRIMARY KEY (id)`
+- `prc_document_blobs_size_bytes_check`: `CHECK ((size_bytes >= 0))`
+- `prc_document_blobs_storage_domain_id_content_hash_key`: `UNIQUE (storage_domain_id, content_hash)`
+- `prc_document_blobs_storage_domain_id_fkey`: `FOREIGN KEY (storage_domain_id) REFERENCES prc_storage_domains(id)`
+
+Indexes:
+- `prc_document_blobs_disk_object_key_key`: `CREATE UNIQUE INDEX prc_document_blobs_disk_object_key_key ON public.prc_document_blobs USING btree (disk, object_key)`
+- `prc_document_blobs_pkey`: `CREATE UNIQUE INDEX prc_document_blobs_pkey ON public.prc_document_blobs USING btree (id)`
+- `prc_document_blobs_storage_domain_id_content_hash_key`: `CREATE UNIQUE INDEX prc_document_blobs_storage_domain_id_content_hash_key ON public.prc_document_blobs USING btree (storage_domain_id, content_hash)`
+
 #### prc_document_representations
 
 Owner: Procurement; retention: business.
@@ -2905,6 +2946,13 @@ Owner: Procurement; retention: business.
 | id | bigint / int8 | NO | bigint NOT NULL |
 | document_version_id | bigint / int8 | NO | bigint NOT NULL |
 | kind | text / text | NO | text NOT NULL |
+| blob_id | uuid / uuid | YES | uuid |
+| preparation_recipe_hash | bytea / bytea | YES | bytea |
+| content_hash | bytea / bytea | YES | bytea |
+| range_key | text / text | YES | text |
+| tool_version | text / text | YES | text |
+| coverage_manifest | jsonb / jsonb | YES | jsonb |
+| coverage_manifest_schema_version | smallint / int2 | YES | smallint |
 | storage_path | text / text | NO | text NOT NULL |
 | disk | text / text | YES | text |
 | size_bytes | bigint / int8 | YES | bigint |
@@ -2917,14 +2965,17 @@ Owner: Procurement; retention: business.
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 
 Constraints:
+- `prc_document_representations_blob_fk`: `FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)`
+- `prc_document_representations_canonical_tuple_check`: `CHECK ((((blob_id IS NULL) AND (preparation_recipe_hash IS NULL) AND (content_hash IS NULL) AND (range_key IS NULL) AND (tool_version IS NULL) AND (coverage_manifest IS NULL) AND (coverage_manifest_schema_version IS NULL)) OR ((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1))))`
 - `prc_document_representations_document_version_id_foreign`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id) ON DELETE CASCADE`
-- `prc_document_representations_document_version_id_kind_unique`: `UNIQUE (document_version_id, kind)`
 - `prc_document_representations_pkey`: `PRIMARY KEY (id)`
+- `prc_document_representations_recipe_range_unique`: `UNIQUE (document_version_id, preparation_recipe_hash, kind, range_key)`
 
 Indexes:
 - `prc_document_representations_document_version_id_index`: `CREATE INDEX prc_document_representations_document_version_id_index ON public.prc_document_representations USING btree (document_version_id)`
-- `prc_document_representations_document_version_id_kind_unique`: `CREATE UNIQUE INDEX prc_document_representations_document_version_id_kind_unique ON public.prc_document_representations USING btree (document_version_id, kind)`
+- `prc_document_representations_legacy_kind_unique`: `CREATE UNIQUE INDEX prc_document_representations_legacy_kind_unique ON public.prc_document_representations USING btree (document_version_id, kind) WHERE (preparation_recipe_hash IS NULL)`
 - `prc_document_representations_pkey`: `CREATE UNIQUE INDEX prc_document_representations_pkey ON public.prc_document_representations USING btree (id)`
+- `prc_document_representations_recipe_range_unique`: `CREATE UNIQUE INDEX prc_document_representations_recipe_range_unique ON public.prc_document_representations USING btree (document_version_id, preparation_recipe_hash, kind, range_key)`
 
 #### prc_document_versions
 
@@ -2934,6 +2985,13 @@ Owner: Procurement; retention: business.
 | --- | --- | --- | --- |
 | id | bigint / int8 | NO | bigint NOT NULL |
 | document_id | bigint / int8 | NO | bigint NOT NULL |
+| revision_no | bigint / int8 | YES | bigint |
+| blob_id | uuid / uuid | YES | uuid |
+| etag | text / text | YES | text |
+| last_modified | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
+| first_seen_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
+| normalized_entry_path | text / text | YES | text |
+| child_ordinal | bigint / int8 | YES | bigint |
 | content_hash | text / text | NO | text NOT NULL |
 | size_bytes | bigint / int8 | NO | bigint NOT NULL |
 | filename | text / text | NO | text NOT NULL |
@@ -2948,17 +3006,24 @@ Owner: Procurement; retention: business.
 | archive_entry_path | text / text | YES | text |
 
 Constraints:
-- `prc_document_versions_document_id_content_hash_unique`: `UNIQUE (document_id, content_hash)`
+- `prc_document_versions_blob_fk`: `FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)`
+- `prc_document_versions_canonical_tuple_check`: `CHECK ((((revision_no IS NULL) AND (blob_id IS NULL) AND (first_seen_at IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL) AND (etag IS NULL) AND (last_modified IS NULL)) OR ((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (content_hash ~ '^[0-9a-f]{64}$'::text) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0))))))`
 - `prc_document_versions_document_id_foreign`: `FOREIGN KEY (document_id) REFERENCES prc_documents(id)`
-- `prc_document_versions_parent_version_id_foreign`: `FOREIGN KEY (parent_version_id) REFERENCES prc_document_versions(id) ON DELETE SET NULL`
+- `prc_document_versions_document_id_revision_no_unique`: `UNIQUE (document_id, revision_no)`
+- `prc_document_versions_id_document_id_unique`: `UNIQUE (id, document_id)`
+- `prc_document_versions_parent_version_id_foreign`: `FOREIGN KEY (parent_version_id) REFERENCES prc_document_versions(id)`
+- `prc_document_versions_parent_version_id_normalized_entry_path_u`: `UNIQUE (parent_version_id, normalized_entry_path)`
 - `prc_document_versions_pkey`: `PRIMARY KEY (id)`
 
 Indexes:
 - `prc_document_versions_content_hash_index`: `CREATE INDEX prc_document_versions_content_hash_index ON public.prc_document_versions USING btree (content_hash)`
-- `prc_document_versions_document_id_content_hash_unique`: `CREATE UNIQUE INDEX prc_document_versions_document_id_content_hash_unique ON public.prc_document_versions USING btree (document_id, content_hash)`
 - `prc_document_versions_document_id_index`: `CREATE INDEX prc_document_versions_document_id_index ON public.prc_document_versions USING btree (document_id)`
+- `prc_document_versions_document_id_revision_no_unique`: `CREATE UNIQUE INDEX prc_document_versions_document_id_revision_no_unique ON public.prc_document_versions USING btree (document_id, revision_no)`
+- `prc_document_versions_id_document_id_unique`: `CREATE UNIQUE INDEX prc_document_versions_id_document_id_unique ON public.prc_document_versions USING btree (id, document_id)`
+- `prc_document_versions_legacy_hash_unique`: `CREATE UNIQUE INDEX prc_document_versions_legacy_hash_unique ON public.prc_document_versions USING btree (document_id, content_hash) WHERE (revision_no IS NULL)`
 - `prc_document_versions_parent_archive_entry_path_unique`: `CREATE UNIQUE INDEX prc_document_versions_parent_archive_entry_path_unique ON public.prc_document_versions USING btree (parent_version_id, archive_entry_path) WHERE ((parent_version_id IS NOT NULL) AND (archive_entry_path IS NOT NULL))`
 - `prc_document_versions_parent_version_id_index`: `CREATE INDEX prc_document_versions_parent_version_id_index ON public.prc_document_versions USING btree (parent_version_id)`
+- `prc_document_versions_parent_version_id_normalized_entry_path_u`: `CREATE UNIQUE INDEX prc_document_versions_parent_version_id_normalized_entry_path_u ON public.prc_document_versions USING btree (parent_version_id, normalized_entry_path)`
 - `prc_document_versions_pkey`: `CREATE UNIQUE INDEX prc_document_versions_pkey ON public.prc_document_versions USING btree (id)`
 
 #### prc_documents
@@ -2997,9 +3062,11 @@ Owner: Repositories/Procurement (subject authority; Process head fields from P1.
 | acquisition_cycle_seq | bigint / int8 | NO | bigint DEFAULT '0'::bigint NOT NULL |
 | next_revalidation_due_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
 | unprocessable_reason | character varying / varchar | YES | character varying(64) |
+| current_version_id | bigint / int8 | YES | bigint |
 
 Constraints:
 - `prc_documents_acquisition_cycle_seq_check`: `CHECK ((acquisition_cycle_seq >= 0))`
+- `prc_documents_current_version_fk`: `FOREIGN KEY (current_version_id, id) REFERENCES prc_document_versions(id, document_id)`
 - `prc_documents_head_generation_check`: `CHECK ((head_generation >= 1))`
 - `prc_documents_pkey`: `PRIMARY KEY (id)`
 - `prc_documents_platform_id_foreign`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
@@ -3782,7 +3849,7 @@ Constraints:
 - `prc_operation_intents_intent_key_unique`: `UNIQUE (intent_key)`
 - `prc_operation_intents_pkey`: `PRIMARY KEY (id)`
 - `prc_operation_intents_semantic_policy_hash_check`: `CHECK ((octet_length(semantic_policy_hash) = 32))`
-- `prc_operation_intents_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
+- `prc_operation_intents_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))`
 - `prc_operation_intents_state_check`: `CHECK ((state = ANY (ARRAY['pending'::text, 'active'::text, 'terminal'::text])))`
 
 Indexes:
@@ -4024,7 +4091,7 @@ Constraints:
 - `prc_process_handler_holds_held_check`: `CHECK (((state <> 'held'::text) OR ((fault_signature IS NOT NULL) AND (incident_id IS NOT NULL) AND (held_at IS NOT NULL))))`
 - `prc_process_handler_holds_incident_id_fkey`: `FOREIGN KEY (incident_id) REFERENCES prc_process_incidents(id)`
 - `prc_process_handler_holds_pkey`: `PRIMARY KEY (id)`
-- `prc_process_handler_holds_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
+- `prc_process_handler_holds_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))`
 - `prc_process_handler_holds_stage_version_unique`: `UNIQUE (stage, handler_version)`
 - `prc_process_handler_holds_state_check`: `CHECK ((state = ANY (ARRAY['healthy'::text, 'held'::text])))`
 - `prc_process_handler_holds_version_check`: `CHECK ((version >= 1))`
@@ -4214,7 +4281,7 @@ Constraints:
 - `prc_process_reservations_admission_group_id_fkey`: `FOREIGN KEY (admission_group_id) REFERENCES prc_admission_groups(id) ON DELETE CASCADE`
 - `prc_process_reservations_lane_id_fkey`: `FOREIGN KEY (lane_id) REFERENCES prc_process_lanes(id)`
 - `prc_process_reservations_pkey`: `PRIMARY KEY (admission_group_id, lane_id)`
-- `prc_process_reservations_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
+- `prc_process_reservations_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))`
 - `prc_process_reservations_state_check`: `CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text])))`
 - `prc_process_reservations_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
 
@@ -4389,6 +4456,7 @@ Constraints:
 - `prc_process_work_deferred_due_check`: `CHECK (((state <> 'deferred'::text) OR (due_at IS NOT NULL)))`
 - `prc_process_work_dispatch_generation_check`: `CHECK ((dispatch_generation >= 0))`
 - `prc_process_work_document_id_fkey`: `FOREIGN KEY (document_id) REFERENCES prc_documents(id)`
+- `prc_process_work_document_version_id_fkey`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)`
 - `prc_process_work_due_state_check`: `CHECK (((due_at IS NULL) OR (state = 'deferred'::text)))`
 - `prc_process_work_execution_attempts_check`: `CHECK ((execution_attempts >= 0))`
 - `prc_process_work_generation_check`: `CHECK ((generation >= 0))`
@@ -4399,7 +4467,7 @@ Constraints:
 - `prc_process_work_intent_id_fkey`: `FOREIGN KEY (intent_id) REFERENCES prc_operation_intents(id)`
 - `prc_process_work_item_failures_check`: `CHECK (((item_failures >= 0) AND (item_failures <= 3)))`
 - `prc_process_work_origin_run_id_fkey`: `FOREIGN KEY (origin_run_id) REFERENCES prc_process_runs(id)`
-- `prc_process_work_owner_check`: `CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))`
+- `prc_process_work_owner_check`: `CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = ANY (ARRAY['prepare'::text, 'screening'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_version_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))`
 - `prc_process_work_pkey`: `PRIMARY KEY (id)`
 - `prc_process_work_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
 - `prc_process_work_procurement_id_fkey`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
@@ -4407,7 +4475,7 @@ Constraints:
 - `prc_process_work_reason_check`: `CHECK (((state <> ALL (ARRAY['deferred'::text, 'blocked'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])) OR (reason_code IS NOT NULL)))`
 - `prc_process_work_running_lease_check`: `CHECK ((((state = 'running'::text) AND (owner_token IS NOT NULL) AND (lease_until IS NOT NULL)) OR ((state <> 'running'::text) AND (owner_token IS NULL) AND (lease_until IS NULL))))`
 - `prc_process_work_semantic_reasks_check`: `CHECK ((semantic_reasks >= 0))`
-- `prc_process_work_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text])))`
+- `prc_process_work_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))`
 - `prc_process_work_state_check`: `CHECK ((state = ANY (ARRAY['ready'::text, 'admitted'::text, 'running'::text, 'deferred'::text, 'blocked'::text, 'succeeded'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])))`
 - `prc_process_work_transition_seq_check`: `CHECK ((transition_seq >= 0))`
 - `prc_process_work_transport_attempts_check`: `CHECK ((transport_attempts >= 0))`
@@ -4430,6 +4498,25 @@ Indexes:
 - `prc_process_work_provider_recovery_due_idx`: `CREATE INDEX prc_process_work_provider_recovery_due_idx ON public.prc_process_work USING btree (provider_recovery_due_at, id) WHERE ((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text))`
 - `prc_process_work_run_idx`: `CREATE INDEX prc_process_work_run_idx ON public.prc_process_work USING btree (origin_run_id, stage, state)`
 - `prc_process_work_work_key_unique`: `CREATE UNIQUE INDEX prc_process_work_work_key_unique ON public.prc_process_work USING btree (work_key)`
+
+#### prc_procurement_documents
+
+Owner: DocumentCatalogRepository; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| procurement_id | bigint / int8 | NO | bigint NOT NULL |
+| document_id | bigint / int8 | NO | bigint NOT NULL |
+| observed_at | timestamp with time zone / timestamptz | NO | timestamp(6) with time zone NOT NULL |
+| removed_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
+
+Constraints:
+- `prc_procurement_documents_document_id_foreign`: `FOREIGN KEY (document_id) REFERENCES prc_documents(id)`
+- `prc_procurement_documents_pkey`: `PRIMARY KEY (procurement_id, document_id)`
+- `prc_procurement_documents_procurement_id_foreign`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
+
+Indexes:
+- `prc_procurement_documents_pkey`: `CREATE UNIQUE INDEX prc_procurement_documents_pkey ON public.prc_procurement_documents USING btree (procurement_id, document_id)`
 
 #### prc_procurement_parties
 
@@ -4600,6 +4687,8 @@ Owner: Procurement; retention: artifacts.
 | Column | PostgreSQL type | Nullable | Exact column definition |
 | --- | --- | --- | --- |
 | id | character varying / varchar | NO | character varying(64) NOT NULL |
+| deletion_generation | bigint / int8 | NO | bigint DEFAULT '0'::bigint NOT NULL |
+| deletion_marked_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
 | disk | character varying / varchar | NO | character varying(255) NOT NULL |
 | path | text / text | NO | text NOT NULL |
 | last_seen_at | timestamp with time zone / timestamptz | NO | timestamp(0) with time zone NOT NULL |
@@ -4926,6 +5015,77 @@ Indexes:
 - `prc_status_refreshes_pkey`: `CREATE UNIQUE INDEX prc_status_refreshes_pkey ON public.prc_status_refreshes USING btree (id)`
 - `prc_status_refreshes_procurement_id_cycle_seq_key`: `CREATE UNIQUE INDEX prc_status_refreshes_procurement_id_cycle_seq_key ON public.prc_status_refreshes USING btree (procurement_id, cycle_seq)`
 
+#### prc_storage_domains
+
+Owner: Repositories/Procurement/Document; retention: artifacts.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| domain_key | text / text | NO | text NOT NULL |
+| capacity_bytes | bigint / int8 | NO | bigint NOT NULL |
+| high_watermark_bytes | bigint / int8 | NO | bigint NOT NULL |
+| accounted_durable_bytes | bigint / int8 | NO | bigint NOT NULL |
+| policy_version | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_storage_domains_capacity_bytes_check`: `CHECK ((capacity_bytes > 0))`
+- `prc_storage_domains_check`: `CHECK (((high_watermark_bytes > 0) AND (high_watermark_bytes <= capacity_bytes)))`
+- `prc_storage_domains_check1`: `CHECK (((accounted_durable_bytes >= 0) AND (accounted_durable_bytes <= capacity_bytes)))`
+- `prc_storage_domains_domain_key_key`: `UNIQUE (domain_key)`
+- `prc_storage_domains_pkey`: `PRIMARY KEY (id)`
+- `prc_storage_domains_policy_version_check`: `CHECK ((policy_version >= 1))`
+
+Indexes:
+- `prc_storage_domains_domain_key_key`: `CREATE UNIQUE INDEX prc_storage_domains_domain_key_key ON public.prc_storage_domains USING btree (domain_key)`
+- `prc_storage_domains_pkey`: `CREATE UNIQUE INDEX prc_storage_domains_pkey ON public.prc_storage_domains USING btree (id)`
+
+#### prc_storage_reservations
+
+Owner: Repositories/Procurement/Document; retention: artifacts.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| domain_id | uuid / uuid | NO | uuid NOT NULL |
+| work_id | uuid / uuid | YES | uuid |
+| attempt_id | uuid / uuid | YES | uuid |
+| operation_id | uuid / uuid | YES | uuid |
+| upload_intent_id | uuid / uuid | NO | uuid NOT NULL |
+| owner_token | uuid / uuid | NO | uuid NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| byte_upper_bound | bigint / int8 | NO | bigint NOT NULL |
+| phase | text / text | NO | text NOT NULL |
+| status | text / text | NO | text NOT NULL |
+| cleanup_verified_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| disk | text / text | NO | text NOT NULL |
+| object_key | text / text | NO | text NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_storage_reservations_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
+- `prc_storage_reservations_attempt_work_fk`: `FOREIGN KEY (attempt_id, work_id) REFERENCES prc_process_attempts(id, work_id)`
+- `prc_storage_reservations_byte_upper_bound_check`: `CHECK ((byte_upper_bound > 0))`
+- `prc_storage_reservations_cleanup_check`: `CHECK (((status = 'cleaned'::text) = (cleanup_verified_at IS NOT NULL)))`
+- `prc_storage_reservations_disk_check`: `CHECK ((length(disk) > 0))`
+- `prc_storage_reservations_disk_object_key_key`: `UNIQUE (disk, object_key)`
+- `prc_storage_reservations_domain_id_fkey`: `FOREIGN KEY (domain_id) REFERENCES prc_storage_domains(id)`
+- `prc_storage_reservations_generation_check`: `CHECK ((generation >= 1))`
+- `prc_storage_reservations_object_key_check`: `CHECK ((length(object_key) > 0))`
+- `prc_storage_reservations_operation_id_fkey`: `FOREIGN KEY (operation_id) REFERENCES prc_outbound_operations(id)`
+- `prc_storage_reservations_owner_check`: `CHECK ((((work_id IS NULL) = (attempt_id IS NULL)) AND (NOT ((work_id IS NOT NULL) AND (operation_id IS NOT NULL)))))`
+- `prc_storage_reservations_phase_check`: `CHECK ((phase = ANY (ARRAY['download'::text, 'prepare'::text])))`
+- `prc_storage_reservations_pkey`: `PRIMARY KEY (id)`
+- `prc_storage_reservations_status_check`: `CHECK ((status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text, 'cleaned'::text, 'transferred'::text])))`
+- `prc_storage_reservations_upload_intent_id_key`: `UNIQUE (upload_intent_id)`
+- `prc_storage_reservations_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
+
+Indexes:
+- `prc_storage_reservations_active_idx`: `CREATE INDEX prc_storage_reservations_active_idx ON public.prc_storage_reservations USING btree (domain_id) WHERE (status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text]))`
+- `prc_storage_reservations_disk_object_key_key`: `CREATE UNIQUE INDEX prc_storage_reservations_disk_object_key_key ON public.prc_storage_reservations USING btree (disk, object_key)`
+- `prc_storage_reservations_pkey`: `CREATE UNIQUE INDEX prc_storage_reservations_pkey ON public.prc_storage_reservations USING btree (id)`
+- `prc_storage_reservations_upload_intent_id_key`: `CREATE UNIQUE INDEX prc_storage_reservations_upload_intent_id_key ON public.prc_storage_reservations USING btree (upload_intent_id)`
+
 #### prc_target_health
 
 Owner: Repositories/Procurement/Network; retention: authority.
@@ -5203,25 +5363,6 @@ Constraints:
 Indexes:
 - `users_email_unique`: `CREATE UNIQUE INDEX users_email_unique ON public.users USING btree (email)`
 - `users_pkey`: `CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)`
-
-#### prc_procurement_documents
-
-Owner: DocumentCatalogRepository; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| procurement_id | bigint / int8 | NO | bigint NOT NULL |
-| document_id | bigint / int8 | NO | bigint NOT NULL |
-| observed_at | timestamp with time zone / timestamptz | NO | timestamp(6) with time zone NOT NULL |
-| removed_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
-
-Constraints:
-- `prc_procurement_documents_document_id_foreign`: `FOREIGN KEY (document_id) REFERENCES prc_documents(id)`
-- `prc_procurement_documents_pkey`: `PRIMARY KEY (procurement_id, document_id)`
-- `prc_procurement_documents_procurement_id_foreign`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
-
-Indexes:
-- `prc_procurement_documents_pkey`: `CREATE UNIQUE INDEX prc_procurement_documents_pkey ON public.prc_procurement_documents USING btree (procurement_id, document_id)`
 
 <!-- schema-inventory:end -->
 

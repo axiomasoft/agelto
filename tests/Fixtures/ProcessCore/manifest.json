@@ -449,6 +449,25 @@
       "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
       "original_sha256": "bbe3f420f28f3970882c9c17ecf6fd09ff6497cfb5789173ba2f3370fd09f396",
       "accepted_change_item": "P2.18"
+    },
+    {
+      "id": "document-storage-v1",
+      "kind": "document_storage",
+      "path": "tests/Fixtures/ProcessCore/Documents/storage-v1.json",
+      "platform": null,
+      "adapter_version": null,
+      "provenance": "Hand-authored synthetic bounded byte corpus; expected revision/blob/accounting counts checked against A-B-A contract; no external I/O or real PDF/tool semantics claimed.",
+      "captured_at": "2026-11-01",
+      "sha256": "18cf831d23ffb4e2e4c0c563e95daa720cd35842cdecf2a0e8ef04a481cf9196",
+      "expected": {
+        "assessment": "immutable_storage",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T10",
+        "T12"
+      ],
+      "coverage": "immutable_storage_only"
     }
   ],
   "files": [
@@ -4303,7 +4322,7 @@
     },
     {
       "path": "tests/Unit/Architecture/DomainLayoutTest.php",
-      "sha256": "c87445efa6c5cee44dd1b39d7184c7b49b2f93b6ab6dc0c37787750e27264cc7",
+      "sha256": "862803c395d8eef69223ee172a220b43d49aa193f575591ac2b20c91d2525621",
       "scenarios": [
         "в корне выровненных слоёв раскладки нет файлов сверх реестра root-legal классов",
         "namespace каждого файла выровненных слоёв совпадает с его путём",
@@ -5105,7 +5124,7 @@
     },
     {
       "path": "database/migrations/2026_07_04_100019_create_prc_document_versions_table.php",
-      "sha256": "17a7191a08958fb58de1212525fe5c6524be83438e98573216c6b719e4f135e9"
+      "sha256": "561a79848f78d4395177b0e4dc21d4ae92b51cbe3e7cf7869bec63e0fc712d3c"
     },
     {
       "path": "database/migrations/2026_07_04_100020_create_prc_protocols_table.php",
@@ -5235,7 +5254,7 @@
     },
     {
       "path": "database/migrations/2026_07_27_100055_create_prc_document_representations_table.php",
-      "sha256": "9cb01e6cf193b9f78b4f82a41953210a1955f2b78c48ed62ec0ee9dc5b2714eb"
+      "sha256": "222117292cd8cf321a2e33c22dd09770df1eb59649437aa526bb2840f5ec1488"
     },
     {
       "path": "database/migrations/2026_07_27_100057_create_prc_estimate_work_types_table.php",
@@ -5322,7 +5341,7 @@
     },
     {
       "path": "database/migrations/2026_10_08_100104_catalog_raw_artifacts.php",
-      "sha256": "fa79703594e7ef629eb0553a54537ea620556d77645931d36fbd5e1a3130a77b"
+      "sha256": "0d16e09c72d80ba20489da471fe81c7c61d0f6e74e0ac2e39593bbdb7b6c65ac"
     },
     {
       "path": "database/migrations/2026_10_18_170000_add_eis_identity_to_org_organizations.php",
@@ -5334,7 +5353,7 @@
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
-      "sha256": "8a2cdcd09067735d14ee3e879970b065cdd479e90275b754d920819a29562291",
+      "sha256": "08992c6d2a285d1ce12287535884284a72e3cc076bde10c099e9e4d7abc5a25e",
       "original_path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
       "original_sha256": "1d0dfa0b99f6b4665b7c37928306175aff8a9bbcdccb45195e1b2c93bdd57002",
       "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
@@ -5359,6 +5378,18 @@
       "path": "database/migrations/2026_10_28_100002_create_prc_acquisition_snapshot_tables.php",
       "sha256": "e893c335272dbd661f07d29cb63f0213dd0ffd72af237be47cd270ba38f93590",
       "change_reason": "P2.16 immutable detail checkpoints and status refresh cycle ledger."
+    },
+    {
+      "path": "database/migrations/2026_10_28_100000_create_prc_process_projection_tables.php",
+      "sha256": "075391378f0eee4a2e16390775213bf70ed8ab48f4912690ba2a13544a4467f9"
+    },
+    {
+      "path": "database/migrations/2026_10_31_100000_create_prc_acquisition_schedules_table.php",
+      "sha256": "23b0ff9f85df340bed53bfe34b05551558f203bff5cae3e462d8fb6fd877ae64"
+    },
+    {
+      "path": "database/migrations/2026_11_01_100000_create_prc_document_storage_tables.php",
+      "sha256": "6375c41dede894fa58fe9d6b3ff0c1a0ce2ca80b6e755b78d41141cc28d6f689"
     }
   ],
   "source_classes": [

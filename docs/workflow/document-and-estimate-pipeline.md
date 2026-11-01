@@ -190,3 +190,20 @@ stateDiagram-v2
 Как готовятся промты, которыми пользуется модель на каждом шаге — `prompts-and-quality.md`; полный
 канон контрактов ответов и алгоритма извлечения —
 [`dev/ai/estimate-extraction.md`](../dev/ai/estimate-extraction.md).
+
+## Immutable storage staging (P3.1)
+
+The acquisition catalog remains the single logical document catalog. New storage primitives record
+source revisions separately from content-addressed blobs: A→B→A means three observations and two
+blobs. A current-head CAS prevents a stale observation from replacing a newer source head.
+Representations pin their preparation recipe, range, tool version, original coverage and disk;
+missing source ranges remain explicitly incomplete.
+
+Upload/spool byte ceilings are durable reservations, not queue-slot counters. An uncertain put or
+unconfirmed cleanup retains its reservation. Immutable bytes and their references do not depend on
+crawler availability. GC and reference acquisition share one deletion gate; existing historical
+references prevent deletion, and a deletion-marked object cannot receive a new reference.
+
+These components are not yet the runtime download/prepare cutover. Existing consumers remain
+operational through the additive NULL legacy tuple until P3.5; the exact required schema tightening
+is recorded in [process-core.md](../dev/process-core.md). No new runtime toggle was introduced.

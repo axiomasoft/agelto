@@ -887,3 +887,44 @@ P2.19 сверяет producer cutover P2.18 с contracts `observability#s04` и 
   Document intents с `pending_reason=handler_not_activated` не активируются.
 - Manual retry failed_item создаёт новый intent `pending`, если у subject уже есть active intent
   (partial unique index `prc_operation_intents_one_active_unique`).
+
+## P3.1 — immutable document storage (staged)
+
+`DocumentVersionRepository` publishes immutable observed revisions using the document's
+`head_generation/current_version_id` CAS. Re-observing current bytes is idempotent; A→B→A records
+three revisions backed by two domain-scoped SHA-256 blobs. Original and representation locations
+always include the recorded disk. `DocumentRepresentationRepository` keys output by version,
+preparation recipe, kind and range, and persists typed source coverage with explicit missing ranges.
+These repositories do not read crawler flags or source health and do not activate document jobs.
+The owning WorkFinalizer must invoke their locked methods under its complete capacity/subject/work
+prefix; a bare successful storage write never changes WorkState.
+
+`StorageCapacityRepository` reserves the hard byte ceiling before I/O. Upload and local spool use
+separate storage domains. Active reservations in reserved/writing/staged/**cleaning** remain
+charged. A successful immutable read-back permits the caller's transaction to transfer one reserve
+to durable accounting. A deduplicated upload leaves its distinct staging key charged until verified
+cleanup; it never deletes the winning object's key. Cancellation, lease expiry, exceptions and slot
+release do not prove deletion. A writer killed during object put remains `writing`; reconciliation
+must prove writer/process termination before cleanup (owning download/prepare integration).
+
+GC locks the same storage authority as reference acquisition, marks an unreferenced blob with a
+monotonic deletion generation, deletes outside the DB transaction, verifies absence and finalizes
+accounting with that generation. A marked blob rejects new references until verified cleanup;
+current and historical version/representation references protect it. DB reference triggers also
+reject a direct INSERT racing with deletion. Failed cleanup retains both the mark and capacity.
+
+Coordinator-authorized staging decision (2026-11-01): until P3.5, legacy rows have an entirely NULL
+canonical tuple and retain the old partial uniqueness rules; canonical rows have strict complete-tuple
+CHECKs, blob reference checks and immutable content metadata. A legacy writer cannot append to a
+canonical document or representation. Version hashes remain hex text only for legacy compatibility;
+blob and representation hashes are bytea. P3.5 **must** switch all surviving writers, require canonical
+metadata and explicit disk on every version/representation, convert version hashes to bytea, remove
+the legacy partial indexes and remove the NULL-tuple exception. This is additive schema staging,
+not a second document catalog or an alternate runtime state owner. Prepare/screening are now
+schema-supported; their real handlers remain unregistered until their owning activation.
+
+P3.1 evidence comes from `make core-test-documents`: current-head CAS on separate PostgreSQL
+processes, A→B→A, GC/reference interleavings, storage capacity contention, uncertain uploads,
+dedup/cleanup, archive lineage and retained archive/blob safety tests. `core-test-install` still
+requires two complete isolated installs and exact schema/seed/catalog equality. Future OCR,
+independent feeder, fairness and real AI assertions belong to their owning points.

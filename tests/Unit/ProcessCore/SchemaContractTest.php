@@ -36,13 +36,13 @@ test('полный enum стадий не активирует будущую с
 
     foreach (['prc_process_work', 'prc_operation_intents', 'prc_process_reservations', 'prc_process_handler_holds'] as $table) {
         preg_match_all("/'([^']+)'/", $inventory['carriers'][$table]['columns']['stage']['definition'], $matches);
-        expect($matches[1])->toBe($initial['supported']);
+        expect($matches[1])->toBe(array_column($inventory['staging'], null, 'at')['P3.1']['supported']);
     }
 
     // P2.18 installs acquisition carriers; document execution and AI remain future owners.
-    expect($inventory['current_item'])->toBe('P2.18');
+    expect($inventory['current_item'])->toBe('P3.1');
     foreach ($inventory['carriers'] as $table => $carrier) {
-        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15', 'P2.1', 'P2.16', 'P2.18'], true), $table);
+        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15', 'P2.1', 'P2.16', 'P2.18', 'P3.1'], true), $table);
     }
 })->group('t01', 'p11');
 
