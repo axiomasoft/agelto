@@ -30,6 +30,7 @@ final readonly class LockedPrefix
         public array $members,
         public array $enabledScopeKeys = [],
         public array $healthyHandlerIds = [],
+        public bool $intentPending = false,
     ) {}
 
     public function lane(string $key): LockedLane

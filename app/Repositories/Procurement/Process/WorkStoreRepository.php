@@ -10,6 +10,7 @@ use App\Dto\Procurement\Process\ClaimResult;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DbInstant;
 use App\Dto\Procurement\Process\DeliveryGeneration;
+use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\LeaseRenewal;
 use App\Dto\Procurement\Process\NoProviderRecovery;
@@ -198,6 +199,106 @@ final readonly class WorkStoreRepository implements LeaseKeeper
             $eventId, $projectionMessageId, $snapshot->workId->value, $row->int('transition_seq'),
             $previous, WorkState::Superseded->value, 'input_invalidated', $actor, $row->int('generation'),
         );
+        $this->carrySupersededRequirement($snapshot, $prefix, $eventId);
+    }
+
+    /**
+     * Superseded required link атомарно заменяется successor (observability#s04): detail input,
+     * устаревшая только из-за нового subject head, пере-pin-ится на текущий head под тем же intent
+     * (execution#s10: expected head пересчитывается). Пока intent active, successor создаётся;
+     * если intent уже terminal, successor — существующая work того же intent на текущем head.
+     * Required links всех нуждающихся runs переходят на successor, прежние становятся observes.
+     */
+    private function carrySupersededRequirement(AuthoritySnapshot $snapshot, LockedPrefix $prefix, ProcessUuid $eventId): void
+    {
+        $input = $snapshot->input;
+        if (! $input instanceof DetailInput) {
+            return;
+        }
+        $owner = $prefix->subjects[$this->resolver->subjects($input)[0]->key()]
+            ?? throw new \LogicException('Owner subject must be locked before supersede.');
+        if ($owner->headGeneration === $input->expectedHeadGeneration) {
+            return;
+        }
+        $intent = LedgerRow::one('SELECT state FROM prc_operation_intents WHERE id = ? FOR UPDATE', [$input->intentId->value]);
+        if ($intent === null || $intent->string('state') === IntentState::Pending->value) {
+            return;
+        }
+        $repinned = new DetailInput($input->procurementId, $input->intentId, $owner->headGeneration,
+            $input->semanticPolicyHash, $input->accessPolicyHash, $input->adapterVersion);
+        $identity = new WorkIdentity($repinned);
+        $existing = LedgerRow::one(
+            "SELECT id, work_identity = ?::jsonb AS same FROM prc_process_work WHERE work_key = decode(?, 'hex')",
+            [$identity->payload()->json, $identity->key()->hex],
+        );
+        if ($existing !== null && ! $existing->bool('same')) {
+            throw new \LogicException('Successor work_key collides with a different immutable identity.');
+        }
+        if ($existing !== null) {
+            $successor = new WorkId(new ProcessUuid($existing->string('id')));
+        } elseif ($intent->string('state') === IntentState::Active->value) {
+            $successor = new WorkId(self::derivedId($eventId, 'superseded-successor:work'));
+            $work = $prefix->work;
+            $origin = $work->nullableString('origin_run_id');
+            $priority = (LedgerRow::one('SELECT priority FROM prc_process_work WHERE id = ?', [$snapshot->workId->value->value])
+                ?? throw new \LogicException('Locked work row disappeared.'))->int('priority');
+            $this->storeWork(
+                id: $successor,
+                input: $repinned,
+                inputRevision: $snapshot->inputRevision,
+                intentId: $input->intentId,
+                cohortKey: $work->string('cohort_key'),
+                platformId: $work->nullableInt('platform_id'),
+                originRunId: $origin === null ? null : new ProcessUuid($origin),
+                priority: $priority,
+                eventId: self::derivedId($eventId, 'superseded-successor:event'),
+                projectionMessageId: self::derivedId($eventId, 'superseded-successor:projection'),
+            );
+            DB::update('UPDATE prc_operation_intents SET expected_head_generation = ? WHERE id = ?',
+                [$owner->headGeneration, $input->intentId->value]);
+        } else {
+            return;
+        }
+        $this->carryRunLinks($snapshot->workId, $successor);
+    }
+
+    /**
+     * Required link заменяется атомарно: successor получает прежнюю accounting role, прежняя
+     * связь становится observes (provenance сохранён). Cancelled run новых required links не
+     * получает. Run rows lock-аются sorted в domain tier после work.
+     */
+    public function carryRunLinks(WorkId $from, WorkId $to): void
+    {
+        CallerTransaction::require('Run link carry');
+        $links = LedgerRow::all(
+            'SELECT rw.run_id, rw.accounting_role, r.cancel_requested_at IS NOT NULL AS cancelled
+             FROM prc_process_run_work rw JOIN prc_process_runs r ON r.id = rw.run_id
+             WHERE rw.work_id = ? ORDER BY rw.run_id FOR UPDATE OF r',
+            [$from->value->value],
+        );
+        foreach ($links as $link) {
+            $required = $link->string('accounting_role') === AccountingRole::Required->value && ! $link->bool('cancelled');
+            DB::insert(
+                'INSERT INTO prc_process_run_work (run_id, work_id, relation, accounting_role) VALUES (?, ?, ?, ?)
+                 ON CONFLICT (run_id, work_id) DO UPDATE SET accounting_role = CASE
+                   WHEN EXCLUDED.accounting_role = \'required\' THEN \'required\' ELSE prc_process_run_work.accounting_role END',
+                [$link->string('run_id'), $to->value->value, RunWorkRelation::Discovered->value, $required ? AccountingRole::Required->value : AccountingRole::Observes->value],
+            );
+            if ($required) {
+                DB::update(
+                    'UPDATE prc_process_run_work SET accounting_role = ? WHERE run_id = ? AND work_id = ?',
+                    [AccountingRole::Observes->value, $link->string('run_id'), $from->value->value],
+                );
+            }
+        }
+    }
+
+    /** Стабильный derived UUID: повтор той же transaction даёт те же идентификаторы. */
+    private static function derivedId(ProcessUuid $seed, string $purpose): ProcessUuid
+    {
+        $h = hash('sha256', 'process-derived:v1:'.$purpose.':'.$seed->value);
+
+        return new ProcessUuid(substr($h, 0, 8).'-'.substr($h, 8, 4).'-5'.substr($h, 13, 3).'-a'.substr($h, 17, 3).'-'.substr($h, 20, 12));
     }
 
     /** Release всей group одной tx: DELETE всех members и released с ожидаемой version. */

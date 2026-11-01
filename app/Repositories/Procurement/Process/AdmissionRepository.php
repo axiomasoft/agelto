@@ -83,7 +83,8 @@ final readonly class AdmissionRepository
     }
 
     /**
-     * Unlocked выбор: (stage, cohort) с eligible work = ready либо deferred с наступившим due.
+     * Unlocked выбор: (stage, cohort) с eligible work = ready либо deferred с наступившим due;
+     * work pending intent не eligible до активации intent.
      *
      * @param  list<StageCode>  $stages
      * @return list<array{stage: StageCode, cohort: string}>
@@ -93,9 +94,9 @@ final readonly class AdmissionRepository
         $values = array_map(static fn (StageCode $code): string => $code->value, $stages);
 
         return array_map(static fn (LedgerRow $row): array => ['stage' => StageCode::from($row->string('stage')), 'cohort' => $row->string('cohort_key')], LedgerRow::all(
-            'SELECT stage, cohort_key FROM prc_process_work
-             WHERE stage IN ('.LedgerRow::placeholders(count($values)).") AND (state = 'ready' OR (state = 'deferred' AND due_at <= clock_timestamp()))
-             GROUP BY stage, cohort_key ORDER BY cohort_key COLLATE \"C\", stage COLLATE \"C\"",
+            'SELECT w.stage, w.cohort_key FROM prc_process_work w
+             WHERE w.stage IN ('.LedgerRow::placeholders(count($values)).") AND (w.state = 'ready' OR (w.state = 'deferred' AND w.due_at <= clock_timestamp())) AND NOT EXISTS (SELECT 1 FROM prc_operation_intents i WHERE i.id = w.intent_id AND i.state = 'pending')
+             GROUP BY w.stage, w.cohort_key ORDER BY w.cohort_key COLLATE \"C\", w.stage COLLATE \"C\"",
             $values,
         ));
     }
@@ -133,6 +134,7 @@ final readonly class AdmissionRepository
             "WITH cutoff AS (SELECT clock_timestamp() - make_interval(secs => ?) AS aged_before)
              SELECT w.id FROM prc_process_work w CROSS JOIN cutoff c
              WHERE w.stage = ? AND w.cohort_key = ? AND (w.state = 'ready' OR (w.state = 'deferred' AND w.due_at <= clock_timestamp()))
+              AND NOT EXISTS (SELECT 1 FROM prc_operation_intents i WHERE i.id = w.intent_id AND i.state = 'pending')
              ORDER BY (w.created_at <= c.aged_before) DESC,
                       CASE WHEN w.created_at <= c.aged_before THEN w.created_at END ASC NULLS LAST,
                       CASE WHEN w.created_at > c.aged_before AND w.cohort_key <> 'manual' THEN w.priority ELSE 100 END ASC,
@@ -163,6 +165,10 @@ final readonly class AdmissionRepository
         }
         if ($prefix->group !== null) {
             return AdmissionResult::refused(AdmissionStatus::InvariantViolation);
+        }
+        if ($prefix->intentPending) {
+            // Pending intent ждёт завершения active intent того же subject (execution#s10); не supersede.
+            return AdmissionResult::refused(AdmissionStatus::NotEligible);
         }
         if (! $prefix->intentActive || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {
             $this->works->supersedeLocked($snapshot, $prefix, $ids['event'], $ids['projection'], ActorKind::System);
@@ -209,8 +215,8 @@ final readonly class AdmissionRepository
         $snapshots = [];
         foreach ($this->parentEligiblePairs($candidate) as $pair) {
             $work = LedgerRow::one(
-                "SELECT id FROM prc_process_work WHERE stage = ? AND cohort_key = ?
-                 AND (state = 'ready' OR (state = 'deferred' AND due_at <= clock_timestamp())) ORDER BY id LIMIT 1",
+                "SELECT w.id FROM prc_process_work w WHERE w.stage = ? AND w.cohort_key = ?
+                 AND (w.state = 'ready' OR (w.state = 'deferred' AND w.due_at <= clock_timestamp())) AND NOT EXISTS (SELECT 1 FROM prc_operation_intents i WHERE i.id = w.intent_id AND i.state = 'pending') ORDER BY w.id LIMIT 1",
                 [$pair['stage']->value, $pair['cohort']],
             );
             if ($work === null) {

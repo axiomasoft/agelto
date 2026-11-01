@@ -76,6 +76,7 @@ final readonly class WorkFinalizationRepository
         private SubjectLockResolver $resolver,
         private StageRegistry $registry,
         private ProcessPolicy $policy,
+        private IntentRepository $intents,
     ) {}
 
     /**
@@ -175,6 +176,12 @@ final readonly class WorkFinalizationRepository
         $this->works->releaseGroupLocked($group, count($prefix->members), $decision['terminal_kind']);
         $this->storeSuccessors($lease->workId, $work, $successors, $successorIds);
         $publication?->afterSuccessors($snapshot->input, $lease->workId, $ids['incident_event'], $ids['incident_projection']);
+        // execution#s10: terminal work продвигает очередь intents своего subject/stage. failed_item
+        // завершает intent; успех — только если publication уже перевела intent в terminal.
+        if (($intentId = $work->nullableString('intent_id')) !== null
+            && in_array($decision['state'], [WorkState::Succeeded, WorkState::FailedItem], true)) {
+            $this->intents->releaseLocked($intentId, terminate: $decision['state'] === WorkState::FailedItem);
+        }
         if ($decision['exhausted'] !== null) {
             $this->incidents->open(
                 fingerprint: ContentHash::of('handler-fault-limit:v1:'.$lease->workId->value->value.':'.$attempt->string('handler_version')),

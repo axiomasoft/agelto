@@ -10,9 +10,12 @@ use App\Dto\Procurement\Acquisition\ProcurementSnapshot;
 use App\Dto\Procurement\Document\DocumentReference;
 use App\Dto\Procurement\Document\SourceDocumentKey;
 use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DetailInput;
+use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\StageFailedItem;
 use App\Dto\Procurement\Process\StageSucceeded;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
@@ -20,6 +23,7 @@ use App\Enums\Procurement\Platform\SnapshotConsistency;
 use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Enums\Procurement\Process\ControlMode;
 use App\Enums\Procurement\Process\DiscoveryOutcome;
+use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Enums\Procurement\Process\ProcessRunState;
 use App\Enums\Procurement\Process\StageCode;
 use App\Filament\Resources\Procurement\Crawler\SourceIncidents\SourceIncidentResource;
@@ -31,9 +35,11 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\User;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
+use App\Repositories\Procurement\Crawler\RefreshRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Platforms\Eis\EisListingPartitioner;
 use App\Services\Procurement\Acquisition\AcquisitionScheduler;
+use App\Services\Procurement\Process\ProcessOperatorCommands;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\RunProjector;
 use App\Services\Procurement\Process\WorkFeeder;
@@ -89,18 +95,6 @@ function lifecycleDrainListing(ProcessUuid $run, array $summaries): void
     }
 }
 
-/** Feeder admission detail lane и claim каждой admitted detail work, как это делает worker delivery. */
-function lifecycleDeliverDetails(): void
-{
-    for ($round = 0; $round < 3; $round++) {
-        app(WorkFeeder::class)->tick(app(ProcessPolicy::class)->parentLane(StageCode::Detail));
-        foreach (DB::table('prc_process_work')->where('stage', 'detail')->where('state', 'admitted')->pluck('id') as $id) {
-            $work = new WorkId(new ProcessUuid($id));
-            app(WorkStoreRepository::class)->claim($work, ExecutionFixtures::delivery($work));
-        }
-    }
-}
-
 test('T18 actual producer: две стабильные passes закрывают discovery, detail публикует document handoff, pending document intent не удерживает run', function (): void {
     Queue::fake();
     $profile = EisCrawlerFactory::new()->create();
@@ -133,9 +127,43 @@ test('T18 actual producer: две стабильные passes закрывают
     Queue::assertNothingPushed();
 });
 
-// Acceptance-спецификация observability#s04 и execution#s10. На кандидате P2.18 падает: обе detail works
-// superseded без successor, intents остаются active/pending навсегда (дефект P2.15/P2.16, эскалация P2.19).
-test('T18 actual producer: superseded required detail заменяется successor для всех нуждающихся runs, intent не остаётся зависшим', function (): void {
+/** Feeder admission detail lane и claim первой admitted detail work; supersede при admission/claim создаёт successor. */
+function lifecycleClaimNextDetail(): ?ExecutionLease
+{
+    for ($round = 0; $round < 4; $round++) {
+        app(WorkFeeder::class)->tick(app(ProcessPolicy::class)->parentLane(StageCode::Detail));
+        foreach (DB::table('prc_process_work')->where('stage', 'detail')->where('state', 'admitted')->orderBy('created_at')->pluck('id') as $id) {
+            $work = new WorkId(new ProcessUuid($id));
+            $claim = app(WorkStoreRepository::class)->claim($work, ExecutionFixtures::delivery($work));
+            if ($claim->lease !== null) {
+                return $claim->lease;
+            }
+        }
+    }
+
+    return null;
+}
+
+function lifecycleFinishDetail(ExecutionLease $lease, string $body): void
+{
+    $input = DetailFixtures::input($lease->workId);
+    if (! $input instanceof DetailInput) {
+        throw new LogicException('Detail input required.');
+    }
+    $request = app(DetailSnapshotRepository::class)->request($input->procurementId, $input->intentId);
+    $completion = app(WorkFinalizer::class)->finish($lease, new StageSucceeded(new DetailResult(
+        DetailFixtures::snapshot($request, 'attributes', body: $body), new DetailProgress, SnapshotConsistency::BoundedRevalidated, new DateTimeImmutable)));
+    expect($completion->status->value)->toBe('applied');
+}
+
+/** @return list<object> */
+function lifecycleDetailIntents(int $procurement, string $state): array
+{
+    return DB::table('prc_operation_intents')->where('stage', 'detail')->where('subject_id', (string) $procurement)
+        ->where('state', $state)->orderBy('requested_at')->get()->all();
+}
+
+test('T18 actual producer: superseded required detail заменяется successor для всех нуждающихся runs, pending intent исполняется после active', function (): void {
     $profile = EisCrawlerFactory::new()->create();
     $scheduler = app(AcquisitionScheduler::class);
     $launch = lifecycleLaunch($profile);
@@ -143,31 +171,98 @@ test('T18 actual producer: superseded required detail заменяется succe
     // Второй run видит изменённое содержимое той же закупки: head растёт, прежняя detail input устаревает.
     foreach (['A' => 'lifecycle-supersede-a', 'B' => 'lifecycle-supersede-b'] as $content => $command) {
         $run = $scheduler->manual($launch, ListingStoreRepository::id($command), null);
-        $runs[] = $run;
+        $runs[$content] = $run;
         lifecycleDrainListing($run, [ListingFixtures::summary('lifecycle-shared', $content)]);
     }
-    $procurement = DB::table('prc_procurements')->sole();
-    expect($procurement->head_generation)->toBe(2);
+    $procurement = (int) DB::table('prc_procurements')->value('id');
+    expect(DB::table('prc_procurements')->value('head_generation'))->toBe(2)
+        ->and(lifecycleDetailIntents($procurement, 'active'))->toHaveCount(1)
+        ->and(lifecycleDetailIntents($procurement, 'pending'))->toHaveCount(1);
+    [$first] = lifecycleDetailIntents($procurement, 'active');
+    [$queued] = lifecycleDetailIntents($procurement, 'pending');
+    $stale = DB::table('prc_process_work')->where('intent_id', $first->id)->sole();
+    $waiting = DB::table('prc_process_work')->where('intent_id', $queued->id)->sole();
 
-    lifecycleDeliverDetails();
+    // Устаревшая work active intent supersede-ится в той же tx, где появляется successor на текущем head.
+    $lease = lifecycleClaimNextDetail() ?? throw new LogicException('Successor was not claimed.');
+    $successor = DetailFixtures::input($lease->workId);
+    /** @var DetailInput $successor */
+    expect(DB::table('prc_process_work')->where('id', $stale->id)->value('state'))->toBe('superseded')
+        ->and($successor->intentId->value)->toBe($first->id)
+        ->and($successor->expectedHeadGeneration)->toBe(2)
+        ->and(DB::table('prc_operation_intents')->where('id', $first->id)->value('expected_head_generation'))->toBe(2)
+        ->and(DB::table('prc_process_run_work')->where('run_id', $runs['A']->value)->where('work_id', $stale->id)->value('accounting_role'))->toBe('observes')
+        ->and(DB::table('prc_process_run_work')->where('run_id', $runs['A']->value)->where('work_id', $lease->workId->value->value)->value('accounting_role'))->toBe('required')
+        // Pending intent не admitted и не supersede-ится, пока active intent не завершён.
+        ->and(DB::table('prc_process_work')->where('id', $waiting->id)->value('state'))->toBe('ready')
+        ->and(app(RunProjector::class)->summary($runs['B'])?->state)->toBe(ProcessRunState::Running);
+    lifecycleFinishDetail($lease, 'A');
 
-    $live = DB::table('prc_process_work')->where('stage', 'detail')
-        ->whereIn('state', ['ready', 'admitted', 'running', 'deferred'])->get();
-    expect($live)->toHaveCount(1);
-    $successor = $live->sole();
-    $successorInput = DetailFixtures::input(new WorkId(new ProcessUuid($successor->id)));
-    /** @var DetailInput $successorInput */
-    expect($successorInput->expectedHeadGeneration)->toBe(2);
+    // Завершение active intent активирует pending с пересчитанным expected head.
+    $head = (int) DB::table('prc_procurements')->value('head_generation');
+    expect(DB::table('prc_operation_intents')->where('id', $first->id)->value('state'))->toBe('terminal')
+        ->and(DB::table('prc_operation_intents')->where('id', $queued->id)->value('state'))->toBe('active')
+        ->and(DB::table('prc_operation_intents')->where('id', $queued->id)->value('expected_head_generation'))->toBe($head)
+        ->and(app(RunProjector::class)->summary($runs['A'])?->state)->toBe(ProcessRunState::Completed);
+
+    $lease = lifecycleClaimNextDetail() ?? throw new LogicException('Activated intent work was not claimed.');
+    $second = DetailFixtures::input($lease->workId);
+    /** @var DetailInput $second */
+    expect($second->intentId->value)->toBe($queued->id)
+        ->and($second->expectedHeadGeneration)->toBe($head)
+        ->and(DB::table('prc_process_run_work')->where('run_id', $runs['B']->value)->where('work_id', $lease->workId->value->value)->value('accounting_role'))->toBe('required');
+    lifecycleFinishDetail($lease, 'B');
+
     foreach ($runs as $run) {
-        expect(DB::table('prc_process_run_work')->where('run_id', $run->value)->where('work_id', $successor->id)->value('accounting_role'))
-            ->toBe('required');
-        $superseded = DB::table('prc_process_run_work as rw')->join('prc_process_work as w', 'w.id', '=', 'rw.work_id')
-            ->where('rw.run_id', $run->value)->where('w.stage', 'detail')->where('w.state', 'superseded')->pluck('rw.accounting_role')->all();
-        expect(array_unique($superseded))->toBe($superseded === [] ? [] : ['observes']);
+        $summary = app(RunProjector::class)->summary($run);
+        expect($summary?->state)->toBe(ProcessRunState::Completed)
+            ->and($summary?->required->superseded + $summary?->required->failedItem + $summary?->required->cancelled)->toBe(0);
     }
-    $active = DB::table('prc_operation_intents')->where('stage', 'detail')->where('subject_id', (string) $procurement->id)->where('state', 'active')->get();
-    expect($active)->toHaveCount(1)->and($active->sole()->id)->toBe($successorInput->intentId->value)
-        ->and($active->sole()->expected_head_generation)->toBe(2);
+    expect(DB::table('prc_process_work')->where('stage', 'detail')->whereIn('state', ['ready', 'admitted', 'running', 'deferred', 'blocked'])->count())->toBe(0)
+        ->and(lifecycleDetailIntents($procurement, 'active'))->toBe([])
+        ->and(lifecycleDetailIntents($procurement, 'pending'))->toBe([]);
+});
+
+test('T17 failed_item и cancel освобождают detail intent: очередь subject продвигается, refresh не блокируется', function (): void {
+    $profile = EisCrawlerFactory::new()->create();
+    $scheduler = app(AcquisitionScheduler::class);
+    $launch = lifecycleLaunch($profile);
+    foreach (['A' => 'lifecycle-release-a', 'B' => 'lifecycle-release-b', 'C' => 'lifecycle-release-c'] as $content => $command) {
+        lifecycleDrainListing($scheduler->manual($launch, ListingStoreRepository::id($command), null), [ListingFixtures::summary('lifecycle-release', $content)]);
+    }
+    $procurement = (int) DB::table('prc_procurements')->value('id');
+    expect(lifecycleDetailIntents($procurement, 'pending'))->toHaveCount(2);
+    [$first] = lifecycleDetailIntents($procurement, 'active');
+    [$second, $third] = lifecycleDetailIntents($procurement, 'pending');
+
+    $failure = new StageFailedItem(ItemFailureReason::ContractRejected, new ArtifactRef('fixture', 'reject', ContentHash::of('reject')));
+    for ($attempt = 1; $attempt <= 3; $attempt++) {
+        if ($attempt > 1) {
+            DB::update("UPDATE prc_process_work SET due_at = clock_timestamp() - interval '1 second' WHERE stage = 'detail' AND state = 'deferred'");
+        }
+        $lease = lifecycleClaimNextDetail() ?? throw new LogicException('Detail was not claimed.');
+        expect(DetailFixtures::input($lease->workId))->toHaveProperty('intentId', new ProcessUuid($first->id));
+        app(WorkFinalizer::class)->finish($lease, $failure);
+    }
+    expect(DB::table('prc_process_work')->where('intent_id', $first->id)->where('state', 'failed_item')->count())->toBe(1)
+        ->and(DB::table('prc_operation_intents')->where('id', $first->id)->value('state'))->toBe('terminal')
+        ->and(DB::table('prc_operation_intents')->where('id', $second->id)->value('state'))->toBe('active');
+
+    $this->artisan('guard:sync-roles')->assertSuccessful();
+    $operator = User::factory()->create();
+    $operator->assignRole('operator');
+    $work = DB::table('prc_process_work')->where('intent_id', $second->id)->sole();
+    $cancel = app(ProcessOperatorCommands::class)->cancelWork($operator, new WorkId(new ProcessUuid($work->id)), $work->transition_seq, 'operator cancel');
+    expect($cancel->status->value)->toBe('applied')
+        ->and(DB::table('prc_operation_intents')->where('id', $second->id)->value('state'))->toBe('terminal')
+        ->and(DB::table('prc_operation_intents')->where('id', $third->id)->value('state'))->toBe('active');
+
+    $lease = lifecycleClaimNextDetail() ?? throw new LogicException('Third intent work was not claimed.');
+    lifecycleFinishDetail($lease, 'C');
+    expect(lifecycleDetailIntents($procurement, 'active'))->toBe([])
+        ->and(lifecycleDetailIntents($procurement, 'pending'))->toBe([]);
+    DB::update("UPDATE prc_operation_intents SET next_due_at = clock_timestamp() - interval '1 second' WHERE id = ?", [$third->id]);
+    expect(app(RefreshRepository::class)->scheduleDetail($procurement))->not->toBeNull();
 });
 
 test('T02 actual producer: пауза площадки A не блокирует listing и закрытие discovery площадки B', function (): void {

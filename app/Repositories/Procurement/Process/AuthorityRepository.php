@@ -301,6 +301,7 @@ final readonly class AuthorityRepository
             members: $members,
             enabledScopeKeys: $enabledKeys,
             healthyHandlerIds: $healthyIds,
+            intentPending: $intent?->string('state') === 'pending',
         );
     }
 

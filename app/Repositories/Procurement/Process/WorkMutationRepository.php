@@ -13,12 +13,9 @@ use App\Dto\Procurement\Process\ProviderRecoveryPlan;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkIdentity;
 use App\Dto\Procurement\Process\WorkMutationResult;
-use App\Enums\Procurement\Process\AccountingRole;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\BlockedReason;
-use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\PrefixFailure;
-use App\Enums\Procurement\Process\RunWorkRelation;
 use App\Enums\Procurement\Process\WorkMutationStatus;
 use App\Enums\Procurement\Process\WorkState;
 use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
@@ -45,6 +42,7 @@ final readonly class WorkMutationRepository
         private OutboxRepository $outbox,
         private SubjectLockResolver $resolver,
         private ProcessPolicy $policy,
+        private IntentRepository $intents,
     ) {}
 
     /**
@@ -127,6 +125,10 @@ final readonly class WorkMutationRepository
             $state->value, WorkState::Cancelled->value, 'cancelled', $actorId === null ? ActorKind::System : ActorKind::Operator,
             $row->int('generation'), $actorId, ['reason' => $reason],
         );
+        // Cancelled work без successor освобождает свой intent: очередь subject/stage не зависает.
+        if (($intentId = $work->nullableString('intent_id')) !== null) {
+            $this->intents->releaseLocked($intentId);
+        }
         $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($snapshot->handler->stage));
 
         return new WorkMutationResult(WorkMutationStatus::Applied);
@@ -265,7 +267,8 @@ final readonly class WorkMutationRepository
             accessPolicyHash: $access,
             cycleSeq: ($oldIntent?->int('cycle_seq') ?? 0) + 1,
             expectedHeadGeneration: $prefix->subjects[$subject->key()]->headGeneration,
-            state: IntentState::Active,
+            // Один active intent на subject/stage: если очередь уже продвинута, retry ждёт в pending.
+            state: $this->intents->admissionState($stage->value, $subject->kind->value, is_int($subject->id) ? (string) $subject->id : $subject->id->value),
         );
 
         $generation = $work->int('generation');
@@ -307,39 +310,10 @@ final readonly class WorkMutationRepository
             projectionMessageId: $ids['work_projection'],
             identity: new WorkIdentity($input, $newIntent, $snapshot->workId),
         );
-        $this->carryRunLinks($snapshot->workId, $successor);
+        $this->works->carryRunLinks($snapshot->workId, $successor);
         $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($stage));
 
         return new WorkMutationResult(WorkMutationStatus::Applied, $successor);
-    }
-
-    /**
-     * Required link заменяется атомарно: successor получает прежнюю accounting role, прежняя
-     * связь становится observes (provenance сохранён). Cancelled run новых required links не
-     * получает. Run rows lock-аются sorted в domain tier.
-     */
-    private function carryRunLinks(WorkId $from, WorkId $to): void
-    {
-        $links = LedgerRow::all(
-            'SELECT rw.run_id, rw.accounting_role, r.cancel_requested_at IS NOT NULL AS cancelled
-             FROM prc_process_run_work rw JOIN prc_process_runs r ON r.id = rw.run_id
-             WHERE rw.work_id = ? ORDER BY rw.run_id FOR UPDATE OF r',
-            [$from->value->value],
-        );
-        foreach ($links as $link) {
-            $required = $link->string('accounting_role') === AccountingRole::Required->value && ! $link->bool('cancelled');
-            DB::insert(
-                'INSERT INTO prc_process_run_work (run_id, work_id, relation, accounting_role) VALUES (?, ?, ?, ?)
-                 ON CONFLICT (run_id, work_id) DO NOTHING',
-                [$link->string('run_id'), $to->value->value, RunWorkRelation::Discovered->value, $required ? AccountingRole::Required->value : AccountingRole::Observes->value],
-            );
-            if ($required) {
-                DB::update(
-                    'UPDATE prc_process_run_work SET accounting_role = ? WHERE run_id = ? AND work_id = ?',
-                    [AccountingRole::Observes->value, $link->string('run_id'), $from->value->value],
-                );
-            }
-        }
     }
 
     private static function reason(string $reason): string

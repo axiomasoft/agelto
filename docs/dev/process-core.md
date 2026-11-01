@@ -846,21 +846,38 @@ watermarks rebuildable из durable page receipts. Исторический об
 
 P2.19 сверяет producer cutover P2.18 с contracts `observability#s04` и `execution#s10`
 на настоящих `AcquisitionScheduler`, `ListingFinalizer` и `DetailFinalizer`.
-Новые сценарии находятся в `tests/Feature/ProcessCore/Acquisition/T18RunLifecycleProducerTest.php`
-(groups t17,t18,t02,p23; target `core-test-acquisition`).
+Сценарии находятся в `tests/Feature/ProcessCore/Acquisition/T18RunLifecycleProducerTest.php`
+(groups t17,t18,t02,p23; target `core-test-acquisition`):
 
-| Сценарий | Результат на кандидате P2.18 |
+| Сценарий | Что доказывает |
 |---|---|
-| Две стабильные passes закрывают discovery; detail публикует document reference; pending download intent без work не удерживает run (`completed`, observes=0) | проходит |
-| T02: пауза `acquisition:platform:<A>` не блокирует claim, listing и закрытие discovery площадки B; после resume A завершается | проходит |
-| EXR-01: sidebar с реальным acquisition run без `prc_source_circuits` и маршрутов `source-circuits` | проходит |
-| Superseded required detail заменяется successor для всех нуждающихся runs; intent не остаётся зависшим | **падает** |
+| Две стабильные passes, detail с document reference | discovery `complete`; pending download intent без work не удерживает run (`completed`, observes=0) |
+| Superseded successor и очередь intents | устаревшая detail work заменяется successor на текущем head в той же tx; required links всех runs переходят на successor; pending intent исполняется после active; оба runs `completed` без superseded/failed required |
+| failed_item и cancel | terminal work освобождает intent, следующий pending активируется; после очереди `RefreshRepository` снова выделяет detail-цикл |
+| T02 | пауза `acquisition:platform:<A>` не блокирует claim, listing и закрытие discovery площадки B |
+| EXR-01 | sidebar с реальным acquisition run без `prc_source_circuits` и маршрутов `source-circuits` |
 
-Известный дефект: повторный listing той же закупки с изменённым содержимым увеличивает
-`head_generation` и создаёт новый detail intent в состоянии `pending`, а также сразу work для него.
-Прежняя работа уходит в `superseded` при claim (`input_invalidated`), новая — при admission,
-потому что её intent не active. Successor и перенос required links не создаются. Прежний intent
-остаётся `active`, новый — `pending`: перехода `pending → active` и завершения intent при
-superseded, `failed_item` или cancel нет. `RefreshRepository::allocate` после этого не выделяет новые
-detail-циклы для закупки. Исправление принадлежит P2.15/P2.16 (intent lifecycle listing/detail) и общему
-supersede-пути Process core. P2.19 закрыт как `blocked` с эскалацией на reopen owning items.
+### Найденный дефект и исправление
+
+На кандидате P2.18 повторный listing той же закупки с изменённым содержимым увеличивал
+`head_generation` и создавал pending detail intent вместе с work. Прежняя work уходила в
+`superseded` без successor, work pending intent — тоже (admission считала неактивный intent
+устаревшим). Intents оставались `active`/`pending` навсегда, `RefreshRepository::allocate`
+больше не выделял detail-циклы, runs теряли required detail.
+
+Исправление (Process core, без изменения DDL):
+
+- `WorkStoreRepository::supersedeLocked` для `DetailInput`, устаревшей из-за нового subject
+  head, в той же transaction создаёт successor под тем же intent с `expected_head_generation`
+  текущего head (derived stable IDs), обновляет pin intent и переносит links через
+  `carryRunLinks`: required → successor, прежняя связь → observes; cancelled run required не
+  получает. Если intent уже terminal, successor — существующая work того же intent на текущем head.
+- `AdmissionRepository` не выбирает и не supersede-ит work, чей intent `pending`
+  (`LockedPrefix::intentPending`): она ждёт очереди в `ready`.
+- `IntentRepository` ведёт очередь (stage, subject): terminal work без successor
+  (`failed_item` в finalize, `CancelWork`) завершает intent; успех, после которого publication
+  перевела intent в terminal, только продвигает очередь. Следующий pending без
+  `pending_reason` активируется с пересчитанным `expected_head_generation`.
+  Document intents с `pending_reason=handler_not_activated` не активируются.
+- Manual retry failed_item создаёт новый intent `pending`, если у subject уже есть active intent
+  (partial unique index `prc_operation_intents_one_active_unique`).
