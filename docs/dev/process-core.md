@@ -928,3 +928,44 @@ processes, A→B→A, GC/reference interleavings, storage capacity contention, u
 dedup/cleanup, archive lineage and retained archive/blob safety tests. `core-test-install` still
 requires two complete isolated installs and exact schema/seed/catalog equality. Future OCR,
 independent feeder, fairness and real AI assertions belong to their owning points.
+
+### P3.2: download и revalidation (до consumer cutover P3.5)
+
+`Document/DownloadHandler` получает typed `DocumentFetchPlan` через узкий
+`DocumentAccessResolver` и вызывает общий `PlatformOutbound`/`OutboundExecutor`.
+Сеть владеет physical retries, routes, permit/send fencing, timeout и bounded binary sink;
+handler не добавляет Laravel retry. Профиль download имеет total ≤240 s и помещается
+в существующий slice300/job320/Horizon340/retry_after390/lease420. Signed-reference hook
+может обновить ссылку один раз; refresh сохраняет resource policy и общий finite send ceiling.
+`CatalogDocumentAccess` читает HTTP descriptor и sync catalog; при требовании source-specific
+refresh без адаптера возвращает явный policy hold, не угадывает endpoint.
+
+До HTTP `DownloadStorageRepository` резервирует durable ceiling и консервативный temporary
+ceiling 3×maxBytes под control→handler→lane→storage→document→work prefix. Частичный reserve
+откатывается целиком. Transport spool/artifact и upload spool покрыты temporary charge.
+Успешный original проходит size/hash read-back, MIME/signature inspection и остаётся staged
+до `WorkFinalizer`. HTML/challenge, checksum/size mismatch и truncated transfer не создают
+version. Storage errors не расходуют item budget. Обычный отказ подтверждённо очищает staging;
+crash/uncertain writer сохраняет charge до reconciliation/verified cleanup, а не освобождает
+capacity по одному expiry. `BlobStore` вызывает cooperative tick при copy/verification.
+
+`DownloadFinalizer` — DB-only stage repository: publication locks берут storage до subjects/work;
+canonical owner/input/head guards предшествуют blob acquisition и revision CAS. Version/blob,
+intent terminal, следующий DB-clock revalidation due, work/attempt, journal/outbox и release
+group коммитятся вместе. Same bytes сохраняет текущую revision; A→B→A даёт три revisions и два
+blobs. ETag/Last-Modified сохраняются как provenance; каждый due cycle делает полный content
+recheck, поэтому неверные validators не скрывают замену bytes. `DocumentRevalidator::allocate`
+сериализует due allocation на document head и создаёт один pending intent/cycle; initial intent
+по-прежнему создаётся atomically вместе с acquisition reference.
+
+`documents.download` содержит validated storage/size/revalidation policy. Домены capacity
+провизионируются явно; boot не создаёт DB rows. Новые stage codec/handler/finalizer готовы к
+assembly, но runtime registration, pending intent activation, prepare successor и удаление old
+jobs/dispatcher принадлежат P3.3/P3.5. Existing consumers остаются на прежнем пути до cutover.
+Никакой real AI stage здесь не активирован.
+
+Assertions P3.2 находятся в `T03DownloadRevalidationTest` (groups t03/t10/t12/p32): реальные
+PostgreSQL + cURL HTTP/proxy, bounded failures, no direct fallback, corrupt/oversized/truncated
+bytes, signed refresh, source outage после bytes, stale head/takeover/expiry, journal rollback,
+A→B→A и два процесса due allocator. Prepare/analysis independence проверяется следующими
+owning пунктами; source-off DB publication не заявляется полной downstream приёмкой T10.

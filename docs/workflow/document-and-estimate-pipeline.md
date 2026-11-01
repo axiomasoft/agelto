@@ -207,3 +207,18 @@ references prevent deletion, and a deletion-marked object cannot receive a new r
 These components are not yet the runtime download/prepare cutover. Existing consumers remain
 operational through the additive NULL legacy tuple until P3.5; the exact required schema tightening
 is recorded in [process-core.md](../dev/process-core.md). No new runtime toggle was introduced.
+
+### Новый download owner (P3.2, активация в P3.5)
+
+Canonical references скачиваются через `Document/DownloadHandler` и общий network executor.
+Source hook возвращает только bounded binary fetch plan; refresh signed URL ограничен одним
+вызовом. Capacity резервируется до HTTP, bytes проверяются и сохраняются immutable до
+publication. Общий `WorkFinalizer` атомарно принимает revision/blob, завершает acquisition intent
+и назначает следующий revalidation due. Same bytes не создают лишнюю revision; возврат A после B
+создаёт новую revision с прежним blob. Revalidation всегда выполняет полный content recheck.
+Ошибка сети откладывает download/revalidation без item failure и без изменения существующих
+bytes. После получения bytes source availability больше не участвует в финализации.
+
+До P3.5 новый owner проверяется отдельно от legacy jobs/dispatcher; runtime consumers ещё не
+переключены. Prepare/OCR и независимый feeder имеют собственные пункты P3.3/P3.5.
+Подробные guards и граница приёмки: [process-core](../dev/process-core.md).

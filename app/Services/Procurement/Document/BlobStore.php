@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Document;
 use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Dto\Procurement\Document\VerifiedArtifact;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\ExecutionContext;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,7 @@ final readonly class BlobStore
     public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc) {}
 
     /** @param resource $source */
-    public function put(StorageReservationRequest $reservation, $source, StorageReservationRequest $temporary): VerifiedArtifact
+    public function put(StorageReservationRequest $reservation, $source, StorageReservationRequest $temporary, ?ExecutionContext $execution = null, bool $cleanupTemporary = true): VerifiedArtifact
     {
         $this->outsideTransaction();
         if (! is_resource($source) || get_resource_type($source) !== 'stream') {
@@ -43,6 +44,7 @@ final readonly class BlobStore
             $size = 0;
             $hash = hash_init('sha256');
             while (! feof($source)) {
+                $execution?->tick();
                 $chunk = fread($source, max(1, min(8192, $reservation->byteUpperBound - $size + 1)));
                 if ($chunk === false || ($chunk === '' && ! feof($source))) {
                     throw new ArtifactUnavailable('Source stream failed.');
@@ -72,17 +74,19 @@ final readonly class BlobStore
                 $this->capacity->finishWrite($reservation);
             }
 
-            return $this->verify($reservation, $expected, $size);
+            return $this->verify($reservation, $expected, $size, $execution);
         } finally {
             if (is_resource($spool)) {
                 fclose($spool);
             }
             $this->capacity->finishWrite($temporary);
-            $this->gc->cleanup($temporary);
+            if ($cleanupTemporary) {
+                $this->gc->cleanup($temporary);
+            }
         }
     }
 
-    public function verify(StorageReservationRequest $reservation, ContentHash $expected, int $size): VerifiedArtifact
+    public function verify(StorageReservationRequest $reservation, ContentHash $expected, int $size, ?ExecutionContext $execution = null): VerifiedArtifact
     {
         $this->outsideTransaction();
         $this->capacity->assertStaged($reservation);
@@ -94,6 +98,7 @@ final readonly class BlobStore
             $hash = hash_init('sha256');
             $actual = 0;
             while (! feof($stream)) {
+                $execution?->tick();
                 $chunk = fread($stream, 8192);
                 if ($chunk === false || ($chunk === '' && ! feof($stream))) {
                     throw new ArtifactUnavailable('Object verification read failed.');

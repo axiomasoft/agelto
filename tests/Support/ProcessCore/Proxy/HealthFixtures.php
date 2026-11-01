@@ -32,9 +32,9 @@ final class HealthFixtures
 
     public readonly ProcessUuid $profile;
 
-    public function __construct(public readonly WireFixture $wire)
+    public function __construct(public readonly WireFixture $wire, ?PermitFixtures $permits = null)
     {
-        $this->permits = new PermitFixtures($wire);
+        $this->permits = $permits ?? new PermitFixtures($wire);
         $this->profile = LedgerFixtures::uuid();
         DB::table('prc_network_route_profiles')->insert(['id' => $this->profile->value, 'profile_key' => 'health.'.bin2hex(random_bytes(6)), 'policy_version' => 1]);
         $this->member($this->permits->route->routeId);
