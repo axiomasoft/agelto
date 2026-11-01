@@ -10,6 +10,16 @@ status: living
 разработчика; полный рефакторинг/переписывание вне scope EST-AI (Scope Excluded P10.2/P10.3:
 «диаграммы краулинга»). Бизнес-описание стадий — `docs/workflow/crawling-and-discovery.md`.
 
+> [!WARNING]
+> После producer cutover P2.18 acquisition исполняется только Process ledger:
+> `AcquisitionScheduler`, `ListingHandler`/`ListingFinalizer`, `DetailHandler`/`DetailFinalizer`,
+> `StatusRefreshHandler`. `CrawlerRunManager`, `Modes/*Processor` (включая
+> `DetailAnalysisProcessor`, `FreshRunProcessor`), `ArchiveWindowScanner` и
+> `FetchProcurementDetailJob` удалены. Разделы ниже, которые на них ссылаются, — историческое
+> описание до P2.18. Актуальный путь: [process-core.md](process-core.md),
+> [runbooks/acquisition-scheduler.md](runbooks/acquisition-scheduler.md) и
+> `docs/workflow/crawling-and-discovery.md`.
+
 ## Граница источника
 
 Метод получения данных выбирается профилем, а не ветвлением ядра: площадко-специфичные URL,

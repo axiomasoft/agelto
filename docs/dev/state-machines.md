@@ -74,6 +74,11 @@ true`) сразу в `Running`, минуя `Pending`, — параллельны
 
 ## RunStatus — единственный писатель `CrawlerRunManager`
 
+> [!WARNING]
+> Историческое описание до producer cutover P2.18: `CrawlerRunManager` удалён, acquisition runs
+> ведёт Process ledger (`prc_process_runs`, derived `ProcessRunState`, см.
+> [process-core.md](process-core.md)). Enum `RunStatus` больше не имеет вызывающих (остаток cutover).
+
 `app/Enums/Procurement/Crawler/RunStatus.php`: `Running` / `Paused` / `Completed` / `Failed` / `Cancelled`.
 `isTerminal()` = `Completed`/`Failed`/`Cancelled` (`RunStatus.php:18-24`). Все переходы — в одном
 сервисе, `app/Services/Procurement/CrawlerRunManager.php`.
