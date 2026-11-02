@@ -440,11 +440,12 @@ final readonly class RecoveryRepository
         $work = $prefix->work;
         $state = $work->string('state');
         $unknown = $state === WorkState::Blocked->value && $work->nullableString('reason_code') === BlockedReason::ProviderResultUnknown->value;
+        $terminal = $finding !== null && $resolver instanceof ProviderRecoveryPolicy ? $resolver->terminalReason($finding) : null;
         if (! $unknown) {
             if ($state === WorkState::Cancelled->value) {
-                return $this->recoverCancelledProvider($snapshot, $prefix->work, $finding, $pinnedSeq, $resolver);
+                return $this->recoverCancelledProvider($snapshot, $prefix->work, $finding, $terminal, $pinnedSeq, $resolver);
             }
-            if ($finding !== null && $finding->mode !== ProviderRecoveryMode::BlockedUnknown && $state === WorkState::Superseded->value) {
+            if ($finding !== null && ($finding->mode !== ProviderRecoveryMode::BlockedUnknown || $terminal !== null) && $state === WorkState::Superseded->value) {
                 $resolver->settleLocked($finding);
 
                 return RecoveryOutcome::Recovered;
@@ -476,7 +477,6 @@ final readonly class RecoveryRepository
 
             return RecoveryOutcome::Skipped;
         }
-        $terminal = $finding !== null && $resolver instanceof ProviderRecoveryPolicy ? $resolver->terminalReason($finding) : null;
         if ($finding !== null && $finding->receipt !== null && self::sameOperation($pinned, $finding) && $resolver instanceof ProviderRecoveryPolicy) {
             // Factual capture may remain unknown: retain its reservation and reconciliation schedule.
             $resolver->settleLocked($finding);
@@ -525,13 +525,16 @@ final readonly class RecoveryRepository
      * под fence по checkpoint_seq. Resume и supersede здесь не делаются. Unknown или чужая operation
      * переставляет work в конец очереди, чтобы не голодать остальные.
      */
-    private function recoverCancelledProvider(AuthoritySnapshot $snapshot, LedgerRow $work, ?ProviderRecoveryPlan $finding, int $pinnedSeq, ProviderRecoveryResolver $resolver): RecoveryOutcome
+    private function recoverCancelledProvider(AuthoritySnapshot $snapshot, LedgerRow $work, ?ProviderRecoveryPlan $finding, ?BlockedReason $terminal, int $pinnedSeq, ProviderRecoveryResolver $resolver): RecoveryOutcome
     {
         $pinned = $this->works->lockedCheckpoint($work)?->providerRecoveryPlan;
         if (! $pinned instanceof ProviderRecoveryPlan || $work->int('checkpoint_seq') !== $pinnedSeq) {
             return RecoveryOutcome::Skipped;
         }
-        if ($finding === null || $finding->mode === ProviderRecoveryMode::BlockedUnknown || ! self::sameOperation($pinned, $finding)) {
+        if ($finding !== null && $finding->receipt !== null && self::sameOperation($pinned, $finding) && $resolver instanceof ProviderRecoveryPolicy) {
+            $resolver->settleLocked($finding);
+        }
+        if ($finding === null || ($finding->mode === ProviderRecoveryMode::BlockedUnknown && $terminal === null) || ! self::sameOperation($pinned, $finding)) {
             DB::update("UPDATE prc_process_work SET updated_at = clock_timestamp() WHERE id = ? AND state = 'cancelled'", [$snapshot->workId->value->value]);
 
             return RecoveryOutcome::Skipped;

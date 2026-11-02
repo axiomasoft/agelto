@@ -24,6 +24,7 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Llm\ProviderSendDenial;
 use App\Enums\Llm\ProviderTransportFailure;
 use App\Enums\Procurement\Network\IdempotencyClass;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Network\TransportFailure;
 use App\Exceptions\Llm\OperationDenied;
@@ -77,8 +78,11 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
                 fn () => $this->revalidate($operation, $wireRequest));
             if (! $network instanceof ReservedProviderNetwork) {
                 $this->revoke($operation);
+                $denial = $network instanceof TransportDeferred && $network->reason === NetworkDeferralReason::DependencyUnavailable
+                    ? ProviderSendDenial::Dependency
+                    : ProviderSendDenial::Network;
 
-                return new SendClaimResult(null, ProviderSendDenial::Network, $network instanceof TransportDeferred ? $network->retryAt->value : null);
+                return new SendClaimResult(null, $denial, $network instanceof TransportDeferred ? $network->retryAt->value : null);
             }
             do {
                 $this->context->tick();

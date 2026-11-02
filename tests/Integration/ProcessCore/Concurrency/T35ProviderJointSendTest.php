@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Network\SafeUrl;
 use App\Enums\Llm\ProviderSendDenial;
 use App\Enums\Llm\ProviderTransportFailure;
 use App\Enums\Procurement\Process\ControlMode;
@@ -10,6 +11,7 @@ use App\Services\Llm\Execution\ProviderTransportOutcome;
 use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Llm\Execution\StructuredCallExecutor;
 use App\Services\Llm\Providers\GeminiGenerateContentClient;
+use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
 use App\Services\Procurement\Network\PinnedCurlHandler;
 use App\Services\Procurement\Process\RecoveryReconciler;
 use GuzzleHttp\Psr7\Request;
@@ -157,6 +159,15 @@ test('нет owning gate или wire fingerprint изменён: typed denial б
         ->and($this->server->receipts())->toBe([])
         ->and(DB::table('prc_network_demands')->count())->toBe(0)
         ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(0);
+    FinalizeFixtures::expire($f->work, 600);
+    expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1);
+    $lease = FinalizeFixtures::running($f->work);
+    $period = (string) DB::table('llm_budget_periods')->value('id');
+    $secondOp = app(AnalysisCallCoordinator::class)->authorize($lease, $f->run, $f->plan, $period, $f->wire);
+    $deniedGate = ProviderSendFixtures::gateFor($lease, $f->run, $f->target, $f->route, $f->profile, new SafeUrl('https://denied.example.test/'));
+    expect($deniedGate->claimSend($secondOp, $f->wire)->denial)->toBe(ProviderSendDenial::Network)
+        ->and(app(RequestRepository::class)->get($secondOp->physicalCallId)->outcome)->toBe('not_sent')
+        ->and(DB::table('llm_budget_reservations')->where('id', $secondOp->reservationId)->value('state'))->toBe('settled');
 });
 
 test('provider HTTP error и redirect выполняют один send без SDK retry или follow', function (int $status): void {

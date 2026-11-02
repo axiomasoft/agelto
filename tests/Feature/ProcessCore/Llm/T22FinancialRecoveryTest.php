@@ -135,6 +135,17 @@ test('late raw после cancel сохраняет financial facts без busin
         ->and(DB::table('llm_budget_reservations')->value('settled_amount'))->toBe('0.00200001')
         ->and(DB::table('p39_receipt_publications')->count())->toBe(0)
         ->and(DB::table('prc_analysis_chunks')->count())->toBe(0)->and(DB::table('prc_estimates')->count())->toBe(0);
+    [$cancelledBlocked, , , , $billedOp] = FinancialFixtures::authorized($this->period);
+    FinancialFixtures::claim($billedOp);
+    FinalizeFixtures::expire($cancelledBlocked, 600);
+    expect(app(RecoveryReconciler::class)->recoverExpiredRunning())->toBe(1);
+    app(CancelWork::class)->execute($cancelledBlocked, 'cancel unknown before late billed_error receipt', ExecutionFixtures::work($cancelledBlocked)->transition_seq);
+    app(ReceiptStore::class)->put(app(RequestRepository::class)->get($billedOp->physicalCallId), 400, FinancialFixtures::body('billed_error', '0.00200001'));
+    expect(p39Tick())->toBe(1)
+        ->and(ExecutionFixtures::work($cancelledBlocked)->state)->toBe('cancelled')
+        ->and(ExecutionFixtures::work($cancelledBlocked)->checkpoint)->toBeNull()
+        ->and(DB::table('llm_budget_reservations')->where('id', $billedOp->reservationId)->value('settled_amount'))->toBe('0.00200001')
+        ->and(DB::table('p39_receipt_publications')->count())->toBe(0);
     Http::assertNothingSent();
 });
 

@@ -52,24 +52,34 @@ final class PreparedProviderTransport
         } catch (ConnectionException|TransferException $exception) {
             $previous = $exception;
             $code = 0;
+            $interrupted = false;
+            $truncated = false;
             do {
                 if ($previous instanceof RequestException || $previous instanceof ConnectException) {
                     $value = $previous->getHandlerContext()['errno'] ?? 0;
                     $code = is_int($value) ? $value : 0;
+                } elseif ($previous instanceof \RuntimeException) {
+                    $truncated = $truncated || str_contains($previous->getMessage(), 'limit') || str_contains($previous->getMessage(), 'headers');
+                    $interrupted = ! $truncated;
                 }
                 $previous = $previous->getPrevious();
             } while ($previous !== null);
             $failure = match (true) {
+                $interrupted || $code === 42 => ProviderTransportFailure::Interrupted,
+                $truncated || in_array($code, [18, 23, 52, 56, 63], true) => ProviderTransportFailure::Truncated,
                 $code === 5 || $code === 7 && $this->usesProxy => ProviderTransportFailure::ProxyConnect,
                 $code === 28 => ProviderTransportFailure::Timeout,
                 in_array($code, [35, 51, 58, 60, 77, 83, 90, 91], true) => ProviderTransportFailure::Tls,
-                in_array($code, [18, 52, 56], true) => ProviderTransportFailure::Truncated,
                 default => ProviderTransportFailure::Connection,
             };
 
             return new ProviderTransportOutcome($this->physicalCallId, null, null, $failure);
-        } catch (\RuntimeException) {
-            return new ProviderTransportOutcome($this->physicalCallId, null, null, ProviderTransportFailure::Interrupted);
+        } catch (\RuntimeException $exception) {
+            $failure = str_contains($exception->getMessage(), 'limit') || str_contains($exception->getMessage(), 'headers')
+                ? ProviderTransportFailure::Truncated
+                : ProviderTransportFailure::Interrupted;
+
+            return new ProviderTransportOutcome($this->physicalCallId, null, null, $failure);
         } finally {
             $this->sink->close();
         }

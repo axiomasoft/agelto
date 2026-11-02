@@ -97,7 +97,7 @@ final class FinancialReservationRepository
         $exposure = ProviderRow::one("SELECT COALESCE(sum(r.upper_bound),0) AS amount FROM llm_budget_reservations r
             JOIN llm_budget_periods p ON p.id=r.period_id JOIN llm_provider_calls c ON c.physical_call_id=r.operation_id
             JOIN llm_provider_requests q ON q.logical_request_id=c.logical_request_id
-            WHERE p.account_id=? AND p.currency=? AND (r.state='reserved' OR q.state IN ('unknown','abandoned_unknown'))", $bindings)?->decimal('amount') ?? '0';
+            WHERE p.account_id=? AND p.currency=? AND (r.state='reserved' OR (c.usage_status='unknown' AND q.state IN ('unknown','abandoned_unknown')))", $bindings)?->decimal('amount') ?? '0';
         $hardCap = $account->nullableString('hard_exposure_cap');
         $hardCap = $hardCap === null ? null : FinancialAmount::normalize($hardCap);
         if ($hardCap !== null && bccomp(bcadd($exposure, $alreadyReserved ? '0' : $newExposure, 8), $hardCap, 8) > 0) {

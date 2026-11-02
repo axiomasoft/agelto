@@ -73,12 +73,16 @@ test('configured threshold использует >= и hard exposure включа
     $finance = app(FinancialReservationRepository::class);
     $finance->configureAccount('fixture-account', 'USD', 2, '0.015', 'fixture-operator', 'bounded exposure');
     $requests = app(RequestRepository::class);
-    $a = DB::transaction(fn () => $requests->authorize(FinancialFixtures::genericPlan('one'), LedgerFixtures::uuid()->value, 1, $this->period));
+    $retryPlan = FinancialFixtures::genericPlan('one');
+    $revoked = DB::transaction(fn () => $requests->authorize($retryPlan, LedgerFixtures::uuid()->value, 1, $this->period));
+    DB::transaction(fn () => $requests->interruptLocked($requests->get($revoked->physicalCallId)));
+    $a = DB::transaction(fn () => $requests->authorize($retryPlan, LedgerFixtures::uuid()->value, 2, $this->period));
     $b = DB::transaction(fn () => $requests->authorize(FinancialFixtures::genericPlan('two'), LedgerFixtures::uuid()->value, 1, $this->period));
     expect(fn () => DB::transaction(fn () => $requests->authorize(FinancialFixtures::genericPlan('over'), LedgerFixtures::uuid()->value, 1, $this->period)))
         ->toThrow(OperationDenied::class, 'account_exposure_hold');
     FinancialFixtures::claim($a);
     DB::transaction(fn () => $requests->interruptLocked($requests->get($a->physicalCallId)));
+    // Prior not_sent call on the same logical request must not double-count into active exposure.
     expect(FinancialFixtures::claim($b))->toBeTrue();
     DB::transaction(fn () => $requests->interruptLocked($requests->get($b->physicalCallId)));
     $finance->configureAccount('fixture-account', 'USD', 2, null, 'fixture-operator', 'remove hard cap, retain count boundary');

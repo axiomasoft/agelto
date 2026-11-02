@@ -56,7 +56,15 @@ final readonly class OutboundExecutor
     {
         $context->tick();
         $revalidate();
-        $resolved = $policy->resolve($plan->url, $context, $plan->profile->connectSeconds);
+        try {
+            $resolved = $policy->resolve($plan->url, $context, $plan->profile->connectSeconds);
+        } catch (\InvalidArgumentException) {
+            return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
+        } catch (OutboundOwnershipLost|ExecutionInterrupted $exit) {
+            throw $exit;
+        } catch (\RuntimeException) {
+            return $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
+        }
         $route = $routes->select($plan, new RetryRoutePreference([], null, false, 1));
         if ($route instanceof TransportBlocked || $route instanceof TransportDeferred) {
             return $route;
