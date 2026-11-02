@@ -39,10 +39,10 @@ test('полный enum стадий не активирует будущую с
         expect($matches[1])->toBe(array_column($inventory['staging'], null, 'at')['P3.1']['supported']);
     }
 
-    // P3.8 creates canonical analysis carriers; later financial carriers remain absent.
-    expect($inventory['current_item'])->toBe('P3.8');
+    // P3.9 adds financial carriers; cache/file carriers and paid handlers remain future cutovers.
+    expect($inventory['current_item'])->toBe('P3.9');
     foreach ($inventory['carriers'] as $table => $carrier) {
-        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15', 'P2.1', 'P2.16', 'P2.18', 'P3.1', 'P3.8'], true), $table);
+        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15', 'P2.1', 'P2.16', 'P2.18', 'P3.1', 'P3.8', 'P3.9'], true), $table);
     }
 })->group('t01', 'p11');
 

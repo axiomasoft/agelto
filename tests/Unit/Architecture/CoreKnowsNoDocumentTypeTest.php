@@ -89,7 +89,8 @@ test('периметр ядра собран правилом вычитания
     // P3.5 removes three ordinary document delivery jobs; Process owns their stages.
     // Canonical bytea hashing adds the type-neutral Sha256Cast at the Eloquent boundary.
     // P3.8 adds ten provider-neutral schema/task validation and staged extraction contract classes.
-    expect($classes)->toHaveCount(119)
+    // P3.9 adds twelve provider-neutral financial/receipt and consumer coordination classes.
+    expect($classes)->toHaveCount(131)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');

@@ -20,6 +20,7 @@ use App\Enums\Procurement\Process\ProviderRecoveryMode;
 use App\Enums\Procurement\Process\RecoveryOutcome;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
+use App\Services\Procurement\Process\Contracts\ProviderRecoveryPolicy;
 use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\StageRegistry;
@@ -245,8 +246,9 @@ final readonly class RecoveryRepository
             return RecoveryOutcome::Recovered;
         }
 
-        $unknown = $plan?->mode === ProviderRecoveryMode::BlockedUnknown;
-        $hold = $this->holdReason($prefix);
+        $terminal = $plan !== null && $resolver instanceof ProviderRecoveryPolicy ? $resolver->terminalReason($plan) : null;
+        $unknown = $plan?->mode === ProviderRecoveryMode::BlockedUnknown && $terminal === null;
+        $hold = $terminal ?? $this->holdReason($prefix);
         if ($unknown) {
             [$state, $reason] = [WorkState::Blocked, BlockedReason::ProviderResultUnknown->value];
         } elseif ($missingResolution) {
@@ -474,7 +476,12 @@ final readonly class RecoveryRepository
 
             return RecoveryOutcome::Skipped;
         }
-        if ($finding === null || $finding->mode === ProviderRecoveryMode::BlockedUnknown
+        $terminal = $finding !== null && $resolver instanceof ProviderRecoveryPolicy ? $resolver->terminalReason($finding) : null;
+        if ($finding !== null && $finding->receipt !== null && self::sameOperation($pinned, $finding) && $resolver instanceof ProviderRecoveryPolicy) {
+            // Factual capture may remain unknown: retain its reservation and reconciliation schedule.
+            $resolver->settleLocked($finding);
+        }
+        if ($finding === null || ($finding->mode === ProviderRecoveryMode::BlockedUnknown && $terminal === null)
             || ! self::sameOperation($pinned, $finding)) {
             $this->rescheduleProvider($snapshot->workId);
 
@@ -491,7 +498,7 @@ final readonly class RecoveryRepository
             return RecoveryOutcome::Recovered;
         }
 
-        $hold = $this->holdReason($prefix);
+        $hold = $terminal ?? $this->holdReason($prefix);
         $next = $hold === null ? WorkState::Ready : WorkState::Blocked;
         $payload = $this->envelope($snapshot, $current, $finding);
         $row = LedgerRow::one(
@@ -654,7 +661,8 @@ final readonly class RecoveryRepository
     /** BlockedUnknown сохраняет reserve: settlement только для доказанных исходов. */
     private function settle(ProviderRecoveryResolver $resolver, ?ProviderRecoveryPlan $finding): void
     {
-        if ($finding !== null && $finding->mode !== ProviderRecoveryMode::BlockedUnknown) {
+        if ($finding !== null && ($finding->mode !== ProviderRecoveryMode::BlockedUnknown
+            || ($finding->receipt !== null && $resolver instanceof ProviderRecoveryPolicy))) {
             $resolver->settleLocked($finding);
         }
     }

@@ -15,6 +15,7 @@ use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\LeaseRenewal;
 use App\Dto\Procurement\Process\NoProviderRecovery;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\ProviderRecoveryPlan;
 use App\Dto\Procurement\Process\StageCheckpoint;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\VersionedPayload;
@@ -30,6 +31,7 @@ use App\Enums\Procurement\Process\ClaimStatus;
 use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\PrefixFailure;
+use App\Enums\Procurement\Process\ProviderRecoveryMode;
 use App\Enums\Procurement\Process\RunWorkRelation;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
@@ -56,6 +58,23 @@ use Illuminate\Support\Str;
  */
 final readonly class WorkStoreRepository implements LeaseKeeper
 {
+    /** Retry authorization consumes only the exact known-safe directive under the caller's full prefix. */
+    public function consumeProviderRetryLocked(WorkId $workId, LedgerRow $work, ProcessUuid $physical): void
+    {
+        CallerTransaction::require('Provider retry directive consumption');
+        $envelope = $this->lockedCheckpoint($work);
+        $plan = $envelope?->providerRecoveryPlan;
+        if (! $plan instanceof ProviderRecoveryPlan
+            || $plan->physicalCallId != $physical || $plan->mode !== ProviderRecoveryMode::KnownRetryEligible) {
+            throw new \LogicException('Retry requires the exact known-safe recovery directive.');
+        }
+        $payload = $this->registry->payloadCodec()->encodeCheckpoint($envelope->withoutProviderRecovery());
+        if (DB::update('UPDATE prc_process_work SET checkpoint=?::jsonb,checkpoint_schema_version=?,checkpoint_seq=checkpoint_seq+1 WHERE id=? AND checkpoint_seq=?',
+            [$payload->json, $payload->schemaVersion, $workId->value->value, $work->int('checkpoint_seq')]) !== 1) {
+            throw new \LogicException('Provider retry checkpoint conflict.');
+        }
+    }
+
     /** Snapshot изменился между pre-read и locks: столько раз перечитываем, затем доставка уступает. */
     private const int MAX_RELOADS = 3;
 

@@ -1104,3 +1104,48 @@ At this staging boundary the generic WorkStore refuses an input without its conc
 before INSERT, with a typed configuration error. Resolving extraction's run/window key to the
 actual analysis_window_id and integrating its full ancestor locks belongs to the handler cutover.
 Schema support alone cannot create a NULL-owner work or activate the stage.
+
+
+## P3.9 financial and receipt recovery
+
+Permanent `llm_provider_requests`, `llm_provider_calls`, budget accounts/periods/reservations and
+financial audit actions are additive. `prc_analysis_llm_requests` pins the exact run/work/attempt
+and physical operation; one explicit active linkage replaces latest-call heuristics.
+Initial replay identity is the immutable analysis run ID; another ID requires an audited durable
+replay request. Registered receipt classifications are pinned with their evidence on first capture.
+`AnalysisCallCoordinator` owns full-prefix provisional authorization on the same DB connection.
+Provider and mapping IDs are allocated before its retryable transaction; a real SQL 40001 test
+proves reuse after rollback. It issues no HTTP capability. The financial claim primitive is only one half of P3.10's joint gate.
+
+Money is exact `numeric(24,8)`. Pinned pricing includes currency/version/units, uncached input,
+maximum output and separately billed thinking, fixed/cache charges and full storage TTL bounds.
+Account authority serializes reserves across periods. Unknown policy v1 stops new billable claims
+at `count >= 1`, disables automatic resend, and optionally bounds all outstanding/in-flight
+exposure. Policy changes and conservative settlement require actor/reason and append audit facts.
+Rollover preserves original reservations; daily aggregate BillingReconciler output cannot prove
+that an individual operation was not billed. Abandon preserves the obligation.
+
+Before claim, interruption revokes the epoch and settles zero (`not_sent`). After claim without
+verified raw it preserves the reserve and blocks the work. Verified generation success resumes
+only its pinned receipt; cache/file/lookup success recovers an asset directive; a registered
+nonbilling policy permits bounded retry. Known billed errors settle money and remain in
+`blocked(policy_review)`, carrying evidence without becoming model output. Unregistered or
+unproven charge policy remains unknown.
+
+Receipt capture needs no old work lease and never writes business state. A deterministic upload
+intent exists before claim. The current backend is bounded local immutable storage: complete
+fsynced spool, atomic create-if-absent link, exact envelope/hash/identity verification, 16 MiB
+maximum. Object I/O is outside DB transactions. Missing/partial/corrupt/unavailable storage grants
+no resend. Remote object-store conditional publication is explicitly unsupported by this slice.
+The periodic blocked-provider category verifies put-before-ref receipts without Redis delivery,
+then atomically records settlement, checkpoint/state/transition and feeder intent. Its independent
+batch of 50 advances missing outcomes by 30 seconds, preserving fairness for later candidates.
+
+`make core-test-ai` includes T15/T22/T30 real PostgreSQL and local immutable-storage assertions:
+not_sent/claimed ambiguity, restart and two reconciler processes, all operation purposes, late
+cancel/input drift, pause, storage faults, >50 candidates, exact eight-decimal settlement,
+concurrent budget contenders, original-period rollover, explicit replay and safe unknown holds.
+Recovery tests use a transactional PostgreSQL publication sink and canonical parsing; real
+screening/extraction/estimate publication, provider response policies, live prices and joint
+provider/network transport remain with their owning P3.10–P3.14 cutovers. Legacy model bindings
+and handlers remain unchanged; no paid/live AI is used.

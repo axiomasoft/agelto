@@ -52,7 +52,9 @@ final class SchemaInventory
         'prc_analysis_runs' => 'id document_version_id representation_id representation_hash recipe_json recipe_schema_version recipe_hash generation expected_document_head_generation expected_analysis_generation requested_reason supersedes_run_id publication_status',
         'prc_analysis_windows' => 'id run_id window_key input_hash input_range input_range_schema_version expected_coverage expected_coverage_schema_version state checkpoint_version',
         'prc_analysis_chunks' => 'id run_id window_id window_key recipe_hash subrange_key output_ordinal output_ref output_ref_schema_version output_hash canonical_rows canonical_rows_schema_version provenance provenance_schema_version completed_at',
-        'llm_provider_requests' => 'logical_request_id logical_key recipe_hash input_hash purpose semantic_reask_ordinal replay_intent_id replay_of command_id state request_epoch idempotency_key consumer_correlation_id reservation_amount',
+        'llm_provider_requests' => 'logical_request_id logical_key recipe_hash input_hash purpose semantic_reask_ordinal replay_intent_id replay_of command_id state request_epoch idempotency_key consumer_correlation_id reservation_amount max_physical_attempts',
+        'llm_budget_accounts' => 'account_id currency unknown_count_threshold hard_exposure_cap policy_version policy_actor policy_reason',
+        'llm_financial_actions' => 'id account_id currency physical_call_id action actor reason details details_schema_version occurred_at',
         'llm_budget_periods' => 'id account_id currency period_start period_end cap spent reserved',
         'llm_budget_reservations' => 'id operation_id period_id upper_bound state settled_amount pricing_snapshot pricing_snapshot_schema_version',
         'llm_provider_calls' => 'physical_call_id logical_request_id ordinal provider_id account_id api_surface model resolved_model_version request_epoch owner_attempt_id owner_work_generation send_authorization_token send_claimed_at sent_at response_at http_status finish_reason usage_status usage usage_schema_version cost_estimate cost_actual receipt_id receipt_state receipt_upload_key receipt_disk receipt_key receipt_hash receipt_schema_version reservation_id',
@@ -182,6 +184,7 @@ final class SchemaInventory
         'prc_storage_domains', 'prc_storage_reservations', 'prc_document_blobs',
         'prc_analysis_runs', 'prc_analysis_windows', 'prc_analysis_chunks', 'prc_analysis_llm_requests',
         'llm_provider_requests', 'llm_provider_calls', 'llm_budget_periods', 'llm_budget_reservations',
+        'llm_budget_accounts', 'llm_financial_actions',
         'llm_file_assets', 'llm_context_caches',
     ];
 

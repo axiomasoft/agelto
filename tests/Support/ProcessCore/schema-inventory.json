@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P3.8",
+  "current_item": "P3.9",
   "conventions": {
     "work_states": [
       "ready",
@@ -365,6 +365,13 @@
       "schema_sha256": "fd4f4d7cb6a04d81605efcd9c05588fee2cc5e9db9303edcde091e5880d103b7",
       "catalog_sha256": "ff3ce6da5ed12e11317f125fc05a074711c3f3a8c35f6a8c8ec0240630f6dc7a",
       "note": "Guarded reset created canonical tables successfully; descriptive inventory mismatch was expected at this additive staging boundary. Final unchanged candidate must pass two clean resets."
+    },
+    "p39_catalog": {
+      "source_command": "core-test-reset",
+      "source_run": "storage/app/testing/process-core/reports/20261102T024038.492598Z-3778737",
+      "schema_sha256": "e871cc27828b2f501a5c06974b08ec05e3ccdee64e60ef42f9b7b04e819c91b9",
+      "catalog_sha256": "ec36590b53b43645c084670077281bf3bcd4a0d9bb3d45aa19cc1df81787aacf",
+      "note": "Diagnostic real isolated schema capture; not acceptance. Final double install and sequential checks required."
     }
   },
   "migrations": [
@@ -952,6 +959,13 @@
       "reason": "Canonical immutable analysis recipe/window/chunk carriers; live handlers and legacy model cutover remain P3.13.",
       "original_sha256": "31c3d358a8ed0bb5230e00de5af3c1a3f5bd23d171851a836bf2f24fc8528fe5",
       "change_reason": "P3.8 canonical contracts and additive schema; assertions adjusted to current staging without removal."
+    },
+    {
+      "path": "database/migrations/2026_11_02_100001_create_llm_request_ledger.php",
+      "sha256": "f28461591671399c93ec84c9a7ad50bd29a31ff82c52de39e30df810f942809e",
+      "action": "create",
+      "owner_item": "P3.9",
+      "reason": "Permanent financial/request/receipt and exact consumer linkage carriers; paid stages inactive until P3.13."
     }
   ],
   "baseline": {
@@ -22811,6 +22825,1754 @@
             "tablename": "prc_analysis_windows"
           }
         ]
+      },
+      "llm_budget_accounts": {
+        "owner": "P3.9",
+        "retention": "financial",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "account_id",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "llm_budget_accounts",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "currency",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "llm_budget_accounts",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": "1",
+            "column_name": "unknown_count_threshold",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "llm_budget_accounts",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "hard_exposure_cap",
+            "data_type": "numeric",
+            "is_nullable": "YES",
+            "ordinal_position": 4,
+            "table_name": "llm_budget_accounts",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          },
+          {
+            "column_default": "1",
+            "column_name": "policy_version",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "llm_budget_accounts",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "policy_actor",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "llm_budget_accounts",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "policy_reason",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "llm_budget_accounts",
+            "table_schema": "public",
+            "udt_name": "text"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "UNIQUE (account_id)",
+            "name": "llm_budget_accounts_account_id_key",
+            "schema": "public",
+            "table_name": "llm_budget_accounts",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((currency ~ '^[A-Z]{3}$'::text))",
+            "name": "llm_budget_accounts_currency_check",
+            "schema": "public",
+            "table_name": "llm_budget_accounts",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((hard_exposure_cap >= (0)::numeric))",
+            "name": "llm_budget_accounts_hard_exposure_cap_check",
+            "schema": "public",
+            "table_name": "llm_budget_accounts",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (account_id, currency)",
+            "name": "llm_budget_accounts_pkey",
+            "schema": "public",
+            "table_name": "llm_budget_accounts",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((policy_version >= 1))",
+            "name": "llm_budget_accounts_policy_version_check",
+            "schema": "public",
+            "table_name": "llm_budget_accounts",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((unknown_count_threshold >= 1))",
+            "name": "llm_budget_accounts_unknown_count_threshold_check",
+            "schema": "public",
+            "table_name": "llm_budget_accounts",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_budget_accounts_account_id_key ON public.llm_budget_accounts USING btree (account_id)",
+            "indexname": "llm_budget_accounts_account_id_key",
+            "schemaname": "public",
+            "tablename": "llm_budget_accounts"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_budget_accounts_pkey ON public.llm_budget_accounts USING btree (account_id, currency)",
+            "indexname": "llm_budget_accounts_pkey",
+            "schemaname": "public",
+            "tablename": "llm_budget_accounts"
+          }
+        ],
+        "definition": "CREATE TABLE public.llm_budget_accounts (\n    account_id text NOT NULL,\n    currency text NOT NULL,\n    unknown_count_threshold bigint DEFAULT 1 NOT NULL,\n    hard_exposure_cap numeric(24,8),\n    policy_version bigint DEFAULT 1 NOT NULL,\n    policy_actor text NOT NULL,\n    policy_reason text NOT NULL,\n    CONSTRAINT llm_budget_accounts_currency_check CHECK ((currency ~ '^[A-Z]{3}$'::text)),\n    CONSTRAINT llm_budget_accounts_hard_exposure_cap_check CHECK ((hard_exposure_cap >= (0)::numeric)),\n    CONSTRAINT llm_budget_accounts_policy_version_check CHECK ((policy_version >= 1)),\n    CONSTRAINT llm_budget_accounts_unknown_count_threshold_check CHECK ((unknown_count_threshold >= 1))\n);"
+      },
+      "llm_budget_periods": {
+        "owner": "P3.9",
+        "retention": "financial",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "llm_budget_periods",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "account_id",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "llm_budget_periods",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "currency",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "llm_budget_periods",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "period_start",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "llm_budget_periods",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "period_end",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "llm_budget_periods",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "cap",
+            "data_type": "numeric",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "llm_budget_periods",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          },
+          {
+            "column_default": "0",
+            "column_name": "spent",
+            "data_type": "numeric",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "llm_budget_periods",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          },
+          {
+            "column_default": "0",
+            "column_name": "reserved",
+            "data_type": "numeric",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "llm_budget_periods",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)",
+            "name": "llm_budget_periods_account_id_currency_fkey",
+            "schema": "public",
+            "table_name": "llm_budget_periods",
+            "type": "f"
+          },
+          {
+            "definition": "UNIQUE (account_id, currency, period_start, period_end)",
+            "name": "llm_budget_periods_account_id_currency_period_start_period__key",
+            "schema": "public",
+            "table_name": "llm_budget_periods",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((cap >= (0)::numeric))",
+            "name": "llm_budget_periods_cap_check",
+            "schema": "public",
+            "table_name": "llm_budget_periods",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((period_end > period_start))",
+            "name": "llm_budget_periods_check",
+            "schema": "public",
+            "table_name": "llm_budget_periods",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((spent + reserved) <= cap))",
+            "name": "llm_budget_periods_check1",
+            "schema": "public",
+            "table_name": "llm_budget_periods",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "llm_budget_periods_pkey",
+            "schema": "public",
+            "table_name": "llm_budget_periods",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((reserved >= (0)::numeric))",
+            "name": "llm_budget_periods_reserved_check",
+            "schema": "public",
+            "table_name": "llm_budget_periods",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((spent >= (0)::numeric))",
+            "name": "llm_budget_periods_spent_check",
+            "schema": "public",
+            "table_name": "llm_budget_periods",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_budget_periods_account_id_currency_period_start_period__key ON public.llm_budget_periods USING btree (account_id, currency, period_start, period_end)",
+            "indexname": "llm_budget_periods_account_id_currency_period_start_period__key",
+            "schemaname": "public",
+            "tablename": "llm_budget_periods"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_budget_periods_pkey ON public.llm_budget_periods USING btree (id)",
+            "indexname": "llm_budget_periods_pkey",
+            "schemaname": "public",
+            "tablename": "llm_budget_periods"
+          }
+        ],
+        "definition": "CREATE TABLE public.llm_budget_periods (\n    id uuid NOT NULL,\n    account_id text NOT NULL,\n    currency text NOT NULL,\n    period_start timestamp with time zone NOT NULL,\n    period_end timestamp with time zone NOT NULL,\n    cap numeric(24,8) NOT NULL,\n    spent numeric(24,8) DEFAULT 0 NOT NULL,\n    reserved numeric(24,8) DEFAULT 0 NOT NULL,\n    CONSTRAINT llm_budget_periods_cap_check CHECK ((cap >= (0)::numeric)),\n    CONSTRAINT llm_budget_periods_check CHECK ((period_end > period_start)),\n    CONSTRAINT llm_budget_periods_check1 CHECK (((spent + reserved) <= cap)),\n    CONSTRAINT llm_budget_periods_reserved_check CHECK ((reserved >= (0)::numeric)),\n    CONSTRAINT llm_budget_periods_spent_check CHECK ((spent >= (0)::numeric))\n);"
+      },
+      "llm_provider_requests": {
+        "owner": "P3.9",
+        "retention": "financial",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "logical_request_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "logical_key",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "recipe_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "input_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "purpose",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "semantic_reask_ordinal",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "replay_intent_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "replay_of",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 8,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "command_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 9,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "replay_actor",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 10,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "replay_reason",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 11,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "state",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 12,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "request_epoch",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 13,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "idempotency_key",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 14,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "consumer_correlation_id",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 15,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": "0",
+            "column_name": "reservation_amount",
+            "data_type": "numeric",
+            "is_nullable": "NO",
+            "ordinal_position": 16,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          },
+          {
+            "column_default": null,
+            "column_name": "context_json",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 17,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "context_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 18,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "max_physical_attempts",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 19,
+            "table_name": "llm_provider_requests",
+            "table_schema": "public",
+            "udt_name": "int8"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK (((replay_of IS NULL) = (command_id IS NULL)))",
+            "name": "llm_provider_requests_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((command_id IS NULL) = (replay_actor IS NULL)))",
+            "name": "llm_provider_requests_check1",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((command_id IS NULL) = (replay_reason IS NULL)))",
+            "name": "llm_provider_requests_check2",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (command_id)",
+            "name": "llm_provider_requests_command_id_key",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((context_schema_version = 1))",
+            "name": "llm_provider_requests_context_schema_version_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(input_hash) = 32))",
+            "name": "llm_provider_requests_input_hash_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(logical_key) = 32))",
+            "name": "llm_provider_requests_logical_key_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (logical_key)",
+            "name": "llm_provider_requests_logical_key_key",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK (((max_physical_attempts >= 1) AND (max_physical_attempts <= 10)))",
+            "name": "llm_provider_requests_max_physical_attempts_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (logical_request_id)",
+            "name": "llm_provider_requests_pkey",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((purpose = ANY (ARRAY['generate'::text, 'cache_create'::text, 'cache_refresh'::text, 'cache_storage'::text, 'file_upload'::text, 'lookup'::text])))",
+            "name": "llm_provider_requests_purpose_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(recipe_hash) = 32))",
+            "name": "llm_provider_requests_recipe_hash_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (replay_of) REFERENCES llm_provider_requests(logical_request_id)",
+            "name": "llm_provider_requests_replay_of_fkey",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((request_epoch >= 1))",
+            "name": "llm_provider_requests_request_epoch_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((reservation_amount >= (0)::numeric))",
+            "name": "llm_provider_requests_reservation_amount_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((semantic_reask_ordinal >= 0) AND (semantic_reask_ordinal <= 1)))",
+            "name": "llm_provider_requests_semantic_reask_ordinal_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((state = ANY (ARRAY['prepared'::text, 'sending'::text, 'completed'::text, 'failed_known'::text, 'unknown'::text, 'abandoned_unknown'::text])))",
+            "name": "llm_provider_requests_state_check",
+            "schema": "public",
+            "table_name": "llm_provider_requests",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_provider_requests_command_id_key ON public.llm_provider_requests USING btree (command_id)",
+            "indexname": "llm_provider_requests_command_id_key",
+            "schemaname": "public",
+            "tablename": "llm_provider_requests"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_provider_requests_logical_key_key ON public.llm_provider_requests USING btree (logical_key)",
+            "indexname": "llm_provider_requests_logical_key_key",
+            "schemaname": "public",
+            "tablename": "llm_provider_requests"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)",
+            "indexname": "llm_provider_requests_pkey",
+            "schemaname": "public",
+            "tablename": "llm_provider_requests"
+          }
+        ],
+        "definition": "CREATE TABLE public.llm_provider_requests (\n    logical_request_id uuid NOT NULL,\n    logical_key bytea NOT NULL,\n    recipe_hash bytea NOT NULL,\n    input_hash bytea NOT NULL,\n    purpose text NOT NULL,\n    semantic_reask_ordinal bigint NOT NULL,\n    replay_intent_id uuid NOT NULL,\n    replay_of uuid,\n    command_id uuid,\n    replay_actor text,\n    replay_reason text,\n    state text NOT NULL,\n    request_epoch bigint NOT NULL,\n    idempotency_key text,\n    consumer_correlation_id text NOT NULL,\n    reservation_amount numeric(24,8) DEFAULT 0 NOT NULL,\n    context_json jsonb NOT NULL,\n    context_schema_version smallint NOT NULL,\n    max_physical_attempts bigint NOT NULL,\n    CONSTRAINT llm_provider_requests_check CHECK (((replay_of IS NULL) = (command_id IS NULL))),\n    CONSTRAINT llm_provider_requests_check1 CHECK (((command_id IS NULL) = (replay_actor IS NULL))),\n    CONSTRAINT llm_provider_requests_check2 CHECK (((command_id IS NULL) = (replay_reason IS NULL))),\n    CONSTRAINT llm_provider_requests_context_schema_version_check CHECK ((context_schema_version = 1)),\n    CONSTRAINT llm_provider_requests_input_hash_check CHECK ((octet_length(input_hash) = 32)),\n    CONSTRAINT llm_provider_requests_logical_key_check CHECK ((octet_length(logical_key) = 32)),\n    CONSTRAINT llm_provider_requests_max_physical_attempts_check CHECK (((max_physical_attempts >= 1) AND (max_physical_attempts <= 10))),\n    CONSTRAINT llm_provider_requests_purpose_check CHECK ((purpose = ANY (ARRAY['generate'::text, 'cache_create'::text, 'cache_refresh'::text, 'cache_storage'::text, 'file_upload'::text, 'lookup'::text]))),\n    CONSTRAINT llm_provider_requests_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32)),\n    CONSTRAINT llm_provider_requests_request_epoch_check CHECK ((request_epoch >= 1)),\n    CONSTRAINT llm_provider_requests_reservation_amount_check CHECK ((reservation_amount >= (0)::numeric)),\n    CONSTRAINT llm_provider_requests_semantic_reask_ordinal_check CHECK (((semantic_reask_ordinal >= 0) AND (semantic_reask_ordinal <= 1))),\n    CONSTRAINT llm_provider_requests_state_check CHECK ((state = ANY (ARRAY['prepared'::text, 'sending'::text, 'completed'::text, 'failed_known'::text, 'unknown'::text, 'abandoned_unknown'::text])))\n);"
+      },
+      "llm_provider_calls": {
+        "owner": "P3.9",
+        "retention": "financial",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "physical_call_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "logical_request_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "ordinal",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "provider_id",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "account_id",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "api_surface",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "model",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "resolved_model_version",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 8,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "request_epoch",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "owner_attempt_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 10,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "owner_work_generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 11,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "send_authorization_token",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 12,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "send_claimed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 13,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "sent_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 14,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "response_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 15,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "http_status",
+            "data_type": "smallint",
+            "is_nullable": "YES",
+            "ordinal_position": 16,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "finish_reason",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 17,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "usage_status",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 18,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "usage",
+            "data_type": "jsonb",
+            "is_nullable": "YES",
+            "ordinal_position": 19,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "usage_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "YES",
+            "ordinal_position": 20,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "cost_estimate",
+            "data_type": "numeric",
+            "is_nullable": "NO",
+            "ordinal_position": 21,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          },
+          {
+            "column_default": null,
+            "column_name": "cost_actual",
+            "data_type": "numeric",
+            "is_nullable": "YES",
+            "ordinal_position": 22,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          },
+          {
+            "column_default": null,
+            "column_name": "receipt_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 23,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "receipt_state",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 24,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "receipt_upload_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 25,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "receipt_disk",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 26,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "receipt_key",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 27,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "receipt_hash",
+            "data_type": "bytea",
+            "is_nullable": "YES",
+            "ordinal_position": 28,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "receipt_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "YES",
+            "ordinal_position": 29,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "reservation_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 30,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "outcome",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 31,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "charge_evidence",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 32,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "text"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK (((usage IS NULL) = (usage_schema_version IS NULL)))",
+            "name": "llm_provider_calls_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((receipt_key IS NULL) = (receipt_hash IS NULL)))",
+            "name": "llm_provider_calls_check1",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((receipt_key IS NULL) = (receipt_schema_version IS NULL)))",
+            "name": "llm_provider_calls_check2",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((receipt_state = 'verified'::text) = (receipt_key IS NOT NULL)))",
+            "name": "llm_provider_calls_check3",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((receipt_state <> ALL (ARRAY['verified'::text, 'unknown'::text])) OR (send_claimed_at IS NOT NULL)))",
+            "name": "llm_provider_calls_check4",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((receipt_state <> 'not_sent'::text) OR ((send_claimed_at IS NULL) AND (cost_actual = (0)::numeric))))",
+            "name": "llm_provider_calls_check5",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((receipt_key IS NULL) OR (receipt_key = receipt_upload_key)))",
+            "name": "llm_provider_calls_check6",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((cost_actual >= (0)::numeric))",
+            "name": "llm_provider_calls_cost_actual_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((cost_estimate >= (0)::numeric))",
+            "name": "llm_provider_calls_cost_estimate_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((http_status >= 100) AND (http_status <= 599)))",
+            "name": "llm_provider_calls_http_status_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)",
+            "name": "llm_provider_calls_logical_request_id_fkey",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "f"
+          },
+          {
+            "definition": "UNIQUE (logical_request_id, ordinal)",
+            "name": "llm_provider_calls_logical_request_id_ordinal_key",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((ordinal >= 1))",
+            "name": "llm_provider_calls_ordinal_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((outcome = ANY (ARRAY['not_sent'::text, 'success'::text, 'known_nonbillable_cache_miss'::text, 'known_retryable_nonbillable'::text, 'billed_error'::text, 'unknown'::text])))",
+            "name": "llm_provider_calls_outcome_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((owner_work_generation >= 1))",
+            "name": "llm_provider_calls_owner_work_generation_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (physical_call_id, logical_request_id)",
+            "name": "llm_provider_calls_physical_call_id_logical_request_id_key",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "u"
+          },
+          {
+            "definition": "PRIMARY KEY (physical_call_id)",
+            "name": "llm_provider_calls_pkey",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "p"
+          },
+          {
+            "definition": "FOREIGN KEY (provider_id) REFERENCES llm_providers(id)",
+            "name": "llm_provider_calls_provider_id_fkey",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((octet_length(receipt_hash) = 32))",
+            "name": "llm_provider_calls_receipt_hash_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (receipt_id)",
+            "name": "llm_provider_calls_receipt_id_key",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((receipt_schema_version = 1))",
+            "name": "llm_provider_calls_receipt_schema_version_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((receipt_state = ANY (ARRAY['pending'::text, 'verified'::text, 'not_sent'::text, 'unknown'::text])))",
+            "name": "llm_provider_calls_receipt_state_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (receipt_upload_key)",
+            "name": "llm_provider_calls_receipt_upload_key_key",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((request_epoch >= 1))",
+            "name": "llm_provider_calls_request_epoch_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (reservation_id, physical_call_id) REFERENCES llm_budget_reservations(id, operation_id) DEFERRABLE INITIALLY DEFERRED",
+            "name": "llm_provider_calls_reservation_fk",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "f"
+          },
+          {
+            "definition": "UNIQUE (reservation_id)",
+            "name": "llm_provider_calls_reservation_id_key",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((usage_schema_version > 0))",
+            "name": "llm_provider_calls_usage_schema_version_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))",
+            "name": "llm_provider_calls_usage_status_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE INDEX llm_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)",
+            "indexname": "llm_calls_account_idx",
+            "schemaname": "public",
+            "tablename": "llm_provider_calls"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_provider_calls_logical_request_id_ordinal_key ON public.llm_provider_calls USING btree (logical_request_id, ordinal)",
+            "indexname": "llm_provider_calls_logical_request_id_ordinal_key",
+            "schemaname": "public",
+            "tablename": "llm_provider_calls"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_provider_calls_physical_call_id_logical_request_id_key ON public.llm_provider_calls USING btree (physical_call_id, logical_request_id)",
+            "indexname": "llm_provider_calls_physical_call_id_logical_request_id_key",
+            "schemaname": "public",
+            "tablename": "llm_provider_calls"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_provider_calls_pkey ON public.llm_provider_calls USING btree (physical_call_id)",
+            "indexname": "llm_provider_calls_pkey",
+            "schemaname": "public",
+            "tablename": "llm_provider_calls"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_provider_calls_receipt_id_key ON public.llm_provider_calls USING btree (receipt_id)",
+            "indexname": "llm_provider_calls_receipt_id_key",
+            "schemaname": "public",
+            "tablename": "llm_provider_calls"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_provider_calls_receipt_upload_key_key ON public.llm_provider_calls USING btree (receipt_upload_key)",
+            "indexname": "llm_provider_calls_receipt_upload_key_key",
+            "schemaname": "public",
+            "tablename": "llm_provider_calls"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)",
+            "indexname": "llm_provider_calls_reservation_id_key",
+            "schemaname": "public",
+            "tablename": "llm_provider_calls"
+          }
+        ],
+        "definition": "CREATE TABLE public.llm_provider_calls (\n    physical_call_id uuid NOT NULL,\n    logical_request_id uuid NOT NULL,\n    ordinal bigint NOT NULL,\n    provider_id bigint NOT NULL,\n    account_id text NOT NULL,\n    api_surface text NOT NULL,\n    model text NOT NULL,\n    resolved_model_version text,\n    request_epoch bigint NOT NULL,\n    owner_attempt_id uuid NOT NULL,\n    owner_work_generation bigint NOT NULL,\n    send_authorization_token uuid NOT NULL,\n    send_claimed_at timestamp with time zone,\n    sent_at timestamp with time zone,\n    response_at timestamp with time zone,\n    http_status smallint,\n    finish_reason text,\n    usage_status text NOT NULL,\n    usage jsonb,\n    usage_schema_version smallint,\n    cost_estimate numeric(24,8) NOT NULL,\n    cost_actual numeric(24,8),\n    receipt_id uuid,\n    receipt_state text NOT NULL,\n    receipt_upload_key text NOT NULL,\n    receipt_disk text,\n    receipt_key text,\n    receipt_hash bytea,\n    receipt_schema_version smallint,\n    reservation_id uuid NOT NULL,\n    outcome text,\n    charge_evidence text,\n    CONSTRAINT llm_provider_calls_check CHECK (((usage IS NULL) = (usage_schema_version IS NULL))),\n    CONSTRAINT llm_provider_calls_check1 CHECK (((receipt_key IS NULL) = (receipt_hash IS NULL))),\n    CONSTRAINT llm_provider_calls_check2 CHECK (((receipt_key IS NULL) = (receipt_schema_version IS NULL))),\n    CONSTRAINT llm_provider_calls_check3 CHECK (((receipt_state = 'verified'::text) = (receipt_key IS NOT NULL))),\n    CONSTRAINT llm_provider_calls_check4 CHECK (((receipt_state <> ALL (ARRAY['verified'::text, 'unknown'::text])) OR (send_claimed_at IS NOT NULL))),\n    CONSTRAINT llm_provider_calls_check5 CHECK (((receipt_state <> 'not_sent'::text) OR ((send_claimed_at IS NULL) AND (cost_actual = (0)::numeric)))),\n    CONSTRAINT llm_provider_calls_check6 CHECK (((receipt_key IS NULL) OR (receipt_key = receipt_upload_key))),\n    CONSTRAINT llm_provider_calls_cost_actual_check CHECK ((cost_actual >= (0)::numeric)),\n    CONSTRAINT llm_provider_calls_cost_estimate_check CHECK ((cost_estimate >= (0)::numeric)),\n    CONSTRAINT llm_provider_calls_http_status_check CHECK (((http_status >= 100) AND (http_status <= 599))),\n    CONSTRAINT llm_provider_calls_ordinal_check CHECK ((ordinal >= 1)),\n    CONSTRAINT llm_provider_calls_outcome_check CHECK ((outcome = ANY (ARRAY['not_sent'::text, 'success'::text, 'known_nonbillable_cache_miss'::text, 'known_retryable_nonbillable'::text, 'billed_error'::text, 'unknown'::text]))),\n    CONSTRAINT llm_provider_calls_owner_work_generation_check CHECK ((owner_work_generation >= 1)),\n    CONSTRAINT llm_provider_calls_receipt_hash_check CHECK ((octet_length(receipt_hash) = 32)),\n    CONSTRAINT llm_provider_calls_receipt_schema_version_check CHECK ((receipt_schema_version = 1)),\n    CONSTRAINT llm_provider_calls_receipt_state_check CHECK ((receipt_state = ANY (ARRAY['pending'::text, 'verified'::text, 'not_sent'::text, 'unknown'::text]))),\n    CONSTRAINT llm_provider_calls_request_epoch_check CHECK ((request_epoch >= 1)),\n    CONSTRAINT llm_provider_calls_usage_schema_version_check CHECK ((usage_schema_version > 0)),\n    CONSTRAINT llm_provider_calls_usage_status_check CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))\n);"
+      },
+      "llm_budget_reservations": {
+        "owner": "P3.9",
+        "retention": "financial",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "llm_budget_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "operation_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "llm_budget_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "period_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "llm_budget_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "upper_bound",
+            "data_type": "numeric",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "llm_budget_reservations",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          },
+          {
+            "column_default": null,
+            "column_name": "state",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "llm_budget_reservations",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "settled_amount",
+            "data_type": "numeric",
+            "is_nullable": "YES",
+            "ordinal_position": 6,
+            "table_name": "llm_budget_reservations",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          },
+          {
+            "column_default": null,
+            "column_name": "pricing_snapshot",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "llm_budget_reservations",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "pricing_snapshot_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "llm_budget_reservations",
+            "table_schema": "public",
+            "udt_name": "int2"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK (((state = 'settled'::text) = (settled_amount IS NOT NULL)))",
+            "name": "llm_budget_reservations_check",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((settled_amount >= (0)::numeric) AND (settled_amount <= upper_bound)))",
+            "name": "llm_budget_reservations_check1",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (id, operation_id)",
+            "name": "llm_budget_reservations_id_operation_id_key",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "u"
+          },
+          {
+            "definition": "FOREIGN KEY (operation_id) REFERENCES llm_provider_calls(physical_call_id)",
+            "name": "llm_budget_reservations_operation_id_fkey",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "f"
+          },
+          {
+            "definition": "UNIQUE (operation_id)",
+            "name": "llm_budget_reservations_operation_id_key",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "u"
+          },
+          {
+            "definition": "FOREIGN KEY (period_id) REFERENCES llm_budget_periods(id)",
+            "name": "llm_budget_reservations_period_id_fkey",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "f"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "llm_budget_reservations_pkey",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((pricing_snapshot_schema_version = 1))",
+            "name": "llm_budget_reservations_pricing_snapshot_schema_version_check",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((state = ANY (ARRAY['reserved'::text, 'settled'::text])))",
+            "name": "llm_budget_reservations_state_check",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((upper_bound >= (0)::numeric))",
+            "name": "llm_budget_reservations_upper_bound_check",
+            "schema": "public",
+            "table_name": "llm_budget_reservations",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_budget_reservations_id_operation_id_key ON public.llm_budget_reservations USING btree (id, operation_id)",
+            "indexname": "llm_budget_reservations_id_operation_id_key",
+            "schemaname": "public",
+            "tablename": "llm_budget_reservations"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)",
+            "indexname": "llm_budget_reservations_operation_id_key",
+            "schemaname": "public",
+            "tablename": "llm_budget_reservations"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_budget_reservations_pkey ON public.llm_budget_reservations USING btree (id)",
+            "indexname": "llm_budget_reservations_pkey",
+            "schemaname": "public",
+            "tablename": "llm_budget_reservations"
+          }
+        ],
+        "definition": "CREATE TABLE public.llm_budget_reservations (\n    id uuid NOT NULL,\n    operation_id uuid NOT NULL,\n    period_id uuid NOT NULL,\n    upper_bound numeric(24,8) NOT NULL,\n    state text NOT NULL,\n    settled_amount numeric(24,8),\n    pricing_snapshot jsonb NOT NULL,\n    pricing_snapshot_schema_version smallint NOT NULL,\n    CONSTRAINT llm_budget_reservations_check CHECK (((state = 'settled'::text) = (settled_amount IS NOT NULL))),\n    CONSTRAINT llm_budget_reservations_check1 CHECK (((settled_amount >= (0)::numeric) AND (settled_amount <= upper_bound))),\n    CONSTRAINT llm_budget_reservations_pricing_snapshot_schema_version_check CHECK ((pricing_snapshot_schema_version = 1)),\n    CONSTRAINT llm_budget_reservations_state_check CHECK ((state = ANY (ARRAY['reserved'::text, 'settled'::text]))),\n    CONSTRAINT llm_budget_reservations_upper_bound_check CHECK ((upper_bound >= (0)::numeric))\n);"
+      },
+      "prc_analysis_llm_requests": {
+        "owner": "P3.9",
+        "retention": "financial",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_analysis_llm_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "analysis_run_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_analysis_llm_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "work_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_analysis_llm_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "attempt_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_analysis_llm_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "logical_request_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_analysis_llm_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "physical_call_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "prc_analysis_llm_requests",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "expected_input_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "prc_analysis_llm_requests",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "recipe_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "prc_analysis_llm_requests",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": "true",
+            "column_name": "recovery_active",
+            "data_type": "boolean",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "prc_analysis_llm_requests",
+            "table_schema": "public",
+            "udt_name": "bool"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)",
+            "name": "prc_analysis_llm_requests_analysis_run_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (analysis_run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)",
+            "name": "prc_analysis_llm_requests_analysis_run_id_recipe_hash_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)",
+            "name": "prc_analysis_llm_requests_attempt_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((octet_length(expected_input_hash) = 32))",
+            "name": "prc_analysis_llm_requests_expected_input_hash_check",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)",
+            "name": "prc_analysis_llm_requests_logical_request_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)",
+            "name": "prc_analysis_llm_requests_physical_call_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "f"
+          },
+          {
+            "definition": "UNIQUE (physical_call_id)",
+            "name": "prc_analysis_llm_requests_physical_call_id_key",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "u"
+          },
+          {
+            "definition": "FOREIGN KEY (physical_call_id, logical_request_id) REFERENCES llm_provider_calls(physical_call_id, logical_request_id)",
+            "name": "prc_analysis_llm_requests_physical_call_id_logical_request_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "f"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "prc_analysis_llm_requests_pkey",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((octet_length(recipe_hash) = 32))",
+            "name": "prc_analysis_llm_requests_recipe_hash_check",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (work_id) REFERENCES prc_process_work(id)",
+            "name": "prc_analysis_llm_requests_work_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_llm_requests",
+            "type": "f"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_llm_active_work ON public.prc_analysis_llm_requests USING btree (work_id) WHERE recovery_active",
+            "indexname": "prc_analysis_llm_active_work",
+            "schemaname": "public",
+            "tablename": "prc_analysis_llm_requests"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_llm_requests_physical_call_id_key ON public.prc_analysis_llm_requests USING btree (physical_call_id)",
+            "indexname": "prc_analysis_llm_requests_physical_call_id_key",
+            "schemaname": "public",
+            "tablename": "prc_analysis_llm_requests"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)",
+            "indexname": "prc_analysis_llm_requests_pkey",
+            "schemaname": "public",
+            "tablename": "prc_analysis_llm_requests"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)",
+            "indexname": "prc_analysis_llm_work_idx",
+            "schemaname": "public",
+            "tablename": "prc_analysis_llm_requests"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_analysis_llm_requests (\n    id uuid NOT NULL,\n    analysis_run_id uuid NOT NULL,\n    work_id uuid NOT NULL,\n    attempt_id uuid NOT NULL,\n    logical_request_id uuid NOT NULL,\n    physical_call_id uuid NOT NULL,\n    expected_input_hash bytea NOT NULL,\n    recipe_hash bytea NOT NULL,\n    recovery_active boolean DEFAULT true NOT NULL,\n    CONSTRAINT prc_analysis_llm_requests_expected_input_hash_check CHECK ((octet_length(expected_input_hash) = 32)),\n    CONSTRAINT prc_analysis_llm_requests_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32))\n);"
+      },
+      "llm_financial_actions": {
+        "owner": "P3.9",
+        "retention": "financial",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "account_id",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "currency",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "physical_call_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 4,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "action",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "actor",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "reason",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "details",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "details_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": "clock_timestamp()",
+            "column_name": "occurred_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 10,
+            "table_name": "llm_financial_actions",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)",
+            "name": "llm_financial_actions_account_id_currency_fkey",
+            "schema": "public",
+            "table_name": "llm_financial_actions",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((action = ANY (ARRAY['policy_change'::text, 'conservative_settlement'::text, 'abandon_unknown'::text, 'receipt_reconciliation'::text])))",
+            "name": "llm_financial_actions_action_check",
+            "schema": "public",
+            "table_name": "llm_financial_actions",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((length(actor) > 0))",
+            "name": "llm_financial_actions_actor_check",
+            "schema": "public",
+            "table_name": "llm_financial_actions",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((details_schema_version = 1))",
+            "name": "llm_financial_actions_details_schema_version_check",
+            "schema": "public",
+            "table_name": "llm_financial_actions",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)",
+            "name": "llm_financial_actions_physical_call_id_fkey",
+            "schema": "public",
+            "table_name": "llm_financial_actions",
+            "type": "f"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "llm_financial_actions_pkey",
+            "schema": "public",
+            "table_name": "llm_financial_actions",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((length(reason) > 0))",
+            "name": "llm_financial_actions_reason_check",
+            "schema": "public",
+            "table_name": "llm_financial_actions",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_financial_actions_pkey ON public.llm_financial_actions USING btree (id)",
+            "indexname": "llm_financial_actions_pkey",
+            "schemaname": "public",
+            "tablename": "llm_financial_actions"
+          }
+        ],
+        "definition": "CREATE TABLE public.llm_financial_actions (\n    id uuid NOT NULL,\n    account_id text NOT NULL,\n    currency text NOT NULL,\n    physical_call_id uuid,\n    action text NOT NULL,\n    actor text NOT NULL,\n    reason text NOT NULL,\n    details jsonb NOT NULL,\n    details_schema_version smallint NOT NULL,\n    occurred_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    CONSTRAINT llm_financial_actions_action_check CHECK ((action = ANY (ARRAY['policy_change'::text, 'conservative_settlement'::text, 'abandon_unknown'::text, 'receipt_reconciliation'::text]))),\n    CONSTRAINT llm_financial_actions_actor_check CHECK ((length(actor) > 0)),\n    CONSTRAINT llm_financial_actions_details_schema_version_check CHECK ((details_schema_version = 1)),\n    CONSTRAINT llm_financial_actions_reason_check CHECK ((length(reason) > 0))\n);"
       }
     },
     "extensions": [
@@ -26852,22 +28614,22 @@
         "logical_request_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "logical_request_id uuid PRIMARY KEY"
+          "definition": "logical_request_id uuid NOT NULL"
         },
         "logical_key": {
           "type": "bytea",
           "nullable": false,
-          "definition": "logical_key bytea NOT NULL UNIQUE CHECK(octet_length(logical_key)=32)"
+          "definition": "logical_key bytea NOT NULL"
         },
         "recipe_hash": {
           "type": "bytea",
           "nullable": false,
-          "definition": "recipe_hash bytea NOT NULL CHECK(octet_length(recipe_hash)=32)"
+          "definition": "recipe_hash bytea NOT NULL"
         },
         "input_hash": {
           "type": "bytea",
           "nullable": false,
-          "definition": "input_hash bytea NOT NULL CHECK(octet_length(input_hash)=32)"
+          "definition": "input_hash bytea NOT NULL"
         },
         "purpose": {
           "type": "text",
@@ -26877,7 +28639,7 @@
         "semantic_reask_ordinal": {
           "type": "bigint",
           "nullable": false,
-          "definition": "semantic_reask_ordinal bigint NOT NULL CHECK(semantic_reask_ordinal>=0)"
+          "definition": "semantic_reask_ordinal bigint NOT NULL"
         },
         "replay_intent_id": {
           "type": "uuid",
@@ -26887,7 +28649,7 @@
         "replay_of": {
           "type": "uuid",
           "nullable": true,
-          "definition": "replay_of uuid NULL REFERENCES llm_provider_requests(logical_request_id)",
+          "definition": "replay_of uuid",
           "references": {
             "table": "llm_provider_requests",
             "columns": [
@@ -26900,22 +28662,32 @@
         "command_id": {
           "type": "uuid",
           "nullable": true,
-          "definition": "command_id uuid NULL UNIQUE"
+          "definition": "command_id uuid"
+        },
+        "replay_actor": {
+          "type": "text",
+          "nullable": true,
+          "definition": "replay_actor text"
+        },
+        "replay_reason": {
+          "type": "text",
+          "nullable": true,
+          "definition": "replay_reason text"
         },
         "state": {
           "type": "text",
           "nullable": false,
-          "definition": "state text NOT NULL CHECK(state IN ('prepared','sending','completed','failed_known','unknown','abandoned_unknown'))"
+          "definition": "state text NOT NULL"
         },
         "request_epoch": {
           "type": "bigint",
           "nullable": false,
-          "definition": "request_epoch bigint NOT NULL CHECK(request_epoch>=1)"
+          "definition": "request_epoch bigint NOT NULL"
         },
         "idempotency_key": {
           "type": "text",
           "nullable": true,
-          "definition": "idempotency_key text NULL"
+          "definition": "idempotency_key text"
         },
         "consumer_correlation_id": {
           "type": "text",
@@ -26925,11 +28697,48 @@
         "reservation_amount": {
           "type": "numeric(24,8)",
           "nullable": false,
-          "definition": "reservation_amount numeric(24,8) NOT NULL CHECK(reservation_amount>=0)"
+          "definition": "reservation_amount numeric(24,8) DEFAULT 0 NOT NULL"
+        },
+        "context_json": {
+          "type": "jsonb",
+          "nullable": false,
+          "definition": "context_json jsonb NOT NULL"
+        },
+        "context_schema_version": {
+          "type": "smallint",
+          "nullable": false,
+          "definition": "context_schema_version smallint NOT NULL"
+        },
+        "max_physical_attempts": {
+          "type": "bigint",
+          "nullable": false,
+          "definition": "max_physical_attempts bigint NOT NULL"
         }
       },
-      "constraints": [],
-      "indexes": [],
+      "constraints": [
+        "CONSTRAINT llm_provider_requests_check CHECK (((replay_of IS NULL) = (command_id IS NULL)))",
+        "CONSTRAINT llm_provider_requests_check1 CHECK (((command_id IS NULL) = (replay_actor IS NULL)))",
+        "CONSTRAINT llm_provider_requests_check2 CHECK (((command_id IS NULL) = (replay_reason IS NULL)))",
+        "CONSTRAINT llm_provider_requests_command_id_key UNIQUE (command_id)",
+        "CONSTRAINT llm_provider_requests_context_schema_version_check CHECK ((context_schema_version = 1))",
+        "CONSTRAINT llm_provider_requests_input_hash_check CHECK ((octet_length(input_hash) = 32))",
+        "CONSTRAINT llm_provider_requests_logical_key_check CHECK ((octet_length(logical_key) = 32))",
+        "CONSTRAINT llm_provider_requests_logical_key_key UNIQUE (logical_key)",
+        "CONSTRAINT llm_provider_requests_max_physical_attempts_check CHECK (((max_physical_attempts >= 1) AND (max_physical_attempts <= 10)))",
+        "CONSTRAINT llm_provider_requests_pkey PRIMARY KEY (logical_request_id)",
+        "CONSTRAINT llm_provider_requests_purpose_check CHECK ((purpose = ANY (ARRAY['generate'::text, 'cache_create'::text, 'cache_refresh'::text, 'cache_storage'::text, 'file_upload'::text, 'lookup'::text])))",
+        "CONSTRAINT llm_provider_requests_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32))",
+        "CONSTRAINT llm_provider_requests_replay_of_fkey FOREIGN KEY (replay_of) REFERENCES llm_provider_requests(logical_request_id)",
+        "CONSTRAINT llm_provider_requests_request_epoch_check CHECK ((request_epoch >= 1))",
+        "CONSTRAINT llm_provider_requests_reservation_amount_check CHECK ((reservation_amount >= (0)::numeric))",
+        "CONSTRAINT llm_provider_requests_semantic_reask_ordinal_check CHECK (((semantic_reask_ordinal >= 0) AND (semantic_reask_ordinal <= 1)))",
+        "CONSTRAINT llm_provider_requests_state_check CHECK ((state = ANY (ARRAY['prepared'::text, 'sending'::text, 'completed'::text, 'failed_known'::text, 'unknown'::text, 'abandoned_unknown'::text])))"
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX llm_provider_requests_command_id_key ON public.llm_provider_requests USING btree (command_id)",
+        "CREATE UNIQUE INDEX llm_provider_requests_logical_key_key ON public.llm_provider_requests USING btree (logical_key)",
+        "CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)"
+      ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },
     "llm_budget_periods": {
@@ -26941,7 +28750,7 @@
         "id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "id uuid PRIMARY KEY"
+          "definition": "id uuid NOT NULL"
         },
         "account_id": {
           "type": "text",
@@ -26971,20 +28780,28 @@
         "spent": {
           "type": "numeric(24,8)",
           "nullable": false,
-          "definition": "spent numeric(24,8) NOT NULL"
+          "definition": "spent numeric(24,8) DEFAULT 0 NOT NULL"
         },
         "reserved": {
           "type": "numeric(24,8)",
           "nullable": false,
-          "definition": "reserved numeric(24,8) NOT NULL"
+          "definition": "reserved numeric(24,8) DEFAULT 0 NOT NULL"
         }
       },
       "constraints": [
-        "CHECK(period_end>period_start)",
-        "CHECK(spent>=0 AND reserved>=0 AND cap>=spent+reserved)",
-        "UNIQUE(account_id,currency,period_start,period_end)"
+        "CONSTRAINT llm_budget_periods_account_id_currency_fkey FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)",
+        "CONSTRAINT llm_budget_periods_account_id_currency_period_start_period__key UNIQUE (account_id, currency, period_start, period_end)",
+        "CONSTRAINT llm_budget_periods_cap_check CHECK ((cap >= (0)::numeric))",
+        "CONSTRAINT llm_budget_periods_check CHECK ((period_end > period_start))",
+        "CONSTRAINT llm_budget_periods_check1 CHECK (((spent + reserved) <= cap))",
+        "CONSTRAINT llm_budget_periods_pkey PRIMARY KEY (id)",
+        "CONSTRAINT llm_budget_periods_reserved_check CHECK ((reserved >= (0)::numeric))",
+        "CONSTRAINT llm_budget_periods_spent_check CHECK ((spent >= (0)::numeric))"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE UNIQUE INDEX llm_budget_periods_account_id_currency_period_start_period__key ON public.llm_budget_periods USING btree (account_id, currency, period_start, period_end)",
+        "CREATE UNIQUE INDEX llm_budget_periods_pkey ON public.llm_budget_periods USING btree (id)"
+      ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },
     "llm_budget_reservations": {
@@ -26996,12 +28813,12 @@
         "id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "id uuid PRIMARY KEY"
+          "definition": "id uuid NOT NULL"
         },
         "operation_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "operation_id uuid NOT NULL UNIQUE",
+          "definition": "operation_id uuid NOT NULL",
           "references": {
             "table": "llm_provider_calls",
             "columns": [
@@ -27015,7 +28832,7 @@
         "period_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "period_id uuid NOT NULL REFERENCES llm_budget_periods(id)",
+          "definition": "period_id uuid NOT NULL",
           "references": {
             "table": "llm_budget_periods",
             "columns": [
@@ -27028,7 +28845,7 @@
         "upper_bound": {
           "type": "numeric(24,8)",
           "nullable": false,
-          "definition": "upper_bound numeric(24,8) NOT NULL CHECK(upper_bound>=0)"
+          "definition": "upper_bound numeric(24,8) NOT NULL"
         },
         "state": {
           "type": "text",
@@ -27038,7 +28855,7 @@
         "settled_amount": {
           "type": "numeric(24,8)",
           "nullable": true,
-          "definition": "settled_amount numeric(24,8) NULL CHECK(settled_amount>=0)"
+          "definition": "settled_amount numeric(24,8)"
         },
         "pricing_snapshot": {
           "type": "jsonb",
@@ -27052,9 +28869,22 @@
         }
       },
       "constraints": [
-        "CHECK (pricing_snapshot_schema_version > 0)"
+        "CONSTRAINT llm_budget_reservations_check CHECK (((state = 'settled'::text) = (settled_amount IS NOT NULL)))",
+        "CONSTRAINT llm_budget_reservations_check1 CHECK (((settled_amount >= (0)::numeric) AND (settled_amount <= upper_bound)))",
+        "CONSTRAINT llm_budget_reservations_id_operation_id_key UNIQUE (id, operation_id)",
+        "CONSTRAINT llm_budget_reservations_operation_id_fkey FOREIGN KEY (operation_id) REFERENCES llm_provider_calls(physical_call_id)",
+        "CONSTRAINT llm_budget_reservations_operation_id_key UNIQUE (operation_id)",
+        "CONSTRAINT llm_budget_reservations_period_id_fkey FOREIGN KEY (period_id) REFERENCES llm_budget_periods(id)",
+        "CONSTRAINT llm_budget_reservations_pkey PRIMARY KEY (id)",
+        "CONSTRAINT llm_budget_reservations_pricing_snapshot_schema_version_check CHECK ((pricing_snapshot_schema_version = 1))",
+        "CONSTRAINT llm_budget_reservations_state_check CHECK ((state = ANY (ARRAY['reserved'::text, 'settled'::text])))",
+        "CONSTRAINT llm_budget_reservations_upper_bound_check CHECK ((upper_bound >= (0)::numeric))"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE UNIQUE INDEX llm_budget_reservations_id_operation_id_key ON public.llm_budget_reservations USING btree (id, operation_id)",
+        "CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)",
+        "CREATE UNIQUE INDEX llm_budget_reservations_pkey ON public.llm_budget_reservations USING btree (id)"
+      ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },
     "llm_provider_calls": {
@@ -27066,12 +28896,12 @@
         "physical_call_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "physical_call_id uuid PRIMARY KEY"
+          "definition": "physical_call_id uuid NOT NULL"
         },
         "logical_request_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "logical_request_id uuid NOT NULL REFERENCES llm_provider_requests(logical_request_id)",
+          "definition": "logical_request_id uuid NOT NULL",
           "references": {
             "table": "llm_provider_requests",
             "columns": [
@@ -27084,12 +28914,12 @@
         "ordinal": {
           "type": "bigint",
           "nullable": false,
-          "definition": "ordinal bigint NOT NULL CHECK(ordinal>=1)"
+          "definition": "ordinal bigint NOT NULL"
         },
         "provider_id": {
           "type": "bigint",
           "nullable": false,
-          "definition": "provider_id bigint NOT NULL REFERENCES llm_providers(id)",
+          "definition": "provider_id bigint NOT NULL",
           "references": {
             "table": "llm_providers",
             "columns": [
@@ -27117,12 +28947,12 @@
         "resolved_model_version": {
           "type": "text",
           "nullable": true,
-          "definition": "resolved_model_version text NULL"
+          "definition": "resolved_model_version text"
         },
         "request_epoch": {
           "type": "bigint",
           "nullable": false,
-          "definition": "request_epoch bigint NOT NULL CHECK(request_epoch>=1)"
+          "definition": "request_epoch bigint NOT NULL"
         },
         "owner_attempt_id": {
           "type": "uuid",
@@ -27132,7 +28962,7 @@
         "owner_work_generation": {
           "type": "bigint",
           "nullable": false,
-          "definition": "owner_work_generation bigint NOT NULL CHECK(owner_work_generation>=1)"
+          "definition": "owner_work_generation bigint NOT NULL"
         },
         "send_authorization_token": {
           "type": "uuid",
@@ -27142,57 +28972,57 @@
         "send_claimed_at": {
           "type": "timestamptz",
           "nullable": true,
-          "definition": "send_claimed_at timestamptz NULL"
+          "definition": "send_claimed_at timestamptz"
         },
         "sent_at": {
           "type": "timestamptz",
           "nullable": true,
-          "definition": "sent_at timestamptz NULL"
+          "definition": "sent_at timestamptz"
         },
         "response_at": {
           "type": "timestamptz",
           "nullable": true,
-          "definition": "response_at timestamptz NULL"
+          "definition": "response_at timestamptz"
         },
         "http_status": {
           "type": "smallint",
           "nullable": true,
-          "definition": "http_status smallint NULL"
+          "definition": "http_status smallint"
         },
         "finish_reason": {
           "type": "text",
           "nullable": true,
-          "definition": "finish_reason text NULL"
+          "definition": "finish_reason text"
         },
         "usage_status": {
           "type": "text",
           "nullable": false,
-          "definition": "usage_status text NOT NULL CHECK(usage_status IN ('known','unknown'))"
+          "definition": "usage_status text NOT NULL"
         },
         "usage": {
           "type": "jsonb",
           "nullable": true,
-          "definition": "usage jsonb NULL"
+          "definition": "usage jsonb"
         },
         "usage_schema_version": {
           "type": "smallint",
           "nullable": true,
-          "definition": "usage_schema_version smallint NULL"
+          "definition": "usage_schema_version smallint"
         },
         "cost_estimate": {
           "type": "numeric(24,8)",
           "nullable": false,
-          "definition": "cost_estimate numeric(24,8) NOT NULL CHECK(cost_estimate>=0)"
+          "definition": "cost_estimate numeric(24,8) NOT NULL"
         },
         "cost_actual": {
           "type": "numeric(24,8)",
           "nullable": true,
-          "definition": "cost_actual numeric(24,8) NULL CHECK(cost_actual>=0)"
+          "definition": "cost_actual numeric(24,8)"
         },
         "receipt_id": {
           "type": "uuid",
           "nullable": true,
-          "definition": "receipt_id uuid NULL UNIQUE"
+          "definition": "receipt_id uuid"
         },
         "receipt_state": {
           "type": "text",
@@ -27207,27 +29037,27 @@
         "receipt_disk": {
           "type": "text",
           "nullable": true,
-          "definition": "receipt_disk text NULL"
+          "definition": "receipt_disk text"
         },
         "receipt_key": {
           "type": "text",
           "nullable": true,
-          "definition": "receipt_key text NULL"
+          "definition": "receipt_key text"
         },
         "receipt_hash": {
           "type": "bytea",
           "nullable": true,
-          "definition": "receipt_hash bytea NULL CHECK(receipt_hash IS NULL OR octet_length(receipt_hash)=32)"
+          "definition": "receipt_hash bytea"
         },
         "receipt_schema_version": {
           "type": "smallint",
           "nullable": true,
-          "definition": "receipt_schema_version smallint NULL"
+          "definition": "receipt_schema_version smallint"
         },
         "reservation_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "reservation_id uuid NOT NULL REFERENCES llm_budget_reservations(id)",
+          "definition": "reservation_id uuid NOT NULL",
           "references": {
             "table": "llm_budget_reservations",
             "columns": [
@@ -27236,15 +29066,57 @@
             "on_delete": "NO ACTION",
             "at": "P3.9"
           }
+        },
+        "outcome": {
+          "type": "text",
+          "nullable": true,
+          "definition": "outcome text"
+        },
+        "charge_evidence": {
+          "type": "text",
+          "nullable": true,
+          "definition": "charge_evidence text"
         }
       },
       "constraints": [
-        "UNIQUE(logical_request_id,ordinal)",
-        "CHECK (usage_schema_version > 0)",
-        "CHECK (receipt_schema_version > 0)",
-        "CHECK ((usage IS NULL) = (usage_schema_version IS NULL))"
+        "CONSTRAINT llm_provider_calls_check CHECK (((usage IS NULL) = (usage_schema_version IS NULL)))",
+        "CONSTRAINT llm_provider_calls_check1 CHECK (((receipt_key IS NULL) = (receipt_hash IS NULL)))",
+        "CONSTRAINT llm_provider_calls_check2 CHECK (((receipt_key IS NULL) = (receipt_schema_version IS NULL)))",
+        "CONSTRAINT llm_provider_calls_check3 CHECK (((receipt_state = 'verified'::text) = (receipt_key IS NOT NULL)))",
+        "CONSTRAINT llm_provider_calls_check4 CHECK (((receipt_state <> ALL (ARRAY['verified'::text, 'unknown'::text])) OR (send_claimed_at IS NOT NULL)))",
+        "CONSTRAINT llm_provider_calls_check5 CHECK (((receipt_state <> 'not_sent'::text) OR ((send_claimed_at IS NULL) AND (cost_actual = (0)::numeric))))",
+        "CONSTRAINT llm_provider_calls_check6 CHECK (((receipt_key IS NULL) OR (receipt_key = receipt_upload_key)))",
+        "CONSTRAINT llm_provider_calls_cost_actual_check CHECK ((cost_actual >= (0)::numeric))",
+        "CONSTRAINT llm_provider_calls_cost_estimate_check CHECK ((cost_estimate >= (0)::numeric))",
+        "CONSTRAINT llm_provider_calls_http_status_check CHECK (((http_status >= 100) AND (http_status <= 599)))",
+        "CONSTRAINT llm_provider_calls_logical_request_id_fkey FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)",
+        "CONSTRAINT llm_provider_calls_logical_request_id_ordinal_key UNIQUE (logical_request_id, ordinal)",
+        "CONSTRAINT llm_provider_calls_ordinal_check CHECK ((ordinal >= 1))",
+        "CONSTRAINT llm_provider_calls_outcome_check CHECK ((outcome = ANY (ARRAY['not_sent'::text, 'success'::text, 'known_nonbillable_cache_miss'::text, 'known_retryable_nonbillable'::text, 'billed_error'::text, 'unknown'::text])))",
+        "CONSTRAINT llm_provider_calls_owner_work_generation_check CHECK ((owner_work_generation >= 1))",
+        "CONSTRAINT llm_provider_calls_physical_call_id_logical_request_id_key UNIQUE (physical_call_id, logical_request_id)",
+        "CONSTRAINT llm_provider_calls_pkey PRIMARY KEY (physical_call_id)",
+        "CONSTRAINT llm_provider_calls_provider_id_fkey FOREIGN KEY (provider_id) REFERENCES llm_providers(id)",
+        "CONSTRAINT llm_provider_calls_receipt_hash_check CHECK ((octet_length(receipt_hash) = 32))",
+        "CONSTRAINT llm_provider_calls_receipt_id_key UNIQUE (receipt_id)",
+        "CONSTRAINT llm_provider_calls_receipt_schema_version_check CHECK ((receipt_schema_version = 1))",
+        "CONSTRAINT llm_provider_calls_receipt_state_check CHECK ((receipt_state = ANY (ARRAY['pending'::text, 'verified'::text, 'not_sent'::text, 'unknown'::text])))",
+        "CONSTRAINT llm_provider_calls_receipt_upload_key_key UNIQUE (receipt_upload_key)",
+        "CONSTRAINT llm_provider_calls_request_epoch_check CHECK ((request_epoch >= 1))",
+        "CONSTRAINT llm_provider_calls_reservation_fk FOREIGN KEY (reservation_id, physical_call_id) REFERENCES llm_budget_reservations(id, operation_id) DEFERRABLE INITIALLY DEFERRED",
+        "CONSTRAINT llm_provider_calls_reservation_id_key UNIQUE (reservation_id)",
+        "CONSTRAINT llm_provider_calls_usage_schema_version_check CHECK ((usage_schema_version > 0))",
+        "CONSTRAINT llm_provider_calls_usage_status_check CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE INDEX llm_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)",
+        "CREATE UNIQUE INDEX llm_provider_calls_logical_request_id_ordinal_key ON public.llm_provider_calls USING btree (logical_request_id, ordinal)",
+        "CREATE UNIQUE INDEX llm_provider_calls_physical_call_id_logical_request_id_key ON public.llm_provider_calls USING btree (physical_call_id, logical_request_id)",
+        "CREATE UNIQUE INDEX llm_provider_calls_pkey ON public.llm_provider_calls USING btree (physical_call_id)",
+        "CREATE UNIQUE INDEX llm_provider_calls_receipt_id_key ON public.llm_provider_calls USING btree (receipt_id)",
+        "CREATE UNIQUE INDEX llm_provider_calls_receipt_upload_key_key ON public.llm_provider_calls USING btree (receipt_upload_key)",
+        "CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)"
+      ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },
     "prc_analysis_llm_requests": {
@@ -27256,12 +29128,12 @@
         "id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "id uuid PRIMARY KEY"
+          "definition": "id uuid NOT NULL"
         },
         "analysis_run_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "analysis_run_id uuid NOT NULL REFERENCES prc_analysis_runs(id)",
+          "definition": "analysis_run_id uuid NOT NULL",
           "references": {
             "table": "prc_analysis_runs",
             "columns": [
@@ -27274,7 +29146,7 @@
         "work_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "work_id uuid NOT NULL REFERENCES prc_process_work(id)",
+          "definition": "work_id uuid NOT NULL",
           "references": {
             "table": "prc_process_work",
             "columns": [
@@ -27287,7 +29159,7 @@
         "attempt_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "attempt_id uuid NOT NULL REFERENCES prc_process_attempts(id)",
+          "definition": "attempt_id uuid NOT NULL",
           "references": {
             "table": "prc_process_attempts",
             "columns": [
@@ -27300,7 +29172,7 @@
         "logical_request_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "logical_request_id uuid NOT NULL REFERENCES llm_provider_requests(logical_request_id)",
+          "definition": "logical_request_id uuid NOT NULL",
           "references": {
             "table": "llm_provider_requests",
             "columns": [
@@ -27313,7 +29185,7 @@
         "physical_call_id": {
           "type": "uuid",
           "nullable": false,
-          "definition": "physical_call_id uuid NOT NULL UNIQUE REFERENCES llm_provider_calls(physical_call_id)",
+          "definition": "physical_call_id uuid NOT NULL",
           "references": {
             "table": "llm_provider_calls",
             "columns": [
@@ -27326,16 +29198,38 @@
         "expected_input_hash": {
           "type": "bytea",
           "nullable": false,
-          "definition": "expected_input_hash bytea NOT NULL CHECK(octet_length(expected_input_hash)=32)"
+          "definition": "expected_input_hash bytea NOT NULL"
         },
         "recipe_hash": {
           "type": "bytea",
           "nullable": false,
-          "definition": "recipe_hash bytea NOT NULL CHECK(octet_length(recipe_hash)=32)"
+          "definition": "recipe_hash bytea NOT NULL"
+        },
+        "recovery_active": {
+          "type": "boolean",
+          "nullable": false,
+          "definition": "recovery_active boolean DEFAULT true NOT NULL"
         }
       },
-      "constraints": [],
-      "indexes": [],
+      "constraints": [
+        "CONSTRAINT prc_analysis_llm_requests_analysis_run_id_fkey FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)",
+        "CONSTRAINT prc_analysis_llm_requests_analysis_run_id_recipe_hash_fkey FOREIGN KEY (analysis_run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)",
+        "CONSTRAINT prc_analysis_llm_requests_attempt_id_fkey FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)",
+        "CONSTRAINT prc_analysis_llm_requests_expected_input_hash_check CHECK ((octet_length(expected_input_hash) = 32))",
+        "CONSTRAINT prc_analysis_llm_requests_logical_request_id_fkey FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)",
+        "CONSTRAINT prc_analysis_llm_requests_physical_call_id_fkey FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)",
+        "CONSTRAINT prc_analysis_llm_requests_physical_call_id_key UNIQUE (physical_call_id)",
+        "CONSTRAINT prc_analysis_llm_requests_physical_call_id_logical_request_fkey FOREIGN KEY (physical_call_id, logical_request_id) REFERENCES llm_provider_calls(physical_call_id, logical_request_id)",
+        "CONSTRAINT prc_analysis_llm_requests_pkey PRIMARY KEY (id)",
+        "CONSTRAINT prc_analysis_llm_requests_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32))",
+        "CONSTRAINT prc_analysis_llm_requests_work_id_fkey FOREIGN KEY (work_id) REFERENCES prc_process_work(id)"
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX prc_analysis_llm_active_work ON public.prc_analysis_llm_requests USING btree (work_id) WHERE recovery_active",
+        "CREATE UNIQUE INDEX prc_analysis_llm_requests_physical_call_id_key ON public.prc_analysis_llm_requests USING btree (physical_call_id)",
+        "CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)",
+        "CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)"
+      ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },
     "llm_file_assets": {
@@ -27548,6 +29442,133 @@
       ],
       "indexes": [],
       "contract": "platform-transport#s06; implementation-blueprint#bp-ddl-network"
+    },
+    "llm_budget_accounts": {
+      "create_at": "P3.9",
+      "activate_at": "P3.13",
+      "owner": "Services/Llm/Execution/RequestLedger",
+      "retention": "financial",
+      "columns": {
+        "account_id": {
+          "type": "text",
+          "nullable": false,
+          "definition": "account_id text NOT NULL"
+        },
+        "currency": {
+          "type": "text",
+          "nullable": false,
+          "definition": "currency text NOT NULL"
+        },
+        "unknown_count_threshold": {
+          "type": "bigint",
+          "nullable": false,
+          "definition": "unknown_count_threshold bigint DEFAULT 1 NOT NULL"
+        },
+        "hard_exposure_cap": {
+          "type": "numeric(24,8)",
+          "nullable": true,
+          "definition": "hard_exposure_cap numeric(24,8)"
+        },
+        "policy_version": {
+          "type": "bigint",
+          "nullable": false,
+          "definition": "policy_version bigint DEFAULT 1 NOT NULL"
+        },
+        "policy_actor": {
+          "type": "text",
+          "nullable": false,
+          "definition": "policy_actor text NOT NULL"
+        },
+        "policy_reason": {
+          "type": "text",
+          "nullable": false,
+          "definition": "policy_reason text NOT NULL"
+        }
+      },
+      "constraints": [
+        "CONSTRAINT llm_budget_accounts_account_id_key UNIQUE (account_id)",
+        "CONSTRAINT llm_budget_accounts_currency_check CHECK ((currency ~ '^[A-Z]{3}$'::text))",
+        "CONSTRAINT llm_budget_accounts_hard_exposure_cap_check CHECK ((hard_exposure_cap >= (0)::numeric))",
+        "CONSTRAINT llm_budget_accounts_pkey PRIMARY KEY (account_id, currency)",
+        "CONSTRAINT llm_budget_accounts_policy_version_check CHECK ((policy_version >= 1))",
+        "CONSTRAINT llm_budget_accounts_unknown_count_threshold_check CHECK ((unknown_count_threshold >= 1))"
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX llm_budget_accounts_account_id_key ON public.llm_budget_accounts USING btree (account_id)",
+        "CREATE UNIQUE INDEX llm_budget_accounts_pkey ON public.llm_budget_accounts USING btree (account_id, currency)"
+      ],
+      "contract": "documents-ai#s08,s09"
+    },
+    "llm_financial_actions": {
+      "create_at": "P3.9",
+      "activate_at": "P3.13",
+      "owner": "Services/Llm/Execution/RequestLedger",
+      "retention": "financial",
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "nullable": false,
+          "definition": "id uuid NOT NULL"
+        },
+        "account_id": {
+          "type": "text",
+          "nullable": false,
+          "definition": "account_id text NOT NULL"
+        },
+        "currency": {
+          "type": "text",
+          "nullable": false,
+          "definition": "currency text NOT NULL"
+        },
+        "physical_call_id": {
+          "type": "uuid",
+          "nullable": true,
+          "definition": "physical_call_id uuid"
+        },
+        "action": {
+          "type": "text",
+          "nullable": false,
+          "definition": "action text NOT NULL"
+        },
+        "actor": {
+          "type": "text",
+          "nullable": false,
+          "definition": "actor text NOT NULL"
+        },
+        "reason": {
+          "type": "text",
+          "nullable": false,
+          "definition": "reason text NOT NULL"
+        },
+        "details": {
+          "type": "jsonb",
+          "nullable": false,
+          "definition": "details jsonb NOT NULL"
+        },
+        "details_schema_version": {
+          "type": "smallint",
+          "nullable": false,
+          "definition": "details_schema_version smallint NOT NULL"
+        },
+        "occurred_at": {
+          "type": "timestamptz",
+          "nullable": false,
+          "definition": "occurred_at timestamptz DEFAULT clock_timestamp() NOT NULL"
+        }
+      },
+      "constraints": [
+        "CONSTRAINT llm_financial_actions_account_id_currency_fkey FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)",
+        "CONSTRAINT llm_financial_actions_action_check CHECK ((action = ANY (ARRAY['policy_change'::text, 'conservative_settlement'::text, 'abandon_unknown'::text, 'receipt_reconciliation'::text])))",
+        "CONSTRAINT llm_financial_actions_actor_check CHECK ((length(actor) > 0))",
+        "CONSTRAINT llm_financial_actions_details_schema_version_check CHECK ((details_schema_version = 1))",
+        "CONSTRAINT llm_financial_actions_physical_call_id_fkey FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)",
+        "CONSTRAINT llm_financial_actions_pkey PRIMARY KEY (id)",
+        "CONSTRAINT llm_financial_actions_reason_check CHECK ((length(reason) > 0))"
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX llm_financial_actions_pkey ON public.llm_financial_actions USING btree (id)"
+      ],
+      "contract": "documents-ai#s08,s09"
     }
   },
   "changes": [

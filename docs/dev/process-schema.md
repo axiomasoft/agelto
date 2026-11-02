@@ -198,6 +198,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_10_31_100000_create_prc_acquisition_schedules_table.php` | create | P2.18 | Durable profile/kind schedule; allocation and next_due advancement share one transaction. |
 | `2026_11_01_100000_create_prc_document_storage_tables.php` | rewrite-baseline | P3.5 | Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness. |
 | `2026_11_02_100000_create_prc_analysis_tables.php` | create | P3.8 | Canonical immutable analysis recipe/window/chunk carriers; live handlers and legacy model cutover remain P3.13. |
+| `2026_11_02_100001_create_llm_request_ledger.php` | create | P3.9 | Permanent financial/request/receipt and exact consumer linkage carriers; paid stages inactive until P3.13. |
 
 ### Legacy lifecycle
 
@@ -1368,24 +1369,49 @@ Create: P3.9; activation boundary: P3.13; owner: `Services/Llm/Execution/Request
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
-| logical_request_id | uuid | no | logical_request_id uuid PRIMARY KEY |
-| logical_key | bytea | no | logical_key bytea NOT NULL UNIQUE CHECK(octet_length(logical_key)=32) |
-| recipe_hash | bytea | no | recipe_hash bytea NOT NULL CHECK(octet_length(recipe_hash)=32) |
-| input_hash | bytea | no | input_hash bytea NOT NULL CHECK(octet_length(input_hash)=32) |
+| logical_request_id | uuid | no | logical_request_id uuid NOT NULL |
+| logical_key | bytea | no | logical_key bytea NOT NULL |
+| recipe_hash | bytea | no | recipe_hash bytea NOT NULL |
+| input_hash | bytea | no | input_hash bytea NOT NULL |
 | purpose | text | no | purpose text NOT NULL |
-| semantic_reask_ordinal | bigint | no | semantic_reask_ordinal bigint NOT NULL CHECK(semantic_reask_ordinal>=0) |
+| semantic_reask_ordinal | bigint | no | semantic_reask_ordinal bigint NOT NULL |
 | replay_intent_id | uuid | no | replay_intent_id uuid NOT NULL |
-| replay_of | uuid | yes | replay_of uuid NULL REFERENCES llm_provider_requests(logical_request_id) → llm_provider_requests(logical_request_id) ON DELETE NO ACTION @P3.9 |
-| command_id | uuid | yes | command_id uuid NULL UNIQUE |
-| state | text | no | state text NOT NULL CHECK(state IN ('prepared','sending','completed','failed_known','unknown','abandoned_unknown')) |
-| request_epoch | bigint | no | request_epoch bigint NOT NULL CHECK(request_epoch>=1) |
-| idempotency_key | text | yes | idempotency_key text NULL |
+| replay_of | uuid | yes | replay_of uuid → llm_provider_requests(logical_request_id) ON DELETE NO ACTION @P3.9 |
+| command_id | uuid | yes | command_id uuid |
+| replay_actor | text | yes | replay_actor text |
+| replay_reason | text | yes | replay_reason text |
+| state | text | no | state text NOT NULL |
+| request_epoch | bigint | no | request_epoch bigint NOT NULL |
+| idempotency_key | text | yes | idempotency_key text |
 | consumer_correlation_id | text | no | consumer_correlation_id text NOT NULL |
-| reservation_amount | numeric(24,8) | no | reservation_amount numeric(24,8) NOT NULL CHECK(reservation_amount>=0) |
+| reservation_amount | numeric(24,8) | no | reservation_amount numeric(24,8) DEFAULT 0 NOT NULL |
+| context_json | jsonb | no | context_json jsonb NOT NULL |
+| context_schema_version | smallint | no | context_schema_version smallint NOT NULL |
+| max_physical_attempts | bigint | no | max_physical_attempts bigint NOT NULL |
 
 Constraints:
+- `CONSTRAINT llm_provider_requests_check CHECK (((replay_of IS NULL) = (command_id IS NULL)))`
+- `CONSTRAINT llm_provider_requests_check1 CHECK (((command_id IS NULL) = (replay_actor IS NULL)))`
+- `CONSTRAINT llm_provider_requests_check2 CHECK (((command_id IS NULL) = (replay_reason IS NULL)))`
+- `CONSTRAINT llm_provider_requests_command_id_key UNIQUE (command_id)`
+- `CONSTRAINT llm_provider_requests_context_schema_version_check CHECK ((context_schema_version = 1))`
+- `CONSTRAINT llm_provider_requests_input_hash_check CHECK ((octet_length(input_hash) = 32))`
+- `CONSTRAINT llm_provider_requests_logical_key_check CHECK ((octet_length(logical_key) = 32))`
+- `CONSTRAINT llm_provider_requests_logical_key_key UNIQUE (logical_key)`
+- `CONSTRAINT llm_provider_requests_max_physical_attempts_check CHECK (((max_physical_attempts >= 1) AND (max_physical_attempts <= 10)))`
+- `CONSTRAINT llm_provider_requests_pkey PRIMARY KEY (logical_request_id)`
+- `CONSTRAINT llm_provider_requests_purpose_check CHECK ((purpose = ANY (ARRAY['generate'::text, 'cache_create'::text, 'cache_refresh'::text, 'cache_storage'::text, 'file_upload'::text, 'lookup'::text])))`
+- `CONSTRAINT llm_provider_requests_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32))`
+- `CONSTRAINT llm_provider_requests_replay_of_fkey FOREIGN KEY (replay_of) REFERENCES llm_provider_requests(logical_request_id)`
+- `CONSTRAINT llm_provider_requests_request_epoch_check CHECK ((request_epoch >= 1))`
+- `CONSTRAINT llm_provider_requests_reservation_amount_check CHECK ((reservation_amount >= (0)::numeric))`
+- `CONSTRAINT llm_provider_requests_semantic_reask_ordinal_check CHECK (((semantic_reask_ordinal >= 0) AND (semantic_reask_ordinal <= 1)))`
+- `CONSTRAINT llm_provider_requests_state_check CHECK ((state = ANY (ARRAY['prepared'::text, 'sending'::text, 'completed'::text, 'failed_known'::text, 'unknown'::text, 'abandoned_unknown'::text])))`
 
 Indexes:
+- `CREATE UNIQUE INDEX llm_provider_requests_command_id_key ON public.llm_provider_requests USING btree (command_id)`
+- `CREATE UNIQUE INDEX llm_provider_requests_logical_key_key ON public.llm_provider_requests USING btree (logical_key)`
+- `CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)`
 
 #### llm_budget_periods
 
@@ -1393,21 +1419,28 @@ Create: P3.9; activation boundary: P3.13; owner: `Services/Llm/Execution/Request
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
-| id | uuid | no | id uuid PRIMARY KEY |
+| id | uuid | no | id uuid NOT NULL |
 | account_id | text | no | account_id text NOT NULL |
 | currency | text | no | currency text NOT NULL |
 | period_start | timestamptz | no | period_start timestamptz NOT NULL |
 | period_end | timestamptz | no | period_end timestamptz NOT NULL |
 | cap | numeric(24,8) | no | cap numeric(24,8) NOT NULL |
-| spent | numeric(24,8) | no | spent numeric(24,8) NOT NULL |
-| reserved | numeric(24,8) | no | reserved numeric(24,8) NOT NULL |
+| spent | numeric(24,8) | no | spent numeric(24,8) DEFAULT 0 NOT NULL |
+| reserved | numeric(24,8) | no | reserved numeric(24,8) DEFAULT 0 NOT NULL |
 
 Constraints:
-- `CHECK(period_end>period_start)`
-- `CHECK(spent>=0 AND reserved>=0 AND cap>=spent+reserved)`
-- `UNIQUE(account_id,currency,period_start,period_end)`
+- `CONSTRAINT llm_budget_periods_account_id_currency_fkey FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)`
+- `CONSTRAINT llm_budget_periods_account_id_currency_period_start_period__key UNIQUE (account_id, currency, period_start, period_end)`
+- `CONSTRAINT llm_budget_periods_cap_check CHECK ((cap >= (0)::numeric))`
+- `CONSTRAINT llm_budget_periods_check CHECK ((period_end > period_start))`
+- `CONSTRAINT llm_budget_periods_check1 CHECK (((spent + reserved) <= cap))`
+- `CONSTRAINT llm_budget_periods_pkey PRIMARY KEY (id)`
+- `CONSTRAINT llm_budget_periods_reserved_check CHECK ((reserved >= (0)::numeric))`
+- `CONSTRAINT llm_budget_periods_spent_check CHECK ((spent >= (0)::numeric))`
 
 Indexes:
+- `CREATE UNIQUE INDEX llm_budget_periods_account_id_currency_period_start_period__key ON public.llm_budget_periods USING btree (account_id, currency, period_start, period_end)`
+- `CREATE UNIQUE INDEX llm_budget_periods_pkey ON public.llm_budget_periods USING btree (id)`
 
 #### llm_budget_reservations
 
@@ -1415,19 +1448,31 @@ Create: P3.9; activation boundary: P3.13; owner: `Services/Llm/Execution/Request
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
-| id | uuid | no | id uuid PRIMARY KEY |
-| operation_id | uuid | no | operation_id uuid NOT NULL UNIQUE → llm_provider_calls(physical_call_id) ON DELETE NO ACTION @P3.9 |
-| period_id | uuid | no | period_id uuid NOT NULL REFERENCES llm_budget_periods(id) → llm_budget_periods(id) ON DELETE NO ACTION @P3.9 |
-| upper_bound | numeric(24,8) | no | upper_bound numeric(24,8) NOT NULL CHECK(upper_bound>=0) |
+| id | uuid | no | id uuid NOT NULL |
+| operation_id | uuid | no | operation_id uuid NOT NULL → llm_provider_calls(physical_call_id) ON DELETE NO ACTION @P3.9 |
+| period_id | uuid | no | period_id uuid NOT NULL → llm_budget_periods(id) ON DELETE NO ACTION @P3.9 |
+| upper_bound | numeric(24,8) | no | upper_bound numeric(24,8) NOT NULL |
 | state | text | no | state text NOT NULL |
-| settled_amount | numeric(24,8) | yes | settled_amount numeric(24,8) NULL CHECK(settled_amount>=0) |
+| settled_amount | numeric(24,8) | yes | settled_amount numeric(24,8) |
 | pricing_snapshot | jsonb | no | pricing_snapshot jsonb NOT NULL |
 | pricing_snapshot_schema_version | smallint | no | pricing_snapshot_schema_version smallint NOT NULL |
 
 Constraints:
-- `CHECK (pricing_snapshot_schema_version > 0)`
+- `CONSTRAINT llm_budget_reservations_check CHECK (((state = 'settled'::text) = (settled_amount IS NOT NULL)))`
+- `CONSTRAINT llm_budget_reservations_check1 CHECK (((settled_amount >= (0)::numeric) AND (settled_amount <= upper_bound)))`
+- `CONSTRAINT llm_budget_reservations_id_operation_id_key UNIQUE (id, operation_id)`
+- `CONSTRAINT llm_budget_reservations_operation_id_fkey FOREIGN KEY (operation_id) REFERENCES llm_provider_calls(physical_call_id)`
+- `CONSTRAINT llm_budget_reservations_operation_id_key UNIQUE (operation_id)`
+- `CONSTRAINT llm_budget_reservations_period_id_fkey FOREIGN KEY (period_id) REFERENCES llm_budget_periods(id)`
+- `CONSTRAINT llm_budget_reservations_pkey PRIMARY KEY (id)`
+- `CONSTRAINT llm_budget_reservations_pricing_snapshot_schema_version_check CHECK ((pricing_snapshot_schema_version = 1))`
+- `CONSTRAINT llm_budget_reservations_state_check CHECK ((state = ANY (ARRAY['reserved'::text, 'settled'::text])))`
+- `CONSTRAINT llm_budget_reservations_upper_bound_check CHECK ((upper_bound >= (0)::numeric))`
 
 Indexes:
+- `CREATE UNIQUE INDEX llm_budget_reservations_id_operation_id_key ON public.llm_budget_reservations USING btree (id, operation_id)`
+- `CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)`
+- `CREATE UNIQUE INDEX llm_budget_reservations_pkey ON public.llm_budget_reservations USING btree (id)`
 
 #### llm_provider_calls
 
@@ -1435,44 +1480,77 @@ Create: P3.9; activation boundary: P3.13; owner: `Services/Llm/Execution/Request
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
-| physical_call_id | uuid | no | physical_call_id uuid PRIMARY KEY |
-| logical_request_id | uuid | no | logical_request_id uuid NOT NULL REFERENCES llm_provider_requests(logical_request_id) → llm_provider_requests(logical_request_id) ON DELETE NO ACTION @P3.9 |
-| ordinal | bigint | no | ordinal bigint NOT NULL CHECK(ordinal>=1) |
-| provider_id | bigint | no | provider_id bigint NOT NULL REFERENCES llm_providers(id) → llm_providers(id) ON DELETE NO ACTION @P3.9 |
+| physical_call_id | uuid | no | physical_call_id uuid NOT NULL |
+| logical_request_id | uuid | no | logical_request_id uuid NOT NULL → llm_provider_requests(logical_request_id) ON DELETE NO ACTION @P3.9 |
+| ordinal | bigint | no | ordinal bigint NOT NULL |
+| provider_id | bigint | no | provider_id bigint NOT NULL → llm_providers(id) ON DELETE NO ACTION @P3.9 |
 | account_id | text | no | account_id text NOT NULL |
 | api_surface | text | no | api_surface text NOT NULL |
 | model | text | no | model text NOT NULL |
-| resolved_model_version | text | yes | resolved_model_version text NULL |
-| request_epoch | bigint | no | request_epoch bigint NOT NULL CHECK(request_epoch>=1) |
+| resolved_model_version | text | yes | resolved_model_version text |
+| request_epoch | bigint | no | request_epoch bigint NOT NULL |
 | owner_attempt_id | uuid | no | owner_attempt_id uuid NOT NULL |
-| owner_work_generation | bigint | no | owner_work_generation bigint NOT NULL CHECK(owner_work_generation>=1) |
+| owner_work_generation | bigint | no | owner_work_generation bigint NOT NULL |
 | send_authorization_token | uuid | no | send_authorization_token uuid NOT NULL |
-| send_claimed_at | timestamptz | yes | send_claimed_at timestamptz NULL |
-| sent_at | timestamptz | yes | sent_at timestamptz NULL |
-| response_at | timestamptz | yes | response_at timestamptz NULL |
-| http_status | smallint | yes | http_status smallint NULL |
-| finish_reason | text | yes | finish_reason text NULL |
-| usage_status | text | no | usage_status text NOT NULL CHECK(usage_status IN ('known','unknown')) |
-| usage | jsonb | yes | usage jsonb NULL |
-| usage_schema_version | smallint | yes | usage_schema_version smallint NULL |
-| cost_estimate | numeric(24,8) | no | cost_estimate numeric(24,8) NOT NULL CHECK(cost_estimate>=0) |
-| cost_actual | numeric(24,8) | yes | cost_actual numeric(24,8) NULL CHECK(cost_actual>=0) |
-| receipt_id | uuid | yes | receipt_id uuid NULL UNIQUE |
+| send_claimed_at | timestamptz | yes | send_claimed_at timestamptz |
+| sent_at | timestamptz | yes | sent_at timestamptz |
+| response_at | timestamptz | yes | response_at timestamptz |
+| http_status | smallint | yes | http_status smallint |
+| finish_reason | text | yes | finish_reason text |
+| usage_status | text | no | usage_status text NOT NULL |
+| usage | jsonb | yes | usage jsonb |
+| usage_schema_version | smallint | yes | usage_schema_version smallint |
+| cost_estimate | numeric(24,8) | no | cost_estimate numeric(24,8) NOT NULL |
+| cost_actual | numeric(24,8) | yes | cost_actual numeric(24,8) |
+| receipt_id | uuid | yes | receipt_id uuid |
 | receipt_state | text | no | receipt_state text NOT NULL |
 | receipt_upload_key | text | no | receipt_upload_key text NOT NULL |
-| receipt_disk | text | yes | receipt_disk text NULL |
-| receipt_key | text | yes | receipt_key text NULL |
-| receipt_hash | bytea | yes | receipt_hash bytea NULL CHECK(receipt_hash IS NULL OR octet_length(receipt_hash)=32) |
-| receipt_schema_version | smallint | yes | receipt_schema_version smallint NULL |
-| reservation_id | uuid | no | reservation_id uuid NOT NULL REFERENCES llm_budget_reservations(id) → llm_budget_reservations(id) ON DELETE NO ACTION @P3.9 |
+| receipt_disk | text | yes | receipt_disk text |
+| receipt_key | text | yes | receipt_key text |
+| receipt_hash | bytea | yes | receipt_hash bytea |
+| receipt_schema_version | smallint | yes | receipt_schema_version smallint |
+| reservation_id | uuid | no | reservation_id uuid NOT NULL → llm_budget_reservations(id) ON DELETE NO ACTION @P3.9 |
+| outcome | text | yes | outcome text |
+| charge_evidence | text | yes | charge_evidence text |
 
 Constraints:
-- `UNIQUE(logical_request_id,ordinal)`
-- `CHECK (usage_schema_version > 0)`
-- `CHECK (receipt_schema_version > 0)`
-- `CHECK ((usage IS NULL) = (usage_schema_version IS NULL))`
+- `CONSTRAINT llm_provider_calls_check CHECK (((usage IS NULL) = (usage_schema_version IS NULL)))`
+- `CONSTRAINT llm_provider_calls_check1 CHECK (((receipt_key IS NULL) = (receipt_hash IS NULL)))`
+- `CONSTRAINT llm_provider_calls_check2 CHECK (((receipt_key IS NULL) = (receipt_schema_version IS NULL)))`
+- `CONSTRAINT llm_provider_calls_check3 CHECK (((receipt_state = 'verified'::text) = (receipt_key IS NOT NULL)))`
+- `CONSTRAINT llm_provider_calls_check4 CHECK (((receipt_state <> ALL (ARRAY['verified'::text, 'unknown'::text])) OR (send_claimed_at IS NOT NULL)))`
+- `CONSTRAINT llm_provider_calls_check5 CHECK (((receipt_state <> 'not_sent'::text) OR ((send_claimed_at IS NULL) AND (cost_actual = (0)::numeric))))`
+- `CONSTRAINT llm_provider_calls_check6 CHECK (((receipt_key IS NULL) OR (receipt_key = receipt_upload_key)))`
+- `CONSTRAINT llm_provider_calls_cost_actual_check CHECK ((cost_actual >= (0)::numeric))`
+- `CONSTRAINT llm_provider_calls_cost_estimate_check CHECK ((cost_estimate >= (0)::numeric))`
+- `CONSTRAINT llm_provider_calls_http_status_check CHECK (((http_status >= 100) AND (http_status <= 599)))`
+- `CONSTRAINT llm_provider_calls_logical_request_id_fkey FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)`
+- `CONSTRAINT llm_provider_calls_logical_request_id_ordinal_key UNIQUE (logical_request_id, ordinal)`
+- `CONSTRAINT llm_provider_calls_ordinal_check CHECK ((ordinal >= 1))`
+- `CONSTRAINT llm_provider_calls_outcome_check CHECK ((outcome = ANY (ARRAY['not_sent'::text, 'success'::text, 'known_nonbillable_cache_miss'::text, 'known_retryable_nonbillable'::text, 'billed_error'::text, 'unknown'::text])))`
+- `CONSTRAINT llm_provider_calls_owner_work_generation_check CHECK ((owner_work_generation >= 1))`
+- `CONSTRAINT llm_provider_calls_physical_call_id_logical_request_id_key UNIQUE (physical_call_id, logical_request_id)`
+- `CONSTRAINT llm_provider_calls_pkey PRIMARY KEY (physical_call_id)`
+- `CONSTRAINT llm_provider_calls_provider_id_fkey FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
+- `CONSTRAINT llm_provider_calls_receipt_hash_check CHECK ((octet_length(receipt_hash) = 32))`
+- `CONSTRAINT llm_provider_calls_receipt_id_key UNIQUE (receipt_id)`
+- `CONSTRAINT llm_provider_calls_receipt_schema_version_check CHECK ((receipt_schema_version = 1))`
+- `CONSTRAINT llm_provider_calls_receipt_state_check CHECK ((receipt_state = ANY (ARRAY['pending'::text, 'verified'::text, 'not_sent'::text, 'unknown'::text])))`
+- `CONSTRAINT llm_provider_calls_receipt_upload_key_key UNIQUE (receipt_upload_key)`
+- `CONSTRAINT llm_provider_calls_request_epoch_check CHECK ((request_epoch >= 1))`
+- `CONSTRAINT llm_provider_calls_reservation_fk FOREIGN KEY (reservation_id, physical_call_id) REFERENCES llm_budget_reservations(id, operation_id) DEFERRABLE INITIALLY DEFERRED`
+- `CONSTRAINT llm_provider_calls_reservation_id_key UNIQUE (reservation_id)`
+- `CONSTRAINT llm_provider_calls_usage_schema_version_check CHECK ((usage_schema_version > 0))`
+- `CONSTRAINT llm_provider_calls_usage_status_check CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))`
 
 Indexes:
+- `CREATE INDEX llm_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`
+- `CREATE UNIQUE INDEX llm_provider_calls_logical_request_id_ordinal_key ON public.llm_provider_calls USING btree (logical_request_id, ordinal)`
+- `CREATE UNIQUE INDEX llm_provider_calls_physical_call_id_logical_request_id_key ON public.llm_provider_calls USING btree (physical_call_id, logical_request_id)`
+- `CREATE UNIQUE INDEX llm_provider_calls_pkey ON public.llm_provider_calls USING btree (physical_call_id)`
+- `CREATE UNIQUE INDEX llm_provider_calls_receipt_id_key ON public.llm_provider_calls USING btree (receipt_id)`
+- `CREATE UNIQUE INDEX llm_provider_calls_receipt_upload_key_key ON public.llm_provider_calls USING btree (receipt_upload_key)`
+- `CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)`
 
 #### prc_analysis_llm_requests
 
@@ -1480,18 +1558,34 @@ Create: P3.9; activation boundary: P3.13; owner: `Services/Llm/Execution/Request
 
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
-| id | uuid | no | id uuid PRIMARY KEY |
-| analysis_run_id | uuid | no | analysis_run_id uuid NOT NULL REFERENCES prc_analysis_runs(id) → prc_analysis_runs(id) ON DELETE NO ACTION @P3.9 |
-| work_id | uuid | no | work_id uuid NOT NULL REFERENCES prc_process_work(id) → prc_process_work(id) ON DELETE NO ACTION @P3.9 |
-| attempt_id | uuid | no | attempt_id uuid NOT NULL REFERENCES prc_process_attempts(id) → prc_process_attempts(id) ON DELETE NO ACTION @P3.9 |
-| logical_request_id | uuid | no | logical_request_id uuid NOT NULL REFERENCES llm_provider_requests(logical_request_id) → llm_provider_requests(logical_request_id) ON DELETE NO ACTION @P3.9 |
-| physical_call_id | uuid | no | physical_call_id uuid NOT NULL UNIQUE REFERENCES llm_provider_calls(physical_call_id) → llm_provider_calls(physical_call_id) ON DELETE NO ACTION @P3.9 |
-| expected_input_hash | bytea | no | expected_input_hash bytea NOT NULL CHECK(octet_length(expected_input_hash)=32) |
-| recipe_hash | bytea | no | recipe_hash bytea NOT NULL CHECK(octet_length(recipe_hash)=32) |
+| id | uuid | no | id uuid NOT NULL |
+| analysis_run_id | uuid | no | analysis_run_id uuid NOT NULL → prc_analysis_runs(id) ON DELETE NO ACTION @P3.9 |
+| work_id | uuid | no | work_id uuid NOT NULL → prc_process_work(id) ON DELETE NO ACTION @P3.9 |
+| attempt_id | uuid | no | attempt_id uuid NOT NULL → prc_process_attempts(id) ON DELETE NO ACTION @P3.9 |
+| logical_request_id | uuid | no | logical_request_id uuid NOT NULL → llm_provider_requests(logical_request_id) ON DELETE NO ACTION @P3.9 |
+| physical_call_id | uuid | no | physical_call_id uuid NOT NULL → llm_provider_calls(physical_call_id) ON DELETE NO ACTION @P3.9 |
+| expected_input_hash | bytea | no | expected_input_hash bytea NOT NULL |
+| recipe_hash | bytea | no | recipe_hash bytea NOT NULL |
+| recovery_active | boolean | no | recovery_active boolean DEFAULT true NOT NULL |
 
 Constraints:
+- `CONSTRAINT prc_analysis_llm_requests_analysis_run_id_fkey FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)`
+- `CONSTRAINT prc_analysis_llm_requests_analysis_run_id_recipe_hash_fkey FOREIGN KEY (analysis_run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)`
+- `CONSTRAINT prc_analysis_llm_requests_attempt_id_fkey FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
+- `CONSTRAINT prc_analysis_llm_requests_expected_input_hash_check CHECK ((octet_length(expected_input_hash) = 32))`
+- `CONSTRAINT prc_analysis_llm_requests_logical_request_id_fkey FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)`
+- `CONSTRAINT prc_analysis_llm_requests_physical_call_id_fkey FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)`
+- `CONSTRAINT prc_analysis_llm_requests_physical_call_id_key UNIQUE (physical_call_id)`
+- `CONSTRAINT prc_analysis_llm_requests_physical_call_id_logical_request_fkey FOREIGN KEY (physical_call_id, logical_request_id) REFERENCES llm_provider_calls(physical_call_id, logical_request_id)`
+- `CONSTRAINT prc_analysis_llm_requests_pkey PRIMARY KEY (id)`
+- `CONSTRAINT prc_analysis_llm_requests_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32))`
+- `CONSTRAINT prc_analysis_llm_requests_work_id_fkey FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
 
 Indexes:
+- `CREATE UNIQUE INDEX prc_analysis_llm_active_work ON public.prc_analysis_llm_requests USING btree (work_id) WHERE recovery_active`
+- `CREATE UNIQUE INDEX prc_analysis_llm_requests_physical_call_id_key ON public.prc_analysis_llm_requests USING btree (physical_call_id)`
+- `CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)`
+- `CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)`
 
 #### llm_file_assets
 
@@ -1556,6 +1650,61 @@ Constraints:
 - `PRIMARY KEY(profile_id,route_id)`
 
 Indexes:
+
+#### llm_budget_accounts
+
+Create: P3.9; activation boundary: P3.13; owner: `Services/Llm/Execution/RequestLedger`; retention: financial. Contract: documents-ai#s08,s09.
+
+| Column | Type | Nullable | Declaration / FK installed |
+| --- | --- | --- | --- |
+| account_id | text | no | account_id text NOT NULL |
+| currency | text | no | currency text NOT NULL |
+| unknown_count_threshold | bigint | no | unknown_count_threshold bigint DEFAULT 1 NOT NULL |
+| hard_exposure_cap | numeric(24,8) | yes | hard_exposure_cap numeric(24,8) |
+| policy_version | bigint | no | policy_version bigint DEFAULT 1 NOT NULL |
+| policy_actor | text | no | policy_actor text NOT NULL |
+| policy_reason | text | no | policy_reason text NOT NULL |
+
+Constraints:
+- `CONSTRAINT llm_budget_accounts_account_id_key UNIQUE (account_id)`
+- `CONSTRAINT llm_budget_accounts_currency_check CHECK ((currency ~ '^[A-Z]{3}$'::text))`
+- `CONSTRAINT llm_budget_accounts_hard_exposure_cap_check CHECK ((hard_exposure_cap >= (0)::numeric))`
+- `CONSTRAINT llm_budget_accounts_pkey PRIMARY KEY (account_id, currency)`
+- `CONSTRAINT llm_budget_accounts_policy_version_check CHECK ((policy_version >= 1))`
+- `CONSTRAINT llm_budget_accounts_unknown_count_threshold_check CHECK ((unknown_count_threshold >= 1))`
+
+Indexes:
+- `CREATE UNIQUE INDEX llm_budget_accounts_account_id_key ON public.llm_budget_accounts USING btree (account_id)`
+- `CREATE UNIQUE INDEX llm_budget_accounts_pkey ON public.llm_budget_accounts USING btree (account_id, currency)`
+
+#### llm_financial_actions
+
+Create: P3.9; activation boundary: P3.13; owner: `Services/Llm/Execution/RequestLedger`; retention: financial. Contract: documents-ai#s08,s09.
+
+| Column | Type | Nullable | Declaration / FK installed |
+| --- | --- | --- | --- |
+| id | uuid | no | id uuid NOT NULL |
+| account_id | text | no | account_id text NOT NULL |
+| currency | text | no | currency text NOT NULL |
+| physical_call_id | uuid | yes | physical_call_id uuid |
+| action | text | no | action text NOT NULL |
+| actor | text | no | actor text NOT NULL |
+| reason | text | no | reason text NOT NULL |
+| details | jsonb | no | details jsonb NOT NULL |
+| details_schema_version | smallint | no | details_schema_version smallint NOT NULL |
+| occurred_at | timestamptz | no | occurred_at timestamptz DEFAULT clock_timestamp() NOT NULL |
+
+Constraints:
+- `CONSTRAINT llm_financial_actions_account_id_currency_fkey FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)`
+- `CONSTRAINT llm_financial_actions_action_check CHECK ((action = ANY (ARRAY['policy_change'::text, 'conservative_settlement'::text, 'abandon_unknown'::text, 'receipt_reconciliation'::text])))`
+- `CONSTRAINT llm_financial_actions_actor_check CHECK ((length(actor) > 0))`
+- `CONSTRAINT llm_financial_actions_details_schema_version_check CHECK ((details_schema_version = 1))`
+- `CONSTRAINT llm_financial_actions_physical_call_id_fkey FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)`
+- `CONSTRAINT llm_financial_actions_pkey PRIMARY KEY (id)`
+- `CONSTRAINT llm_financial_actions_reason_check CHECK ((length(reason) > 0))`
+
+Indexes:
+- `CREATE UNIQUE INDEX llm_financial_actions_pkey ON public.llm_financial_actions USING btree (id)`
 
 ### Changes to retained baseline tables
 
@@ -5484,6 +5633,285 @@ Indexes:
 - `prc_analysis_windows_identity_unique`: `CREATE UNIQUE INDEX prc_analysis_windows_identity_unique ON public.prc_analysis_windows USING btree (id, run_id, window_key)`
 - `prc_analysis_windows_pkey`: `CREATE UNIQUE INDEX prc_analysis_windows_pkey ON public.prc_analysis_windows USING btree (id)`
 - `prc_analysis_windows_run_id_window_key_key`: `CREATE UNIQUE INDEX prc_analysis_windows_run_id_window_key_key ON public.prc_analysis_windows USING btree (run_id, window_key)`
+
+#### llm_budget_accounts
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| account_id | text / text | NO | text NOT NULL |
+| currency | text / text | NO | text NOT NULL |
+| unknown_count_threshold | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| hard_exposure_cap | numeric / numeric | YES | numeric(24,8) |
+| policy_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| policy_actor | text / text | NO | text NOT NULL |
+| policy_reason | text / text | NO | text NOT NULL |
+
+Constraints:
+- `llm_budget_accounts_account_id_key`: `UNIQUE (account_id)`
+- `llm_budget_accounts_currency_check`: `CHECK ((currency ~ '^[A-Z]{3}$'::text))`
+- `llm_budget_accounts_hard_exposure_cap_check`: `CHECK ((hard_exposure_cap >= (0)::numeric))`
+- `llm_budget_accounts_pkey`: `PRIMARY KEY (account_id, currency)`
+- `llm_budget_accounts_policy_version_check`: `CHECK ((policy_version >= 1))`
+- `llm_budget_accounts_unknown_count_threshold_check`: `CHECK ((unknown_count_threshold >= 1))`
+
+Indexes:
+- `llm_budget_accounts_account_id_key`: `CREATE UNIQUE INDEX llm_budget_accounts_account_id_key ON public.llm_budget_accounts USING btree (account_id)`
+- `llm_budget_accounts_pkey`: `CREATE UNIQUE INDEX llm_budget_accounts_pkey ON public.llm_budget_accounts USING btree (account_id, currency)`
+
+#### llm_budget_periods
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| currency | text / text | NO | text NOT NULL |
+| period_start | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| period_end | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| cap | numeric / numeric | NO | numeric(24,8) NOT NULL |
+| spent | numeric / numeric | NO | numeric(24,8) DEFAULT 0 NOT NULL |
+| reserved | numeric / numeric | NO | numeric(24,8) DEFAULT 0 NOT NULL |
+
+Constraints:
+- `llm_budget_periods_account_id_currency_fkey`: `FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)`
+- `llm_budget_periods_account_id_currency_period_start_period__key`: `UNIQUE (account_id, currency, period_start, period_end)`
+- `llm_budget_periods_cap_check`: `CHECK ((cap >= (0)::numeric))`
+- `llm_budget_periods_check`: `CHECK ((period_end > period_start))`
+- `llm_budget_periods_check1`: `CHECK (((spent + reserved) <= cap))`
+- `llm_budget_periods_pkey`: `PRIMARY KEY (id)`
+- `llm_budget_periods_reserved_check`: `CHECK ((reserved >= (0)::numeric))`
+- `llm_budget_periods_spent_check`: `CHECK ((spent >= (0)::numeric))`
+
+Indexes:
+- `llm_budget_periods_account_id_currency_period_start_period__key`: `CREATE UNIQUE INDEX llm_budget_periods_account_id_currency_period_start_period__key ON public.llm_budget_periods USING btree (account_id, currency, period_start, period_end)`
+- `llm_budget_periods_pkey`: `CREATE UNIQUE INDEX llm_budget_periods_pkey ON public.llm_budget_periods USING btree (id)`
+
+#### llm_provider_requests
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| logical_request_id | uuid / uuid | NO | uuid NOT NULL |
+| logical_key | bytea / bytea | NO | bytea NOT NULL |
+| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
+| input_hash | bytea / bytea | NO | bytea NOT NULL |
+| purpose | text / text | NO | text NOT NULL |
+| semantic_reask_ordinal | bigint / int8 | NO | bigint NOT NULL |
+| replay_intent_id | uuid / uuid | NO | uuid NOT NULL |
+| replay_of | uuid / uuid | YES | uuid |
+| command_id | uuid / uuid | YES | uuid |
+| replay_actor | text / text | YES | text |
+| replay_reason | text / text | YES | text |
+| state | text / text | NO | text NOT NULL |
+| request_epoch | bigint / int8 | NO | bigint NOT NULL |
+| idempotency_key | text / text | YES | text |
+| consumer_correlation_id | text / text | NO | text NOT NULL |
+| reservation_amount | numeric / numeric | NO | numeric(24,8) DEFAULT 0 NOT NULL |
+| context_json | jsonb / jsonb | NO | jsonb NOT NULL |
+| context_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| max_physical_attempts | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `llm_provider_requests_check`: `CHECK (((replay_of IS NULL) = (command_id IS NULL)))`
+- `llm_provider_requests_check1`: `CHECK (((command_id IS NULL) = (replay_actor IS NULL)))`
+- `llm_provider_requests_check2`: `CHECK (((command_id IS NULL) = (replay_reason IS NULL)))`
+- `llm_provider_requests_command_id_key`: `UNIQUE (command_id)`
+- `llm_provider_requests_context_schema_version_check`: `CHECK ((context_schema_version = 1))`
+- `llm_provider_requests_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
+- `llm_provider_requests_logical_key_check`: `CHECK ((octet_length(logical_key) = 32))`
+- `llm_provider_requests_logical_key_key`: `UNIQUE (logical_key)`
+- `llm_provider_requests_max_physical_attempts_check`: `CHECK (((max_physical_attempts >= 1) AND (max_physical_attempts <= 10)))`
+- `llm_provider_requests_pkey`: `PRIMARY KEY (logical_request_id)`
+- `llm_provider_requests_purpose_check`: `CHECK ((purpose = ANY (ARRAY['generate'::text, 'cache_create'::text, 'cache_refresh'::text, 'cache_storage'::text, 'file_upload'::text, 'lookup'::text])))`
+- `llm_provider_requests_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
+- `llm_provider_requests_replay_of_fkey`: `FOREIGN KEY (replay_of) REFERENCES llm_provider_requests(logical_request_id)`
+- `llm_provider_requests_request_epoch_check`: `CHECK ((request_epoch >= 1))`
+- `llm_provider_requests_reservation_amount_check`: `CHECK ((reservation_amount >= (0)::numeric))`
+- `llm_provider_requests_semantic_reask_ordinal_check`: `CHECK (((semantic_reask_ordinal >= 0) AND (semantic_reask_ordinal <= 1)))`
+- `llm_provider_requests_state_check`: `CHECK ((state = ANY (ARRAY['prepared'::text, 'sending'::text, 'completed'::text, 'failed_known'::text, 'unknown'::text, 'abandoned_unknown'::text])))`
+
+Indexes:
+- `llm_provider_requests_command_id_key`: `CREATE UNIQUE INDEX llm_provider_requests_command_id_key ON public.llm_provider_requests USING btree (command_id)`
+- `llm_provider_requests_logical_key_key`: `CREATE UNIQUE INDEX llm_provider_requests_logical_key_key ON public.llm_provider_requests USING btree (logical_key)`
+- `llm_provider_requests_pkey`: `CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)`
+
+#### llm_provider_calls
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| physical_call_id | uuid / uuid | NO | uuid NOT NULL |
+| logical_request_id | uuid / uuid | NO | uuid NOT NULL |
+| ordinal | bigint / int8 | NO | bigint NOT NULL |
+| provider_id | bigint / int8 | NO | bigint NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| api_surface | text / text | NO | text NOT NULL |
+| model | text / text | NO | text NOT NULL |
+| resolved_model_version | text / text | YES | text |
+| request_epoch | bigint / int8 | NO | bigint NOT NULL |
+| owner_attempt_id | uuid / uuid | NO | uuid NOT NULL |
+| owner_work_generation | bigint / int8 | NO | bigint NOT NULL |
+| send_authorization_token | uuid / uuid | NO | uuid NOT NULL |
+| send_claimed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| sent_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| response_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| http_status | smallint / int2 | YES | smallint |
+| finish_reason | text / text | YES | text |
+| usage_status | text / text | NO | text NOT NULL |
+| usage | jsonb / jsonb | YES | jsonb |
+| usage_schema_version | smallint / int2 | YES | smallint |
+| cost_estimate | numeric / numeric | NO | numeric(24,8) NOT NULL |
+| cost_actual | numeric / numeric | YES | numeric(24,8) |
+| receipt_id | uuid / uuid | YES | uuid |
+| receipt_state | text / text | NO | text NOT NULL |
+| receipt_upload_key | text / text | NO | text NOT NULL |
+| receipt_disk | text / text | YES | text |
+| receipt_key | text / text | YES | text |
+| receipt_hash | bytea / bytea | YES | bytea |
+| receipt_schema_version | smallint / int2 | YES | smallint |
+| reservation_id | uuid / uuid | NO | uuid NOT NULL |
+| outcome | text / text | YES | text |
+| charge_evidence | text / text | YES | text |
+
+Constraints:
+- `llm_provider_calls_check`: `CHECK (((usage IS NULL) = (usage_schema_version IS NULL)))`
+- `llm_provider_calls_check1`: `CHECK (((receipt_key IS NULL) = (receipt_hash IS NULL)))`
+- `llm_provider_calls_check2`: `CHECK (((receipt_key IS NULL) = (receipt_schema_version IS NULL)))`
+- `llm_provider_calls_check3`: `CHECK (((receipt_state = 'verified'::text) = (receipt_key IS NOT NULL)))`
+- `llm_provider_calls_check4`: `CHECK (((receipt_state <> ALL (ARRAY['verified'::text, 'unknown'::text])) OR (send_claimed_at IS NOT NULL)))`
+- `llm_provider_calls_check5`: `CHECK (((receipt_state <> 'not_sent'::text) OR ((send_claimed_at IS NULL) AND (cost_actual = (0)::numeric))))`
+- `llm_provider_calls_check6`: `CHECK (((receipt_key IS NULL) OR (receipt_key = receipt_upload_key)))`
+- `llm_provider_calls_cost_actual_check`: `CHECK ((cost_actual >= (0)::numeric))`
+- `llm_provider_calls_cost_estimate_check`: `CHECK ((cost_estimate >= (0)::numeric))`
+- `llm_provider_calls_http_status_check`: `CHECK (((http_status >= 100) AND (http_status <= 599)))`
+- `llm_provider_calls_logical_request_id_fkey`: `FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)`
+- `llm_provider_calls_logical_request_id_ordinal_key`: `UNIQUE (logical_request_id, ordinal)`
+- `llm_provider_calls_ordinal_check`: `CHECK ((ordinal >= 1))`
+- `llm_provider_calls_outcome_check`: `CHECK ((outcome = ANY (ARRAY['not_sent'::text, 'success'::text, 'known_nonbillable_cache_miss'::text, 'known_retryable_nonbillable'::text, 'billed_error'::text, 'unknown'::text])))`
+- `llm_provider_calls_owner_work_generation_check`: `CHECK ((owner_work_generation >= 1))`
+- `llm_provider_calls_physical_call_id_logical_request_id_key`: `UNIQUE (physical_call_id, logical_request_id)`
+- `llm_provider_calls_pkey`: `PRIMARY KEY (physical_call_id)`
+- `llm_provider_calls_provider_id_fkey`: `FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
+- `llm_provider_calls_receipt_hash_check`: `CHECK ((octet_length(receipt_hash) = 32))`
+- `llm_provider_calls_receipt_id_key`: `UNIQUE (receipt_id)`
+- `llm_provider_calls_receipt_schema_version_check`: `CHECK ((receipt_schema_version = 1))`
+- `llm_provider_calls_receipt_state_check`: `CHECK ((receipt_state = ANY (ARRAY['pending'::text, 'verified'::text, 'not_sent'::text, 'unknown'::text])))`
+- `llm_provider_calls_receipt_upload_key_key`: `UNIQUE (receipt_upload_key)`
+- `llm_provider_calls_request_epoch_check`: `CHECK ((request_epoch >= 1))`
+- `llm_provider_calls_reservation_fk`: `FOREIGN KEY (reservation_id, physical_call_id) REFERENCES llm_budget_reservations(id, operation_id) DEFERRABLE INITIALLY DEFERRED`
+- `llm_provider_calls_reservation_id_key`: `UNIQUE (reservation_id)`
+- `llm_provider_calls_usage_schema_version_check`: `CHECK ((usage_schema_version > 0))`
+- `llm_provider_calls_usage_status_check`: `CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))`
+
+Indexes:
+- `llm_calls_account_idx`: `CREATE INDEX llm_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`
+- `llm_provider_calls_logical_request_id_ordinal_key`: `CREATE UNIQUE INDEX llm_provider_calls_logical_request_id_ordinal_key ON public.llm_provider_calls USING btree (logical_request_id, ordinal)`
+- `llm_provider_calls_physical_call_id_logical_request_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_physical_call_id_logical_request_id_key ON public.llm_provider_calls USING btree (physical_call_id, logical_request_id)`
+- `llm_provider_calls_pkey`: `CREATE UNIQUE INDEX llm_provider_calls_pkey ON public.llm_provider_calls USING btree (physical_call_id)`
+- `llm_provider_calls_receipt_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_receipt_id_key ON public.llm_provider_calls USING btree (receipt_id)`
+- `llm_provider_calls_receipt_upload_key_key`: `CREATE UNIQUE INDEX llm_provider_calls_receipt_upload_key_key ON public.llm_provider_calls USING btree (receipt_upload_key)`
+- `llm_provider_calls_reservation_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)`
+
+#### llm_budget_reservations
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| period_id | uuid / uuid | NO | uuid NOT NULL |
+| upper_bound | numeric / numeric | NO | numeric(24,8) NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| settled_amount | numeric / numeric | YES | numeric(24,8) |
+| pricing_snapshot | jsonb / jsonb | NO | jsonb NOT NULL |
+| pricing_snapshot_schema_version | smallint / int2 | NO | smallint NOT NULL |
+
+Constraints:
+- `llm_budget_reservations_check`: `CHECK (((state = 'settled'::text) = (settled_amount IS NOT NULL)))`
+- `llm_budget_reservations_check1`: `CHECK (((settled_amount >= (0)::numeric) AND (settled_amount <= upper_bound)))`
+- `llm_budget_reservations_id_operation_id_key`: `UNIQUE (id, operation_id)`
+- `llm_budget_reservations_operation_id_fkey`: `FOREIGN KEY (operation_id) REFERENCES llm_provider_calls(physical_call_id)`
+- `llm_budget_reservations_operation_id_key`: `UNIQUE (operation_id)`
+- `llm_budget_reservations_period_id_fkey`: `FOREIGN KEY (period_id) REFERENCES llm_budget_periods(id)`
+- `llm_budget_reservations_pkey`: `PRIMARY KEY (id)`
+- `llm_budget_reservations_pricing_snapshot_schema_version_check`: `CHECK ((pricing_snapshot_schema_version = 1))`
+- `llm_budget_reservations_state_check`: `CHECK ((state = ANY (ARRAY['reserved'::text, 'settled'::text])))`
+- `llm_budget_reservations_upper_bound_check`: `CHECK ((upper_bound >= (0)::numeric))`
+
+Indexes:
+- `llm_budget_reservations_id_operation_id_key`: `CREATE UNIQUE INDEX llm_budget_reservations_id_operation_id_key ON public.llm_budget_reservations USING btree (id, operation_id)`
+- `llm_budget_reservations_operation_id_key`: `CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)`
+- `llm_budget_reservations_pkey`: `CREATE UNIQUE INDEX llm_budget_reservations_pkey ON public.llm_budget_reservations USING btree (id)`
+
+#### prc_analysis_llm_requests
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| analysis_run_id | uuid / uuid | NO | uuid NOT NULL |
+| work_id | uuid / uuid | NO | uuid NOT NULL |
+| attempt_id | uuid / uuid | NO | uuid NOT NULL |
+| logical_request_id | uuid / uuid | NO | uuid NOT NULL |
+| physical_call_id | uuid / uuid | NO | uuid NOT NULL |
+| expected_input_hash | bytea / bytea | NO | bytea NOT NULL |
+| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
+| recovery_active | boolean / bool | NO | boolean DEFAULT true NOT NULL |
+
+Constraints:
+- `prc_analysis_llm_requests_analysis_run_id_fkey`: `FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_analysis_llm_requests_analysis_run_id_recipe_hash_fkey`: `FOREIGN KEY (analysis_run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)`
+- `prc_analysis_llm_requests_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
+- `prc_analysis_llm_requests_expected_input_hash_check`: `CHECK ((octet_length(expected_input_hash) = 32))`
+- `prc_analysis_llm_requests_logical_request_id_fkey`: `FOREIGN KEY (logical_request_id) REFERENCES llm_provider_requests(logical_request_id)`
+- `prc_analysis_llm_requests_physical_call_id_fkey`: `FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)`
+- `prc_analysis_llm_requests_physical_call_id_key`: `UNIQUE (physical_call_id)`
+- `prc_analysis_llm_requests_physical_call_id_logical_request_fkey`: `FOREIGN KEY (physical_call_id, logical_request_id) REFERENCES llm_provider_calls(physical_call_id, logical_request_id)`
+- `prc_analysis_llm_requests_pkey`: `PRIMARY KEY (id)`
+- `prc_analysis_llm_requests_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
+- `prc_analysis_llm_requests_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
+
+Indexes:
+- `prc_analysis_llm_active_work`: `CREATE UNIQUE INDEX prc_analysis_llm_active_work ON public.prc_analysis_llm_requests USING btree (work_id) WHERE recovery_active`
+- `prc_analysis_llm_requests_physical_call_id_key`: `CREATE UNIQUE INDEX prc_analysis_llm_requests_physical_call_id_key ON public.prc_analysis_llm_requests USING btree (physical_call_id)`
+- `prc_analysis_llm_requests_pkey`: `CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)`
+- `prc_analysis_llm_work_idx`: `CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)`
+
+#### llm_financial_actions
+
+Owner: P3.9; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| currency | text / text | NO | text NOT NULL |
+| physical_call_id | uuid / uuid | YES | uuid |
+| action | text / text | NO | text NOT NULL |
+| actor | text / text | NO | text NOT NULL |
+| reason | text / text | NO | text NOT NULL |
+| details | jsonb / jsonb | NO | jsonb NOT NULL |
+| details_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| occurred_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+
+Constraints:
+- `llm_financial_actions_account_id_currency_fkey`: `FOREIGN KEY (account_id, currency) REFERENCES llm_budget_accounts(account_id, currency)`
+- `llm_financial_actions_action_check`: `CHECK ((action = ANY (ARRAY['policy_change'::text, 'conservative_settlement'::text, 'abandon_unknown'::text, 'receipt_reconciliation'::text])))`
+- `llm_financial_actions_actor_check`: `CHECK ((length(actor) > 0))`
+- `llm_financial_actions_details_schema_version_check`: `CHECK ((details_schema_version = 1))`
+- `llm_financial_actions_physical_call_id_fkey`: `FOREIGN KEY (physical_call_id) REFERENCES llm_provider_calls(physical_call_id)`
+- `llm_financial_actions_pkey`: `PRIMARY KEY (id)`
+- `llm_financial_actions_reason_check`: `CHECK ((length(reason) > 0))`
+
+Indexes:
+- `llm_financial_actions_pkey`: `CREATE UNIQUE INDEX llm_financial_actions_pkey ON public.llm_financial_actions USING btree (id)`
 
 <!-- schema-inventory:end -->
 

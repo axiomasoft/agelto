@@ -150,3 +150,26 @@ against [Packagist](https://packagist.org/packages/opis/json-schema) and the
 [official validator API](https://opis.io/json-schema/2.x/php-validator.html) on 2026-11-02.
 Composer's full audit may report unrelated locked dependencies; that is recorded separately in
 stage evidence. No model ID, provider capabilities or production route is changed here.
+
+
+## Additive request ledger (P3.9)
+
+The generic `RequestLedger` / `RequestRepository` use canonical provider request/call tables,
+independently of legacy `llm_calls`. Provisional authorization is owned by Procurement's
+`AnalysisCallCoordinator`; Llm imports no Procurement types. Authorization alone grants no HTTP
+capability. The joint provider/network gate and runtime activation belong to later cutovers.
+
+Every physical operation has its own original-period reservation, immutable pinned pricing,
+send token/epoch and deterministic receipt upload intent. Unknown is never zero charge or an
+automatic retry. The default unknown threshold is one; multiple already claimed calls can become
+unknown concurrently. Exact receipt capture is allowed after cancel, with financial history only.
+A daily CSV reconciliation cannot release an individual reserve. Explicit replay requires an
+actor/reason/command and a new durable replay intent; duplicate commands deduplicate and the old
+unknown obligation remains charged/reserved. Use the ledger replay entrypoint so an orphan receipt
+is inspected before allocating an intent.
+
+Receipt policies must be explicitly registered by the owning provider package. The default
+classification is unknown; HTTP 404/429/503 alone proves no nonbilling. The P3.9 fixture policy
+exists only in tests. The bounded local receipt backend rejects unsupported remote storage,
+partial envelopes, changed hashes and mismatched physical/purpose/epoch identities.
+See [process-core](process-core.md#p3-9-financial-and-receipt-recovery) for recovery and limits.

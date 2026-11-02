@@ -11,6 +11,7 @@ use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\AuthorityGap;
 use App\Enums\Procurement\Process\RecoveryOutcome;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
+use App\Exceptions\Procurement\Process\ProviderLinkageUnavailable;
 use App\Repositories\Procurement\Process\AuthorityRepository;
 use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\RecoveryRepository;
@@ -45,8 +46,9 @@ final class RecoveryReconciler
         private readonly IncidentRepository $incidents,
         private readonly ProcessTransaction $transaction,
         private readonly InvariantScan $invariantScan,
+        ProviderRecoveryResolver $provider,
     ) {
-        $this->provider = new NoProviderOperations;
+        $this->provider = $provider;
     }
 
     public function bindProviderResolver(ProviderRecoveryResolver $resolver): void
@@ -86,6 +88,10 @@ final class RecoveryReconciler
                 try {
                     $pinned = $this->recovery->pinnedPlan($workId);
                     $finding = $this->provider->inspect($workId, $pinned['plan'] ?? null);
+                } catch (ProviderLinkageUnavailable) {
+                    $this->openProviderLinkageIncident($workId);
+
+                    return 0;
                 } catch (DependencyUnavailable $unavailable) {
                     // Storage недоступен: dependency wait, новый provider send не разрешается — work остаётся running-expired.
                     ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
@@ -149,6 +155,9 @@ final class RecoveryReconciler
                 try {
                     // Missing exact linkage must reach the invariant path without a latest-call lookup.
                     $finding = $plan === null ? null : $this->provider->inspect($workId, $plan);
+                } catch (ProviderLinkageUnavailable) {
+                    $this->openProviderLinkageIncident($workId);
+                    $finding = null;
                 } catch (DependencyUnavailable $unavailable) {
                     // Storage/lookup недоступен: unknown и reserve сохранены, только отложить следующий scan.
                     ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
@@ -225,6 +234,18 @@ final class RecoveryReconciler
             incidentId: $ids['incident'],
             eventId: $ids['incident_event'],
             projectionMessageId: $ids['incident_projection'],
+        ));
+    }
+
+    private function openProviderLinkageIncident(WorkId $work): void
+    {
+        $ids = self::ids();
+        $this->transaction->run(fn (): ProcessUuid => $this->incidents->open(
+            fingerprint: ContentHash::of('provider-linkage:v1:'.$work->value->value),
+            scopeKey: 'work:'.$work->value->value,
+            kind: 'provider_unknown_linkage_missing',
+            evidence: ['work_id' => $work->value->value],
+            incidentId: $ids['incident'], eventId: $ids['incident_event'], projectionMessageId: $ids['incident_projection'],
         ));
     }
 

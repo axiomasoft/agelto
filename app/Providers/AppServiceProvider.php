@@ -27,11 +27,13 @@ use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentRuntime;
 use App\Services\Procurement\Document\DocumentStorageReconciler;
+use App\Services\Procurement\Extraction\AnalysisProviderRecoveryResolver;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\NetworkProbeReconcileCategory;
 use App\Services\Procurement\Network\NetworkReconcileCategory;
 use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
+use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
 use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ReconcileDaemon;
 use App\Services\Procurement\Process\StageRegistry;
@@ -56,6 +58,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(ProviderRecoveryResolver::class, AnalysisProviderRecoveryResolver::class);
         $this->app->bind(EisSourceClock::class, fn () => new EisSourceClock($this->app->make(EisPolicy::class)->sourceTimezone->getName()));
         $this->app->bind(DocumentUrlPolicy::class,
             SourceTargetValidator::class);
