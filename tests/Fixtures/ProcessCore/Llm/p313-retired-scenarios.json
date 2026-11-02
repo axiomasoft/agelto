@@ -4705,22 +4705,14 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
+          "name": "canonical history renders known token breakdown and active Running work state when extraction is queued"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "RunsRelationManager now derives prompt/cached/completion/total tokens and settled/reserved spend from llm_provider_calls + llm_budget_reservations rather than mutable AnalysisRun usage snapshot columns.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4732,21 +4724,9 @@
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "Unknown provider token usage renders null state and «нет данных» placeholder in RunsRelationManager without substituting zero.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4758,21 +4738,9 @@
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "The canonical requested_reason column on prc_analysis_runs replaces the legacy trigger_mode enum column and is asserted on RunsRelationManager.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4787,18 +4755,10 @@
         },
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
+          "name": "canonical history renders known token breakdown and active Running work state when extraction is queued"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "Run execution_state is derived from prc_process_work rather than a mutable AnalysisRun.status column; both WorkState::Succeeded and WorkState::Running are verified.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4809,22 +4769,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "FixtureResource::canView and direct ViewFixture URL access denial for unprivileged users are verified against canonical fixture/run records.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4835,22 +4783,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "FinalPromptPage now keys runs and calls by canonical UUIDs (prc_analysis_runs.id and llm_provider_calls.physical_call_id) and renders the stored receipt payload.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4861,22 +4797,14 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
         },
         {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
+          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalReadModelTest.php",
+          "name": "canonical read models derive execution and money while result reviews remain bigint projections"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "Calls are linked to prc_analysis_runs via prc_analysis_operation_requests rather than bigint Analysis rows; FinalPromptPage table visibility and LlmCallReadRepository.forAnalysisRun scoping are verified.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4887,22 +4815,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "When the receipt object is missing in storage, LlmPayloadReader and FinalPromptPage report «Ответ недоступен» instead of throwing.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4913,22 +4829,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "Canonical llm_provider_calls stores only receipt_disk/receipt_key; requestPayload() is unavailable and FinalPromptPage renders «Ссылки на payload нет».",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4939,22 +4843,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Canonical UUID run/call history and original financial facts replace the removed legacy factories/status/snapshot fields. Actual authenticated render, receipt absence, correlation isolation and permission denial are tested.",
+      "reason": "Direct URL access to FinalPromptPage for an unprivileged user returns 403 Forbidden and malformed UUIDs return 404.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4965,22 +4857,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "Result modal renders screening status, document_type, confidence, description, tags, and backend branch decision from the accepted screening projection.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -4991,22 +4871,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
+          "name": "canonical result modal delegates extraction summary to the registered analyzer and reports unregistered types without UI code changes"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "Result modal delegates extraction summary rendering to DocumentAnalyzerRegistry::for(documentType)->summarize(analysis) without querying estimate tables directly.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5017,22 +4885,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
+          "name": "canonical result modal delegates extraction summary to the registered analyzer and reports unregistered types without UI code changes"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "When no DocumentAnalyzer is registered for the extraction document_type, RunResultSchema explicitly states that no analyzer is registered.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5043,22 +4899,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
+          "name": "canonical result modal selects the newest task gold and explicitly labels its truncated read-only preview"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "Result modal renders gold_task, gold_version, and gold_body alongside the run summary while hiding gold_absent.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5069,22 +4913,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
+          "name": "canonical result modal selects the newest task gold and explicitly labels its truncated read-only preview"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "Result modal selects the highest DatasetExample version for the active step task.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5095,22 +4927,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
+          "name": "canonical result modal selects the newest task gold and explicitly labels its truncated read-only preview"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "Gold JSON exceeding 40 lines is truncated with the explicit «показаны первые 40 строк из» footer.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5121,22 +4941,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "When no DatasetExample exists for the fixture, gold_absent is visible with the estimate:gold:import instruction and gold fields are hidden.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5147,22 +4955,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
+          "name": "canonical history renders known token breakdown and active Running work state when extraction is queued"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "When screening chooses extract and extraction work is still queued/running without a published extraction projection, the modal reports «Результат разбора ещё не опубликован».",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5173,22 +4969,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "When screening finishes with retain/discard and no extraction is planned, the modal explains «Первичный анализ завершён: retain. Разбор не планировался.».",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5199,22 +4983,14 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
+          "name": "canonical history renders known token breakdown and active Running work state when extraction is queued"
         },
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "Mutable Analysis.last_error is retired in P3.13; execution failures live in prc_process_work and RunResultSchema explains unpublished extraction state without an execution state writer.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5225,22 +5001,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical history renders derived status money and unknown token evidence from the original provider ledger"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
           "name": "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-          "name": "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
         }
       ],
-      "reason": "Accepted results are immutable projections linked to a canonical run. Modal tests now use real accepted screening with exact work/receipt provenance; generic rendering tests remain. Work failures are read through execution state rather than mutable Analysis.last_error.",
+      "reason": "RunResultSchema intentionally omits cost_micros and prompt_tokens components because financial and token metrics belong to the RunsRelationManager row.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5653,66 +5417,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "файл загружается настоящим multipart HTTP с сохранёнными bytes MIME TTL и отдельным нулевым учётом"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "кэш создаётся одним HTTP с полным TTL reserve и точным system file prefix без tools"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cached wire исключает system и file prefix; uncached сохраняет полную schema и стабильные части"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "capability identity account API model surface и expiry не переносятся между маршрутами"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "unknown reuse unsupported explicit minimum tokens и невыгодная цена не создают кэш; TTL не расширяется автоматически"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cache404 без доказательства оплаты остаётся unknown и не посылает fallback"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "неопределённый remote create сохраняет reserve и блокирует второго создателя даже после lease и TTL"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "два настоящих PostgreSQL процесса выбирают одного создателя одного prefix"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "явный refresh имеет новый request и полный TTL reserve; lookup не перезаписывает стоимость создания"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "доказанный file404 даёт один reupload тех же immutable bytes; повтор delivery не загружает снова"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "любое измерение identity cache исключает reuse"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "expired cache выбирает plain wire без refresh"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "usage разделяет uncached cached output thinking storage и не выдаёт unknown за ноль"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "file identity меняется с account API MIME bytes; модель того же account может использовать тот же файл"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "expiry capability во время network wait отзывает authorization до HTTP"
+          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
         }
       ],
-      "reason": "Analysis-owned cache state and direct cache prune are removed. Canonical asset metadata and paid TTL/lookup accounting own lifecycle; CLI is read-only and unowned prune is explicitly Unsupported.",
+      "reason": "ai:caches list now queries canonical llm_context_caches instead of Analysis.cache_id and prints «Активных кэшей в реестре нет.» when empty.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5723,66 +5431,14 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "файл загружается настоящим multipart HTTP с сохранёнными bytes MIME TTL и отдельным нулевым учётом"
+          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
         },
         {
           "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
           "name": "кэш создаётся одним HTTP с полным TTL reserve и точным system file prefix без tools"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cached wire исключает system и file prefix; uncached сохраняет полную schema и стабильные части"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "capability identity account API model surface и expiry не переносятся между маршрутами"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "unknown reuse unsupported explicit minimum tokens и невыгодная цена не создают кэш; TTL не расширяется автоматически"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cache404 без доказательства оплаты остаётся unknown и не посылает fallback"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "неопределённый remote create сохраняет reserve и блокирует второго создателя даже после lease и TTL"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "два настоящих PostgreSQL процесса выбирают одного создателя одного prefix"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "явный refresh имеет новый request и полный TTL reserve; lookup не перезаписывает стоимость создания"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "доказанный file404 даёт один reupload тех же immutable bytes; повтор delivery не загружает снова"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "любое измерение identity cache исключает reuse"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "expired cache выбирает plain wire без refresh"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "usage разделяет uncached cached output thinking storage и не выдаёт unknown за ноль"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "file identity меняется с account API MIME bytes; модель того же account может использовать тот же файл"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "expiry capability во время network wait отзывает authorization до HTTP"
         }
       ],
-      "reason": "Analysis-owned cache state and direct cache prune are removed. Canonical asset metadata and paid TTL/lookup accounting own lifecycle; CLI is read-only and unowned prune is explicitly Unsupported.",
+      "reason": "ai:caches list renders canonical llm_context_caches rows (cache_name, provider_code, model_code, status, cost, expires_at).",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5793,66 +5449,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "файл загружается настоящим multipart HTTP с сохранёнными bytes MIME TTL и отдельным нулевым учётом"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "кэш создаётся одним HTTP с полным TTL reserve и точным system file prefix без tools"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cached wire исключает system и file prefix; uncached сохраняет полную schema и стабильные части"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "capability identity account API model surface и expiry не переносятся между маршрутами"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "unknown reuse unsupported explicit minimum tokens и невыгодная цена не создают кэш; TTL не расширяется автоматически"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cache404 без доказательства оплаты остаётся unknown и не посылает fallback"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "неопределённый remote create сохраняет reserve и блокирует второго создателя даже после lease и TTL"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "два настоящих PostgreSQL процесса выбирают одного создателя одного prefix"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "явный refresh имеет новый request и полный TTL reserve; lookup не перезаписывает стоимость создания"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "доказанный file404 даёт один reupload тех же immutable bytes; повтор delivery не загружает снова"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "любое измерение identity cache исключает reuse"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "expired cache выбирает plain wire без refresh"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "usage разделяет uncached cached output thinking storage и не выдаёт unknown за ноль"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "file identity меняется с account API MIME bytes; модель того же account может использовать тот же файл"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "expiry capability во время network wait отзывает authorization до HTTP"
+          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
         }
       ],
-      "reason": "Analysis-owned cache state and direct cache prune are removed. Canonical asset metadata and paid TTL/lookup accounting own lifecycle; CLI is read-only and unowned prune is explicitly Unsupported.",
+      "reason": "ai:caches list --hits reads canonical llm_provider_calls usage JSONB and reports an empty window or invalid --window without failing on empty data.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5863,66 +5463,14 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "файл загружается настоящим multipart HTTP с сохранёнными bytes MIME TTL и отдельным нулевым учётом"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "кэш создаётся одним HTTP с полным TTL reserve и точным system file prefix без tools"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cached wire исключает system и file prefix; uncached сохраняет полную schema и стабильные части"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "capability identity account API model surface и expiry не переносятся между маршрутами"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "unknown reuse unsupported explicit minimum tokens и невыгодная цена не создают кэш; TTL не расширяется автоматически"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cache404 без доказательства оплаты остаётся unknown и не посылает fallback"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "неопределённый remote create сохраняет reserve и блокирует второго создателя даже после lease и TTL"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "два настоящих PostgreSQL процесса выбирают одного создателя одного prefix"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "явный refresh имеет новый request и полный TTL reserve; lookup не перезаписывает стоимость создания"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "доказанный file404 даёт один reupload тех же immutable bytes; повтор delivery не загружает снова"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "любое измерение identity cache исключает reuse"
+          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
         },
         {
           "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
           "name": "expired cache выбирает plain wire без refresh"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "usage разделяет uncached cached output thinking storage и не выдаёт unknown за ноль"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "file identity меняется с account API MIME bytes; модель того же account может использовать тот же файл"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "expiry capability во время network wait отзывает authorization до HTTP"
         }
       ],
-      "reason": "Analysis-owned cache state and direct cache prune are removed. Canonical asset metadata and paid TTL/lookup accounting own lifecycle; CLI is read-only and unowned prune is explicitly Unsupported.",
+      "reason": "Unowned CLI cache deletion is forbidden in P3.13; ai:caches prune fails explicitly with zero HTTP/financial side effects while expired caches fall back to plain wire.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -5933,66 +5481,10 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "файл загружается настоящим multipart HTTP с сохранёнными bytes MIME TTL и отдельным нулевым учётом"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "кэш создаётся одним HTTP с полным TTL reserve и точным system file prefix без tools"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cached wire исключает system и file prefix; uncached сохраняет полную schema и стабильные части"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "capability identity account API model surface и expiry не переносятся между маршрутами"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "unknown reuse unsupported explicit minimum tokens и невыгодная цена не создают кэш; TTL не расширяется автоматически"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "cache404 без доказательства оплаты остаётся unknown и не посылает fallback"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "неопределённый remote create сохраняет reserve и блокирует второго создателя даже после lease и TTL"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "два настоящих PostgreSQL процесса выбирают одного создателя одного prefix"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "явный refresh имеет новый request и полный TTL reserve; lookup не перезаписывает стоимость создания"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "доказанный file404 даёт один reupload тех же immutable bytes; повтор delivery не загружает снова"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "любое измерение identity cache исключает reuse"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "expired cache выбирает plain wire без refresh"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "usage разделяет uncached cached output thinking storage и не выдаёт unknown за ноль"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "file identity меняется с account API MIME bytes; модель того же account может использовать тот же файл"
-        },
-        {
-          "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-          "name": "expiry capability во время network wait отзывает authorization до HTTP"
+          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
         }
       ],
-      "reason": "Analysis-owned cache state and direct cache prune are removed. Canonical asset metadata and paid TTL/lookup accounting own lifecycle; CLI is read-only and unowned prune is explicitly Unsupported.",
+      "reason": "Invalid ai:caches subcommands/options return non-zero exit codes without side effects; retained in CachesTest and T14AssetLifecycleTest.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {

@@ -410,7 +410,7 @@
       "adapter_version": "acquisition/1",
       "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
       "captured_at": "2026-10-31",
-      "sha256": "ac40b428d84c0e4109c5cebd03fe4f0ea9c2283529faad4fd57ec69b2946bc5e",
+      "sha256": "27e743bf6892acf49f4420ca538b29733a3fe6064a48c43103c86c9202d0eaea",
       "expected": {
         "assessment": "exact_executed_replacements",
         "schema_version": 1
@@ -5019,7 +5019,7 @@
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-      "sha256": "7ab25eb97410192d87d457fb3064ac6dd59df42cd55c8357a84e4d0234e88e37",
+      "sha256": "7f9f5020f71bca605ea572604ce50caefbfd91042ad09e204fbfdb7c01f62978",
       "scenarios": [
         "файл загружается настоящим multipart HTTP с сохранёнными bytes MIME TTL и отдельным нулевым учётом",
         "кэш создаётся одним HTTP с полным TTL reserve и точным system file prefix без tools",
@@ -5038,7 +5038,8 @@
         "usage разделяет uncached cached output thinking storage и не выдаёт unknown за ноль",
         "verified generation envelopes retain financial facts for refusal empty and unsupported domain outcomes",
         "file identity меняется с account API MIME bytes; модель того же account может использовать тот же файл",
-        "expiry capability во время network wait отзывает authorization до HTTP"
+        "expiry capability во время network wait отзывает authorization до HTTP",
+        "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
       ],
       "accepted_change_item": "P3.13",
       "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
@@ -5116,10 +5117,12 @@
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
-      "sha256": "63e882a9d54b5c423cad8c4e85ae313cb67357d60c2eb3bd53223f4b984dd7b9",
+      "sha256": "4e144571e7dfb395f56e2d98b55a00eb6101c432440e0f212c9d3d57f1e7b548",
       "scenarios": [
         "canonical history renders derived status money and unknown token evidence from the original provider ledger",
+        "canonical history renders known token breakdown and active Running work state when extraction is queued",
         "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer",
+        "canonical result modal delegates extraction summary to the registered analyzer and reports unregistered types without UI code changes",
         "canonical result modal selects the newest task gold and explicitly labels its truncated read-only preview",
         "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object",
         "canonical AI pages preserve direct URL permissions and malformed UUID rejection"

@@ -52,14 +52,26 @@ final class ScreeningRuntimeFixtures
         return [$work, FinalizeFixtures::running($work), $window, $period];
     }
 
-    public static function capture(ExecutionLease $lease, AnalysisWindowSnapshot $window, string $period, string $raw, int $ordinal = 0, string $finish = 'STOP'): void
-    {
+    /** @param array<string, int|bool>|null $usage */
+    public static function capture(
+        ExecutionLease $lease,
+        AnalysisWindowSnapshot $window,
+        string $period,
+        string $raw,
+        int $ordinal = 0,
+        string $finish = 'STOP',
+        ?array $usage = null,
+    ): void {
         $plan = new ProviderOperationPlan(new RequestIdentity($window->run->recipe->hash->hex, $window->run->screeningInputHash()->hex,
             OperationPurpose::Generate, $ordinal, $window->run->id->value), $window->run->recipe->llm, FinancialFixtures::pricing(), $lease->workId->value->value);
         $operation = app(AnalysisCallCoordinator::class)->authorize($lease, $window->run->id, $plan, $period);
         FinancialFixtures::claim($operation);
-        $body = json_encode(['fixture_receipt' => 1, 'outcome' => 'success', 'cost' => '0.00200001',
-            'candidates' => [['finishReason' => $finish, 'content' => ['parts' => [['text' => $raw]]]]]], JSON_THROW_ON_ERROR);
+        $payload = ['fixture_receipt' => 1, 'outcome' => 'success', 'cost' => '0.00200001',
+            'candidates' => [['finishReason' => $finish, 'content' => ['parts' => [['text' => $raw]]]]]];
+        if ($usage !== null) {
+            $payload['usage'] = $usage;
+        }
+        $body = json_encode($payload, JSON_THROW_ON_ERROR);
         app(RequestLedger::class)->capture(app(RequestRepository::class)->get($operation->physicalCallId), 200, $body);
     }
 

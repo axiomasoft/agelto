@@ -18,14 +18,23 @@ use Illuminate\Support\Facades\DB;
 
 final class AiUiFixtures
 {
-    /** @return array{Fixture,AnalysisRun,Analysis,LlmCall} */
-    public static function accepted(): array
-    {
+    /**
+     * @param  array<string, int|bool>|null  $usage
+     * @param  list<string>  $tags
+     * @return array{Fixture,AnalysisRun,Analysis,LlmCall}
+     */
+    public static function accepted(
+        ?array $usage = null,
+        string $documentType = 'tech_spec',
+        string $cardinality = 'none',
+        array $tags = ['смета', 'раздел-1'],
+    ): array {
         [$work,$lease,$window,$period] = ScreeningRuntimeFixtures::work();
         $raw = json_decode(ScreeningRuntimeFixtures::raw(), true, flags: JSON_THROW_ON_ERROR);
-        $raw['document_type'] = 'tech_spec';
-        $raw['estimate_cardinality'] = 'none';
-        ScreeningRuntimeFixtures::capture($lease, $window, $period, json_encode($raw, JSON_THROW_ON_ERROR));
+        $raw['document_type'] = $documentType;
+        $raw['estimate_cardinality'] = $cardinality;
+        $raw['tags'] = $tags;
+        ScreeningRuntimeFixtures::capture($lease, $window, $period, json_encode($raw, JSON_THROW_ON_ERROR), usage: $usage);
         $input = new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash);
         $finalizer = app(WorkFinalizer::class);
         $finalizer->finish($lease, app(ScreeningHandler::class)->execute($input, app(ExecutionContextFactory::class)->open($lease)));

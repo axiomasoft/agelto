@@ -6,6 +6,7 @@ namespace Tests\Support\ProcessCore;
 
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
 use App\Dto\Llm\Requests\PricingSnapshot;
+use App\Dto\Llm\Requests\ProviderUsage;
 use App\Dto\Llm\Requests\ReceiptAssessment;
 use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
@@ -104,7 +105,19 @@ final class FinancialFixtures implements ReceiptPolicy
         if ($cost !== null && ! is_string($cost)) {
             throw new \InvalidArgumentException('Fixture cost must be exact.');
         }
+        $usage = null;
+        if (is_array($value['usage'] ?? null)) {
+            $rawUsage = $value['usage'];
+            $usage = new ProviderUsage(
+                (int) ($rawUsage['uncached_input'] ?? 0),
+                (int) ($rawUsage['cached_input'] ?? 0),
+                (int) ($rawUsage['output'] ?? 0),
+                (int) ($rawUsage['thinking'] ?? 0),
+                (int) ($rawUsage['cache_storage_token_hours'] ?? 0),
+                (bool) ($rawUsage['unknown'] ?? false),
+            );
+        }
 
-        return new ReceiptAssessment($outcome, $cost, 'fixture-policy/1:'.$purpose->value.':'.$httpStatus);
+        return new ReceiptAssessment($outcome, $cost, 'fixture-policy/1:'.$purpose->value.':'.$httpStatus, $usage);
     }
 }

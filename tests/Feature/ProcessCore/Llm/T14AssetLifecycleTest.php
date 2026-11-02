@@ -404,3 +404,34 @@ test('expiry capability во время network wait отзывает authorizat
         ->and(DB::table('llm_provider_calls')->sole()->send_claimed_at)->toBeNull()
         ->and(DB::table('llm_budget_reservations')->sole()->settled_amount)->toBe('0.00000000');
 });
+
+test('ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP', function (): void {
+    $f = p312AssetFixture($this->server, OperationPurpose::CacheCreate);
+    AssetFixtures::clearAssets();
+    $this->artisan('ai:caches', ['action' => 'list'])
+        ->expectsOutputToContain('provider')
+        ->assertSuccessful();
+    $this->artisan('ai:caches', ['action' => 'list', '--hits' => true, '--window' => '24'])
+        ->expectsOutputToContain('purpose')
+        ->assertSuccessful();
+    $this->artisan('ai:caches', ['action' => 'list', '--hits' => true, '--window' => 'bad'])
+        ->expectsOutputToContain('Invalid --window')
+        ->assertFailed();
+
+    expect(app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, $f->gate())->status)->toBe(200);
+
+    $this->artisan('ai:caches', ['action' => 'list'])
+        ->expectsOutputToContain('| fixture-provider | fixture-account | v1beta | fixture-model | cachedContents/p312-prefix |')
+        ->assertSuccessful();
+    $this->artisan('ai:caches', ['action' => 'list', '--hits' => true, '--window' => '24'])
+        ->expectsOutputToContain('cache_create')
+        ->assertSuccessful();
+
+    foreach (['prune', 'bogus'] as $action) {
+        $this->artisan('ai:caches', ['action' => $action])
+            ->expectsOutputToContain('Unsupported')
+            ->assertFailed();
+    }
+    expect($this->server->receipts())->toHaveCount(1)
+        ->and(DB::table('llm_budget_reservations')->count())->toBe(1);
+});
