@@ -72,8 +72,9 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
             $this->revalidate($operation, $wireRequest);
             $provider = new ProviderKey($wireRequest->operation->context->provider);
             $plan = new OutboundRequestPlan(new ProcessUuid($operation->physicalCallId), $this->target, $wireRequest->method,
-                new SafeUrl($wireRequest->endpoint), $this->profile, TrafficClass::Provider, IdempotencyClass::AmbiguousWrite,
-                new ContentHash($wireRequest->bodyHash), 1);
+                new SafeUrl($wireRequest->endpoint), $this->profile, TrafficClass::Provider,
+                $wireRequest->method === 'GET' ? IdempotencyClass::ReadOnly : IdempotencyClass::AmbiguousWrite,
+                $wireRequest->method === 'GET' ? null : new ContentHash($wireRequest->bodyHash), 1);
             $network = $this->outbound->reserveProviderSend($plan, $this->context, $this->routes, $this->urlPolicy, $provider,
                 fn () => $this->revalidate($operation, $wireRequest));
             if (! $network instanceof ReservedProviderNetwork) {
@@ -164,6 +165,7 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
 
     private function assertConsumer(AuthorizedProviderOperation $operation, ProviderWireRequest $wire): void
     {
+        $wire->capabilities?->assertContext($wire->operation->context);
         $lease = $this->context->lease();
         $link = $this->mapping->active($lease->workId);
         $run = $this->analyses->getRun($this->runId);

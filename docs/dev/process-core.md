@@ -1149,3 +1149,19 @@ Recovery tests use a transactional PostgreSQL publication sink and canonical par
 screening/extraction/estimate publication, provider response policies, live prices and joint
 provider/network transport remain with their owning P3.10–P3.14 cutovers. Legacy model bindings
 and handlers remain unchanged; no paid/live AI is used.
+
+## P3.12 files and context cache
+
+Canonical file/cache carriers are installed with physical-call creation ownership and complete
+provider/account/API/content identity. Cache keys also pin model/system/schema/tool policy and
+representation ordering. Explicit capability snapshots are part of the sealed wire fingerprint;
+the joint gate rechecks their expiry after network waits. GET lookups keep the same joint claim
+without a body hash. Asset operations use the financial ledger even at an evidenced zero price.
+
+`core-test-ai` includes T14/T22/T30 local HTTP multipart/cache/lookup/refresh, two-process creator
+contention, full TTL reserves, separate usage counters, unknown orphan protection, one proven
+nonbillable uncached retry, and purpose-specific asset receipt recovery. Schema inventory and its
+rendered block now have one begin/end marker pair. `core-test-install` compares two clean resets.
+No real model/account pricing or model semantic accuracy is asserted. The explicit cache is a
+transport optimization; production AI handlers, their checkpoint consumption and publication
+remain staged until P3.13. See [LLM providers](llm-providers.md) for bounds and REST references.

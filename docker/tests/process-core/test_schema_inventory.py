@@ -132,17 +132,20 @@ class SchemaInventoryTest(unittest.TestCase):
                 self.assertRejected(error, actual=actual)
 
     def test_complete_inventory_and_full_document_pass(self):
-        # P3.10 adds the immutable wire fingerprint; legacy consumers remain staged.
-        self.assertEqual(self.inventory["current_item"], "P3.10")
-        self.assertEqual(len(self.inventory["migrations"]), 83)
-        self.assertEqual(len(self.inventory["baseline"]["tables"]), 123)
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1478)
+        # P3.12 installs both canonical asset carriers; legacy consumers remain staged.
+        self.assertEqual(self.inventory["current_item"], "P3.12")
+        self.assertEqual(len(self.inventory["migrations"]), 84)
+        self.assertEqual(len(self.inventory["baseline"]["tables"]), 125)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1504)
         adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
                            for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]
                            if c["column_name"] in ("adapter_health_id", "adapter_health_epoch")}
         self.assertEqual(adapter_columns, {"adapter_health_id": ("uuid", "YES"),
                                           "adapter_health_epoch": ("int8", "YES")})
-        self.assertEqual(self.violations(document=(ROOT / "docs/dev/process-schema.md").read_text()), [])
+        document = (ROOT / "docs/dev/process-schema.md").read_text()
+        self.assertEqual(document.count("<!-- schema-inventory:begin -->"), 1)
+        self.assertEqual(document.count("<!-- schema-inventory:end -->"), 1)
+        self.assertEqual(self.violations(document=document), [])
         self.assertEqual(self.violations(actual=self.baseline_actual()), [])
 
     def test_missing_migration_and_hash_drift_fail(self):
@@ -156,8 +159,11 @@ class SchemaInventoryTest(unittest.TestCase):
         del self.inventory["baseline"]["tables"]["prc_process_work"]
         self.assertRejected("created carrier missing from installed baseline: prc_process_work")
         self.inventory = copy.deepcopy(self.original)
-        self.inventory["baseline"]["tables"]["llm_file_assets"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
+        self.inventory["current_item"] = "P3.10"
         self.assertRejected("future carrier activated in P3.10 baseline: llm_file_assets")
+        self.inventory = copy.deepcopy(self.original)
+        del self.inventory["baseline"]["tables"]["llm_context_caches"]
+        self.assertRejected("created carrier missing from installed baseline: llm_context_caches")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["current_item"] = "P1.1"
         self.assertRejected("future carrier activated in P1.1 baseline: prc_process_work")

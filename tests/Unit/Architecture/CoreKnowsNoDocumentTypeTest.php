@@ -92,7 +92,8 @@ test('периметр ядра собран правилом вычитания
     // P3.8 adds ten provider-neutral schema/task validation and staged extraction contract classes.
     // P3.9 adds twelve provider-neutral financial/receipt and consumer coordination classes.
     // P3.10 adds twelve provider-neutral wire, send capability and joint owner classes.
-    expect($classes)->toHaveCount(143)
+    // P3.12 adds five provider-neutral asset lifecycle/policy components and Gemini codecs.
+    expect($classes)->toHaveCount(148)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');

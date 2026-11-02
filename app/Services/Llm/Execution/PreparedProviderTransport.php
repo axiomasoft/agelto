@@ -37,7 +37,7 @@ final class PreparedProviderTransport
             if (hrtime(true) > $this->latestStartNs || ! ($this->canStart)()) {
                 return new ProviderTransportOutcome($this->physicalCallId, null, null, ProviderTransportFailure::Deadline);
             }
-            $response = $this->request->withBody($wire->body, 'application/json')->send($wire->method, $wire->endpoint);
+            $response = $this->request->withHeaders($wire->headers)->withBody($wire->body, $wire->contentType)->send($wire->method, $wire->endpoint);
             $this->sink->rewind();
 
             $headers = [];

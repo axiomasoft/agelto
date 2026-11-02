@@ -63,10 +63,14 @@ final class ProviderSendFixtures
 
     public RequestProfile $profile;
 
-    public function __construct(public WireFixture $server, bool $tls = false)
+    public string $period;
+
+    /** @param (\Closure(ProviderOperationPlan, string): array{ProviderOperationPlan, ProviderWireRequest})|null $operationFactory */
+    public function __construct(public WireFixture $server, bool $tls = false, ?\Closure $operationFactory = null)
     {
         PermitFixtures::clean();
         $period = FinancialFixtures::reset();
+        $this->period = $period;
         $context = new PinnedLlmContext('fixture-provider', 'fixture-account', 'v1beta', 'fixture-model', 'route/1',
             ['max_output_tokens' => 4096, 'temperature' => '0.25'], ['budget' => 128, 'include_thoughts' => false]);
         $window = AiFixtures::window($context);
@@ -82,6 +86,9 @@ final class ProviderSendFixtures
             $context, FinancialFixtures::pricing(), $this->work->value->value, generation: $generation);
         $origin = $server->url('/', $tls)->origin;
         $this->wire = (new GeminiGenerateContentClient($origin->value()))->compile($this->plan);
+        if ($operationFactory !== null) {
+            [$this->plan, $this->wire] = $operationFactory($this->plan, $origin->value());
+        }
         $this->operation = app(AnalysisCallCoordinator::class)->authorize($this->lease, $this->run, $this->plan, $period, $this->wire);
         $this->profile = TransportFixtures::profile(['total_seconds' => 4]);
         app(SourceCatalogSync::class)->syncProvider(new ProviderTargetDefinitions(new ProviderKey('fixture-provider'), [

@@ -35,8 +35,51 @@ cURL/DNS/route, bounded sink, heartbeat и deadline. Только `sendOnce` м�
 два PHP/PG процесса, pause/handler/account/provider hold/retire/cancel во время slot wait,
 rollback второй scope, duplicate capability, late full-timeout coverage и SIGKILL до wire.
 Paid stage handlers остаются `handler_not_activated`; runtime cutover legacy providers и
-полный parser/cache/files/publication принадлежат последующим срезам. Caller без owning
+полный parser/publication принадлежат последующим срезам. Caller без owning
 `ProviderSendGate` получает typed `Unsupported` и не отправляет запрос.
+
+P3.12 добавляет `GeminiAssetClient`, `ProviderAssetManager` и реальные `llm_file_assets` /
+`llm_context_caches`. File identity включает provider/account/API/content SHA-256/MIME;
+cache identity дополнительно фиксирует model, system, schema/no-tools policy, representation
+и порядок содержимого. `creation_token` ссылается на точный physical call. Account lock и
+asset row сериализуют создателей. Истечение lease не разрешает повтор неопределённого create:
+сначала нужен receipt/reconcile; возможный remote orphan остаётся финансовым обязательством.
+
+`ProviderCapabilities` — явный snapshot конкретного account/API/model с version, evidence,
+expiry и пределами. Production catalog здесь не активируется; неизвестная capability или цена
+удерживает send. Unsupported explicit cache, слишком маленький prefix, неизвестный reuse,
+невыгодная стоимость и заранее известная expiry выбирают uncached generation до cache send.
+Creation резервирует весь разрешённый TTL без скидки на ожидаемую экономию. Refresh — только
+отдельная явно запрошенная operation с новым reserve; фонового TTL extension нет.
+
+Проверенный REST subset: bounded multipart upload immutable bytes (до 8 MiB в этом клиенте),
+cache POST/PATCH и asset GET. Официальный
+[discovery contract](https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta)
+объявляет simple multipart для `/upload/v1beta/files`; клиент не открывает resumable session
+и не хранит произвольный remote upload URL. Это прикладной предел памяти, не предел Files API.
+[Files lifecycle](https://ai.google.dev/gemini-api/docs/files) и
+[cache API](https://ai.google.dev/api/caching) сверены 2026-11-02. Explicit caching зависит от
+[выбранных API/model](https://ai.google.dev/gemini-api/docs/generate-content/caching), а не от
+общего имени провайдера. Все операции проходят существующий joint gate, без SDK retry.
+
+Cached generation посылает `cachedContent` и task-specific user instruction, сохраняя полную
+`responseJsonSchema`; system/file prefix в том же запросе не дублируется. Uncached форма
+возвращает тот же system и ordered file parts. Asset receipts обрабатывает зарегистрированная
+`AssetReceiptPolicy`; они не попадают в generation parser. Usage хранит uncached/cached input,
+output, thinking, storage token-hours и явный unknown отдельно. При отсутствии точной цены usage
+успех консервативно settles pinned upper bound; 404 сам по себе не доказывает бесплатность.
+
+Для cache404 только зарегистрированная policy с durable per-operation nonbilling proof
+разрешает один uncached physical retry: тот же logical key, старый reserve settled 0, новый
+reserve и новый joint claim. Production policy такого доказательства по одному статусу не
+выдумывает. File lookup404 также требует proof перед invalidation; immutable replacement имеет
+одну стабильную identity на frozen run. Повторная delivery не загружает файл повторно.
+
+`T14AssetLifecycleTest` входит в `make core-test-ai`: реальные локальные HTTP и PostgreSQL,
+гонка двух процессов, TTL/identity/404 и purpose-specific receipt recovery. Проверки доказывают
+wire и deterministic contracts; semantic equivalence на реальной модели и live pricing/model
+eligibility не заявляются. Handler checkpoint consumption, publication и снятие legacy writers
+остаются атомарному P3.13 cutover. Двойной clean install проверяет текущий additive schema.
 
 Транспортный LLM-слой — `App\Services\Llm\**`. Контракт `LlmProvider` не завязан на конкретного
 вендора (D14): сегодня Gemini через Prism (`PrismGeminiProvider`), OpenAI-совместимый адаптер

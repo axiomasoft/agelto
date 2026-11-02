@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Providers;
 
+use App\Dto\Llm\Cache\CachePrefix;
 use App\Enums\Llm\OperationPurpose;
+use App\Exceptions\Llm\OperationDenied;
 use App\Services\Llm\Execution\ProviderOperationPlan;
 use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Llm\Schema\CanonicalJson;
@@ -56,9 +58,48 @@ final readonly class GeminiGenerateContentClient
             $config['thinkingConfig'] = $thinking;
         }
 
+        $payload = ['systemInstruction' => ['parts' => [['text' => $input->system->content]]],
+            'contents' => [['role' => 'user', 'parts' => [['text' => $input->user]]]], 'generationConfig' => $config];
+        if ($input->files !== [] || $input->cache !== null) {
+            $capabilities = $input->capabilities ?? throw new OperationDenied('capability_configuration_hold');
+            $capabilities->assertContext($context);
+            if (! $capabilities->files) {
+                throw new OperationDenied('files_unsupported');
+            }
+            foreach ($input->files as $file) {
+                $file->key->assertContext($context);
+                if (! $file->usable() || preg_match('~^https://generativelanguage\.googleapis\.com/v1beta/files/[a-z0-9-]+$~D', $file->uri) !== 1) {
+                    throw new OperationDenied('file_asset_unavailable');
+                }
+            }
+            $cached = $input->cache;
+            if ($cached !== null && $capabilities->explicitCache && $cached->usable()) {
+                if ($cached->key->context != $context || preg_match('~^cachedContents/[a-zA-Z0-9_-]+$~D', $cached->name) !== 1
+                    || $cached->key->schemaToolPolicyHash !== self::schemaPolicyHash($input->schema->canonicalHash)) {
+                    throw new OperationDenied('cache_identity_drift');
+                }
+                unset($payload['systemInstruction']);
+                $payload['cachedContent'] = $cached->name;
+            } else {
+                $payload['contents'][0]['parts'] = [...self::fileParts($input->prefix), ...array_map(
+                    static fn ($file): array => ['fileData' => ['mimeType' => $file->key->mime, 'fileUri' => $file->uri]],
+                    $input->prefix === null ? $input->files : []), ['text' => $input->user]];
+            }
+        }
+
         return new ProviderWireRequest(operation: $plan, method: 'POST',
             endpoint: $this->origin.'/'.$context->apiVersion.'/models/'.$context->model.':generateContent', allowedOrigin: $this->origin,
-            body: CanonicalJson::encode(['systemInstruction' => ['parts' => [['text' => $input->system->content]]],
-                'contents' => [['role' => 'user', 'parts' => [['text' => $input->user]]]], 'generationConfig' => $config]));
+            body: CanonicalJson::encode($payload), capabilities: $input->capabilities);
+    }
+
+    public static function schemaPolicyHash(string $canonicalSchemaHash): string
+    {
+        return hash('sha256', CanonicalJson::encode(['canonical_schema' => $canonicalSchemaHash, 'tools' => 'forbidden', 'version' => 1]));
+    }
+
+    /** @return list<array{fileData: array{mimeType: string, fileUri: string}}> */
+    public static function fileParts(?CachePrefix $prefix): array
+    {
+        return $prefix === null ? [] : array_map(static fn ($file): array => ['fileData' => ['mimeType' => $file->key->mime, 'fileUri' => $file->uri]], $prefix->files);
     }
 }

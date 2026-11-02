@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P3.10",
+  "current_item": "P3.12",
   "conventions": {
     "work_states": [
       "ready",
@@ -372,6 +372,13 @@
       "schema_sha256": "e871cc27828b2f501a5c06974b08ec05e3ccdee64e60ef42f9b7b04e819c91b9",
       "catalog_sha256": "ec36590b53b43645c084670077281bf3bcd4a0d9bb3d45aa19cc1df81787aacf",
       "note": "Diagnostic real isolated schema capture; not acceptance. Final double install and sequential checks required."
+    },
+    "p312_catalog": {
+      "source_command": "make core-test-reset",
+      "source_run": "storage/app/testing/process-core/reports/20261102T055802.101648Z-1765937",
+      "schema_sha256": "a475e5089a3dbedc7bce7a8761474b405d2c0e0fe3e64cf88e3cc57c3881453b",
+      "catalog_sha256": "e8df60fc20dbf5b29b6ae1f34e2dd0214b53a86a117365261b28169eb8949280",
+      "note": "Diagnostic guarded isolated PG17 capture; final sequential validation and double clean install still required."
     }
   },
   "migrations": [
@@ -967,9 +974,45 @@
       "owner_item": "P3.9",
       "reason": "Permanent financial/request/receipt and exact consumer linkage carriers; paid stages inactive until P3.13.",
       "change_reason": "P3.10 immutable per-physical wire fingerprint; additive inactive transport staging."
+    },
+    {
+      "path": "database/migrations/2026_11_02_100002_create_llm_assets.php",
+      "sha256": "78546482936443aa195b72f62958c7ac2319143712bc11e438bfb2747e39f457",
+      "action": "create",
+      "owner_item": "P3.12",
+      "reason": "Canonical files/cache identity and fenced physical creation ownership; no paid runtime activation."
     }
   ],
   "baseline": {
+    "extensions": [
+      {
+        "extname": "pg_partman",
+        "extversion": "5.5.0",
+        "nspname": "partman"
+      },
+      {
+        "extname": "pg_stat_statements",
+        "extversion": "1.11",
+        "nspname": "public"
+      },
+      {
+        "extname": "pgstattuple",
+        "extversion": "1.5",
+        "nspname": "public"
+      },
+      {
+        "extname": "plpgsql",
+        "extversion": "1.0",
+        "nspname": "pg_catalog"
+      }
+    ],
+    "partman_parents": [
+      "public.llm_calls",
+      "public.prc_events",
+      "public.prc_fetches",
+      "public.prc_operation_logs",
+      "public.prc_revisions"
+    ],
     "tables": {
       "az_direct_grants": {
         "owner": "Framework/vendor",
@@ -24591,37 +24634,454 @@
           }
         ],
         "definition": "CREATE TABLE public.llm_financial_actions (\n    id uuid NOT NULL,\n    account_id text NOT NULL,\n    currency text NOT NULL,\n    physical_call_id uuid,\n    action text NOT NULL,\n    actor text NOT NULL,\n    reason text NOT NULL,\n    details jsonb NOT NULL,\n    details_schema_version smallint NOT NULL,\n    occurred_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,\n    CONSTRAINT llm_financial_actions_action_check CHECK ((action = ANY (ARRAY['policy_change'::text, 'conservative_settlement'::text, 'abandon_unknown'::text, 'receipt_reconciliation'::text]))),\n    CONSTRAINT llm_financial_actions_actor_check CHECK ((length(actor) > 0)),\n    CONSTRAINT llm_financial_actions_details_schema_version_check CHECK ((details_schema_version = 1)),\n    CONSTRAINT llm_financial_actions_reason_check CHECK ((length(reason) > 0))\n);"
+      },
+      "llm_file_assets": {
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "provider_id",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "account_id",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "api_surface",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "content_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "mime",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "provider_uri",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 7,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "state",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "expires_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 9,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "creation_token",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 10,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "creation_lease_until",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 11,
+            "table_name": "llm_file_assets",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL)))",
+            "name": "llm_file_assets_check",
+            "schema": "public",
+            "table_name": "llm_file_assets",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((state <> ALL (ARRAY['PROCESSING'::text, 'ACTIVE'::text])) OR ((provider_uri IS NOT NULL) AND (expires_at IS NOT NULL))))",
+            "name": "llm_file_assets_check1",
+            "schema": "public",
+            "table_name": "llm_file_assets",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(content_hash) = 32))",
+            "name": "llm_file_assets_content_hash_check",
+            "schema": "public",
+            "table_name": "llm_file_assets",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (creation_token) REFERENCES llm_provider_calls(physical_call_id)",
+            "name": "llm_file_assets_creation_token_fkey",
+            "schema": "public",
+            "table_name": "llm_file_assets",
+            "type": "f"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "llm_file_assets_pkey",
+            "schema": "public",
+            "table_name": "llm_file_assets",
+            "type": "p"
+          },
+          {
+            "definition": "UNIQUE (provider_id, account_id, api_surface, content_hash, mime)",
+            "name": "llm_file_assets_provider_id_account_id_api_surface_content__key",
+            "schema": "public",
+            "table_name": "llm_file_assets",
+            "type": "u"
+          },
+          {
+            "definition": "FOREIGN KEY (provider_id) REFERENCES llm_providers(id)",
+            "name": "llm_file_assets_provider_id_fkey",
+            "schema": "public",
+            "table_name": "llm_file_assets",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((state = ANY (ARRAY['creating'::text, 'PROCESSING'::text, 'ACTIVE'::text, 'FAILED'::text, 'expired'::text])))",
+            "name": "llm_file_assets_state_check",
+            "schema": "public",
+            "table_name": "llm_file_assets",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_file_assets_pkey ON public.llm_file_assets USING btree (id)",
+            "indexname": "llm_file_assets_pkey",
+            "schemaname": "public",
+            "tablename": "llm_file_assets"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_file_assets_provider_id_account_id_api_surface_content__key ON public.llm_file_assets USING btree (provider_id, account_id, api_surface, content_hash, mime)",
+            "indexname": "llm_file_assets_provider_id_account_id_api_surface_content__key",
+            "schemaname": "public",
+            "tablename": "llm_file_assets"
+          }
+        ],
+        "definition": "CREATE TABLE public.llm_file_assets (\n    id uuid NOT NULL,\n    provider_id bigint NOT NULL,\n    account_id text NOT NULL,\n    api_surface text NOT NULL,\n    content_hash bytea NOT NULL,\n    mime text NOT NULL,\n    provider_uri text,\n    state text NOT NULL,\n    expires_at timestamp with time zone,\n    creation_token uuid,\n    creation_lease_until timestamp with time zone,\n    CONSTRAINT llm_file_assets_check CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL))),\n    CONSTRAINT llm_file_assets_check1 CHECK (((state <> ALL (ARRAY['PROCESSING'::text, 'ACTIVE'::text])) OR ((provider_uri IS NOT NULL) AND (expires_at IS NOT NULL)))),\n    CONSTRAINT llm_file_assets_content_hash_check CHECK ((octet_length(content_hash) = 32)),\n    CONSTRAINT llm_file_assets_state_check CHECK ((state = ANY (ARRAY['creating'::text, 'PROCESSING'::text, 'ACTIVE'::text, 'FAILED'::text, 'expired'::text])))\n);",
+        "owner": "Services/Llm/Cache",
+        "retention": "financial"
+      },
+      "llm_context_caches": {
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "provider_id",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "account_id",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "api_surface",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "model",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "system_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "schema_tool_policy_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "representation_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "content_ordering_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "provider_name",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 10,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "expires_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 11,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "creation_state",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 12,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "creation_token",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 13,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "creation_lease_until",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 14,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "cost",
+            "data_type": "numeric",
+            "is_nullable": "NO",
+            "ordinal_position": 15,
+            "table_name": "llm_context_caches",
+            "table_schema": "public",
+            "udt_name": "numeric"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL)))",
+            "name": "llm_context_caches_check",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK (((creation_state <> 'active'::text) OR ((provider_name IS NOT NULL) AND (expires_at IS NOT NULL))))",
+            "name": "llm_context_caches_check1",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(content_ordering_hash) = 32))",
+            "name": "llm_context_caches_content_ordering_hash_check",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((cost >= (0)::numeric))",
+            "name": "llm_context_caches_cost_check",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((creation_state = ANY (ARRAY['creating'::text, 'active'::text, 'expired'::text])))",
+            "name": "llm_context_caches_creation_state_check",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (creation_token) REFERENCES llm_provider_calls(physical_call_id)",
+            "name": "llm_context_caches_creation_token_fkey",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "f"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "llm_context_caches_pkey",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "p"
+          },
+          {
+            "definition": "UNIQUE (provider_id, account_id, api_surface, model, system_hash, schema_tool_policy_hash, representation_hash, content_ordering_hash)",
+            "name": "llm_context_caches_provider_id_account_id_api_surface_model_key",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "u"
+          },
+          {
+            "definition": "FOREIGN KEY (provider_id) REFERENCES llm_providers(id)",
+            "name": "llm_context_caches_provider_id_fkey",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((octet_length(representation_hash) = 32))",
+            "name": "llm_context_caches_representation_hash_check",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(schema_tool_policy_hash) = 32))",
+            "name": "llm_context_caches_schema_tool_policy_hash_check",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(system_hash) = 32))",
+            "name": "llm_context_caches_system_hash_check",
+            "schema": "public",
+            "table_name": "llm_context_caches",
+            "type": "c"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_context_caches_pkey ON public.llm_context_caches USING btree (id)",
+            "indexname": "llm_context_caches_pkey",
+            "schemaname": "public",
+            "tablename": "llm_context_caches"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX llm_context_caches_provider_id_account_id_api_surface_model_key ON public.llm_context_caches USING btree (provider_id, account_id, api_surface, model, system_hash, schema_tool_policy_hash, representation_hash, content_ordering_hash)",
+            "indexname": "llm_context_caches_provider_id_account_id_api_surface_model_key",
+            "schemaname": "public",
+            "tablename": "llm_context_caches"
+          }
+        ],
+        "definition": "CREATE TABLE public.llm_context_caches (\n    id uuid NOT NULL,\n    provider_id bigint NOT NULL,\n    account_id text NOT NULL,\n    api_surface text NOT NULL,\n    model text NOT NULL,\n    system_hash bytea NOT NULL,\n    schema_tool_policy_hash bytea NOT NULL,\n    representation_hash bytea NOT NULL,\n    content_ordering_hash bytea NOT NULL,\n    provider_name text,\n    expires_at timestamp with time zone,\n    creation_state text NOT NULL,\n    creation_token uuid,\n    creation_lease_until timestamp with time zone,\n    cost numeric(24,8) NOT NULL,\n    CONSTRAINT llm_context_caches_check CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL))),\n    CONSTRAINT llm_context_caches_check1 CHECK (((creation_state <> 'active'::text) OR ((provider_name IS NOT NULL) AND (expires_at IS NOT NULL)))),\n    CONSTRAINT llm_context_caches_content_ordering_hash_check CHECK ((octet_length(content_ordering_hash) = 32)),\n    CONSTRAINT llm_context_caches_cost_check CHECK ((cost >= (0)::numeric)),\n    CONSTRAINT llm_context_caches_creation_state_check CHECK ((creation_state = ANY (ARRAY['creating'::text, 'active'::text, 'expired'::text]))),\n    CONSTRAINT llm_context_caches_representation_hash_check CHECK ((octet_length(representation_hash) = 32)),\n    CONSTRAINT llm_context_caches_schema_tool_policy_hash_check CHECK ((octet_length(schema_tool_policy_hash) = 32)),\n    CONSTRAINT llm_context_caches_system_hash_check CHECK ((octet_length(system_hash) = 32))\n);",
+        "owner": "Services/Llm/Cache",
+        "retention": "financial"
       }
-    },
-    "extensions": [
-      {
-        "extname": "pg_partman",
-        "extversion": "5.5.0",
-        "nspname": "partman"
-      },
-      {
-        "extname": "pg_stat_statements",
-        "extversion": "1.11",
-        "nspname": "public"
-      },
-      {
-        "extname": "pgstattuple",
-        "extversion": "1.5",
-        "nspname": "public"
-      },
-      {
-        "extname": "plpgsql",
-        "extversion": "1.0",
-        "nspname": "pg_catalog"
-      }
-    ],
-    "partman_parents": [
-      "public.llm_calls",
-      "public.prc_events",
-      "public.prc_fetches",
-      "public.prc_operation_logs",
-      "public.prc_revisions"
-    ]
+    }
   },
   "retention": {
     "business": "Оригиналы, estimates, gold, provenance и справочники: отдельная domain policy; завершение run не разрешает удаление.",
@@ -29318,7 +29778,15 @@
         "creation_token": {
           "type": "uuid",
           "nullable": true,
-          "definition": "creation_token uuid NULL"
+          "definition": "creation_token uuid NULL REFERENCES llm_provider_calls(physical_call_id)",
+          "references": {
+            "table": "llm_provider_calls",
+            "columns": [
+              "physical_call_id"
+            ],
+            "on_delete": "NO ACTION",
+            "at": "P3.12"
+          }
         },
         "creation_lease_until": {
           "type": "timestamptz",
@@ -29409,7 +29877,15 @@
         "creation_token": {
           "type": "uuid",
           "nullable": true,
-          "definition": "creation_token uuid NULL"
+          "definition": "creation_token uuid NULL REFERENCES llm_provider_calls(physical_call_id)",
+          "references": {
+            "table": "llm_provider_calls",
+            "columns": [
+              "physical_call_id"
+            ],
+            "on_delete": "NO ACTION",
+            "at": "P3.12"
+          }
         },
         "creation_lease_until": {
           "type": "timestamptz",

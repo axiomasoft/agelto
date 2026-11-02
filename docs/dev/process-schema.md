@@ -199,6 +199,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_11_01_100000_create_prc_document_storage_tables.php` | rewrite-baseline | P3.5 | Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness. |
 | `2026_11_02_100000_create_prc_analysis_tables.php` | create | P3.8 | Canonical immutable analysis recipe/window/chunk carriers; live handlers and legacy model cutover remain P3.13. |
 | `2026_11_02_100001_create_llm_request_ledger.php` | create | P3.9 | Permanent financial/request/receipt and exact consumer linkage carriers; paid stages inactive until P3.13. |
+| `2026_11_02_100002_create_llm_assets.php` | create | P3.12 | Canonical files/cache identity and fenced physical creation ownership; no paid runtime activation. |
 
 ### Legacy lifecycle
 
@@ -1604,7 +1605,7 @@ Create: P3.12; activation boundary: P3.13; owner: `Services/Llm/Cache`; retentio
 | provider_uri | text | yes | provider_uri text NULL |
 | state | text | no | state text NOT NULL |
 | expires_at | timestamptz | yes | expires_at timestamptz NULL |
-| creation_token | uuid | yes | creation_token uuid NULL |
+| creation_token | uuid | yes | creation_token uuid NULL REFERENCES llm_provider_calls(physical_call_id) → llm_provider_calls(physical_call_id) ON DELETE NO ACTION @P3.12 |
 | creation_lease_until | timestamptz | yes | creation_lease_until timestamptz NULL |
 
 Constraints:
@@ -1630,7 +1631,7 @@ Create: P3.12; activation boundary: P3.13; owner: `Services/Llm/Cache`; retentio
 | provider_name | text | yes | provider_name text NULL |
 | expires_at | timestamptz | yes | expires_at timestamptz NULL |
 | creation_state | text | no | creation_state text NOT NULL |
-| creation_token | uuid | yes | creation_token uuid NULL |
+| creation_token | uuid | yes | creation_token uuid NULL REFERENCES llm_provider_calls(physical_call_id) → llm_provider_calls(physical_call_id) ON DELETE NO ACTION @P3.12 |
 | creation_lease_until | timestamptz | yes | creation_lease_until timestamptz NULL |
 | cost | numeric(24,8) | no | cost numeric(24,8) NOT NULL CHECK(cost>=0) |
 
@@ -5917,11 +5918,77 @@ Constraints:
 Indexes:
 - `llm_financial_actions_pkey`: `CREATE UNIQUE INDEX llm_financial_actions_pkey ON public.llm_financial_actions USING btree (id)`
 
-<!-- schema-inventory:end -->
+#### llm_file_assets
 
-<!-- schema-inventory:end -->
+Owner: Services/Llm/Cache; retention: financial.
 
-<!-- schema-inventory:end -->
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| provider_id | bigint / int8 | NO | bigint NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| api_surface | text / text | NO | text NOT NULL |
+| content_hash | bytea / bytea | NO | bytea NOT NULL |
+| mime | text / text | NO | text NOT NULL |
+| provider_uri | text / text | YES | text |
+| state | text / text | NO | text NOT NULL |
+| expires_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| creation_token | uuid / uuid | YES | uuid |
+| creation_lease_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `llm_file_assets_check`: `CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL)))`
+- `llm_file_assets_check1`: `CHECK (((state <> ALL (ARRAY['PROCESSING'::text, 'ACTIVE'::text])) OR ((provider_uri IS NOT NULL) AND (expires_at IS NOT NULL))))`
+- `llm_file_assets_content_hash_check`: `CHECK ((octet_length(content_hash) = 32))`
+- `llm_file_assets_creation_token_fkey`: `FOREIGN KEY (creation_token) REFERENCES llm_provider_calls(physical_call_id)`
+- `llm_file_assets_pkey`: `PRIMARY KEY (id)`
+- `llm_file_assets_provider_id_account_id_api_surface_content__key`: `UNIQUE (provider_id, account_id, api_surface, content_hash, mime)`
+- `llm_file_assets_provider_id_fkey`: `FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
+- `llm_file_assets_state_check`: `CHECK ((state = ANY (ARRAY['creating'::text, 'PROCESSING'::text, 'ACTIVE'::text, 'FAILED'::text, 'expired'::text])))`
+
+Indexes:
+- `llm_file_assets_pkey`: `CREATE UNIQUE INDEX llm_file_assets_pkey ON public.llm_file_assets USING btree (id)`
+- `llm_file_assets_provider_id_account_id_api_surface_content__key`: `CREATE UNIQUE INDEX llm_file_assets_provider_id_account_id_api_surface_content__key ON public.llm_file_assets USING btree (provider_id, account_id, api_surface, content_hash, mime)`
+
+#### llm_context_caches
+
+Owner: Services/Llm/Cache; retention: financial.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| provider_id | bigint / int8 | NO | bigint NOT NULL |
+| account_id | text / text | NO | text NOT NULL |
+| api_surface | text / text | NO | text NOT NULL |
+| model | text / text | NO | text NOT NULL |
+| system_hash | bytea / bytea | NO | bytea NOT NULL |
+| schema_tool_policy_hash | bytea / bytea | NO | bytea NOT NULL |
+| representation_hash | bytea / bytea | NO | bytea NOT NULL |
+| content_ordering_hash | bytea / bytea | NO | bytea NOT NULL |
+| provider_name | text / text | YES | text |
+| expires_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| creation_state | text / text | NO | text NOT NULL |
+| creation_token | uuid / uuid | YES | uuid |
+| creation_lease_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| cost | numeric / numeric | NO | numeric(24,8) NOT NULL |
+
+Constraints:
+- `llm_context_caches_check`: `CHECK (((creation_token IS NULL) = (creation_lease_until IS NULL)))`
+- `llm_context_caches_check1`: `CHECK (((creation_state <> 'active'::text) OR ((provider_name IS NOT NULL) AND (expires_at IS NOT NULL))))`
+- `llm_context_caches_content_ordering_hash_check`: `CHECK ((octet_length(content_ordering_hash) = 32))`
+- `llm_context_caches_cost_check`: `CHECK ((cost >= (0)::numeric))`
+- `llm_context_caches_creation_state_check`: `CHECK ((creation_state = ANY (ARRAY['creating'::text, 'active'::text, 'expired'::text])))`
+- `llm_context_caches_creation_token_fkey`: `FOREIGN KEY (creation_token) REFERENCES llm_provider_calls(physical_call_id)`
+- `llm_context_caches_pkey`: `PRIMARY KEY (id)`
+- `llm_context_caches_provider_id_account_id_api_surface_model_key`: `UNIQUE (provider_id, account_id, api_surface, model, system_hash, schema_tool_policy_hash, representation_hash, content_ordering_hash)`
+- `llm_context_caches_provider_id_fkey`: `FOREIGN KEY (provider_id) REFERENCES llm_providers(id)`
+- `llm_context_caches_representation_hash_check`: `CHECK ((octet_length(representation_hash) = 32))`
+- `llm_context_caches_schema_tool_policy_hash_check`: `CHECK ((octet_length(schema_tool_policy_hash) = 32))`
+- `llm_context_caches_system_hash_check`: `CHECK ((octet_length(system_hash) = 32))`
+
+Indexes:
+- `llm_context_caches_pkey`: `CREATE UNIQUE INDEX llm_context_caches_pkey ON public.llm_context_caches USING btree (id)`
+- `llm_context_caches_provider_id_account_id_api_surface_model_key`: `CREATE UNIQUE INDEX llm_context_caches_provider_id_account_id_api_surface_model_key ON public.llm_context_caches USING btree (provider_id, account_id, api_surface, model, system_hash, schema_tool_policy_hash, representation_hash, content_ordering_hash)`
 
 <!-- schema-inventory:end -->
 

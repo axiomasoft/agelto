@@ -548,6 +548,26 @@
         "T22"
       ],
       "coverage": "p38_contract_only"
+    },
+    {
+      "id": "p312-assets-v1",
+      "kind": "provider_asset_contract",
+      "path": "tests/Fixtures/ProcessCore/Llm/assets-v1.json",
+      "platform": null,
+      "adapter_version": "gemini-assets/1",
+      "provenance": "Hand-reviewed REST subset and synthetic file/cache envelopes; official Google discovery simple multipart upload, files/caching references. No live AI calls.",
+      "captured_at": "2026-11-02",
+      "sha256": "446106814625c925465c98de68bed21a0a1c3a82d5aa3a966aa54a318866727e",
+      "expected": {
+        "assessment": "purpose_specific_assets",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T14",
+        "T22",
+        "T30"
+      ],
+      "coverage": "p312_assets_only"
     }
   ],
   "files": [
@@ -4474,7 +4494,7 @@
     },
     {
       "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "sha256": "c21c00fb06b30ce4595a52bc7b0f1fbc07c6cc5f8c68fc26b64eb810798ad6e2",
+      "sha256": "403c3a41efdaa9cd9ccad94213a861f9c9c554b4254b10e5c03aae6a72ccc82d",
       "scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -4482,9 +4502,9 @@
       ],
       "original_sha256": "e8b967abe0a3214efa331b93cfd41887239c3959d7c8b2b9071b3e441ef22370",
       "harness_correction": "P4.1 checks.2: canary 109 -> 110 for the existing neutral CooperativeListingSourceMethod added by 60d6162c; original case names retained and explicit membership asserted.",
-      "change_reason": "Exact perimeter count grows by twelve provider-neutral financial/receipt classes; namespace discovery and negative guards retained.",
+      "change_reason": "Exact core perimeter grows from 143 to 148 for five asset/policy/codec components; discovery and every negative architecture assertion retained.",
       "original_path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "accepted_change_item": "P3.9",
+      "accepted_change_item": "P3.12",
       "original_scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -5592,6 +5612,11 @@
       "path": "database/migrations/2026_11_02_100001_create_llm_request_ledger.php",
       "sha256": "0b0b970714643cee250545875c6682d09baeea2d971f3be4e8d2bdfeccf74eb6",
       "change_reason": "P3.9 additive generic financial and receipt ledger; legacy consumers retained."
+    },
+    {
+      "path": "database/migrations/2026_11_02_100002_create_llm_assets.php",
+      "sha256": "78546482936443aa195b72f62958c7ac2319143712bc11e438bfb2747e39f457",
+      "change_reason": "P3.12 canonical file/cache carriers, explicit physical-call ownership; consumers remain staged."
     }
   ],
   "source_classes": [

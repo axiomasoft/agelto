@@ -11,7 +11,7 @@ final readonly class ReceiptAssessment
     /** @var numeric-string|null */
     public ?string $cost;
 
-    public function __construct(public ReceiptOutcome $outcome, ?string $cost, public string $policyEvidence)
+    public function __construct(public ReceiptOutcome $outcome, ?string $cost, public string $policyEvidence, public ?ProviderUsage $usage = null)
     {
         $this->cost = $cost === null ? null : FinancialAmount::normalize($cost);
         if ($policyEvidence === ''

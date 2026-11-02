@@ -60,9 +60,12 @@ final class WireFixture
     }
 
     /** @param array<string, string> $headers */
-    public function respond(string $path, string $body, int $status = 200, array $headers = [], string $method = 'GET'): void
+    public function respond(string $path, string $body, int $status = 200, array $headers = [], string $method = 'GET', bool $replace = false): void
     {
         $key = $method.' '.$path;
+        if ($replace) {
+            $this->responses[$key] = [];
+        }
         $this->responses[$key][] = ['status' => $status, 'headers' => (object) $headers, 'body_base64' => base64_encode($body)];
         file_put_contents($this->root.'/responses.tmp', json_encode($this->responses, JSON_THROW_ON_ERROR));
         rename($this->root.'/responses.tmp', $this->root.'/responses.json');

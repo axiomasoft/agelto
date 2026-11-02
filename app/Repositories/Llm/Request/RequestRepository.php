@@ -76,6 +76,22 @@ final readonly class RequestRepository
             if (! in_array($previous->outcome, ['not_sent', ReceiptOutcome::NonbillableRetry->value, ReceiptOutcome::NonbillableCacheMiss->value], true)) {
                 throw new OperationDenied('retry_charge_unproven');
             }
+            $cacheMisses = ProviderRow::one("SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=? AND outcome='known_nonbillable_cache_miss'", [$requestId])?->int('count') ?? 0;
+            if ($cacheMisses > 0 && $wire === null && $previous->wireFingerprint !== null) {
+                throw new OperationDenied('cache_miss_requires_uncached_wire');
+            }
+            if ($cacheMisses > 0 && $wire !== null) {
+                $body = json_decode($wire->body, associative: true, flags: JSON_THROW_ON_ERROR);
+                if ($plan->identity->purpose !== OperationPurpose::Generate || ! is_array($body) || array_key_exists('cachedContent', $body)) {
+                    throw new OperationDenied('cache_miss_requires_uncached_wire');
+                }
+                $afterMiss = ProviderRow::one("SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=? AND ordinal>
+                    (SELECT min(ordinal) FROM llm_provider_calls WHERE logical_request_id=? AND outcome='known_nonbillable_cache_miss')
+                    AND send_claimed_at IS NOT NULL", [$requestId, $requestId])?->int('count') ?? 0;
+                if ($afterMiss > 0) {
+                    throw new OperationDenied('uncached_retry_exhausted');
+                }
+            }
             if ($previous->outcome === ReceiptOutcome::NonbillableCacheMiss->value
                 && (ProviderRow::one("SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=? AND outcome='known_nonbillable_cache_miss'", [$requestId])?->int('count') ?? 0) > 1) {
                 throw new OperationDenied('uncached_retry_exhausted');
@@ -217,8 +233,9 @@ final readonly class RequestRepository
             $this->finance->settleLocked($call, $amount, $receipt->hash);
         }
         DB::update("UPDATE llm_provider_calls SET receipt_state='verified',receipt_key=receipt_upload_key,receipt_hash=decode(?,'hex'),receipt_schema_version=1,
-            http_status=?,response_at=clock_timestamp(),outcome=?,charge_evidence=?,cost_actual=?,usage_status=? WHERE physical_call_id=?", [
-            $receipt->hash, $receipt->status, $assessment->outcome->value, $assessment->policyEvidence, $amount, $unknown ? 'unknown' : 'known', $call->authorization->physicalCallId,
+            http_status=?,response_at=clock_timestamp(),outcome=?,charge_evidence=?,cost_actual=?,usage_status=?,usage=?::jsonb,usage_schema_version=? WHERE physical_call_id=?", [
+            $receipt->hash, $receipt->status, $assessment->outcome->value, $assessment->policyEvidence, $amount, $unknown ? 'unknown' : 'known',
+            $assessment->usage?->json(), $assessment->usage === null ? null : 1, $call->authorization->physicalCallId,
         ]);
         $state = match ($assessment->outcome) {
             ReceiptOutcome::Success => 'completed',
