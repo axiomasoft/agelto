@@ -30,7 +30,7 @@ final readonly class PrepareStorageRepository
     {
         $snapshot = $this->authority->readAuthoritySnapshot($lease->workId);
         if (! $snapshot instanceof AuthoritySnapshot) {
-            throw new LeaseLost('Missing download authority.');
+            throw new LeaseLost('Missing prepare authority.');
         }
         $domain = $this->domain($this->policy->durableDomain);
         $tmp = $this->domain($this->policy->temporaryDomain);
@@ -51,7 +51,7 @@ final readonly class PrepareStorageRepository
                     || ! $this->authority->exactMembership($snapshot, $prefix, 'running')
                     || $prefix->group?->nullableString('attempt_id') !== $lease->attemptId->value
                     || $this->subjects->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {
-                    throw new LeaseLost('Download storage reservation lost its execution fence.');
+                    throw new LeaseLost('Prepare storage reservation lost its execution fence.');
                 }
                 if (! $prefix->controlsEnabled) {
                     return new StageBlocked(BlockedReason::Paused);
@@ -60,7 +60,7 @@ final readonly class PrepareStorageRepository
                     return new StageBlocked(BlockedReason::HandlerHold);
                 }
                 if (! $this->capacity->reserveLocked($reservations->output) || ! $this->capacity->reserveLocked($reservations->spool) || ! $this->capacity->reserveLocked($reservations->workspace)) {
-                    throw new \OverflowException('Download storage capacity exhausted.');
+                    throw new \OverflowException('Prepare storage capacity exhausted.');
                 }
 
                 return $reservations;
@@ -74,7 +74,7 @@ final readonly class PrepareStorageRepository
     private function domain(string $key): ProcessUuid
     {
         $row = LedgerRow::one('SELECT id FROM prc_storage_domains WHERE domain_key=?', [$key])
-            ?? throw new \LogicException('Download storage domain must be explicitly provisioned.');
+            ?? throw new \LogicException('Prepare storage domain must be explicitly provisioned.');
 
         return new ProcessUuid($row->string('id'));
     }

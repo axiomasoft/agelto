@@ -164,6 +164,9 @@ test('tmp остаётся charged до подтверждённого stop и c
     expect($workspace->cleanup($r))->toBeTrue()->and($workspace->cleanup($r))->toBeTrue()
         ->and(DB::table('prc_storage_reservations')->where('id', $r->id->value)->value('status'))->toBe('cleaned')
         ->and(DB::table('prc_storage_reservations')->where('id', $r->id->value)->value('cleanup_verified_at'))->not->toBeNull();
+    FinalizeFixtures::revoke($f->work, cancel: true);
+    expect(fn () => app(PrepareStorageRepository::class)->reserve($ctx->lease()))
+        ->toThrow(LeaseLost::class, 'Prepare storage reservation lost its execution fence.');
 });
 
 test('смена document head между prepare result и finalize запрещает старую complete publication', function (): void {
