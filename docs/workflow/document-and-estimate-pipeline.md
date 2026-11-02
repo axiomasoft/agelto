@@ -29,75 +29,49 @@ status: living
 То же правило действует для каждого подготовленного представления: пока object write не
 подтверждён, representation не появляется в БД и документ не может стать `prepared`.
 
-## Три шага после скачивания
+## Действующий документный контур
 
-### 1. Подготовка
+Единственный producer `DocumentFeeder` создаёт ready work и циклы revalidation. Общий Process
+владеет admission, lease, checkpoint, повторной доставкой, recovery и финализацией. Download
+атомарно публикует immutable revision и отдельный prepare work/run; повторный tick не сбрасывает
+blocked/terminal history. Связи закупка↔document, version↔blob, representation↔version/recipe/range
+и run↔required work сохраняются в БД. `Document.status` — проекция, а не разрешение на исполнение.
 
-Документ приводится к виду, пригодному для анализа. Архив разворачивается на отдельные файлы;
-таблица Excel конвертируется в формат, который умеет читать модель. Если файл огромный (тысячи
-строк в Excel, документ весом в сотни мегабайт) или похож на «zip-бомбу» — он сразу помечается
-как необрабатываемый, не тратя время на дальнейшие шаги (см. §Терминальные исходы).
+После verified bytes общий PDF `PrepareHandler` работает независимо от acquisition pause,
+retired source targets и происхождения документа. Это активированный typed runtime. XLS/XLSX,
+office, images, GSFX и архивные стратегии сохраняют format/safety corpus, но ещё не подключены
+к typed runtime: получают явный `blocked(policy_review)`, без успешной фиктивной конвертации.
+Проверки archive lineage и hostile formats не следует считать runtime конвертацией этих форматов.
 
-Система принимает конкретные семейства форматов, а не абстрактные «офисные документы»:
+Prepare сохраняет полный source page count, original page anchors и coverage manifest. Native
+text и OCR text объединяются по исходным страницам. Failed/unrecognized/not-attempted required
+ranges и truncation запрещают complete representation; успешный exit инструмента и quality label
+не доказывают semantic accuracy сметы. Повтор продолжает только pending batches. Bytes, диск,
+recipe и range каждого опубликованного representation неизменны.
 
-- `xls`/`xlsx` превращаются в PDF и, когда это возможно, в текстовую сетку таблицы;
-- `doc`/`docx`/`rtf`/`odt` превращаются в PDF;
-- PDF с бедным или отсутствующим текстовым слоем проходит OCR и получает OCR-PDF вместе с текстом;
-- `png`/`jpg`/`jpeg`/`tif`/`tiff`/`bmp`/`webp` идут в vision-ветку без преобразования;
-- `gsfx` читается как структурированный XML и текст;
-- `zip`/`7z`/`rar` безопасно разворачиваются в дочерние документы, а каждый вложенный файл проходит тот же путь.
+| Стадия | slice / job / Horizon / retry_after / lease, секунды |
+| --- | --- |
+| Download | 300 / 320 / 340 / 390 / 420 |
+| Prepare | 240 / 260 / 280 / 330 / 360 |
+| Screening/extraction, зарезервированная policy | 270 / 290 / 310 / 360 / 390 |
 
-Новый формат не становится «поддержанным» только из-за расширения: разработчик добавляет его в
-закрытый реестр с проверкой MIME и сигнатуры, ровно одним обработчиком и тестовыми примерами
-успеха/несовпадения. Неизвестный формат и файл с неподходящими байтами останавливаются до анализа.
+Текущие queues и timing authority задают `StageQueueMap`, `config/process.php` и
+`config/documents.php`. Старые `redis_prepare/doc_prepare`, whole-file OCR timeout 1800 s и
+lease/status retry через `PipelineRecoveryReconciler` не являются текущим execution interface.
 
-Каждый переход `prepared → screening` и `screened → extraction` восстанавливается из базы,
-а не по наблюдению очереди. Если worker погиб после DB commit и до отправки job, периодический
-reconciler берёт ограниченный атомарный claim на активной версии и незавершённом run, после чего
-повторно ставит только следующий допустимый шаг. Временная ошибка AI остаётся `running` с due
-backoff и проходит через тот же путь; permanent failure становится явным terminal outcome.
-Решения `retain`, `review` и `ignore` не являются кандидатами на extraction.
+Successful prepare атомарно создаёт pending screening intent с `handler_not_activated`.
+Production screening/extraction/publication пока не активированы. Fixture handler в тесте может
+прочитать настоящий prepared text и завершиться через `WorkFinalizer` в временный PostgreSQL
+sink; это проверяет общие guards, transaction rollback и отсутствие duplicate accepted result.
+Никаких provider requests, analysis windows, смет или current-analysis pointers этот sink не пишет.
+Подробные assertions и границы приёмки: [document acceptance](../dev/runbooks/document-acceptance-p36.md).
 
-### Бюджеты worker-операций
+## Сохранённые алгоритмы и форматный корпус
 
-Матрица `config('ai.pipeline.operation_budgets')` версии `pipeline-operation-budget/v1`
-является контрактом длительных операций. `prepare` работает на отдельном
-`redis_prepare/doc_prepare` lane: source setup 120 s + text-layer probe 180 s + OCR 1800 s +
-Tesseract version 180 s + PDF page-count 180 s + 120 s reserve выполняются в job 2580 s,
-supervisor 2640 s и Redis `retry_after` 2700 s. Перед каждым внешним OCR-инструментом job проверяет, что
-весь обязательный хвост ещё помещается до deadline; нехватка времени остаётся retriable
-ошибкой, а не `unprocessable` документа. Для screening полный последовательный хвост
-составляет 60 s PDF slice + 150 s upload/poll + 90 s generation + 30 s setup + 30 s
-persistence/release reserve = 360 s; затем идут supervisor 390 s и `retry_after` 420 s.
-Пограничный второй маршрут сохраняется как continuation и выполняется отдельным job, поэтому
-один worker никогда не скрывает два полных provider-вызова внутри одного timeout. Extraction
-checkpoint'ится на 120 s: ещё один максимум 150-секундный вызов и 30-секундный reserve ровно
-помещаются в 300 s job, затем идут supervisor 360 s и `retry_after` 420 s. Lease берётся из той же строки матрицы: 2700 s для
-prepare и 420 s для screening/extraction. Поэтому duplicate delivery не получает активный
-document/analysis, но после SIGKILL короткая стадия не остаётся запертой дольше своего
-visibility window.
-
-Horizon получает SIGTERM, Docker даёт ему не менее 4200 s (`HORIZON_STOP_GRACE_PERIOD`),
-поэтому worker завершает или сохраняет checkpoint до SIGKILL. После нештатного SIGKILL
-P3.4 reconciler поднимает только due continuation и atomic lease/recovery claim не допускают
-двух активных владельцев.
-
-После этого система выбирает первое доступное представление из политики конкретного расширения;
-если политика не дала результата, используется оригинал только когда это разрешено настройкой.
-Так модель получает не «самый красивый» файл по предположению, а представление, реально
-получившееся у подготовителя. Точные правила выбора, лимиты и fallback описаны в
-[`dev/ai/estimate-extraction.md`](../dev/ai/estimate-extraction.md#346-выбор-представления-на-вход).
-
-Ручной перезапуск анализа атомарно создаёт новый прогон и возвращает документ к нужной
-стадии. Перезапуск устаревшего анализа, старой версии или документа в активной обработке
-отклоняется. Потерянная задача ручного извлечения восстанавливается по новому анализу с
-`parent_analysis_id`; screening из предыдущего прогона не обязан принадлежать новому run.
-Повторный screening инвалидирует старое извлечение. Если новый вердикт требует extraction,
-создаётся новый анализ со связью на прежний результат. Успешная публикация заменяет все
-superseded-сметы этой версии, включая результаты до неудачных промежуточных перезапусков.
-
-Имена файлов в архивах не могут содержать управляющие символы или маски `*?[]`, начинаться
-с `-`/`@`, обходить каталоги или задавать абсолютный путь. Такой архив отклоняется до извлечения.
+Следующие разделы описывают форматные/AI алгоритмы и их исторические safety fixtures.
+Они не объявляют эти стратегии активированными typed handlers. Исторические AI recovery tests
+исполняются только в frozen test-only harness; production AI будет проверяться своим owning
+cutover. Это самостоятельная оговорка P3.5, а не доказательство будущего AI runtime.
 
 ## Д13 — форматы, представления и модель
 
@@ -233,8 +207,8 @@ publication. Общий `WorkFinalizer` атомарно принимает revi
 Ошибка сети откладывает download/revalidation без item failure и без изменения существующих
 bytes. После получения bytes source availability больше не участвует в финализации.
 
-До P3.5 новый owner проверяется отдельно от legacy jobs/dispatcher; runtime consumers ещё не
-переключены. Prepare/OCR и независимый feeder имеют собственные пункты P3.3/P3.5.
+С P3.5 runtime consumers используют этого owner и независимый feeder; ordinary document jobs
+и прежний dispatcher удалены. PDF Prepare/OCR подключён к тому же Process execution.
 Подробные guards и граница приёмки: [process-core](../dev/process-core.md).
 
 ### Page-batched prepare (P3.3, подключение в P3.5)

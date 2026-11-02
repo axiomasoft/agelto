@@ -10,15 +10,18 @@ use App\Dto\Procurement\Platform\SourceIdentifierValue;
 use App\Dto\Procurement\Platform\SourceIdentity;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\StageBlocked;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\ControlMode;
 use App\Enums\Procurement\Process\StageCode;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
+use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Document\DocumentCatalogRepository;
 use App\Repositories\Procurement\Network\RouteRepository;
+use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentRuntime;
 use App\Services\Procurement\Document\RuntimeDownloadHandler;
@@ -34,10 +37,13 @@ use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\DownloadFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FixtureStagePayloadCodec;
 use Tests\Support\ProcessCore\Http\CallerFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PreparedFixtureAnalysisHandler;
+use Tests\Support\ProcessCore\PreparedFixturePublicationRepository;
 use Tests\Support\ProcessCore\PrepareFixtures;
 use Tests\Support\ProcessCore\StubPdfTools;
 
@@ -102,6 +108,36 @@ test('registered runtime проводит reference download prepare через 
             ->and(DB::table('prc_process_reservations')->count())->toBe(0)
             ->and(DB::table('prc_request_attempts')->count())->toBe(1)
             ->and(DB::table('prc_outbound_operations')->where('kind', 'legacy_bridge')->count())->toBe(0);
+
+        // Extend the actual reference→HTTP→prepare chain into a test-only transactional sink.
+        // The real screening intent is deliberately not activated or consumed by this fixture.
+        $representation = DocumentRepresentation::query()->where('range_key', 'complete')->sole();
+        $screening = new WorkId(LedgerFixtures::uuid());
+        ExecutionFixtures::authority([StageCode::Screening]);
+        app(StageRegistry::class)->bindHandler(stage: StageCode::Screening,
+            handler: new PreparedFixtureAnalysisHandler("[page:1]\ncontent 1\n"));
+        DB::statement('CREATE TEMP TABLE p36_fixture_publications(work_id uuid PRIMARY KEY,version_id bigint NOT NULL,disk text NOT NULL,object_key text NOT NULL,content_hash text NOT NULL)');
+        $this->beforeApplicationDestroyed(fn () => DB::statement('DROP TABLE IF EXISTS p36_fixture_publications'));
+        app(StageRegistry::class)->bindFinalization(StageCode::Screening, new FixtureStagePayloadCodec(StageCode::Screening), new PreparedFixturePublicationRepository($screening));
+        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(
+            id: $screening, input: new ScreeningInput(documentVersionId: $representation->document_version_id,
+                representationHash: new ContentHash($representation->content_hash), screeningRecipeHash: ContentHash::of('prepared-fixture-analysis/1')),
+            inputRevision: $prepare->input_revision, intentId: null, cohortKey: $prepare->cohort_key,
+            platformId: $registry->platform_id, originRunId: new ProcessUuid($prepare->origin_run_id), priority: 100,
+            eventId: LedgerFixtures::uuid(), projectionMessageId: LedgerFixtures::uuid(),
+        ));
+        app(WorkFeeder::class)->tick('analysis');
+        $job = new ExecuteWorkJob(workId: $screening->value->value, dispatchGeneration: ExecutionFixtures::delivery($screening)->value,
+            messageId: LedgerFixtures::uuid()->value);
+        $job->handle(app(WorkRunner::class));
+        $job->handle(app(WorkRunner::class));
+        $publication = DB::table('p36_fixture_publications')->sole();
+        expect([$publication->version_id, $publication->content_hash])->toBe([$representation->document_version_id, $representation->content_hash])
+            ->and(ExecutionFixtures::work($screening)->state)->toBe('succeeded')
+            ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and(DB::table('prc_process_reservations')->count())->toBe(0)
+            ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBe('handler_not_activated')
+            ->and(DB::table('prc_estimates')->count())->toBe(0);
     } finally {
         $wire->stop();
         PermitFixtures::clean();

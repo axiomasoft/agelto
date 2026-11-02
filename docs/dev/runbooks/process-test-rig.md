@@ -68,7 +68,7 @@ JUnit/evidence capture отвергает пустую выборку, skips и 
 T07/T12/T27 listing/detail/coverage, T17/T18 run lifecycle через настоящий `AcquisitionScheduler`
 (open/closed empty, shared required, cancel, superseded successor, pending document handoff),
 T02 независимость площадок, T40–T42 identity/status/extension, T35 adapter validation и EXR-01
-sidebar после circuits cutover. `core-test-documents`, `core-test-ai`,
+sidebar после circuits cutover. `core-test-ai`,
 `core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
 с exit 78 и JSON `suite_not_implemented`. Их реализуют owning P3 packages. Это не green skip.
 Browser service отдельный, доступен через профиль `browser`; operator E2E ещё не реализован.
@@ -431,3 +431,13 @@ reuse stale metadata, relax identity guards or touch dev volumes.
 The full regression CLI runner has an explicit finite `memory_limit=1G` for the retained Laravel/Filament corpus. Worker/application memory settings are unchanged. This is an isolated test resource allowance, not a production memory/throughput claim.
 
 P3.5 per-case scenario dispositions: [document cutover](document-cutover-p35.md).
+
+## P3.6 document acceptance
+
+`core-test-documents` also runs `T10DocumentAcceptanceTest`: prepared representation bytes/hashes
+and full source page coverage feed the same test-only handler for two platform cohorts and manual.
+Actual WorkFinalizer guards a PostgreSQL temporary sink, including head replacement, journal
+rollback and duplicate completion. `T10DocumentRuntimeTest` connects that sink to the real local
+HTTP download and registered prepare path. The sink publishes no estimates and leaves real
+screening intents pending. Historical AI assertions remain compatibility evidence only.
+See [document acceptance](document-acceptance-p36.md) for the full evidence/limitations map.

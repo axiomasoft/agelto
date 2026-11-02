@@ -1066,3 +1066,21 @@ reference gate. No network/object I/O runs in a DB transaction.
 P3.5 evidence covers bounded concurrency, not the 1000-document/30-minute T16 load proof, which
 belongs to P3.18/P3.19. D18 scenario dispositions are recorded in
 `tests/Fixtures/ProcessCore/scenario-transfers.json` and the document cutover runbook.
+
+## P3.6 — document acceptance boundary
+
+The reference→recorded HTTP download→registered PDF preparation test now passes the hash of its
+actual immutable representation into an explicit test-only screening handler and transactional PG
+fixture sink. Duplicate delivery accepts one fixture result. Two platform cohorts and manual use
+the same prepared-byte consumer with paused acquisition and retired source targets. Exact source
+page coverage and run/intent/version links are asserted; head replacement prevents publication,
+and mandatory journal failure rolls back the fixture result and work finalization together.
+
+The temporary sink is test evidence for WorkFinalizer guards, not production estimate publication.
+Screening intents remain pending; no provider is activated. Historical AI recovery assertions from
+P3.5 still run in their frozen test-only harness and do not establish production AI coverage.
+PDF is the activated typed prepare path; other format strategies remain a safety corpus with an
+explicit runtime hold. Bounded W10/W20 proofs do not establish future T16 load or model accuracy.
+
+See [document acceptance](runbooks/document-acceptance-p36.md) for the invariant/test map,
+sequential acceptance commands, evidence paths and precise retained limitations.
