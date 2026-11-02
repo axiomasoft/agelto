@@ -6,8 +6,10 @@ namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Alias;
 use App\Attributes\Ai\Description;
+use App\Dto\Procurement\Ai\MoneyDecimal;
 use App\Enums\Procurement\Estimate\RowQualityReason;
 use App\Enums\Procurement\Estimate\RowType;
+use App\Services\Llm\Schema\SchemaConstraints;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Data;
@@ -42,6 +44,7 @@ final class EstimateRow extends Data
      */
     public function __construct(
         #[Description('сквозной номер строки В ПРЕДЕЛАХ СМЕТЫ (не «№ п/п» исходника) — присваивается ПОСЛЕДОВАТЕЛЬНО в порядке появления, включая заголовки разделов и промежуточные итоги.')]
+        #[SchemaConstraints(['minimum' => 0])]
         public int $row_index,
         #[Description('section_header/subsection_header/item/subtotal/summary_row.')]
         public RowType $row_type,
@@ -54,22 +57,28 @@ final class EstimateRow extends Data
         #[Description('единица измерения — ЦИТАТА документа; разбор на базу и множитель делает БЭКЕНД детерминированной нормализацией (не входит в контракт).')]
         public ?string $unit = null,
         #[Description('количество в единицах документа (decimal-строка — конверсия во float запрещена).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $quantity = null,
         #[Description('цена за единицу на базисном уровне (decimal-строка) — пуста у ресурсной сметы (calc_method=resource), это законное состояние, а не потеря.')]
         #[Alias(aliases: ['Цена в базисном уровне', 'Сметная стоимость в базисных ценах'])]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $unit_price_base = null,
         #[Description('цена за единицу на текущем уровне (decimal-строка).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $unit_price_curr = null,
         #[Description('стоимость всего по строке на базисном уровне (decimal-строка).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $total_price_base = null,
         #[Description('стоимость всего по строке на текущем уровне (decimal-строка).')]
         #[Alias(aliases: ['Стоимость всего', 'Итого руб'])]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $total_price_curr = null,
         #[Description('код индекса пересчёта позиции — второй множитель арифметики «базис × индекс ≈ текущая»; подпись индекса не хранится.')]
         #[Alias(aliases: ['Индекс', 'Ин'])]
         public ?string $index_code = null,
         #[Description('значение индекса пересчёта позиции — второй множитель арифметики «базис × индекс ≈ текущая»; подпись индекса не хранится.')]
         #[Alias(aliases: ['Индекс', 'Ин'])]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $index_value = null,
         #[Description('собственный номер позиции, напечатанный в документе, если он есть (может быть дробным, напр. «9.1»); область — ЛЮБАЯ смета, не только акт. Отличается от row_index — синтетического монотонного якоря, который существует и для строк без напечатанного номера.')]
         public ?string $source_position_number = null,

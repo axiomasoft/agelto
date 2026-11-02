@@ -529,6 +529,25 @@
         "assessment": "assertion_contract_dispositions_not_runtime_equivalence",
         "schema_version": 1
       }
+    },
+    {
+      "id": "p38-extraction-v1",
+      "kind": "canonical_model_json",
+      "path": "tests/Fixtures/ProcessCore/Llm/extraction-v1.json",
+      "platform": null,
+      "adapter_version": "canonical-extraction/1",
+      "provenance": "Hand-authored synthetic exact decimal, null, source anchors and flat depth5 totals; no AI generated expectations or paid calls.",
+      "captured_at": "2026-11-02",
+      "sha256": "961d5f0e52479c8501ade5ef25b1ff13837899dacc0d54e1e90d34931b0fb63e",
+      "expected": {
+        "assessment": "schema_and_semantics_valid",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T13",
+        "T22"
+      ],
+      "coverage": "p38_contract_only"
     }
   ],
   "files": [
@@ -4455,7 +4474,7 @@
     },
     {
       "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "sha256": "7e3d1b709fa2e227bc72d1d4db1f2396954c1fb9a032e6c8d386b226156f60bf",
+      "sha256": "f43e883689219c37b2582e59b6b5189cead9c3000b5ea0304a195e709282c8fc",
       "scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -4463,7 +4482,7 @@
       ],
       "original_sha256": "e8b967abe0a3214efa331b93cfd41887239c3959d7c8b2b9071b3e441ef22370",
       "harness_correction": "P4.1 checks.2: canary 109 -> 110 for the existing neutral CooperativeListingSourceMethod added by 60d6162c; original case names retained and explicit membership asserted.",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only.",
+      "change_reason": "P3.8 canonical contracts and additive schema; assertions adjusted to current staging without removal.",
       "original_path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
       "accepted_change_item": "P3.5",
       "original_scenarios": [
@@ -5522,10 +5541,10 @@
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
-      "sha256": "08992c6d2a285d1ce12287535884284a72e3cc076bde10c099e9e4d7abc5a25e",
+      "sha256": "a00dbc1125217f2eafb65ee8c3594fc78e170761c067b01906a62a12e2b3d93d",
       "original_path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
       "original_sha256": "1d0dfa0b99f6b4665b7c37928306175aff8a9bbcdccb45195e1b2c93bdd57002",
-      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "change_reason": "P3.8 additive schema support and canonical constraints; legacy runtime contract retained.",
       "accepted_change_item": "P2.18"
     },
     {
@@ -5562,6 +5581,12 @@
       "original_sha256": "6375c41dede894fa58fe9d6b3ff0c1a0ce2ca80b6e755b78d41141cc28d6f689",
       "accepted_change_item": "P3.5",
       "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
+    },
+    {
+      "path": "database/migrations/2026_11_02_100000_create_prc_analysis_tables.php",
+      "sha256": "8a6ba122d0d3b650cea5b9a5235a08538234cf1d8868d8f51740b65e39d7b07a",
+      "original_sha256": "31c3d358a8ed0bb5230e00de5af3c1a3f5bd23d171851a836bf2f24fc8528fe5",
+      "change_reason": "P3.8 canonical contracts and additive schema; assertions adjusted to current staging without removal."
     }
   ],
   "source_classes": [

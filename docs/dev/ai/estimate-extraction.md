@@ -599,3 +599,43 @@ tools/function-calling (контракт `LlmProvider` их не предост�
 ## Приложение: первоисточники (актуальны до сноса `Old/`)
 
 `Old/app/Repositories/Prompt/PromptRuleRepository.php`, `Old/app/Services/{PromptService,GeminiService}.php`, `Old/app/Models/Prompt/PromptRule.php`, `Old/app/Dto/Prompt/Step.php`, `Old/app/Process/{DocumentAnalysis,EstimateAnalysis/Schema,DocumentPrepare}/**`, `Old/app/Attributes/Alias.php`, `Old/app/Models/DocumentAnalysis/DocumentAnalysis.php`, `Old/docs/03_Dev/LLM_Strategy.md`, `tmp/agelto2.md`. Разведка: `plans/archive/2026.07.07-EST-AI/research/{B,C,E,L}-*.md`.
+
+## P3.8: immutable canonical analysis contract
+
+The additive `prc_analysis_runs/windows/chunks` tables use typed repositories independent of the
+legacy `AnalysisRun` FQCN, which still maps to `prc_ai_analysis_runs`. Recipe v1 seals preparation
+hash, analyzer version, exact prompt bytes/version/hash, schema hash, provider/account/API/model,
+options/thinking, route policy, currency/locale and coverage/split strategy. Resume decodes stored
+recipe bytes and verifies their hash; configuration edits cannot change that run. New semantics
+require a new recipe/run. Canonical encoding sorts object keys and preserves list order and strings.
+Execution controls and current budget/capacity are outside recipe identity.
+
+`AnalysisWindowSnapshot` hashes its parent/run/key, half-open range, representation, recipe, estimate
+identity and original anchors. Subrange keys hash the versioned parent window/range/representation
+tuple. Row/page ranges are nonempty and zero-based; splitting is integer midpoint and left-first.
+`ExtractionCheckpoint` stores bounded pending ranges and accepted chunk IDs/hashes, never a row
+accumulator. Unknown codec versions are refused and require a controlled new analysis.
+
+The staged `ExtractionOutput` contract wraps the existing `EstimateRow` with original source anchor,
+page and estimate ordinal; totals use `FlatTotalNode(node_id,parent_id)` with no recursive DTO or
+depth-three truncation. Canonical-only schema attributes on the reused row/resource/modifier DTOs
+require decimal strings. A manually authored gold fixture preserves a value above 2^53, unknown
+nulls and all six nodes in a depth-five forest. Anchors/pages, duplicate rows, expected range,
+coverage, units, decimal arithmetic and same-estimate acyclic parent links are checked locally.
+The model cannot supply a verified/publication flag. The prompt at
+`resources/ai/prompts/contracts/extraction-v1.txt` is a versioned staged snapshot, excluded from
+active prompt discovery; active prompt rows and legacy response contracts retain their cutover.
+
+`ValidatedChunk` rechecks schema, pinned recipe and range and requires an output artifact digest
+matching the canonical object. `ChunkRepository` writes that exact object, full totals and source
+provenance. Same unique key/hash is idempotent; conflicting content is refused. PostgreSQL enforces
+real FK ownership, composite representation/window/recipe identity and immutable sealed fields.
+These repository primitives require the caller's transaction and earlier subject/prefix locks;
+they are not independently authorized business publication entrypoints.
+
+`make core-test-ai` proves this staged contract using real isolated PostgreSQL rows and local
+validation assertions. It does not activate paid handlers, run the old extraction orchestrator as
+production proof, implement semantic reask/split scheduling, or publish estimates. Files/cache,
+financial receipts/budgets, joint send, guarded checkpoint ownership and final publication remain
+their owning P3.9–P3.14 slices. Historical fake-AI regression proves compatibility only; neither it
+nor this synthetic gold fixture measures live extraction accuracy.

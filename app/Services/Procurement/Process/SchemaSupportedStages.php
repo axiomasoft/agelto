@@ -22,6 +22,8 @@ final class SchemaSupportedStages
         'download' => ['column' => 'document_id', 'subject' => SubjectKind::Document],
         'prepare' => ['column' => 'document_version_id', 'subject' => SubjectKind::DocumentVersion],
         'screening' => ['column' => 'document_version_id', 'subject' => SubjectKind::DocumentVersion],
+        'extraction' => ['column' => 'analysis_window_id', 'subject' => SubjectKind::AnalysisWindow],
+        'publication' => ['column' => 'analysis_run_id', 'subject' => SubjectKind::AnalysisRun],
     ];
 
     /** Все concrete owner columns work: ровно одна непустая на строку. */
@@ -37,13 +39,14 @@ final class SchemaSupportedStages
 
     public static function supports(StageCode $stage): bool
     {
-        return isset(self::OWNERS[$stage->value]);
+        return in_array($stage, self::stages(), true);
     }
 
     /** Отвергает unsupported stage до любой записи authority/work. */
     public static function ensureSupported(StageCode $stage): void
     {
-        self::owner($stage);
+        // Schema membership assertion only; this never selects or activates a handler.
+        self::supports($stage) ?: throw new \InvalidArgumentException('Stage is not schema-supported: '.$stage->value);
     }
 
     public static function ownerColumn(StageCode $stage): string
@@ -59,7 +62,6 @@ final class SchemaSupportedStages
     /** @return array{column: string, subject: SubjectKind} */
     private static function owner(StageCode $stage): array
     {
-        return self::OWNERS[$stage->value]
-            ?? throw new \InvalidArgumentException('Stage is not schema-supported by the current baseline: '.$stage->value);
+        return self::OWNERS[$stage->value];
     }
 }

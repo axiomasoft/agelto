@@ -298,7 +298,7 @@ class RigGuardsTest(unittest.TestCase):
 
     def test_network_suite_runs_initial_machinery_after_guarded_clean_reset(self):
         self.assertIn("network", rig.IMPLEMENTED)
-        self.assertEqual(rig.FUTURE, {"ai", "e2e", "faults", "load"})
+        self.assertEqual(rig.FUTURE, {"e2e", "faults", "load"})
         self.assertEqual(rig.SUITE_PATHS["network"], [
             "tests/Feature/ProcessCore/Network",
             "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php",
@@ -492,6 +492,18 @@ with rig.project_lock():
         with patch.object(rig, "project_lock", lock), patch.object(rig, "execute", execute):
             self.assertEqual(rig.main("core-test-install"), 0)
         self.assertEqual(events, ["locked", "executed", "released"])
+
+    def test_ai_target_requires_clean_reset_and_asserting_suite(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(rig, "ROOT", Path(temp)), \
+                patch.object(rig, "new_report", return_value=(Path(temp), {})), \
+                patch.object(rig, "install_clock", return_value={}), \
+                patch.object(rig, "reset") as reset, \
+                patch.object(rig, "suite", side_effect=rig.GuardError("suite executed no assertions")) as suite:
+            self.assertNotIn("ai", rig.FUTURE)
+            self.assertEqual(rig.execute("core-test-ai", "ai"), 1)
+            reset.assert_called_once_with(Path(temp) / "clean-reset", clock={})
+            suite.assert_called_once_with(Path(temp), "ai")
+            self.assertEqual(json.loads((Path(temp) / "result.json").read_text())["exit"], 1)
 
     def test_project_lock_rejects_symlink_without_touching_foreign_file(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(rig, "ROOT", Path(temp)), \

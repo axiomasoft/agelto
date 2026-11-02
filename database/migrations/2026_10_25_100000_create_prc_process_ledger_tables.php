@@ -127,7 +127,7 @@ return new class extends Migration
             <<<'SQL'
             CREATE TABLE prc_process_handler_holds (
               id uuid PRIMARY KEY,
-              stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')),
+              stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening','extraction','publication')),
               handler_version text NOT NULL,
               state text NOT NULL DEFAULT 'healthy' CHECK (state IN ('healthy','held')),
               version bigint NOT NULL DEFAULT 1 CHECK (version >= 1),
@@ -178,7 +178,7 @@ return new class extends Migration
             CREATE TABLE prc_operation_intents (
               id uuid PRIMARY KEY,
               intent_key bytea NOT NULL CHECK (octet_length(intent_key)=32),
-              stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')),
+              stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening','extraction','publication')),
               subject_kind text NOT NULL,
               subject_id text NOT NULL,
               semantic_policy_hash bytea NOT NULL CHECK (octet_length(semantic_policy_hash)=32),
@@ -197,7 +197,7 @@ return new class extends Migration
             <<<'SQL'
             CREATE TABLE prc_process_work (
               id uuid PRIMARY KEY,
-              stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')),
+              stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening','extraction','publication')),
               work_key bytea NOT NULL CHECK (octet_length(work_key)=32),
               work_identity jsonb NOT NULL,
               work_identity_schema_version smallint NOT NULL,
@@ -249,6 +249,8 @@ return new class extends Migration
                    (stage = 'listing' AND num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1 AND crawl_block_id IS NOT NULL)
                 OR (stage IN ('detail','status_refresh') AND num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1 AND procurement_id IS NOT NULL)
                 OR (stage IN ('prepare','screening') AND num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1 AND document_version_id IS NOT NULL)
+                OR (stage = 'extraction' AND num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1 AND analysis_window_id IS NOT NULL)
+                OR (stage = 'publication' AND num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1 AND analysis_run_id IS NOT NULL)
                 OR (stage = 'download' AND num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1 AND document_id IS NOT NULL)
               ),
               CHECK (work_identity_schema_version > 0),
@@ -314,7 +316,7 @@ return new class extends Migration
               admission_group_id uuid NOT NULL REFERENCES prc_admission_groups(id) ON DELETE CASCADE,
               lane_id uuid NOT NULL REFERENCES prc_process_lanes(id),
               work_id uuid NOT NULL REFERENCES prc_process_work(id),
-              stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')),
+              stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening','extraction','publication')),
               state text NOT NULL CHECK (state IN ('admitted','running')),
               PRIMARY KEY (admission_group_id, lane_id)
             )

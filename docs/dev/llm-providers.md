@@ -126,3 +126,27 @@ cache-hint интерпретируется адаптером — Gemini → `c
 - Feature-карточки конкретных AI-шагов — [`ai/feature-card-screening.md`](ai/feature-card-screening.md),
   [`ai/feature-card-estimate-extraction.md`](ai/feature-card-estimate-extraction.md).
 - Диагностика ошибок Gemini — [`runbooks/gemini-errors.md`](runbooks/gemini-errors.md).
+
+## P3.8: staged canonical contract
+
+`Dto/Llm/Requests/StructuredTask<T>` pins a response Data class, `PromptSnapshot`, task purpose
+and a typed semantic validator. `JsonSchemaGenerator::generate(..., canonical: true)` reads PHP
+schema attributes, including decimal patterns and bounds, and emits the complete draft 2020-12
+contract. Nullable fields without defaults are required; unknown properties are rejected at every
+object level. `CanonicalSchemaValidator` uses pinned `opis/json-schema` 2.6.0 before Data hydration.
+Only root-local, acyclic `$defs` references are accepted. Schema and response sizes, JSON depth,
+schema traversal and validation duration are bounded; no network/file resolver is registered.
+The elapsed validation limit rejects over-budget results; it is not a preemptive CPU interrupt.
+
+`ProviderSchemaCompiler` produces an explicit subset plus paths of every local-only constraint.
+Unknown keywords fail compilation; the complete canonical schema still validates the raw response.
+This compiler is staged and does not replace the active Prism transport or claim its wire behavior.
+`StructuredTaskValidator` reads stored JSON and has no send/retry/continuation API. Unknown finish
+reasons and unexpected content are unsupported; safety/refusal, empty output, MAX_TOKENS, schema
+errors and semantic errors are distinct decisions. MAX_TOKENS accepts no prefix rows.
+
+The Opis package/version/PHP requirement and absence of published package advisories were checked
+against [Packagist](https://packagist.org/packages/opis/json-schema) and the
+[official validator API](https://opis.io/json-schema/2.x/php-validator.html) on 2026-11-02.
+Composer's full audit may report unrelated locked dependencies; that is recorded separately in
+stage evidence. No model ID, provider capabilities or production route is changed here.

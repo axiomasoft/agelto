@@ -43,7 +43,7 @@ test('P1.6 baseline создаёт весь ledger в порядке FK и не 
         ->and($tables)->toContain('prc_network_demands')
         ->and($tables)->toContain('prc_process_projection_states', 'prc_process_metric_totals', 'prc_process_projection_receipts')
         // Нет отдельной prc_process_controls; carriers следующих owners не создаются заранее (schema-staging).
-        ->and($tables->intersect(['prc_process_controls', 'prc_analysis_windows'])->all())->toBe([]);
+        ->and($tables->intersect(['prc_process_controls'])->all())->toBe([]);
 
     $foreignKeys = collect(DB::select(
         "SELECT c.relname AS child, f.relname AS parent, k.confdeltype AS on_delete FROM pg_constraint k
@@ -61,8 +61,8 @@ test('P1.6 baseline создаёт весь ledger в порядке FK и не 
     )->and(collect($foreignKeys)->filter(fn (string $fk): bool => str_ends_with($fk, ':c'))->values()->all())
         ->toBe(['prc_process_reservations→prc_admission_groups:c']);
 
-    // Future owner columns без FK на ещё не созданные таблицы.
-    expect(collect($foreignKeys)->filter(fn (string $fk): bool => str_contains($fk, 'version') || str_contains($fk, 'analysis'))->values()->all())->toBe(['prc_process_work→prc_document_versions:a']);
+    // P3.8 installs real canonical analysis owner FKs; handler activation remains separate.
+    expect(collect($foreignKeys)->filter(fn (string $fk): bool => str_contains($fk, 'version') || str_contains($fk, 'analysis'))->sort()->values()->all())->toBe(['prc_process_work→prc_analysis_runs:a', 'prc_process_work→prc_analysis_windows:a', 'prc_process_work→prc_document_versions:a']);
 });
 
 test('partial indexes due lease claim fairness provider recovery и fault budget существуют с точными predicates', function (): void {
@@ -88,14 +88,14 @@ test('partial indexes due lease claim fairness provider recovery и fault budget
 test('stage CHECK всех stage-bearing таблиц совпадает с SchemaSupportedStages, а work state CHECK — с девятью WorkState', function (): void {
     $supported = array_map(fn (StageCode $stage): string => $stage->value, SchemaSupportedStages::stages());
 
-    expect($supported)->toBe(['listing', 'detail', 'status_refresh', 'download', 'prepare', 'screening']);
+    expect($supported)->toBe(['listing', 'detail', 'status_refresh', 'download', 'prepare', 'screening', 'extraction', 'publication']);
     foreach (['prc_process_work', 'prc_operation_intents', 'prc_process_reservations', 'prc_process_handler_holds'] as $table) {
         expect(processLedgerCheckValues(processLedgerConstraints($table)[$table.'_stage_check']))->toBe($supported, $table);
     }
     expect(processLedgerCheckValues(processLedgerConstraints('prc_process_work')['prc_process_work_state_check']))
         ->toBe(array_column(WorkState::cases(), 'value'));
     foreach ([StageCode::Extraction, StageCode::Publication] as $stage) {
-        expect(SchemaSupportedStages::supports($stage))->toBeFalse();
+        expect(SchemaSupportedStages::supports($stage))->toBeTrue();
     }
 });
 
@@ -182,7 +182,8 @@ test('остальные null pairs и entity CHECK journal, crawl block и hand
         ->and(LedgerFixtures::sqlState($transition([])))->toBe('23505')
         ->and(LedgerFixtures::sqlState($hold([])))->toBeNull()
         ->and(LedgerFixtures::sqlState($hold(['state' => 'held'])))->toBe('23514')
-        ->and(LedgerFixtures::sqlState($hold(['stage' => 'extraction'])))->toBe('23514');
+        ->and(LedgerFixtures::sqlState($hold(['stage' => 'extraction'])))->toBeNull()
+        ->and(LedgerFixtures::sqlState($hold(['stage' => 'invented_stage'])))->toBe('23514');
 });
 
 test('discovery_outcome только collecting/complete/incomplete с согласованными closed_at и reason', function (string $case, string $outcome, bool $closed, ?string $reason, ?string $expected): void {

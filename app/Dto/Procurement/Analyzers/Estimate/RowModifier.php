@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Description;
+use App\Dto\Procurement\Ai\MoneyDecimal;
 use App\Enums\Procurement\Estimate\ModifierKind;
+use App\Services\Llm\Schema\SchemaConstraints;
 use Spatie\LaravelData\Data;
 
 /**
@@ -23,14 +25,19 @@ final class RowModifier extends Data
         #[Description('шифр/обоснование коэффициента, если указано в документе.')]
         public ?string $code = null,
         #[Description('скалярное значение коэффициента, форма книг (decimal-строка — конверсия во float запрещена); null, если документ несёт только составляющие (форма .gsfx).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $value = null,
         #[Description('составляющая коэффициента по оплате труда (форма .gsfx); в форме книг не заполняется (там один скаляр value).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $value_labor = null,
         #[Description('составляющая коэффициента по эксплуатации машин (форма .gsfx); в форме книг не заполняется (там один скаляр value).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $value_machines = null,
         #[Description('составляющая коэффициента по зарплате машинистов (форма .gsfx); в форме книг не заполняется (там один скаляр value).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $value_machinists_wage = null,
         #[Description('составляющая коэффициента по материалам (форма .gsfx); в форме книг не заполняется (там один скаляр value).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $value_materials = null,
         #[Description('уровень применения коэффициента (форма .gsfx), если указан.')]
         public ?int $level = null,

@@ -68,8 +68,7 @@ JUnit/evidence capture отвергает пустую выборку, skips и 
 T07/T12/T27 listing/detail/coverage, T17/T18 run lifecycle через настоящий `AcquisitionScheduler`
 (open/closed empty, shared required, cancel, superseded successor, pending document handoff),
 T02 независимость площадок, T40–T42 identity/status/extension, T35 adapter validation и EXR-01
-sidebar после circuits cutover. `core-test-ai`,
-`core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
+sidebar после circuits cutover. `core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
 с exit 78 и JSON `suite_not_implemented`. Их реализуют owning P3 packages. Это не green skip.
 Browser service отдельный, доступен через профиль `browser`; operator E2E ещё не реализован.
 Horizon потребляет только `process-core-fixtures`, scheduler работает с пустым business baseline.
@@ -441,3 +440,13 @@ rollback and duplicate completion. `T10DocumentRuntimeTest` connects that sink t
 HTTP download and registered prepare path. The sink publishes no estimates and leaves real
 screening intents pending. Historical AI assertions remain compatibility evidence only.
 See [document acceptance](document-acceptance-p36.md) for the full evidence/limitations map.
+
+## P3.8 AI contract suite
+
+`make core-test-ai` performs a guarded clean reset and executes
+`tests/Feature/ProcessCore/Llm` (T13/T22, group p38). It rejects empty/skipped/no-assertion runs.
+Proof covers full local JSON Schema, DTO roundtrip, exact decimals, source anchors/coverage, flat
+totals depth5/cycles, sealed recipes, PostgreSQL immutable owner rows and chunk idempotency/conflict.
+The staged parser cannot send, continue or reask. No production paid handler, financial recovery,
+cache/file transport, actual split scheduler or estimate publication is claimed by this subset.
+All required acceptance commands must run sequentially on the same final source fingerprint.

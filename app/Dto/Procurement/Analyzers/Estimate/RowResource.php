@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Description;
+use App\Dto\Procurement\Ai\MoneyDecimal;
 use App\Enums\Procurement\Estimate\ResourceType;
+use App\Services\Llm\Schema\SchemaConstraints;
 use Spatie\LaravelData\Data;
 
 /**
@@ -25,14 +27,18 @@ final class RowResource extends Data
         #[Description('единица измерения (цитата документа; разбор на базу/множитель — бэкенд, вне контракта).')]
         public ?string $unit = null,
         #[Description('количество (decimal-строка — конверсия во float запрещена).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $quantity = null,
         #[Description('цена ресурса на базисном уровне (decimal-строка) — пуста у ресурсной сметы (calc_method=resource), это законное состояние, а не потеря.')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $price_base = null,
         #[Description('цена ресурса на текущем уровне (decimal-строка).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $price_curr = null,
         #[Description('код индекса пересчёта ресурса — второй множитель арифметики «базис × индекс ≈ текущая», не подпись индекса (она не хранится).')]
         public ?string $index_code = null,
         #[Description('значение индекса пересчёта ресурса — второй множитель арифметики «базис × индекс ≈ текущая», не подпись индекса (она не хранится).')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $index_value = null,
     ) {}
 }

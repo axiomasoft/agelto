@@ -88,7 +88,8 @@ test('периметр ядра собран правилом вычитания
     // P2.18 removes two acquisition jobs and their obsolete cooperative contract.
     // P3.5 removes three ordinary document delivery jobs; Process owns their stages.
     // Canonical bytea hashing adds the type-neutral Sha256Cast at the Eloquent boundary.
-    expect($classes)->toHaveCount(109)
+    // P3.8 adds ten provider-neutral schema/task validation and staged extraction contract classes.
+    expect($classes)->toHaveCount(119)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');

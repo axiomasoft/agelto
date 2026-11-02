@@ -1084,3 +1084,23 @@ explicit runtime hold. Bounded W10/W20 proofs do not establish future T16 load o
 
 See [document acceptance](runbooks/document-acceptance-p36.md) for the invariant/test map,
 sequential acceptance commands, evidence paths and precise retained limitations.
+
+## P3.8 analysis contracts
+
+Canonical analysis tables and Process owner FKs for extraction/publication now exist alongside
+legacy AI tables. SchemaSupportedStages and all stage-bearing SQL CHECKs include all eight stages;
+real screening/extraction/publication handlers remain unregistered. A pending AI intent still has
+`handler_not_activated`; schema support does not authorize provider calls.
+
+`AnalysisRepository` and `ChunkRepository` use typed canonical snapshots without the legacy
+AnalysisRun model. Recipe/representation/window inputs and accepted output are immutable in
+PostgreSQL; composite FKs prevent cross-version/recipe/window linkage. `core-test-ai` runs T13/T22
+in `tests/Feature/ProcessCore/Llm` after the same guarded clean reset and requires actual assertions.
+The staged validation/persistence boundary is documented in [estimate extraction](ai/estimate-extraction.md#p3-8-immutable-canonical-analysis-contract).
+Production provider send, full fenced checkpoint integration and publication are future owning
+slices. No historical test-only analyzer is claimed as production runtime evidence.
+
+At this staging boundary the generic WorkStore refuses an input without its concrete owner field
+before INSERT, with a typed configuration error. Resolving extraction's run/window key to the
+actual analysis_window_id and integrating its full ancestor locks belongs to the handler cutover.
+Schema support alone cannot create a NULL-owner work or activate the stage.

@@ -376,6 +376,8 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         }
         /** @var array<string, int|string> $fields */
         $fields = json_decode($payload->json, true, flags: JSON_THROW_ON_ERROR);
+        // Staged schema support does not invent an owner absent from the immutable input.
+        $ownerId = $fields[$ownerColumn] ?? throw new \InvalidArgumentException('Work input has no resolved owner: '.$ownerColumn);
         DB::insert(
             "INSERT INTO prc_process_work
                (id, stage, work_key, work_identity, work_identity_schema_version, intent_id, input_revision, input_hash,
@@ -386,7 +388,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
             [
                 $id->value->value, $stage->value, $identity->key()->hex, $identityPayload->json, $identityPayload->schemaVersion,
                 $intentId?->value, $inputRevision, self::inputHash($payload->json)->hex, $payload->json, $payload->schemaVersion,
-                WorkState::Ready->value, $priority, $platformId, $cohortKey, $originRunId?->value, $fields[$ownerColumn],
+                WorkState::Ready->value, $priority, $platformId, $cohortKey, $originRunId?->value, $ownerId,
             ],
         );
         $this->transitions->recordWork($eventId, $projectionMessageId, $id->value, 1, null, WorkState::Ready->value, null, ActorKind::System, 0);

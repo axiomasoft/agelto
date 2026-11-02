@@ -130,7 +130,7 @@ test('тот же immutable input не создаёт вторую work: work_ke
 
 test('неподдерживаемая стадия и чужой subject отвергаются до INSERT без NULL owner rows', function (): void {
     expect(fn () => LedgerFixtures::storeWork(new ExtractionWindowInput(LedgerFixtures::uuid(), 'window:0', LedgerFixtures::hash('recipe'))))
-        ->toThrow(InvalidArgumentException::class, 'not schema-supported')
+        ->toThrow(InvalidArgumentException::class, 'Work input has no resolved owner')
         ->and(fn () => app(WorkStoreRepository::class)->storeIntent(
             id: LedgerFixtures::uuid(),
             intentKey: LedgerFixtures::hash('foreign-subject'),

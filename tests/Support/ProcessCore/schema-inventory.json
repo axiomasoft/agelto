@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P3.5",
+  "current_item": "P3.8",
   "conventions": {
     "work_states": [
       "ready",
@@ -353,6 +353,18 @@
       "catalog_sha256": "e24d31181d07b1a31531387f39410ec1892c6cc9616bcd24201ca240c42e5186",
       "evidence": "storage/app/testing/process-core/reports/p214-executor",
       "note": "Identity-only P2.14 cutover captured after scoped tests. current_item retains the last fully activated carrier stage; acquisition carriers remain staged for their owning points. Two clean installs remain coordinator-owned."
+    },
+    "p38_catalog": {
+      "kind": "observed_isolated_candidate_not_yet_accepted",
+      "evidence": "storage/app/testing/process-core/reports/20261102T012410.196004Z-3221103",
+      "candidate": {
+        "dirty_digest": "e76e015a071ee376862cdb35f66f592c45a7ef781059d9ef7ad9b26ec2138bd9",
+        "head": "d3f76491787b475a84cb046760b4d58852226e97",
+        "input_tree_sha256": "c07739a29fe6832b321d8cf971712f549d9fa2603446b705eac3dc3ed59edd6e"
+      },
+      "schema_sha256": "fd4f4d7cb6a04d81605efcd9c05588fee2cc5e9db9303edcde091e5880d103b7",
+      "catalog_sha256": "ff3ce6da5ed12e11317f125fc05a074711c3f3a8c35f6a8c8ec0240630f6dc7a",
+      "note": "Guarded reset created canonical tables successfully; descriptive inventory mismatch was expected at this additive staging boundary. Final unchanged candidate must pass two clean resets."
     }
   },
   "migrations": [
@@ -881,11 +893,12 @@
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
-      "sha256": "08992c6d2a285d1ce12287535884284a72e3cc076bde10c099e9e4d7abc5a25e",
+      "sha256": "a00dbc1125217f2eafb65ee8c3594fc78e170761c067b01906a62a12e2b3d93d",
       "action": "adapt_baseline",
-      "owner_item": "P2.18",
+      "owner_item": "P3.8",
       "reason": "Atomic acquisition producer, profile, provenance and adapter owner cutover.",
-      "original_sha256": "dfcece59c5797e26784f66fca2463146c33717948a36007a124a910fddc6e6da"
+      "original_sha256": "dfcece59c5797e26784f66fca2463146c33717948a36007a124a910fddc6e6da",
+      "change_reason": "P3.8 additive schema support and canonical constraints; legacy runtime contract retained."
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_network_tables.php",
@@ -930,6 +943,15 @@
       "action": "rewrite-baseline",
       "owner_item": "P3.5",
       "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness."
+    },
+    {
+      "path": "database/migrations/2026_11_02_100000_create_prc_analysis_tables.php",
+      "sha256": "8a6ba122d0d3b650cea5b9a5235a08538234cf1d8868d8f51740b65e39d7b07a",
+      "action": "create",
+      "owner_item": "P3.8",
+      "reason": "Canonical immutable analysis recipe/window/chunk carriers; live handlers and legacy model cutover remain P3.13.",
+      "original_sha256": "31c3d358a8ed0bb5230e00de5af3c1a3f5bd23d171851a836bf2f24fc8528fe5",
+      "change_reason": "P3.8 canonical contracts and additive schema; assertions adjusted to current staging without removal."
     }
   ],
   "baseline": {
@@ -7682,6 +7704,13 @@
         ],
         "constraints": [
           {
+            "definition": "UNIQUE (id, document_version_id, content_hash)",
+            "name": "prc_document_representations_analysis_unique",
+            "schema": "public",
+            "table_name": "prc_document_representations",
+            "type": "u"
+          },
+          {
             "definition": "FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)",
             "name": "prc_document_representations_blob_fk",
             "schema": "public",
@@ -7718,6 +7747,12 @@
           }
         ],
         "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_document_representations_analysis_unique ON public.prc_document_representations USING btree (id, document_version_id, content_hash)",
+            "indexname": "prc_document_representations_analysis_unique",
+            "schemaname": "public",
+            "tablename": "prc_document_representations"
+          },
           {
             "indexdef": "CREATE INDEX prc_document_representations_document_version_id_index ON public.prc_document_representations USING btree (document_version_id)",
             "indexname": "prc_document_representations_document_version_id_index",
@@ -7952,9 +7987,36 @@
             "table_name": "prc_document_versions",
             "table_schema": "public",
             "udt_name": "text"
+          },
+          {
+            "column_default": "1",
+            "column_name": "analysis_generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 22,
+            "table_name": "prc_document_versions",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "current_analysis_run_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 23,
+            "table_name": "prc_document_versions",
+            "table_schema": "public",
+            "udt_name": "uuid"
           }
         ],
         "constraints": [
+          {
+            "definition": "CHECK ((analysis_generation >= 1))",
+            "name": "prc_document_versions_analysis_generation_check",
+            "schema": "public",
+            "table_name": "prc_document_versions",
+            "type": "c"
+          },
           {
             "definition": "FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)",
             "name": "prc_document_versions_blob_fk",
@@ -7968,6 +8030,20 @@
             "schema": "public",
             "table_name": "prc_document_versions",
             "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (current_analysis_run_id, id) REFERENCES prc_analysis_runs(id, document_version_id)",
+            "name": "prc_document_versions_current_analysis_identity_fk",
+            "schema": "public",
+            "table_name": "prc_document_versions",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (current_analysis_run_id) REFERENCES prc_analysis_runs(id)",
+            "name": "prc_document_versions_current_analysis_run_id_fkey",
+            "schema": "public",
+            "table_name": "prc_document_versions",
+            "type": "f"
           },
           {
             "definition": "FOREIGN KEY (document_id) REFERENCES prc_documents(id)",
@@ -8062,7 +8138,7 @@
             "tablename": "prc_document_versions"
           }
         ],
-        "definition": "CREATE TABLE public.prc_document_versions (\n    id bigint NOT NULL,\n    document_id bigint NOT NULL,\n    revision_no bigint NOT NULL,\n    blob_id uuid NOT NULL,\n    etag text,\n    last_modified timestamp(6) with time zone,\n    first_seen_at timestamp(6) with time zone NOT NULL,\n    normalized_entry_path text,\n    child_ordinal bigint,\n    content_hash bytea NOT NULL,\n    size_bytes bigint NOT NULL,\n    filename text NOT NULL,\n    extension text NOT NULL,\n    mime text NOT NULL,\n    storage_path text NOT NULL,\n    disk text NOT NULL,\n    downloaded_at timestamp(0) with time zone NOT NULL,\n    parent_version_id bigint,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    archive_entry_path text,\n    CONSTRAINT prc_document_versions_canonical_tuple_check CHECK (((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (octet_length(content_hash) = 32) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0)))))\n);"
+        "definition": "CREATE TABLE public.prc_document_versions (\n    id bigint NOT NULL,\n    document_id bigint NOT NULL,\n    revision_no bigint NOT NULL,\n    blob_id uuid NOT NULL,\n    etag text,\n    last_modified timestamp(6) with time zone,\n    first_seen_at timestamp(6) with time zone NOT NULL,\n    normalized_entry_path text,\n    child_ordinal bigint,\n    content_hash bytea NOT NULL,\n    size_bytes bigint NOT NULL,\n    filename text NOT NULL,\n    extension text NOT NULL,\n    mime text NOT NULL,\n    storage_path text NOT NULL,\n    disk text NOT NULL,\n    downloaded_at timestamp(0) with time zone NOT NULL,\n    parent_version_id bigint,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    archive_entry_path text,\n    analysis_generation bigint DEFAULT 1 NOT NULL,\n    current_analysis_run_id uuid,\n    CONSTRAINT prc_document_versions_analysis_generation_check CHECK ((analysis_generation >= 1)),\n    CONSTRAINT prc_document_versions_canonical_tuple_check CHECK (((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (octet_length(content_hash) = 32) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0)))))\n);"
       },
       "prc_documents": {
         "owner": "Repositories/Procurement (subject authority; Process head fields from P1.6)",
@@ -13151,7 +13227,7 @@
             "type": "c"
           },
           {
-            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))",
+            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text])))",
             "name": "prc_operation_intents_stage_check",
             "schema": "public",
             "table_name": "prc_operation_intents",
@@ -13185,7 +13261,7 @@
             "tablename": "prc_operation_intents"
           }
         ],
-        "definition": "CREATE TABLE public.prc_operation_intents (\n    id uuid NOT NULL,\n    intent_key bytea NOT NULL,\n    stage text NOT NULL,\n    subject_kind text NOT NULL,\n    subject_id text NOT NULL,\n    semantic_policy_hash bytea NOT NULL,\n    access_policy_hash bytea NOT NULL,\n    cycle_seq bigint DEFAULT 1 NOT NULL,\n    expected_head_generation bigint NOT NULL,\n    state text NOT NULL,\n    pending_reason text,\n    requested_at timestamp with time zone NOT NULL,\n    next_due_at timestamp with time zone,\n    CONSTRAINT prc_operation_intents_access_policy_hash_check CHECK ((octet_length(access_policy_hash) = 32)),\n    CONSTRAINT prc_operation_intents_check CHECK (((pending_reason IS NULL) OR ((state = 'pending'::text) AND (pending_reason = 'handler_not_activated'::text)))),\n    CONSTRAINT prc_operation_intents_cycle_seq_check CHECK ((cycle_seq >= 1)),\n    CONSTRAINT prc_operation_intents_expected_head_generation_check CHECK ((expected_head_generation >= 1)),\n    CONSTRAINT prc_operation_intents_intent_key_check CHECK ((octet_length(intent_key) = 32)),\n    CONSTRAINT prc_operation_intents_semantic_policy_hash_check CHECK ((octet_length(semantic_policy_hash) = 32)),\n    CONSTRAINT prc_operation_intents_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text]))),\n    CONSTRAINT prc_operation_intents_state_check CHECK ((state = ANY (ARRAY['pending'::text, 'active'::text, 'terminal'::text])))\n);"
+        "definition": "CREATE TABLE public.prc_operation_intents (\n    id uuid NOT NULL,\n    intent_key bytea NOT NULL,\n    stage text NOT NULL,\n    subject_kind text NOT NULL,\n    subject_id text NOT NULL,\n    semantic_policy_hash bytea NOT NULL,\n    access_policy_hash bytea NOT NULL,\n    cycle_seq bigint DEFAULT 1 NOT NULL,\n    expected_head_generation bigint NOT NULL,\n    state text NOT NULL,\n    pending_reason text,\n    requested_at timestamp with time zone NOT NULL,\n    next_due_at timestamp with time zone,\n    CONSTRAINT prc_operation_intents_access_policy_hash_check CHECK ((octet_length(access_policy_hash) = 32)),\n    CONSTRAINT prc_operation_intents_check CHECK (((pending_reason IS NULL) OR ((state = 'pending'::text) AND (pending_reason = 'handler_not_activated'::text)))),\n    CONSTRAINT prc_operation_intents_cycle_seq_check CHECK ((cycle_seq >= 1)),\n    CONSTRAINT prc_operation_intents_expected_head_generation_check CHECK ((expected_head_generation >= 1)),\n    CONSTRAINT prc_operation_intents_intent_key_check CHECK ((octet_length(intent_key) = 32)),\n    CONSTRAINT prc_operation_intents_semantic_policy_hash_check CHECK ((octet_length(semantic_policy_hash) = 32)),\n    CONSTRAINT prc_operation_intents_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text]))),\n    CONSTRAINT prc_operation_intents_state_check CHECK ((state = ANY (ARRAY['pending'::text, 'active'::text, 'terminal'::text])))\n);"
       },
       "prc_operation_logs": {
         "owner": "Procurement",
@@ -14552,7 +14628,7 @@
             "type": "p"
           },
           {
-            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))",
+            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text])))",
             "name": "prc_process_handler_holds_stage_check",
             "schema": "public",
             "table_name": "prc_process_handler_holds",
@@ -14594,7 +14670,7 @@
             "tablename": "prc_process_handler_holds"
           }
         ],
-        "definition": "CREATE TABLE public.prc_process_handler_holds (\n    id uuid NOT NULL,\n    stage text NOT NULL,\n    handler_version text NOT NULL,\n    state text DEFAULT 'healthy'::text NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    fault_signature bytea,\n    incident_id uuid,\n    held_at timestamp with time zone,\n    CONSTRAINT prc_process_handler_holds_fault_signature_check CHECK (((fault_signature IS NULL) OR (octet_length(fault_signature) = 32))),\n    CONSTRAINT prc_process_handler_holds_held_check CHECK (((state <> 'held'::text) OR ((fault_signature IS NOT NULL) AND (incident_id IS NOT NULL) AND (held_at IS NOT NULL)))),\n    CONSTRAINT prc_process_handler_holds_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text]))),\n    CONSTRAINT prc_process_handler_holds_state_check CHECK ((state = ANY (ARRAY['healthy'::text, 'held'::text]))),\n    CONSTRAINT prc_process_handler_holds_version_check CHECK ((version >= 1))\n);"
+        "definition": "CREATE TABLE public.prc_process_handler_holds (\n    id uuid NOT NULL,\n    stage text NOT NULL,\n    handler_version text NOT NULL,\n    state text DEFAULT 'healthy'::text NOT NULL,\n    version bigint DEFAULT 1 NOT NULL,\n    fault_signature bytea,\n    incident_id uuid,\n    held_at timestamp with time zone,\n    CONSTRAINT prc_process_handler_holds_fault_signature_check CHECK (((fault_signature IS NULL) OR (octet_length(fault_signature) = 32))),\n    CONSTRAINT prc_process_handler_holds_held_check CHECK (((state <> 'held'::text) OR ((fault_signature IS NOT NULL) AND (incident_id IS NOT NULL) AND (held_at IS NOT NULL)))),\n    CONSTRAINT prc_process_handler_holds_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text]))),\n    CONSTRAINT prc_process_handler_holds_state_check CHECK ((state = ANY (ARRAY['healthy'::text, 'held'::text]))),\n    CONSTRAINT prc_process_handler_holds_version_check CHECK ((version >= 1))\n);"
       },
       "prc_process_incidents": {
         "owner": "Repositories/Procurement/Process",
@@ -15581,7 +15657,7 @@
             "type": "p"
           },
           {
-            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))",
+            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text])))",
             "name": "prc_process_reservations_stage_check",
             "schema": "public",
             "table_name": "prc_process_reservations",
@@ -15616,7 +15692,7 @@
             "tablename": "prc_process_reservations"
           }
         ],
-        "definition": "CREATE TABLE public.prc_process_reservations (\n    admission_group_id uuid NOT NULL,\n    lane_id uuid NOT NULL,\n    work_id uuid NOT NULL,\n    stage text NOT NULL,\n    state text NOT NULL,\n    CONSTRAINT prc_process_reservations_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text]))),\n    CONSTRAINT prc_process_reservations_state_check CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text])))\n);"
+        "definition": "CREATE TABLE public.prc_process_reservations (\n    admission_group_id uuid NOT NULL,\n    lane_id uuid NOT NULL,\n    work_id uuid NOT NULL,\n    stage text NOT NULL,\n    state text NOT NULL,\n    CONSTRAINT prc_process_reservations_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text]))),\n    CONSTRAINT prc_process_reservations_state_check CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text])))\n);"
       },
       "prc_process_run_work": {
         "owner": "Repositories/Procurement/Process",
@@ -16718,6 +16794,20 @@
             "type": "c"
           },
           {
+            "definition": "FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)",
+            "name": "prc_process_work_analysis_run_fk",
+            "schema": "public",
+            "table_name": "prc_process_work",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (analysis_window_id) REFERENCES prc_analysis_windows(id)",
+            "name": "prc_process_work_analysis_window_fk",
+            "schema": "public",
+            "table_name": "prc_process_work",
+            "type": "f"
+          },
+          {
             "definition": "CHECK (((checkpoint IS NULL) = (checkpoint_schema_version IS NULL)))",
             "name": "prc_process_work_checkpoint_schema_check",
             "schema": "public",
@@ -16844,7 +16934,7 @@
             "type": "f"
           },
           {
-            "definition": "CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = ANY (ARRAY['prepare'::text, 'screening'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_version_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))",
+            "definition": "CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = ANY (ARRAY['prepare'::text, 'screening'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_version_id IS NOT NULL)) OR ((stage = 'extraction'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (analysis_window_id IS NOT NULL)) OR ((stage = 'publication'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (analysis_run_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))",
             "name": "prc_process_work_owner_check",
             "schema": "public",
             "table_name": "prc_process_work",
@@ -16900,7 +16990,7 @@
             "type": "c"
           },
           {
-            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))",
+            "definition": "CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text])))",
             "name": "prc_process_work_stage_check",
             "schema": "public",
             "table_name": "prc_process_work",
@@ -17035,7 +17125,7 @@
             "tablename": "prc_process_work"
           }
         ],
-        "definition": "CREATE TABLE public.prc_process_work (\n    id uuid NOT NULL,\n    stage text NOT NULL,\n    work_key bytea NOT NULL,\n    work_identity jsonb NOT NULL,\n    work_identity_schema_version smallint NOT NULL,\n    intent_id uuid,\n    input_revision bigint NOT NULL,\n    input_hash bytea NOT NULL,\n    input_payload jsonb NOT NULL,\n    input_schema_version smallint NOT NULL,\n    state text NOT NULL,\n    reason_code text,\n    due_at timestamp with time zone,\n    provider_recovery_due_at timestamp with time zone,\n    priority smallint DEFAULT 100 NOT NULL,\n    platform_id bigint,\n    cohort_key text NOT NULL,\n    origin_run_id uuid,\n    crawl_block_id uuid,\n    procurement_id bigint,\n    document_id bigint,\n    document_version_id bigint,\n    analysis_window_id uuid,\n    analysis_run_id uuid,\n    generation bigint DEFAULT 0 NOT NULL,\n    owner_token uuid,\n    lease_until timestamp with time zone,\n    heartbeat_at timestamp with time zone,\n    dispatch_generation bigint DEFAULT 0 NOT NULL,\n    dispatch_claim_until timestamp with time zone,\n    checkpoint jsonb,\n    checkpoint_schema_version smallint,\n    checkpoint_seq bigint DEFAULT 0 NOT NULL,\n    execution_attempts bigint DEFAULT 0 NOT NULL,\n    transport_attempts bigint DEFAULT 0 NOT NULL,\n    semantic_reasks bigint DEFAULT 0 NOT NULL,\n    item_failures integer DEFAULT 0 NOT NULL,\n    infrastructure_interruptions bigint DEFAULT 0 NOT NULL,\n    transition_seq bigint DEFAULT 0 NOT NULL,\n    created_at timestamp with time zone NOT NULL,\n    updated_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_process_work_admitted_claim_check CHECK (((state = 'admitted'::text) = (dispatch_claim_until IS NOT NULL))),\n    CONSTRAINT prc_process_work_checkpoint_schema_check CHECK (((checkpoint IS NULL) = (checkpoint_schema_version IS NULL))),\n    CONSTRAINT prc_process_work_checkpoint_schema_version_check CHECK ((checkpoint_schema_version > 0)),\n    CONSTRAINT prc_process_work_checkpoint_seq_check CHECK ((checkpoint_seq >= 0)),\n    CONSTRAINT prc_process_work_deferred_due_check CHECK (((state <> 'deferred'::text) OR (due_at IS NOT NULL))),\n    CONSTRAINT prc_process_work_dispatch_generation_check CHECK ((dispatch_generation >= 0)),\n    CONSTRAINT prc_process_work_due_state_check CHECK (((due_at IS NULL) OR (state = 'deferred'::text))),\n    CONSTRAINT prc_process_work_execution_attempts_check CHECK ((execution_attempts >= 0)),\n    CONSTRAINT prc_process_work_generation_check CHECK ((generation >= 0)),\n    CONSTRAINT prc_process_work_infrastructure_interruptions_check CHECK ((infrastructure_interruptions >= 0)),\n    CONSTRAINT prc_process_work_input_hash_check CHECK ((octet_length(input_hash) = 32)),\n    CONSTRAINT prc_process_work_input_revision_check CHECK ((input_revision >= 1)),\n    CONSTRAINT prc_process_work_input_schema_version_check CHECK ((input_schema_version > 0)),\n    CONSTRAINT prc_process_work_item_failures_check CHECK (((item_failures >= 0) AND (item_failures <= 3))),\n    CONSTRAINT prc_process_work_owner_check CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = ANY (ARRAY['prepare'::text, 'screening'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_version_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL)))),\n    CONSTRAINT prc_process_work_provider_recovery_due_check CHECK ((((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text)) = (provider_recovery_due_at IS NOT NULL))),\n    CONSTRAINT prc_process_work_reason_check CHECK (((state <> ALL (ARRAY['deferred'::text, 'blocked'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])) OR (reason_code IS NOT NULL))),\n    CONSTRAINT prc_process_work_running_lease_check CHECK ((((state = 'running'::text) AND (owner_token IS NOT NULL) AND (lease_until IS NOT NULL)) OR ((state <> 'running'::text) AND (owner_token IS NULL) AND (lease_until IS NULL)))),\n    CONSTRAINT prc_process_work_semantic_reasks_check CHECK ((semantic_reasks >= 0)),\n    CONSTRAINT prc_process_work_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text]))),\n    CONSTRAINT prc_process_work_state_check CHECK ((state = ANY (ARRAY['ready'::text, 'admitted'::text, 'running'::text, 'deferred'::text, 'blocked'::text, 'succeeded'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text]))),\n    CONSTRAINT prc_process_work_transition_seq_check CHECK ((transition_seq >= 0)),\n    CONSTRAINT prc_process_work_transport_attempts_check CHECK ((transport_attempts >= 0)),\n    CONSTRAINT prc_process_work_work_identity_schema_version_check CHECK ((work_identity_schema_version > 0)),\n    CONSTRAINT prc_process_work_work_key_check CHECK ((octet_length(work_key) = 32))\n);"
+        "definition": "CREATE TABLE public.prc_process_work (\n    id uuid NOT NULL,\n    stage text NOT NULL,\n    work_key bytea NOT NULL,\n    work_identity jsonb NOT NULL,\n    work_identity_schema_version smallint NOT NULL,\n    intent_id uuid,\n    input_revision bigint NOT NULL,\n    input_hash bytea NOT NULL,\n    input_payload jsonb NOT NULL,\n    input_schema_version smallint NOT NULL,\n    state text NOT NULL,\n    reason_code text,\n    due_at timestamp with time zone,\n    provider_recovery_due_at timestamp with time zone,\n    priority smallint DEFAULT 100 NOT NULL,\n    platform_id bigint,\n    cohort_key text NOT NULL,\n    origin_run_id uuid,\n    crawl_block_id uuid,\n    procurement_id bigint,\n    document_id bigint,\n    document_version_id bigint,\n    analysis_window_id uuid,\n    analysis_run_id uuid,\n    generation bigint DEFAULT 0 NOT NULL,\n    owner_token uuid,\n    lease_until timestamp with time zone,\n    heartbeat_at timestamp with time zone,\n    dispatch_generation bigint DEFAULT 0 NOT NULL,\n    dispatch_claim_until timestamp with time zone,\n    checkpoint jsonb,\n    checkpoint_schema_version smallint,\n    checkpoint_seq bigint DEFAULT 0 NOT NULL,\n    execution_attempts bigint DEFAULT 0 NOT NULL,\n    transport_attempts bigint DEFAULT 0 NOT NULL,\n    semantic_reasks bigint DEFAULT 0 NOT NULL,\n    item_failures integer DEFAULT 0 NOT NULL,\n    infrastructure_interruptions bigint DEFAULT 0 NOT NULL,\n    transition_seq bigint DEFAULT 0 NOT NULL,\n    created_at timestamp with time zone NOT NULL,\n    updated_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_process_work_admitted_claim_check CHECK (((state = 'admitted'::text) = (dispatch_claim_until IS NOT NULL))),\n    CONSTRAINT prc_process_work_checkpoint_schema_check CHECK (((checkpoint IS NULL) = (checkpoint_schema_version IS NULL))),\n    CONSTRAINT prc_process_work_checkpoint_schema_version_check CHECK ((checkpoint_schema_version > 0)),\n    CONSTRAINT prc_process_work_checkpoint_seq_check CHECK ((checkpoint_seq >= 0)),\n    CONSTRAINT prc_process_work_deferred_due_check CHECK (((state <> 'deferred'::text) OR (due_at IS NOT NULL))),\n    CONSTRAINT prc_process_work_dispatch_generation_check CHECK ((dispatch_generation >= 0)),\n    CONSTRAINT prc_process_work_due_state_check CHECK (((due_at IS NULL) OR (state = 'deferred'::text))),\n    CONSTRAINT prc_process_work_execution_attempts_check CHECK ((execution_attempts >= 0)),\n    CONSTRAINT prc_process_work_generation_check CHECK ((generation >= 0)),\n    CONSTRAINT prc_process_work_infrastructure_interruptions_check CHECK ((infrastructure_interruptions >= 0)),\n    CONSTRAINT prc_process_work_input_hash_check CHECK ((octet_length(input_hash) = 32)),\n    CONSTRAINT prc_process_work_input_revision_check CHECK ((input_revision >= 1)),\n    CONSTRAINT prc_process_work_input_schema_version_check CHECK ((input_schema_version > 0)),\n    CONSTRAINT prc_process_work_item_failures_check CHECK (((item_failures >= 0) AND (item_failures <= 3))),\n    CONSTRAINT prc_process_work_owner_check CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = ANY (ARRAY['prepare'::text, 'screening'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_version_id IS NOT NULL)) OR ((stage = 'extraction'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (analysis_window_id IS NOT NULL)) OR ((stage = 'publication'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (analysis_run_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL)))),\n    CONSTRAINT prc_process_work_provider_recovery_due_check CHECK ((((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text)) = (provider_recovery_due_at IS NOT NULL))),\n    CONSTRAINT prc_process_work_reason_check CHECK (((state <> ALL (ARRAY['deferred'::text, 'blocked'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])) OR (reason_code IS NOT NULL))),\n    CONSTRAINT prc_process_work_running_lease_check CHECK ((((state = 'running'::text) AND (owner_token IS NOT NULL) AND (lease_until IS NOT NULL)) OR ((state <> 'running'::text) AND (owner_token IS NULL) AND (lease_until IS NULL)))),\n    CONSTRAINT prc_process_work_semantic_reasks_check CHECK ((semantic_reasks >= 0)),\n    CONSTRAINT prc_process_work_stage_check CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text]))),\n    CONSTRAINT prc_process_work_state_check CHECK ((state = ANY (ARRAY['ready'::text, 'admitted'::text, 'running'::text, 'deferred'::text, 'blocked'::text, 'succeeded'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text]))),\n    CONSTRAINT prc_process_work_transition_seq_check CHECK ((transition_seq >= 0)),\n    CONSTRAINT prc_process_work_transport_attempts_check CHECK ((transport_attempts >= 0)),\n    CONSTRAINT prc_process_work_work_identity_schema_version_check CHECK ((work_identity_schema_version > 0)),\n    CONSTRAINT prc_process_work_work_key_check CHECK ((octet_length(work_key) = 32))\n);"
       },
       "prc_procurement_documents": {
         "owner": "DocumentCatalogRepository",
@@ -22022,6 +22112,705 @@
           }
         ],
         "definition": "CREATE TABLE public.users (\n    id bigint NOT NULL,\n    name character varying(255) NOT NULL,\n    email character varying(255) NOT NULL,\n    email_verified_at timestamp(0) without time zone,\n    password character varying(255) NOT NULL,\n    remember_token character varying(100),\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);"
+      },
+      "prc_analysis_chunks": {
+        "owner": "P3.8 canonical analysis / Repositories/Procurement/Ai",
+        "retention": "business",
+        "definition": "CREATE TABLE public.prc_analysis_chunks (\n    id uuid NOT NULL,\n    run_id uuid NOT NULL,\n    window_id uuid NOT NULL,\n    window_key text NOT NULL,\n    recipe_hash bytea NOT NULL,\n    subrange_key bytea NOT NULL,\n    output_ordinal bigint NOT NULL,\n    output_ref jsonb NOT NULL,\n    output_ref_schema_version smallint NOT NULL,\n    output_hash bytea NOT NULL,\n    canonical_rows jsonb NOT NULL,\n    canonical_rows_schema_version smallint NOT NULL,\n    provenance jsonb NOT NULL,\n    provenance_schema_version smallint NOT NULL,\n    completed_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_analysis_chunks_canonical_rows_schema_version_check CHECK ((canonical_rows_schema_version > 0)),\n    CONSTRAINT prc_analysis_chunks_output_hash_check CHECK ((octet_length(output_hash) = 32)),\n    CONSTRAINT prc_analysis_chunks_output_ordinal_check CHECK ((output_ordinal >= 0)),\n    CONSTRAINT prc_analysis_chunks_output_ref_schema_version_check CHECK ((output_ref_schema_version > 0)),\n    CONSTRAINT prc_analysis_chunks_provenance_schema_version_check CHECK ((provenance_schema_version > 0)),\n    CONSTRAINT prc_analysis_chunks_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32)),\n    CONSTRAINT prc_analysis_chunks_subrange_key_check CHECK ((octet_length(subrange_key) = 32))\n);",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "run_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "window_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "window_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "recipe_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "subrange_key",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "output_ordinal",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "output_ref",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "output_ref_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "output_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 10,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "canonical_rows",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 11,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "canonical_rows_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 12,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "provenance",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 13,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "provenance_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 14,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "completed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 15,
+            "table_name": "prc_analysis_chunks",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK ((canonical_rows_schema_version > 0))",
+            "name": "prc_analysis_chunks_canonical_rows_schema_version_check",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(output_hash) = 32))",
+            "name": "prc_analysis_chunks_output_hash_check",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((output_ordinal >= 0))",
+            "name": "prc_analysis_chunks_output_ordinal_check",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((output_ref_schema_version > 0))",
+            "name": "prc_analysis_chunks_output_ref_schema_version_check",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "prc_analysis_chunks_pkey",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((provenance_schema_version > 0))",
+            "name": "prc_analysis_chunks_provenance_schema_version_check",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)",
+            "name": "prc_analysis_chunks_recipe_fk",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((octet_length(recipe_hash) = 32))",
+            "name": "prc_analysis_chunks_recipe_hash_check",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (run_id) REFERENCES prc_analysis_runs(id)",
+            "name": "prc_analysis_chunks_run_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "f"
+          },
+          {
+            "definition": "UNIQUE (run_id, window_key, recipe_hash, subrange_key, output_ordinal)",
+            "name": "prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((octet_length(subrange_key) = 32))",
+            "name": "prc_analysis_chunks_subrange_key_check",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (window_id) REFERENCES prc_analysis_windows(id)",
+            "name": "prc_analysis_chunks_window_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (window_id, run_id, window_key) REFERENCES prc_analysis_windows(id, run_id, window_key)",
+            "name": "prc_analysis_chunks_window_identity_fk",
+            "schema": "public",
+            "table_name": "prc_analysis_chunks",
+            "type": "f"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_chunks_pkey ON public.prc_analysis_chunks USING btree (id)",
+            "indexname": "prc_analysis_chunks_pkey",
+            "schemaname": "public",
+            "tablename": "prc_analysis_chunks"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key ON public.prc_analysis_chunks USING btree (run_id, window_key, recipe_hash, subrange_key, output_ordinal)",
+            "indexname": "prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key",
+            "schemaname": "public",
+            "tablename": "prc_analysis_chunks"
+          }
+        ]
+      },
+      "prc_analysis_runs": {
+        "owner": "P3.8 canonical analysis / Repositories/Procurement/Ai",
+        "retention": "business",
+        "definition": "CREATE TABLE public.prc_analysis_runs (\n    id uuid NOT NULL,\n    document_version_id bigint NOT NULL,\n    representation_id bigint NOT NULL,\n    representation_hash bytea NOT NULL,\n    recipe_json jsonb NOT NULL,\n    recipe_schema_version smallint NOT NULL,\n    recipe_hash bytea NOT NULL,\n    generation bigint NOT NULL,\n    expected_document_head_generation bigint NOT NULL,\n    expected_analysis_generation bigint NOT NULL,\n    requested_reason text NOT NULL,\n    supersedes_run_id uuid,\n    publication_status text NOT NULL,\n    CONSTRAINT prc_analysis_runs_expected_analysis_generation_check CHECK ((expected_analysis_generation >= 1)),\n    CONSTRAINT prc_analysis_runs_expected_document_head_generation_check CHECK ((expected_document_head_generation >= 1)),\n    CONSTRAINT prc_analysis_runs_generation_check CHECK ((generation >= 1)),\n    CONSTRAINT prc_analysis_runs_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32)),\n    CONSTRAINT prc_analysis_runs_recipe_schema_version_check CHECK ((recipe_schema_version > 0)),\n    CONSTRAINT prc_analysis_runs_representation_hash_check CHECK ((octet_length(representation_hash) = 32))\n);",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "document_version_id",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "representation_id",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "representation_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "recipe_json",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "recipe_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "recipe_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "expected_document_head_generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "expected_analysis_generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 10,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "requested_reason",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 11,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "supersedes_run_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 12,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "publication_status",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 13,
+            "table_name": "prc_analysis_runs",
+            "table_schema": "public",
+            "udt_name": "text"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)",
+            "name": "prc_analysis_runs_document_version_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((expected_analysis_generation >= 1))",
+            "name": "prc_analysis_runs_expected_analysis_generation_check",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((expected_document_head_generation >= 1))",
+            "name": "prc_analysis_runs_expected_document_head_generation_check",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((generation >= 1))",
+            "name": "prc_analysis_runs_generation_check",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (id, recipe_hash)",
+            "name": "prc_analysis_runs_id_recipe_unique",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "u"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "prc_analysis_runs_pkey",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((octet_length(recipe_hash) = 32))",
+            "name": "prc_analysis_runs_recipe_hash_check",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((recipe_schema_version > 0))",
+            "name": "prc_analysis_runs_recipe_schema_version_check",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(representation_hash) = 32))",
+            "name": "prc_analysis_runs_representation_hash_check",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "c"
+          },
+          {
+            "definition": "FOREIGN KEY (representation_id) REFERENCES prc_document_representations(id)",
+            "name": "prc_analysis_runs_representation_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (representation_id, document_version_id, representation_hash) REFERENCES prc_document_representations(id, document_version_id, content_hash)",
+            "name": "prc_analysis_runs_representation_identity_fk",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "f"
+          },
+          {
+            "definition": "FOREIGN KEY (supersedes_run_id) REFERENCES prc_analysis_runs(id)",
+            "name": "prc_analysis_runs_supersedes_run_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "f"
+          },
+          {
+            "definition": "UNIQUE (id, document_version_id)",
+            "name": "prc_analysis_runs_version_identity_unique",
+            "schema": "public",
+            "table_name": "prc_analysis_runs",
+            "type": "u"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_runs_id_recipe_unique ON public.prc_analysis_runs USING btree (id, recipe_hash)",
+            "indexname": "prc_analysis_runs_id_recipe_unique",
+            "schemaname": "public",
+            "tablename": "prc_analysis_runs"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_runs_pkey ON public.prc_analysis_runs USING btree (id)",
+            "indexname": "prc_analysis_runs_pkey",
+            "schemaname": "public",
+            "tablename": "prc_analysis_runs"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_runs_version_identity_unique ON public.prc_analysis_runs USING btree (id, document_version_id)",
+            "indexname": "prc_analysis_runs_version_identity_unique",
+            "schemaname": "public",
+            "tablename": "prc_analysis_runs"
+          }
+        ]
+      },
+      "prc_analysis_windows": {
+        "owner": "P3.8 canonical analysis / Repositories/Procurement/Ai",
+        "retention": "business",
+        "definition": "CREATE TABLE public.prc_analysis_windows (\n    id uuid NOT NULL,\n    run_id uuid NOT NULL,\n    window_key text NOT NULL,\n    input_hash bytea NOT NULL,\n    input_range jsonb NOT NULL,\n    input_range_schema_version smallint NOT NULL,\n    expected_coverage jsonb NOT NULL,\n    expected_coverage_schema_version smallint NOT NULL,\n    state text NOT NULL,\n    checkpoint_version bigint NOT NULL,\n    CONSTRAINT prc_analysis_windows_checkpoint_version_check CHECK ((checkpoint_version >= 0)),\n    CONSTRAINT prc_analysis_windows_expected_coverage_schema_version_check CHECK ((expected_coverage_schema_version > 0)),\n    CONSTRAINT prc_analysis_windows_input_hash_check CHECK ((octet_length(input_hash) = 32)),\n    CONSTRAINT prc_analysis_windows_input_range_schema_version_check CHECK ((input_range_schema_version > 0))\n);",
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "run_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "window_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "input_hash",
+            "data_type": "bytea",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
+            "column_name": "input_range",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "input_range_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "expected_coverage",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          },
+          {
+            "column_default": null,
+            "column_name": "expected_coverage_schema_version",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "state",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "checkpoint_version",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 10,
+            "table_name": "prc_analysis_windows",
+            "table_schema": "public",
+            "udt_name": "int8"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK ((checkpoint_version >= 0))",
+            "name": "prc_analysis_windows_checkpoint_version_check",
+            "schema": "public",
+            "table_name": "prc_analysis_windows",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((expected_coverage_schema_version > 0))",
+            "name": "prc_analysis_windows_expected_coverage_schema_version_check",
+            "schema": "public",
+            "table_name": "prc_analysis_windows",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (id, run_id, window_key)",
+            "name": "prc_analysis_windows_identity_unique",
+            "schema": "public",
+            "table_name": "prc_analysis_windows",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK ((octet_length(input_hash) = 32))",
+            "name": "prc_analysis_windows_input_hash_check",
+            "schema": "public",
+            "table_name": "prc_analysis_windows",
+            "type": "c"
+          },
+          {
+            "definition": "CHECK ((input_range_schema_version > 0))",
+            "name": "prc_analysis_windows_input_range_schema_version_check",
+            "schema": "public",
+            "table_name": "prc_analysis_windows",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "prc_analysis_windows_pkey",
+            "schema": "public",
+            "table_name": "prc_analysis_windows",
+            "type": "p"
+          },
+          {
+            "definition": "FOREIGN KEY (run_id) REFERENCES prc_analysis_runs(id)",
+            "name": "prc_analysis_windows_run_id_fkey",
+            "schema": "public",
+            "table_name": "prc_analysis_windows",
+            "type": "f"
+          },
+          {
+            "definition": "UNIQUE (run_id, window_key)",
+            "name": "prc_analysis_windows_run_id_window_key_key",
+            "schema": "public",
+            "table_name": "prc_analysis_windows",
+            "type": "u"
+          }
+        ],
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_windows_identity_unique ON public.prc_analysis_windows USING btree (id, run_id, window_key)",
+            "indexname": "prc_analysis_windows_identity_unique",
+            "schemaname": "public",
+            "tablename": "prc_analysis_windows"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_windows_pkey ON public.prc_analysis_windows USING btree (id)",
+            "indexname": "prc_analysis_windows_pkey",
+            "schemaname": "public",
+            "tablename": "prc_analysis_windows"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_analysis_windows_run_id_window_key_key ON public.prc_analysis_windows USING btree (run_id, window_key)",
+            "indexname": "prc_analysis_windows_run_id_window_key_key",
+            "schemaname": "public",
+            "tablename": "prc_analysis_windows"
+          }
+        ]
       }
     },
     "extensions": [

@@ -190,13 +190,14 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_10_08_100104_catalog_raw_artifacts.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_10_18_170000_add_eis_identity_to_org_organizations.php` | fold_into_create | Organization | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_10_23_100000_create_org_organization_identifiers_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_10_25_100000_create_prc_process_ledger_tables.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
+| `2026_10_25_100000_create_prc_process_ledger_tables.php` | adapt_baseline | P3.8 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_10_25_100000_create_prc_process_network_tables.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_10_25_100001_create_prc_request_observation_tables.php` | create | P1.6 | P1.6 durable request attempt/observation carriers execution#s04; network FKs добавляет P2.1. |
 | `2026_10_28_100000_create_prc_process_projection_tables.php` | create | P1.15 | P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured. |
 | `2026_10_28_100002_create_prc_acquisition_snapshot_tables.php` | create | P2.16 | Durable immutable detail observations and recurring status cycles; runtime binding remains P2.18. |
 | `2026_10_31_100000_create_prc_acquisition_schedules_table.php` | create | P2.18 | Durable profile/kind schedule; allocation and next_due advancement share one transaction. |
 | `2026_11_01_100000_create_prc_document_storage_tables.php` | rewrite-baseline | P3.5 | Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness. |
+| `2026_11_02_100000_create_prc_analysis_tables.php` | create | P3.8 | Canonical immutable analysis recipe/window/chunk carriers; live handlers and legacy model cutover remain P3.13. |
 
 ### Legacy lifecycle
 
@@ -2965,6 +2966,7 @@ Owner: Procurement; retention: business.
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 
 Constraints:
+- `prc_document_representations_analysis_unique`: `UNIQUE (id, document_version_id, content_hash)`
 - `prc_document_representations_blob_fk`: `FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)`
 - `prc_document_representations_canonical_tuple_check`: `CHECK (((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1)))`
 - `prc_document_representations_document_version_id_foreign`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id) ON DELETE CASCADE`
@@ -2972,6 +2974,7 @@ Constraints:
 - `prc_document_representations_recipe_range_unique`: `UNIQUE (document_version_id, preparation_recipe_hash, kind, range_key)`
 
 Indexes:
+- `prc_document_representations_analysis_unique`: `CREATE UNIQUE INDEX prc_document_representations_analysis_unique ON public.prc_document_representations USING btree (id, document_version_id, content_hash)`
 - `prc_document_representations_document_version_id_index`: `CREATE INDEX prc_document_representations_document_version_id_index ON public.prc_document_representations USING btree (document_version_id)`
 - `prc_document_representations_pkey`: `CREATE UNIQUE INDEX prc_document_representations_pkey ON public.prc_document_representations USING btree (id)`
 - `prc_document_representations_recipe_range_unique`: `CREATE UNIQUE INDEX prc_document_representations_recipe_range_unique ON public.prc_document_representations USING btree (document_version_id, preparation_recipe_hash, kind, range_key)`
@@ -3003,10 +3006,15 @@ Owner: Procurement; retention: business.
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | archive_entry_path | text / text | YES | text |
+| analysis_generation | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| current_analysis_run_id | uuid / uuid | YES | uuid |
 
 Constraints:
+- `prc_document_versions_analysis_generation_check`: `CHECK ((analysis_generation >= 1))`
 - `prc_document_versions_blob_fk`: `FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)`
 - `prc_document_versions_canonical_tuple_check`: `CHECK (((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (octet_length(content_hash) = 32) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0)))))`
+- `prc_document_versions_current_analysis_identity_fk`: `FOREIGN KEY (current_analysis_run_id, id) REFERENCES prc_analysis_runs(id, document_version_id)`
+- `prc_document_versions_current_analysis_run_id_fkey`: `FOREIGN KEY (current_analysis_run_id) REFERENCES prc_analysis_runs(id)`
 - `prc_document_versions_document_id_foreign`: `FOREIGN KEY (document_id) REFERENCES prc_documents(id)`
 - `prc_document_versions_document_id_revision_no_unique`: `UNIQUE (document_id, revision_no)`
 - `prc_document_versions_id_document_id_unique`: `UNIQUE (id, document_id)`
@@ -3847,7 +3855,7 @@ Constraints:
 - `prc_operation_intents_intent_key_unique`: `UNIQUE (intent_key)`
 - `prc_operation_intents_pkey`: `PRIMARY KEY (id)`
 - `prc_operation_intents_semantic_policy_hash_check`: `CHECK ((octet_length(semantic_policy_hash) = 32))`
-- `prc_operation_intents_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))`
+- `prc_operation_intents_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text])))`
 - `prc_operation_intents_state_check`: `CHECK ((state = ANY (ARRAY['pending'::text, 'active'::text, 'terminal'::text])))`
 
 Indexes:
@@ -4089,7 +4097,7 @@ Constraints:
 - `prc_process_handler_holds_held_check`: `CHECK (((state <> 'held'::text) OR ((fault_signature IS NOT NULL) AND (incident_id IS NOT NULL) AND (held_at IS NOT NULL))))`
 - `prc_process_handler_holds_incident_id_fkey`: `FOREIGN KEY (incident_id) REFERENCES prc_process_incidents(id)`
 - `prc_process_handler_holds_pkey`: `PRIMARY KEY (id)`
-- `prc_process_handler_holds_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))`
+- `prc_process_handler_holds_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text])))`
 - `prc_process_handler_holds_stage_version_unique`: `UNIQUE (stage, handler_version)`
 - `prc_process_handler_holds_state_check`: `CHECK ((state = ANY (ARRAY['healthy'::text, 'held'::text])))`
 - `prc_process_handler_holds_version_check`: `CHECK ((version >= 1))`
@@ -4279,7 +4287,7 @@ Constraints:
 - `prc_process_reservations_admission_group_id_fkey`: `FOREIGN KEY (admission_group_id) REFERENCES prc_admission_groups(id) ON DELETE CASCADE`
 - `prc_process_reservations_lane_id_fkey`: `FOREIGN KEY (lane_id) REFERENCES prc_process_lanes(id)`
 - `prc_process_reservations_pkey`: `PRIMARY KEY (admission_group_id, lane_id)`
-- `prc_process_reservations_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))`
+- `prc_process_reservations_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text])))`
 - `prc_process_reservations_state_check`: `CHECK ((state = ANY (ARRAY['admitted'::text, 'running'::text])))`
 - `prc_process_reservations_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`
 
@@ -4447,6 +4455,8 @@ Owner: Repositories/Procurement/Process; retention: authority.
 
 Constraints:
 - `prc_process_work_admitted_claim_check`: `CHECK (((state = 'admitted'::text) = (dispatch_claim_until IS NOT NULL)))`
+- `prc_process_work_analysis_run_fk`: `FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_process_work_analysis_window_fk`: `FOREIGN KEY (analysis_window_id) REFERENCES prc_analysis_windows(id)`
 - `prc_process_work_checkpoint_schema_check`: `CHECK (((checkpoint IS NULL) = (checkpoint_schema_version IS NULL)))`
 - `prc_process_work_checkpoint_schema_version_check`: `CHECK ((checkpoint_schema_version > 0))`
 - `prc_process_work_checkpoint_seq_check`: `CHECK ((checkpoint_seq >= 0))`
@@ -4465,7 +4475,7 @@ Constraints:
 - `prc_process_work_intent_id_fkey`: `FOREIGN KEY (intent_id) REFERENCES prc_operation_intents(id)`
 - `prc_process_work_item_failures_check`: `CHECK (((item_failures >= 0) AND (item_failures <= 3)))`
 - `prc_process_work_origin_run_id_fkey`: `FOREIGN KEY (origin_run_id) REFERENCES prc_process_runs(id)`
-- `prc_process_work_owner_check`: `CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = ANY (ARRAY['prepare'::text, 'screening'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_version_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))`
+- `prc_process_work_owner_check`: `CHECK ((((stage = 'listing'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (crawl_block_id IS NOT NULL)) OR ((stage = ANY (ARRAY['detail'::text, 'status_refresh'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (procurement_id IS NOT NULL)) OR ((stage = ANY (ARRAY['prepare'::text, 'screening'::text])) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_version_id IS NOT NULL)) OR ((stage = 'extraction'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (analysis_window_id IS NOT NULL)) OR ((stage = 'publication'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (analysis_run_id IS NOT NULL)) OR ((stage = 'download'::text) AND (num_nonnulls(crawl_block_id, procurement_id, document_id, document_version_id, analysis_window_id, analysis_run_id) = 1) AND (document_id IS NOT NULL))))`
 - `prc_process_work_pkey`: `PRIMARY KEY (id)`
 - `prc_process_work_platform_id_fkey`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
 - `prc_process_work_procurement_id_fkey`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
@@ -4473,7 +4483,7 @@ Constraints:
 - `prc_process_work_reason_check`: `CHECK (((state <> ALL (ARRAY['deferred'::text, 'blocked'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])) OR (reason_code IS NOT NULL)))`
 - `prc_process_work_running_lease_check`: `CHECK ((((state = 'running'::text) AND (owner_token IS NOT NULL) AND (lease_until IS NOT NULL)) OR ((state <> 'running'::text) AND (owner_token IS NULL) AND (lease_until IS NULL))))`
 - `prc_process_work_semantic_reasks_check`: `CHECK ((semantic_reasks >= 0))`
-- `prc_process_work_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text])))`
+- `prc_process_work_stage_check`: `CHECK ((stage = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'prepare'::text, 'screening'::text, 'extraction'::text, 'publication'::text])))`
 - `prc_process_work_state_check`: `CHECK ((state = ANY (ARRAY['ready'::text, 'admitted'::text, 'running'::text, 'deferred'::text, 'blocked'::text, 'succeeded'::text, 'failed_item'::text, 'cancelled'::text, 'superseded'::text])))`
 - `prc_process_work_transition_seq_check`: `CHECK ((transition_seq >= 0))`
 - `prc_process_work_transport_attempts_check`: `CHECK ((transport_attempts >= 0))`
@@ -5361,6 +5371,119 @@ Constraints:
 Indexes:
 - `users_email_unique`: `CREATE UNIQUE INDEX users_email_unique ON public.users USING btree (email)`
 - `users_pkey`: `CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)`
+
+#### prc_analysis_chunks
+
+Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| run_id | uuid / uuid | NO | uuid NOT NULL |
+| window_id | uuid / uuid | NO | uuid NOT NULL |
+| window_key | text / text | NO | text NOT NULL |
+| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
+| subrange_key | bytea / bytea | NO | bytea NOT NULL |
+| output_ordinal | bigint / int8 | NO | bigint NOT NULL |
+| output_ref | jsonb / jsonb | NO | jsonb NOT NULL |
+| output_ref_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| output_hash | bytea / bytea | NO | bytea NOT NULL |
+| canonical_rows | jsonb / jsonb | NO | jsonb NOT NULL |
+| canonical_rows_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| provenance | jsonb / jsonb | NO | jsonb NOT NULL |
+| provenance_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| completed_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `prc_analysis_chunks_canonical_rows_schema_version_check`: `CHECK ((canonical_rows_schema_version > 0))`
+- `prc_analysis_chunks_output_hash_check`: `CHECK ((octet_length(output_hash) = 32))`
+- `prc_analysis_chunks_output_ordinal_check`: `CHECK ((output_ordinal >= 0))`
+- `prc_analysis_chunks_output_ref_schema_version_check`: `CHECK ((output_ref_schema_version > 0))`
+- `prc_analysis_chunks_pkey`: `PRIMARY KEY (id)`
+- `prc_analysis_chunks_provenance_schema_version_check`: `CHECK ((provenance_schema_version > 0))`
+- `prc_analysis_chunks_recipe_fk`: `FOREIGN KEY (run_id, recipe_hash) REFERENCES prc_analysis_runs(id, recipe_hash)`
+- `prc_analysis_chunks_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
+- `prc_analysis_chunks_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key`: `UNIQUE (run_id, window_key, recipe_hash, subrange_key, output_ordinal)`
+- `prc_analysis_chunks_subrange_key_check`: `CHECK ((octet_length(subrange_key) = 32))`
+- `prc_analysis_chunks_window_id_fkey`: `FOREIGN KEY (window_id) REFERENCES prc_analysis_windows(id)`
+- `prc_analysis_chunks_window_identity_fk`: `FOREIGN KEY (window_id, run_id, window_key) REFERENCES prc_analysis_windows(id, run_id, window_key)`
+
+Indexes:
+- `prc_analysis_chunks_pkey`: `CREATE UNIQUE INDEX prc_analysis_chunks_pkey ON public.prc_analysis_chunks USING btree (id)`
+- `prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key`: `CREATE UNIQUE INDEX prc_analysis_chunks_run_id_window_key_recipe_hash_subrange__key ON public.prc_analysis_chunks USING btree (run_id, window_key, recipe_hash, subrange_key, output_ordinal)`
+
+#### prc_analysis_runs
+
+Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| document_version_id | bigint / int8 | NO | bigint NOT NULL |
+| representation_id | bigint / int8 | NO | bigint NOT NULL |
+| representation_hash | bytea / bytea | NO | bytea NOT NULL |
+| recipe_json | jsonb / jsonb | NO | jsonb NOT NULL |
+| recipe_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| recipe_hash | bytea / bytea | NO | bytea NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| expected_document_head_generation | bigint / int8 | NO | bigint NOT NULL |
+| expected_analysis_generation | bigint / int8 | NO | bigint NOT NULL |
+| requested_reason | text / text | NO | text NOT NULL |
+| supersedes_run_id | uuid / uuid | YES | uuid |
+| publication_status | text / text | NO | text NOT NULL |
+
+Constraints:
+- `prc_analysis_runs_document_version_id_fkey`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)`
+- `prc_analysis_runs_expected_analysis_generation_check`: `CHECK ((expected_analysis_generation >= 1))`
+- `prc_analysis_runs_expected_document_head_generation_check`: `CHECK ((expected_document_head_generation >= 1))`
+- `prc_analysis_runs_generation_check`: `CHECK ((generation >= 1))`
+- `prc_analysis_runs_id_recipe_unique`: `UNIQUE (id, recipe_hash)`
+- `prc_analysis_runs_pkey`: `PRIMARY KEY (id)`
+- `prc_analysis_runs_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
+- `prc_analysis_runs_recipe_schema_version_check`: `CHECK ((recipe_schema_version > 0))`
+- `prc_analysis_runs_representation_hash_check`: `CHECK ((octet_length(representation_hash) = 32))`
+- `prc_analysis_runs_representation_id_fkey`: `FOREIGN KEY (representation_id) REFERENCES prc_document_representations(id)`
+- `prc_analysis_runs_representation_identity_fk`: `FOREIGN KEY (representation_id, document_version_id, representation_hash) REFERENCES prc_document_representations(id, document_version_id, content_hash)`
+- `prc_analysis_runs_supersedes_run_id_fkey`: `FOREIGN KEY (supersedes_run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_analysis_runs_version_identity_unique`: `UNIQUE (id, document_version_id)`
+
+Indexes:
+- `prc_analysis_runs_id_recipe_unique`: `CREATE UNIQUE INDEX prc_analysis_runs_id_recipe_unique ON public.prc_analysis_runs USING btree (id, recipe_hash)`
+- `prc_analysis_runs_pkey`: `CREATE UNIQUE INDEX prc_analysis_runs_pkey ON public.prc_analysis_runs USING btree (id)`
+- `prc_analysis_runs_version_identity_unique`: `CREATE UNIQUE INDEX prc_analysis_runs_version_identity_unique ON public.prc_analysis_runs USING btree (id, document_version_id)`
+
+#### prc_analysis_windows
+
+Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| run_id | uuid / uuid | NO | uuid NOT NULL |
+| window_key | text / text | NO | text NOT NULL |
+| input_hash | bytea / bytea | NO | bytea NOT NULL |
+| input_range | jsonb / jsonb | NO | jsonb NOT NULL |
+| input_range_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| expected_coverage | jsonb / jsonb | NO | jsonb NOT NULL |
+| expected_coverage_schema_version | smallint / int2 | NO | smallint NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| checkpoint_version | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_analysis_windows_checkpoint_version_check`: `CHECK ((checkpoint_version >= 0))`
+- `prc_analysis_windows_expected_coverage_schema_version_check`: `CHECK ((expected_coverage_schema_version > 0))`
+- `prc_analysis_windows_identity_unique`: `UNIQUE (id, run_id, window_key)`
+- `prc_analysis_windows_input_hash_check`: `CHECK ((octet_length(input_hash) = 32))`
+- `prc_analysis_windows_input_range_schema_version_check`: `CHECK ((input_range_schema_version > 0))`
+- `prc_analysis_windows_pkey`: `PRIMARY KEY (id)`
+- `prc_analysis_windows_run_id_fkey`: `FOREIGN KEY (run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_analysis_windows_run_id_window_key_key`: `UNIQUE (run_id, window_key)`
+
+Indexes:
+- `prc_analysis_windows_identity_unique`: `CREATE UNIQUE INDEX prc_analysis_windows_identity_unique ON public.prc_analysis_windows USING btree (id, run_id, window_key)`
+- `prc_analysis_windows_pkey`: `CREATE UNIQUE INDEX prc_analysis_windows_pkey ON public.prc_analysis_windows USING btree (id)`
+- `prc_analysis_windows_run_id_window_key_key`: `CREATE UNIQUE INDEX prc_analysis_windows_run_id_window_key_key ON public.prc_analysis_windows USING btree (run_id, window_key)`
 
 <!-- schema-inventory:end -->
 

@@ -37,10 +37,10 @@ final readonly class JsonSchemaGenerator
      * @param  class-string<Data>  $class
      * @return array<string, mixed>
      */
-    public function generate(string $class): array
+    public function generate(string $class, bool $canonical = false): array
     {
         $defs = [];
-        $root = $this->classSchema($class, $defs);
+        $root = $this->classSchema($class, $defs, $canonical);
 
         if ($defs === []) {
             return $root;
@@ -56,7 +56,7 @@ final readonly class JsonSchemaGenerator
      * @param  array<string, array<string, mixed>>  $defs
      * @return array<string, mixed>
      */
-    private function classSchema(string $class, array &$defs): array
+    private function classSchema(string $class, array &$defs, bool $canonical): array
     {
         $reflection = new ReflectionClass($class);
         $constructor = $reflection->getConstructor();
@@ -72,13 +72,19 @@ final readonly class JsonSchemaGenerator
 
         foreach ($constructor->getParameters() as $parameter) {
             $name = $parameter->getName();
-            $schema = $this->parameterSchema($parameter, $constructor, $defs);
+            $schema = $this->parameterSchema($parameter, $constructor, $defs, $canonical);
+
+            if ($canonical) {
+                foreach ($parameter->getAttributes(SchemaConstraints::class) as $attribute) {
+                    $schema = [...$schema, ...$attribute->newInstance()->keywords];
+                }
+            }
 
             $properties[$name] = isset($descriptions[$name])
                 ? ['description' => $descriptions[$name], ...$schema]
                 : $schema;
 
-            if (! $parameter->isDefaultValueAvailable() && ! $this->allowsNull($parameter)) {
+            if (! $parameter->isDefaultValueAvailable() && ($canonical || ! $this->allowsNull($parameter))) {
                 $required[] = $name;
             }
         }
@@ -95,7 +101,7 @@ final readonly class JsonSchemaGenerator
      * @param  array<string, array<string, mixed>>  $defs
      * @return array<string, mixed>
      */
-    private function parameterSchema(ReflectionParameter $parameter, ReflectionMethod $constructor, array &$defs): array
+    private function parameterSchema(ReflectionParameter $parameter, ReflectionMethod $constructor, array &$defs, bool $canonical): array
     {
         $type = $parameter->getType();
 
@@ -104,10 +110,10 @@ final readonly class JsonSchemaGenerator
         }
 
         if ($type->getName() === 'array') {
-            return $this->arraySchema($parameter, $constructor, $defs);
+            return $this->arraySchema($parameter, $constructor, $defs, $canonical);
         }
 
-        $schema = $this->namedTypeSchema($type->getName(), $constructor->getDeclaringClass(), $defs);
+        $schema = $this->namedTypeSchema($type->getName(), $constructor->getDeclaringClass(), $defs, $canonical);
 
         return $this->allowsNull($parameter) ? $this->withNull($schema) : $schema;
     }
@@ -117,7 +123,7 @@ final readonly class JsonSchemaGenerator
      * @param  array<string, array<string, mixed>>  $defs
      * @return array<string, mixed>
      */
-    private function namedTypeSchema(string $typeName, ReflectionClass $context, array &$defs): array
+    private function namedTypeSchema(string $typeName, ReflectionClass $context, array &$defs, bool $canonical): array
     {
         return match (true) {
             $typeName === 'string' => ['type' => 'string'],
@@ -125,7 +131,7 @@ final readonly class JsonSchemaGenerator
             $typeName === 'float' => ['type' => 'number'],
             $typeName === 'bool' => ['type' => 'boolean'],
             $this->types->isEnum($typeName) && is_subclass_of($typeName, \BackedEnum::class) => $this->enumSchema($typeName),
-            $this->types->isDataClass($typeName) => $this->dataClassRef($typeName, $defs),
+            $this->types->isDataClass($typeName) => $this->dataClassRef($typeName, $defs, $canonical),
             default => throw new RuntimeException("Неподдерживаемый тип {$typeName} (контекст {$context->getName()})."),
         };
     }
@@ -154,14 +160,14 @@ final readonly class JsonSchemaGenerator
      * @param  array<string, array<string, mixed>>  $defs
      * @return array<string, mixed>
      */
-    private function dataClassRef(string $class, array &$defs): array
+    private function dataClassRef(string $class, array &$defs, bool $canonical): array
     {
         $key = new ReflectionClass($class)->getShortName();
 
         if (! isset($defs[$key])) {
             // Резервируем ключ до рекурсивного вызова — TotalLine ссылается сама на себя (children).
             $defs[$key] = ['type' => 'object', 'properties' => [], 'required' => [], 'additionalProperties' => false];
-            $defs[$key] = $this->classSchema($class, $defs);
+            $defs[$key] = $this->classSchema($class, $defs, $canonical);
         }
 
         return ['$ref' => "#/\$defs/{$key}"];
@@ -171,7 +177,7 @@ final readonly class JsonSchemaGenerator
      * @param  array<string, array<string, mixed>>  $defs
      * @return array<string, mixed>
      */
-    private function arraySchema(ReflectionParameter $parameter, ReflectionMethod $constructor, array &$defs): array
+    private function arraySchema(ReflectionParameter $parameter, ReflectionMethod $constructor, array &$defs, bool $canonical): array
     {
         $itemType = $this->types->docblockArrayItemType($parameter, $constructor);
 
@@ -181,7 +187,7 @@ final readonly class JsonSchemaGenerator
 
         return [
             'type' => 'array',
-            'items' => $this->namedTypeSchema($itemType, $constructor->getDeclaringClass(), $defs),
+            'items' => $this->namedTypeSchema($itemType, $constructor->getDeclaringClass(), $defs, $canonical),
         ];
     }
 

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Description;
+use App\Dto\Procurement\Ai\MoneyDecimal;
+use App\Services\Llm\Schema\SchemaConstraints;
 use Spatie\LaravelData\Data;
 
 /**
@@ -36,10 +38,13 @@ final class RowAttributes extends Data
         #[Description('коэффициенты позиции.')]
         public array $modifiers = [],
         #[Description('КС-3 — стоимость с начала проведения работ (decimal-строка), заполняется только строкой row_type=summary_row.')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $amount_since_start = null,
         #[Description('КС-3 — стоимость с начала года (decimal-строка), заполняется только строкой row_type=summary_row.')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $amount_since_year_start = null,
         #[Description('КС-3 — стоимость за отчётный период (decimal-строка), заполняется только строкой row_type=summary_row.')]
+        #[SchemaConstraints(['pattern' => MoneyDecimal::PATTERN, 'maxLength' => 80])]
         public ?string $amount_reporting_period = null,
     ) {}
 }

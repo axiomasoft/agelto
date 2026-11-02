@@ -115,7 +115,7 @@ test('ensureBaseline материализует scopes и lanes только sch
 
     expect($scopes->keys()->sort()->values()->all())->toBe([
         'acquisition', 'acquisition:stage:detail', 'acquisition:stage:listing', 'acquisition:stage:status_refresh',
-        'documents', 'documents:stage:download', 'documents:stage:prepare', 'documents:stage:screening', 'system',
+        'documents', 'documents:stage:download', 'documents:stage:extraction', 'documents:stage:prepare', 'documents:stage:publication', 'documents:stage:screening', 'system',
     ])
         ->and($scopes['system']->parent_id)->toBeNull()
         ->and($scopes['acquisition']->parent_id)->toBe($scopes['system']->id)
@@ -124,8 +124,8 @@ test('ensureBaseline материализует scopes и lanes только sch
         ->and($scopes['documents:stage:download']->parent_id)->toBe($scopes['documents']->id)
         // Default-enabled — состояние существующей authority row, а не отсутствие row.
         ->and($scopes->every(fn (ControlScope $scope): bool => $scope->desired_mode === ControlMode::Enabled && $scope->control_version === 1))->toBeTrue()
-        // P3.1 добавляет prepare и screening с общим analysis parent; real handlers ещё не активированы.
-        ->and($lanes->keys()->sort()->values()->all())->toBe(['acquisition', 'acquisition.detail', 'acquisition.listing', 'acquisition.status_refresh', 'analysis', 'analysis.screening', 'download', 'prepare'])
+        // P3.8 adds extraction/publication authorities without real AI handler activation.
+        ->and($lanes->keys()->sort()->values()->all())->toBe(['acquisition', 'acquisition.detail', 'acquisition.listing', 'acquisition.status_refresh', 'analysis', 'analysis.extraction', 'analysis.screening', 'download', 'prepare', 'publication'])
         ->and($lanes['acquisition.listing']->parent_lane_id)->toBe($lanes['acquisition']->id)
         ->and([$lanes['acquisition.listing']->max_outstanding, $lanes['acquisition.listing']->max_running])->toBe([10, 2])
         ->and([
@@ -209,7 +209,7 @@ test('handler registration материализует healthy row, повтор 
         ->and($next->eligibility)->toBe(HandlerEligibility::Healthy)
         ->and($next->id)->not->toEqual($healthy->id)
         ->and(DB::table('prc_process_handler_holds')->where('handler_version', 'fixture-listing/1')->value('incident_id'))->toBe($incident)
-        // Stage без schema owner tuple не получает authority row.
-        ->and(fn () => $sync->registerHandler(StageCode::Extraction, 'fixture-extraction/1'))->toThrow(InvalidArgumentException::class, 'not schema-supported')
-        ->and(DB::table('prc_process_handler_holds')->count())->toBe(2);
+        // P3.8 schema support permits explicit fixture registration; no live handler is bound.
+        ->and($sync->registerHandler(StageCode::Extraction, 'fixture-extraction/1')->eligibility)->toBe(HandlerEligibility::Healthy)
+        ->and(DB::table('prc_process_handler_holds')->count())->toBe(3);
 });
