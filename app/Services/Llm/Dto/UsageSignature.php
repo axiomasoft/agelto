@@ -17,10 +17,14 @@ final readonly class UsageSignature
         public string $sourceId,
         public string $label,
         public int $lagSeconds,
-        public int $horizonMonths,
-        public CarbonImmutable $horizonFrom,
+        public ?int $horizonMonths,
+        public ?CarbonImmutable $horizonFrom,
         public CarbonImmutable $asOf,
-    ) {}
+    ) {
+        if (($horizonMonths === null) !== ($horizonFrom === null) || $horizonMonths !== null && $horizonMonths < 0 || $lagSeconds < 0) {
+            throw new \InvalidArgumentException('Invalid usage retention signature.');
+        }
+    }
 
     /**
      * Одна строка подписи для всех потребителей (решение владельца по гейту контракта,
@@ -34,12 +38,14 @@ final readonly class UsageSignature
             ? 'лаг 0'
             : sprintf('лаг ~%d ч', (int) ceil($this->lagSeconds / 3600));
 
+        $horizon = $this->horizonMonths === null ? 'без удаления по возрасту'
+            : sprintf('горизонт %d мес. (с %s)', $this->horizonMonths, $this->horizonFrom?->toDateString());
+
         return sprintf(
-            'Источник: %s · %s · горизонт %d мес. (с %s) · актуально на %s',
+            'Источник: %s · %s · %s · актуально на %s',
             $this->label,
             $lag,
-            $this->horizonMonths,
-            $this->horizonFrom->toDateString(),
+            $horizon,
             $this->asOf->toDateTimeString(),
         );
     }

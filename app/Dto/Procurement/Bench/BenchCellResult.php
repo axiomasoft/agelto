@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Bench;
 
-use App\Services\Procurement\Extraction\Dto\PreflightDecision;
-
 /**
  * Одна ячейка бенчмарка форматов `(эталон, вариант представления)` (P6.1, D48). Состав ровно тот,
  * что зафиксирован ТЗ item'а: `representation`/`preflight`/`predicted` заполняются ВСЕГДА (кроме
@@ -28,7 +26,7 @@ final readonly class BenchCellResult
         public ?array $representation,
         /** @var array{route: ?string, reason: ?string}|null */
         public ?array $preflight,
-        /** @var array{input_tokens: int, input_cost_micros: int}|null */
+        /** @var array{input_tokens: ?int, input_cost_micros: ?int}|null */
         public ?array $predicted,
         /** @var array<string, int>|null */
         public ?array $promptVersionSet,
@@ -59,7 +57,7 @@ final readonly class BenchCellResult
     /**
      * @param  array{kind: ?string, tool: ?string, size_bytes: ?int, page_count: ?int, token_estimate: ?int}  $representation
      * @param  array{route: ?string, reason: ?string}  $preflight
-     * @param  array{input_tokens: int, input_cost_micros: int}  $predicted
+     * @param  array{input_tokens: ?int, input_cost_micros: ?int}  $predicted
      * @param  array<string, int>  $promptVersionSet
      */
     public static function dry(
@@ -87,7 +85,7 @@ final readonly class BenchCellResult
     /**
      * @param  array{kind: ?string, tool: ?string, size_bytes: ?int, page_count: ?int, token_estimate: ?int}  $representation
      * @param  array{route: ?string, reason: ?string}  $preflight
-     * @param  array{input_tokens: int, input_cost_micros: int}  $predicted
+     * @param  array{input_tokens: ?int, input_cost_micros: ?int}  $predicted
      * @param  array<string, int>  $promptVersionSet
      * @param  array{prompt_tokens: int, cached_tokens: int, completion_tokens: int, total_tokens: int, cost_micros: int, calls: int, failed_calls: int, duration_ms: int}  $actual
      * @param  array{overall: array{precision: float, recall: float, f1: float}, per_field: array<string, array{precision: float, recall: float, f1: float}>, row_coverage: float}|null  $quality

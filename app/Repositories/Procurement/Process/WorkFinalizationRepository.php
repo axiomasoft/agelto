@@ -193,6 +193,15 @@ final readonly class WorkFinalizationRepository
                 projectionMessageId: $ids['incident_projection'],
             );
         }
+        if ($decision['state'] === WorkState::Blocked && $decision['reason'] === BlockedReason::ChunkConflict->value) {
+            $this->incidents->open(
+                fingerprint: ContentHash::of('publication-conflict:v1:'.$lease->workId->value->value),
+                scopeKey: 'work:'.$lease->workId->value->value,
+                kind: BlockedReason::ChunkConflict->value,
+                evidence: ['work_id' => $lease->workId->value->value, 'stage' => $lease->stage->value],
+                incidentId: $ids['incident'], eventId: $ids['incident_event'], projectionMessageId: $ids['incident_projection'],
+            );
+        }
         $this->transitions->recordWork(
             $ids['event'], $ids['projection'], $lease->workId->value, $row->int('transition_seq'),
             WorkState::Running->value, $decision['state']->value, $decision['reason'], ActorKind::Worker, $lease->generation,

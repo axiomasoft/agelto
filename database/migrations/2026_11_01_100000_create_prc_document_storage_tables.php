@@ -90,8 +90,8 @@ return new class extends Migration
             CREATE OR REPLACE FUNCTION prc_document_immutable_guard() RETURNS trigger LANGUAGE plpgsql AS $$
             BEGIN
                 IF (TG_OP='DELETE' OR
-                    (to_jsonb(OLD)-ARRAY['updated_at','analysis_generation','current_analysis_run_id']) IS DISTINCT FROM
-                    (to_jsonb(NEW)-ARRAY['updated_at','analysis_generation','current_analysis_run_id'])) THEN
+                    (to_jsonb(OLD)-ARRAY['updated_at','analysis_generation','current_analysis_run_id','published_analysis_run_id']) IS DISTINCT FROM
+                    (to_jsonb(NEW)-ARRAY['updated_at','analysis_generation','current_analysis_run_id','published_analysis_run_id'])) THEN
                     RAISE EXCEPTION 'Canonical document artifact is immutable' USING ERRCODE='23514';
                 END IF;
                 RETURN CASE WHEN TG_OP='DELETE' THEN OLD ELSE NEW END;

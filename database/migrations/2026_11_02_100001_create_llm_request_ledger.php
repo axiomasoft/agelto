@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-/** Permanent additive carriers; legacy LlmCall remains on llm_calls until P3.13. */
+/** Permanent generic provider and financial authorities. */
 return new class extends Migration
 {
     public function up(): void
@@ -72,6 +72,7 @@ return new class extends Migration
                 CHECK(receipt_key IS NULL OR receipt_key=receipt_upload_key),
                 UNIQUE(logical_request_id,ordinal), UNIQUE(physical_call_id,logical_request_id)
             );
+            ALTER TABLE prc_ai_prompt_suggestions ADD CONSTRAINT prc_ai_prompt_suggestions_call_fk FOREIGN KEY(llm_call_id) REFERENCES llm_provider_calls(physical_call_id);
             CREATE TABLE llm_budget_reservations (
                 id uuid PRIMARY KEY, operation_id uuid NOT NULL UNIQUE REFERENCES llm_provider_calls(physical_call_id),
                 period_id uuid NOT NULL REFERENCES llm_budget_periods(id), upper_bound numeric(24,8) NOT NULL CHECK(upper_bound>=0),
@@ -94,7 +95,7 @@ return new class extends Migration
             );
             CREATE INDEX prc_analysis_llm_work_idx ON prc_analysis_llm_requests(work_id,attempt_id);
             CREATE UNIQUE INDEX prc_analysis_llm_active_work ON prc_analysis_llm_requests(work_id) WHERE recovery_active;
-            CREATE INDEX llm_calls_account_idx ON llm_provider_calls(account_id,logical_request_id);
+            CREATE INDEX llm_provider_calls_account_idx ON llm_provider_calls(account_id,logical_request_id);
             CREATE TABLE llm_financial_actions (
                 id uuid PRIMARY KEY, account_id text NOT NULL, currency text NOT NULL,
                 physical_call_id uuid NULL REFERENCES llm_provider_calls(physical_call_id),
@@ -144,6 +145,7 @@ return new class extends Migration
 
     public function down(): void
     {
+        DB::statement('ALTER TABLE prc_ai_prompt_suggestions DROP CONSTRAINT prc_ai_prompt_suggestions_call_fk');
         DB::statement('DROP TABLE prc_analysis_llm_requests,llm_financial_actions');
         DB::statement('ALTER TABLE llm_provider_calls DROP CONSTRAINT llm_provider_calls_reservation_fk');
         DB::statement('DROP TABLE llm_budget_reservations,llm_provider_calls,llm_provider_requests,llm_budget_periods,llm_budget_accounts');

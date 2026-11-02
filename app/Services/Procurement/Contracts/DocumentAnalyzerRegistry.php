@@ -6,10 +6,12 @@ namespace App\Services\Procurement\Contracts;
 
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\CorePromptStep;
+use App\Enums\Llm\DocumentScope;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Llm\LlmPurpose;
 use App\Enums\Llm\PromptStep;
 use App\Enums\Procurement\Ai\AiDocumentType;
+use App\Services\Llm\Contracts\PromptScopeRegistry;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
 
@@ -32,7 +34,7 @@ use InvalidArgumentException;
  * ветвление по типу в ядро через чёрный ход. Решение «неизвестный тип → `ignored`» остаётся
  * в ядре (`ScreeningOutcomeHandler`) — это факт ветвления скрининга, а не факт реестра.
  */
-final readonly class DocumentAnalyzerRegistry
+final readonly class DocumentAnalyzerRegistry implements PromptScopeRegistry
 {
     /** @var array<string, DocumentAnalyzer> */
     private array $analyzers;
@@ -125,8 +127,18 @@ final readonly class DocumentAnalyzerRegistry
      * проверяется на границе записи (§7 контракта). Бросает на значении вне множества типа —
      * fail-fast, та же семантика, что была у `PromptStep::from()` до расщепления.
      */
-    public function promptStepFor(AiDocumentType|DocumentTypeScope $documentType, string $value): PromptStep
+    public function documentType(string $value): DocumentScope
     {
+        return AiDocumentType::tryFrom($value) ?? ($value === DocumentTypeScope::Any->value ? DocumentTypeScope::Any
+            : throw new \RuntimeException('Unknown document_type in prompt canon.'));
+    }
+
+    public function promptStepFor(DocumentScope $documentType, string $value): PromptStep
+    {
+        if (! $documentType instanceof AiDocumentType && ! $documentType instanceof DocumentTypeScope) {
+            throw new InvalidArgumentException('Unregistered prompt document scope.');
+        }
+
         foreach ($this->promptStepsFor($documentType) as $step) {
             if ($step->value === $value) {
                 return $step;

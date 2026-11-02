@@ -4,102 +4,34 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement\Ai;
 
-use App\Services\Llm\LlmCacheManager;
-use Carbon\CarbonInterval;
-use Illuminate\Console\Attributes\Description;
+use App\Repositories\Llm\Cache\AssetReadRepository;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-/**
- * CRUD-обвязка `LlmCacheManager` (P7.1, ТЗ 04 §2.1/§8): `list` — живые explicit-кэши (или
- * `--hits` — доля implicit cache-хитов по `purpose` за окно); `prune` — снимает осиротевшие/
- * просроченные регистрации (провайдер резолвится по `analysis.provider` через
- * `LlmProviderFactory`, единственный `match` в проекте — `root/service-layer-map.md` §8).
- */
-#[Description('Explicit context cache: список живых/осиротевших кэшей, доля implicit-хитов, prune')]
-#[Signature('ai:caches
-        {action : list|prune}
-        {--hits : list — вывести долю implicit cache-хитов по purpose вместо списка explicit-кэшей}
-        {--window=24 : окно в часах для --hits}')]
+#[Signature('ai:caches {action : list|prune} {--hits} {--window=24}')]
 final class CachesCommand extends Command
 {
-    public function __construct(private readonly LlmCacheManager $caches)
+    public function handle(AssetReadRepository $assets): int
     {
-        parent::__construct();
-    }
+        if ($this->argument('action') !== 'list') {
+            $this->error('Unsupported: asset deletion requires a registered durable provider owner. Use list.');
 
-    public function handle(): int
-    {
-        return match ($this->argument('action')) {
-            'list' => $this->option('hits') ? $this->listHits() : $this->listActive(),
-            'prune' => $this->prune(),
-            default => $this->invalidAction(),
-        };
-    }
+            return self::FAILURE;
+        }
+        if ($this->option('hits')) {
+            $hours = filter_var($this->option('window'), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 8760]]);
+            if ($hours === false) {
+                $this->error('Invalid --window. Expected 1..8760 hours.');
 
-    private function listActive(): int
-    {
-        $analyses = $this->caches->listActive();
-
-        if ($analyses->isEmpty()) {
-            $this->info('Явных (explicit) context cache сейчас нет.');
-
-            return self::SUCCESS;
+                return self::FAILURE;
+            }
+            $this->table(['purpose', 'calls', 'prompt_tokens', 'cached_tokens'], array_map(static fn ($r): array => [
+                $r->string('purpose'), $r->int('calls'), $r->nullableInt('prompt_tokens'), $r->nullableInt('cached_tokens')], $assets->cacheHits($hours)));
+        } else {
+            $this->table(['provider', 'account', 'api', 'model', 'cache', 'expires_at'], array_map(static fn ($r): array => [
+                $r->string('provider'), $r->string('account_id'), $r->string('api_surface'), $r->string('model'), $r->string('provider_name'), $r->string('expires_at')], $assets->activeCaches()));
         }
 
-        $this->table(
-            ['analysis_id', 'document_version_id', 'provider', 'model', 'cache_id', 'expires_at'],
-            $analyses->map(fn ($analysis): array => [
-                $analysis->id,
-                $analysis->document_version_id,
-                $analysis->provider,
-                $analysis->model,
-                $analysis->cache_id,
-                $analysis->cache_expires_at?->toIso8601String(),
-            ])->all(),
-        );
-
         return self::SUCCESS;
-    }
-
-    private function listHits(): int
-    {
-        $window = CarbonInterval::hours(max(1, (int) $this->option('window')));
-        $stats = $this->caches->implicitHitStats($window);
-
-        if ($stats->isEmpty()) {
-            $this->info('Вызовов LLM за указанное окно не найдено.');
-
-            return self::SUCCESS;
-        }
-
-        $this->table(
-            ['purpose', 'calls', 'prompt_tokens', 'cached_tokens', 'hit_ratio'],
-            $stats->map(fn (object $row): array => [
-                $row->purpose,
-                $row->calls,
-                $row->prompt_tokens,
-                $row->cached_tokens,
-                sprintf('%.2f%%', $row->hit_ratio * 100),
-            ])->all(),
-        );
-
-        return self::SUCCESS;
-    }
-
-    private function prune(): int
-    {
-        $pruned = $this->caches->prune();
-
-        $this->info("Снято регистраций кэша: {$pruned}.");
-
-        return self::SUCCESS;
-    }
-
-    private function invalidAction(): int
-    {
-        $this->error('Неизвестное действие — используйте list|prune.');
-
-        return self::FAILURE;
     }
 }

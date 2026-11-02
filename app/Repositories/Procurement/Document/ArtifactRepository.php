@@ -178,7 +178,8 @@ final readonly class ArtifactRepository
                 ->where('r.disk', $blob->disk)->where('r.object_key', $blob->objectKey)
                 ->where('o.state', 'open')->exists()
             || DB::table('prc_document_versions')->where('blob_id', $blob->id->value)->exists()
-            || DB::table('prc_document_representations')->where('blob_id', $blob->id->value)->exists();
+            || DB::table('prc_document_representations')->where('blob_id', $blob->id->value)->exists()
+            || DB::table('prc_analysis_chunks')->whereRaw("output_ref->>'disk'=? AND output_ref->>'key'=?", [$blob->disk, $blob->objectKey])->exists();
     }
 
     private static function reference(LedgerRow $row): BlobReference

@@ -5,17 +5,37 @@ declare(strict_types=1);
 namespace App\Services\Llm\Execution;
 
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
+use App\Dto\Llm\Requests\GenerationResponse;
+use App\Dto\Llm\Requests\VerifiedReceipt;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ProviderSendDenial;
 use App\Enums\Llm\ReceiptOutcome;
+use App\Exceptions\Llm\OperationDenied;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Services\Llm\Cache\ProviderAssetManager;
+use App\Services\Llm\Providers\GeminiGenerateContentClient;
 use Illuminate\Support\Facades\DB;
 
 /** Financial/transport execution only; domain schema parsing/publication is a separate owner. */
 final readonly class StructuredCallExecutor
 {
     public function __construct(private RequestLedger $ledger, private RequestRepository $requests, private ProviderAssetManager $assets) {}
+
+    /** Pure compilation uses the same Llm-owned adapter as response decoding. */
+    public function compileGeneration(ProviderOperationPlan $plan, string $origin): ProviderWireRequest
+    {
+        return (new GeminiGenerateContentClient($origin))->compile($plan);
+    }
+
+    /** The active structured transport's codec stays inside Llm; assets and errors never enter model validation. */
+    public function decodeGeneration(VerifiedReceipt $receipt): GenerationResponse
+    {
+        if ($receipt->call->purpose !== OperationPurpose::Generate || $receipt->assessment->outcome !== ReceiptOutcome::Success) {
+            throw new OperationDenied('successful_generation_receipt_required');
+        }
+
+        return (new GeminiGenerateContentClient)->decode($receipt->body);
+    }
 
     public function execute(AuthorizedProviderOperation $operation, ProviderWireRequest $wire, ?ProviderSendGate $gate): ProviderTransportOutcome|SendClaimResult
     {

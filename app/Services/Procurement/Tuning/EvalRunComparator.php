@@ -29,7 +29,7 @@ use RuntimeException;
  * изменения — `no-regression` на этом же корпусе отвергает даже нулевое изменение, D108) вместо
  * констант `HOLDOUT_F1_MAX_DROP`/`ROW_COVERAGE_MAX_DROP`/`PER_FIXTURE_F1_MAX_DROP`. Добавляет
  * агрегат `overall` (все эталоны прогона, без деления на `tune`/`holdout`) в `subsamples` и
- * информационный (не влияющий на вердикт) профиль вызовов `llm_calls` обоих сравниваемых прогонов.
+ * информационный (не влияющий на вердикт) профиль вызовов `llm_provider_calls` обоих сравниваемых прогонов.
  */
 /**
  * @phpstan-type PerFieldMetrics array<string, array{f1: float}>
@@ -416,7 +416,7 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * Профиль вызовов `llm_calls` обоих сравниваемых прогонов (не нулевой пары) — П2.13 Scope
+     * Профиль вызовов `llm_provider_calls` обоих сравниваемых прогонов (не нулевой пары) — П2.13 Scope
      * Included; порог падения вывода вычислен из нулевой пары, но сам блок информационный и на
      * `verdict()` не влияет (Validation #3 item'а: причины отказа — только оси f1/row_coverage).
      *

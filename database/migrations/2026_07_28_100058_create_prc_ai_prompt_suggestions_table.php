@@ -49,12 +49,8 @@ return new class extends Migration
                 ->constrained(table: (new EvalRun)->getTable())
                 ->nullOnDelete();
 
-            // Без constrained(): llm_calls партиционирован по called_at (составной PK
-            // (id, called_at)) — Postgres не примет FK на одиночный id без отдельного unique-
-            // индекса, а строки-партиции ротируются retention'ом (§9.1 спеки), так что жёсткая
-            // ссылка всё равно бы протухала. Поле — происхождение предложения (какой вызов его
-            // породил), не целостность.
-            $table->unsignedBigInteger('llm_call_id')->nullable();
+            // Canonical physical call FK is attached after the ledger exists.
+            $table->uuid('llm_call_id')->nullable()->index();
 
             $table->text('prompt_key')->nullable()->comment('для correction_hint пусто');
             $table->text('prompt_step')->nullable()->comment('для correction_hint пусто');

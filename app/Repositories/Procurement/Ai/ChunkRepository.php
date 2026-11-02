@@ -4,18 +4,72 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Ai;
 
+use App\Dto\Llm\Requests\StructuredResult;
+use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
 use App\Dto\Procurement\Ai\ChunkReference;
+use App\Dto\Procurement\Ai\ExtractionOutput;
+use App\Dto\Procurement\Ai\PageExtractionOutput;
+use App\Dto\Procurement\Ai\PageRange;
 use App\Dto\Procurement\Ai\ValidatedChunk;
+use App\Dto\Procurement\Document\BlobReference;
+use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Enums\Llm\StructuredDisposition;
+use App\Enums\Procurement\Process\BlockedReason;
+use App\Exceptions\Procurement\Document\ArtifactUnavailable;
+use App\Exceptions\Procurement\Process\PublicationBlocked;
+use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Llm\Schema\CanonicalJson;
+use App\Services\Procurement\Extraction\AnalysisRangeCodec;
+use App\Services\Procurement\Process\PayloadReader;
 use Illuminate\Support\Facades\DB;
 
 /** Only the future guarded checkpoint/finalizer owner may call this in its transaction. */
 final class ChunkRepository
 {
+    public function __construct(private readonly ArtifactRepository $artifacts) {}
+
+    /**
+     * Restore and fully revalidate immutable canonical rows, without object-store I/O.
+     *
+     * @return list<ValidatedChunk>
+     */
+    public function forWindow(AnalysisWindowSnapshot $window): array
+    {
+        $rows = LedgerRow::all("SELECT *,encode(output_hash,'hex') AS output_hex,encode(subrange_key,'hex') AS subrange_hex FROM prc_analysis_chunks
+            WHERE window_id=? AND run_id=? AND recipe_hash=decode(?,'hex') ORDER BY subrange_key,output_ordinal LIMIT 4097",
+            [$window->id->value, $window->run->id->value, $window->run->recipe->hash->hex]);
+        if (count($rows) > 4096) {
+            throw new PublicationBlocked(BlockedReason::ExtractionIncomplete);
+        }
+        $chunks = [];
+        foreach ($rows as $row) {
+            if ($row->int('canonical_rows_schema_version') !== 1 || $row->int('provenance_schema_version') !== 1 || $row->int('output_ref_schema_version') !== 1) {
+                throw new PublicationBlocked(BlockedReason::ChunkConflict);
+            }
+            $provenance = PayloadReader::json($row->string('provenance'));
+            $range = $provenance->object('range');
+            $ref = PayloadReader::json($row->string('output_ref'));
+            try {
+                $chunk = new ValidatedChunk(new ProcessUuid($row->string('id')), $window, AnalysisRangeCodec::restore($range),
+                    $row->int('output_ordinal'), new ArtifactRef($ref->string('disk'), $ref->string('key'), new ContentHash($ref->string('sha256'))),
+                    new StructuredResult(StructuredDisposition::Accepted, ($window->range instanceof PageRange ? PageExtractionOutput::class : ExtractionOutput::class)::from(json_decode($row->string('canonical_rows'), true, flags: JSON_THROW_ON_ERROR))));
+            } catch (\InvalidArgumentException) {
+                throw new PublicationBlocked(BlockedReason::ChunkConflict);
+            }
+            if ($chunk->outputHash->hex !== $row->string('output_hex') || $chunk->subrangeKey->hex !== $row->string('subrange_hex')
+                || $provenance->string('representation_hash') !== $window->run->representationHash->hex || $provenance->string('input_hash') !== $window->inputHash->hex) {
+                throw new PublicationBlocked(BlockedReason::ChunkConflict);
+            }
+            $chunks[] = $chunk;
+        }
+
+        return $chunks;
+    }
+
     /** Duplicate delivery returns the original durable reference, even with a different proposed ID. */
     public function storeLocked(ValidatedChunk $chunk): ChunkReference
     {
@@ -27,6 +81,13 @@ final class ChunkRepository
         if ($stored?->string('hash') !== $window->inputHash->hex) {
             throw new \InvalidArgumentException('Analysis window input drift.');
         }
+        $blob = LedgerRow::one("SELECT *,encode(content_hash,'hex') AS hash FROM prc_document_blobs WHERE disk=? AND object_key=? AND content_hash=decode(?,'hex')",
+            [$chunk->outputRef->disk, $chunk->outputRef->key, $chunk->outputHash->hex]);
+        if ($blob === null) {
+            throw new ArtifactUnavailable('Validated chunk requires a verified accounted object.');
+        }
+        $this->artifacts->referenceLocked(new BlobReference(new ProcessUuid($blob->string('id')), new ProcessUuid($blob->string('storage_domain_id')),
+            new ContentHash($blob->string('hash')), $blob->string('disk'), $blob->string('object_key'), $blob->int('size_bytes')));
         DB::affectingStatement("INSERT INTO prc_analysis_chunks(id,run_id,window_id,window_key,recipe_hash,subrange_key,output_ordinal,
             output_ref,output_ref_schema_version,output_hash,canonical_rows,canonical_rows_schema_version,provenance,provenance_schema_version,completed_at)
             VALUES (?,?,?,?,decode(?,'hex'),decode(?,'hex'),?,?::jsonb,1,decode(?,'hex'),?::jsonb,1,?::jsonb,1,clock_timestamp())
@@ -40,7 +101,7 @@ final class ChunkRepository
             $window->run->id->value, $window->windowKey, $window->run->recipe->hash->hex, $chunk->subrangeKey->hex, $chunk->outputOrdinal,
         ]);
         if ($existing?->string('hash') !== $chunk->outputHash->hex) {
-            throw new \InvalidArgumentException('chunk_conflict');
+            throw new PublicationBlocked(BlockedReason::ChunkConflict);
         }
 
         return new ChunkReference(new ProcessUuid($existing->string('id')), new ContentHash($existing->string('hash')));

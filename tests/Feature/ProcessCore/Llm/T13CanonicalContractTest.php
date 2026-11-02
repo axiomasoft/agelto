@@ -96,10 +96,10 @@ test('T13 anchors ranges units arithmetic coverage и parent forest провер
 
 test('T13 provider outcomes не принимают prefix rows и не запускают скрытую continuation или reask', function (string $reason, string $raw, bool $unexpected, Decision $expected): void {
     $task = (new ExtractionContract)->task(new RowRange(0, 2), 1, ['p0:r0' => 0, 'p0:r1' => 0]);
-    $calls = DB::table('llm_calls')->count();
+    $calls = DB::table('llm_provider_calls')->count();
     $result = app(StructuredTaskValidator::class)->validate($task, $raw === 'fixture' ? AiFixtures::raw() : $raw, $reason, unexpectedContent: $unexpected);
     expect($result->disposition)->toBe($expected)->and($result->data)->toBeNull()
-        ->and(DB::table('llm_calls')->count())->toBe($calls)->and(DB::table('prc_analysis_chunks')->count())->toBe(0)
+        ->and(DB::table('llm_provider_calls')->count())->toBe($calls)->and(DB::table('prc_analysis_chunks')->count())->toBe(0)
         ->and(DB::table('prc_estimates')->count())->toBe(0);
     Http::assertNothingSent();
 })->with([

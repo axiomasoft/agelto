@@ -14,11 +14,26 @@ use App\Dto\Llm\Requests\VerifiedReceipt;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
 use App\Exceptions\Llm\OperationDenied;
-use App\Services\Llm\Execution\AssetReceiptPolicy;
+use App\Services\Llm\Execution\AssetRecoveryPolicy;
 
 /** No HTTP status, including 404, proves that a generation/cache create was not billed. */
-final readonly class GeminiAssetReceiptPolicy implements AssetReceiptPolicy
+final readonly class GeminiAssetReceiptPolicy implements AssetRecoveryPolicy
 {
+    public function assetResource(VerifiedReceipt $receipt): string
+    {
+        $value = json_decode($receipt->body, associative: true, depth: 64, flags: JSON_THROW_ON_ERROR);
+        $metadata = is_array($value) && $receipt->call->purpose === OperationPurpose::FileUpload ? ($value['file'] ?? null) : $value;
+        if (! is_array($metadata) || ! is_string($metadata['name'] ?? null)) {
+            throw new OperationDenied('asset_metadata_invalid');
+        }
+        $resource = str_starts_with($metadata['name'], 'files/') ? ($metadata['uri'] ?? null) : $metadata['name'];
+        if (! is_string($resource) || $resource === '') {
+            throw new OperationDenied('asset_metadata_invalid');
+        }
+
+        return $resource;
+    }
+
     public function assess(OperationPurpose $purpose, int $httpStatus, string $body): ReceiptAssessment
     {
         $unknown = new ReceiptAssessment(ReceiptOutcome::Unknown, null, 'gemini-assets/1:charge_unproven',
@@ -28,16 +43,21 @@ final readonly class GeminiAssetReceiptPolicy implements AssetReceiptPolicy
         } catch (\JsonException) {
             return $unknown;
         }
-        if (! is_array($value) || $httpStatus !== 200 || $purpose === OperationPurpose::CacheStorage) {
+        if (! is_array($value) || array_key_exists('error', $value) || $httpStatus !== 200 || $purpose === OperationPurpose::CacheStorage) {
             return $unknown;
         }
         if ($purpose === OperationPurpose::Generate) {
             $candidates = $value['candidates'] ?? null;
             $usage = $value['usageMetadata'] ?? null;
-            if (! is_array($candidates) || ! is_array($candidates[0] ?? null)
-                || ! in_array($candidates[0]['finishReason'] ?? null, ['STOP', 'MAX_TOKENS'], true)
-                || ! is_array($usage)) {
+            $feedback = $value['promptFeedback'] ?? null;
+            if (! is_array($candidates) && ! (is_array($feedback) && is_string($feedback['blockReason'] ?? null))) {
                 return $unknown;
+            }
+            // A verified generation envelope is a financial fact even when its output is refused,
+            // empty or unsupported. The domain policy must see it, with the original bound retained.
+            if (! is_array($usage)) {
+                return new ReceiptAssessment(ReceiptOutcome::Success, null, 'gemini-assets/1:generation_unknown_usage_conservative_bound',
+                    new ProviderUsage(0, 0, 0, 0, 0, true));
             }
             $prompt = $usage['promptTokenCount'] ?? null;
             $cached = $usage['cachedContentTokenCount'] ?? 0;

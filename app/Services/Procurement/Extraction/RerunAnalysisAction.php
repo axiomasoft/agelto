@@ -4,138 +4,102 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Extraction;
 
-use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Enums\Procurement\Ai\AnalysisStatus;
-use App\Enums\Procurement\Ai\AnalysisStep;
-use App\Enums\Procurement\Ai\RunMode;
-use App\Enums\Procurement\Document\DocumentStatus;
-use App\Exceptions\Procurement\Ai\AnalysisNotActivated;
-use App\Jobs\Procurement\ScreeningJob;
+use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
+use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Process\VersionedPayload;
+use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Process\WorkIdentity;
+use App\Enums\Procurement\Process\AccountingRole;
+use App\Enums\Procurement\Process\ActorKind;
+use App\Enums\Procurement\Process\IntentState;
+use App\Enums\Procurement\Process\RunKind;
+use App\Enums\Procurement\Process\RunWorkRelation;
+use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\SubjectKind;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Document\Document;
-use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
-use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
-use App\Repositories\Procurement\Document\DocumentStoreRepository;
-use App\Services\Procurement\Contracts\DocumentAnalyzer;
-use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use App\Repositories\Procurement\Ai\AnalysisRepository;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
+use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\RunStoreRepository;
+use App\Repositories\Procurement\Process\TransitionRepository;
+use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
+use Illuminate\Support\Str;
 
-/**
- * Операторский re-run стадии анализа (P9.2, D24, Intent «запустить заново разбор»).
- *
- * Порядок ОБЯЗАТЕЛЕН (partial unique `prc_ai_analyses_active_version_step_unique`, обычный —
- * не `DEFERRABLE` — индекс, проверяется на `INSERT` немедленно): (1) `$analysis` помечается
- * `superseded_at` — освобождает пару `(document_version_id, step)`; (2) создаётся новый
- * `pending`-анализ с `parent_analysis_id`; (3) непогашенные коррекции старого анализа получают
- * `applied_at` (они были основанием re-run, `CorrectionAwareComposer` подмешает их в USER-часть
- * следующего вызова через `parent_analysis_id` новой записи); (4) документ откатывается к
- * статусу ПЕРЕД этой стадией — статус-гейты job'ов стадии требуют именно pre-stage статус
- * (`prepared`/`screened`), иначе передиспатч штатного job'а стадии молча становится no-op;
- * (5) штатный job стадии диспатчится заново — для извлечения его называет АНАЛИЗАТОР типа
- * документа (реестр), ядро имени job'а не знает.
- *
- * Результат заменённого прогона удаляет персистер СВОЕГО типа ПОСЛЕ успешного персиста нового
- * прогона (`supersededAnalysisId`, Implementation Rules P9.2) — не эта Action: при неудаче
- * нового прогона старый результат остаётся видимым оператору.
- */
+/** Explicit new analysis intent; accepted results and financial history are never reset. */
 final readonly class RerunAnalysisAction
 {
-    public function __construct(
-        private AnalysisStoreRepository $analyses,
-        private AnalysisRunStoreRepository $runs,
-        private DocumentStoreRepository $documents,
-        private DocumentAnalyzerRegistry $analyzers,
-    ) {}
+    public function __construct(private AnalysisProviderConnections $connections, private AnalysisRecipeFactory $recipes,
+        private AnalysisRepository $analyses, private WorkStoreRepository $works, private RunStoreRepository $runs,
+        private TransitionRepository $transitions, private ProcessTransaction $transactions) {}
 
-    public function run(Analysis $analysis): Analysis
+    public function run(Analysis $analysis, ?ProcessUuid $commandId = null, ?int $actorId = null): WorkId
     {
-        if (! app()->environment('testing')) {
-            throw new AnalysisNotActivated;
-        }
+        $oldId = new ProcessUuid($analysis->analysis_run_id ?? throw new \InvalidArgumentException('An accepted canonical run is required.'));
+        $old = $this->analyses->getRun($oldId);
+        $commandId ??= new ProcessUuid((string) Str::uuid());
+        $id = ListingStoreRepository::id('analysis-command:'.$commandId->value);
+        $work = new WorkId(ListingStoreRepository::id('analysis-command-work:'.$commandId->value));
+        $intent = ListingStoreRepository::id('analysis-command-intent:'.$commandId->value);
+        $recipe = $this->recipes->make($old->recipe->preparationHash, $this->connections->preferred()->context,
+            $old->recipe->coverage);
+        $input = new ScreeningInput($old->documentVersionId, $old->representationHash, $recipe->hash);
 
-        $documentVersion = $analysis->documentVersion;
-
-        if ($documentVersion === null) {
-            throw new RuntimeException("Перезапуск анализа #{$analysis->id} невозможен: версия документа не найдена.");
-        }
-
-        return DB::transaction(function () use ($analysis, $documentVersion): Analysis {
-            $document = Document::query()->lockForUpdate()->findOrFail($documentVersion->document_id);
-            $current = Analysis::query()->lockForUpdate()->findOrFail($analysis->id);
-
-            if ($current->superseded_at !== null || $current->is_shadow
-                || ! in_array($current->status, [AnalysisStatus::Succeeded, AnalysisStatus::Failed], true)
-                || $document->removed_at !== null
-                || $this->documents->latestVersion($document->id)?->id !== $current->document_version_id
-                || $this->runs->findActive($current->document_version_id) !== null
-                || Document::query()->whereKey($document->id)->whereRaw('locked_until >= CURRENT_TIMESTAMP')->exists()
-                || Analysis::query()->where('document_version_id', $current->document_version_id)
-                    ->whereRaw('locked_until >= CURRENT_TIMESTAMP')->exists()) {
-                throw new RuntimeException('Перезапуск невозможен: анализ устарел или документ уже обрабатывается.');
-            }
-
-            $analyzer = $current->step === AnalysisStep::Extraction ? $this->extractionAnalyzer($current) : null;
-            $this->analyses->update($current, ['superseded_at' => now()]);
-
-            if ($current->step === AnalysisStep::Screening) {
-                $extraction = $this->analyses->findActive($current->document_version_id, AnalysisStep::Extraction);
-
-                if ($extraction !== null) {
-                    $this->analyses->update($extraction, ['superseded_at' => now()]);
+        return $this->transactions->run(function () use ($old, $commandId, $id, $work, $intent, $recipe, $input, $actorId): WorkId {
+            // Same sorted subject tier as finalization: analysis -> version -> document -> work.
+            LedgerRow::one('SELECT id FROM prc_analysis_runs WHERE id=? FOR UPDATE', [$old->id->value]);
+            $version = LedgerRow::one('SELECT document_id,analysis_generation,current_analysis_run_id FROM prc_document_versions WHERE id=? FOR UPDATE', [$old->documentVersionId])
+                ?? throw new \InvalidArgumentException('Missing source version.');
+            $head = LedgerRow::one('SELECT current_version_id,head_generation,platform_id,procurement_id FROM prc_documents WHERE id=? FOR UPDATE', [$version->int('document_id')])
+                ?? throw new \InvalidArgumentException('Missing source document.');
+            $previous = LedgerRow::one('SELECT document_version_id,supersedes_run_id FROM prc_analysis_runs WHERE id=?', [$id->value]);
+            if ($previous !== null) {
+                if ($previous->int('document_version_id') !== $old->documentVersionId || $previous->nullableString('supersedes_run_id') !== $old->id->value) {
+                    throw new \InvalidArgumentException('Reanalysis command identity conflict.');
                 }
+
+                return $work;
             }
-
-            $this->runs->start($current->document_version_id, RunMode::Manual);
-            $newAnalysis = $this->analyses->createRerun($current);
-            $current->corrections()->whereNull('applied_at')->update(['applied_at' => now()]);
-            $this->documents->update($document, ['status' => $this->preStageStatus($current->step)]);
-
-            if ($analyzer !== null) {
-                $analyzer->dispatchExtraction($document->id);
-            } else {
-                ScreeningJob::dispatch($document->id)->afterCommit();
+            if ($version->nullableString('current_analysis_run_id') !== $old->id->value
+                || $head->nullableInt('current_version_id') !== $old->documentVersionId
+                || $head->int('head_generation') !== $old->expectedDocumentHeadGeneration
+                || LedgerRow::one("SELECT m.id FROM prc_analysis_llm_requests m JOIN llm_provider_calls c ON c.physical_call_id=m.physical_call_id
+                    JOIN llm_provider_requests q ON q.logical_request_id=c.logical_request_id
+                    WHERE m.analysis_run_id=? AND (q.state IN ('sending','unknown') OR c.outcome='unknown') LIMIT 1", [$old->id->value]) !== null) {
+                throw new \InvalidArgumentException('Reanalysis requires the current source and resolved provider history.');
             }
+            $prior = LedgerRow::one("SELECT w.id FROM prc_process_work w WHERE w.stage='screening' AND w.document_version_id=?
+                AND w.input_revision=?", [$old->documentVersionId, $old->expectedAnalysisGeneration])
+                ?? throw new \InvalidArgumentException('Missing original screening work.');
+            if (LedgerRow::one("SELECT w.id FROM prc_process_work w WHERE w.state NOT IN ('succeeded','failed_item','cancelled','superseded')
+                AND (w.id=? OR w.analysis_run_id=? OR w.analysis_window_id IN (SELECT id FROM prc_analysis_windows WHERE run_id=?)) LIMIT 1",
+                [$prior->string('id'), $old->id->value, $old->id->value]) !== null) {
+                throw new \InvalidArgumentException('Finish or explicitly cancel the current analysis work first.');
+            }
+            $run = new AnalysisRunSnapshot($id, $old->documentVersionId, $old->representationId, $old->representationHash,
+                $recipe, 1, $head->int('head_generation'), $version->int('analysis_generation') + 1,
+                'manual_reanalysis:'.$commandId->value, $old->id);
+            $this->analyses->storeRunLocked($run);
+            $identity = new WorkIdentity($input, $intent, new WorkId(new ProcessUuid($prior->string('id'))));
+            $this->works->storeIntent($intent, $identity->key(), StageCode::Screening,
+                new SubjectKey(SubjectKind::DocumentVersion, $run->documentVersionId), $recipe->hash, $run->representationHash,
+                $run->expectedAnalysisGeneration, $run->expectedDocumentHeadGeneration, IntentState::Active);
+            $this->runs->storeRun($id, RunKind::Manual, 'analysis-command:'.$commandId->value, null,
+                new VersionedPayload('{"pipeline":"analysis","manual_reanalysis":true}', 1), $actorId,
+                ListingStoreRepository::id('analysis-command-event:'.$commandId->value), ListingStoreRepository::id('analysis-command-project:'.$commandId->value));
+            $platform = $head->int('platform_id');
+            $this->works->storeWork($work, $input, $run->expectedAnalysisGeneration, $intent,
+                $head->nullableInt('procurement_id') === null ? 'manual' : 'platform:'.$platform, $platform, $id, 100,
+                ListingStoreRepository::id('analysis-command-work-event:'.$commandId->value), ListingStoreRepository::id('analysis-command-work-project:'.$commandId->value), $identity);
+            $this->works->linkRun($id, $work, RunWorkRelation::Created, AccountingRole::Required);
+            DB::update("UPDATE prc_process_runs SET discovery_outcome='complete',discovery_closed_at=clock_timestamp(),transition_seq=2 WHERE id=?", [$id->value]);
+            $this->transitions->recordRun(ListingStoreRepository::id('analysis-command-close:'.$commandId->value), ListingStoreRepository::id('analysis-command-close-project:'.$commandId->value),
+                $id, 2, 'collecting', 'complete', null, ActorKind::Operator);
 
-            return $newAnalysis;
+            return $work;
         });
-    }
-
-    /**
-     * Тип документа для перезапуска стадии извлечения. Собственный `document_type` у анализа
-     * извлечения в боевом контуре пуст (`AnalysisStoreRepository::firstOrCreate()` его не пишет),
-     * поэтому ось берётся оттуда, где её ЗАПОЛНИЛИ, — с активного анализа скрининга той же версии
-     * документа. Стадия извлечения без предшествующего скрининга в боевом контуре недостижима:
-     * статус `screened` документу ставит ТОЛЬКО `ScreeningOutcomeHandler`, а статус-гейт job'а
-     * извлечения требует именно его.
-     */
-    private function extractionAnalyzer(Analysis $analysis): DocumentAnalyzer
-    {
-        $documentType = $analysis->document_type ?? Analysis::query()
-            ->active()
-            ->where('document_version_id', $analysis->document_version_id)
-            ->where('step', AnalysisStep::Screening)
-            ->value('document_type');
-
-        $type = is_string($documentType) ? AiDocumentType::tryFrom($documentType) : null;
-        $analyzer = $type !== null ? $this->analyzers->for($type) : null;
-
-        if ($analyzer === null || ! $analyzer->hasExtraction()) {
-            $documentTypeLabel = is_scalar($documentType) ? (string) $documentType : '—';
-
-            throw new RuntimeException(
-                "Перезапуск извлечения невозможен: у анализа #{$analysis->id} тип документа «{$documentTypeLabel}» без анализатора со стадией извлечения."
-            );
-        }
-
-        return $analyzer;
-    }
-
-    private function preStageStatus(AnalysisStep $step): DocumentStatus
-    {
-        return match ($step) {
-            AnalysisStep::Screening => DocumentStatus::Prepared,
-            AnalysisStep::Extraction => DocumentStatus::Screened,
-        };
     }
 }

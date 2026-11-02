@@ -43,7 +43,7 @@ final class EstimateRow extends Data
      * @param  RowResource[]  $resources
      */
     public function __construct(
-        #[Description('сквозной номер строки В ПРЕДЕЛАХ СМЕТЫ (не «№ п/п» исходника) — присваивается ПОСЛЕДОВАТЕЛЬНО в порядке появления, включая заголовки разделов и промежуточные итоги.')]
+        #[Description('индекс источника (не напечатанный № позиции): для row-range последовательно в пределах сметы, включая заголовки и итоги; для page-range использовать переданный row_index якоря строки, возможны пропуски индексов.')]
         #[SchemaConstraints(['minimum' => 0])]
         public int $row_index,
         #[Description('section_header/subsection_header/item/subtotal/summary_row.')]

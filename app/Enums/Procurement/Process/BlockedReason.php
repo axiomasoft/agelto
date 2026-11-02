@@ -15,4 +15,12 @@ enum BlockedReason: string
     case ConverterPolicyIncompatible = 'converter_policy_incompatible';
     case PreparationRecipeMismatch = 'preparation_recipe_mismatch';
     case PolicyReview = 'policy_review';
+    case InvalidRecipeConfiguration = 'invalid_recipe_configuration';
+    case AiResponseInvalid = 'ai_response_invalid';
+    case ModelRefusal = 'model_refusal';
+    case ModelResponseIncomplete = 'model_response_incomplete';
+    case UnsupportedProviderOutcome = 'unsupported_provider_outcome';
+    case ExtractionIncomplete = 'extraction_incomplete';
+    case SemanticReviewRequired = 'semantic_review_required';
+    case ChunkConflict = 'chunk_conflict';
 }

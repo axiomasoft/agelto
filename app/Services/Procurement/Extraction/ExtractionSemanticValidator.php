@@ -7,21 +7,32 @@ namespace App\Services\Procurement\Extraction;
 use App\Dto\Procurement\Ai\ExtractionOutput;
 use App\Dto\Procurement\Ai\FlatTotalNode;
 use App\Dto\Procurement\Ai\MoneyDecimal;
+use App\Dto\Procurement\Ai\PageExtractionOutput;
+use App\Dto\Procurement\Ai\PageRange;
 use App\Dto\Procurement\Ai\QuantityDecimal;
 use App\Dto\Procurement\Ai\RowRange;
 use App\Services\Llm\Validation\SemanticValidator;
 use Spatie\LaravelData\Data;
 
-/** @implements SemanticValidator<ExtractionOutput> */
+/** @implements SemanticValidator<ExtractionOutput|PageExtractionOutput> */
 final readonly class ExtractionSemanticValidator implements SemanticValidator
 {
-    /** @param array<string, int> $sourceAnchors Immutable representation anchor => original page. */
-    public function __construct(private RowRange $expected, private int $estimateOrdinal, private array $sourceAnchors) {}
+    /**
+     * @param  array<string,int>  $sourceAnchors  Immutable representation anchor => original page.
+     * @param  list<int>  $blankPages
+     */
+    public function __construct(private RowRange|PageRange $expected, private int $estimateOrdinal, private array $sourceAnchors,
+        private array $blankPages = []) {}
 
     /** @return list<string> */
     public function errors(Data $data): array
     {
-        if ($data->rows === []) {
+        $pageRange = $this->expected instanceof PageRange;
+        $expectedPages = $pageRange ? range($this->expected->start, $this->expected->end - 1) : [];
+        if ($pageRange && (! $data instanceof PageExtractionOutput || $data->covered_pages !== $expectedPages)) {
+            return ['coverage_gap'];
+        }
+        if ($data->rows === [] && (! $pageRange || array_diff($expectedPages, $this->blankPages) !== [])) {
             return ['empty_required_output'];
         }
         $errors = [];
@@ -38,7 +49,12 @@ final readonly class ExtractionSemanticValidator implements SemanticValidator
             }
             $indices[$row->row_index] = true;
             $anchors[$anchored->source_anchor] = true;
-            if ($row->row_index < $this->expected->start || $row->row_index >= $this->expected->end) {
+            if (! $pageRange && ($row->row_index < $this->expected->start || $row->row_index >= $this->expected->end)) {
+                $errors[] = 'row_out_of_range';
+            }
+            if ($pageRange && ($anchored->page_index < $this->expected->start || $anchored->page_index >= $this->expected->end
+                || preg_match('/^page:([0-9]+):line:([0-9]+)$/D', $anchored->source_anchor, $position) !== 1
+                || $row->row_index !== (int) $position[1] * 100000 + (int) $position[2])) {
                 $errors[] = 'row_out_of_range';
             }
             if ($row->quantity !== null) {
@@ -61,7 +77,7 @@ final readonly class ExtractionSemanticValidator implements SemanticValidator
                 $errors[] = 'invalid_model_quality';
             }
         }
-        if (count($indices) !== $this->expected->end - $this->expected->start) {
+        if (! $pageRange && count($indices) !== $this->expected->end - $this->expected->start) {
             $errors[] = 'coverage_gap';
         }
         $errors = [...$errors, ...$this->totalsErrors($data->totals)];

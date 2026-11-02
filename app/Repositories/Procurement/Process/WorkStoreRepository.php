@@ -7,11 +7,13 @@ namespace App\Repositories\Procurement\Process;
 use App\Dto\Procurement\Process\AuthoritySnapshot;
 use App\Dto\Procurement\Process\CheckpointResult;
 use App\Dto\Procurement\Process\ClaimResult;
+use App\Dto\Procurement\Process\ConsumesProviderOperation;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DbInstant;
 use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\ExecutionLease;
+use App\Dto\Procurement\Process\ExtractionWindowInput;
 use App\Dto\Procurement\Process\LeaseRenewal;
 use App\Dto\Procurement\Process\NoProviderRecovery;
 use App\Dto\Procurement\Process\ProcessUuid;
@@ -58,6 +60,23 @@ use Illuminate\Support\Str;
  */
 final readonly class WorkStoreRepository implements LeaseKeeper
 {
+    /** The coordinator already owns the full prefix and current work lock. */
+    public function pinProviderOperationLocked(ExecutionLease $lease, ProviderRecoveryPlan $plan): void
+    {
+        CallerTransaction::require('Provider operation checkpoint linkage');
+        $row = LedgerRow::one('SELECT checkpoint::text AS checkpoint,checkpoint_schema_version,checkpoint_seq FROM prc_process_work
+            WHERE id=? AND generation=? AND owner_token=? AND state=\'running\'', [$lease->workId->value->value, $lease->generation, $lease->token->value])
+            ?? throw new \LogicException('Provider operation owner revoked.');
+        $current = $this->lockedCheckpoint($row);
+        $envelope = new WorkCheckpointEnvelope($current->stageProgress ?? $this->registry->initialProgress($lease->stage), $plan);
+        $payload = $this->registry->payloadCodec()->encodeCheckpoint($envelope);
+        if (DB::update('UPDATE prc_process_work SET checkpoint=?::jsonb,checkpoint_schema_version=?,checkpoint_seq=checkpoint_seq+1
+            WHERE id=? AND generation=? AND owner_token=? AND state=\'running\' AND checkpoint_seq=?',
+            [$payload->json, $payload->schemaVersion, $lease->workId->value->value, $lease->generation, $lease->token->value, $row->int('checkpoint_seq')]) !== 1) {
+            throw new \LogicException('Provider operation checkpoint CAS failed.');
+        }
+    }
+
     /** Retry authorization consumes only the exact known-safe directive under the caller's full prefix. */
     public function consumeProviderRetryLocked(WorkId $workId, LedgerRow $work, ProcessUuid $physical): void
     {
@@ -396,7 +415,12 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         /** @var array<string, int|string> $fields */
         $fields = json_decode($payload->json, true, flags: JSON_THROW_ON_ERROR);
         // Staged schema support does not invent an owner absent from the immutable input.
-        $ownerId = $fields[$ownerColumn] ?? throw new \InvalidArgumentException('Work input has no resolved owner: '.$ownerColumn);
+        $ownerId = $fields[$ownerColumn] ?? null;
+        if ($input instanceof ExtractionWindowInput) {
+            $ownerId = LedgerRow::one('SELECT id FROM prc_analysis_windows WHERE run_id=? AND window_key=?',
+                [$input->analysisRunId->value, $input->windowKey])?->string('id');
+        }
+        $ownerId ??= throw new \InvalidArgumentException('Work input has no resolved owner: '.$ownerColumn);
         DB::insert(
             "INSERT INTO prc_process_work
                (id, stage, work_key, work_identity, work_identity_schema_version, intent_id, input_revision, input_hash,
@@ -556,11 +580,22 @@ final readonly class WorkStoreRepository implements LeaseKeeper
     /** Merged envelope: новый stage progress сохраняет текущий locked provider recovery plan. */
     public static function mergeProgress(?WorkCheckpointEnvelope $current, StageCheckpoint $progress): WorkCheckpointEnvelope
     {
-        return $current === null ? new WorkCheckpointEnvelope($progress, new NoProviderRecovery) : $current->withProgress($progress);
+        $merged = $current === null ? new WorkCheckpointEnvelope($progress, new NoProviderRecovery) : $current->withProgress($progress);
+        if ($progress instanceof ConsumesProviderOperation
+            && ($physical = $progress->consumedPhysicalCallId()) !== null) {
+            $plan = $merged->providerRecoveryPlan;
+            if ($plan instanceof ProviderRecoveryPlan && $plan->physicalCallId != $physical) {
+                throw new \LogicException('Progress cannot consume a different pinned provider operation.');
+            }
+            $merged = $merged->withoutProviderRecovery();
+        }
+
+        return $merged;
     }
 
     private function checkpointLocked(AuthoritySnapshot $snapshot, ExecutionLease $lease, StageCheckpoint $progress, int $expectedSeq): CheckpointResult|PrefixFailure
     {
+        $this->authority->lockCheckpointStorage($snapshot);
         $subjects = $this->authority->lockSubjects($snapshot);
         if ($subjects instanceof PrefixFailure) {
             return $subjects;
@@ -583,6 +618,9 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         }
         if ($work->int('checkpoint_seq') !== $expectedSeq) {
             return CheckpointResult::refused(CheckpointStatus::StaleCheckpoint);
+        }
+        if (! $this->authority->sameAnalysisStorage($snapshot)) {
+            return PrefixFailure::SnapshotChanged;
         }
         $merged = self::mergeProgress($this->lockedCheckpoint($work), $progress);
         $payload = $this->registry->payloadCodec()->encodeCheckpoint($merged);

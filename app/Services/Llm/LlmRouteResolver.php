@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
-use App\Enums\Llm\DocumentTypeScope;
+use App\Enums\Llm\DocumentScope;
 use App\Enums\Llm\LlmPurpose;
-use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Repositories\Llm\LlmRouteReadRepository;
@@ -37,12 +36,12 @@ final readonly class LlmRouteResolver
     /**
      * Основной маршрут (минимальный `priority`) или исключение, если ни одной активной строки нет.
      */
-    public function resolve(AiDocumentType|DocumentTypeScope $documentType, LlmPurpose $purpose): ResolvedRoute
+    public function resolve(DocumentScope $documentType, LlmPurpose $purpose): ResolvedRoute
     {
         $primary = $this->candidatesFor($documentType, $purpose)->first();
 
         if ($primary === null) {
-            throw new RuntimeException("Нет активного маршрута для document_type={$documentType->value}, purpose={$purpose->value}.");
+            throw new RuntimeException("Нет активного маршрута для document_type={$documentType->key()}, purpose={$purpose->value}.");
         }
 
         return $primary;
@@ -54,7 +53,7 @@ final readonly class LlmRouteResolver
      *
      * @return Collection<int, ResolvedRoute>
      */
-    public function candidatesFor(AiDocumentType|DocumentTypeScope $documentType, LlmPurpose $purpose): Collection
+    public function candidatesFor(DocumentScope $documentType, LlmPurpose $purpose): Collection
     {
         return $this->routes
             ->activeCandidatesFor($documentType, $purpose)
@@ -66,7 +65,7 @@ final readonly class LlmRouteResolver
      * `priority`, если активный теневой маршрут вообще заведён; `null` — shadow-режим для этой
      * пары выключен (обычное состояние, пока владелец не поднимет локальную LLM).
      */
-    public function shadowRoute(AiDocumentType|DocumentTypeScope $documentType, LlmPurpose $purpose): ?ResolvedRoute
+    public function shadowRoute(DocumentScope $documentType, LlmPurpose $purpose): ?ResolvedRoute
     {
         $route = $this->routes->activeShadowRouteFor($documentType, $purpose);
 

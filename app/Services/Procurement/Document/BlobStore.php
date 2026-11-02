@@ -8,6 +8,7 @@ use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Dto\Procurement\Document\VerifiedArtifact;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionContext;
+use App\Enums\Procurement\Document\StoragePhase;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
@@ -19,7 +20,8 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 /** Platform-free bounded immutable uploads. An uncertain write never releases its reservation. */
 final readonly class BlobStore
 {
-    public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc) {}
+    public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc,
+        private PrepareWorkspace $workspace) {}
 
     /** @param resource $source */
     public function put(StorageReservationRequest $reservation, $source, StorageReservationRequest $temporary, ?ExecutionContext $execution = null, bool $cleanupTemporary = true): VerifiedArtifact
@@ -32,14 +34,18 @@ final readonly class BlobStore
             || ! Storage::disk($temporary->disk)->getAdapter() instanceof LocalFilesystemAdapter) {
             throw new \InvalidArgumentException('Upload spool needs a separate local temporary capacity reservation.');
         }
-        $this->capacity->beginWrite($temporary);
+        $prepareSpool = $temporary->phase === StoragePhase::Prepare;
+        $workspace = $prepareSpool ? $this->workspace->open($temporary) : null;
+        if (! $prepareSpool) {
+            $this->capacity->beginWrite($temporary);
+        }
         $spool = null;
         try {
             $tmpDisk = Storage::disk($temporary->disk);
             if (! $tmpDisk->makeDirectory(dirname($temporary->objectKey()))) {
                 throw new ArtifactUnavailable('Temporary directory unavailable.');
             }
-            $spool = fopen($tmpDisk->path($temporary->objectKey()), 'x+b');
+            $spool = fopen($workspace === null ? $tmpDisk->path($temporary->objectKey()) : $workspace.'/spool', 'x+b');
             if ($spool === false) {
                 throw new ArtifactUnavailable('Temporary storage unavailable.');
             }
@@ -81,9 +87,15 @@ final readonly class BlobStore
             if (is_resource($spool)) {
                 fclose($spool);
             }
-            $this->capacity->finishWrite($temporary);
-            if ($cleanupTemporary) {
-                $this->gc->cleanup($temporary);
+            if ($prepareSpool) {
+                if ($cleanupTemporary) {
+                    $this->workspace->finish($temporary);
+                }
+            } else {
+                $this->capacity->finishWrite($temporary);
+                if ($cleanupTemporary) {
+                    $this->gc->cleanup($temporary);
+                }
             }
         }
     }

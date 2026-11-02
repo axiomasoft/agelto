@@ -1165,3 +1165,29 @@ rendered block now have one begin/end marker pair. `core-test-install` compares 
 No real model/account pricing or model semantic accuracy is asserted. The explicit cache is a
 transport optimization; production AI handlers, their checkpoint consumption and publication
 remain staged until P3.13. See [LLM providers](llm-providers.md) for bounds and REST references.
+
+
+## P3.13: canonical AI cutover
+
+Screening/extraction/publication теперь зарегистрированы в AnalysisRuntime и выполняются
+ExecuteWorkJob. AnalysisFeeder независимо выбирает immutable prepared backlog; отсутствующий
+explicit account profile не подменяется guessed model/pricing. Preparation intent больше не
+помечается handler_not_activated для screening. Process controls/handler eligibility и
+parent analysis lane ограничивают новые effects.
+
+AnalysisRun и LlmCall отображают canonical UUID tables prc_analysis_runs и llm_provider_calls.
+Analysis остаётся bigint accepted result/operator-review projection. Execution state и деньги
+читаются из work/provider ledger; old tables, post-call recorder, AI jobs/state writers,
+Procurement-aware Llm cache и ordinary provider bridge удалены. Описания additive staging
+P3.8–P3.12 выше относятся к периоду до этого coherent cutover.
+
+Source page/anchor manifest закрепляется до provider authorization; discovery declaration
+не выводится из принятых extraction chunks. Accepted chunk, coverage, progress и consumed
+recovery directive атомарны с обязательными transition/outbox. Journal failure откатывает
+всю публикацию, cancel/head/recipe/generation guards запрещают stale business writes.
+После durable raw общий recovery обрабатывает pinned receipt без нового send/reserve.
+
+Текущие [extraction contracts](ai/estimate-extraction.md) и [provider contracts](llm-providers.md)
+описывают split/reask policy, provisioning, explicit Unsupported для callers без owning gate
+и границу deterministic evidence. V1–V4, два clean installs и полный no-TIA regression
+принадлежат coordinator; single-file executor checks не заменяют их.

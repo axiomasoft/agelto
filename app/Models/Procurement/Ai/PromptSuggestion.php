@@ -34,7 +34,7 @@ use Illuminate\Support\Str;
  * @property int|null $analysis_id
  * @property int|null $fixture_id
  * @property int|null $eval_run_id
- * @property int|null $llm_call_id
+ * @property string|null $llm_call_id
  * @property string|null $prompt_key
  * @property string|null $prompt_step
  * @property int|null $base_version

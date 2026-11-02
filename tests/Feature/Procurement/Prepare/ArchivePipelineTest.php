@@ -6,7 +6,6 @@ use App\Actions\Procurement\Document\ExpandArchiveEntryAction;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
@@ -126,7 +125,7 @@ test('format corpus: архив создаёт children, каждый прохо
         ->and($children->every(fn (DocumentVersion $version): bool => $version->disk === 's3'))->toBeTrue();
 
     Queue::assertNothingPushed();
-    Queue::assertNotPushed(ScreeningJob::class, fn (ScreeningJob $job): bool => $job->documentId === $parent->id);
+    Queue::assertNothingPushed();
 
     $childrenByPath = $children->keyBy('archive_entry_path');
     $supported = $childrenByPath['supported/sample.pdf']->document;

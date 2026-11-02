@@ -63,7 +63,7 @@ final class FinancialFixtures implements ReceiptPolicy
         $input = new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash);
         $work = new WorkId(LedgerFixtures::uuid());
         app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork($work, $input,
-            $window->run->expectedDocumentHeadGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+            $window->run->expectedAnalysisGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
         $lease = FinalizeFixtures::running($work);
         $plan = self::plan($window, $lease, $purpose);
         $authorization = app(AnalysisCallCoordinator::class)->authorize($lease, $window->run->id, $plan, $period);
@@ -73,7 +73,7 @@ final class FinancialFixtures implements ReceiptPolicy
 
     public static function plan(AnalysisWindowSnapshot $window, ExecutionLease $lease, OperationPurpose $purpose = OperationPurpose::Generate): ProviderOperationPlan
     {
-        return new ProviderOperationPlan(new RequestIdentity($window->run->recipe->hash->hex, $lease->inputHash->hex, $purpose, 0, $window->run->id->value),
+        return new ProviderOperationPlan(new RequestIdentity($window->run->recipe->hash->hex, $window->run->screeningInputHash()->hex, $purpose, 0, $window->run->id->value),
             $window->run->recipe->llm, self::pricing($purpose), $lease->workId->value->value);
     }
 

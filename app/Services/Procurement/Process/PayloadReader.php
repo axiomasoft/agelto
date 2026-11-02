@@ -75,6 +75,17 @@ final readonly class PayloadReader
         return array_key_exists($key, $this->fields) && $this->fields[$key] === null;
     }
 
+    /** @return list<mixed> */
+    public function list(string $key): array
+    {
+        $value = $this->fields[$key] ?? null;
+        if (! is_array($value) || ! array_is_list($value)) {
+            throw new \InvalidArgumentException('Expected list field: '.$key);
+        }
+
+        return $value;
+    }
+
     /** @return non-empty-list<string> */
     public function strings(string $key): array
     {

@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
-use App\Models\Llm\LlmCall;
+use App\Services\Llm\LlmSpendReporter;
 use Carbon\CarbonImmutable;
+use Tests\Support\ProcessCore\ProviderReportFixtures;
+
+beforeEach(fn () => ProviderReportFixtures::reset());
 
 test('отчёт группирует расход по (provider, model, purpose) и считает итого за окно', function (): void {
-    LlmCall::factory()->create([
+    ProviderReportFixtures::store([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-flash',
         'purpose' => EstimateLlmPurpose::ExtractRows->value,
@@ -18,7 +21,7 @@ test('отчёт группирует расход по (provider, model, purpos
         'cost_micros' => 12_345,
         'called_at' => CarbonImmutable::now()->subDay(),
     ]);
-    LlmCall::factory()->create([
+    ProviderReportFixtures::store([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-flash',
         'purpose' => EstimateLlmPurpose::ExtractRows->value,
@@ -31,7 +34,7 @@ test('отчёт группирует расход по (provider, model, purpos
     // За пределами окна --days=7 — не должен попасть в отчёт. Смещение НЕБОЛЬШОЕ (не через
     // границу месяца) — `llm_calls` партиционирована RANGE(called_at), премейк-партиции
     // (миграция 2026_07_04_100026) покрывают только текущий+2 месяца вперёд от даты миграции.
-    LlmCall::factory()->create([
+    ProviderReportFixtures::store([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-pro',
         'purpose' => CoreLlmPurpose::Screening->value,
@@ -45,7 +48,7 @@ test('отчёт группирует расход по (provider, model, purpos
     // найденное). Поэтому — по одному ожиданию на строку вывода, не два на одну.
     $this->artisan('ai:cost-report', ['--days' => 7])
         ->assertSuccessful()
-        ->expectsOutputToContain('extract_rows')
+        ->expectsOutputToContain('generate')
         // Итого = (12_345 + 5_000) / 1e6 = $0.0173 — ЕСЛИ бы вне-окна pro-вызов (cost_micros
         // 999_999) утёк в сумму, итог был бы совсем другим; так отсутствие утечки доказывается
         // числом, без хрупкого поиска подстроки «gemini-2.5-pro» в этой же выводимой строке.
@@ -58,7 +61,7 @@ test('пустое окно — сообщение без падения и бе
         ->expectsOutputToContain('не найдено');
 });
 
-test('строка «экономия кэша» считается по capability-матрице модели (P7.2-фикс dot-notation)', function (): void {
+test('историческая экономия кэша остаётся unknown без pinned counterfactual pricing', function (): void {
     config(['ai.capabilities' => array_merge((array) config('ai.capabilities', []), [
         'gemini-2.5-flash' => [
             'input_per_1m' => 0.30,
@@ -67,7 +70,7 @@ test('строка «экономия кэша» считается по capabil
         ],
     ])]);
 
-    LlmCall::factory()->create([
+    ProviderReportFixtures::store([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-flash',
         'purpose' => EstimateLlmPurpose::ExtractRows->value,
@@ -78,12 +81,12 @@ test('строка «экономия кэша» считается по capabil
 
     // экономия = 1_000_000 × (0.30 − 0.03) = 270_000 микро-долларов = $0.2700.
     $this->artisan('ai:cost-report', ['--days' => 1])
-        ->assertSuccessful()
-        ->expectsOutputToContain('0.2700');
+        ->assertSuccessful();
+    expect(app(LlmSpendReporter::class)->report(CarbonImmutable::now()->subDay(), CarbonImmutable::now()->addMinute())->totalSavingsMicros)->toBeNull();
 });
 
 test('--days влияет на нижнюю границу окна', function (): void {
-    LlmCall::factory()->create([
+    ProviderReportFixtures::store([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-flash-lite',
         'purpose' => CoreLlmPurpose::Screening->value,

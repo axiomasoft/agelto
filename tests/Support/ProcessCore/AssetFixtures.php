@@ -17,17 +17,21 @@ use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Llm\Requests\VerifiedReceipt;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
+use App\Enums\Procurement\Process\StageCode;
 use App\Repositories\Procurement\Ai\AnalysisRequestRepository;
-use App\Services\Llm\Execution\AssetReceiptPolicy;
+use App\Services\Llm\Execution\AssetRecoveryPolicy;
 use App\Services\Llm\Execution\ProviderOperationPlan;
 use App\Services\Llm\Execution\ProviderWireRequest;
+use App\Services\Llm\Providers\GeminiAssetClient;
 use App\Services\Llm\Providers\GeminiAssetReceiptPolicy;
 use App\Services\Llm\Providers\GeminiGenerateContentClient;
 use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
+use App\Services\Procurement\Process\ProcessAuthoritySync;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\Http\WireFixture;
 
 /** Only this synthetic policy accepts the fixture's per-operation nonbilling evidence. */
-final readonly class AssetFixtures implements AssetReceiptPolicy
+final readonly class AssetFixtures implements AssetRecoveryPolicy
 {
     public const string BYTES = "%PDF-1.7\nimmutable local document\n";
 
@@ -87,6 +91,28 @@ final readonly class AssetFixtures implements AssetReceiptPolicy
         DB::statement('TRUNCATE llm_context_caches,llm_file_assets');
     }
 
+    public static function runtime(WireFixture $server, OperationPurpose $purpose): ProviderSendFixtures
+    {
+        return new ProviderSendFixtures($server, operationFactory: static function (ProviderOperationPlan $base, string $origin) use ($purpose): array {
+            $client = new GeminiAssetClient($origin);
+            $caps = self::capabilities($base->context);
+            if ($purpose === OperationPurpose::FileUpload) {
+                $key = self::file($base->context)->key;
+                $plan = self::plan($base, $purpose, $key->hash);
+
+                return [$plan, $client->upload($plan, $caps, $key, self::BYTES)];
+            }
+            $prefix = self::prefix($base);
+            $plan = self::plan($base, $purpose, $prefix->key->hash);
+
+            return [$plan, $client->createCache($plan, $caps, $prefix, 2048, 10, 1000, 3600)
+                ?? throw new \LogicException('Fixture cache must satisfy its declared eligibility.')];
+        }, configureRuntime: static function (): void {
+            ScreeningRuntimeFixtures::bind();
+            app(ProcessAuthoritySync::class)->registerHandler(StageCode::Screening, ScreeningRuntimeFixtures::VERSION);
+        });
+    }
+
     /** Fixture stage handoff only. Real handler checkpoint consumption belongs to P3.13. */
     public static function advance(ProviderSendFixtures $fixture, ProviderOperationPlan $plan, ProviderWireRequest $wire): void
     {
@@ -114,5 +140,10 @@ final readonly class AssetFixtures implements AssetReceiptPolicy
     public function assetMetadata(FileAssetKey|ContextCacheKey $key, VerifiedReceipt $receipt): ProviderFileAsset|ContextCacheAsset
     {
         return (new GeminiAssetReceiptPolicy)->assetMetadata($key, $receipt);
+    }
+
+    public function assetResource(VerifiedReceipt $receipt): string
+    {
+        return (new GeminiAssetReceiptPolicy)->assetResource($receipt);
     }
 }

@@ -95,12 +95,11 @@ final readonly class PrepareFinalizer implements StagePublicationRepository
                 new SubjectKey(SubjectKind::DocumentVersion, $input->documentVersionId),
                 $input->preparationRecipeHash, $result->text->hash, 1, $result->head->generation,
                 IntentState::Pending);
-            DB::update("UPDATE prc_operation_intents SET pending_reason='handler_not_activated' WHERE id=?", [$id->value]);
         }
 
         DB::update("UPDATE prc_documents SET status='prepared' WHERE id=?", [$result->head->documentId]);
 
-        return []; // P3.13 supplies the real recipe, paid ledger and handler activation.
+        return []; // Independent analysis planning seals the recipe and creates ready screening work.
     }
 
     public function afterSuccessors(WorkInput $input, WorkId $workId, ProcessUuid $eventId, ProcessUuid $projectionId): void {}

@@ -6,23 +6,19 @@ namespace App\Console\Commands\Procurement\Ai;
 
 use App\Services\Llm\Dto\UsageRow;
 use App\Services\Llm\LlmSpendReporter;
+use App\Services\Llm\ReportMoney;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
-/**
- * Отчёт расхода LLM за окно (ТЗ 04 §6, Code Guidance P7.2): группировка `llm_calls` по
- * `(provider, model, purpose)` — tokens/cached_tokens/cost_micros → $ и ₽ (`config('ai.cost_report.
- * rub_per_usd')`); отдельная строка «экономия кэша» из `LlmSpendReporter`. Ниже — АДДИТИВНАЯ
- * дневная секция и подпись источника (D124/D38, контракт `root/usage-source-contract.md`): старая
- * таблица и «Итого» остаются как были, дневной разрез добавляется, а не заменяет их. Вывод —
- * только консольная таблица (Code Guidance: «без файлов»).
- */
-#[Description('Расход LLM по provider/model/purpose за окно из llm_calls')]
-#[Signature('ai:cost-report {--days=7 : окно отчёта в днях}')]
+/** Physical provider ledger report: settled costs, unknown usage/charge and retained reserves. */
+#[Description('Учтённая стоимость и незакрытые резервы provider ledger')]
+#[Signature('ai:cost-report {--days=7 : окно отчёта в днях} {--currency=USD : валюта provider accounts}')]
 final class CostReportCommand extends Command
 {
+    private string $currency = 'USD';
+
     public function __construct(private readonly LlmSpendReporter $reporter)
     {
         parent::__construct();
@@ -34,7 +30,14 @@ final class CostReportCommand extends Command
         $to = CarbonImmutable::now();
         $since = $to->subDays($days);
 
-        $report = $this->reporter->report(from: $since, to: $to);
+        $currency = $this->option('currency');
+        if (! is_string($currency) || preg_match('/^[A-Z]{3}$/D', $currency) !== 1) {
+            $this->error('Валюта должна содержать три заглавные латинские буквы.');
+
+            return self::FAILURE;
+        }
+        $this->currency = $currency;
+        $report = $this->reporter->report(from: $since, to: $to, currency: $currency);
 
         if ($report->rows->isEmpty()) {
             $this->info("Вызовов LLM за последние {$days} дн. не найдено.");
@@ -46,12 +49,12 @@ final class CostReportCommand extends Command
 
         $rubPerUsd = config('ai.cost_report.rub_per_usd');
 
-        if (! is_float($rubPerUsd) && ! is_int($rubPerUsd)) {
+        if ($currency === 'USD' && ! is_float($rubPerUsd) && ! is_int($rubPerUsd)) {
             throw new \UnexpectedValueException('ai.cost_report.rub_per_usd must be numeric.');
         }
 
         $this->table(
-            ['provider', 'model', 'purpose', 'calls', 'prompt_tokens', 'cached_tokens', 'completion_tokens', 'cost'],
+            ['provider', 'model', 'purpose', 'calls', 'prompt_tokens', 'cached_tokens', 'completion_tokens', 'cost '.$currency, 'unknown usage/charge', 'reserved '.$currency],
             $report->rows->map(fn ($row): array => [
                 $row->provider,
                 $row->model,
@@ -60,18 +63,22 @@ final class CostReportCommand extends Command
                 $row->promptTokens,
                 $row->cachedTokens,
                 $row->completionTokens,
-                $this->formatUsd($row->costMicros),
+                $this->formatAmount($row->costMicros),
+                $row->unknownCalls,
+                $this->formatAmount($row->reservedMicros),
             ])->all(),
         );
 
-        $this->line(sprintf(
-            'Итого за %d дн.: %s (%s по курсу %.2f ₽/$, config(ai.cost_report.rub_per_usd))',
-            $days,
-            $this->formatUsd($report->totalCostMicros),
-            $this->formatRub($report->totalCostMicros, $rubPerUsd),
-            $rubPerUsd,
-        ));
-        $this->line(sprintf('Экономия кэша (cached_tokens × (input − cached) price): %s', $this->formatUsd($report->totalSavingsMicros)));
+        $this->line(sprintf('Учтено за %d дн.: %s', $days, $this->formatAmount($report->totalCostMicros)));
+        if ($currency === 'USD' && (is_int($rubPerUsd) || is_float($rubPerUsd))) {
+            $this->line(sprintf('%s по курсу %.2f ₽/$, config(ai.cost_report.rub_per_usd)',
+                $this->formatRub($report->totalCostMicros, $rubPerUsd), $rubPerUsd));
+        }
+        $this->line('Экономия кэша: цена сравнения не зафиксирована.');
+        if ($report->unknownCalls > 0 || $report->reservedMicros > 0) {
+            $this->warn(sprintf('Неуточнённые usage/charge: %d; остаётся зарезервировано %s.',
+                $report->unknownCalls, $this->formatAmount($report->reservedMicros)));
+        }
 
         $this->renderDaily($report->dailyRows);
         $this->line($report->signature->toLine());
@@ -92,13 +99,15 @@ final class CostReportCommand extends Command
         $this->newLine();
         $this->line('Расход по календарным дням (пояс '.$this->timezone().'):');
         $this->table(
-            ['day', 'provider', 'model', 'calls', 'cost'],
+            ['day', 'provider', 'model', 'calls', 'cost '.$this->currency, 'unknown usage/charge', 'reserved '.$this->currency],
             array_map(fn (UsageRow $row): array => [
                 $row->day?->toDateString(),
                 $row->provider,
                 $row->model,
                 $row->calls,
-                $this->formatUsd($row->costMicros),
+                $this->formatAmount($row->costMicros),
+                $row->unknownCalls,
+                $this->formatAmount($row->reservedMicros),
             ], $dailyRows),
         );
     }
@@ -107,7 +116,7 @@ final class CostReportCommand extends Command
      * Запрос за пределом горизонта хранения не отвечает молча пустой серией (контракт §4): часть
      * окна старше retention уехала вместе с партициями, и это говорится словами.
      */
-    private function warnBeyondHorizon(bool $beyondHorizon, int $horizonMonths): void
+    private function warnBeyondHorizon(bool $beyondHorizon, ?int $horizonMonths): void
     {
         if (! $beyondHorizon) {
             return;
@@ -115,13 +124,13 @@ final class CostReportCommand extends Command
 
         $this->warn(sprintf(
             'Часть окна за горизонтом хранения (%d мес.): данных за эти дни нет — партиции удалены.',
-            $horizonMonths,
+            $horizonMonths ?? throw new \LogicException('Retention cutoff is absent.'),
         ));
     }
 
-    private function formatUsd(int $micros): string
+    private function formatAmount(int $micros): string
     {
-        return sprintf('$%.4f', $micros / 1_000_000);
+        return ReportMoney::format($micros, $this->currency);
     }
 
     private function formatRub(int $micros, float $rubPerUsd): string

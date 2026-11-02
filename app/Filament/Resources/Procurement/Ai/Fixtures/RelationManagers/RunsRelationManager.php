@@ -9,6 +9,8 @@ use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\RunResultSchema;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
+use App\Repositories\Procurement\Ai\AnalysisRunReadRepository;
+use App\Services\Llm\ReportMoney;
 use Carbon\CarbonInterface;
 use Filament\Actions\Action;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -17,12 +19,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-/**
- * История прогонов эталона (P5.3, §3.2/§3.6 root/document-contour.md): статус, режим, длительность
- * и слепок расхода В СТРОКЕ прогона — токены/цена читаются из колонок `AnalysisRun`, без
- * агрегации и без обращения к партиционированной таблице вызовов (Implementation Rule 1/2,
- * D5/D37/D39/D92/D134).
- */
+/** Canonical run history: immutable recipe identity, derived work state and original ledger spend. */
 class RunsRelationManager extends RelationManager
 {
     protected static string $relationship = 'runs';
@@ -32,17 +29,20 @@ class RunsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
-            ->recordTitleAttribute('uuid')
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('analyses'))
+            ->recordTitleAttribute('id')
+            ->modifyQueryUsing(function (Builder $query): Builder {
+                /** @var Builder<AnalysisRun> $query */
+                return app(AnalysisRunReadRepository::class)->decorate($query)->with('analyses');
+            })
             ->columns([
-                TextColumn::make('status')
+                TextColumn::make('execution_state')
                     ->label('Статус')
                     ->badge(),
-                TextColumn::make('mode')
-                    ->label('Режим')
+                TextColumn::make('requested_reason')
+                    ->label('Основание')
                     ->badge(),
                 TextColumn::make('started_at')
-                    ->label('Начат')
+                    ->label('Создан')
                     ->dateTime()
                     ->sortable(),
                 TextColumn::make('finished_at')
@@ -52,7 +52,7 @@ class RunsRelationManager extends RelationManager
                     ->sortable()
                     ->visibleFrom('md'),
                 TextColumn::make('duration')
-                    ->label('Длительность')
+                    ->label('Время с создания')
                     ->state(fn (AnalysisRun $record): ?string => $record->started_at === null
                         ? null
                         : $record->started_at->diffForHumans($record->finished_at ?? now(), syntax: CarbonInterface::DIFF_ABSOLUTE))
@@ -78,14 +78,23 @@ class RunsRelationManager extends RelationManager
                     ->numeric()
                     ->placeholder('нет данных')
                     ->visibleFrom('md'),
+                TextColumn::make('unknown_calls')
+                    ->label('Неуточнённые usage/charge')
+                    ->numeric()->visibleFrom('md'),
+                TextColumn::make('reserved_micros')
+                    ->label('Остаётся в резерве')
+                    ->formatStateUsing(fn (?int $state, AnalysisRun $record): ?string => $state === null || $record->cost_currency === null
+                        ? null : ReportMoney::format($state, $record->cost_currency))
+                    ->placeholder('нет данных')->visibleFrom('md'),
                 TextColumn::make('cost_micros')
                     ->label('Цена')
-                    ->formatStateUsing(fn (int $state): string => sprintf('$%.4f', $state / 1_000_000))
+                    ->formatStateUsing(fn (?int $state, AnalysisRun $record): ?string => $state === null || $record->cost_currency === null
+                        ? null : ReportMoney::format($state, $record->cost_currency))
                     ->placeholder('нет данных')
                     ->visibleFrom('md'),
             ])
             ->defaultSort('started_at', 'desc')
-            ->poll(fn (): ?string => $this->ownerFixture()->runs()->whereNull('finished_at')->exists() ? '5s' : null)
+            ->poll(fn (): ?string => $this->ownerFixture()->document_id !== null && app(AnalysisRunReadRepository::class)->hasActiveForDocument($this->ownerFixture()->document_id) ? '5s' : null)
             ->recordAction('result')
             ->recordActions([
                 $this->resultAction(),

@@ -70,9 +70,8 @@ test('acquisition callers не создают второй HTTP клиент и 
         }
     }
     expect($violations)->toBe([]);
-    $sdk = outboundExecutableSource(File::get(app_path('Services/Llm/Providers/PrismGeminiProvider.php')));
-    expect($sdk)->not->toMatch('/->\\s*(?:retry|withClientRetry)\\s*\\(/')
-        ->toContain('$this->outboundProxy->optionsFor(');
-    $openAi = File::get(app_path('Services/Llm/Providers/OpenAiCompatibleProvider.php'));
-    expect($openAi)->toContain('->withClientOptions(')->toContain('$this->outbound->optionsFor(')->toContain('private OutboundProxy $outbound');
+    foreach (['OpenAiCompatibleProvider', 'UnsupportedProvider'] as $provider) {
+        $source = File::get(app_path('Services/Llm/Providers/'.$provider.'.php'));
+        expect($source)->toContain('throw new UnsupportedConsumer')->not->toContain('PendingRequest', 'Prism\\', '->send(');
+    }
 });

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Repositories\Llm;
 
+use App\Enums\Llm\DocumentScope;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Llm\PromptStep;
-use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Models\Llm\Prompt;
 use Illuminate\Support\Collection;
 
@@ -24,13 +24,13 @@ final readonly class PromptReadRepository
      * @param  list<PromptStep>  $steps  Порядок задаёт композицию — первый элемент раньше в системной части.
      * @return Collection<int, Prompt>
      */
-    public function activeForSteps(array $steps, AiDocumentType|DocumentTypeScope $documentType): Collection
+    public function activeForSteps(array $steps, DocumentScope $documentType): Collection
     {
         $stepValues = array_map(fn (PromptStep $step): string => $step->value, $steps);
 
         $latestPerKey = Prompt::query()
             ->whereIn('step', $stepValues)
-            ->whereIn('document_type', [$documentType->value, DocumentTypeScope::Any->value])
+            ->whereIn('document_type', [$documentType->key(), DocumentTypeScope::Any->value])
             ->where('is_active', true)
             ->get()
             ->groupBy('key')

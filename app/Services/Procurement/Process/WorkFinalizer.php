@@ -80,7 +80,15 @@ final readonly class WorkFinalizer
 
     public function settle(ExecutionLease $lease, StagePartial|StageDeferred|StageBlocked|StageFailedItem $outcome): CompletionResult
     {
-        return $this->apply($lease, $outcome);
+        try {
+            return $this->apply($lease, $outcome);
+        } catch (PublicationBlocked $blocked) {
+            // Reject the proposed chunk in a rollback, then record its explicit outcome through
+            // the same fence. Neither the accepted chunk nor the recovery directive is overwritten.
+            return $this->apply($lease, new StageBlocked($blocked->reason));
+        } catch (ArtifactUnavailable) {
+            return $this->apply($lease, new StageDeferred(DeferralReason::StorageUnavailable, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))));
+        }
     }
 
     /**

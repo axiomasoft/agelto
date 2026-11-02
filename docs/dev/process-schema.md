@@ -142,10 +142,9 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_04_100022_create_prc_awards_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100023_create_prc_clarifications_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100024_create_prc_cancellations_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100025_create_prc_ai_analyses_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100026_create_llm_calls_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100025_create_prc_ai_analyses_table.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_07_04_100027_create_llm_providers_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100028_create_llm_routes_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100028_create_llm_routes_table.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_07_04_100029_create_llm_prompts_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100030_create_prc_ai_dataset_examples_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100031_create_prc_ai_eval_runs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
@@ -160,26 +159,25 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_04_100041_create_prc_fetches_table.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_07_04_100044_create_prc_ignored_items_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100046_create_prc_operation_logs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100047_setup_pg_partman.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
+| `2026_07_04_100047_setup_pg_partman.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_07_09_000001_create_pulse_tables.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_09_100050_set_pg_partman_retention.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
-| `2026_07_09_100051_set_hot_partition_autovacuum.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
+| `2026_07_09_100051_set_hot_partition_autovacuum.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_07_09_100052_create_prc_ai_corrections_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_27_100053_create_prc_ai_fixtures_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_27_100055_create_prc_document_representations_table.php` | rewrite-baseline | P3.5 | Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness. |
 | `2026_07_27_100057_create_prc_estimate_work_types_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_28_100058_create_prc_ai_prompt_suggestions_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_29_100059_create_prc_ai_analysis_runs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_28_100058_create_prc_ai_prompt_suggestions_table.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_08_05_100068_enable_db_observability_extensions.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
 | `2026_08_05_100074_precreate_historical_partitions.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
-| `2026_08_05_100076_prune_orphaned_partman_part_config_entries.php` | remove_after_clean_proof | P1.1–P1.4 | Кандидат на удаление только owning пунктом после доказанного clean install без repair; P1.1 не удаляет. |
+| `2026_08_05_100076_prune_orphaned_partman_part_config_entries.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_08_07_100078_create_prc_okpd2_nodes_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_08_08_100085_create_prc_platform_checks_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_08_09_099999_create_prc_settings_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_08_09_100088_add_proxy_source_to_prc_fetches.php` | delete_with_owner | P3.17 | Удалить вместе с owning legacy table и последними consumers. |
 | `2026_08_09_100089_add_unprocessable_reason_to_prc_documents_table.php` | fold_into_create | P3.1 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_08_09_100090_add_archive_entry_path_to_prc_document_versions_table.php` | fold_into_create | P3.1 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
-| `2026_08_09_100091_migrate_screening_results_to_v2.php` | remove_after_clean_proof | P3.13 | Кандидат на удаление только owning пунктом после доказанного clean install без repair; P1.1 не удаляет. |
+| `2026_08_09_100091_migrate_screening_results_to_v2.php` | remove_after_clean_proof | P3.13 | P3.13 clean baseline keeps screening schema/indexes and removes legacy result backfill/restore writers; accepted provenance stays immutable. |
 | `2026_08_09_100092_add_applicability_to_prc_status_mappings_table.php` | fold_into_create | P2.14 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_08_12_100092_add_screening_summary_search_index.php` | fold_index_into_create | P3.13 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_09_10_100093_repair_partition_coverage.php` | remove_after_clean_proof | P1.1–P1.4 | Кандидат на удаление только owning пунктом после доказанного clean install без repair; P1.1 не удаляет. |
@@ -197,8 +195,8 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_10_28_100002_create_prc_acquisition_snapshot_tables.php` | create | P2.16 | Durable immutable detail observations and recurring status cycles; runtime binding remains P2.18. |
 | `2026_10_31_100000_create_prc_acquisition_schedules_table.php` | create | P2.18 | Durable profile/kind schedule; allocation and next_due advancement share one transaction. |
 | `2026_11_01_100000_create_prc_document_storage_tables.php` | rewrite-baseline | P3.5 | Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness. |
-| `2026_11_02_100000_create_prc_analysis_tables.php` | create | P3.8 | Canonical immutable analysis recipe/window/chunk carriers; live handlers and legacy model cutover remain P3.13. |
-| `2026_11_02_100001_create_llm_request_ledger.php` | create | P3.9 | Permanent financial/request/receipt and exact consumer linkage carriers; paid stages inactive until P3.13. |
+| `2026_11_02_100000_create_prc_analysis_tables.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
+| `2026_11_02_100001_create_llm_request_ledger.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_11_02_100002_create_llm_assets.php` | create | P3.12 | Canonical files/cache identity and fenced physical creation ownership; no paid runtime activation. |
 
 ### Legacy lifecycle
@@ -337,7 +335,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
 | id | uuid | no | id uuid PRIMARY KEY |
-| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')) |
+| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening','extraction','publication')) |
 | handler_version | text | no | handler_version text NOT NULL |
 | state | text | no | state text NOT NULL DEFAULT 'healthy' CHECK (state IN ('healthy','held')) |
 | version | bigint | no | version bigint NOT NULL DEFAULT 1 CHECK (version >= 1) |
@@ -408,7 +406,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | --- | --- | --- | --- |
 | id | uuid | no | id uuid PRIMARY KEY |
 | intent_key | bytea | no | intent_key bytea NOT NULL CHECK (octet_length(intent_key)=32) |
-| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')) |
+| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening','extraction','publication')) |
 | subject_kind | text | no | subject_kind text NOT NULL |
 | subject_id | text | no | subject_id text NOT NULL |
 | semantic_policy_hash | bytea | no | semantic_policy_hash bytea NOT NULL CHECK (octet_length(semantic_policy_hash)=32) |
@@ -433,7 +431,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | Column | Type | Nullable | Declaration / FK installed |
 | --- | --- | --- | --- |
 | id | uuid | no | id uuid PRIMARY KEY |
-| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')) |
+| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening','extraction','publication')) |
 | work_key | bytea | no | work_key bytea NOT NULL CHECK (octet_length(work_key)=32) |
 | work_identity | jsonb | no | work_identity jsonb NOT NULL |
 | work_identity_schema_version | smallint | no | work_identity_schema_version smallint NOT NULL |
@@ -568,7 +566,7 @@ Create: P1.6; activation boundary: P1.7; owner: `Repositories/Procurement/Proces
 | admission_group_id | uuid | no | admission_group_id uuid NOT NULL REFERENCES prc_admission_groups(id) ON DELETE CASCADE → prc_admission_groups(id) ON DELETE CASCADE @P1.6 |
 | lane_id | uuid | no | lane_id uuid NOT NULL REFERENCES prc_process_lanes(id) → prc_process_lanes(id) ON DELETE NO ACTION @P1.6 |
 | work_id | uuid | no | work_id uuid NOT NULL REFERENCES prc_process_work(id) → prc_process_work(id) ON DELETE NO ACTION @P1.6 |
-| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening')) |
+| stage | text | no | stage text NOT NULL CHECK (stage IN ('listing','detail','status_refresh','download','prepare','screening','extraction','publication')) |
 | state | text | no | state text NOT NULL CHECK (state IN ('admitted','running')) |
 
 Constraints:
@@ -1304,9 +1302,37 @@ Create: P3.8; activation boundary: P3.13; owner: `Repositories/Procurement/Ai`; 
 | requested_reason | text | no | requested_reason text NOT NULL |
 | supersedes_run_id | uuid | yes | supersedes_run_id uuid NULL REFERENCES prc_analysis_runs(id) → prc_analysis_runs(id) ON DELETE NO ACTION @P3.8 |
 | publication_status | text | no | publication_status text NOT NULL |
+| screening_result | jsonb | yes | screening_result jsonb NULL |
+| screening_result_schema_version | smallint | yes | screening_result_schema_version smallint NULL |
+| screening_disposition | text | yes | screening_disposition text NULL |
+| declared_coverage | jsonb | yes | declared_coverage jsonb NULL |
+| declared_coverage_schema_version | smallint | yes | declared_coverage_schema_version smallint NULL |
+| publication_digest | bytea | yes | publication_digest bytea NULL |
 
 Constraints:
-- `CHECK (recipe_schema_version > 0)`
+- `CONSTRAINT prc_analysis_runs_coverage_pair CHECK (((declared_coverage IS NULL) = (declared_coverage_schema_version IS NULL)))`
+- `CONSTRAINT prc_analysis_runs_coverage_schema CHECK (((declared_coverage_schema_version IS NULL) OR (declared_coverage_schema_version = ANY (ARRAY[1, 2]))))`
+- `CONSTRAINT prc_analysis_runs_coverage_source CHECK (((declared_coverage_schema_version IS DISTINCT FROM 2) OR ((NOT (jsonb_typeof((declared_coverage -> 'source'::text)) IS DISTINCT FROM 'object'::text)) AND ((NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'null'::text)) OR (NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'array'::text))))))`
+- `CONSTRAINT prc_analysis_runs_document_version_id_fkey FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)`
+- `CONSTRAINT prc_analysis_runs_expected_analysis_generation_check CHECK ((expected_analysis_generation >= 1))`
+- `CONSTRAINT prc_analysis_runs_expected_document_head_generation_check CHECK ((expected_document_head_generation >= 1))`
+- `CONSTRAINT prc_analysis_runs_generation_check CHECK ((generation >= 1))`
+- `CONSTRAINT prc_analysis_runs_id_recipe_unique UNIQUE (id, recipe_hash)`
+- `CONSTRAINT prc_analysis_runs_pkey PRIMARY KEY (id)`
+- `CONSTRAINT prc_analysis_runs_publication_check CHECK ((publication_status = ANY (ARRAY['unpublished'::text, 'published'::text])))`
+- `CONSTRAINT prc_analysis_runs_publication_digest_check CHECK (((publication_digest IS NULL) OR (octet_length(publication_digest) = 32)))`
+- `CONSTRAINT prc_analysis_runs_publication_pair CHECK (((publication_status = 'published'::text) = (publication_digest IS NOT NULL)))`
+- `CONSTRAINT prc_analysis_runs_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32))`
+- `CONSTRAINT prc_analysis_runs_recipe_schema_version_check CHECK ((recipe_schema_version > 0))`
+- `CONSTRAINT prc_analysis_runs_representation_hash_check CHECK ((octet_length(representation_hash) = 32))`
+- `CONSTRAINT prc_analysis_runs_representation_id_fkey FOREIGN KEY (representation_id) REFERENCES prc_document_representations(id)`
+- `CONSTRAINT prc_analysis_runs_representation_identity_fk FOREIGN KEY (representation_id, document_version_id, representation_hash) REFERENCES prc_document_representations(id, document_version_id, content_hash)`
+- `CONSTRAINT prc_analysis_runs_screening_disposition_check CHECK ((screening_disposition = ANY (ARRAY['extract'::text, 'retain'::text, 'review'::text, 'ignore'::text])))`
+- `CONSTRAINT prc_analysis_runs_screening_disposition_pair CHECK (((screening_result IS NULL) = (screening_disposition IS NULL)))`
+- `CONSTRAINT prc_analysis_runs_screening_schema_check CHECK (((screening_result_schema_version IS NULL) OR (screening_result_schema_version = 1)))`
+- `CONSTRAINT prc_analysis_runs_screening_schema_pair CHECK (((screening_result IS NULL) = (screening_result_schema_version IS NULL)))`
+- `CONSTRAINT prc_analysis_runs_supersedes_run_id_fkey FOREIGN KEY (supersedes_run_id) REFERENCES prc_analysis_runs(id)`
+- `CONSTRAINT prc_analysis_runs_version_identity_unique UNIQUE (id, document_version_id)`
 
 Indexes:
 
@@ -1547,7 +1573,7 @@ Constraints:
 - `CONSTRAINT llm_provider_calls_wire_fingerprint_check CHECK ((octet_length(wire_fingerprint) = 32))`
 
 Indexes:
-- `CREATE INDEX llm_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`
+- `CREATE INDEX llm_provider_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`
 - `CREATE UNIQUE INDEX llm_provider_calls_logical_request_id_ordinal_key ON public.llm_provider_calls USING btree (logical_request_id, ordinal)`
 - `CREATE UNIQUE INDEX llm_provider_calls_physical_call_id_logical_request_id_key ON public.llm_provider_calls USING btree (physical_call_id, logical_request_id)`
 - `CREATE UNIQUE INDEX llm_provider_calls_pkey ON public.llm_provider_calls USING btree (physical_call_id)`
@@ -2106,45 +2132,6 @@ Indexes:
 - `jobs_pkey`: `CREATE UNIQUE INDEX jobs_pkey ON public.jobs USING btree (id)`
 - `jobs_queue_index`: `CREATE INDEX jobs_queue_index ON public.jobs USING btree (queue)`
 
-#### llm_calls
-
-Owner: Llm; retention: financial.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| analysis_id | bigint / int8 | YES | bigint |
-| analysis_run_id | bigint / int8 | YES | bigint |
-| purpose | text / text | NO | text NOT NULL |
-| provider | text / text | NO | text NOT NULL |
-| model | text / text | NO | text NOT NULL |
-| prompt_version_set | jsonb / jsonb | YES | jsonb |
-| cache_id | text / text | YES | text |
-| request_ref | text / text | YES | text |
-| response_ref | text / text | YES | text |
-| prompt_tokens | integer / int4 | YES | integer |
-| completion_tokens | integer / int4 | YES | integer |
-| cached_tokens | integer / int4 | YES | integer |
-| total_tokens | integer / int4 | YES | integer |
-| cost_micros | bigint / int8 | YES | bigint |
-| success | boolean / bool | NO | boolean NOT NULL |
-| error | text / text | YES | text |
-| duration_ms | integer / int4 | YES | integer |
-| called_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| created_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| updated_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-
-Constraints:
-- `llm_calls_analysis_id_foreign`: `FOREIGN KEY (analysis_id) REFERENCES prc_ai_analyses(id)`
-- `llm_calls_analysis_run_id_foreign`: `FOREIGN KEY (analysis_run_id) REFERENCES prc_ai_analysis_runs(id)`
-- `llm_calls_pkey`: `PRIMARY KEY (id, called_at)`
-
-Indexes:
-- `llm_calls_analysis_id_index`: `CREATE INDEX llm_calls_analysis_id_index ON ONLY public.llm_calls USING btree (analysis_id)`
-- `llm_calls_analysis_run_id_index`: `CREATE INDEX llm_calls_analysis_run_id_index ON ONLY public.llm_calls USING btree (analysis_run_id)`
-- `llm_calls_pkey`: `CREATE UNIQUE INDEX llm_calls_pkey ON ONLY public.llm_calls USING btree (id, called_at)`
-- `llm_calls_purpose_called_at_index`: `CREATE INDEX llm_calls_purpose_called_at_index ON ONLY public.llm_calls USING btree (purpose, called_at)`
-
 #### llm_prompts
 
 Owner: Llm; retention: business.
@@ -2457,7 +2444,7 @@ Owner: Procurement; retention: business.
 | id | bigint / int8 | NO | bigint NOT NULL |
 | uuid | uuid / uuid | NO | uuid NOT NULL |
 | document_version_id | bigint / int8 | NO | bigint NOT NULL |
-| analysis_run_id | bigint / int8 | NO | bigint NOT NULL |
+| analysis_run_id | uuid / uuid | YES | uuid |
 | step | text / text | NO | text NOT NULL |
 | status | text / text | NO | text NOT NULL |
 | document_type | text / text | YES | text |
@@ -2469,19 +2456,8 @@ Owner: Procurement; retention: business.
 | cached_tokens | integer / int4 | YES | integer |
 | total_tokens | integer / int4 | YES | integer |
 | cost_micros | bigint / int8 | YES | bigint |
-| locked_by | text / text | YES | text |
-| locked_until | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| attempts | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| last_error | text / text | YES | text |
-| last_error_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| next_retry_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| failed_permanently | boolean / bool | NO | boolean DEFAULT false NOT NULL |
 | started_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
 | finished_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| cache_id | text / text | YES | text |
-| cache_expires_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| rules_hash | text / text | YES | text |
-| progress | jsonb / jsonb | YES | jsonb |
 | review_status | text / text | NO | text DEFAULT 'unreviewed'::text NOT NULL |
 | reviewed_by | bigint / int8 | YES | bigint |
 | reviewed_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
@@ -2493,11 +2469,12 @@ Owner: Procurement; retention: business.
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 
 Constraints:
-- `prc_ai_analyses_analysis_run_id_foreign`: `FOREIGN KEY (analysis_run_id) REFERENCES prc_ai_analysis_runs(id)`
+- `prc_ai_analyses_analysis_run_fk`: `FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)`
 - `prc_ai_analyses_document_type_check`: `CHECK (((document_type IS NULL) OR (document_type = ANY (ARRAY['estimate'::text, 'tech_spec'::text, 'contract_draft'::text, 'protocol'::text, 'unknown'::text]))))`
 - `prc_ai_analyses_document_version_id_foreign`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)`
 - `prc_ai_analyses_parent_analysis_id_foreign`: `FOREIGN KEY (parent_analysis_id) REFERENCES prc_ai_analyses(id) ON DELETE SET NULL`
 - `prc_ai_analyses_pkey`: `PRIMARY KEY (id)`
+- `prc_ai_analyses_result_status_check`: `CHECK ((status = ANY (ARRAY['succeeded'::text, 'skipped'::text])))`
 - `prc_ai_analyses_reviewed_by_foreign`: `FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL`
 - `prc_ai_analyses_screening_result_schema_check`: `CHECK (((step <> 'screening'::text) OR (status <> 'succeeded'::text) OR (superseded_at IS NOT NULL) OR (is_shadow = true) OR ((result IS NOT NULL) AND COALESCE(((result ->> 'schema_version'::text) = '2'::text), false) AND COALESCE((jsonb_typeof((result -> 'screening'::text)) = 'object'::text), false) AND COALESCE((jsonb_typeof((result -> 'decision'::text)) = 'object'::text), false))))`
 - `prc_ai_analyses_uuid_unique`: `UNIQUE (uuid)`
@@ -2518,43 +2495,6 @@ Indexes:
 - `prc_ai_analyses_result_needs_review_index`: `CREATE INDEX prc_ai_analyses_result_needs_review_index ON public.prc_ai_analyses USING btree ((((result ->> 'needs_review'::text))::boolean))`
 - `prc_ai_analyses_reviewed_by_index`: `CREATE INDEX prc_ai_analyses_reviewed_by_index ON public.prc_ai_analyses USING btree (reviewed_by)`
 - `prc_ai_analyses_uuid_unique`: `CREATE UNIQUE INDEX prc_ai_analyses_uuid_unique ON public.prc_ai_analyses USING btree (uuid)`
-
-#### prc_ai_analysis_runs
-
-Owner: Procurement; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| uuid | uuid / uuid | NO | uuid NOT NULL |
-| document_version_id | bigint / int8 | NO | bigint NOT NULL |
-| mode | text / text | NO | text NOT NULL |
-| status | text / text | NO | text NOT NULL |
-| prompt_tokens | integer / int4 | YES | integer |
-| completion_tokens | integer / int4 | YES | integer |
-| cached_tokens | integer / int4 | YES | integer |
-| total_tokens | integer / int4 | YES | integer |
-| cost_micros | bigint / int8 | YES | bigint |
-| initiated_by | bigint / int8 | YES | bigint |
-| started_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| finished_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-
-Constraints:
-- `prc_ai_analysis_runs_document_version_id_foreign`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)`
-- `prc_ai_analysis_runs_initiated_by_foreign`: `FOREIGN KEY (initiated_by) REFERENCES users(id) ON DELETE SET NULL`
-- `prc_ai_analysis_runs_mode_check`: `CHECK ((mode = ANY (ARRAY['auto'::text, 'manual'::text])))`
-- `prc_ai_analysis_runs_pkey`: `PRIMARY KEY (id)`
-- `prc_ai_analysis_runs_status_check`: `CHECK ((status = ANY (ARRAY['pending'::text, 'running'::text, 'succeeded'::text, 'failed'::text])))`
-- `prc_ai_analysis_runs_uuid_unique`: `UNIQUE (uuid)`
-
-Indexes:
-- `prc_ai_analysis_runs_active_version_unique`: `CREATE UNIQUE INDEX prc_ai_analysis_runs_active_version_unique ON public.prc_ai_analysis_runs USING btree (document_version_id) WHERE (finished_at IS NULL)`
-- `prc_ai_analysis_runs_document_version_id_index`: `CREATE INDEX prc_ai_analysis_runs_document_version_id_index ON public.prc_ai_analysis_runs USING btree (document_version_id)`
-- `prc_ai_analysis_runs_initiated_by_index`: `CREATE INDEX prc_ai_analysis_runs_initiated_by_index ON public.prc_ai_analysis_runs USING btree (initiated_by)`
-- `prc_ai_analysis_runs_pkey`: `CREATE UNIQUE INDEX prc_ai_analysis_runs_pkey ON public.prc_ai_analysis_runs USING btree (id)`
-- `prc_ai_analysis_runs_uuid_unique`: `CREATE UNIQUE INDEX prc_ai_analysis_runs_uuid_unique ON public.prc_ai_analysis_runs USING btree (uuid)`
 
 #### prc_ai_corrections
 
@@ -2744,7 +2684,7 @@ Owner: Procurement; retention: business.
 | analysis_id | bigint / int8 | YES | bigint |
 | fixture_id | bigint / int8 | YES | bigint |
 | eval_run_id | bigint / int8 | YES | bigint |
-| llm_call_id | bigint / int8 | YES | bigint |
+| llm_call_id | uuid / uuid | YES | uuid |
 | prompt_key | text / text | YES | text |
 | prompt_step | text / text | YES | text |
 | base_version | integer / int4 | YES | integer |
@@ -2766,6 +2706,7 @@ Owner: Procurement; retention: business.
 Constraints:
 - `prc_ai_prompt_suggestions_analysis_id_foreign`: `FOREIGN KEY (analysis_id) REFERENCES prc_ai_analyses(id) ON DELETE SET NULL`
 - `prc_ai_prompt_suggestions_analysis_step_check`: `CHECK (((analysis_step IS NULL) OR (analysis_step = ANY (ARRAY['screening'::text, 'extraction'::text]))))`
+- `prc_ai_prompt_suggestions_call_fk`: `FOREIGN KEY (llm_call_id) REFERENCES llm_provider_calls(physical_call_id)`
 - `prc_ai_prompt_suggestions_decided_by_foreign`: `FOREIGN KEY (decided_by) REFERENCES users(id) ON DELETE SET NULL`
 - `prc_ai_prompt_suggestions_document_type_check`: `CHECK ((document_type = ANY (ARRAY['estimate'::text, 'tech_spec'::text, 'contract_draft'::text, 'protocol'::text, 'unknown'::text, 'any'::text])))`
 - `prc_ai_prompt_suggestions_eval_run_id_foreign`: `FOREIGN KEY (eval_run_id) REFERENCES prc_ai_eval_runs(id) ON DELETE SET NULL`
@@ -2778,6 +2719,7 @@ Indexes:
 - `prc_ai_prompt_suggestions_decided_by_index`: `CREATE INDEX prc_ai_prompt_suggestions_decided_by_index ON public.prc_ai_prompt_suggestions USING btree (decided_by)`
 - `prc_ai_prompt_suggestions_eval_run_id_index`: `CREATE INDEX prc_ai_prompt_suggestions_eval_run_id_index ON public.prc_ai_prompt_suggestions USING btree (eval_run_id)`
 - `prc_ai_prompt_suggestions_fixture_id_index`: `CREATE INDEX prc_ai_prompt_suggestions_fixture_id_index ON public.prc_ai_prompt_suggestions USING btree (fixture_id)`
+- `prc_ai_prompt_suggestions_llm_call_id_index`: `CREATE INDEX prc_ai_prompt_suggestions_llm_call_id_index ON public.prc_ai_prompt_suggestions USING btree (llm_call_id)`
 - `prc_ai_prompt_suggestions_pkey`: `CREATE UNIQUE INDEX prc_ai_prompt_suggestions_pkey ON public.prc_ai_prompt_suggestions USING btree (id)`
 - `prc_ai_prompt_suggestions_prompt_key_index`: `CREATE INDEX prc_ai_prompt_suggestions_prompt_key_index ON public.prc_ai_prompt_suggestions USING btree (prompt_key)`
 - `prc_ai_prompt_suggestions_status_index`: `CREATE INDEX prc_ai_prompt_suggestions_status_index ON public.prc_ai_prompt_suggestions USING btree (status)`
@@ -3160,6 +3102,7 @@ Owner: Procurement; retention: business.
 | archive_entry_path | text / text | YES | text |
 | analysis_generation | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
 | current_analysis_run_id | uuid / uuid | YES | uuid |
+| published_analysis_run_id | uuid / uuid | YES | uuid |
 
 Constraints:
 - `prc_document_versions_analysis_generation_check`: `CHECK ((analysis_generation >= 1))`
@@ -3173,6 +3116,7 @@ Constraints:
 - `prc_document_versions_parent_version_id_foreign`: `FOREIGN KEY (parent_version_id) REFERENCES prc_document_versions(id)`
 - `prc_document_versions_parent_version_id_normalized_entry_path_u`: `UNIQUE (parent_version_id, normalized_entry_path)`
 - `prc_document_versions_pkey`: `PRIMARY KEY (id)`
+- `prc_document_versions_published_analysis_identity_fk`: `FOREIGN KEY (published_analysis_run_id, id) REFERENCES prc_analysis_runs(id, document_version_id)`
 
 Indexes:
 - `prc_document_versions_content_hash_index`: `CREATE INDEX prc_document_versions_content_hash_index ON public.prc_document_versions USING btree (content_hash)`
@@ -3305,25 +3249,29 @@ Owner: Procurement; retention: business.
 | name | text / text | NO | text NOT NULL |
 | unit | text / text | YES | text |
 | unit_base | text / text | YES | text |
-| unit_multiplier | numeric / numeric | YES | numeric(18,6) |
-| quantity | numeric / numeric | YES | numeric(18,6) |
-| unit_price_base | numeric / numeric | YES | numeric(18,2) |
-| unit_price_curr | numeric / numeric | YES | numeric(18,2) |
-| total_price_base | numeric / numeric | YES | numeric(18,2) |
-| total_price_curr | numeric / numeric | YES | numeric(18,2) |
+| unit_multiplier | numeric / numeric | YES | numeric |
+| quantity | numeric / numeric | YES | numeric |
+| unit_price_base | numeric / numeric | YES | numeric |
+| unit_price_curr | numeric / numeric | YES | numeric |
+| total_price_base | numeric / numeric | YES | numeric |
+| total_price_curr | numeric / numeric | YES | numeric |
 | index_code | text / text | YES | text |
-| index_value | numeric / numeric | YES | numeric(18,6) |
+| index_value | numeric / numeric | YES | numeric |
 | source_position_number | text / text | YES | text |
 | work_type_id | bigint / int8 | YES | bigint |
 | attributes | jsonb / jsonb | YES | jsonb |
 | quality | jsonb / jsonb | YES | jsonb |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| analysis_provenance | jsonb / jsonb | YES | jsonb |
+| analysis_provenance_schema_version | smallint / int2 | YES | smallint |
 
 Constraints:
 - `prc_estimate_items_estimate_id_foreign`: `FOREIGN KEY (estimate_id) REFERENCES prc_estimates(id) ON DELETE CASCADE`
 - `prc_estimate_items_estimate_id_row_index_unique`: `UNIQUE (estimate_id, row_index)`
 - `prc_estimate_items_pkey`: `PRIMARY KEY (id)`
+- `prc_estimate_items_provenance_pair`: `CHECK (((analysis_provenance IS NULL) = (analysis_provenance_schema_version IS NULL)))`
+- `prc_estimate_items_provenance_schema`: `CHECK (((analysis_provenance_schema_version IS NULL) OR (analysis_provenance_schema_version = 1)))`
 - `prc_estimate_items_section_id_foreign`: `FOREIGN KEY (section_id) REFERENCES prc_estimate_sections(id) ON DELETE SET NULL`
 - `prc_estimate_items_work_type_id_foreign`: `FOREIGN KEY (work_type_id) REFERENCES prc_estimate_work_types(id) ON DELETE SET NULL`
 
@@ -3348,18 +3296,22 @@ Owner: Procurement; retention: business.
 | name | text / text | NO | text NOT NULL |
 | unit | text / text | YES | text |
 | unit_base | text / text | YES | text |
-| unit_multiplier | numeric / numeric | YES | numeric(18,6) |
-| quantity | numeric / numeric | YES | numeric(18,6) |
-| price_base | numeric / numeric | YES | numeric(18,2) |
-| price_curr | numeric / numeric | YES | numeric(18,2) |
+| unit_multiplier | numeric / numeric | YES | numeric |
+| quantity | numeric / numeric | YES | numeric |
+| price_base | numeric / numeric | YES | numeric |
+| price_curr | numeric / numeric | YES | numeric |
 | index_code | text / text | YES | text |
-| index_value | numeric / numeric | YES | numeric(18,6) |
+| index_value | numeric / numeric | YES | numeric |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| analysis_provenance | jsonb / jsonb | YES | jsonb |
+| analysis_provenance_schema_version | smallint / int2 | YES | smallint |
 
 Constraints:
 - `prc_estimate_resources_item_id_foreign`: `FOREIGN KEY (item_id) REFERENCES prc_estimate_items(id) ON DELETE CASCADE`
 - `prc_estimate_resources_pkey`: `PRIMARY KEY (id)`
+- `prc_estimate_resources_provenance_pair`: `CHECK (((analysis_provenance IS NULL) = (analysis_provenance_schema_version IS NULL)))`
+- `prc_estimate_resources_provenance_schema`: `CHECK (((analysis_provenance_schema_version IS NULL) OR (analysis_provenance_schema_version = 1)))`
 
 Indexes:
 - `prc_estimate_resources_item_id_index`: `CREATE INDEX prc_estimate_resources_item_id_index ON public.prc_estimate_resources USING btree (item_id)`
@@ -3378,11 +3330,15 @@ Owner: Procurement; retention: business.
 | title | text / text | NO | text NOT NULL |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| analysis_provenance | jsonb / jsonb | YES | jsonb |
+| analysis_provenance_schema_version | smallint / int2 | YES | smallint |
 
 Constraints:
 - `prc_estimate_sections_estimate_id_foreign`: `FOREIGN KEY (estimate_id) REFERENCES prc_estimates(id) ON DELETE CASCADE`
 - `prc_estimate_sections_parent_id_foreign`: `FOREIGN KEY (parent_id) REFERENCES prc_estimate_sections(id) ON DELETE SET NULL`
 - `prc_estimate_sections_pkey`: `PRIMARY KEY (id)`
+- `prc_estimate_sections_provenance_pair`: `CHECK (((analysis_provenance IS NULL) = (analysis_provenance_schema_version IS NULL)))`
+- `prc_estimate_sections_provenance_schema`: `CHECK (((analysis_provenance_schema_version IS NULL) OR (analysis_provenance_schema_version = 1)))`
 
 Indexes:
 - `prc_estimate_sections_estimate_id_index`: `CREATE INDEX prc_estimate_sections_estimate_id_index ON public.prc_estimate_sections USING btree (estimate_id)`
@@ -3401,21 +3357,29 @@ Owner: Procurement; retention: business.
 | position | integer / int4 | NO | integer NOT NULL |
 | label | text / text | NO | text NOT NULL |
 | kind | text / text | YES | text |
-| amount | numeric / numeric | YES | numeric(18,2) |
+| amount | numeric / numeric | YES | numeric |
 | chapter_number | smallint / int2 | YES | smallint |
-| rate | numeric / numeric | YES | numeric(18,6) |
+| rate | numeric / numeric | YES | numeric |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| analysis_provenance | jsonb / jsonb | YES | jsonb |
+| analysis_provenance_schema_version | smallint / int2 | YES | smallint |
+| source_node_id | text / text | YES | text |
+| source_parent_node_id | text / text | YES | text |
 
 Constraints:
 - `prc_estimate_totals_estimate_id_foreign`: `FOREIGN KEY (estimate_id) REFERENCES prc_estimates(id) ON DELETE CASCADE`
 - `prc_estimate_totals_parent_id_foreign`: `FOREIGN KEY (parent_id) REFERENCES prc_estimate_totals(id) ON DELETE SET NULL`
 - `prc_estimate_totals_pkey`: `PRIMARY KEY (id)`
+- `prc_estimate_totals_provenance_pair`: `CHECK (((analysis_provenance IS NULL) = (analysis_provenance_schema_version IS NULL)))`
+- `prc_estimate_totals_provenance_schema`: `CHECK (((analysis_provenance_schema_version IS NULL) OR (analysis_provenance_schema_version = 1)))`
+- `prc_estimate_totals_source_node_unique`: `UNIQUE (estimate_id, source_node_id)`
 
 Indexes:
 - `prc_estimate_totals_estimate_id_index`: `CREATE INDEX prc_estimate_totals_estimate_id_index ON public.prc_estimate_totals USING btree (estimate_id)`
 - `prc_estimate_totals_parent_id_index`: `CREATE INDEX prc_estimate_totals_parent_id_index ON public.prc_estimate_totals USING btree (parent_id)`
 - `prc_estimate_totals_pkey`: `CREATE UNIQUE INDEX prc_estimate_totals_pkey ON public.prc_estimate_totals USING btree (id)`
+- `prc_estimate_totals_source_node_unique`: `CREATE UNIQUE INDEX prc_estimate_totals_source_node_unique ON public.prc_estimate_totals USING btree (estimate_id, source_node_id)`
 
 #### prc_estimate_work_types
 
@@ -3455,20 +3419,20 @@ Owner: Procurement; retention: business.
 | --- | --- | --- | --- |
 | id | bigint / int8 | NO | bigint NOT NULL |
 | uuid | uuid / uuid | NO | uuid NOT NULL |
-| analysis_id | bigint / int8 | NO | bigint NOT NULL |
+| analysis_id | bigint / int8 | YES | bigint |
 | document_version_id | bigint / int8 | NO | bigint NOT NULL |
 | procurement_id | bigint / int8 | YES | bigint |
-| platform_id | bigint / int8 | NO | bigint NOT NULL |
+| platform_id | bigint / int8 | YES | bigint |
 | ordinal | smallint / int2 | NO | smallint DEFAULT '1'::smallint NOT NULL |
 | estimate_number | text / text | YES | text |
-| total_amount | numeric / numeric | YES | numeric(18,2) |
+| total_amount | numeric / numeric | YES | numeric |
 | currency | character / bpchar | YES | character(3) |
 | base_year | integer / int4 | YES | integer |
 | price_level | text / text | YES | text |
 | regulatory_base | text / text | YES | text |
 | calc_method | text / text | YES | text |
-| labor_hours_workers | numeric / numeric | YES | numeric(18,6) |
-| labor_hours_machinists | numeric / numeric | YES | numeric(18,6) |
+| labor_hours_workers | numeric / numeric | YES | numeric |
+| labor_hours_machinists | numeric / numeric | YES | numeric |
 | document_number | text / text | YES | text |
 | document_date | date / date | YES | date |
 | period_start | date / date | YES | date |
@@ -3490,20 +3454,29 @@ Owner: Procurement; retention: business.
 | source_page_end | smallint / int2 | YES | smallint |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| analysis_run_id | uuid / uuid | YES | uuid |
+| analysis_provenance | jsonb / jsonb | YES | jsonb |
+| analysis_provenance_schema_version | smallint / int2 | YES | smallint |
 
 Constraints:
 - `prc_estimates_analysis_id_foreign`: `FOREIGN KEY (analysis_id) REFERENCES prc_ai_analyses(id)`
 - `prc_estimates_analysis_id_ordinal_unique`: `UNIQUE (analysis_id, ordinal)`
+- `prc_estimates_analysis_owner_check`: `CHECK (((analysis_id IS NULL) <> (analysis_run_id IS NULL)))`
+- `prc_estimates_analysis_run_id_fkey`: `FOREIGN KEY (analysis_run_id) REFERENCES prc_analysis_runs(id)`
+- `prc_estimates_analysis_run_ordinal_unique`: `UNIQUE (analysis_run_id, ordinal)`
 - `prc_estimates_document_version_id_foreign`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)`
 - `prc_estimates_pkey`: `PRIMARY KEY (id)`
 - `prc_estimates_platform_id_foreign`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id)`
 - `prc_estimates_procurement_id_foreign`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id) ON DELETE RESTRICT`
+- `prc_estimates_provenance_pair`: `CHECK (((analysis_provenance IS NULL) = (analysis_provenance_schema_version IS NULL)))`
+- `prc_estimates_provenance_schema`: `CHECK (((analysis_provenance_schema_version IS NULL) OR (analysis_provenance_schema_version = 1)))`
 - `prc_estimates_uuid_unique`: `UNIQUE (uuid)`
 - `prc_estimates_verified_by_foreign`: `FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL`
 
 Indexes:
 - `prc_estimates_analysis_id_index`: `CREATE INDEX prc_estimates_analysis_id_index ON public.prc_estimates USING btree (analysis_id)`
 - `prc_estimates_analysis_id_ordinal_unique`: `CREATE UNIQUE INDEX prc_estimates_analysis_id_ordinal_unique ON public.prc_estimates USING btree (analysis_id, ordinal)`
+- `prc_estimates_analysis_run_ordinal_unique`: `CREATE UNIQUE INDEX prc_estimates_analysis_run_ordinal_unique ON public.prc_estimates USING btree (analysis_run_id, ordinal)`
 - `prc_estimates_document_version_id_index`: `CREATE INDEX prc_estimates_document_version_id_index ON public.prc_estimates USING btree (document_version_id)`
 - `prc_estimates_pkey`: `CREATE UNIQUE INDEX prc_estimates_pkey ON public.prc_estimates USING btree (id)`
 - `prc_estimates_platform_id_index`: `CREATE INDEX prc_estimates_platform_id_index ON public.prc_estimates USING btree (platform_id)`
@@ -5584,19 +5557,35 @@ Owner: P3.8 canonical analysis / Repositories/Procurement/Ai; retention: busines
 | requested_reason | text / text | NO | text NOT NULL |
 | supersedes_run_id | uuid / uuid | YES | uuid |
 | publication_status | text / text | NO | text NOT NULL |
+| screening_result | jsonb / jsonb | YES | jsonb |
+| screening_result_schema_version | smallint / int2 | YES | smallint |
+| screening_disposition | text / text | YES | text |
+| declared_coverage | jsonb / jsonb | YES | jsonb |
+| declared_coverage_schema_version | smallint / int2 | YES | smallint |
+| publication_digest | bytea / bytea | YES | bytea |
 
 Constraints:
+- `prc_analysis_runs_coverage_pair`: `CHECK (((declared_coverage IS NULL) = (declared_coverage_schema_version IS NULL)))`
+- `prc_analysis_runs_coverage_schema`: `CHECK (((declared_coverage_schema_version IS NULL) OR (declared_coverage_schema_version = ANY (ARRAY[1, 2]))))`
+- `prc_analysis_runs_coverage_source`: `CHECK (((declared_coverage_schema_version IS DISTINCT FROM 2) OR ((NOT (jsonb_typeof((declared_coverage -> 'source'::text)) IS DISTINCT FROM 'object'::text)) AND ((NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'null'::text)) OR (NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'array'::text))))))`
 - `prc_analysis_runs_document_version_id_fkey`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id)`
 - `prc_analysis_runs_expected_analysis_generation_check`: `CHECK ((expected_analysis_generation >= 1))`
 - `prc_analysis_runs_expected_document_head_generation_check`: `CHECK ((expected_document_head_generation >= 1))`
 - `prc_analysis_runs_generation_check`: `CHECK ((generation >= 1))`
 - `prc_analysis_runs_id_recipe_unique`: `UNIQUE (id, recipe_hash)`
 - `prc_analysis_runs_pkey`: `PRIMARY KEY (id)`
+- `prc_analysis_runs_publication_check`: `CHECK ((publication_status = ANY (ARRAY['unpublished'::text, 'published'::text])))`
+- `prc_analysis_runs_publication_digest_check`: `CHECK (((publication_digest IS NULL) OR (octet_length(publication_digest) = 32)))`
+- `prc_analysis_runs_publication_pair`: `CHECK (((publication_status = 'published'::text) = (publication_digest IS NOT NULL)))`
 - `prc_analysis_runs_recipe_hash_check`: `CHECK ((octet_length(recipe_hash) = 32))`
 - `prc_analysis_runs_recipe_schema_version_check`: `CHECK ((recipe_schema_version > 0))`
 - `prc_analysis_runs_representation_hash_check`: `CHECK ((octet_length(representation_hash) = 32))`
 - `prc_analysis_runs_representation_id_fkey`: `FOREIGN KEY (representation_id) REFERENCES prc_document_representations(id)`
 - `prc_analysis_runs_representation_identity_fk`: `FOREIGN KEY (representation_id, document_version_id, representation_hash) REFERENCES prc_document_representations(id, document_version_id, content_hash)`
+- `prc_analysis_runs_screening_disposition_check`: `CHECK ((screening_disposition = ANY (ARRAY['extract'::text, 'retain'::text, 'review'::text, 'ignore'::text])))`
+- `prc_analysis_runs_screening_disposition_pair`: `CHECK (((screening_result IS NULL) = (screening_disposition IS NULL)))`
+- `prc_analysis_runs_screening_schema_check`: `CHECK (((screening_result_schema_version IS NULL) OR (screening_result_schema_version = 1)))`
+- `prc_analysis_runs_screening_schema_pair`: `CHECK (((screening_result IS NULL) = (screening_result_schema_version IS NULL)))`
 - `prc_analysis_runs_supersedes_run_id_fkey`: `FOREIGN KEY (supersedes_run_id) REFERENCES prc_analysis_runs(id)`
 - `prc_analysis_runs_version_identity_unique`: `UNIQUE (id, document_version_id)`
 
@@ -5814,7 +5803,7 @@ Constraints:
 - `llm_provider_calls_wire_fingerprint_check`: `CHECK ((octet_length(wire_fingerprint) = 32))`
 
 Indexes:
-- `llm_calls_account_idx`: `CREATE INDEX llm_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`
+- `llm_provider_calls_account_idx`: `CREATE INDEX llm_provider_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`
 - `llm_provider_calls_logical_request_id_ordinal_key`: `CREATE UNIQUE INDEX llm_provider_calls_logical_request_id_ordinal_key ON public.llm_provider_calls USING btree (logical_request_id, ordinal)`
 - `llm_provider_calls_physical_call_id_logical_request_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_physical_call_id_logical_request_id_key ON public.llm_provider_calls USING btree (physical_call_id, logical_request_id)`
 - `llm_provider_calls_pkey`: `CREATE UNIQUE INDEX llm_provider_calls_pkey ON public.llm_provider_calls USING btree (physical_call_id)`

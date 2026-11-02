@@ -44,6 +44,7 @@ final readonly class WorkRunner
     /** Typed зависимость → deferred reason; имя вне таблицы — дефект кода, а не ожидание. */
     private const array DEPENDENCY_REASONS = [
         'storage' => DeferralReason::StorageUnavailable,
+        'storage_capacity' => DeferralReason::CapacityWait,
         'converter' => DeferralReason::ConverterUnavailable,
         'provider' => DeferralReason::ProviderUnavailable,
     ];

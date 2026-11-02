@@ -21,7 +21,9 @@ final class AnalysisRequestRepository
         $inserted = DB::affectingStatement("INSERT INTO prc_analysis_llm_requests(id,analysis_run_id,work_id,attempt_id,logical_request_id,physical_call_id,expected_input_hash,recipe_hash)
             SELECT ?,r.id,w.id,a.id,c.logical_request_id,c.physical_call_id,w.input_hash,r.recipe_hash
             FROM prc_analysis_runs r JOIN prc_document_versions v ON v.id=r.document_version_id
-            JOIN prc_documents d ON d.id=v.document_id JOIN prc_process_work w ON w.document_version_id=r.document_version_id
+            JOIN prc_documents d ON d.id=v.document_id JOIN prc_process_work w ON
+                (w.document_version_id=r.document_version_id OR w.analysis_run_id=r.id OR
+                    w.analysis_window_id IN (SELECT id FROM prc_analysis_windows WHERE run_id=r.id))
             JOIN prc_process_attempts a ON a.work_id=w.id JOIN llm_provider_calls c ON c.owner_attempt_id=a.id
             JOIN llm_provider_requests q ON q.logical_request_id=c.logical_request_id
             WHERE r.id=? AND w.id=? AND a.id=? AND a.generation=? AND c.physical_call_id=? AND c.owner_work_generation=a.generation

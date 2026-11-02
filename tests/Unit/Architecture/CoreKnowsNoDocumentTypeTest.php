@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Finder\Finder;
+use Tests\Support\Architecture\PlatformSourceRules;
 
 /*
  * Приёмочное свойство D14/D26 (§6.2–§6.3 `document-analyzer-contract.md`, P2.1): ядро транспорта
@@ -93,7 +94,7 @@ test('периметр ядра собран правилом вычитания
     // P3.9 adds twelve provider-neutral financial/receipt and consumer coordination classes.
     // P3.10 adds twelve provider-neutral wire, send capability and joint owner classes.
     // P3.12 adds five provider-neutral asset lifecycle/policy components and Gemini codecs.
-    expect($classes)->toHaveCount(148)
+    expect($classes)->toHaveCount(167)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
@@ -118,16 +119,17 @@ test('новый Llm execution port не импортирует Procurement и G
     expect($codec)->not->toContain('Facades\\Http', 'PendingRequest', 'Prism\\', 'ProxyResolver', '->send(', '->retry(');
 });
 
-test('ядро не несёт идентификатор Estimate/литерал \'estimate\' кроме AiDocumentType::Estimate — (г) §6.3', function (): void {
-    $violations = [];
-
-    foreach (coreClassesOfContract() as $entry) {
-        $source = str_replace('AiDocumentType::Estimate', '', (string) file_get_contents($entry['path']));
-
-        if (preg_match_all('/\bEstimate\b|\'estimate\'/', $source, $matches) > 0) {
-            $violations[] = $entry['path'].': '.implode(', ', $matches[0]);
+test('provider layers не знают тип документа а analyzer pipeline не зависит от площадки', function (): void {
+    foreach (['Services/Llm', 'Repositories/Llm', 'Models/Llm', 'Dto/Llm'] as $root) {
+        foreach (File::allFiles(app_path($root)) as $file) {
+            $dependencies = PlatformSourceRules::inspect($file->getContents())['dependencies'];
+            expect(array_values(array_filter($dependencies, fn (string $d): bool => str_contains($d, '\\Procurement\\'))))->toBe([]);
         }
     }
-
-    expect($violations)->toBe([]);
+    foreach (['Services/Procurement/Extraction', 'Services/Procurement/Screening', 'Services/Procurement/Analyzers/Estimate'] as $root) {
+        foreach (File::allFiles(app_path($root)) as $file) {
+            $dependencies = PlatformSourceRules::inspect($file->getContents())['dependencies'];
+            expect(array_values(array_filter($dependencies, fn (string $d): bool => str_contains($d, '\\Platforms\\'))))->toBe([]);
+        }
+    }
 });

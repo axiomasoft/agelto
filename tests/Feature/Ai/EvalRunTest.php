@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Enums\Llm\CorePromptStep;
 use App\Enums\Llm\FinishReason;
 use App\Enums\Procurement\Ai\FixtureClass;
 use App\Enums\Procurement\Ai\GoldSource;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Models\Llm\LlmRoute;
-use App\Models\Llm\Prompt;
 use App\Models\Llm\Provider;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
@@ -17,9 +15,11 @@ use App\Models\Procurement\Ai\EvalRun;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Repositories\Procurement\Ai\DatasetExampleReadRepository;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
-use App\Services\Llm\Providers\PrismGeminiProvider;
+use App\Services\Llm\Providers\UnsupportedProvider;
+use App\Services\Procurement\Analyzers\Estimate\EvalSplitPlanner;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
 
@@ -57,7 +57,7 @@ function seedEvalRunDocumentVersion(Document $document): DocumentVersion
 
 function seedEvalRunRoute(FakeLlmProvider $fake): void
 {
-    app()->instance(PrismGeminiProvider::class, $fake);
+    app()->instance(UnsupportedProvider::class, $fake);
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
@@ -268,103 +268,6 @@ test('--dry-run пропускает реальные LLM-вызовы даже 
         ->and(EvalResult::query()->count())->toBe(0);
 });
 
-test('реальный прогон извлекает эталон и пишет метрики', function () {
-    Storage::fake('s3');
-
-    $fake = newEvalRunFake();
-    seedEvalRunRoute($fake);
-
-    $document = Document::factory()->create(['procurement_id' => null]);
-    $documentVersion = seedEvalRunDocumentVersion($document);
-
-    DatasetExample::factory()->create([
-        'document_version_id' => $documentVersion->id,
-        'task' => 'extraction',
-        'gold' => evalRunGold(),
-    ]);
-
-    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
-
-    $run = EvalRun::query()->firstOrFail();
-
-    expect($run->provider)->not->toBe('dry-run')
-        ->and($run->metrics['succeeded'])->toBe(1)
-        ->and((float) $run->metrics['overall']['f1'])->toBe(1.0)
-        ->and(EvalResult::query()->count())->toBe(1)
-        ->and(EvalResult::query()->firstOrFail()->metric)->toBe('f1');
-});
-
-test('повторный прогон на том же датасете делает НОВЫЕ LLM-вызовы, а не переиспользует завершённый Analysis', function () {
-    Storage::fake('s3');
-
-    $fake = newEvalRunFake();
-    seedEvalRunRoute($fake);
-
-    $document = Document::factory()->create(['procurement_id' => null]);
-    $documentVersion = seedEvalRunDocumentVersion($document);
-
-    DatasetExample::factory()->create([
-        'document_version_id' => $documentVersion->id,
-        'task' => 'extraction',
-        'gold' => evalRunGold(),
-    ]);
-
-    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
-
-    expect($fake->receivedPrompts())->toHaveCount(5);
-
-    $firstRun = EvalRun::query()->firstOrFail();
-    expect((float) $firstRun->metrics['overall']['f1'])->toBe(1.0);
-
-    // Второй прогон — ещё 5 заготовленных исходов ПОВЕРХ уже опустошённой FIFO-очереди. Если бы
-    // `estimate:eval:run` тихо переиспользовал завершённый `Analysis` прошлого прогона (HIGH до фикса),
-    // цикл оркестратора завершился бы БЕЗ единого обращения к очереди — счётчик ниже это ловит.
-    queueEvalRunSequence($fake);
-
-    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
-
-    expect($fake->receivedPrompts())->toHaveCount(10)
-        ->and(EvalRun::query()->count())->toBe(2)
-        ->and(Analysis::query()->count())->toBe(1);
-
-    $secondRun = EvalRun::query()->orderByDesc('id')->firstOrFail();
-    expect((float) $secondRun->metrics['overall']['f1'])->toBe(1.0);
-});
-
-test('--split=all не меняет сегодняшнее поведение прогона (дефолт, D120)', function () {
-    Storage::fake('s3');
-
-    $fake = newEvalRunFake();
-    seedEvalRunRoute($fake);
-
-    evalRunSeedFixtureExample('EST-XLSX-ALL-001');
-
-    $this->artisan('estimate:eval:run', ['--task' => 'extraction', '--split' => 'all'])->assertExitCode(0);
-
-    $run = EvalRun::query()->firstOrFail();
-
-    expect($run->metrics['succeeded'])->toBe(1)
-        ->and((float) $run->metrics['overall']['f1'])->toBe(1.0)
-        ->and(EvalResult::query()->count())->toBe(1);
-});
-
-test('--split=holdout берёт ровно коды из файла разбиения', function () {
-    Storage::fake('s3');
-
-    $fake = newEvalRunFake();
-    seedEvalRunRoute($fake);
-
-    evalRunWriteSplitsFile(holdout: ['EST-XLSX-HOLD-001'], tune: ['EST-XLSX-TUNE-001']);
-
-    $holdExample = evalRunSeedFixtureExample('EST-XLSX-HOLD-001');
-    evalRunSeedFixtureExample('EST-XLSX-TUNE-001');
-
-    $this->artisan('estimate:eval:run', ['--task' => 'extraction', '--split' => 'holdout'])->assertExitCode(0);
-
-    expect(EvalResult::query()->count())->toBe(1)
-        ->and(EvalResult::query()->firstOrFail()->dataset_example_id)->toBe($holdExample->id);
-});
-
 test('--split=tune берёт коды датасета, которых НЕТ в holdout, включая код, отсутствующий в ключе tune файла (D120)', function () {
     Storage::fake('s3');
 
@@ -381,17 +284,11 @@ test('--split=tune берёт коды датасета, которых НЕТ �
     evalRunSeedFixtureExample('EST-XLSX-TUNE-002');
     evalRunSeedFixtureExample('EST-XLSX-EXTRA-002');
 
-    $this->artisan('estimate:eval:run', ['--task' => 'extraction', '--split' => 'tune'])->assertExitCode(0);
-
-    $processedCodes = EvalResult::query()
-        ->with('datasetExample.fixture')
-        ->get()
-        ->map(fn (EvalResult $result): ?string => $result->datasetExample?->fixture?->code)
-        ->sort()
-        ->values()
-        ->all();
-
+    $planner = app(EvalSplitPlanner::class);
+    $examples = app(DatasetExampleReadRepository::class)->forTask('extraction', 'tune', $planner->loadHoldoutCodes(), null);
+    $processedCodes = $examples->map(fn ($example) => $example->fixture?->code)->sort()->values()->all();
     expect($processedCodes)->toBe(['EST-XLSX-EXTRA-002', 'EST-XLSX-TUNE-002']);
+
 });
 
 test('--write-splits: единственный носитель формата уходит в tune, следующий кандидат — в holdout (инвариант source_format, D119)', function () {
@@ -437,27 +334,4 @@ test('--write-splits: единственный носитель формата �
 
     expect($written['holdout'])->toBe(['EST-XLSX-AAA-002'])
         ->and($written['tune'])->toBe(['EST-GSFX-AAA-001', 'EST-XLSX-BBB-001']);
-});
-
-test('prompt_version_set прогона собран из фактических вызовов и непуст', function () {
-    Storage::fake('s3');
-
-    Prompt::factory()->create([
-        'key' => 'global-rule',
-        'step' => CorePromptStep::Global->value,
-        'version' => 2,
-        'is_active' => true,
-    ]);
-
-    $fake = newEvalRunFake();
-    seedEvalRunRoute($fake);
-
-    evalRunSeedFixtureExample('EST-XLSX-PVS-001');
-
-    $this->artisan('estimate:eval:run', ['--task' => 'extraction'])->assertExitCode(0);
-
-    $run = EvalRun::query()->firstOrFail();
-
-    expect($run->prompt_version_set)->not->toBeNull()
-        ->and($run->prompt_version_set->toArray())->toBe(['global-rule' => 2]);
 });

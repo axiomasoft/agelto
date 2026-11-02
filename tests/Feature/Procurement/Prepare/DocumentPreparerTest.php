@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
@@ -46,7 +45,7 @@ function seedVersion(Document $document, string $fixture, string $extension): Do
     ]);
 }
 
-test('format corpus: подготовка PDF — PassthroughStrategy, документ переходит в prepared без ScreeningJob (флаг выключен)', function () {
+test('format corpus: подготовка PDF — PassthroughStrategy, документ переходит в prepared без планирования AI', function () {
     Storage::fake('s3');
     Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
@@ -160,7 +159,7 @@ test('format corpus: архив с xlsx внутри — создаёт доче
     expect($childVersion->archive_entry_path)->toBe('estimates/sample.xlsx');
 
     Queue::assertNothingPushed();
-    Queue::assertNotPushed(ScreeningJob::class);
+    Queue::assertNothingPushed();
 
     expect(ProcurementEvent::query()
         ->where('procurement_id', $document->procurement_id)
@@ -308,8 +307,7 @@ test('format corpus: повторный прогон на уже prepared док
     expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
 });
 
-test('format corpus: успешная подготовка диспатчит ScreeningJob за включённым гейтом config(ai.screening.enabled)', function () {
-    config(['ai.screening.enabled' => true]);
+test('format corpus: format probe успешной подготовки не планирует AI', function () {
     Storage::fake('s3');
     Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
@@ -320,9 +318,8 @@ test('format corpus: успешная подготовка диспатчит Sc
     Queue::assertNothingPushed();
 });
 
-test('format corpus: unprocessable-исход не диспатчит ScreeningJob даже за включённым гейтом', function () {
+test('format corpus: unprocessable format probe не планирует AI', function () {
     config([
-        'ai.screening.enabled' => true,
         'ai.prepare.xlsx_max_mb' => 0,
         'ai.prepare.strategies' => [SpreadsheetStrategy::class],
     ]);

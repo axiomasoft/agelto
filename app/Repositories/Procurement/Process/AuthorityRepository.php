@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Repositories\Procurement\Process;
 
 use App\Dto\Procurement\Process\AdmissionGroupSnapshot;
+use App\Dto\Procurement\Process\AnalysisSubjects;
 use App\Dto\Procurement\Process\AuthoritySnapshot;
 use App\Dto\Procurement\Process\CapacityAuthority;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ControlSnapshot;
+use App\Dto\Procurement\Process\ExtractionWindowInput;
 use App\Dto\Procurement\Process\HandlerAuthoritySnapshot;
 use App\Dto\Procurement\Process\LockedSubject;
 use App\Dto\Procurement\Process\PrepareInput;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\PublicationInput;
 use App\Dto\Procurement\Process\ScopeDefinition;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\SubjectAuthoritySnapshot;
@@ -20,6 +23,7 @@ use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\SubjectLockSnapshot;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\AuthorityGap;
 use App\Enums\Procurement\Process\CapacityKind;
 use App\Enums\Procurement\Process\ControlMode;
@@ -138,9 +142,13 @@ final readonly class AuthorityRepository
                 return AuthorityGap::SubjectMissing;
             }
         }
+        $analysis = $this->analysisSubjects($input);
+        if (($input instanceof ExtractionWindowInput || $input instanceof PublicationInput) && $analysis === null) {
+            return AuthorityGap::SubjectMissing;
+        }
         $subjects = [];
-        foreach ($this->resolver->subjects($input, $documentId) as $subject) {
-            $headColumn = $subject->kind === SubjectKind::DocumentVersion ? '1::bigint AS head_generation' : 'head_generation';
+        foreach ($this->resolver->subjects($input, $documentId, $analysis) as $subject) {
+            $headColumn = self::headColumn($subject->kind);
             $row = LedgerRow::one('SELECT '.$headColumn.' FROM '.$subject->kind->value.' WHERE id = ?', [self::subjectId($subject)]);
             if ($row === null) {
                 return AuthorityGap::SubjectMissing;
@@ -167,7 +175,8 @@ final readonly class AuthorityRepository
                 HandlerEligibility::from($handler->string('state')),
                 $handler->int('version'),
             ),
-            capacity: array_map(static fn (string $id): CapacityAuthority => new CapacityAuthority(CapacityKind::Lane, new ProcessUuid($id)), $laneIds),
+            capacity: [...array_map(static fn (string $id): CapacityAuthority => new CapacityAuthority(CapacityKind::Lane, new ProcessUuid($id)), $laneIds),
+                ...$this->analysisStorage($workId, $code)],
             subjects: new SubjectLockSnapshot($subjects),
             admissionGroup: $this->activeGroup($workId, $laneIds),
             providerOperations: [],
@@ -180,8 +189,9 @@ final readonly class AuthorityRepository
      * Admission дополнительно фиксирует eligibility authorities всех выбранных пар ДО capacity.
      *
      * @param  list<AuthoritySnapshot>  $eligibilitySnapshots
+     * @param  list<ProcessUuid>  $storageDomains  Additional output domains known before locking.
      */
-    public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork, array $eligibilitySnapshots = [], ?PublicationLocks $publication = null): LockedPrefix|PrefixFailure
+    public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork, array $eligibilitySnapshots = [], ?PublicationLocks $publication = null, array $storageDomains = []): LockedPrefix|PrefixFailure
     {
         CallerTransaction::require('Process lock prefix');
 
@@ -196,7 +206,7 @@ final readonly class AuthorityRepository
             }
             $expectedHandlers[$authority->handler->id->value] = $authority->handler;
             foreach ($authority->capacity as $member) {
-                $capacity[$member->id->value] = $member;
+                $capacity[$member->key()] = $member;
             }
         }
         ksort($expectedControls, SORT_STRING);
@@ -230,7 +240,9 @@ final readonly class AuthorityRepository
         ));
 
         // Tier 2: весь capacity set одним sorted FOR UPDATE; COUNT reservations только после locks.
-        $laneIds = array_keys($capacity);
+        $laneIds = array_map(static fn (CapacityAuthority $member): string => $member->id->value,
+            array_values(array_filter($capacity, static fn (CapacityAuthority $member): bool => $member->kind === CapacityKind::Lane)));
+        sort($laneIds, SORT_STRING);
         $in = LedgerRow::placeholders(count($laneIds));
         $laneRows = LedgerRow::all(
             "SELECT id, lane_key, parent_lane_id, max_outstanding, max_running,
@@ -259,6 +271,13 @@ final readonly class AuthorityRepository
             );
         }
 
+        foreach ($capacity as $member) {
+            if ($member->kind === CapacityKind::Storage) {
+                $storageDomains[] = $member->id;
+            }
+        }
+        $this->lockStorageDomains($storageDomains);
+
         // Tier 3: полный subject set FOR UPDATE в порядке (table key, PK) снимка; heads сверяются.
         $publication?->lockIdentities();
         $subjects = $this->lockSubjects($snapshot);
@@ -285,6 +304,9 @@ final readonly class AuthorityRepository
         }
         if ($work->int('input_revision') !== $snapshot->inputRevision || $work->string('input_hash') !== $snapshot->inputHash->hex) {
             throw new \LogicException('Work input is immutable for its work_key.');
+        }
+        if (! $this->sameAnalysisStorage($snapshot)) {
+            return PrefixFailure::SnapshotChanged;
         }
 
         $intentId = $work->nullableString('intent_id');
@@ -328,16 +350,33 @@ final readonly class AuthorityRepository
         $subjects = [];
         foreach ($snapshot->subjects->subjects as $expected) {
             $revision = $expected->subject->kind === SubjectKind::CrawlBlock ? 'input_revision' : 'NULL::bigint';
-            $headColumn = $expected->subject->kind === SubjectKind::DocumentVersion ? '1::bigint AS head_generation' : 'head_generation';
+            $headColumn = self::headColumn($expected->subject->kind);
             $currentVersion = $expected->subject->kind === SubjectKind::Document ? 'current_version_id' : 'NULL::bigint';
+            $extra = match ($expected->subject->kind) {
+                SubjectKind::DocumentVersion => "analysis_generation,current_analysis_run_id,
+                    (SELECT r.expected_document_head_generation FROM prc_analysis_runs r WHERE r.id=current_analysis_run_id) AS expected_document_head_generation,
+                    (SELECT encode(r.recipe_hash,'hex') FROM prc_analysis_runs r WHERE r.id=current_analysis_run_id) AS current_recipe_hex,
+                    (SELECT encode(r.representation_hash,'hex') FROM prc_analysis_runs r WHERE r.id=current_analysis_run_id) AS current_representation_hex",
+                SubjectKind::AnalysisRun => "encode(recipe_hash,'hex') AS recipe_hex,expected_document_head_generation,expected_analysis_generation",
+                default => 'NULL::bigint AS analysis_generation',
+            };
             $row = LedgerRow::one(
-                "SELECT {$headColumn}, {$revision} AS input_revision, {$currentVersion} AS current_version_id FROM {$expected->subject->kind->value} WHERE id = ? FOR UPDATE",
+                "SELECT {$headColumn}, {$revision} AS input_revision, {$currentVersion} AS current_version_id,{$extra} FROM {$expected->subject->kind->value} WHERE id = ? FOR UPDATE",
                 [self::subjectId($expected->subject)],
             );
             if ($row === null || $row->int('head_generation') !== $expected->headGeneration) {
                 return PrefixFailure::SnapshotChanged;
             }
-            $subjects[$expected->subject->key()] = new LockedSubject($expected->subject, $row->int('head_generation'), $row->nullableInt('input_revision'), $row->nullableInt('current_version_id'));
+            $kind = $expected->subject->kind;
+            $currentRun = $kind === SubjectKind::DocumentVersion ? $row->nullableString('current_analysis_run_id') : null;
+            $subjects[$expected->subject->key()] = new LockedSubject($expected->subject, $row->int('head_generation'), $row->nullableInt('input_revision'), $row->nullableInt('current_version_id'),
+                $kind === SubjectKind::DocumentVersion ? $row->int('analysis_generation') : null,
+                $currentRun === null ? null : new ProcessUuid($currentRun),
+                $kind === SubjectKind::AnalysisRun ? new ContentHash($row->string('recipe_hex')) : null,
+                in_array($kind, [SubjectKind::AnalysisRun, SubjectKind::DocumentVersion], true) ? $row->nullableInt('expected_document_head_generation') : null,
+                $kind === SubjectKind::AnalysisRun ? $row->int('expected_analysis_generation') : null,
+                ($hash = $row->nullableString('current_recipe_hex')) === null ? null : new ContentHash($hash),
+                ($hash = $row->nullableString('current_representation_hex')) === null ? null : new ContentHash($hash));
         }
 
         if ($snapshot->input instanceof PrepareInput || $snapshot->input instanceof ScreeningInput) {
@@ -354,7 +393,45 @@ final readonly class AuthorityRepository
 
         }
 
+        if ($snapshot->input instanceof ExtractionWindowInput || $snapshot->input instanceof PublicationInput) {
+            $current = $this->analysisSubjects($snapshot->input);
+            if ($current === null) {
+                return PrefixFailure::SnapshotChanged;
+            }
+            $keys = array_map(static fn (SubjectKey $s): string => $s->key(), $this->resolver->subjects($snapshot->input, analysis: $current));
+            $expectedKeys = array_keys($subjects);
+            sort($keys);
+            sort($expectedKeys);
+            if ($keys !== $expectedKeys) {
+                return PrefixFailure::SnapshotChanged;
+            }
+        }
+
         return $subjects;
+    }
+
+    private static function headColumn(SubjectKind $kind): string
+    {
+        return match ($kind) {
+            SubjectKind::DocumentVersion, SubjectKind::AnalysisWindow => '1::bigint AS head_generation',
+            SubjectKind::AnalysisRun => 'generation AS head_generation',
+            default => 'head_generation',
+        };
+    }
+
+    private function analysisSubjects(WorkInput $input): ?AnalysisSubjects
+    {
+        if (! $input instanceof ExtractionWindowInput && ! $input instanceof PublicationInput) {
+            return null;
+        }
+        $window = $input instanceof ExtractionWindowInput;
+        $row = LedgerRow::one('SELECT v.document_id,v.id AS version_id,r.id AS run_id,'.($window ? 'w.id' : 'NULL::uuid').
+            ' AS window_id FROM prc_analysis_runs r JOIN prc_document_versions v ON v.id=r.document_version_id '.
+            ($window ? 'JOIN prc_analysis_windows w ON w.run_id=r.id ' : '').'WHERE r.id=?'.($window ? ' AND w.window_key=?' : ''),
+            [$input->analysisRunId->value, ...($window ? [$input->windowKey] : [])]);
+
+        return $row === null ? null : new AnalysisSubjects($row->int('document_id'), $row->int('version_id'),
+            new ProcessUuid($row->string('run_id')), ($id = $row->nullableString('window_id')) === null ? null : new ProcessUuid($id));
     }
 
     /**
@@ -364,7 +441,8 @@ final readonly class AuthorityRepository
     public function exactMembership(AuthoritySnapshot $snapshot, LockedPrefix $prefix, string $groupState): bool
     {
         $group = $prefix->group;
-        $laneIds = array_map(static fn (CapacityAuthority $authority): string => $authority->id->value, $snapshot->capacity);
+        $laneIds = array_map(static fn (CapacityAuthority $authority): string => $authority->id->value,
+            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $authority): bool => $authority->kind === CapacityKind::Lane)));
         sort($laneIds, SORT_STRING);
 
         $expectedStage = $snapshot->handler->stage->value;
@@ -382,6 +460,48 @@ final readonly class AuthorityRepository
             && $group->string('lane_set_hash') === $this->policy->requiredLaneSetHash($snapshot->handler->stage)->hex
             && array_keys($prefix->members) === $laneIds
             && ($groupState !== 'admitted' || $group->nullableString('attempt_id') === null);
+    }
+
+    /** The checkpoint subset still takes every output domain before subjects/work. */
+    public function lockCheckpointStorage(AuthoritySnapshot $snapshot): void
+    {
+        $this->lockStorageDomains(array_map(static fn (CapacityAuthority $member): ProcessUuid => $member->id,
+            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $member): bool => $member->kind === CapacityKind::Storage))));
+    }
+
+    public function sameAnalysisStorage(AuthoritySnapshot $snapshot): bool
+    {
+        $expected = array_map(static fn (CapacityAuthority $member): string => $member->key(),
+            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $member): bool => $member->kind === CapacityKind::Storage)));
+        $actual = array_map(static fn (CapacityAuthority $member): string => $member->key(), $this->analysisStorage($snapshot->workId, $snapshot->handler->stage));
+        sort($expected, SORT_STRING);
+        sort($actual, SORT_STRING);
+
+        return $actual === $expected;
+    }
+
+    /** @return list<CapacityAuthority> */
+    private function analysisStorage(WorkId $work, StageCode $stage): array
+    {
+        $required = $this->resolver->requiresAnalysisStorageLocks($stage);
+        if (! $required) {
+            return [];
+        }
+
+        return array_map(static fn (LedgerRow $row): CapacityAuthority => new CapacityAuthority(CapacityKind::Storage, new ProcessUuid($row->string('domain_id'))),
+            LedgerRow::all('SELECT DISTINCT domain_id FROM prc_storage_reservations WHERE work_id=? ORDER BY domain_id', [$work->value->value]));
+    }
+
+    /** @param list<ProcessUuid> $domains */
+    private function lockStorageDomains(array $domains): void
+    {
+        $ids = array_values(array_unique(array_map(static fn (ProcessUuid $id): string => $id->value, $domains)));
+        sort($ids, SORT_STRING);
+        foreach ($ids as $id) {
+            if (LedgerRow::one('SELECT id FROM prc_storage_domains WHERE id=? FOR UPDATE', [$id]) === null) {
+                throw new \LogicException('Missing declared storage capacity authority.');
+            }
+        }
     }
 
     /** @param list<string> $laneIds */

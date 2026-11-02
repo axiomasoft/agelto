@@ -59,7 +59,7 @@ test('отключённые sources не мешают prepare verified bytes и
     } while ($outcome instanceof StagePartial);
     expect($outcome)->toBeInstanceOf(StageSucceeded::class)
         ->and(DB::table('prc_process_work')->where('id', $f->work->value->value)->value('state'))->toBe('succeeded')
-        ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBe('handler_not_activated')
+        ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBeNull()
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
     Queue::assertNothingPushed();
 });

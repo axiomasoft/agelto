@@ -4,99 +4,72 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Ai;
 
-use App\Enums\Procurement\Ai\AnalysisRunStatus;
-use App\Enums\Procurement\Ai\RunMode;
+use App\Enums\Procurement\Process\WorkState;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Models\User;
-use Database\Factories\Procurement\Ai\AnalysisRunFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
+use App\Support\Files\Sha256Cast;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Table;
-use Illuminate\Database\Eloquent\Attributes\UseFactory;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 
 /**
- * Один запуск разбора одной версии документа (§3 root/document-contour.md, D93): скрининг →
- * загрузка в кэш провайдера → извлечение — цепочка `Ai\Analysis`/`llm_calls`, объединённая
- * этой строкой. Partial unique `(document_version_id) WHERE finished_at IS NULL` — второй
- * незавершённый прогон той же версии отвергается базой (§3.2).
+ * Immutable canonical recipe/run read model. Execution and spend are derived by AnalysisRunReadRepository.
  *
- * @property int $id
- * @property string $uuid
+ * @property string $id
  * @property int $document_version_id
- * @property RunMode $mode
- * @property AnalysisRunStatus $status
+ * @property int $representation_id
+ * @property string $recipe_hash
+ * @property string $representation_hash
+ * @property int $generation
+ * @property int $expected_analysis_generation
+ * @property string $requested_reason
+ * @property string $publication_status
+ * @property string|null $screening_disposition
+ * @property WorkState $execution_state
+ * @property CarbonImmutable|null $started_at
+ * @property CarbonImmutable|null $finished_at
  * @property int|null $prompt_tokens
  * @property int|null $completion_tokens
  * @property int|null $cached_tokens
  * @property int|null $total_tokens
  * @property int|null $cost_micros
- * @property int|null $initiated_by
- * @property Carbon|null $started_at
- * @property Carbon|null $finished_at
+ * @property string|null $cost_currency
+ * @property int|null $reserved_micros
+ * @property int $calls
+ * @property int $unknown_calls
  */
-#[UseFactory(AnalysisRunFactory::class)]
-#[Fillable([
-    'uuid',
-    'document_version_id',
-    'mode',
-    'status',
-    'prompt_tokens',
-    'completion_tokens',
-    'cached_tokens',
-    'total_tokens',
-    'cost_micros',
-    'initiated_by',
-    'started_at',
-    'finished_at',
-])]
-#[Table(name: 'prc_ai_analysis_runs')]
+#[Table(name: 'prc_analysis_runs', keyType: 'string', incrementing: false, timestamps: false)]
 final class AnalysisRun extends Model
 {
-    /** @use HasFactory<AnalysisRunFactory> */
-    use HasFactory;
-
     protected function casts(): array
     {
-        return [
-            'mode' => RunMode::class,
-            'status' => AnalysisRunStatus::class,
-            'prompt_tokens' => 'integer',
-            'completion_tokens' => 'integer',
-            'cached_tokens' => 'integer',
-            'total_tokens' => 'integer',
-            'cost_micros' => 'integer',
-            'started_at' => 'datetime',
-            'finished_at' => 'datetime',
-        ];
+        return ['recipe_hash' => Sha256Cast::class, 'representation_hash' => Sha256Cast::class,
+            'generation' => 'integer', 'expected_analysis_generation' => 'integer',
+            'execution_state' => WorkState::class, 'started_at' => 'immutable_datetime', 'finished_at' => 'immutable_datetime',
+            'prompt_tokens' => 'integer', 'completion_tokens' => 'integer', 'cached_tokens' => 'integer', 'total_tokens' => 'integer',
+            'cost_micros' => 'integer', 'reserved_micros' => 'integer', 'calls' => 'integer', 'unknown_calls' => 'integer'];
     }
 
     /** @return BelongsTo<DocumentVersion, $this> */
     public function documentVersion(): BelongsTo
     {
-        return $this->belongsTo(related: DocumentVersion::class);
-    }
-
-    /** @return BelongsTo<User, $this> */
-    public function initiatedBy(): BelongsTo
-    {
-        return $this->belongsTo(related: User::class, foreignKey: 'initiated_by');
+        return $this->belongsTo(DocumentVersion::class);
     }
 
     /** @return HasMany<Analysis, $this> */
     public function analyses(): HasMany
     {
-        return $this->hasMany(related: Analysis::class);
+        return $this->hasMany(Analysis::class);
     }
 
     protected static function booted(): void
     {
-        self::creating(function (self $run): void {
-            $run->uuid ??= (string) Str::uuid7();
+        self::saving(static function (): never {
+            throw new \LogicException('Canonical analysis writes require the durable workflow owner.');
+        });
+        self::deleting(static function (): never {
+            throw new \LogicException('Canonical analysis retention requires its provenance owner.');
         });
     }
 }

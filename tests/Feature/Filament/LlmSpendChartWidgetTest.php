@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 use App\Filament\Widgets\LlmSpendChartWidget;
 use App\Guards\Admin\Roles\SuperAdminRole;
-use App\Models\Llm\LlmCall;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Filament\Facades\Filament;
+use Tests\Support\ProcessCore\ProviderReportFixtures;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
+
+beforeEach(fn () => ProviderReportFixtures::reset());
 
 // Смещения во времени НЕБОЛЬШИЕ (часы/сутки): `llm_calls` партиционирована RANGE(called_at),
 // далёкая дата ушла бы в несуществующую партицию — тот же приём, что в `UsageSourceTest`.
@@ -32,8 +34,8 @@ test('дневной разрез: два вызова в одни сутки �
     $this->travelTo($moment);
 
     try {
-        LlmCall::factory()->create(['cost_micros' => 1_000, 'called_at' => $moment]);
-        LlmCall::factory()->create(['cost_micros' => 500, 'called_at' => $moment->subHours(2)]);
+        ProviderReportFixtures::store(['cost_micros' => 1_000, 'called_at' => $moment]);
+        ProviderReportFixtures::store(['cost_micros' => 500, 'called_at' => $moment->subHours(2)]);
 
         $widget = new LlmSpendChartWidget;
         $widget->filter = '7';
@@ -48,8 +50,8 @@ test('дневной разрез: два вызова в разные сутк�
     $today = CarbonImmutable::now();
     $yesterday = $today->subDay();
 
-    LlmCall::factory()->create(['cost_micros' => 1_000, 'called_at' => $yesterday]);
-    LlmCall::factory()->create(['cost_micros' => 2_000, 'called_at' => $today]);
+    ProviderReportFixtures::store(['cost_micros' => 1_000, 'called_at' => $yesterday]);
+    ProviderReportFixtures::store(['cost_micros' => 2_000, 'called_at' => $today]);
 
     $widget = new LlmSpendChartWidget;
     $widget->filter = '7';
@@ -65,8 +67,8 @@ test('серия провайдера без данных за чужой ден
     $today = CarbonImmutable::now();
     $yesterday = $today->subDay();
 
-    LlmCall::factory()->create(['provider' => 'gemini', 'model' => 'gemini-2.5-flash', 'cost_micros' => 1_000, 'called_at' => $yesterday]);
-    LlmCall::factory()->create(['provider' => 'openai', 'model' => 'gpt-5', 'cost_micros' => 2_000, 'called_at' => $today]);
+    ProviderReportFixtures::store(['provider' => 'gemini', 'model' => 'gemini-2.5-flash', 'cost_micros' => 1_000, 'called_at' => $yesterday]);
+    ProviderReportFixtures::store(['provider' => 'openai', 'model' => 'gpt-5', 'cost_micros' => 2_000, 'called_at' => $today]);
 
     $widget = new LlmSpendChartWidget;
     $widget->filter = '7';
@@ -91,23 +93,23 @@ test('дневной разрез: пустая БД — пустые серии
 });
 
 test('подпись источника — обязательный элемент виджета', function (): void {
-    LlmCall::factory()->create(['called_at' => CarbonImmutable::now()]);
+    ProviderReportFixtures::store(['called_at' => CarbonImmutable::now()]);
 
     $widget = new LlmSpendChartWidget;
     $widget->filter = '7';
 
-    expect($widget->getDescription())->toContain('Источник: наш трекинг (llm_calls)');
+    expect($widget->getDescription())->toContain('Источник: provider ledger');
 });
 
-test('подпись явно называет период за горизонтом retention, а не молчит пустой диаграммой', function (): void {
+test('подпись явно указывает независимое сохранение financial provenance', function (): void {
     config(['partitioning.retention.llm_calls.months' => 1]);
 
-    LlmCall::factory()->create(['called_at' => CarbonImmutable::now()]);
+    ProviderReportFixtures::store(['called_at' => CarbonImmutable::now()]);
 
     $widget = new LlmSpendChartWidget;
     $widget->filter = '90';
 
-    expect($widget->getDescription())->toContain('партиции старше retention удалены');
+    expect($widget->getDescription())->toContain('без удаления по возрасту');
 });
 
 test('право на виджет: суперадмин видит, пользователь без ролей — нет', function (): void {

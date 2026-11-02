@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Filament\Pages;
 
 use App\Models\Llm\LlmCall;
-use App\Repositories\Llm\LlmCallReadRepository;
+use App\Repositories\Procurement\Ai\AnalysisCallReadRepository;
 use App\Services\Llm\Dto\StoredPayload;
 use App\Services\Llm\LlmPayloadReader;
 use AzGuard\Filament\Concerns\HasAzGuardPage;
@@ -17,15 +17,10 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
 
-/**
- * Финальный (объединённый) промт, реально ушедший в провайдера, по каждому вызову прогона —
- * первичного анализа и извлечения (P5.5, бриф §5). Показывается СОХРАНЁННЫЙ payload
- * (`llm_calls.request_ref`/`response_ref`), пересборка композитором ЗАПРЕЩЕНА (D46). Первая
- * кастомная страница панели (D45) — авторизуется ПРИНУДИТЕЛЬНО трейтом `HasAzGuardPage`: скрытие
- * пункта навигации доступом не является, URL остаётся достижимым без трейта.
- */
+/** Authorized canonical-call history and verified response body; no reconstructed request is claimed as sent. */
 final class FinalPromptPage extends Page implements HasTable
 {
     use HasAzGuardPage;
@@ -37,13 +32,14 @@ final class FinalPromptPage extends Page implements HasTable
 
     protected string $view = 'filament.pages.final-prompt-page';
 
-    public int $run;
+    public string $run;
 
     #[Url]
-    public ?int $call = null;
+    public ?string $call = null;
 
-    public function mount(int $run): void
+    public function mount(string $run): void
     {
+        abort_unless(Str::isUuid($run), 404);
         $this->run = $run;
     }
 
@@ -55,7 +51,7 @@ final class FinalPromptPage extends Page implements HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(fn (): Builder => app(LlmCallReadRepository::class)->forRun($this->run))
+            ->query(fn (): Builder => app(AnalysisCallReadRepository::class)->forRun($this->run))
             ->columns([
                 TextColumn::make('purpose')
                     ->label('Назначение')
@@ -82,27 +78,27 @@ final class FinalPromptPage extends Page implements HasTable
                 Action::make('select')
                     ->label('Показать')
                     ->action(function (LlmCall $record): void {
-                        $this->call = $record->id;
+                        $this->call = $record->physical_call_id;
                     }),
             ]);
     }
 
     public function selectedCall(): ?LlmCall
     {
-        if ($this->call === null) {
+        if ($this->call === null || ! Str::isUuid($this->call)) {
             return null;
         }
 
-        return app(LlmCallReadRepository::class)->findInRun($this->call, $this->run);
+        return app(AnalysisCallReadRepository::class)->findInRun($this->call, $this->run);
     }
 
     public function requestPayload(LlmCall $call): StoredPayload
     {
-        return app(LlmPayloadReader::class)->read($call->request_ref);
+        return StoredPayload::absent();
     }
 
     public function responsePayload(LlmCall $call): StoredPayload
     {
-        return app(LlmPayloadReader::class)->read($call->response_ref);
+        return app(LlmPayloadReader::class)->receipt($call);
     }
 }

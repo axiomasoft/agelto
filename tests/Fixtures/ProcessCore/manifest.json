@@ -410,7 +410,7 @@
       "adapter_version": "acquisition/1",
       "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
       "captured_at": "2026-10-31",
-      "sha256": "9171d850242a2d08a10e341df8c2763c0f8aa67205d7374176b4dc75bce29cff",
+      "sha256": "ac40b428d84c0e4109c5cebd03fe4f0ea9c2283529faad4fd57ec69b2946bc5e",
       "expected": {
         "assessment": "exact_executed_replacements",
         "schema_version": 1
@@ -425,7 +425,7 @@
       "original_sha256": "b84a6969f30b39cc562caf30f3aeae7df951aa99a36b9e5d58ec11620d8a53a5",
       "original_path": "tests/Fixtures/ProcessCore/scenario-transfers.json",
       "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only.",
-      "accepted_change_item": "P3.5"
+      "accepted_change_item": "P3.13"
     },
     {
       "id": "p218-listing-facts",
@@ -584,32 +584,31 @@
     },
     {
       "path": "tests/Feature/Ai/BenchFormatsTest.php",
-      "sha256": "24f228341d3a8edb0a338b0013d0ecd6d25c7b659b417ab423228898ef549b6f",
+      "sha256": "a5f47de42afaef7fb9efcbcd5f18773c4121cc4ada884fe1b4d0a2e9182c55f7",
       "scenarios": [
         "сухой прогон не делает ни одного LLM-вызова и заполняет predicted",
         "ячейка с несуществующим вариантом — not_applicable, прогон не падает",
         "принуждение kind отдаёт именно его — отсутствующий вариант даёт null (not_applicable)",
         "forceKind = null даёт сегодняшнее поведение резолвера байт-в-байт",
-        "вызовы двух ячеек подряд отделены границей по id — usage не смешивается",
         "документ — НЕ рабочая копия этого эталона (fixture->document_id не совпадает) — отказ, прогон не падает",
         "эталон без детерминированного gold пропущен — не входит в матрицу",
         "повторный сухой прогон даёт тот же артефакт (кроме generated_at)",
         "artisan(estimate:bench:formats) без --out пишет артефакт под config(ai.fixtures.reports_dir) (D111)"
       ],
       "original_sha256": "14a5231f460dd5f38b5e2cd175ec1086ed4712d8ca48bc8620bb04cdf928abce",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Ai/CachesTest.php",
-      "sha256": "2b74f716193e58ff65e6403f8d871616a293379d8801130106fc093890e24e1d",
+      "sha256": "4cbd802a39ee19eb59b7e72cba4c248e567617d92cd9bfe360abfae9af55708b",
       "scenarios": [
-        "list без активных explicit-кэшей — сообщение без падения",
-        "list печатает активные explicit-кэши таблицей",
-        "list --hits без вызовов LLM — сообщение без падения",
-        "prune снимает регистрацию просроченного кэша через фабрику провайдера",
-        "неизвестное действие — ошибка и код возврата 1"
-      ]
+        "cache CLI lists canonical assets and known usage without a model API call",
+        "cache CLI rejects unowned remote prune and invalid action without new financial effects"
+      ],
+      "original_sha256": "2b74f716193e58ff65e6403f8d871616a293379d8801130106fc093890e24e1d",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Ai/ContractDescriptionCoverageTest.php",
@@ -621,7 +620,7 @@
     },
     {
       "path": "tests/Feature/Ai/CostReconcileTest.php",
-      "sha256": "ad11bffb8aa5159bfc7e1d63aa2258aaea87373d00426d17bd5f81a737d1852e",
+      "sha256": "898ff0494bd5e8c0e6f4980d3ae59b7ac630fd9a8ac4f815906391d32c05014c",
       "scenarios": [
         "дельта НИЖЕ порога — превышение не объявлено",
         "дельта ВЫШЕ порога — объявлена с процентом и разбивкой по дням",
@@ -631,17 +630,23 @@
         "currency ≠ USD — отказ, курс не пересчитывается",
         "порог следует за config, а не литералом — одна дельта, разные вердикты",
         "команда зарегистрирована и описывает вход"
-      ]
+      ],
+      "original_sha256": "ad11bffb8aa5159bfc7e1d63aa2258aaea87373d00426d17bd5f81a737d1852e",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Ai/CostReportTest.php",
-      "sha256": "0981729ced6634dc41358a49bbc56dc9943f067ada0d9c5162ef9a20197261fe",
+      "sha256": "4ea2c903702e8bac9b0c3d5d0df3642a4f661a1106322cee78e1538ae3112536",
       "scenarios": [
         "отчёт группирует расход по (provider, model, purpose) и считает итого за окно",
         "пустое окно — сообщение без падения и без таблицы",
-        "строка «экономия кэша» считается по capability-матрице модели (P7.2-фикс dot-notation)",
+        "историческая экономия кэша остаётся unknown без pinned counterfactual pricing",
         "--days влияет на нижнюю границу окна"
-      ]
+      ],
+      "original_sha256": "0981729ced6634dc41358a49bbc56dc9943f067ada0d9c5162ef9a20197261fe",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Ai/DatasetExportTest.php",
@@ -779,18 +784,16 @@
     },
     {
       "path": "tests/Feature/Ai/EvalRunTest.php",
-      "sha256": "f406b80671e0bb497f9e5ee3fd9852466468ef835f41f6fa6ca04c8b93091e3f",
+      "sha256": "795648b94d7aa9d9fa2fcd78410677c37a30f6afe3389a2d755ef975efaf1c6f",
       "scenarios": [
         "пустой датасет без --dry-run пишет EvalRun-заглушку без единого LLM-вызова",
         "--dry-run пропускает реальные LLM-вызовы даже с непустым датасетом",
-        "реальный прогон извлекает эталон и пишет метрики",
-        "повторный прогон на том же датасете делает НОВЫЕ LLM-вызовы, а не переиспользует завершённый Analysis",
-        "--split=all не меняет сегодняшнее поведение прогона (дефолт, D120)",
-        "--split=holdout берёт ровно коды из файла разбиения",
         "--split=tune берёт коды датасета, которых НЕТ в holdout, включая код, отсутствующий в ключе tune файла (D120)",
-        "--write-splits: единственный носитель формата уходит в tune, следующий кандидат — в holdout (инвариант source_format, D119)",
-        "prompt_version_set прогона собран из фактических вызовов и непуст"
-      ]
+        "--write-splits: единственный носитель формата уходит в tune, следующий кандидат — в holdout (инвариант source_format, D119)"
+      ],
+      "original_sha256": "f406b80671e0bb497f9e5ee3fd9852466468ef835f41f6fa6ca04c8b93091e3f",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Ai/FixtureImportTest.php",
@@ -829,18 +832,16 @@
     },
     {
       "path": "tests/Feature/Ai/FixtureRunTest.php",
-      "sha256": "5b61e74411a04487c1a23f56d959f89a315445eb172a4b6a76e544ff33f058e8",
+      "sha256": "24202e971128e0f35f93f551a14976dc197fd92b9945659d77e682416fb2c3ae",
       "scenarios": [
-        "запуск создаёт рабочую копию и диспатчит PrepareDocumentJob с RunMode::Manual и id инициатора",
-        "PrepareDocumentJob со значениями по умолчанию заводит прогон auto без инициатора, а с явными параметрами — manual с initiated_by (D135)",
-        "активный прогон версии → AnalysisRunAlreadyActive, повторный клик не диспатчит второй job",
-        "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана",
-        "повторный прогон того же эталона снимает активные анализы обоих шагов и откатывает статус документа в downloaded",
-        "оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)"
+        "fixture request создаёт canonical рабочую копию и manual run с инициатором",
+        "prepare producer сохраняет auto без инициатора и manual с инициатором в durable run",
+        "оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)",
+        "working copy A B A сохраняет три canonical revisions и current head вместо выбора historical hash"
       ],
       "original_sha256": "95b552ee9c151767c2e5746f632225b0fe3273c65b14b39d4ab79e232bde53f2",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Ai/FixtureStorageConfigTest.php",
@@ -969,16 +970,15 @@
     },
     {
       "path": "tests/Feature/Ai/PromptSuggestTest.php",
-      "sha256": "e534aa3b51e5039270b9e3cce4fddba597f2f12294633f5449cb7a95b3fb234b",
+      "sha256": "481894688970efe2c701460a92cda3340da6f004d2a943af65e45872115fbc07",
       "scenarios": [
-        "критик кладёт предложение pending с заполненными rationale/evidence",
-        "патч кросс-документного промта получает сентинел any и analysis_step=null",
         "битое значение document_type отвергается БД",
         "битое значение analysis_step отвергается БД",
-        "повторный прогон на том же diff не плодит дубль",
-        "вызов критика идёт без файлов/tools — только systemPart и userParts",
         "--dry-run показывает вход критика и не делает ни одного вызова"
-      ]
+      ],
+      "original_sha256": "e534aa3b51e5039270b9e3cce4fddba597f2f12294633f5449cb7a95b3fb234b",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Ai/PromptsSyncTest.php",
@@ -993,7 +993,7 @@
     },
     {
       "path": "tests/Feature/Ai/ScreeningEvalTest.php",
-      "sha256": "6adb57d0b6359801838c9e5004c339d2dcd8466dc8c7b44e569571949e68f346",
+      "sha256": "b3b6313f316a9bb3e7a72a960d23ca0ad8bc3cdd90d7b1843a392a0c715fe539",
       "scenarios": [
         "негатив, правильно классифицированный → accuracy 1.0 и FP 0",
         "негатив, помеченный estimate → FP 1.0 и запись в перечне расхождений с кодом эталона",
@@ -1001,7 +1001,10 @@
         "пустой датасет task=screening → заглушка EvalRun без вызовов",
         "--dry-run → ноль вызовов",
         "extraction-ветка осталась зелёной (существующие кейсы EvalRun не сломаны)"
-      ]
+      ],
+      "original_sha256": "6adb57d0b6359801838c9e5004c339d2dcd8466dc8c7b44e569571949e68f346",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Ai/ScreeningGoldTest.php",
@@ -1034,33 +1037,22 @@
       ]
     },
     {
-      "path": "tests/Feature/Ai/UsageSnapshotTest.php",
-      "sha256": "e81a164d9101de8c770260ebc070e3026582c89ce699a96cc4678b5199db12b5",
-      "scenarios": [
-        "слепок анализа = сумма вызовов её шага, вызов тюнинга (prompt_critic) не входит (D39)",
-        "повторный вызов сейма не удваивает цифры — пересчёт, а не инкремент",
-        "теневой анализ (is_shadow) считает ТОЛЬКО purpose=shadow — даже при наличии вызова скрининга на том же analysis_id",
-        "слепок прогона = сумма слепков его анализов, включая теневой",
-        "успешный скрининг — слепок расхода пишется на Analysis И на AnalysisRun (интеграционный путь ScreeningJob)",
-        "обучающий документ (площадка «Обучалка») — слепок пишется тем же путём, что боевой (D91)",
-        "фатальный finishReason — попытки исчерпаны, Analysis Failed несёт finished_at и ненулевой слепок",
-        "успешное извлечение — Analysis несёт provider/model (сегодня их писал только скрининг) и слепок = сумма вызовов extract_*"
-      ]
-    },
-    {
       "path": "tests/Feature/Ai/UsageSourceTest.php",
-      "sha256": "8088b7625eb5facafc54e5a1de9da5b52c9bf273ccf508c4d15cc41e518aa9b7",
+      "sha256": "67a843d7b18d991092165272401ea2f34893e69504801ea2c4482b194c71cabf",
       "scenarios": [
         "дневная ось режет расход по календарным суткам, а не по скользящему окну",
         "два вызова в ОДНИ сутки дают одну дневную строку",
         "окно полуинтервальное — from включительно, to исключительно",
         "ось, не выбранная запросом, приходит в строке как null",
         "подпись приходит полем ответа — идентификатор, нулевой лаг и горизонт",
-        "горизонт подписи следует за конфигом retention, а не за литералом",
-        "запрос за пределом горизонта несёт явный признак, а не молча пустую серию",
+        "financial provenance не наследует срок удаления эфемерных логов",
+        "financial history остаётся доступной за пределами прежнего log retention",
         "пустое окно — пустые строки и подпись на месте",
         "запрос без осей — всегда ОДНА строка-итог, на пустом окне нулевая"
-      ]
+      ],
+      "original_sha256": "8088b7625eb5facafc54e5a1de9da5b52c9bf273ccf508c4d15cc41e518aa9b7",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Architecture/TrainingUiIndependenceTest.php",
@@ -2113,15 +2105,13 @@
     },
     {
       "path": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
-      "sha256": "06c63a68d562b61fa4230ddd241c05014119fba253aeb42c21bc197658261ee2",
+      "sha256": "4257c8ab1f37ed3588866be3707747f6b7f2261e5e2a132536a14f968feb9d7e",
       "scenarios": [
-        "ревалидация ждёт завершения текущего анализа даже между checkpoint jobs",
-        "AI job не входит в обработку пока документ занят ревалидацией",
-        "selector фильтрует активный анализ до limit и не голодает на первых 25 документах"
+        "новая immutable версия при running prepare fence запрещает checkpoint и late publication старой версии"
       ],
       "original_sha256": "72824784cffaa88b5f50f1deb08631b7a43f19d294da6e5b2bf17e15cdcd60ae",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Document/DocumentRevalidationTest.php",
@@ -2231,7 +2221,7 @@
     },
     {
       "path": "tests/Feature/Filament/AnalysisResourceTest.php",
-      "sha256": "0d7b1cf8dda632231bac43bef87a7e6a1e2a8d23988916dee61cea61db4daded",
+      "sha256": "8f3b5d6a7c241b2e747f9c0febab7a7e24dbfb23a2b7e81a83f7f54e1cfdcb6f",
       "scenarios": [
         "оператор видит v2 классификацию и backend-решение на списке и карточке",
         "точный тег-якорь и поиск summary/tag не захватывают неактивные прогоны",
@@ -2373,17 +2363,6 @@
       ]
     },
     {
-      "path": "tests/Feature/Filament/FinalPromptPageTest.php",
-      "sha256": "b581df76d9243df4d20e5ee1b6ccd5527e0b914adf77386078ec7622e3ea5a63",
-      "scenarios": [
-        "страница показывает сохранённый payload выбранного вызова",
-        "вызовы обоих шагов — первичного анализа и извлечения — видны в списке",
-        "истёкший по lifecycle блоб объясняет отсутствие, а не падает ошибкой",
-        "без ссылки на payload показано честное «ссылки нет», а не пустой блок",
-        "без права страница недоступна по прямому URL"
-      ]
-    },
-    {
       "path": "tests/Feature/Filament/FixtureGoldPageTest.php",
       "sha256": "e86d49cce7cb83cbe4acc568471ab27bda94dbed1212b4e10bc0891e423efdf6",
       "scenarios": [
@@ -2405,34 +2384,15 @@
       ]
     },
     {
-      "path": "tests/Feature/Filament/FixtureRunHistoryTest.php",
-      "sha256": "eb55fdeded97bd84986cd042b562b0e5ce335a6571e914f02e452e0448ceeb5c",
-      "scenarios": [
-        "значения токенов и цены в строке совпадают со слепком прогона",
-        "прогон без слепка показывает «нет данных», а не ноль",
-        "режим запуска виден в строке",
-        "статус различает «идёт» и «завершён»",
-        "без права ресурса эталонов карточка и история прогонов недоступны"
-      ]
-    },
-    {
       "path": "tests/Feature/Filament/FixtureRunResultTest.php",
-      "sha256": "e319ef9a0101015b7d805449c00ae95ff25c52daac3abdba93f878498640b4f0",
+      "sha256": "56a9480b0ca5a7c647236f695eaa7bef02b2bbb3cfeb861a91084422c57f3441",
       "scenarios": [
-        "модалка показывает вердикт первичного анализа и заметки модели",
-        "сводка разбора приходит от анализатора типа, а не из предметных таблиц",
-        "без зарегистрированного анализатора модалка честно говорит, что сводку взять не у кого",
-        "эталон показан рядом со сводкой",
-        "показана ПОСЛЕДНЯЯ версия эталона по задаче",
-        "большой эталон обрезается, и факт обрезания виден",
-        "без эталона модалка говорит, чем он заводится, а не показывает пустой блок",
-        "у незавершённого прогона результата нет, а есть честное «прогон ещё идёт»",
-        "завершённый прогон без шага разбора объясняет, почему разбора нет",
-        "отказавший шаг разбора показывает статус и ошибку, а не пустоту",
-        "токенов и цены в модалке нет — они живут в строке прогона",
         "generic-рендер сводки печатает заголовок, пары «подпись → значение» и факт обрезания",
         "generic-рендер сводки показывает честное сообщение вместо пустого блока"
-      ]
+      ],
+      "original_sha256": "e319ef9a0101015b7d805449c00ae95ff25c52daac3abdba93f878498640b4f0",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Filament/FixtureRunScreenTest.php",
@@ -2463,7 +2423,7 @@
     },
     {
       "path": "tests/Feature/Filament/LlmSpendChartWidgetTest.php",
-      "sha256": "68d48677fe403df9d8d0526b54744892bde7174524cf907cd1937eaf493bda8e",
+      "sha256": "22332ca2f051e36697de78bed5ce21f06a6da156a8ba7bf56dfb4a31064ec570",
       "scenarios": [
         "виджет расхода зарегистрирован в составе admin-панели",
         "дневной разрез: два вызова в одни сутки — одна точка оси X",
@@ -2471,13 +2431,13 @@
         "серия провайдера без данных за чужой день получает 0, а не падает",
         "дневной разрез: пустая БД — пустые серии",
         "подпись источника — обязательный элемент виджета",
-        "подпись явно называет период за горизонтом retention, а не молчит пустой диаграммой",
+        "подпись явно указывает независимое сохранение financial provenance",
         "право на виджет: суперадмин видит, пользователь без ролей — нет"
       ],
       "original_sha256": "14fce4695dac7296f307a9f3dc3975ab8270db24db5ccaf858abfe078c4f771a",
-      "accepted_change_item": "P1.4",
+      "accepted_change_item": "P3.13",
       "accepted_change_decision": "D30",
-      "change_reason": "P1.4 V6 fixture-only UTC midnight correction: freeze this test at noon on its current UTC date and always restore the clock; preserve all eight original scenario names and all assertions."
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Filament/NavigationLabelsTest.php",
@@ -2806,30 +2766,33 @@
     },
     {
       "path": "tests/Feature/Infra/PartitionRetentionTest.php",
-      "sha256": "b684b4594f0dbf85c937f2674afc8c590f16a37ad6b4c2d96c55ffe3b431ca72",
+      "sha256": "fb87342fb0899ea6bcbc83e276d527aba64f36a67fb3180e61eda1c617c1a3e8",
       "scenarios": [
-        "retention-конфиг покрывает ровно 3 эфемерные лог-таблицы и не содержит доменные события",
+        "retention-конфиг покрывает 2 эфемерные таблицы и исключает financial provenance и domain events",
         "«вечные» таблицы (eternal) не пересекаются с DROP-retention списком",
         "миграция выставляет partman.part_config.retention для эфемерных таблиц и не трогает prc_revisions",
         "миграция part_config.retention идемпотентна — повторный up() не бросает и не меняет значения",
         "fallback-путь дропает партиции старше retention-окна, когда pg_partman недоступен",
         "fallback-путь НЕ дропает партиции таблицы вне retention-конфига"
-      ]
+      ],
+      "original_sha256": "b684b4594f0dbf85c937f2674afc8c590f16a37ad6b4c2d96c55ffe3b431ca72",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Infra/SchemaHardeningTest.php",
-      "sha256": "315b428e9ff2c1c4db86f0d7477bfd8691be2274b835858c716065ea37a01605",
+      "sha256": "de96ce0ac3fa1179f511d446a46c875ab3d0fd62aa1f86047b2ad1535fa7f7fb",
       "scenarios": [
         "расширенная точность prc_items.quantity сохраняет и читает шесть знаков после запятой",
         "ON DELETE RESTRICT запрещает удаление закупки с аудитным документом",
         "FK prc_revisions.crawler_run_id запрещает удаление прогона, на который ссылается ревизия",
-        "FK llm_calls.analysis_run_id запрещает удаление прогона анализа, на который ссылается вызов",
+        "canonical consumer mapping FK protects its analysis and physical financial evidence",
         "предсозданные исторические партиции принимают событие с occurred_at в прошлом"
       ],
       "original_path": "tests/Feature/Infra/SchemaHardeningTest.php",
       "original_sha256": "bdfd46aa9c44e30cdcaaa67341f8758f1a5513a66bf0b478847e5d0faa85bb80",
-      "change_reason": "P2.18 provenance FK moved to Process; original scenario identity retained, exact revision constraint asserted.",
-      "accepted_change_item": "P2.18"
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "accepted_change_item": "P3.13"
     },
     {
       "path": "tests/Feature/Infra/StorageLifecycleTest.php",
@@ -2842,54 +2805,8 @@
       ]
     },
     {
-      "path": "tests/Feature/Llm/GeminiProxyRoutingTest.php",
-      "sha256": "821f49aaea38cfb9dfbc52dcacaf8bfc634ad0ac7f922d3cee7d0e356edafa21",
-      "scenarios": [
-        "резолвер не выдаёт запрещённый по стране узел для LLM-скоупа ни при одной конфигурации здоровья",
-        "узел без страны исключается из LLM-скоупа при непустой политике запретов",
-        "разрешённый по стране узел для LLM-скоупа выдаётся резолвером",
-        "PoolOutboundProxy отдаёт httpOptions разрешённого узла для LLM-скоупа",
-        "пустой пул для LLM остаётся fail-closed даже при legacy env-прокси",
-        "пустая политика запретов для LLM-скоупа — резолвер бросает ProxyPolicyMisconfiguredException",
-        "предохранитель пустой политики LLM не подменяется legacy env-прокси",
-        "PrismGeminiProvider запрашивает опции у порта OutboundProxy по каноническому хосту Gemini"
-      ],
-      "original_path": "tests/Feature/Llm/GeminiProxyRoutingTest.php",
-      "original_sha256": "32571963343bec2c40f5607de004bb3b83dfa059d9195d22f0349db4138d9d57",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
-    },
-    {
-      "path": "tests/Feature/Llm/LlmCacheManagerTest.php",
-      "sha256": "3e9f8ce5451d7cb2868ee09b8824e5bf7e36193a13157434b50816d917889795",
-      "scenarios": [
-        "create() регистрирует explicit cache на Analysis и возвращает handle",
-        "create() провайдер без SupportsContextCaching → null без похода в API",
-        "create() ошибка провайдера → warning, путь без кэша, Analysis не тронут",
-        "validHandle() валиден при совпадении rules_hash и живом TTL",
-        "validHandle() null при смене rules_hash (промты изменились)",
-        "validHandle() null при истёкшем TTL",
-        "validHandle() null без зарегистрированного кэша",
-        "refresh() продлевает TTL и обновляет cache_expires_at на Analysis",
-        "delete() удаляет кэш у провайдера и снимает регистрацию с Analysis",
-        "delete() ошибка провайдера всё равно снимает регистрацию (best-effort)",
-        "listActive() отдаёт только анализы с зарегистрированным cache_id",
-        "prune() снимает регистрацию просроченных по TTL кэшей",
-        "prune() снимает регистрацию у финализированных (terminal-статус) анализов",
-        "implicitHitStats() считает долю cached_tokens по purpose за окно"
-      ]
-    },
-    {
-      "path": "tests/Feature/Llm/LlmCallRecorderTest.php",
-      "sha256": "ee345f87fcd63d971aa7b48760d087676d6f13f3ff2bf1c6d23811bb5f80b9f6",
-      "scenarios": [
-        "record() пишет успешный вызов: usage, cost_micros по капе config/ai.php, refs в object storage",
-        "record() пишет неуспешный вызов без usage: cost_micros=0, response_ref пуст",
-        "record() модель отсутствует в capability-матрице → cost_micros=0, запись не падает"
-      ]
-    },
-    {
       "path": "tests/Feature/Llm/LlmRouteResolverTest.php",
-      "sha256": "ec5d49e9de2ca2b2400512eb1046a1edafd5009946950c2f7aef3ed230c2650e",
+      "sha256": "70ff181c21479a08c07132d0b8671c3fd8c31e42ebec0e58d64a179dfee94322",
       "scenarios": [
         "resolve() выбирает активный маршрут с минимальным priority",
         "candidatesFor() отдаёт весь список priority ASC для эскалации",
@@ -2902,7 +2819,10 @@
         "resolve() не бросает исключение, если потолок вывода модели неизвестен (ключ max_output_tokens отсутствует в capability-матрице)",
         "resolve() прокидывает thinking_level из options маршрута в LlmOptions::$thinkingLevel",
         "resolve() оставляет thinkingLevel null, если thinking_level в options маршрута не задан"
-      ]
+      ],
+      "original_sha256": "ec5d49e9de2ca2b2400512eb1046a1edafd5009946950c2f7aef3ed230c2650e",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Llm/PromptComposerTest.php",
@@ -2933,18 +2853,6 @@
       ]
     },
     {
-      "path": "tests/Feature/Llm/ShadowDispatchTest.php",
-      "sha256": "77f261f1af4378ac622fb01a14370b28b259432fc5d1ce28e91a3195a397e415",
-      "scenarios": [
-        "afterCall() диспатчит ShadowAnalysisJob на очередь ai_shadow, когда есть активный теневой маршрут",
-        "afterCall() ничего не диспатчит, если для (document_type, purpose) нет теневого маршрута",
-        "afterCall() пропускает вызовы с fileRefs — Files API не дублируется",
-        "ShadowAnalysisJob создаёт is_shadow-анализ, пишет LlmCall(purpose=shadow) и считает сравнение с основным",
-        "ShadowAnalysisJob на кросс-документном вызове (DocumentTypeScope::Any) не считает сравнение",
-        "ShadowAnalysisJob глотает исключение провайдера — боевой путь не затронут, ошибка только в shadow-анализе"
-      ]
-    },
-    {
       "path": "tests/Feature/Observability/AssignTraceIdTest.php",
       "sha256": "665326505e5aa843dc2ad33b090365711c51a420e6b494eef3401069329bb3a5",
       "scenarios": [
@@ -2962,12 +2870,15 @@
     },
     {
       "path": "tests/Feature/Observability/PulseCardsTest.php",
-      "sha256": "2431a7c464c4a5ff1fb16838a18f3676539b2c49bd2432d08d5dbe94b00396bd",
+      "sha256": "036bf689c75430e15524d75eaa965bc0b6e1e880dec0b9e3d526751c2fa79f5d",
       "scenarios": [
         "PipelineStagesCard считает succeeded/failed по стадиям prepare/screening/extraction за 24ч",
-        "LlmSpendCard группирует токены/стоимость llm_calls по purpose за 24ч",
+        "LlmSpendCard группирует токены/стоимость provider ledger по purpose за 24ч",
         "LlmSpendCard подписывает цифру источником — «наш трекинг» с лагом и горизонтом"
-      ]
+      ],
+      "original_sha256": "2431a7c464c4a5ff1fb16838a18f3676539b2c49bd2432d08d5dbe94b00396bd",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Observability/PulseGateTest.php",
@@ -3197,18 +3108,8 @@
       "accepted_change_item": "P2.18"
     },
     {
-      "path": "tests/Feature/Procurement/Ai/AnalysisStoreRepositoryConcurrencyTest.php",
-      "sha256": "aeafe321bdcaaf9e2dd5eb726e7bf45f14ab8f8b3e6f69c626a31ef7c0918728",
-      "scenarios": [
-        "два PostgreSQL worker получают один active analysis для версии и шага"
-      ],
-      "original_sha256": "667533dc18a3f1783cada6738aca50153b96b7f880cd9ecdc96aa806a12236e7",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
-    },
-    {
       "path": "tests/Feature/Procurement/Ai/DocumentAnalyzerRegistryTest.php",
-      "sha256": "3666c7523d5bdbfc0e3ce308b75957da8b6af408637c634741f355f50f9d9559",
+      "sha256": "32f90fd3f892506146bac3d8c59b28f45036bab0cde6b528393135df4640d636",
       "scenarios": [
         "одна строка конфига регистрирует анализатор типа",
         "тип без анализатора отдаёт null — реестр решений не принимает",
@@ -3216,52 +3117,50 @@
         "ключ вне AiDocumentType роняет сборку реестра",
         "класс, не реализующий контракт анализатора, роняет сборку реестра",
         "анализатор без извлечения регистрируется и объявляет отсутствие стадии",
-        "анализатор сметы диспатчит СВОЙ job извлечения — имя job’а ядру не известно",
+        "анализатор сметы отклоняет ordinary dispatch без owning work",
         "анализатор сметы объявляет только СВОИ шаги и назначения",
         "шаг чужого типа отвергается на записи — promptStepFor() бросает вне множества типа",
         "анализатор с ядерным значением шага валит сборку реестра (§5.4 п.2)",
         "сводка результата отдаёт данные, а не разметку, и не теряет копейки"
-      ]
+      ],
+      "original_sha256": "3666c7523d5bdbfc0e3ce308b75957da8b6af408637c634741f355f50f9d9559",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/Ai/OperatorFeedbackLoopTest.php",
-      "sha256": "b1e978b4680538241219a1c1c142b36c586a2b96fc374541f822a589692758a3",
+      "sha256": "84898368575a4a3de0358e6e1ff9365b89cd62862889fdb71ac75f94c6cc8fa7",
       "scenarios": [
-        "отклонённый анализ с коррекцией → re-run подмешивает hint в USER-часть промта, новый анализ ссылается на старый, старые сметы заменяются",
-        "ошибка создания повторного анализа откатывает supersede и новый run",
-        "повторное нажатие перезапуска старого анализа не создаёт третий run",
-        "recovery доставляет потерянную задачу ручного extraction re-run",
-        "повторный screening инвалидирует старое извлечение и связывает новое с заменяемым результатом",
-        "re-run стадии извлечения диспатчит job через реестр — ядро имени job’а не знает",
-        "re-run извлечения при типе без анализатора не мутирует анализ и падает громко",
         "оператор авторизован на действия карточки анализа (update-право), аналитик — только на чтение"
       ],
       "original_sha256": "5c82329e4d4c8e793ce48de202bca0d7e7011e1cd4bedfb47fe33e397f847f0a",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/Ai/SecondDocumentTypeTest.php",
-      "sha256": "e85e7a8ccb2efee5b20e483ecdd9196e4aa308d9b8cfa94e3d9cba6e7e40a20f",
+      "sha256": "230578062464af26ac060d090d6eb69eb85af9901cb4dcb187f5f001d3f22be0",
       "scenarios": [
-        "документ второго типа проходит скрининг → диспатчится job ЕГО анализатора, а не сметный",
         "сводка результата второго типа получается через реестр, без обращения к сметным таблицам",
         "фиктивный второй тип НЕ реализует SupportsResultComparison — реестр даёт штатный null анализатору без способности"
-      ]
+      ],
+      "original_sha256": "e85e7a8ccb2efee5b20e483ecdd9196e4aa308d9b8cfa94e3d9cba6e7e40a20f",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/AiAnalysisTest.php",
-      "sha256": "952256097b563618be3eaadeb2a902b97736ff16bf26dc6e7438aeb7caff20e0",
+      "sha256": "31d8522a679df5f10a61f6f16a6a51d1527e0a23d101aff8350189c6b7191b6f",
       "scenarios": [
-        "обучение локальной LLM опирается на ai_dataset_examples (gold) + est_estimates.raw_result (сырьё) + ai_eval_runs (метрики)",
-        "несовпадение rules_hash с текущей версией промптов делает кэш анализа невалидным",
-        "истёкший cache_expires_at тоже делает кэш анализа невалидным даже при совпавшем rules_hash",
-        "прогресс прерванной многошаговой экстракции хранится в ai_analyses.progress для резюма с точки обрыва"
-      ]
+        "обучение локальной LLM опирается на ai_dataset_examples (gold) + est_estimates.raw_result (сырьё) + ai_eval_runs (метрики)"
+      ],
+      "original_sha256": "952256097b563618be3eaadeb2a902b97736ff16bf26dc6e7438aeb7caff20e0",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/AiCorrectionTest.php",
-      "sha256": "6ff868c0e8b633923dfae97f8e6c9aece7f273e512c0d5e5acf9ecc82e121294",
+      "sha256": "f9926bdbb8f6f9cfd7625cf89feec4e704f4d64588ebed00a49e6b1cf59040ac",
       "scenarios": [
         "боевой анализ по умолчанию unreviewed и не имеет истории перепрогонов",
         "второй активный анализ на ту же версию документа и шаг запрещён partial unique индексом",
@@ -3275,62 +3174,21 @@
       ]
     },
     {
-      "path": "tests/Feature/Procurement/Analyzers/Estimate/EstimateExtractionJobTest.php",
-      "sha256": "c13188ac460e49da1901213a3c725eb3ecaf4886015d545595983bf6966d9bc8",
-      "scenarios": [
-        "EstimateExtractionJob::dispatch дважды подряд на один documentId пушит в очередь только один job",
-        "EstimateExtractionJob::dispatch на РАЗНЫЕ documentId не делит unique-лок",
-        "uniqueFor EstimateExtractionJob задаёт TTL unique-лока больше TTL лиза (600с) — та же защита от вечного лока, что PrepareDocumentJob (ADR-0009)"
-      ]
-    },
-    {
-      "path": "tests/Feature/Procurement/Analyzers/Estimate/EstimatePersisterTest.php",
-      "sha256": "dfb9067678edaef7c964b14a0dda8ca20a5454d9e9019a33641c4ee2be797dec",
-      "scenarios": [
-        "persist не объявляет смету проверенной при неполных строках и неизвестном ожидаемом количестве",
-        "persist откатывает смету при отказе записи большого raw result без исключения storage",
-        "успешный повтор после неудачного re-run заменяет сметы всей цепочки предшественников",
-        "persist нормализует смету с разделом/позициями/итогами и пишет событие estimate_extracted",
-        "повторный persist того же анализа не плодит дублей (upsert по analysis_id+ordinal, row_index)",
-        "несколько смет одного анализа персистятся отдельными записями с возрастающим ordinal",
-        "persist доводит запись до полноты схемы: все поля класса A непусты в БД (P5.2)",
-        "persist пишет regulatory_base и нормализует unit_base/unit_multiplier позиции и ресурса (P5.5)",
-        "нормализатор unit без множителя даёт unit_base = unit, unit_multiplier = 1 (P5.5)",
-        "persist резолвит work_type_id по work_type_name через findOrCreate и переиспользует запись между позициями (P5.5)",
-        "persist пишет дерево видов работ из PassportResponse::work_types с нормативами НР/СП (P5.5)"
-      ]
-    },
-    {
       "path": "tests/Feature/Procurement/Analyzers/Estimate/EstimateQualityPersistenceTest.php",
-      "sha256": "72cdeea74c32045f98a5bc7f2e92252bd1e60f6a259e78cf412dfe296dd99a4e",
+      "sha256": "11e2964639245569f2ea6b8bddfa8517e99268de98ab35c9cb2341fba7b57e3a",
       "scenarios": [
-        "пометка модели (unreadable) доезжает до БД под ключом quality.model",
-        "аномалия валидатора доезжает до БД и адресует те row_index, что в отчёте, кроме row_type != item",
-        "чистая смета — ни одна позиция не помечена (И-А §6.1)",
-        "фильтр «только помеченные» отбирает ожидаемое множество позиций",
-        "re-run диапазона убирает ключ validator и замещает ключ model (research/12 §7)"
-      ]
+        "canonical publication preserves model uncertainty on exactly its source anchored item",
+        "canonical publication writes SQL NULL for clean quality so the marked filter remains exact"
+      ],
+      "original_sha256": "72cdeea74c32045f98a5bc7f2e92252bd1e60f6a259e78cf412dfe296dd99a4e",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/Analyzers/Estimate/EstimateToContractMapperTest.php",
       "sha256": "35bb7cba8efac8bd0e1068aec3699a3da0d752903036732f103b20ac39c10c22",
       "scenarios": [
         "маппер восстанавливает паспорт/итоги/иерархию строк из нормализованных таблиц"
-      ]
-    },
-    {
-      "path": "tests/Feature/Procurement/Analyzers/Estimate/ExtractionOrchestratorTest.php",
-      "sha256": "bfd20409ee81b0df16207988a6d9b4a0e3b4fa750dd83b3484a8ca0c3251e8f1",
-      "scenarios": [
-        "оркестратор извлекает 2 сметы построчными диапазонами и итогами — Analysis succeeded, Document extracted",
-        "MAX_TOKENS на диапазоне строк — окно уменьшается вдвое, извлечение продолжается тем же начальным row_index",
-        "checkpoint self-requeue — после M единиц прогресса job переставлен в очередь, дубля нет",
-        "resume — второй запуск job продолжает с progress, не повторяя завершённые шаги",
-        "preflight сверх лимитов маршрута: windowed_enabled=true выбирает Windowed, false — unprocessable",
-        "preflight-отказ (сверх лимитов, windowed выключен) — документ unprocessable(provider_limit_pages), LLM не вызывается",
-        "сбой EstimatePersister::persist() (Storage::put) НЕ переводит analysis/document в терминал — повтор дожимает извлечение (review-фикс P6.3 HIGH)",
-        "потерявший lease worker не публикует смету после последнего ответа LLM",
-        "ошибка document update откатывает successful analysis finalize а retry сходится без дубля estimate"
       ]
     },
     {
@@ -3341,23 +3199,6 @@
         "ревизия database читает позиции без записи в БД",
         "ревизия отклоняет неизвестный источник",
         "gold-корпус не опускается ниже зафиксированного замера P7.4 от 2026-08-08"
-      ]
-    },
-    {
-      "path": "tests/Feature/Procurement/Analyzers/Estimate/RerunRangeTest.php",
-      "sha256": "a6cdcb193f27bee6bcb2e959c2ba6aebf4b6670b528f1a37cd18b87303f96782",
-      "scenarios": [
-        "re-run заменяет только позиции запрошенного диапазона, остальные строки не трогает",
-        "re-run доводит запись позиции до полноты схемы тем же набором полей, что полный persist (P5.2)",
-        "re-run не обнуляет ранее записанные unit_price_base/index_code/source_position_number, если сам их не пересчитал (P5.2 Implementation Rules п.5)"
-      ]
-    },
-    {
-      "path": "tests/Feature/Procurement/Analyzers/Estimate/WindowedExtractionTest.php",
-      "sha256": "917e7f138b90094e857923a24c91cf426ecf811719a1fe3eeb5fdfbe026e106c",
-      "scenarios": [
-        "оконный путь: discovery → 1 сегмент → passport → rows-окна → totals — тот же результат-shape, что row-range (е)",
-        "checkpoint self-requeue ПОСЕРЕДИНЕ discovery — прогресс содержит корректный next_window_index, маркеры не теряются (д)"
       ]
     },
     {
@@ -3403,18 +3244,16 @@
     },
     {
       "path": "tests/Feature/Procurement/ContourTest.php",
-      "sha256": "c0f4509c2fc4895e82a2326a245a53d04a8bed1010d698f1afde2275f723ec78",
+      "sha256": "643d4f9c69f0327446ace1246668b62086437ff4893d7ef71dbbc9e30d17d371",
       "scenarios": [
         "документ без platform_id не создаётся (NOT NULL)",
         "выборка витрины не содержит смету и документ площадки «Обучалка»",
         "прогон с mode=auto над документом площадки «Обучалка» не создаётся",
-        "второй незавершённый прогон по той же версии отвергается базой",
-        "дочерний документ архива наследует площадку родителя",
-        "анализ без активного прогона бросает NoActiveAnalysisRun, а не создаётся тихо"
+        "дочерний документ архива наследует площадку родителя"
       ],
       "original_sha256": "ee66a326efeca3e6b8e9da7c6486ab76d9db62d0cbd5a5001ed7aa55dea0caad",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/CustomerOrgOwnershipTest.php",
@@ -3488,7 +3327,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Estimate/EstimateSchemaTest.php",
-      "sha256": "6d1ff222fdd18f3aae02df1a9a2882323cbf161aa7fbd56840c4c50d029cde07",
+      "sha256": "2c274cb5ed3d405a61ab0f366e50aee7ce1eaba98b894e80238cf5f92127dab3",
       "scenarios": [
         "prc_estimates несёт утверждённый список колонок P4.2+P4.3, title удалена",
         "prc_estimates: unique(analysis_id, ordinal) сохранён, verified_by → users set null",
@@ -3654,87 +3493,28 @@
       ]
     },
     {
-      "path": "tests/Feature/Procurement/Pipeline/LeaseTest.php",
-      "sha256": "02f84489f854e5a5958ab4ca136363b1a1bb6fcd487a6fb012dd7c6f92b4fc84",
-      "scenarios": [
-        "двойной acquireLease на Document — второй захват возвращает false",
-        "releaseLease на Document освобождает лиз — следующий acquireLease проходит",
-        "просроченный lease сначала учитывается как одна доменная попытка, затем допускает retry",
-        "двойной acquireLease на Ai\\Analysis — второй захват возвращает false",
-        "recordFailure на Document считает попытки и экспоненциальный backoff с потолком",
-        "recordFailure помечает failed_permanently по достижении max_attempts, backoff упирается в потолок",
-        "PipelineJob: провальный status-guard не захватывает лиз и не выполняет process",
-        "PipelineJob: непройденный acquireLease не выполняет process и не освобождает лиз",
-        "PipelineJob: исключение из process пишет recordFailure, освобождает лиз в finally и пробрасывается дальше",
-        "PipelineJob: успешный process освобождает лиз в finally",
-        "старый execution token не снимает lease нового владельца",
-        "старый execution token не может записать эффект после takeover",
-        "последнее истечение analysis lease завершает analysis и run терминально"
-      ]
-    },
-    {
-      "path": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
-      "sha256": "9c8395f1796f61c22c200d6a8f1e48579e4a5f5fe45d553a615544d85bc13ab0",
-      "scenarios": [
-        "восстанавливает обе DB→queue границы ровно одним job при повторном sweep",
-        "не продолжает permanent failure и screening disposition без extraction",
-        "repair доводит stranded succeeded extraction из screened в extracted без нового job",
-        "recovery доходит до следующего документа после завершённых и отложенных записей",
-        "выключенный screening не занимает LIMIT перед due extraction",
-        "два PostgreSQL worker получают ровно один recovery claim"
-      ],
-      "original_sha256": "84060dd206e9a05175145b54559173862b91f7362cea51e2d6b5d603d62a3fd0",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
-    },
-    {
       "path": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
-      "sha256": "2c5775619d2a19327b0fa5e61062538c725d3e399f40f9b6b6325e794e625f4e",
+      "sha256": "c0e7814c5a97960a6358dbd66fbf448a3b98e84749fa367f40aa2768faf70ba2",
       "scenarios": [
-        "ретраит документ, у которого наступил next_retry_at, и не трогает документы без попыток/в ожидании backoff",
-        "claim атомарный: захваченный документ второй раз в том же тике не диспатчится",
-        "ретраит только наступившее скачивание discovered-документа отдельной job",
-        "ретраит анализ на стадии screening по next_retry_at",
-        "ретраит анализ на стадии extraction по next_retry_at — диспатчит EstimateExtractionJob через реестр (Д-4)",
-        "лимит --limit ограничивает выборку за тик",
-        "discovered с нулём попыток подбирается тем же bounded claim",
-        "discovered с активным lease не получает конкурирующий download claim"
+        "document retry принадлежит durable due и не имеет отдельной retry команды"
       ],
       "original_sha256": "e0fe9b4ad118e10e52c0205c731f86e98431bc3e03c9bdcddf59c7021724b5ac",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
-    },
-    {
-      "path": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
-      "sha256": "96568ca548196e152bec53d6bda37d68ce841de15cb8be46068782c274bfd615",
-      "scenarios": [
-        "после commit Prepared без screening dispatch reconciler ставит единственный следующий job",
-        "orphan prepared без run создаёт один initial run и восстанавливает screening",
-        "terminal run history не запускается повторно recovery-проходом",
-        "recovery limit ограничивает входную выборку, а не только число dispatch",
-        "PrepareDocumentJob откатывает Prepared при отказе INSERT analysis run",
-        "два recovery ticks создают один run и один claimed continuation",
-        "orphan Prepared ждёт выключенный screening и восстанавливается после включения",
-        "terminal history перед due документом не вызывает starvation"
-      ],
-      "original_sha256": "4a40dcb69720eb595a63ee25c573aa744cf9f8adca3dad36cdab604da9fbc386",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/Pipeline/QueueTimeoutFaultInjectionTest.php",
-      "sha256": "1d7a228572a75facf5adeb1870ad772580259b4a798f3250e2d765ab845a31a8",
+      "sha256": "1827a99a8805e05ab0938738b456edd2e48fe1c3524daf77b52d4a65fd3ca375",
       "scenarios": [
-        "pipeline jobs carry their bounded worker timeout and the OCR job uses its isolated connection",
-        "a live pipeline lease prevents concurrent redelivery only for its own configured active slice"
+        "AI and preparation delivery bounds come from the same boot validated StageQueueMap"
       ],
       "original_sha256": "4ab9e3ae9f2d896f6a71988371ffa01e08782f6d8bc0cf7eb311416e0c4bb419",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Independent document owner cutover; original scenario coverage is enforced by scenario-transfers.json and full no-TIA regression."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/Pipeline/StuckCheckTest.php",
-      "sha256": "89087cd53f9a9ea904777bc270a3d828b8826635710a9b0e6052bf573f0bcd84",
+      "sha256": "f215e616ab2de050c4934430bf2f9c814a9c229de055933542fc7a5aba5e7022",
       "scenarios": [
         "без аномалий команда завершается тихо, без Telegram-алерта",
         "зависший screening-анализ (running, лиз истёк, старше порога) — алерт",
@@ -3753,7 +3533,10 @@
         "антиспам: повторный тик в течение окна не дублирует Telegram-сообщение по той же находке",
         "без Telegram-конфига алерт не падает, а тихо уходит в лог",
         "pipeline:status отрабатывает без ошибок и показывает счётчики документов/анализов"
-      ]
+      ],
+      "original_sha256": "89087cd53f9a9ea904777bc270a3d828b8826635710a9b0e6052bf573f0bcd84",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/PlatformExtensionContractTest.php",
@@ -3780,18 +3563,19 @@
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
-      "sha256": "65c43401e0cf271a5a086d4444e822feab2bf3b3c9dc3a8c6650b757d25835c7",
+      "sha256": "9a7d99f7450a547baa2350b68fe1532994366b709ec0e33adffb47b3ba1476f4",
       "scenarios": [
-        "архив создаёт children, каждый проходит обычную подготовку, а parent не скрининг",
-        "retry архива сохраняет одну logical child на parent и path",
-        "complete platform reindex не снимает child, созданный ExpandArchiveEntryAction",
-        "concurrent archive entry materialization создаёт одну logical child и одно событие",
-        "hostile archive завершается без children, events и follow-up jobs"
+        "format corpus: архив создаёт children, каждый проходит обычную подготовку, а parent не скрининг",
+        "format corpus: retry архива сохраняет одну logical child на parent и path",
+        "format corpus: complete platform reindex не снимает child, созданный ExpandArchiveEntryAction",
+        "format corpus: concurrent archive entry materialization создаёт одну logical child и одно событие",
+        "format corpus: hostile archive завершается без children, events и follow-up jobs",
+        "manual archive concurrent materialization commit-ит одну child version без orphan child при NULL procurement"
       ],
       "original_path": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
       "original_sha256": "1b9faf96d75b82614e4ea47dad8387c2cceb4924006eacd3ff14cab21838fff6",
-      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage.",
-      "accepted_change_item": "P3.5"
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "accepted_change_item": "P3.13"
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ArchiveStrategyTest.php",
@@ -3825,28 +3609,28 @@
     },
     {
       "path": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
-      "sha256": "ebe89ed437cfa738b5d2ab2956045f9892ffd54fc2e2189177306f639c428911",
+      "sha256": "a873259e3a7f9de7814bb5862a02982ce446f70ab5aff6e72b1827f0d4c67449",
       "scenarios": [
-        "подготовка PDF — PassthroughStrategy, документ переходит в prepared без ScreeningJob (флаг выключен)",
-        "подготовка PNG — ImageStrategy без конвертации, документ переходит в prepared",
-        "подготовка XLSX — конвертация в PDF записана представлением kind=pdf, документ prepared",
-        "XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared (D26/P3.4)",
-        "XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален (D26/P3.4)",
-        "XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed) (P3.4)",
-        "архив с xlsx внутри — создаёт дочерний Document+Version с parent_version_id и событием document_added",
-        "повторный прогон подготовки архива — дочерний документ не дублируется",
-        "архив читается с recorded disk, а child пишется на current disk",
-        "identity archive entry принадлежит паре parent version и normalized path",
-        "осиротевший дочерний документ архива (child без Version) — ретрай дописывает версию, а не пропускает индексацию",
-        "архив сверх лимита вложенности (max_depth=0) — unprocessable(zip_bomb), без распаковки",
-        "архив сверх лимита числа файлов — unprocessable(zip_bomb)",
-        "повторный прогон на уже prepared документе — no-op (status-guard)",
-        "успешная подготовка диспатчит ScreeningJob за включённым гейтом config(ai.screening.enabled)",
-        "unprocessable-исход не диспатчит ScreeningJob даже за включённым гейтом"
+        "format corpus: подготовка PDF — PassthroughStrategy, документ переходит в prepared без планирования AI",
+        "format corpus: подготовка PNG — ImageStrategy без конвертации, документ переходит в prepared",
+        "format corpus: подготовка XLSX — конвертация в PDF записана представлением kind=pdf, документ prepared",
+        "format corpus: XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared (D26/P3.4)",
+        "format corpus: XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален (D26/P3.4)",
+        "format corpus: XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed) (P3.4)",
+        "format corpus: архив с xlsx внутри — создаёт дочерний Document+Version с parent_version_id и событием document_added",
+        "format corpus: повторный прогон подготовки архива — дочерний документ не дублируется",
+        "format corpus: архив читается с recorded disk, а child пишется на current disk",
+        "format corpus: identity archive entry принадлежит паре parent version и normalized path",
+        "format corpus: осиротевший дочерний документ архива (child без Version) — ретрай дописывает версию, а не пропускает индексацию",
+        "format corpus: архив сверх лимита вложенности (max_depth=0) — unprocessable(zip_bomb), без распаковки",
+        "format corpus: архив сверх лимита числа файлов — unprocessable(zip_bomb)",
+        "format corpus: повторный прогон на уже prepared документе — no-op (status-guard)",
+        "format corpus: format probe успешной подготовки не планирует AI",
+        "format corpus: unprocessable format probe не планирует AI"
       ],
       "original_sha256": "60742596a52e89e63a020efa018555002fee7513e8653d2847d82e631e9c3b17",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/GsfxStrategyTest.php",
@@ -4077,54 +3861,8 @@
       "accepted_change_item": "P2.18"
     },
     {
-      "path": "tests/Feature/Procurement/Screening/ScreeningBranchingTest.php",
-      "sha256": "296b31068c8dc00497c08742794f61027d1c26d1819579ac17c32b39089ec709",
-      "scenarios": [
-        "не-смета (протокол) сохраняет тип без разбора — screened, extraction не диспатчится",
-        "тип с зарегистрированным анализатором БЕЗ извлечения — screened без диспатча",
-        "outcome события выводится из ТИПА документа, а не из литерала",
-        "тип БЕЗ анализатора — screened без диспатча, outcome не несёт типа",
-        "unknown отсекается — ignored",
-        "ignore-правило по подстроке в названии закупки отсекает документ независимо от классификации",
-        "borderline confidence — screened с typed review decision, extraction не диспатчится даже для estimate",
-        "borderline confidence с borderline_action=escalate — один повторный скрининг на маршрут выше, затем обычное ветвление",
-        "архив со сметой внутри доходит до кандидата на извлечение (сквозной сценарий)",
-        "теневой screening сохраняет v2 evidence без изменения primary document и без dispatch",
-        "stale screening token после replacement не меняет analysis document event run и не dispatch extraction",
-        "повтор идемпотентен — событие document_screened и дочерний dispatch не дублируются"
-      ],
-      "original_sha256": "37a96e517290348d847396613ae3425df17979cc9ea638f66b7cb95ddadf7102",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
-    },
-    {
-      "path": "tests/Feature/Procurement/Screening/ScreeningContractMatrixTest.php",
-      "sha256": "cd674c78931f921810fbebef6093d7526cb50200b06282997c0a3ffbfd91750c",
-      "scenarios": [
-        "P7 matrix persists every valid taxonomy/cardinality vector into one v2 backend-owned envelope"
-      ]
-    },
-    {
-      "path": "tests/Feature/Procurement/Screening/ScreeningProcessorTest.php",
-      "sha256": "3149357cccef436038eec8068649bd350546d85d5b57bfdbba15beaf01174b5f",
-      "scenarios": [
-        "успешный скрининг PDF — Analysis succeeded, document_type/result заполнены, Document доводится до screened (P5.2 branching)",
-        "исчерпанный общий deadline остаётся retryable и не классифицируется как unreadable PDF",
-        "скрининг режет только первые N страниц (сгенерированный срез короче исходных 10 страниц)",
-        "MAX_TOKENS — ответ не гидратируется, попытка фиксируется как retryable (job-level re-ask через backoff)",
-        "фатальный finishReason исчерпывает попытки сразу — Analysis переходит в failed",
-        "изображение (скан) идёт целиком без резки — vision-путь",
-        "неподдержанный формат, дошедший до скрининга, — unprocessable(unreadable_format), не generic failed",
-        "битый PDF — qpdf проваливается, unprocessable(unreadable_format) вместо retryable failed",
-        "повторный запуск идемпотентен — статус документа prepared не даёт создать дубль Analysis"
-      ],
-      "original_sha256": "0c25cc3cab3e77f2c533cc011b2ad0b5e89fdbcdb99528830dd92d329aa13930",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
-    },
-    {
       "path": "tests/Feature/Procurement/Screening/ScreeningResultSchemaMigrationTest.php",
-      "sha256": "8c1f6d51172afd4480b8340d292d543d9721ed2e5165180d0b0b1561a66a4dd6",
+      "sha256": "1af695189eec2977d5efe10f9cdb2be46fbfea391aa4d06ee25a6184b8a044e1",
       "scenarios": [
         "backfills active flat results, preserves historical provenance and restores on rollback/reapply",
         "refuses an active flat result without a deterministic decision mapping",
@@ -4314,10 +4052,13 @@
     },
     {
       "path": "tests/Feature/Storage/StorageAddressingGateTest.php",
-      "sha256": "ab2d75a317bb8a649b48111283d055c29a39e62171429a7243512627968c8846",
+      "sha256": "75cafe1dcd5fae9d3d694afc968f2ad1401847ba1cb49ff2d819147977ce9b79",
       "scenarios": [
         "вне app/Services/Storage прямое чтение конфиг-ключей диска запрещено"
-      ]
+      ],
+      "original_sha256": "ab2d75a317bb8a649b48111283d055c29a39e62171429a7243512627968c8846",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Feature/Support/PaoContractTest.php",
@@ -4355,11 +4096,10 @@
     },
     {
       "path": "tests/Support/Analyzer/TechSpecFakeAnalyzer.php",
-      "sha256": "049b6b2c418678489acd229357b96dbe7020df0d5568e48837cfd314c2a69cdb"
-    },
-    {
-      "path": "tests/Support/Analyzer/TechSpecFakeExtractionJob.php",
-      "sha256": "7a347a58346fec770d6f3447e5780cf112754534359a93f616c0e134c945e32c"
+      "sha256": "98095bda2705461ec82206ed677703db90d04422107d2457570a2e8bf7c30574",
+      "original_sha256": "049b6b2c418678489acd229357b96dbe7020df0d5568e48837cfd314c2a69cdb",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Support/Crawler/SourceControlScenario.php",
@@ -4457,10 +4197,10 @@
     },
     {
       "path": "tests/Support/Postgres/ConcurrentTransactions.php",
-      "sha256": "a634dde49875795e826be542e4cde040ca6e20f9a03c1cbcb328c01f4876f91d",
+      "sha256": "d948344f7f92c17a7e830ac0726f99be6912d164bfc55f337bdf1b7ee1191563",
       "original_sha256": "7213082c64c18cae2e62a14c1d104baeeaca628b950dc38e6040e75ae47308f6",
-      "accepted_change_item": "P2.18",
-      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Support/Procurement/SnapshotFactory.php",
@@ -4494,17 +4234,18 @@
     },
     {
       "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "sha256": "403c3a41efdaa9cd9ccad94213a861f9c9c554b4254b10e5c03aae6a72ccc82d",
+      "sha256": "b4021511104c4d1040bff4b21a2c249b79a4bb387f7f3a387a0e31edd33ad793",
       "scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
-        "ядро не несёт идентификатор Estimate/литерал \\'estimate\\' кроме AiDocumentType::Estimate — (г) §6.3"
+        "новый Llm execution port не импортирует Procurement и Gemini codec не отправляет HTTP",
+        "provider layers не знают тип документа а analyzer pipeline не зависит от площадки"
       ],
       "original_sha256": "e8b967abe0a3214efa331b93cfd41887239c3959d7c8b2b9071b3e441ef22370",
       "harness_correction": "P4.1 checks.2: canary 109 -> 110 for the existing neutral CooperativeListingSourceMethod added by 60d6162c; original case names retained and explicit membership asserted.",
-      "change_reason": "Exact core perimeter grows from 143 to 148 for five asset/policy/codec components; discovery and every negative architecture assertion retained.",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
       "original_path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "accepted_change_item": "P3.12",
+      "accepted_change_item": "P3.13",
       "original_scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -4540,11 +4281,14 @@
     },
     {
       "path": "tests/Unit/Architecture/JobRetryContractGuardTest.php",
-      "sha256": "1eea041cf87163fac01e4d4ec0e0650f0ae4957d636c306fc8db3d360d1f4a1a",
+      "sha256": "0f4be6b2e9da5f2f3096239791817be6dd148cb2b65a5cd13b0ed744a8fbd9c8",
       "scenarios": [
         "ни один job Procurement не объявляет свойства очередного ретрая — контур единственный, в HasErrorBlock (D2/D39)",
-        "EstimateExtractionJob держит ShouldBeUniqueUntilProcessing — подмена на ShouldBeUnique рвёт checkpoint-requeue (D39)"
-      ]
+        "AI continuation uses the sole Process delivery without queue uniqueness middleware"
+      ],
+      "original_sha256": "1eea041cf87163fac01e4d4ec0e0650f0ae4957d636c306fc8db3d360d1f4a1a",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Unit/Architecture/PlatformExtensionContractTest.php",
@@ -4567,16 +4311,16 @@
     },
     {
       "path": "tests/Unit/Config/QueueTimeoutInvariantTest.php",
-      "sha256": "e1e6c68053de71eaa69f5863547d8f3b6015c2cb4a65d5d41443c5708395c7c3",
+      "sha256": "522e6329b744deb38d6a735aca57a77497144f8c78a6ebe75cb1669501a25d17",
       "scenarios": [
         "скачивание и ревалидация имеют Horizon consumer с достаточным timeout",
         "таймаут каждого horizon-супервизора строго меньше retry_after его connection (инварианты D26 и D117)",
-        "versioned pipeline operation budget leaves the next call reserve and preserves all timeout chains",
+        "canonical AI stages share one queue map and preserve slice job supervisor retry and lease ordering",
         "long lane сохраняет обе timeout-цепочки и documented stop_grace_period (инвариант D117)"
       ],
       "original_sha256": "bcf19342e790db783ac9a7abe3fdeadb57da5252fbd3a63a68bded86ee97b4a9",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Independent document owner cutover; original scenario coverage is enforced by scenario-transfers.json and full no-TIA regression."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "tests/Unit/Crawler/CrawlSettingsResolverTest.php",
@@ -4817,7 +4561,7 @@
     },
     {
       "path": "tests/Unit/Llm/OpenAiCompatibleProviderTest.php",
-      "sha256": "3349e791831ea47b64a5f8341d8ffdb849cb61128e7fdaef5d2c41fc9cd66988",
+      "sha256": "e86b23cdf3f8a8f1b197d4da365822328a6badf75e7f1b05b2322a0504f3e07c",
       "scenarios": [
         "complete() уходит на OpenAI-совместимый endpoint и маппит usage/finishReason",
         "completeStructured() шлёт RawSchema как есть (без Gemini-адаптации) и режим Structured",
@@ -4827,29 +4571,6 @@
       ],
       "original_path": "tests/Unit/Llm/OpenAiCompatibleProviderTest.php",
       "original_sha256": "c4215e0fe526977c9d761043848805f745e71e006b9dffaa53cee3bc9ce0793b",
-      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
-    },
-    {
-      "path": "tests/Unit/Llm/PrismGeminiProviderTest.php",
-      "sha256": "0e8a3546bdd9a95a2959f7c9125fde9318653126e355652d320a5047644904cb",
-      "scenarios": [
-        "completeStructured() маппит usage из сырого usageMetadata, а не из Prism-usage хендлера",
-        "completeStructured() складывает thoughtsTokenCount в completionTokens — Google билluет reasoning по ставке output",
-        "completeStructured() кладёт в raw модельный JSON-текст, а не envelope Gemini-ответа",
-        "completeStructured() передаёт canonical JSON Schema через GeminiResponseSchemaAdapter как RawSchema",
-        "complete() маппит MAX_TOKENS (Prism Length) в FinishReason::MaxTokens",
-        "cacheHandle из LlmOptions уходит в providerOptions cachedContentName",
-        "createCache() создаёт explicit context cache через Gemini API и возвращает LlmCacheHandle",
-        "refreshCache() PATCH-ит expireTime по id кэша (Prism кэш не покрывает — тонкий HTTP-клиент)",
-        "deleteCache() DELETE-ит кэш по id (Prism кэш не покрывает — тонкий HTTP-клиент)",
-        "uploadFile() проходит resumable-протокол Files API и возвращает handle при мгновенном ACTIVE",
-        "completeStructured() переводит вендорское MAX_TOKENS-исключение в FinishReason::MaxTokens с числами из фактуры",
-        "completeStructured() НЕ ловит PrismException без вендорской сигнатуры MAX_TOKENS — перевод узкий",
-        "completeStructured() эмитит thinkingLevel в providerOptions, когда он задан в LlmOptions (НЕ thinkingBudget)",
-        "uploadFile() опрашивает состояние, пока PROCESSING, и возвращает handle по ACTIVE"
-      ],
-      "original_path": "tests/Unit/Llm/PrismGeminiProviderTest.php",
-      "original_sha256": "736b1b63d609c4ffcf54e3c32e8e35d55ac8ae2f64d02705daea745d984f47f0",
       "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
     },
     {
@@ -5224,6 +4945,397 @@
       "accepted_change_item": "P4.1",
       "accepted_change_commit": "943b0d6d781a9180a438c97eefa4a5dea8dcf7bb",
       "change_reason": "P4.1 isolated harness bootstrap/guard/filesystem isolation change; preserve original pre-harness provenance"
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Documents/T10DocumentAcceptanceTest.php",
+      "sha256": "bad866536c0a6f8c8c2facd6b4774176598f24aafb6f0d9d28575668a9407423",
+      "scenarios": [
+        "подготовленные bytes двух площадок и manual проходят fixture publication с общими head run coverage guards"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "original_sha256": "91186b3d14d4515028226b7c1cda1038987899e8036a129b99c7cb03034fd6a5"
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+      "sha256": "5d9a3fc3473bba29b8f75032c215eb5e1fae96c2f788265a439c902d8a6f29f7",
+      "scenarios": [
+        "отключённые sources не мешают prepare verified bytes и оставляют real AI явно pending",
+        "manual и две площадки получают одинаковый fixture анализ при paused acquisition",
+        "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history",
+        "standalone activation отделена от admission и повторного queue dispatch",
+        "analysis defer освобождает parent child slots сохраняя immutable age и future due",
+        "storage reconcile ждёт generation revocation и verified workspace stop вместо одного lease expiry"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php",
+      "sha256": "55a89b1343f09852aaa02c3581f76e40b7b829b038433b88eed8a3bb81ef32bd",
+      "scenarios": [
+        "потеря source object при prepare даёт storage wait без item failure и handler fault",
+        "registered runtime проводит reference download prepare через sole Process job затем явно держит real AI",
+        "missing document route profile даёт configuration hold без handler fault и HTTP"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "original_sha256": "0839bd6f5f574e893179ef75ad0f18a2a08f057becd58eaa57ac94f4f8e1087a"
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T13GenerationReceiptDecoderTest.php",
+      "sha256": "597d55b8755b1808b04814c8db38239fe727ebb5ccdc5080600ecbd4f06a2452",
+      "scenarios": [
+        "successful assets and verified errors never enter the generation model decoder"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T13PageCoverageTest.php",
+      "sha256": "c31ed40f9b6609d95fc77840cfe1e53617d180853fb78f7ba1d5a0bdf8065557",
+      "scenarios": [
+        "page coverage не выдаёт число страниц за число строк и отвергает gap и чужой anchor",
+        "empty page extraction требует независимый blank proof",
+        "discovery сохраняет все страницы и identity через split, ambiguity запрещает публикацию",
+        "page checkpoint codec не смешивает rows и pages и проверяет полное partition",
+        "source manifest требует исходное полное покрытие и проверенный blank, а не model rows"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T13WindowStitchTest.php",
+      "sha256": "b0648d224ee446779cf84f5f0a7f19e41525957350bd1034fc8f9a8960218f60",
+      "scenarios": [
+        "window IDs and exact half-open source coverage are pinned to the immutable run",
+        "stitching deduplicates matching overlap by estimate and anchor and preserves depth five totals and chunk provenance",
+        "stitching rejects conflicting overlap instead of silently keeping the first row or total",
+        "a missing or duplicate subrange or foreign run never becomes complete publication",
+        "split chunks restore the entire parent and keep exact row provenance"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
+      "sha256": "7ab25eb97410192d87d457fb3064ac6dd59df42cd55c8357a84e4d0234e88e37",
+      "scenarios": [
+        "файл загружается настоящим multipart HTTP с сохранёнными bytes MIME TTL и отдельным нулевым учётом",
+        "кэш создаётся одним HTTP с полным TTL reserve и точным system file prefix без tools",
+        "cached wire исключает system и file prefix; uncached сохраняет полную schema и стабильные части",
+        "capability identity account API model surface и expiry не переносятся между маршрутами",
+        "unknown reuse unsupported explicit minimum tokens и невыгодная цена не создают кэш; TTL не расширяется автоматически",
+        "известный бесплатный cache404 допускает ровно один uncached physical retry того же logical key с новым reserve",
+        "cache404 без доказательства оплаты остаётся unknown и не посылает fallback",
+        "cache/file put-before-ref восстанавливает asset purpose и metadata после blocked без generate parsing и нового send",
+        "неопределённый remote create сохраняет reserve и блокирует второго создателя даже после lease и TTL",
+        "два настоящих PostgreSQL процесса выбирают одного создателя одного prefix",
+        "явный refresh имеет новый request и полный TTL reserve; lookup не перезаписывает стоимость создания",
+        "доказанный file404 даёт один reupload тех же immutable bytes; повтор delivery не загружает снова",
+        "любое измерение identity cache исключает reuse",
+        "expired cache выбирает plain wire без refresh",
+        "usage разделяет uncached cached output thinking storage и не выдаёт unknown за ноль",
+        "verified generation envelopes retain financial facts for refusal empty and unsupported domain outcomes",
+        "file identity меняется с account API MIME bytes; модель того же account может использовать тот же файл",
+        "expiry capability во время network wait отзывает authorization до HTTP"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
+      "sha256": "9b19257e0e9f1d4bb1ca9411654a90dad3861c663d35f260cdf9d7f8fc4e88bf",
+      "scenarios": [
+        "an unclaimed denied send preserves a known-safe retry directive and is never misclassified as paid unknown",
+        "SIGKILL of the real extraction runner resumes the same work with zero additional HTTP or financial reservations",
+        "missing immutable representation defers as storage dependency before reserving money and never consumes the handler fault budget"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22AiCutoverTest.php",
+      "sha256": "1763f9efdf042edfd57a9da038f33804be6de5c1a25c7c8c6200d148685fef91",
+      "scenarios": [
+        "production container registers all real analysis handlers without configuration IO or provider calls",
+        "manual reanalysis creates one new intent and immutable recipe while duplicate command never resets accepted history",
+        "manual reanalysis journal failure rolls back recipe intent and version pointer together",
+        "review repository rejects result and execution writes while preserving allowed operator metadata",
+        "providers without a registered owning gate reject synchronous paid methods before HTTP",
+        "fixture reanalysis follows the same manual intent owner and preserves its protected accepted result",
+        "manual reanalysis cannot bypass unresolved provider spending after extraction cancellation"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "original_sha256": "1332dab297cacf5d708ecad20db0f7284a63b0682727a58fbd1c7da566bbcf90"
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22AnalysisPlanningTest.php",
+      "sha256": "d42c7707409d1d23a28d66b0cf4dad0edacec5527c0c4e265d0635499b1abf75",
+      "scenarios": [
+        "prepared backlog создаёт один pinned analysis без acquisition и без платного запроса",
+        "нет выбранного account profile означает отсутствие guessed recipe и provider intent",
+        "analysis configuration и runtime composition не выполняют database или network IO",
+        "явный sync provision account period и network catalog без provider send"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22AnalysisRecipeTest.php",
+      "sha256": "e11353a2d0268cbfc644ea9a14786d2d38220a3f6c7774aa2d0bee27957d0708",
+      "scenarios": [
+        "recipe roundtrip не читает изменившиеся prompt model account options и coverage config",
+        "half-open typed ranges checkpoint codecs и hashes сохраняют input identity без rows accumulator",
+        "canonical run window chunk rows persistent FK immutable и duplicate conflict проверяются на PostgreSQL"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "original_sha256": "7bf699c8749d1c54c406f8f5dfd76a95fac1ce07ec753f4e9624ce6361d95f1e"
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
+      "sha256": "a7b6702ec1ab72ff04a787cf98aa651bea9227e9c50cebb1cdda755efcdb25a5",
+      "scenarios": [
+        "asset raw recovery сохраняет metadata progress и directive consumption атомарно без повторного HTTP",
+        "lookup recovery продолжает declared generation с отдельной identity и одним новым HTTP",
+        "extraction asset recovery сохраняет pending ranges и ранее потраченный semantic ordinal"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22CanonicalReadModelTest.php",
+      "sha256": "622ebfd7ac6213ad61079d3a46b1678e070e04416c3160ff51b20936712949ae",
+      "scenarios": [
+        "canonical read models derive execution and money while result reviews remain bigint projections"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
+      "sha256": "63e882a9d54b5c423cad8c4e85ae313cb67357d60c2eb3bd53223f4b984dd7b9",
+      "scenarios": [
+        "canonical history renders derived status money and unknown token evidence from the original provider ledger",
+        "canonical result modal renders accepted screening and explains a missing extraction without an execution state writer",
+        "canonical result modal selects the newest task gold and explicitly labels its truncated read-only preview",
+        "canonical payload page selects only exact run linked UUIDs and distinguishes an unavailable immutable object",
+        "canonical AI pages preserve direct URL permissions and malformed UUID rejection"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "original_sha256": "e61e98faa07bad0c04d524775e71023dd24212f95bf15ab374cf04a8c35d274b"
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php",
+      "sha256": "7427c8ef9e0ac77dd474b693b800e52fce0e3531f142d071a60aed2a9c067069",
+      "scenarios": [
+        "durable raw recovery parses only the pinned receipt and atomically accepts chunk coverage and directive",
+        "ordinary partial progress preserves the pinned directive",
+        "MAX_TOKENS commits only a left-first split and restart never accepts the billed prefix",
+        "schema and semantic reasks remain bounded across deliveries without consuming item failures",
+        "refusal empty unsupported and exhausted split outputs preserve billing and block without reasking or publication",
+        "a conflicting durable chunk blocks with an atomic incident and never overwrites accepted bytes or consumes recovery",
+        "changed head or hard cancellation rejects an already validated chunk with zero publication",
+        "two PostgreSQL processes accepting the same chunk commit one progress and one consumption",
+        "authorization rejects wrong subrange and an unearned semantic ordinal before reserving money",
+        "validated output uses accounted immutable blobs and no object IO inside a DB transaction"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22GenerationRoutingTest.php",
+      "sha256": "d28d23caea69c79280e84a5760bfd5d99a9f5b6dcabfdb12f8430d07ac29f071",
+      "scenarios": [
+        "полный timeout не помещается: slice denial без network demand или paid send",
+        "потерянный lease сохраняет управляющий выход вместо financial denial",
+        "отказы gate сохраняют объявленную причину и точный retry instant",
+        "slice возврат сохраняет тот же stage progress вместо сброса checkpoint",
+        "ручные и configuration отказы не маскируются как автоматическое ожидание budget",
+        "revoked authority остаётся управляющим выходом runner"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22OutputStorageTest.php",
+      "sha256": "c2b80caeda68b70c79d6c4fd765a2e72241dd7649d5b60f88cad7eaf8b89f73c",
+      "scenarios": [
+        "output accounting rejects a foreign artifact owner before writing",
+        "output accounting rejects a non-extraction lease before reserving capacity",
+        "output spool reserves process-stop proof bytes before the first write",
+        "a storage set changed by another PostgreSQL connection invalidates the pre-read before accepting any chunk",
+        "an unaccounted object cannot become a durable chunk even when its JSON schema and hash are valid",
+        "two real PostgreSQL output writers cannot exceed the durable capacity and a failed reserve leaks no spool charge",
+        "accepted chunk output remains pinned after terminal extraction and cannot be marked for GC"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22PageExtractionPublicationTest.php",
+      "sha256": "663eb8264b341550d087ad05c8cc38eeba333f9118a3f721a9fcdf7c79a1af72",
+      "scenarios": [
+        "page split сохраняет переменное число строк и публикует две сметы одним current commit"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22PageSourceFinalizationTest.php",
+      "sha256": "c38dc7a063b00e87cef1827f8125e478f58889cb0f1b7548febc44e137416eda",
+      "scenarios": [
+        "database отклоняет page codec без source manifest ещё до первого provider call",
+        "pinned discovery split и raw recovery создают окна всех смет без второго send",
+        "discovery gap reask ограничен одним ordinal между доставками",
+        "source seal и создание окон откатываются вместе с обязательным journal"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22PromptScopePortTest.php",
+      "sha256": "42980725ca842b81883c439e2cd7ec30d5fd482a37719002bee3087b22796129",
+      "scenarios": [
+        "generic prompt port принимает registered scope и запрещает подмену consumer enum"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22PublicationFinalizationTest.php",
+      "sha256": "6b3304916ebd06711eecfd401de4c99d35897543193757b593c1854daf2b4eec",
+      "scenarios": [
+        "MAX_TOKENS checkpoints the split and both exact halves produce one complete business publication",
+        "complete accepted chunks publish normalized estimates and all depth five flat totals with immutable provenance once",
+        "mandatory journal failure rolls back normalized rows publication status and current pointer together",
+        "normalization retains exact decimal strings resources and section provenance without claiming operator verification",
+        "sealed independent source coverage cannot be replaced even before any chunk is accepted",
+        "missing independent source declaration blocks authorization before any financial reservation",
+        "hard cancellation head drift and a new pinned recipe fence an already validated publication",
+        "complete model rows cannot publish an incomplete source representation or an undeclared extra window",
+        "two PostgreSQL finalizers accept exactly one normalized business publication"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22ScreeningFinalizationTest.php",
+      "sha256": "8da4448423d2aa4f09cd02e8a5dca304cf94502a55a109b1811eca1160a7a088",
+      "scenarios": [
+        "screening raw recovery preserves its directive through partial progress and accepts without another paid call",
+        "screening bounded schema and semantic reasks survive deliveries and leave item failures untouched",
+        "screening journal failure rolls back receipt consumption and accepted progress",
+        "stale head recipe or cancel rejects a late screening result without creating extraction work",
+        "two PostgreSQL finalizers publish one screening result and one successor",
+        "screening schema pairs and immutability reject invalid or replaced results"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22ScreeningRunIdentityTest.php",
+      "sha256": "6083d9de9b2a2bb7f844d11b37559ac8cd695b32fa0000e79cdc824df9575dd3",
+      "scenarios": [
+        "replacement analysis with identical recipe cannot consume the previous screening work checkpoint"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T22TaskManifestTest.php",
+      "sha256": "e4144e8cd268897a2c93d33574ec8ed4d8deda8dc9a32987ca088f8a4df7086f",
+      "scenarios": [
+        "recipe v2 seals complete purpose snapshots and rejects old or tampered codecs",
+        "semantic task purpose changes both typed subrange input and sealed wire fingerprint",
+        "one run authorizes its distinct pinned screening and rows contracts and rejects schema prompt or purpose substitution",
+        "screening semantic validation rejects invalid confidence and contradictory cardinality",
+        "backend screening uses only the sealed confidence and rule policy",
+        "invalid confidence policy is rejected before a run can seal it",
+        "missing or incompatible pinned rows contract blocks before authorization and semantic reasks"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Network/CallerWireTest.php",
+      "sha256": "1845e2b29d7475e838766e5383764485b5fae0d40f877fe9384ec8e1057520e9",
+      "scenarios": [
+        "исторический win1251 экспорт с четырьмя строками и пустым обязательным title остаётся partial",
+        "CSV caller декодирует реальный win1251 экспорт и проводит единственный запрос через permit",
+        "синхронизатор ОКПД2 использует общий транспорт и сохраняет ограничение обхода",
+        "загрузчик документа читает настоящий bounded поток через Process permit без ordinary bridge",
+        "OpenAI caller without a durable financial owner refuses before any ordinary bridge or HTTP"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "original_sha256": "afa6ec3504b24ed38188a21058b435b2af9dcb7161a0b5be22f7b08e0d5f578a"
+    },
+    {
+      "path": "tests/Integration/ProcessCore/Concurrency/T22AnalysisPlanningConcurrencyTest.php",
+      "sha256": "98e344c57d72fb55841906974cb06451b4a310b3eab5934a61e52482e782e311",
+      "scenarios": [
+        "два producer после одного pre-read сериализуют version и создают ровно один analysis",
+        "concurrent manual commands serialize the current analysis and deduplicate only the same command"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "original_sha256": "4e8d6b68fde5793dbb28f0bbedd93a8ef0309ea3ea53faa62a65e6efe708e27f"
+    },
+    {
+      "path": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
+      "sha256": "3985807e1d3087565345db46f99eb544882881b9866ea032a5d214bb41badba6",
+      "scenarios": [
+        "Gemini pure compile и настоящий wire совпадают; один joint ID, receipt и network release",
+        "повторный gate и single-use capability не отправляют второй HTTP, clone/serialize закрыты",
+        "два PHP процесса получают одну capability и отправляют ровно один физический запрос",
+        "физический cURL pump отвергает повторный вход Guzzle после единственного локального HTTP",
+        "ожидание slot затем pause hold retire cancel даёт zero HTTP и zero claims",
+        "отказ второй network scope откатывает финансовую claim и сетевые request facts",
+        "поздний permit покрывает полный total и cleanup от actual authorization",
+        "нет owning gate или wire fingerprint изменён: typed denial без network authorization и HTTP",
+        "provider HTTP error и redirect выполняют один send без SDK retry или follow",
+        "недоверенный TLS отвергается реальным cURL и сохраняет typed TLS unknown без HTTP receipt",
+        "SIGKILL после joint claim до wire остаётся honest unknown и удерживает budget"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Unit/Architecture/AiCutoverTest.php",
+      "sha256": "2ae583ca8e244716f2ab0210319574cd6ffbd7c68fef4510488b0c4cf47b7418",
+      "scenarios": [
+        "all Llm layers reject reverse Procurement dependencies including aliases and class strings",
+        "retired AI state owners jobs tables and ordinary provider bridge are absent"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Unit/Architecture/OutboundCutoverTest.php",
+      "sha256": "7b6e6cecea90493a10ac07cd52873d99ceea210a6ae895e249523c6f6f269f85",
+      "scenarios": [
+        "удалённые сетевые writers отсутствуют и ни один app caller не зависит от их классов",
+        "acquisition callers не создают второй HTTP клиент и не владеют physical retry"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
+    },
+    {
+      "path": "tests/Feature/ProcessCore/Llm/T13CanonicalContractTest.php",
+      "sha256": "e11f477df0c281fe77f25b3b27e20213b9120985b6195e92edad5dbd11d61063",
+      "scenarios": [
+        "canonical schema проверяется до hydration, decimal precision и flat totals depth5 сохраняются при roundtrip",
+        "T13 full canonical constraints отвергают model JSON до принятого chunk и публикации",
+        "T13 anchors ranges units arithmetic coverage и parent forest проверяются семантически",
+        "T13 provider outcomes не принимают prefix rows и не запускают скрытую continuation или reask",
+        "Opis draft2020 full validation ограничен локальными refs и bounded schema input"
+      ],
+      "accepted_change_item": "P3.13",
+      "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios."
     }
   ],
   "migrations": [
@@ -5353,11 +5465,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100025_create_prc_ai_analyses_table.php",
-      "sha256": "9d3ae112d86c1491baa985cea8a549b422643f65363512fcbd1e363cfbc4e89a"
-    },
-    {
-      "path": "database/migrations/2026_07_04_100026_create_llm_calls_table.php",
-      "sha256": "93dea0794356f2cf8470b3a68590ab68bf8338ed740aa077450a809440e00270"
+      "sha256": "a7c3acc0d8aa18aaa966106d67ce4e6e07bf6a5735945f6894f08017ba155651",
+      "original_sha256": "9d3ae112d86c1491baa985cea8a549b422643f65363512fcbd1e363cfbc4e89a",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "database/migrations/2026_07_04_100027_create_llm_providers_table.php",
@@ -5365,7 +5476,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100028_create_llm_routes_table.php",
-      "sha256": "79f366e422c30f7e10dfa4e3d935689dc894d100bc4ad71b865a1259bf3be156"
+      "sha256": "8adc2f8a6d81162579ddd4200b95ac04e861093a5f380767de76da13a9aaa464",
+      "original_sha256": "79f366e422c30f7e10dfa4e3d935689dc894d100bc4ad71b865a1259bf3be156",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "database/migrations/2026_07_04_100029_create_llm_prompts_table.php",
@@ -5435,7 +5549,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100047_setup_pg_partman.php",
-      "sha256": "c65560f4dbbc06f3c618ab694925e3c391c827fd15b66dda279e00cb1b51a1bf"
+      "sha256": "b8980d01fae6fd3b3794d117375ad9b6c942d4cf49b90ecf31bc615ca8472da8",
+      "original_sha256": "c65560f4dbbc06f3c618ab694925e3c391c827fd15b66dda279e00cb1b51a1bf",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "database/migrations/2026_07_09_000001_create_pulse_tables.php",
@@ -5447,7 +5564,10 @@
     },
     {
       "path": "database/migrations/2026_07_09_100051_set_hot_partition_autovacuum.php",
-      "sha256": "bda36a400d9ff597b993be8ff5331315da01365a30b42b34c74372486abcc768"
+      "sha256": "f6cf974f00d85259aeac038c5c6121f3db7e5da1647ece3fee64c33d166b4202",
+      "original_sha256": "bda36a400d9ff597b993be8ff5331315da01365a30b42b34c74372486abcc768",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "database/migrations/2026_07_09_100052_create_prc_ai_corrections_table.php",
@@ -5470,11 +5590,10 @@
     },
     {
       "path": "database/migrations/2026_07_28_100058_create_prc_ai_prompt_suggestions_table.php",
-      "sha256": "4354d78d6d26812093de898efc6408565c7eb7b453285f2741163618cd0fa53c"
-    },
-    {
-      "path": "database/migrations/2026_07_29_100059_create_prc_ai_analysis_runs_table.php",
-      "sha256": "46b63d1eaf034bb4c7a296122b7c016d8970397ad6cfb3d459348949266822ac"
+      "sha256": "32cbb56a31ffb47963e969dcb5f4b2422ce23b57e18723cedf60db4a492973d5",
+      "original_sha256": "4354d78d6d26812093de898efc6408565c7eb7b453285f2741163618cd0fa53c",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "database/migrations/2026_08_05_100068_enable_db_observability_extensions.php",
@@ -5486,7 +5605,10 @@
     },
     {
       "path": "database/migrations/2026_08_05_100076_prune_orphaned_partman_part_config_entries.php",
-      "sha256": "81c0bc101b2702da1468fb0159864bdf411568679a3e4c2b6b610d4ccd4c8150"
+      "sha256": "7c38932ec4d0c91c09886ca8d23feba9983ab068e25248e0dfe4568c8ce398b5",
+      "original_sha256": "81c0bc101b2702da1468fb0159864bdf411568679a3e4c2b6b610d4ccd4c8150",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "database/migrations/2026_08_07_100078_create_prc_okpd2_nodes_table.php",
@@ -5514,7 +5636,7 @@
     },
     {
       "path": "database/migrations/2026_08_09_100091_migrate_screening_results_to_v2.php",
-      "sha256": "e175abaa99de733dfa133dbca3131e8354a3fe9026790c317286ae4e0dc447d8"
+      "sha256": "115b41a79b5b611139fdaf3a0a7bc71ca73aaa63f4b815fb5f1643d0af770805"
     },
     {
       "path": "database/migrations/2026_08_09_100092_add_applicability_to_prc_status_mappings_table.php",
@@ -5597,21 +5719,24 @@
     },
     {
       "path": "database/migrations/2026_11_01_100000_create_prc_document_storage_tables.php",
-      "sha256": "993c055e451320efb4e88c10d3db056ed9bb519fea0da4012437b6b5f7a15b5f",
+      "sha256": "d9809943d284397f13c640070526aa70889e0813aa6f4c19e74e5a08f493a10f",
       "original_sha256": "6375c41dede894fa58fe9d6b3ff0c1a0ce2ca80b6e755b78d41141cc28d6f689",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "database/migrations/2026_11_02_100000_create_prc_analysis_tables.php",
-      "sha256": "8a6ba122d0d3b650cea5b9a5235a08538234cf1d8868d8f51740b65e39d7b07a",
+      "sha256": "937d3ee445f9621fbeefccadad17518b35651c158ee37a548c2c445db39f6ed0",
       "original_sha256": "31c3d358a8ed0bb5230e00de5af3c1a3f5bd23d171851a836bf2f24fc8528fe5",
-      "change_reason": "P3.8 canonical contracts and additive schema; assertions adjusted to current staging without removal."
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "accepted_change_item": "P3.13"
     },
     {
       "path": "database/migrations/2026_11_02_100001_create_llm_request_ledger.php",
-      "sha256": "0b0b970714643cee250545875c6682d09baeea2d971f3be4e8d2bdfeccf74eb6",
-      "change_reason": "P3.9 additive generic financial and receipt ledger; legacy consumers retained."
+      "sha256": "45fe7f0fc8bf90ce6b374f6ea4ee6671b9d42cca2e668a7dca61f0ff16c45c6b",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "original_sha256": "0b0b970714643cee250545875c6682d09baeea2d971f3be4e8d2bdfeccf74eb6",
+      "accepted_change_item": "P3.13"
     },
     {
       "path": "database/migrations/2026_11_02_100002_create_llm_assets.php",
@@ -5854,6 +5979,18 @@
       "sha256": "36b7d6db6ad3718b5ae58d85665a792c841b5f75d9984c28031bc421d5f29c9e",
       "retired_in": "P2.18",
       "reason": "Atomic acquisition owner cutover; original path/hash retained. Legacy test migration remains incomplete and is not certified by retirement."
+    },
+    {
+      "path": "database/migrations/2026_07_04_100026_create_llm_calls_table.php",
+      "sha256": "93dea0794356f2cf8470b3a68590ab68bf8338ed740aa077450a809440e00270",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "database/migrations/2026_07_29_100059_create_prc_ai_analysis_runs_table.php",
+      "sha256": "46b63d1eaf034bb4c7a296122b7c016d8970397ad6cfb3d459348949266822ac",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
     }
   ],
   "retired_source_classes": [
@@ -5891,6 +6028,336 @@
       "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved.",
       "retired_in": "P2.18",
       "reason": "Atomic acquisition owner cutover; original path/hash retained. Legacy test migration remains incomplete and is not certified by retirement."
+    }
+  ],
+  "retired_files": [
+    {
+      "path": "tests/Feature/Ai/UsageSnapshotTest.php",
+      "sha256": "e81a164d9101de8c770260ebc070e3026582c89ce699a96cc4678b5199db12b5",
+      "scenarios": [
+        "слепок анализа = сумма вызовов её шага, вызов тюнинга (prompt_critic) не входит (D39)",
+        "повторный вызов сейма не удваивает цифры — пересчёт, а не инкремент",
+        "теневой анализ (is_shadow) считает ТОЛЬКО purpose=shadow — даже при наличии вызова скрининга на том же analysis_id",
+        "слепок прогона = сумма слепков его анализов, включая теневой",
+        "успешный скрининг — слепок расхода пишется на Analysis И на AnalysisRun (интеграционный путь ScreeningJob)",
+        "обучающий документ (площадка «Обучалка») — слепок пишется тем же путём, что боевой (D91)",
+        "фатальный finishReason — попытки исчерпаны, Analysis Failed несёт finished_at и ненулевой слепок",
+        "успешное извлечение — Analysis несёт provider/model (сегодня их писал только скрининг) и слепок = сумма вызовов extract_*"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Filament/FinalPromptPageTest.php",
+      "sha256": "b581df76d9243df4d20e5ee1b6ccd5527e0b914adf77386078ec7622e3ea5a63",
+      "scenarios": [
+        "страница показывает сохранённый payload выбранного вызова",
+        "вызовы обоих шагов — первичного анализа и извлечения — видны в списке",
+        "истёкший по lifecycle блоб объясняет отсутствие, а не падает ошибкой",
+        "без ссылки на payload показано честное «ссылки нет», а не пустой блок",
+        "без права страница недоступна по прямому URL"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Filament/FixtureRunHistoryTest.php",
+      "sha256": "eb55fdeded97bd84986cd042b562b0e5ce335a6571e914f02e452e0448ceeb5c",
+      "scenarios": [
+        "значения токенов и цены в строке совпадают со слепком прогона",
+        "прогон без слепка показывает «нет данных», а не ноль",
+        "режим запуска виден в строке",
+        "статус различает «идёт» и «завершён»",
+        "без права ресурса эталонов карточка и история прогонов недоступны"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Llm/GeminiProxyRoutingTest.php",
+      "sha256": "821f49aaea38cfb9dfbc52dcacaf8bfc634ad0ac7f922d3cee7d0e356edafa21",
+      "scenarios": [
+        "резолвер не выдаёт запрещённый по стране узел для LLM-скоупа ни при одной конфигурации здоровья",
+        "узел без страны исключается из LLM-скоупа при непустой политике запретов",
+        "разрешённый по стране узел для LLM-скоупа выдаётся резолвером",
+        "PoolOutboundProxy отдаёт httpOptions разрешённого узла для LLM-скоупа",
+        "пустой пул для LLM остаётся fail-closed даже при legacy env-прокси",
+        "пустая политика запретов для LLM-скоупа — резолвер бросает ProxyPolicyMisconfiguredException",
+        "предохранитель пустой политики LLM не подменяется legacy env-прокси",
+        "PrismGeminiProvider запрашивает опции у порта OutboundProxy по каноническому хосту Gemini"
+      ],
+      "original_path": "tests/Feature/Llm/GeminiProxyRoutingTest.php",
+      "original_sha256": "32571963343bec2c40f5607de004bb3b83dfa059d9195d22f0349db4138d9d57",
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Llm/LlmCacheManagerTest.php",
+      "sha256": "3e9f8ce5451d7cb2868ee09b8824e5bf7e36193a13157434b50816d917889795",
+      "scenarios": [
+        "create() регистрирует explicit cache на Analysis и возвращает handle",
+        "create() провайдер без SupportsContextCaching → null без похода в API",
+        "create() ошибка провайдера → warning, путь без кэша, Analysis не тронут",
+        "validHandle() валиден при совпадении rules_hash и живом TTL",
+        "validHandle() null при смене rules_hash (промты изменились)",
+        "validHandle() null при истёкшем TTL",
+        "validHandle() null без зарегистрированного кэша",
+        "refresh() продлевает TTL и обновляет cache_expires_at на Analysis",
+        "delete() удаляет кэш у провайдера и снимает регистрацию с Analysis",
+        "delete() ошибка провайдера всё равно снимает регистрацию (best-effort)",
+        "listActive() отдаёт только анализы с зарегистрированным cache_id",
+        "prune() снимает регистрацию просроченных по TTL кэшей",
+        "prune() снимает регистрацию у финализированных (terminal-статус) анализов",
+        "implicitHitStats() считает долю cached_tokens по purpose за окно"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Llm/LlmCallRecorderTest.php",
+      "sha256": "ee345f87fcd63d971aa7b48760d087676d6f13f3ff2bf1c6d23811bb5f80b9f6",
+      "scenarios": [
+        "record() пишет успешный вызов: usage, cost_micros по капе config/ai.php, refs в object storage",
+        "record() пишет неуспешный вызов без usage: cost_micros=0, response_ref пуст",
+        "record() модель отсутствует в capability-матрице → cost_micros=0, запись не падает"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Llm/ShadowDispatchTest.php",
+      "sha256": "77f261f1af4378ac622fb01a14370b28b259432fc5d1ce28e91a3195a397e415",
+      "scenarios": [
+        "afterCall() диспатчит ShadowAnalysisJob на очередь ai_shadow, когда есть активный теневой маршрут",
+        "afterCall() ничего не диспатчит, если для (document_type, purpose) нет теневого маршрута",
+        "afterCall() пропускает вызовы с fileRefs — Files API не дублируется",
+        "ShadowAnalysisJob создаёт is_shadow-анализ, пишет LlmCall(purpose=shadow) и считает сравнение с основным",
+        "ShadowAnalysisJob на кросс-документном вызове (DocumentTypeScope::Any) не считает сравнение",
+        "ShadowAnalysisJob глотает исключение провайдера — боевой путь не затронут, ошибка только в shadow-анализе"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Ai/AnalysisStoreRepositoryConcurrencyTest.php",
+      "sha256": "aeafe321bdcaaf9e2dd5eb726e7bf45f14ab8f8b3e6f69c626a31ef7c0918728",
+      "scenarios": [
+        "два PostgreSQL worker получают один active analysis для версии и шага"
+      ],
+      "original_sha256": "667533dc18a3f1783cada6738aca50153b96b7f880cd9ecdc96aa806a12236e7",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage.",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Analyzers/Estimate/EstimateExtractionJobTest.php",
+      "sha256": "c13188ac460e49da1901213a3c725eb3ecaf4886015d545595983bf6966d9bc8",
+      "scenarios": [
+        "EstimateExtractionJob::dispatch дважды подряд на один documentId пушит в очередь только один job",
+        "EstimateExtractionJob::dispatch на РАЗНЫЕ documentId не делит unique-лок",
+        "uniqueFor EstimateExtractionJob задаёт TTL unique-лока больше TTL лиза (600с) — та же защита от вечного лока, что PrepareDocumentJob (ADR-0009)"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Analyzers/Estimate/EstimatePersisterTest.php",
+      "sha256": "dfb9067678edaef7c964b14a0dda8ca20a5454d9e9019a33641c4ee2be797dec",
+      "scenarios": [
+        "persist не объявляет смету проверенной при неполных строках и неизвестном ожидаемом количестве",
+        "persist откатывает смету при отказе записи большого raw result без исключения storage",
+        "успешный повтор после неудачного re-run заменяет сметы всей цепочки предшественников",
+        "persist нормализует смету с разделом/позициями/итогами и пишет событие estimate_extracted",
+        "повторный persist того же анализа не плодит дублей (upsert по analysis_id+ordinal, row_index)",
+        "несколько смет одного анализа персистятся отдельными записями с возрастающим ordinal",
+        "persist доводит запись до полноты схемы: все поля класса A непусты в БД (P5.2)",
+        "persist пишет regulatory_base и нормализует unit_base/unit_multiplier позиции и ресурса (P5.5)",
+        "нормализатор unit без множителя даёт unit_base = unit, unit_multiplier = 1 (P5.5)",
+        "persist резолвит work_type_id по work_type_name через findOrCreate и переиспользует запись между позициями (P5.5)",
+        "persist пишет дерево видов работ из PassportResponse::work_types с нормативами НР/СП (P5.5)"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Analyzers/Estimate/ExtractionOrchestratorTest.php",
+      "sha256": "bfd20409ee81b0df16207988a6d9b4a0e3b4fa750dd83b3484a8ca0c3251e8f1",
+      "scenarios": [
+        "оркестратор извлекает 2 сметы построчными диапазонами и итогами — Analysis succeeded, Document extracted",
+        "MAX_TOKENS на диапазоне строк — окно уменьшается вдвое, извлечение продолжается тем же начальным row_index",
+        "checkpoint self-requeue — после M единиц прогресса job переставлен в очередь, дубля нет",
+        "resume — второй запуск job продолжает с progress, не повторяя завершённые шаги",
+        "preflight сверх лимитов маршрута: windowed_enabled=true выбирает Windowed, false — unprocessable",
+        "preflight-отказ (сверх лимитов, windowed выключен) — документ unprocessable(provider_limit_pages), LLM не вызывается",
+        "сбой EstimatePersister::persist() (Storage::put) НЕ переводит analysis/document в терминал — повтор дожимает извлечение (review-фикс P6.3 HIGH)",
+        "потерявший lease worker не публикует смету после последнего ответа LLM",
+        "ошибка document update откатывает successful analysis finalize а retry сходится без дубля estimate"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Analyzers/Estimate/RerunRangeTest.php",
+      "sha256": "a6cdcb193f27bee6bcb2e959c2ba6aebf4b6670b528f1a37cd18b87303f96782",
+      "scenarios": [
+        "re-run заменяет только позиции запрошенного диапазона, остальные строки не трогает",
+        "re-run доводит запись позиции до полноты схемы тем же набором полей, что полный persist (P5.2)",
+        "re-run не обнуляет ранее записанные unit_price_base/index_code/source_position_number, если сам их не пересчитал (P5.2 Implementation Rules п.5)"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Analyzers/Estimate/WindowedExtractionTest.php",
+      "sha256": "917e7f138b90094e857923a24c91cf426ecf811719a1fe3eeb5fdfbe026e106c",
+      "scenarios": [
+        "оконный путь: discovery → 1 сегмент → passport → rows-окна → totals — тот же результат-shape, что row-range (е)",
+        "checkpoint self-requeue ПОСЕРЕДИНЕ discovery — прогресс содержит корректный next_window_index, маркеры не теряются (д)"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Pipeline/LeaseTest.php",
+      "sha256": "02f84489f854e5a5958ab4ca136363b1a1bb6fcd487a6fb012dd7c6f92b4fc84",
+      "scenarios": [
+        "двойной acquireLease на Document — второй захват возвращает false",
+        "releaseLease на Document освобождает лиз — следующий acquireLease проходит",
+        "просроченный lease сначала учитывается как одна доменная попытка, затем допускает retry",
+        "двойной acquireLease на Ai\\Analysis — второй захват возвращает false",
+        "recordFailure на Document считает попытки и экспоненциальный backoff с потолком",
+        "recordFailure помечает failed_permanently по достижении max_attempts, backoff упирается в потолок",
+        "PipelineJob: провальный status-guard не захватывает лиз и не выполняет process",
+        "PipelineJob: непройденный acquireLease не выполняет process и не освобождает лиз",
+        "PipelineJob: исключение из process пишет recordFailure, освобождает лиз в finally и пробрасывается дальше",
+        "PipelineJob: успешный process освобождает лиз в finally",
+        "старый execution token не снимает lease нового владельца",
+        "старый execution token не может записать эффект после takeover",
+        "последнее истечение analysis lease завершает analysis и run терминально"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+      "sha256": "9c8395f1796f61c22c200d6a8f1e48579e4a5f5fe45d553a615544d85bc13ab0",
+      "scenarios": [
+        "восстанавливает обе DB→queue границы ровно одним job при повторном sweep",
+        "не продолжает permanent failure и screening disposition без extraction",
+        "repair доводит stranded succeeded extraction из screened в extracted без нового job",
+        "recovery доходит до следующего документа после завершённых и отложенных записей",
+        "выключенный screening не занимает LIMIT перед due extraction",
+        "два PostgreSQL worker получают ровно один recovery claim"
+      ],
+      "original_sha256": "84060dd206e9a05175145b54559173862b91f7362cea51e2d6b5d603d62a3fd0",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only.",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+      "sha256": "96568ca548196e152bec53d6bda37d68ce841de15cb8be46068782c274bfd615",
+      "scenarios": [
+        "после commit Prepared без screening dispatch reconciler ставит единственный следующий job",
+        "orphan prepared без run создаёт один initial run и восстанавливает screening",
+        "terminal run history не запускается повторно recovery-проходом",
+        "recovery limit ограничивает входную выборку, а не только число dispatch",
+        "PrepareDocumentJob откатывает Prepared при отказе INSERT analysis run",
+        "два recovery ticks создают один run и один claimed continuation",
+        "orphan Prepared ждёт выключенный screening и восстанавливается после включения",
+        "terminal history перед due документом не вызывает starvation"
+      ],
+      "original_sha256": "4a40dcb69720eb595a63ee25c573aa744cf9f8adca3dad36cdab604da9fbc386",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only.",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Screening/ScreeningBranchingTest.php",
+      "sha256": "296b31068c8dc00497c08742794f61027d1c26d1819579ac17c32b39089ec709",
+      "scenarios": [
+        "не-смета (протокол) сохраняет тип без разбора — screened, extraction не диспатчится",
+        "тип с зарегистрированным анализатором БЕЗ извлечения — screened без диспатча",
+        "outcome события выводится из ТИПА документа, а не из литерала",
+        "тип БЕЗ анализатора — screened без диспатча, outcome не несёт типа",
+        "unknown отсекается — ignored",
+        "ignore-правило по подстроке в названии закупки отсекает документ независимо от классификации",
+        "borderline confidence — screened с typed review decision, extraction не диспатчится даже для estimate",
+        "borderline confidence с borderline_action=escalate — один повторный скрининг на маршрут выше, затем обычное ветвление",
+        "архив со сметой внутри доходит до кандидата на извлечение (сквозной сценарий)",
+        "теневой screening сохраняет v2 evidence без изменения primary document и без dispatch",
+        "stale screening token после replacement не меняет analysis document event run и не dispatch extraction",
+        "повтор идемпотентен — событие document_screened и дочерний dispatch не дублируются"
+      ],
+      "original_sha256": "37a96e517290348d847396613ae3425df17979cc9ea638f66b7cb95ddadf7102",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage.",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Screening/ScreeningContractMatrixTest.php",
+      "sha256": "cd674c78931f921810fbebef6093d7526cb50200b06282997c0a3ffbfd91750c",
+      "scenarios": [
+        "P7 matrix persists every valid taxonomy/cardinality vector into one v2 backend-owned envelope"
+      ],
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Feature/Procurement/Screening/ScreeningProcessorTest.php",
+      "sha256": "3149357cccef436038eec8068649bd350546d85d5b57bfdbba15beaf01174b5f",
+      "scenarios": [
+        "успешный скрининг PDF — Analysis succeeded, document_type/result заполнены, Document доводится до screened (P5.2 branching)",
+        "исчерпанный общий deadline остаётся retryable и не классифицируется как unreadable PDF",
+        "скрининг режет только первые N страниц (сгенерированный срез короче исходных 10 страниц)",
+        "MAX_TOKENS — ответ не гидратируется, попытка фиксируется как retryable (job-level re-ask через backoff)",
+        "фатальный finishReason исчерпывает попытки сразу — Analysis переходит в failed",
+        "изображение (скан) идёт целиком без резки — vision-путь",
+        "неподдержанный формат, дошедший до скрининга, — unprocessable(unreadable_format), не generic failed",
+        "битый PDF — qpdf проваливается, unprocessable(unreadable_format) вместо retryable failed",
+        "повторный запуск идемпотентен — статус документа prepared не даёт создать дубль Analysis"
+      ],
+      "original_sha256": "0c25cc3cab3e77f2c533cc011b2ad0b5e89fdbcdb99528830dd92d329aa13930",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only.",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Support/Analyzer/TechSpecFakeExtractionJob.php",
+      "sha256": "7a347a58346fec770d6f3447e5780cf112754534359a93f616c0e134c945e32c",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "tests/Unit/Llm/PrismGeminiProviderTest.php",
+      "sha256": "0e8a3546bdd9a95a2959f7c9125fde9318653126e355652d320a5047644904cb",
+      "scenarios": [
+        "completeStructured() маппит usage из сырого usageMetadata, а не из Prism-usage хендлера",
+        "completeStructured() складывает thoughtsTokenCount в completionTokens — Google билluет reasoning по ставке output",
+        "completeStructured() кладёт в raw модельный JSON-текст, а не envelope Gemini-ответа",
+        "completeStructured() передаёт canonical JSON Schema через GeminiResponseSchemaAdapter как RawSchema",
+        "complete() маппит MAX_TOKENS (Prism Length) в FinishReason::MaxTokens",
+        "cacheHandle из LlmOptions уходит в providerOptions cachedContentName",
+        "createCache() создаёт explicit context cache через Gemini API и возвращает LlmCacheHandle",
+        "refreshCache() PATCH-ит expireTime по id кэша (Prism кэш не покрывает — тонкий HTTP-клиент)",
+        "deleteCache() DELETE-ит кэш по id (Prism кэш не покрывает — тонкий HTTP-клиент)",
+        "uploadFile() проходит resumable-протокол Files API и возвращает handle при мгновенном ACTIVE",
+        "completeStructured() переводит вендорское MAX_TOKENS-исключение в FinishReason::MaxTokens с числами из фактуры",
+        "completeStructured() НЕ ловит PrismException без вендорской сигнатуры MAX_TOKENS — перевод узкий",
+        "completeStructured() эмитит thinkingLevel в providerOptions, когда он задан в LlmOptions (НЕ thinkingBudget)",
+        "uploadFile() опрашивает состояние, пока PROCESSING, и возвращает handle по ACTIVE"
+      ],
+      "original_path": "tests/Unit/Llm/PrismGeminiProviderTest.php",
+      "original_sha256": "736b1b63d609c4ffcf54e3c32e8e35d55ac8ae2f64d02705daea745d984f47f0",
+      "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained.",
+      "retired_in": "P3.13",
+      "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
     }
   ]
 }

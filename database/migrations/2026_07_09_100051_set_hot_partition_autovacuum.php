@@ -5,30 +5,10 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-/**
- * Понижает `autovacuum_*_scale_factor` (P7.7, Intent п.4, research/L §PG17) для hot-таблиц
- * с наибольшим объёмом вставок среди партиционированных — `llm_calls` (КАЖДЫЙ
- * LLM-вызов) и `prc_fetches` (краулинг). Дефолты Postgres (`autovacuum_vacuum_scale_factor`
- * 0.2, `autovacuum_analyze_scale_factor` 0.1) требуют десятки/сотни тысяч изменённых строк
- * на партицию до срабатывания — для append-only лога это означает устаревшую статистику
- * планировщика и позднюю обработку insert-triggered autovacuum (PG13+
- * `autovacuum_vacuum_insert_scale_factor`) на партиции, в которую пишут прямо сейчас.
- *
- * Два места применения (pg_partman-канон, template table): (1) `partman.template_public_*`
- * — сгенерирован автоматически `create_parent()` (100047) под каждую зарегистрированную
- * таблицу; ЛЮБОЙ `ALTER TABLE` на template-таблице подхватывается pg_partman для ВСЕХ
- * НОВЫХ партиций (declarative-партиционирование само по себе НЕ наследует reloptions
- * родителя — это ограничение Postgres, задокументированный повод существования template
- * table в pg_partman); (2) уже существующие партиции — template НЕ применяется ретроактивно,
- * их нужно альтерить явно.
- *
- * Идемпотентно по своей природе: `ALTER TABLE ... SET (reloption = value)` с тем же
- * значением — no-op, повторный прогон не бросает и не дублирует (в отличие от
- * `part_config.retention`, доп. проверка «уже выставлен» не нужна).
- */
+/** Autovacuum thresholds for the remaining hot partitioned tables. */
 return new class extends Migration
 {
-    private const array HOT_TABLES = ['llm_calls', 'prc_fetches'];
+    private const array HOT_TABLES = ['prc_fetches'];
 
     private const array RELOPTIONS = [
         'autovacuum_vacuum_scale_factor' => '0.01',

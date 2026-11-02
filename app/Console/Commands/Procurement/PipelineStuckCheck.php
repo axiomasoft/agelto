@@ -4,21 +4,22 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
-use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Estimate\EstimateValidationStatus;
 use App\Models\Llm\LlmRoute;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Notifications\PipelineAlert;
+use App\Repositories\Procurement\Ai\AnalysisRunReadRepository;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 use LogicException;
 
 /**
@@ -84,12 +85,8 @@ final class PipelineStuckCheck extends Command
     {
         $minutes = $this->intConfig("ai.pipeline.{$configKey}", 30);
 
-        $count = Analysis::query()
-            ->where('step', $step->value)
-            ->where('status', AnalysisStatus::Running->value)
-            ->where(fn ($query) => $query->whereNull('locked_until')->orWhere('locked_until', '<', now()))
-            ->where('updated_at', '<=', now()->subMinutes($minutes))
-            ->count();
+        $count = DB::table('prc_process_work')->where('stage', $step->value)->where('state', 'running')
+            ->whereRaw('lease_until<clock_timestamp()')->whereRaw("updated_at<clock_timestamp()-(? * interval '1 minute')", [$minutes])->count();
 
         if ($count === 0) {
             return [];
@@ -98,23 +95,17 @@ final class PipelineStuckCheck extends Command
         return [$findingKey => "Зависших анализов ({$step->value}, running >{$minutes}мин, лиз истёк): {$count}"];
     }
 
-    /**
-     * Незакрытый прогон (`AnalysisRun`, §3.6 root/document-contour.md) — без терминации второй
-     * прогон той же версии НАВСЕГДА запрещён partial unique `prc_ai_analysis_runs_active_version_unique`,
-     * поэтому забытая терминация обнаруживается не тестом, а зависшим документом на второй
-     * попытке. Порог — тот же `document_stuck_minutes`, что `stuckDocuments()` (мост между
-     * стадиями пайплайна): отдельного config-ключа P1.6 не заводит (не в Files).
-     *
-     * @return array<string, string>
-     */
+    /** @return array<string,string> */
     private function stuckRuns(): array
     {
         $minutes = $this->intConfig('ai.pipeline.document_stuck_minutes', 60);
 
-        $count = AnalysisRun::query()
-            ->whereNull('finished_at')
-            ->where('updated_at', '<=', now()->subMinutes($minutes))
-            ->count();
+        $count = app(AnalysisRunReadRepository::class)->query()
+            ->whereExists(fn (Builder $q) => $q->selectRaw('1')->from('prc_process_work as w')
+                ->whereColumn('w.document_version_id', 'prc_analysis_runs.document_version_id')
+                ->whereColumn('w.input_revision', 'prc_analysis_runs.expected_analysis_generation')
+                ->where('w.stage', 'screening')->whereIn('w.state', ['ready', 'admitted', 'running', 'deferred'])
+                ->whereRaw("w.updated_at<clock_timestamp()-(? * interval '1 minute')", [$minutes]))->count();
 
         if ($count === 0) {
             return [];
@@ -313,13 +304,12 @@ final class PipelineStuckCheck extends Command
         $thresholdPercent = $this->floatConfig('ai.pipeline.failure_rate_threshold_percent', 50.0);
         $since = now()->subHours($windowHours);
 
-        $succeeded = Analysis::query()
-            ->where('status', AnalysisStatus::Succeeded->value)
-            ->where('updated_at', '>=', $since)
+        $terminal = DB::table('prc_process_transitions as t')->join('prc_process_work as w', 'w.id', '=', 't.work_id')
+            ->where('t.entity_kind', 'work')->whereIn('w.stage', ['screening', 'extraction'])
+            ->where('t.occurred_at', '>=', $since);
+        $succeeded = (clone $terminal)->where('t.new_state', 'succeeded')
             ->count();
-        $failed = Analysis::query()
-            ->where('status', AnalysisStatus::Failed->value)
-            ->where('updated_at', '>=', $since)
+        $failed = (clone $terminal)->where('t.new_state', 'failed_item')
             ->count();
         $total = $succeeded + $failed;
 
@@ -355,9 +345,9 @@ final class PipelineStuckCheck extends Command
             return [];
         }
 
-        $recentCompletions = Analysis::query()
-            ->where('status', AnalysisStatus::Succeeded->value)
-            ->where('updated_at', '>=', now()->subMinutes($minutes))
+        $recentCompletions = DB::table('prc_process_transitions as t')->join('prc_process_work as w', 'w.id', '=', 't.work_id')
+            ->where('t.entity_kind', 'work')->whereIn('w.stage', ['screening', 'extraction'])
+            ->where('t.new_state', 'succeeded')->where('t.occurred_at', '>=', now()->subMinutes($minutes))
             ->exists();
 
         if ($recentCompletions) {

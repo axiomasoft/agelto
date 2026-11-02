@@ -7,13 +7,14 @@ namespace App\Dto\Procurement\Ai;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Services\Llm\Schema\CanonicalJson;
+use App\Services\Procurement\Extraction\AnalysisRangeCodec;
 use App\Services\Procurement\Process\PayloadReader;
 
 /** Small durable references only; rows live in immutable chunks, never in a checkpoint. */
 final readonly class ExtractionCheckpoint
 {
     /**
-     * @param  list<RowRange>  $pending
+     * @param  list<RowRange|PageRange>  $pending
      * @param  list<ChunkReference>  $acceptedChunks
      */
     public function __construct(public array $pending, public array $acceptedChunks, public int $splitCount = 0)
@@ -32,7 +33,7 @@ final readonly class ExtractionCheckpoint
 
     public function json(): string
     {
-        return CanonicalJson::encode(['version' => 1, 'pending' => array_map(fn (RowRange $range): array => $range->fields(), $this->pending),
+        return CanonicalJson::encode(['version' => 1, 'pending' => array_map(fn (RowRange|PageRange $range): array => $range->fields(), $this->pending),
             'accepted_chunks' => array_map(fn (ChunkReference $ref): array => ['id' => $ref->id->value, 'output_hash' => $ref->outputHash->hex], $this->acceptedChunks), 'split_count' => $this->splitCount]);
     }
 
@@ -54,8 +55,7 @@ final readonly class ExtractionCheckpoint
                 throw new \InvalidArgumentException('Invalid range.');
             }
             $range = new PayloadReader($value);
-            $range->keys(['start', 'end']);
-            $ranges[] = new RowRange($range->integer('start'), $range->integer('end'));
+            $ranges[] = AnalysisRangeCodec::restore($range);
         }
         $hashes = [];
         foreach ($chunks as $value) {

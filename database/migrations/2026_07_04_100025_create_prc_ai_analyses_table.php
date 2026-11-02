@@ -30,13 +30,11 @@ return new class extends Migration
                 ->constrained(table: (new DocumentVersion)->getTable())
                 ->onDelete('NO ACTION');
 
-            // Без constrained() — prc_ai_analysis_runs заводится позже (2026_07_29_100059,
-            // D91/D93 root/document-contour.md §3.3), FK связывается там же (тот же приём, что
-            // prc_procurement_parties.procurement_id → 2026_07_04_100048).
-            $table->unsignedBigInteger('analysis_run_id')->index();
+            // Canonical run FK is attached after its baseline table exists.
+            $table->uuid('analysis_run_id')->nullable()->index();
 
             $table->text('step')->comment('screening/extraction');
-            $table->text('status')->comment('pending→running→succeeded/failed/skipped');
+            $table->text('status')->comment('Accepted result metadata; execution authority is prc_process_work.');
             $table->text('document_type')->nullable()->comment('вердикт скрининга; значения — AiDocumentType, целостность — check-constraint (D16/D17)');
 
             $table->jsonb('result')->nullable();
@@ -50,23 +48,8 @@ return new class extends Migration
             $table->integer('total_tokens')->nullable();
             $table->bigInteger('cost_micros')->nullable();
 
-            $table->text('locked_by')->nullable();
-            $table->timestampTz('locked_until')->nullable();
-
-            $table->integer('attempts')->default(0);
-            $table->text('last_error')->nullable();
-            $table->timestampTz('last_error_at')->nullable();
-            $table->timestampTz('next_retry_at')->nullable();
-            $table->boolean('failed_permanently')->default(false);
-
             $table->timestampTz('started_at')->nullable();
             $table->timestampTz('finished_at')->nullable();
-
-            // Кэш и прогресс — перенос из v1 plt_document_analysis.
-            $table->text('cache_id')->nullable()->comment('Gemini cachedContent — быстрая проверка валидности без похода в API');
-            $table->timestampTz('cache_expires_at')->nullable();
-            $table->text('rules_hash')->nullable()->comment('инвалидация кэша при смене версии промптов');
-            $table->jsonb('progress')->nullable()->comment('резюме прерванной многошаговой экстракции');
 
             // Обратная связь оператора — P9.1 (D15, аудит F ось 6).
             $table->text('review_status')->default('unreviewed')->comment('unreviewed/approved/rejected');
@@ -113,12 +96,30 @@ return new class extends Migration
             .'ADD CONSTRAINT prc_ai_analyses_document_type_check '
             ."CHECK (document_type IS NULL OR document_type IN ({$this->documentTypeValues()}))",
         );
+        DB::unprepared(<<<'SQL'
+            ALTER TABLE prc_ai_analyses ADD CONSTRAINT prc_ai_analyses_result_status_check CHECK(status IN ('succeeded','skipped'));
+            CREATE OR REPLACE FUNCTION prc_ai_accepted_result_guard() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN
+                IF TG_OP='DELETE' THEN
+                    RAISE EXCEPTION 'Accepted analysis result is immutable' USING ERRCODE='23514';
+                END IF;
+                IF (to_jsonb(OLD)-ARRAY['review_status','reviewed_by','reviewed_at','operator_comment','superseded_at','updated_at']) IS DISTINCT FROM
+                   (to_jsonb(NEW)-ARRAY['review_status','reviewed_by','reviewed_at','operator_comment','superseded_at','updated_at']) OR
+                   (OLD.superseded_at IS NOT NULL AND OLD.superseded_at IS DISTINCT FROM NEW.superseded_at) THEN
+                    RAISE EXCEPTION 'Accepted analysis result is immutable' USING ERRCODE='23514';
+                END IF;
+                RETURN NEW;
+            END $$;
+            CREATE TRIGGER prc_ai_accepted_result_immutable BEFORE UPDATE OR DELETE ON prc_ai_analyses
+                FOR EACH ROW EXECUTE FUNCTION prc_ai_accepted_result_guard();
+            SQL);
     }
 
     public function down(): void
     {
         DB::statement('DROP INDEX IF EXISTS prc_ai_analyses_active_version_step_unique');
         Schema::dropIfExists($this->table());
+        DB::statement('DROP FUNCTION IF EXISTS prc_ai_accepted_result_guard()');
     }
 
     private function table(): string

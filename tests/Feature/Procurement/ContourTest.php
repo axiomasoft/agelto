@@ -2,21 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Ai\AnalysisRunStatus;
-use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\FixtureClass;
 use App\Enums\Procurement\Ai\GoldSource;
-use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PreparationResult;
-use App\Exceptions\Procurement\Ai\NoActiveAnalysisRun;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\Procurement\Platform\Platform;
-use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
 use App\Services\Procurement\Prepare\ArchiveStrategy;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -92,18 +87,9 @@ test('прогон с mode=auto над документом площадки «�
     $document = Document::query()->where('external_id', "fixture:{$code}")->firstOrFail();
     expect($document->platform_id)->toBe(Platform::training()->id);
 
-    expect(AnalysisRun::query()->where('mode', RunMode::Auto)->exists())->toBeFalse();
+    expect(AnalysisRun::query()->exists())->toBeFalse();
 
     File::deleteDirectory($goldDir);
-});
-
-test('второй незавершённый прогон по той же версии отвергается базой', function (): void {
-    $version = DocumentVersion::factory()->create();
-
-    AnalysisRun::factory()->create(['document_version_id' => $version->id, 'status' => AnalysisRunStatus::Running]);
-
-    expect(fn () => AnalysisRun::factory()->create(['document_version_id' => $version->id, 'status' => AnalysisRunStatus::Running]))
-        ->toThrow(QueryException::class);
 });
 
 test('дочерний документ архива наследует площадку родителя', function (): void {
@@ -136,11 +122,4 @@ test('дочерний документ архива наследует площ
 
     $child = Document::query()->where('external_id', "{$version->id}:estimate.txt")->firstOrFail();
     expect($child->platform_id)->toBe($platform->id);
-});
-
-test('анализ без активного прогона бросает NoActiveAnalysisRun, а не создаётся тихо', function (): void {
-    $version = DocumentVersion::factory()->create();
-
-    expect(fn () => app(AnalysisStoreRepository::class)->firstOrCreate($version->id, AnalysisStep::Screening))
-        ->toThrow(NoActiveAnalysisRun::class);
 });

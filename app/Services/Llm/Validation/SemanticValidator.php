@@ -6,7 +6,7 @@ namespace App\Services\Llm\Validation;
 
 use Spatie\LaravelData\Data;
 
-/** @template T of Data */
+/** @template-contravariant T of Data */
 interface SemanticValidator
 {
     /**

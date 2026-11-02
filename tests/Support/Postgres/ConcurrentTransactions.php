@@ -31,9 +31,10 @@ final class ConcurrentTransactions
 
     /**
      * @param  array<string, string>  $workers  Идентификатор worker → тело с `return`.
+     * @param  (\Closure(): void)|null  $afterRelease  Parent-side deterministic lock barrier; workers are already running.
      * @return array<string, array<string, mixed>>
      */
-    public static function concurrently(array $workers): array
+    public static function concurrently(array $workers, ?\Closure $afterRelease = null): array
     {
         $processes = [];
 
@@ -55,6 +56,22 @@ final class ConcurrentTransactions
         foreach ($processes as $process) {
             fwrite($process['pipes'][0], "go\n");
             fclose($process['pipes'][0]);
+        }
+
+        try {
+            $afterRelease?->__invoke();
+        } catch (\Throwable $failure) {
+            foreach ($processes as $process) {
+                proc_terminate($process['process'], 9);
+                foreach ($process['pipes'] as $pipe) {
+                    if (is_resource($pipe)) {
+                        fclose($pipe);
+                    }
+                }
+                proc_close($process['process']);
+            }
+
+            throw $failure;
         }
 
         $results = [];

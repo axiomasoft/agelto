@@ -19,5 +19,9 @@ final readonly class UsageReport
         public array $rows,
         public UsageSignature $signature,
         public bool $beyondHorizon,
-    ) {}
+    ) {
+        if ($beyondHorizon && $signature->horizonFrom === null) {
+            throw new \InvalidArgumentException('An unbounded source has no retention cutoff.');
+        }
+    }
 }

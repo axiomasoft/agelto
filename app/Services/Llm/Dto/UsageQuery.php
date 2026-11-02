@@ -21,7 +21,12 @@ final readonly class UsageQuery
         public bool $byProvider = false,
         public bool $byModel = false,
         public bool $byPurpose = false,
-    ) {}
+        public string $currency = 'USD',
+    ) {
+        if (preg_match('/^[A-Z]{3}$/D', $currency) !== 1) {
+            throw new \InvalidArgumentException('Invalid usage currency.');
+        }
+    }
 
     /**
      * Оси в порядке группировки — он же порядок сортировки ответа.

@@ -22,7 +22,7 @@ return new class extends Migration
             $table->id();
 
             $table->text('document_type')->comment('ключ маршрутизации: значение AiDocumentType либо сентинел any (кросс-документный маршрут), целостность — check-constraint (D16/D17)');
-            $table->text('purpose')->comment('совпадает с llm_calls.purpose');
+            $table->text('purpose')->comment('совпадает с llm_provider_calls.purpose');
 
             $table->foreignId('provider_id')
                 ->index()

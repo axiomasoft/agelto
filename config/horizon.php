@@ -256,60 +256,6 @@ return [
             'nice' => 0,
         ],
 
-        'supervisor-ai-screening' => [
-            'connection' => 'redis',
-            'queue' => ['ai_screening'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 2,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 128,
-            'tries' => 1,
-            // 210s Gemini request + Files polling + 30s persistence/release reserve.
-            // ScreeningJob.timeout=360 < this supervisor=390 < redis.retry_after=420.
-            'timeout' => 390,
-            'nice' => 0,
-        ],
-
-        // Extraction is checkpointed before it can begin another 150s provider call:
-        // job=300s, checkpoint=120s, reserve=30s, supervisor=360s, redis retry_after=420s.
-        'supervisor-ai-extraction' => [
-            'connection' => 'redis',
-            'queue' => ['ai_extraction'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 2,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 256,
-            'tries' => 1,
-            'timeout' => 360,
-            'nice' => 0,
-        ],
-
-        // Д-1 (P7.7, research/10 §3): `ShadowAnalysisJob::onQueue('ai_shadow')` диспатчился в
-        // очередь, которую ни один supervisor не разбирал — теневые прогоны копились бы в Redis
-        // молча, пока shadow-маршруты (`llm_routes.shadow=true`) не заведены. `timeout`/`memory` —
-        // потолок `supervisor-ai-extraction` (тень дублирует ЛЮБОЙ боевой вызов, включая
-        // extraction, `ShadowDispatch::afterCall()` вызывается после screening И extraction);
-        // `maxProcesses=1` без per-environment override — низкий приоритет, shadow-контур ещё не
-        // включён ни на одном маршруте (Д-1 факт: ключа `ai_shadow` в Redis нет), масштабировать
-        // раньше первого реального использования — подгонка без факта (Implementation Rule 6).
-        'supervisor-ai-shadow' => [
-            'connection' => 'redis',
-            'queue' => ['ai_shadow'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 256,
-            'tries' => 1,
-            'timeout' => 300,
-            'nice' => 0,
-        ],
-
         // Прогон краулера на очереди (P3.2, D27/D28). Инвариант таймаутов: checkpoint_seconds
         // (config('crawler.run.checkpoint_seconds')=240) < timeout (300) <
         // queue.redis.retry_after (config/queue.php, 420) — нарушение отдаёт job ВТОРОМУ
@@ -468,16 +414,6 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
-            'supervisor-ai-screening' => [
-                'maxProcesses' => 3,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
-            'supervisor-ai-extraction' => [
-                'maxProcesses' => 3,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
         ],
 
         'local' => [
@@ -486,12 +422,6 @@ return [
             ],
             'supervisor-doc-prepare' => [
                 'maxProcesses' => 2,
-            ],
-            'supervisor-ai-screening' => [
-                'maxProcesses' => 1,
-            ],
-            'supervisor-ai-extraction' => [
-                'maxProcesses' => 1,
             ],
         ],
     ],

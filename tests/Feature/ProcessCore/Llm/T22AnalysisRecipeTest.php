@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use App\Dto\Llm\Requests\PinnedLlmContext;
 use App\Dto\Llm\Requests\PromptSnapshot;
+use App\Dto\Llm\Requests\TaskManifest;
+use App\Dto\Llm\Requests\TaskSnapshot;
+use App\Dto\Llm\Schema\CanonicalSchema;
 use App\Dto\Procurement\Ai\AnalysisRecipe;
 use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
 use App\Dto\Procurement\Ai\ChunkReference;
@@ -14,14 +17,15 @@ use App\Dto\Procurement\Ai\MoneyDecimal;
 use App\Dto\Procurement\Ai\PageRange;
 use App\Dto\Procurement\Ai\QuantityDecimal;
 use App\Dto\Procurement\Ai\RowRange;
+use App\Dto\Procurement\Ai\ScreeningPolicySnapshot;
 use App\Dto\Procurement\Ai\ValidatedChunk;
 use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Enums\Llm\StructuredDisposition;
 use App\Enums\Procurement\Process\StageCode;
+use App\Exceptions\Procurement\Process\PublicationBlocked;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
-use App\Repositories\Procurement\Ai\ChunkRepository;
 use App\Services\Llm\Schema\CanonicalJson;
 use App\Services\Llm\Validation\StructuredTaskValidator;
 use App\Services\Procurement\Extraction\ExtractionContract;
@@ -39,23 +43,26 @@ test('recipe roundtrip не читает изменившиеся prompt model a
     $recipe = AiFixtures::recipe();
     config()->set('ai.extraction.window_pages', 999);
     config()->set('prism.providers.gemini.model', 'changed-after-start');
-    $restored = AnalysisRecipe::restore($recipe->json, 1);
+    config()->set('ai.screening.confidence_low', 0.99);
+    $restored = AnalysisRecipe::restore($recipe->json, AnalysisRecipe::CODEC_VERSION);
     expect($restored)->toEqual($recipe)->and($restored->llm->model)->toBe('fixture-model')
-        ->and($restored->coverage->allowDegradedRepresentation)->toBeFalse()
-        ->and(fn () => AnalysisRecipe::restore($recipe->json, 2))->toThrow(InvalidArgumentException::class, 'Unknown recipe');
-    foreach (['provider', 'account', 'apiVersion', 'model', 'routePolicyVersion', 'options', 'thinking', 'prompt', 'schema', 'preparation', 'analyzer', 'coverage', 'currency', 'locale'] as $dimension) {
+        ->and($restored->coverage->allowDegradedRepresentation)->toBeFalse()->and($restored->screening->confidenceLow)->toBe(0.4)
+        ->and(fn () => AnalysisRecipe::restore($recipe->json, 1))->toThrow(InvalidArgumentException::class, 'Unknown recipe');
+    foreach (['provider', 'account', 'apiVersion', 'model', 'routePolicyVersion', 'options', 'thinking', 'prompt', 'schema', 'preparation', 'analyzer', 'coverage', 'currency', 'locale', 'screeningPolicy'] as $dimension) {
         $llm = $recipe->llm;
         $candidate = new AnalysisRecipe(
             $dimension === 'preparation' ? ContentHash::of('new') : $recipe->preparationHash,
             $dimension === 'analyzer' ? 'new' : $recipe->analyzerVersion,
-            $dimension === 'prompt' ? new PromptSnapshot('changed', 2) : $recipe->prompt,
-            $dimension === 'schema' ? ContentHash::of('new') : $recipe->schemaHash,
+            new TaskManifest(array_map(static fn (TaskSnapshot $snapshot): TaskSnapshot => new TaskSnapshot(
+                $snapshot->purpose, $dimension === 'prompt' ? new PromptSnapshot('changed', 2) : $snapshot->prompt,
+                $dimension === 'schema' ? new CanonicalSchema(['type' => 'object', 'properties' => (object) [], 'additionalProperties' => false]) : $snapshot->schema), $recipe->tasks->tasks)),
             new PinnedLlmContext($dimension === 'provider' ? 'new' : $llm->provider, $dimension === 'account' ? 'new' : $llm->account,
                 $dimension === 'apiVersion' ? 'new' : $llm->apiVersion, $dimension === 'model' ? 'new' : $llm->model,
                 $dimension === 'routePolicyVersion' ? 'new' : $llm->routePolicyVersion,
                 $dimension === 'options' ? ['max_output_tokens' => 1] : $llm->options, $dimension === 'thinking' ? ['enabled' => true] : $llm->thinking),
             $dimension === 'coverage' ? new CoverageStrategy(4, 1, allowDegradedRepresentation: true) : $recipe->coverage,
             $dimension === 'currency' ? 'USD' : 'RUB', $dimension === 'locale' ? 'en-US' : 'ru-RU',
+            $dimension === 'screeningPolicy' ? new ScreeningPolicySnapshot(0.3, 0.7, true) : $recipe->screening,
         );
         expect(fn () => $restored->assertSame($candidate))->toThrow(InvalidArgumentException::class, 'Recipe drift');
     }
@@ -88,7 +95,7 @@ test('canonical run window chunk rows persistent FK immutable и duplicate confl
     $stored = app(AnalysisRepository::class)->getRun($window->run->id);
     expect($stored)->toEqual($window->run)
         ->and(app(AnalysisRepository::class)->getWindow($window->id))->toEqual($window)
-        ->and((new AnalysisRun)->getTable())->toBe('prc_ai_analysis_runs')
+        ->and((new AnalysisRun)->getTable())->toBe('prc_analysis_runs')
         ->and(app(StageRegistry::class)->handlerVersion(StageCode::Extraction))->toBeNull()
         ->and(app(StageRegistry::class)->handlerVersion(StageCode::Publication))->toBeNull();
     $task = (new ExtractionContract)->task($window->range, 1, $window->sourceAnchors);
@@ -97,11 +104,11 @@ test('canonical run window chunk rows persistent FK immutable и duplicate confl
     $hash = ContentHash::of(CanonicalJson::encode($result->data->toArray()));
     Storage::disk('local')->put('fixture/output', CanonicalJson::encode($result->data->toArray()));
     expect(ContentHash::of(Storage::disk('local')->get('fixture/output')))->toEqual($hash);
-    $chunk = new ValidatedChunk(LedgerFixtures::uuid(), $window, $window->range, 0, new ArtifactRef('local', 'fixture/output', $hash), $result);
-    $reference = DB::transaction(fn () => app(ChunkRepository::class)->storeLocked($chunk));
+    $chunk = new ValidatedChunk(LedgerFixtures::uuid(), $window, $window->range, 0, AiFixtures::output(CanonicalJson::encode($result->data->toArray())), $result);
+    $reference = AiFixtures::storeChunk($chunk);
     $duplicate = new ValidatedChunk(LedgerFixtures::uuid(), $window, $window->range, 0, $chunk->outputRef, $result);
     expect($reference)->toEqual(new ChunkReference($chunk->id, $hash))
-        ->and(DB::transaction(fn () => app(ChunkRepository::class)->storeLocked($duplicate)))->toEqual($reference)
+        ->and(AiFixtures::storeChunk($duplicate))->toEqual($reference)
         ->and(DB::table('prc_analysis_chunks')->count())->toBe(1);
     $rows = json_decode(DB::table('prc_analysis_chunks')->value('canonical_rows'), true, flags: JSON_THROW_ON_ERROR);
     expect($rows['totals'])->toHaveCount(6)->and($rows['rows'][0]['row']['unit_price_curr'])->toBe('9007199254740993.01')
@@ -110,8 +117,8 @@ test('canonical run window chunk rows persistent FK immutable и duplicate confl
     $changed['rows'][0]['row']['name'] = 'Different validated output';
     $different = app(StructuredTaskValidator::class)->validate($task, json_encode($changed, JSON_THROW_ON_ERROR), 'STOP');
     $otherHash = ContentHash::of(CanonicalJson::encode($different->data->toArray()));
-    $other = new ValidatedChunk(LedgerFixtures::uuid(), $window, $window->range, 0, new ArtifactRef('local', 'fixture/other', $otherHash), $different);
-    expect(fn () => DB::transaction(fn () => app(ChunkRepository::class)->storeLocked($other)))->toThrow(InvalidArgumentException::class, 'chunk_conflict');
+    $other = new ValidatedChunk(LedgerFixtures::uuid(), $window, $window->range, 0, AiFixtures::output(CanonicalJson::encode($different->data->toArray())), $different);
+    expect(fn () => AiFixtures::storeChunk($other))->toThrow(PublicationBlocked::class, 'chunk_conflict');
     foreach ([
         ['UPDATE prc_analysis_runs SET recipe_json=?::jsonb WHERE id=?', ['{}', $window->run->id->value]],
         ['UPDATE prc_analysis_windows SET input_hash=decode(?,\'hex\') WHERE id=?', [ContentHash::of('changed')->hex, $window->id->value]],

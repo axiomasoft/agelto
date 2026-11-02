@@ -12,6 +12,7 @@ use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * P9.1 — схема обратной связи оператора (D15, аудит F ось 6): ревью-колонки на `prc_ai_analyses`
@@ -134,13 +135,15 @@ test('коррекция без field_path адресует весь докум�
         ->and($correction->reason)->toBe(CorrectionReason::SplitError);
 });
 
-test('удаление анализа удаляет его коррекции', function () {
+test('accepted analysis deletion is rejected and preserves its correction evidence', function () {
     $analysis = Analysis::factory()->create();
     $correction = Correction::factory()->create(['analysis_id' => $analysis->id]);
 
-    $analysis->delete();
+    expect(fn () => DB::transaction(fn () => $analysis->delete()))
+        ->toThrow(QueryException::class, 'Accepted analysis result is immutable');
 
-    expect(Correction::query()->whereKey($correction->id)->exists())->toBeFalse();
+    expect(Correction::query()->whereKey($correction->id)->exists())->toBeTrue()
+        ->and(Analysis::query()->whereKey($analysis->id)->exists())->toBeTrue();
 });
 
 test('удаление сметы обнуляет привязку коррекции к смете, но саму коррекцию не удаляет', function () {

@@ -6,19 +6,15 @@ namespace App\Models\Procurement\Ai;
 
 use App\Dto\Procurement\Ai\Screening\StoredScreeningResult;
 use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Enums\Procurement\Ai\AnalysisRunStatus;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\EstimateCardinality;
 use App\Enums\Procurement\Ai\ReviewStatus;
 use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Ai\ScreeningDisposition;
-use App\Models\Concerns\HasErrorBlock;
-use App\Models\Concerns\HasLease;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Database\Factories\Procurement\Ai\AnalysisFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -35,7 +31,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
- * Сессия AI-анализа версии документа (screening/extraction) с lease-локом и кэшем LLM.
+ * Accepted screening/extraction result and operator review projection. Work owns execution.
  *
  * Preference-пары для DPO (P9.3) НЕ хранятся отдельной таблицей: chosen выводится из
  * `prc_ai_dataset_examples` (gold), rejected — из `result`/`raw_result` анализа, который
@@ -50,19 +46,10 @@ use InvalidArgumentException;
  * @property Collection<string, mixed>|null $result
  * @property string|null $provider
  * @property string|null $model
- * @property int $attempts
- * @property string|null $locked_by
- * @property Carbon|null $locked_until
- * @property string|null $last_error
- * @property bool $failed_permanently
- * @property string|null $cache_id
- * @property Carbon|null $cache_expires_at
- * @property string|null $rules_hash
- * @property Collection<string, mixed>|null $progress
  * @property ReviewStatus $review_status
  * @property int|null $reviewed_by
  * @property Carbon|null $reviewed_at
- * @property int $analysis_run_id
+ * @property string|null $analysis_run_id
  * @property int|null $parent_analysis_id
  * @property Carbon|null $superseded_at
  * @property-read AnalysisRun $analysisRun
@@ -84,19 +71,8 @@ use InvalidArgumentException;
     'cached_tokens',
     'total_tokens',
     'cost_micros',
-    'locked_by',
-    'locked_until',
-    'attempts',
-    'last_error',
-    'last_error_at',
-    'next_retry_at',
-    'failed_permanently',
     'started_at',
     'finished_at',
-    'cache_id',
-    'cache_expires_at',
-    'rules_hash',
-    'progress',
     'review_status',
     'reviewed_by',
     'reviewed_at',
@@ -109,7 +85,7 @@ use InvalidArgumentException;
 final class Analysis extends Model
 {
     /** @use HasFactory<AnalysisFactory> */
-    use HasErrorBlock, HasFactory, HasLease;
+    use HasFactory;
 
     protected function casts(): array
     {
@@ -122,15 +98,8 @@ final class Analysis extends Model
             'cached_tokens' => 'integer',
             'total_tokens' => 'integer',
             'cost_micros' => 'integer',
-            'locked_until' => 'datetime',
-            'last_error_at' => 'datetime',
-            'next_retry_at' => 'datetime',
-            'attempts' => 'integer',
-            'failed_permanently' => 'boolean',
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
-            'cache_expires_at' => 'datetime',
-            'progress' => AsCollection::class,
             'review_status' => ReviewStatus::class,
             'reviewed_at' => 'datetime',
             'superseded_at' => 'datetime',
@@ -175,7 +144,9 @@ final class Analysis extends Model
     /** @return HasMany<Estimate, $this> */
     public function estimates(): HasMany
     {
-        return $this->hasMany(related: Estimate::class);
+        return $this->analysis_run_id === null
+            ? $this->hasMany(related: Estimate::class)
+            : $this->hasMany(related: Estimate::class, foreignKey: 'analysis_run_id', localKey: 'analysis_run_id');
     }
 
     /** @return HasMany<DatasetExample, $this> */
@@ -197,49 +168,12 @@ final class Analysis extends Model
     }
 
     /**
-     * Анализы, для которых имеет смысл повторная попытка: срок ретрая наступил
-     * (или не назначен) и анализ ещё не помечен как окончательно неудавшийся.
-     *
-     * @param  Builder<Analysis>  $query
-     * @return Builder<Analysis>
-     */
-    public function scopePendingRetry(Builder $query): Builder
-    {
-        return $query
-            ->where(function (Builder $query): void {
-                $query->whereNull('next_retry_at')
-                    ->orWhere('next_retry_at', '<=', now());
-            })
-            ->where('failed_permanently', false);
-    }
-
-    /**
      * @param  Builder<Analysis>  $query
      * @return Builder<Analysis>
      */
     public function scopeActiveScreening(Builder $query): Builder
     {
         return $query->active()->where('step', AnalysisStep::Screening);
-    }
-
-    /** @return array<string, mixed> */
-    protected function leaseExhaustedAttributes(CarbonImmutable $failedAt): array
-    {
-        return [
-            'status' => AnalysisStatus::Failed,
-            'finished_at' => $failedAt,
-        ];
-    }
-
-    protected function afterLeaseExhausted(CarbonImmutable $failedAt): void
-    {
-        AnalysisRun::query()
-            ->whereKey($this->analysis_run_id)
-            ->whereNull('finished_at')
-            ->update([
-                'status' => AnalysisRunStatus::Failed,
-                'finished_at' => $failedAt,
-            ]);
     }
 
     /**

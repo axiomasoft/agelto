@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
-use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Process\WorkState;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Перенос v1-наблюдаемости (`Old/app/Console/Commands/PipelineStatusCommand.php`) на v2-модель:
@@ -75,26 +76,23 @@ final class PipelineStatus extends Command
 
     private function printAnalysesStatus(): void
     {
-        $this->line('<fg=yellow>AI-анализы (prc_ai_analyses)</>');
+        $this->line('<fg=yellow>AI work (prc_process_work)</>');
 
-        $rows = Analysis::query()
-            ->toBase()
-            ->selectRaw('step, status, count(*) as total')
-            ->groupBy('step', 'status')
+        $rows = DB::table('prc_process_work')->whereIn('stage', ['screening', 'extraction', 'publication'])
+            ->selectRaw('stage, state, count(*) as total')
+            ->groupBy('stage', 'state')
             ->get();
 
         $groups = [
             AnalysisStep::Screening->value => 'Screening',
             AnalysisStep::Extraction->value => 'Extraction',
+            'publication' => 'Publication',
         ];
 
-        $statuses = [
-            AnalysisStatus::Pending->value => 'Pending',
-            AnalysisStatus::Running->value => 'Running',
-            AnalysisStatus::Succeeded->value => 'Succeeded',
-            AnalysisStatus::Failed->value => 'Failed',
-            AnalysisStatus::Skipped->value => 'Skipped',
-        ];
+        $statuses = [];
+        foreach (WorkState::cases() as $state) {
+            $statuses[$state->value] = $state->value;
+        }
 
         $tableRows = [];
         foreach ($groups as $stepValue => $stepLabel) {
@@ -102,7 +100,7 @@ final class PipelineStatus extends Command
 
             foreach ($statuses as $statusValue => $statusLabel) {
                 $count = $rows
-                    ->first(fn ($row): bool => $row->step === $stepValue && $row->status === $statusValue)
+                    ->first(fn ($row): bool => $row->stage === $stepValue && $row->state === $statusValue)
                     ->total ?? 0;
 
                 $tableRows[] = ["  {$statusLabel}", $count];

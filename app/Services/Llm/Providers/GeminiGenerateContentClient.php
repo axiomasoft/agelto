@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Llm\Providers;
 
 use App\Dto\Llm\Cache\CachePrefix;
+use App\Dto\Llm\Requests\GenerationResponse;
 use App\Enums\Llm\OperationPurpose;
 use App\Exceptions\Llm\OperationDenied;
 use App\Services\Llm\Execution\ProviderOperationPlan;
@@ -15,6 +16,45 @@ use App\Services\Llm\Schema\CanonicalJson;
 final readonly class GeminiGenerateContentClient
 {
     public function __construct(private string $origin = 'https://generativelanguage.googleapis.com') {}
+
+    public function decode(string $body): GenerationResponse
+    {
+        $value = json_decode($body, associative: true, depth: 64, flags: JSON_THROW_ON_ERROR);
+        if (! is_array($value)) {
+            return new GenerationResponse('', 'UNSUPPORTED', true);
+        }
+        $feedback = $value['promptFeedback'] ?? null;
+        if (is_array($feedback) && isset($feedback['blockReason'])) {
+            return new GenerationResponse('', 'REFUSAL');
+        }
+        $candidates = $value['candidates'] ?? [];
+        if (! is_array($candidates) || ! array_is_list($candidates) || count($candidates) > 1) {
+            return new GenerationResponse('', 'UNSUPPORTED', true);
+        }
+        if ($candidates === []) {
+            return new GenerationResponse('', 'STOP');
+        }
+        $candidate = $candidates[0];
+        if (! is_array($candidate) || ! is_string($candidate['finishReason'] ?? null)) {
+            return new GenerationResponse('', 'UNSUPPORTED', true);
+        }
+        $content = $candidate['content'] ?? null;
+        $parts = is_array($content) ? ($content['parts'] ?? []) : [];
+        if (! is_array($parts) || ! array_is_list($parts)) {
+            return new GenerationResponse('', $candidate['finishReason'], true);
+        }
+        $text = '';
+        foreach ($parts as $part) {
+            if (! is_array($part) || ! is_string($part['text'] ?? null) || array_diff(array_keys($part), ['text', 'thought', 'thoughtSignature']) !== []) {
+                return new GenerationResponse('', $candidate['finishReason'], true);
+            }
+            if (($part['thought'] ?? false) !== true) {
+                $text .= $part['text'];
+            }
+        }
+
+        return new GenerationResponse($text, $candidate['finishReason']);
+    }
 
     public function compile(ProviderOperationPlan $plan): ProviderWireRequest
     {

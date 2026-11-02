@@ -43,4 +43,14 @@ final class ReceiptPolicies
 
         return $policy->assetMetadata($key, $receipt);
     }
+
+    public function assetResource(VerifiedReceipt $receipt): string
+    {
+        $policy = $this->policies[$receipt->call->context->provider] ?? null;
+        if (! $policy instanceof AssetRecoveryPolicy) {
+            throw new OperationDenied('asset_recovery_policy_unregistered');
+        }
+
+        return $policy->assetResource($receipt);
+    }
 }

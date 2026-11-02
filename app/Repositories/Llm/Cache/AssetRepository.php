@@ -44,6 +44,42 @@ final readonly class AssetRepository
         return new ContextCacheAsset($key, $row->string('provider_name'), $row->string('expires_at'));
     }
 
+    /** Exact physical creation token, or a lookup's resource plus its sealed input hash. */
+    public function recoveryKey(ProviderCall $call, string $resource): FileAssetKey|ContextCacheKey
+    {
+        $provider = ProviderRow::one('SELECT id FROM llm_providers WHERE code=?', [$call->context->provider])
+            ?? throw new OperationDenied('provider_configuration_hold');
+        $keys = [];
+        foreach (['llm_file_assets' => 'provider_uri', 'llm_context_caches' => 'provider_name'] as $table => $column) {
+            $query = DB::table($table)->where('provider_id', $provider->int('id'))
+                ->where('account_id', $call->context->account)->where('api_surface', $call->context->apiVersion);
+            if ($call->purpose === OperationPurpose::Lookup) {
+                $query->where($column, $resource);
+            } else {
+                $query->where('creation_token', $call->authorization->physicalCallId);
+            }
+            $query->selectRaw($table === 'llm_file_assets' ? "*,encode(content_hash,'hex') AS content_hex" :
+                "*,encode(system_hash,'hex') AS system_hex,encode(schema_tool_policy_hash,'hex') AS schema_hex,
+                encode(representation_hash,'hex') AS representation_hex,encode(content_ordering_hash,'hex') AS ordering_hex");
+            foreach (ProviderRow::all($query->limit(2)->toSql(), $query->getBindings()) as $row) {
+                $key = $table === 'llm_file_assets' ? new FileAssetKey($call->context, $row->string('content_hex'), $row->string('mime'))
+                    : new ContextCacheKey($call->context, $row->string('system_hex'), $row->string('schema_hex'), $row->string('representation_hex'), $row->string('ordering_hex'));
+                if ($key instanceof ContextCacheKey && $row->string('model') !== $call->context->model) {
+                    throw new OperationDenied('asset_operation_identity_drift');
+                }
+                if ($call->purpose !== OperationPurpose::Lookup || $key->hash === $call->inputHash) {
+                    $keys[] = $key;
+                }
+            }
+        }
+        if (count($keys) !== 1) {
+            throw new OperationDenied('exact_asset_recovery_identity_required');
+        }
+        $this->assertCall($keys[0], $call, lookup: true);
+
+        return $keys[0];
+    }
+
     /** Expiry alone never permits stealing an uncertain remote create. */
     public function claim(FileAssetKey|ContextCacheKey $key, ProviderCall $expected): void
     {

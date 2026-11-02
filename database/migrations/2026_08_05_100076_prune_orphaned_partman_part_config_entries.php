@@ -6,28 +6,11 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/**
- * P7.5, находка F-13 из research/08-db-review.md §10.3 (в Scope по D132): три строки
- * `partman.part_config` на несуществующие таблицы доменной раскладки ДО переименований —
- * `public.ai_llm_calls`, `public.crw_fetches`, `public.sys_operation_logs`. Обход
- * `partman.run_maintenance()` алфавитный: осиротевшая строка (`show_partitions()` бросает
- * `Given parent table not found in system catalogs`) обрывает обслуживание ВСЕХ пяти
- * реальных таблиц — premake мёртв, retention-DROP не исполняется никогда.
- * `2026_07_04_100047_setup_pg_partman.php::pruneOrphanedRenamedEntry()` уже чистит ровно
- * такую строку, но по ОДНОМУ жёстко зашитому имени (`prc_ai_llm_calls`), которое на этом
- * дереве орфаном не было ни разу — фактические три орфана им не покрывались. Общее правило:
- * любая строка `part_config` с `parent_table` вида `public.*`, чьё короткое имя не входит в
- * АКТУАЛЬНЫЙ `config('partitioning.tables')`, — осиротевшая регистрация.
- */
+/** Removes obsolete partition entries; clean baseline installs have none. */
 return new class extends Migration
 {
     /** Полный снимок трёх осиротевших строк (2026-08-05, tree `6ddaa62`) — для down(). */
     private const array RESTORE = [
-        [
-            'parent_table' => 'public.ai_llm_calls', 'control' => 'called_at',
-            'template_table' => 'partman.template_public_ai_llm_calls',
-            'maintenance_last_run' => '2026-07-06 00:00:00.232087+00',
-        ],
         [
             'parent_table' => 'public.crw_fetches', 'control' => 'fetched_at',
             'template_table' => 'partman.template_public_crw_fetches',

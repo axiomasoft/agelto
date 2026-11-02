@@ -5,14 +5,20 @@ declare(strict_types=1);
 namespace Tests\Support\ProcessCore;
 
 use App\Dto\Procurement\Document\DocumentHead;
+use App\Dto\Procurement\Document\DocumentRange;
+use App\Dto\Procurement\Document\RepresentationCoverage;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\WorkId;
+use App\Enums\Procurement\Document\CoverageUnit;
+use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Process\StageCode;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\Document\DocumentRepresentationRepository;
+use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\StageRegistry;
@@ -36,10 +42,21 @@ final class DocumentFeederFixtures
         $cohort = $manual ? 'manual' : 'platform:'.$platform->id;
         $revision = DocumentStorageFixtures::observe(new DocumentHead($doc->id, 1, null),
             DocumentStorageFixtures::upload('immutable fixture source', DocumentStorageFixtures::domain()));
-        $input = new ScreeningInput($revision->id, ContentHash::of('anchored fixture representation'), ContentHash::of('fixture-only recipe/1'));
+        $domain = DocumentStorageFixtures::domain();
+        $prepared = DocumentStorageFixtures::upload('anchored fixture representation', $domain);
+        $representationId = app(ProcessTransaction::class)->run(function () use ($revision, $prepared, $domain): int {
+            app(StorageCapacityRepository::class)->lockDomains([$domain]);
+
+            return app(DocumentRepresentationRepository::class)->storeLocked($revision->head, $prepared, ContentHash::of('prepare-fixture/1'),
+                RepresentationKind::Text, 'complete', 'fixture/1', 'text/plain',
+                new RepresentationCoverage(CoverageUnit::Page, 1,
+                    [new DocumentRange(0, 1)], []));
+        });
+        $analysis = AiFixtures::pinScreening($representationId);
+        $input = new ScreeningInput($revision->id, $analysis->representationHash, $analysis->recipe->hash);
         $id = new WorkId(LedgerFixtures::uuid());
         app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork($id, $input,
-            $revision->head->generation, null, $cohort, $platform->id, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+            $analysis->expectedAnalysisGeneration, null, $cohort, $platform->id, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
 
         return $id;
     }

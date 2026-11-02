@@ -18,11 +18,13 @@ use App\Dto\Procurement\Network\SelectedNetworkRoute;
 use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\RequestProfile;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
+use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Llm\OperationPurpose;
+use App\Enums\Llm\TaskPurpose;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Llm\Execution\ProviderGenerationInput;
 use App\Services\Llm\Execution\ProviderOperationPlan;
@@ -31,12 +33,12 @@ use App\Services\Llm\Providers\GeminiGenerateContentClient;
 use App\Services\Llm\Schema\ProviderSchemaCompiler;
 use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
 use App\Services\Procurement\Extraction\AnalysisProviderSendGate;
-use App\Services\Procurement\Extraction\ExtractionContract;
 use App\Services\Procurement\Network\Contracts\OutboundRouteSelector;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Process\ExecutionContextFactory;
 use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Screening\ScreeningContract;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\TransportFixtures;
@@ -65,11 +67,15 @@ final class ProviderSendFixtures
 
     public string $period;
 
-    /** @param (\Closure(ProviderOperationPlan, string): array{ProviderOperationPlan, ProviderWireRequest})|null $operationFactory */
-    public function __construct(public WireFixture $server, bool $tls = false, ?\Closure $operationFactory = null)
+    /**
+     * @param  (\Closure(ProviderOperationPlan, string): array{ProviderOperationPlan, ProviderWireRequest})|null  $operationFactory
+     * @param  (\Closure(): void)|null  $configureRuntime
+     */
+    public function __construct(public WireFixture $server, bool $tls = false, ?\Closure $operationFactory = null, ?\Closure $configureRuntime = null)
     {
         PermitFixtures::clean();
         $period = FinancialFixtures::reset();
+        $configureRuntime?->__invoke();
         $this->period = $period;
         $context = new PinnedLlmContext('fixture-provider', 'fixture-account', 'v1beta', 'fixture-model', 'route/1',
             ['max_output_tokens' => 4096, 'temperature' => '0.25'], ['budget' => 128, 'include_thoughts' => false]);
@@ -78,11 +84,12 @@ final class ProviderSendFixtures
         $this->work = new WorkId(LedgerFixtures::uuid());
         $input = new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash);
         app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork($this->work, $input,
-            $window->run->expectedDocumentHeadGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+            $window->run->expectedAnalysisGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
         $this->lease = FinalizeFixtures::running($this->work);
-        $task = (new ExtractionContract)->task($window->range, $window->estimateOrdinal, $window->sourceAnchors);
-        $generation = new ProviderGenerationInput($task->prompt, 'fixture untrusted document', (new ProviderSchemaCompiler)->compile($task->schema));
-        $this->plan = new ProviderOperationPlan(new RequestIdentity($window->run->recipe->hash->hex, $this->lease->inputHash->hex, OperationPurpose::Generate, 0, $this->run->value),
+        $snapshot = $window->run->recipe->tasks->task(TaskPurpose::Screening);
+        $task = (new ScreeningContract)->task($snapshot->prompt);
+        $generation = new ProviderGenerationInput($task->prompt, 'fixture untrusted document', (new ProviderSchemaCompiler)->compile($task->schema), purpose: $task->purpose);
+        $this->plan = new ProviderOperationPlan(new RequestIdentity($window->run->recipe->hash->hex, $window->run->screeningInputHash()->hex, OperationPurpose::Generate, 0, $this->run->value),
             $context, FinancialFixtures::pricing(), $this->work->value->value, generation: $generation);
         $origin = $server->url('/', $tls)->origin;
         $this->wire = (new GeminiGenerateContentClient($origin->value()))->compile($this->plan);
@@ -108,7 +115,7 @@ final class ProviderSendFixtures
         return self::gateFor($this->lease, $this->run, $this->target, $this->route, $this->profile, $this->server);
     }
 
-    public static function gateFor(ExecutionLease $lease, ProcessUuid $run, ProcessUuid $target, ProcessUuid $route, RequestProfile $profile, WireFixture|SafeUrl $server): AnalysisProviderSendGate
+    public static function gateFor(ExecutionLease $lease, ProcessUuid $run, ProcessUuid $target, ProcessUuid $route, RequestProfile $profile, WireFixture|SafeUrl $server, ?ExecutionContext $context = null): AnalysisProviderSendGate
     {
         $selector = new class($route) implements OutboundRouteSelector
         {
@@ -120,7 +127,7 @@ final class ProviderSendFixtures
             }
         };
 
-        return app()->make(AnalysisProviderSendGate::class, ['context' => app(ExecutionContextFactory::class)->open($lease),
+        return app()->make(AnalysisProviderSendGate::class, ['context' => $context ?? app(ExecutionContextFactory::class)->open($lease),
             'runId' => $run, 'target' => $target, 'profile' => $profile, 'urlPolicy' => $server instanceof WireFixture ? $server->policy() : new UrlPolicy([$server->origin], ['fixture.test' => ['127.0.0.1']]),
             'routes' => $selector, 'apiKey' => 'fixture-only-key']);
     }

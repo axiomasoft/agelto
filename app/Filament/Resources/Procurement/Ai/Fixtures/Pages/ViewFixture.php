@@ -2,11 +2,12 @@
 
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\Pages;
 
+use App\Exceptions\Llm\OperationDenied;
 use App\Exceptions\Procurement\OperationFailed;
 use App\Filament\Resources\Procurement\Ai\Fixtures\FixtureResource;
 use App\Guards\Admin\Permissions\AnalysisPermission;
 use App\Models\Procurement\Ai\Fixture;
-use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisRunReadRepository;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Procurement\Fixture\RunFixtureAnalysisAction;
 use Filament\Actions\Action;
@@ -51,6 +52,10 @@ class ViewFixture extends ViewRecord
                 try {
                     $userId = Auth::id();
                     app(RunFixtureAnalysisAction::class)->run($record, is_int($userId) ? $userId : null);
+                } catch (OperationDenied|\InvalidArgumentException) {
+                    Notification::make()->title('Повторный разбор недоступен: проверьте текущую работу и профиль анализа.')->warning()->send();
+
+                    return;
                 } catch (OperationFailed $e) {
                     Notification::make()->title($e->getMessage())->danger()->send();
 
@@ -76,6 +81,6 @@ class ViewFixture extends ViewRecord
 
         $version = app(DocumentStoreRepository::class)->findVersionByHash($document->id, $record->sha256);
 
-        return $version !== null && app(AnalysisRunStoreRepository::class)->findActive($version->id) !== null;
+        return $version !== null && app(AnalysisRunReadRepository::class)->findActive($version->id) !== null;
     }
 }

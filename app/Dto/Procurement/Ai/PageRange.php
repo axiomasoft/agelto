@@ -11,4 +11,21 @@ final readonly class PageRange
     {
         new RowRange($start, $end);
     }
+
+    /** @return array{start:int,end:int,unit:string} */
+    public function fields(): array
+    {
+        return ['start' => $this->start, 'end' => $this->end, 'unit' => 'page'];
+    }
+
+    /** @return array{self,self} */
+    public function split(): array
+    {
+        if ($this->end - $this->start < 2) {
+            throw new \InvalidArgumentException('An original page is indivisible.');
+        }
+        $mid = $this->start + intdiv($this->end - $this->start, 2);
+
+        return [new self($this->start, $mid), new self($mid, $this->end)];
+    }
 }

@@ -165,7 +165,7 @@ test('нет owning gate или wire fingerprint изменён: typed denial б
     $period = (string) DB::table('llm_budget_periods')->value('id');
     $secondOp = app(AnalysisCallCoordinator::class)->authorize($lease, $f->run, $f->plan, $period, $f->wire);
     $deniedGate = ProviderSendFixtures::gateFor($lease, $f->run, $f->target, $f->route, $f->profile, new SafeUrl('https://denied.example.test/'));
-    expect($deniedGate->claimSend($secondOp, $f->wire)->denial)->toBe(ProviderSendDenial::Network)
+    expect($deniedGate->claimSend($secondOp, $f->wire)->denial)->toBe(ProviderSendDenial::Configuration)
         ->and(app(RequestRepository::class)->get($secondOp->physicalCallId)->outcome)->toBe('not_sent')
         ->and(DB::table('llm_budget_reservations')->where('id', $secondOp->reservationId)->value('state'))->toBe('settled');
 });

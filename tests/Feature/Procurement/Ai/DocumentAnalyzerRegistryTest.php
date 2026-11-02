@@ -8,7 +8,7 @@ use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
-use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
+use App\Exceptions\Llm\UnsupportedConsumer;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
@@ -65,12 +65,11 @@ test('анализатор без извлечения регистрирует�
         ->and($found?->hasExtraction())->toBeFalse();
 });
 
-test('анализатор сметы диспатчит СВОЙ job извлечения — имя job’а ядру не известно', function (): void {
+test('анализатор сметы отклоняет ordinary dispatch без owning work', function (): void {
     Queue::fake();
 
-    app(EstimateAnalyzer::class)->dispatchExtraction(42);
-
-    Queue::assertPushed(EstimateExtractionJob::class, fn (EstimateExtractionJob $job): bool => $job->documentId === 42);
+    expect(fn () => app(EstimateAnalyzer::class)->dispatchExtraction(42))->toThrow(UnsupportedConsumer::class);
+    Queue::assertNothingPushed();
 });
 
 test('анализатор сметы объявляет только СВОИ шаги и назначения', function (): void {

@@ -7,11 +7,10 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 
-test('retention-конфиг покрывает ровно 3 эфемерные лог-таблицы и не содержит доменные события', function () {
+test('retention-конфиг покрывает 2 эфемерные таблицы и исключает financial provenance и domain events', function () {
     $retentionTables = array_keys(config('partitioning.retention'));
 
     expect($retentionTables)->toEqualCanonicalizing([
-        'llm_calls',
         'prc_fetches',
         'prc_operation_logs',
     ]);
@@ -63,10 +62,10 @@ test('миграция part_config.retention идемпотентна — пов
 
     $row = DB::selectOne(
         'SELECT retention, retention_keep_table FROM partman.part_config WHERE parent_table = ?',
-        ['public.llm_calls'],
+        ['public.prc_fetches'],
     );
 
-    expect($row->retention)->toBe('12 months');
+    expect($row->retention)->toBe(config('partitioning.retention.prc_fetches.months').' months');
     expect((bool) $row->retention_keep_table)->toBeFalse();
 });
 

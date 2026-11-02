@@ -17,6 +17,7 @@ use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\AdmissionStatus;
 use App\Enums\Procurement\Process\AuthorityGap;
+use App\Enums\Procurement\Process\CapacityKind;
 use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
@@ -287,6 +288,9 @@ final readonly class AdmissionRepository
             [$ids['group']->value, $workId, $dispatchGeneration, $this->policy->requiredLaneSetHash($code)->hex],
         );
         foreach ($snapshot->capacity as $authority) {
+            if ($authority->kind !== CapacityKind::Lane) {
+                continue;
+            }
             DB::insert(
                 "INSERT INTO prc_process_reservations (admission_group_id, lane_id, work_id, stage, state) VALUES (?, ?, ?, ?, 'admitted')",
                 [$ids['group']->value, $authority->id->value, $workId, $code->value],
@@ -323,7 +327,8 @@ final readonly class AdmissionRepository
     /** @param array<string, ProcessUuid> $ids */
     private function openMembershipIncident(AuthoritySnapshot $snapshot, array $ids): void
     {
-        $lanes = array_map(static fn (CapacityAuthority $authority): string => $authority->id->value, $snapshot->capacity);
+        $lanes = array_map(static fn (CapacityAuthority $authority): string => $authority->id->value,
+            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $authority): bool => $authority->kind === CapacityKind::Lane)));
         $this->transaction->run(fn (): ProcessUuid => $this->incidents->open(
             fingerprint: ContentHash::of('admission-membership:v1:'.$snapshot->workId->value->value),
             scopeKey: 'lane:'.$this->policy->parentLane($snapshot->handler->stage),

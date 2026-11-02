@@ -2,17 +2,37 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Process\ExtractionWindowInput;
+use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Estimate\EstimateValidationStatus;
+use App\Enums\Procurement\Process\StageCode;
 use App\Models\Llm\LlmRoute;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Estimate\Estimate;
+use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Procurement\Process\ProcessAuthoritySync;
+use App\Services\Procurement\Process\ProcessTransaction;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\ProcessCore\AiFixtures;
+use Tests\Support\ProcessCore\ExtractionRuntimeFixtures;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\FinancialFixtures;
+use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ScreeningRuntimeFixtures;
 
 beforeEach(function () {
+    FinancialFixtures::reset();
+    ScreeningRuntimeFixtures::bind();
+    foreach ([StageCode::Screening, StageCode::Extraction] as $stage) {
+        app(ProcessAuthoritySync::class)->registerHandler($stage,
+            $stage === StageCode::Screening ? ScreeningRuntimeFixtures::VERSION : ExtractionRuntimeFixtures::VERSION);
+    }
     config([
         'services.telegram.bot_token' => 'test-token',
         'services.telegram.chat_id' => '123456',
@@ -28,6 +48,25 @@ beforeEach(function () {
     ]);
 });
 
+/** A real claimed canonical work; only the DB clock position is controlled by the fixture. */
+function stuckAnalysisFixture(AnalysisStep $step, bool $expired, int $ageMinutes): void
+{
+    $window = AiFixtures::window();
+    // Isolate the work-lease detector from the retained document-backlog diagnostic.
+    DB::table('prc_documents')->where('current_version_id', $window->run->documentVersionId)
+        ->update(['status' => DocumentStatus::Extracted->value]);
+    $input = $step === AnalysisStep::Screening
+        ? new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash)
+        : new ExtractionWindowInput($window->run->id, $window->windowKey, $window->run->recipe->hash);
+    $id = new WorkId(LedgerFixtures::uuid());
+    app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(
+        $id, $input, $window->run->expectedAnalysisGeneration, null, 'manual', null, null, 100,
+        LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+    FinalizeFixtures::running($id);
+    DB::update("UPDATE prc_process_work SET lease_until=clock_timestamp()+(? * interval '1 minute'),updated_at=clock_timestamp()-(? * interval '1 minute') WHERE id=?",
+        [$expired ? -1 : 5, $ageMinutes, $id->value->value]);
+}
+
 test('без аномалий команда завершается тихо, без Telegram-алерта', function () {
     Http::fake();
 
@@ -39,12 +78,7 @@ test('без аномалий команда завершается тихо, б
 test('зависший screening-анализ (running, лиз истёк, старше порога) — алерт', function () {
     Http::fake();
 
-    Analysis::factory()->create([
-        'step' => AnalysisStep::Screening,
-        'status' => AnalysisStatus::Running,
-        'locked_until' => now()->subMinute(),
-        'updated_at' => now()->subMinutes(31),
-    ]);
+    stuckAnalysisFixture(AnalysisStep::Screening, true, 31);
 
     $this->artisan('pipeline:stuck-check')->assertSuccessful();
 
@@ -54,12 +88,7 @@ test('зависший screening-анализ (running, лиз истёк, ст�
 test('running screening-анализ моложе порога НЕ считается зависшим', function () {
     Http::fake();
 
-    Analysis::factory()->create([
-        'step' => AnalysisStep::Screening,
-        'status' => AnalysisStatus::Running,
-        'locked_until' => now()->subMinute(),
-        'updated_at' => now()->subMinutes(5),
-    ]);
+    stuckAnalysisFixture(AnalysisStep::Screening, true, 5);
 
     $this->artisan('pipeline:stuck-check')->assertSuccessful();
 
@@ -69,12 +98,7 @@ test('running screening-анализ моложе порога НЕ считае
 test('running screening-анализ с ДЕЙСТВУЮЩИМ лизом НЕ считается зависшим', function () {
     Http::fake();
 
-    Analysis::factory()->create([
-        'step' => AnalysisStep::Screening,
-        'status' => AnalysisStatus::Running,
-        'locked_until' => now()->addMinutes(5),
-        'updated_at' => now()->subMinutes(31),
-    ]);
+    stuckAnalysisFixture(AnalysisStep::Screening, false, 31);
 
     $this->artisan('pipeline:stuck-check')->assertSuccessful();
 
@@ -85,22 +109,12 @@ test('зависший extraction-анализ использует СВОЙ (б
     Http::fake();
 
     // 31 минута — зависший screening-порог, НО меньше extraction-порога (60) — не алертит.
-    Analysis::factory()->create([
-        'step' => AnalysisStep::Extraction,
-        'status' => AnalysisStatus::Running,
-        'locked_until' => now()->subMinute(),
-        'updated_at' => now()->subMinutes(31),
-    ]);
+    stuckAnalysisFixture(AnalysisStep::Extraction, true, 31);
 
     $this->artisan('pipeline:stuck-check')->assertSuccessful();
     Http::assertNothingSent();
 
-    Analysis::factory()->create([
-        'step' => AnalysisStep::Extraction,
-        'status' => AnalysisStatus::Running,
-        'locked_until' => now()->subMinute(),
-        'updated_at' => now()->subMinutes(61),
-    ]);
+    stuckAnalysisFixture(AnalysisStep::Extraction, true, 61);
 
     $this->artisan('pipeline:stuck-check')->assertSuccessful();
     Http::assertSentCount(1);
@@ -257,12 +271,7 @@ test('модель НЕактивного маршрута близко к eol_d
 test('антиспам: повторный тик в течение окна не дублирует Telegram-сообщение по той же находке', function () {
     Http::fake();
 
-    Analysis::factory()->create([
-        'step' => AnalysisStep::Screening,
-        'status' => AnalysisStatus::Running,
-        'locked_until' => now()->subMinute(),
-        'updated_at' => now()->subMinutes(31),
-    ]);
+    stuckAnalysisFixture(AnalysisStep::Screening, true, 31);
 
     $this->artisan('pipeline:stuck-check')->assertSuccessful();
     $this->artisan('pipeline:stuck-check')->assertSuccessful();
@@ -274,12 +283,7 @@ test('без Telegram-конфига алерт не падает, а тихо �
     config(['services.telegram.bot_token' => null, 'services.telegram.chat_id' => null]);
     Http::fake();
 
-    Analysis::factory()->create([
-        'step' => AnalysisStep::Screening,
-        'status' => AnalysisStatus::Running,
-        'locked_until' => now()->subMinute(),
-        'updated_at' => now()->subMinutes(31),
-    ]);
+    stuckAnalysisFixture(AnalysisStep::Screening, true, 31);
 
     $this->artisan('pipeline:stuck-check')->assertSuccessful();
 

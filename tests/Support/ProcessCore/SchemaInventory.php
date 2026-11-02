@@ -49,7 +49,7 @@ final class SchemaInventory
         'prc_storage_domains' => 'id domain_key capacity_bytes high_watermark_bytes accounted_durable_bytes policy_version',
         'prc_storage_reservations' => 'id domain_id work_id attempt_id operation_id upload_intent_id owner_token generation byte_upper_bound phase status cleanup_verified_at',
         'prc_document_blobs' => 'id storage_domain_id content_hash disk object_key size_bytes verified_at deletion_generation deletion_marked_at',
-        'prc_analysis_runs' => 'id document_version_id representation_id representation_hash recipe_json recipe_schema_version recipe_hash generation expected_document_head_generation expected_analysis_generation requested_reason supersedes_run_id publication_status',
+        'prc_analysis_runs' => 'id document_version_id representation_id representation_hash recipe_json recipe_schema_version recipe_hash generation expected_document_head_generation expected_analysis_generation requested_reason supersedes_run_id publication_status screening_result screening_result_schema_version screening_disposition',
         'prc_analysis_windows' => 'id run_id window_key input_hash input_range input_range_schema_version expected_coverage expected_coverage_schema_version state checkpoint_version',
         'prc_analysis_chunks' => 'id run_id window_id window_key recipe_hash subrange_key output_ordinal output_ref output_ref_schema_version output_hash canonical_rows canonical_rows_schema_version provenance provenance_schema_version completed_at',
         'llm_provider_requests' => 'logical_request_id logical_key recipe_hash input_hash purpose semantic_reask_ordinal replay_intent_id replay_of command_id state request_epoch idempotency_key consumer_correlation_id reservation_amount max_physical_attempts',
@@ -267,7 +267,7 @@ final class SchemaInventory
         $work = $carriers['prc_process_work'] ?? [];
         $require(self::enumValues($work['columns']['state']['definition'] ?? '') === self::STATES, 'work state CHECK differs from nine canonical values');
         foreach (['prc_process_work', 'prc_operation_intents', 'prc_process_reservations', 'prc_process_handler_holds'] as $name) {
-            $require(self::enumValues($carriers[$name]['columns']['stage']['definition'] ?? '') === ['listing', 'detail', 'status_refresh', 'download', 'prepare', 'screening'], 'current stage CHECK differs from SchemaSupportedStages: '.$name);
+            $require(self::enumValues($carriers[$name]['columns']['stage']['definition'] ?? '') === ['listing', 'detail', 'status_refresh', 'download', 'prepare', 'screening', 'extraction', 'publication'], 'current stage CHECK differs from SchemaSupportedStages: '.$name);
         }
         foreach (['provider_recovery_due_check', 'owner_check', 'checkpoint_schema_check', 'running_lease_check', 'admitted_claim_check', 'due_state_check'] as $rule) {
             $require(str_contains(implode(' ', $work['constraints'] ?? []), 'prc_process_work_'.$rule), 'missing work CHECK: '.$rule);

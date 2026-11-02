@@ -16,7 +16,7 @@ use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
-use App\Services\Llm\Providers\PrismGeminiProvider;
+use App\Services\Llm\Providers\UnsupportedProvider;
 use App\Services\Procurement\Bench\FormatBenchRunner;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use Illuminate\Support\Facades\File;
@@ -74,7 +74,7 @@ function benchDatasetExample(Fixture $fixture, DocumentVersion $version): Datase
 
 function seedBenchRoute(FakeLlmProvider $fake): void
 {
-    app()->instance(PrismGeminiProvider::class, $fake);
+    app()->instance(UnsupportedProvider::class, $fake);
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
@@ -164,7 +164,7 @@ test('сухой прогон не делает ни одного LLM-вызов
     expect($cell['applicable'])->toBeTrue()
         ->and($cell['variant'])->toBe('text_grid')
         ->and($cell['predicted']['input_tokens'])->toBe(500)
-        ->and($cell['predicted']['input_cost_micros'])->toBeGreaterThan(0)
+        ->and($cell['predicted']['input_cost_micros'])->toBeNull()
         ->and($cell['actual'])->toBeNull()
         ->and($cell['quality'])->toBeNull();
 });
@@ -220,52 +220,6 @@ test('forceKind = null даёт сегодняшнее поведение рез
             'extension' => 'xlsx',
             'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
-});
-
-test('вызовы двух ячеек подряд отделены границей по id — usage не смешивается', function (): void {
-    $fixture = benchFixture();
-    [, $version] = benchDocumentAndVersion();
-    benchDatasetExample($fixture, $version);
-
-    $realPdf = file_get_contents(base_path('tests/Fixtures/Documents/sample-multi-page.pdf'));
-    Storage::disk('s3')->put('documents/xlsx/pdf.pdf', $realPdf);
-    Storage::disk('s3')->put('documents/xlsx/ocr.pdf', $realPdf);
-
-    DocumentRepresentation::factory()->create([
-        'document_version_id' => $version->id,
-        'kind' => RepresentationKind::Pdf,
-        'storage_path' => 'documents/xlsx/pdf.pdf',
-        'mime' => 'application/pdf',
-        'page_count' => 1,
-    ]);
-    DocumentRepresentation::factory()->create([
-        'document_version_id' => $version->id,
-        'kind' => RepresentationKind::PdfOcr,
-        'storage_path' => 'documents/xlsx/ocr.pdf',
-        'mime' => 'application/pdf',
-        'page_count' => 1,
-    ]);
-
-    [$passport1, $rows1, $terminator1] = benchMinimalCycle();
-    [$passport2, $rows2, $terminator2] = benchMinimalCycle();
-
-    $fake = FakeLlmProvider::succeeding($passport1)->andThen($rows1)->andThen($terminator1)
-        ->andThen($passport2)->andThen($rows2)->andThen($terminator2);
-
-    seedBenchRoute($fake);
-
-    $artifact = app(FormatBenchRunner::class)->run([$fixture->code], ['pdf', 'pdf_ocr'], dryRun: false, limit: null);
-
-    $byVariant = collect($artifact['cells'])->keyBy('variant');
-
-    expect($byVariant['pdf']['outcome']['status'])->toBe('succeeded')
-        ->and($byVariant['pdf']['actual']['calls'])->toBe(3)
-        ->and($byVariant['pdf_ocr']['outcome']['status'])->toBe('succeeded')
-        ->and($byVariant['pdf_ocr']['actual']['calls'])->toBe(3);
-
-    // Каждая ячейка видит РОВНО свои 3 вызова, а не накопленные 6 (граница по id, не по analysis_id —
-    // обе ячейки делят один Analysis(document_version_id, step), D48).
-    expect(LlmCall::query()->count())->toBe(6);
 });
 
 test('документ — НЕ рабочая копия этого эталона (fixture->document_id не совпадает) — отказ, прогон не падает', function (): void {

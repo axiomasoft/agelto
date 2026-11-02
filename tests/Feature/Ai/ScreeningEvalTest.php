@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\FinishReason;
 use App\Models\Llm\LlmRoute;
@@ -10,12 +11,12 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;
-use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
-use App\Services\Llm\Providers\PrismGeminiProvider;
+use App\Services\Llm\Providers\UnsupportedProvider;
+use App\Services\Procurement\Screening\ScreeningEvalMetrics;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
 
@@ -54,7 +55,7 @@ function seedScreeningEvalDocumentVersion(Document $document): DocumentVersion
 
 function seedScreeningEvalRoute(FakeLlmProvider $fake): void
 {
-    app()->instance(PrismGeminiProvider::class, $fake);
+    app()->instance(UnsupportedProvider::class, $fake);
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
@@ -92,80 +93,37 @@ function screeningEvalResult(string $documentType, ?string $classificationNote =
     ]);
 }
 
-test('негатив, правильно классифицированный → accuracy 1.0 и FP 0', function () {
-    Storage::fake('s3');
-
-    $fake = FakeLlmProvider::succeeding(screeningEvalResult('unknown', 'чертёж без сметного содержания'));
-    seedScreeningEvalRoute($fake);
-
-    $document = Document::factory()->create(['procurement_id' => null]);
-    $documentVersion = seedScreeningEvalDocumentVersion($document);
-
-    DatasetExample::factory()->create([
-        'document_version_id' => $documentVersion->id,
-        'task' => 'screening',
-        'gold' => ['document_type' => 'unknown', 'confidence' => 1.0, 'summary' => 'негатив', 'estimate_cardinality' => 'none', 'tags' => [], 'classification_note' => 'негатив'],
-    ]);
-
-    $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);
-
-    $run = EvalRun::query()->firstOrFail();
-
-    expect((float) $run->metrics['accuracy'])->toBe(1.0)
-        ->and((float) $run->metrics['false_positive_rate'])->toBe(0.0)
-        ->and(EvalResult::query()->count())->toBe(1)
-        ->and(EvalResult::query()->firstOrFail()->metric)->toBe('screening_accuracy');
+test('негатив, правильно классифицированный → accuracy 1.0 и FP 0', function (): void {
+    $metrics = new ScreeningEvalMetrics;
+    $prediction = ScreeningResult::from([
+        'document_type' => 'unknown', 'confidence' => 0.95, 'summary' => 'fixture',
+        'estimate_cardinality' => 'none', 'tags' => [], 'classification_note' => null]);
+    $result = $metrics->aggregate([$metrics->compare(['document_type' => 'unknown'], $prediction)]);
+    expect($result['accuracy'])->toBe(1.0)
+        ->and($result['false_positive_rate'])->toBe(0.0)
+        ->and($result['false_negative_rate'])->toBe(null);
 });
 
-test('негатив, помеченный estimate → FP 1.0 и запись в перечне расхождений с кодом эталона', function () {
-    Storage::fake('s3');
-
-    $fake = FakeLlmProvider::succeeding(screeningEvalResult('estimate'));
-    seedScreeningEvalRoute($fake);
-
-    $document = Document::factory()->create(['procurement_id' => null]);
-    $documentVersion = seedScreeningEvalDocumentVersion($document);
-
-    $fixture = Fixture::factory()->neg()->create(['code' => 'NEG-PDF-EVAL-001']);
-
-    DatasetExample::factory()->create([
-        'document_version_id' => $documentVersion->id,
-        'fixture_id' => $fixture->id,
-        'task' => 'screening',
-        'gold' => ['document_type' => 'unknown', 'confidence' => 1.0, 'summary' => 'негатив', 'estimate_cardinality' => 'none', 'tags' => [], 'classification_note' => 'негатив'],
-    ]);
-
-    $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);
-
-    $run = EvalRun::query()->firstOrFail();
-
-    expect((float) $run->metrics['false_positive_rate'])->toBe(1.0)
-        ->and((float) $run->metrics['accuracy'])->toBe(0.0);
-
-    $detail = EvalResult::query()->firstOrFail()->details;
-    expect($detail['code'])->toBe('NEG-PDF-EVAL-001');
+test('негатив, помеченный estimate → FP 1.0 и запись в перечне расхождений с кодом эталона', function (): void {
+    $metrics = new ScreeningEvalMetrics;
+    $prediction = ScreeningResult::from([
+        'document_type' => 'estimate', 'confidence' => 0.95, 'summary' => 'fixture',
+        'estimate_cardinality' => 'single', 'tags' => [], 'classification_note' => null]);
+    $result = $metrics->aggregate([$metrics->compare(['document_type' => 'unknown'], $prediction)]);
+    expect($result['accuracy'])->toBe(0.0)
+        ->and($result['false_positive_rate'])->toBe(1.0)
+        ->and($result['false_negative_rate'])->toBe(null);
 });
 
-test('смета, помеченная contract_draft → FN учтён', function () {
-    Storage::fake('s3');
-
-    $fake = FakeLlmProvider::succeeding(screeningEvalResult('contract_draft'));
-    seedScreeningEvalRoute($fake);
-
-    $document = Document::factory()->create(['procurement_id' => null]);
-    $documentVersion = seedScreeningEvalDocumentVersion($document);
-
-    DatasetExample::factory()->create([
-        'document_version_id' => $documentVersion->id,
-        'task' => 'screening',
-        'gold' => ['document_type' => 'estimate', 'confidence' => 1.0, 'summary' => 'смета', 'estimate_cardinality' => 'single', 'tags' => [], 'classification_note' => null],
-    ]);
-
-    $this->artisan('estimate:eval:run', ['--task' => 'screening'])->assertExitCode(0);
-
-    $run = EvalRun::query()->firstOrFail();
-
-    expect((float) $run->metrics['false_negative_rate'])->toBe(1.0);
+test('смета, помеченная contract_draft → FN учтён', function (): void {
+    $metrics = new ScreeningEvalMetrics;
+    $prediction = ScreeningResult::from([
+        'document_type' => 'contract_draft', 'confidence' => 0.95, 'summary' => 'fixture',
+        'estimate_cardinality' => 'none', 'tags' => [], 'classification_note' => null]);
+    $result = $metrics->aggregate([$metrics->compare(['document_type' => 'estimate'], $prediction)]);
+    expect($result['accuracy'])->toBe(0.0)
+        ->and($result['false_positive_rate'])->toBe(null)
+        ->and($result['false_negative_rate'])->toBe(1.0);
 });
 
 test('пустой датасет task=screening → заглушка EvalRun без вызовов', function () {

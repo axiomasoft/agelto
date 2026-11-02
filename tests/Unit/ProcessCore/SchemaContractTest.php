@@ -36,13 +36,14 @@ test('полный enum стадий не активирует будущую с
 
     foreach (['prc_process_work', 'prc_operation_intents', 'prc_process_reservations', 'prc_process_handler_holds'] as $table) {
         preg_match_all("/'([^']+)'/", $inventory['carriers'][$table]['columns']['stage']['definition'], $matches);
-        expect($matches[1])->toBe(array_column($inventory['staging'], null, 'at')['P3.1']['supported']);
+        expect($matches[1])->toBe(array_column($inventory['staging'], null, 'at')['P3.13']['supported']);
     }
 
-    // P3.10 seals the physical wire; cache/file carriers and paid handlers remain future cutovers.
-    expect($inventory['current_item'])->toBe('P3.10');
+    // P3.13 activates the complete AI stage set on its canonical carriers.
+    expect($inventory['current_item'])->toBe('P3.13')
+        ->and(array_column($inventory['staging'], null, 'at')['P3.13']['active'])->toBe(array_column(StageCode::cases(), 'value'));
     foreach ($inventory['carriers'] as $table => $carrier) {
-        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15', 'P2.1', 'P2.16', 'P2.18', 'P3.1', 'P3.8', 'P3.9'], true), $table);
+        expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15', 'P2.1', 'P2.16', 'P2.18', 'P3.1', 'P3.8', 'P3.9', 'P3.12'], true), $table);
     }
 })->group('t01', 'p11');
 

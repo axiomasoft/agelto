@@ -89,6 +89,7 @@ test('оператор видит v2 классификацию и backend-ре�
 
     Livewire::test(ViewAnalysis::class, ['record' => $analysis->getKey()])
         ->assertSuccessful()
+        ->assertActionHidden('finalPrompt')
         ->assertSee('Классификация screening')
         ->assertSee('Смета на строительные работы')
         ->assertSee(ScreeningDecisionReason::AnalyzerAvailable->value)

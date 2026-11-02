@@ -19,6 +19,8 @@ final readonly class LlmSpendRow
         public int $cachedTokens,
         public int $completionTokens,
         public int $costMicros,
-        public int $savingsMicros,
+        public ?int $savingsMicros,
+        public int $unknownCalls = 0,
+        public int $reservedMicros = 0,
     ) {}
 }

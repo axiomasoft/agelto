@@ -15,6 +15,14 @@ use Ramsey\Uuid\Uuid;
 
 final class FinancialReservationRepository
 {
+    /** Pre-read only. Authorization revalidates this period under the account/period locks. */
+    public function currentPeriod(string $account, string $currency): string
+    {
+        return ProviderRow::one('SELECT id FROM llm_budget_periods WHERE account_id=? AND currency=?
+            AND period_start<=clock_timestamp() AND period_end>clock_timestamp()', [$account, $currency])?->string('id')
+            ?? throw new OperationDenied('provider_budget');
+    }
+
     public static function requireTransaction(): void
     {
         if (DB::connection()->transactionLevel() < 1) {

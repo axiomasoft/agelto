@@ -6,8 +6,6 @@ namespace App\Models\Procurement\Document;
 
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\UnprocessableReason;
-use App\Models\Concerns\HasErrorBlock;
-use App\Models\Concerns\HasLease;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Scopes\PublicPlatformScope;
@@ -69,7 +67,7 @@ use Illuminate\Support\Str;
 final class Document extends Model
 {
     /** @use HasFactory<DocumentFactory> */
-    use HasErrorBlock, HasFactory, HasLease;
+    use HasFactory;
 
     protected function casts(): array
     {

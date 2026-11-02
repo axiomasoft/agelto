@@ -4,13 +4,12 @@ declare(strict_types=1);
 
 namespace App\Pulse\Cards;
 
-use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Document\DocumentStatus;
-use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Laravel\Pulse\Livewire\Card;
 use Livewire\Attributes\Lazy;
@@ -27,7 +26,7 @@ use Livewire\Attributes\Lazy;
  * footer-эвристики, P6.2/P6.3): succeeded = документы, покинувшие `discovered`/`downloaded`
  * (реально прошедшие prepare, не только обнаруженные краулингом) за окно, failed = документы с
  * `failed_permanently=true`, обновлённые за окно. `screening`/`extraction` читаются точно из
- * `prc_ai_analyses.status` по шагу (`AnalysisStep`).
+ * AI stages count immutable terminal work transitions; accepted projections do not contain execution failures.
  */
 #[Lazy]
 final class PipelineStagesCard extends Card
@@ -69,18 +68,18 @@ final class PipelineStagesCard extends Card
     private function analysisRow(AnalysisStep $step, string $label, CarbonImmutable $since): array
     {
         /** @var Collection<string, int> $totals */
-        $totals = Analysis::query()
-            ->where('step', $step->value)
-            ->where('updated_at', '>=', $since)
-            ->toBase()
-            ->selectRaw('status, count(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
+        $totals = DB::table('prc_process_transitions as t')
+            ->join('prc_process_work as w', 'w.id', '=', 't.work_id')
+            ->where('t.entity_kind', 'work')->where('w.stage', $step->value)
+            ->where('t.occurred_at', '>=', $since)
+            ->whereIn('t.new_state', ['succeeded', 'failed_item'])
+            ->selectRaw('t.new_state, count(*) as total')->groupBy('t.new_state')
+            ->pluck('total', 'new_state');
 
         return $this->row(
             stage: $label,
-            succeeded: (int) ($totals[AnalysisStatus::Succeeded->value] ?? 0),
-            failed: (int) ($totals[AnalysisStatus::Failed->value] ?? 0),
+            succeeded: (int) ($totals['succeeded'] ?? 0),
+            failed: (int) ($totals['failed_item'] ?? 0),
         );
     }
 

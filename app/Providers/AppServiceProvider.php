@@ -14,20 +14,24 @@ use App\Dto\Platforms\Eis\EisPolicy;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
-use App\Services\Llm\Contracts\OutboundProxy;
+use App\Services\Llm\Contracts\PromptScopeRegistry;
 use App\Services\Llm\Contracts\UsageSource;
+use App\Services\Llm\Execution\ReceiptPolicies;
+use App\Services\Llm\Providers\GeminiAssetReceiptPolicy;
 use App\Services\Llm\TrackingUsageSource;
 use App\Services\Platforms\Eis\Card\EisCardCatalog;
 use App\Services\Platforms\Eis\EisSourceClock;
 use App\Services\Procurement\Acquisition\AcquisitionRuntime;
 use App\Services\Procurement\Acquisition\DetailValueCodec;
-use App\Services\Procurement\Analyzers\Estimate\ChunkSource;
-use App\Services\Procurement\Analyzers\Estimate\RowRangeChunkSource;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentRuntime;
 use App\Services\Procurement\Document\DocumentStorageReconciler;
+use App\Services\Procurement\Extraction\AnalysisConfiguration;
+use App\Services\Procurement\Extraction\AnalysisFeeder;
+use App\Services\Procurement\Extraction\AnalysisProviderConnections;
 use App\Services\Procurement\Extraction\AnalysisProviderRecoveryResolver;
+use App\Services\Procurement\Extraction\AnalysisRuntime;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\NetworkProbeReconcileCategory;
@@ -37,7 +41,6 @@ use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
 use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ReconcileDaemon;
 use App\Services\Procurement\Process\StageRegistry;
-use App\Services\Procurement\Proxy\PoolOutboundProxy;
 use App\Services\Procurement\SourceTargetValidator;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Context;
@@ -58,6 +61,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(ReceiptPolicies::class, static function (): ReceiptPolicies {
+            $policies = new ReceiptPolicies;
+            $policies->register('gemini', new GeminiAssetReceiptPolicy);
+
+            return $policies;
+        });
+        $this->app->singleton(AnalysisProviderConnections::class, static function (): AnalysisProviderConnections {
+            $connections = new AnalysisProviderConnections;
+            app(AnalysisConfiguration::class)->provision($connections);
+
+            return $connections;
+        });
         $this->app->bind(ProviderRecoveryResolver::class, AnalysisProviderRecoveryResolver::class);
         $this->app->bind(EisSourceClock::class, fn () => new EisSourceClock($this->app->make(EisPolicy::class)->sourceTimezone->getName()));
         $this->app->bind(DocumentUrlPolicy::class,
@@ -69,10 +84,12 @@ class AppServiceProvider extends ServiceProvider
         });
         $this->app->afterResolving(StageRegistry::class, function (StageRegistry $registry): void {
             $this->app->make(DocumentRuntime::class)->register($registry);
+            $this->app->make(AnalysisRuntime::class)->register($registry);
         });
         $this->app->afterResolving(FeederDaemon::class,
             static function (FeederDaemon $daemon): void {
                 $daemon->registerProducer(app(DocumentFeeder::class));
+                $daemon->registerProducer(app(AnalysisFeeder::class));
             });
         $this->app->bind(LegacyOutbound::class, LegacyOutboundClient::class);
         $this->app->afterResolving(ReconcileDaemon::class,
@@ -84,24 +101,16 @@ class AppServiceProvider extends ServiceProvider
         // Единственная реализация листинг-маппера в проекте (только ЕИС, `01-database.md`/`02-crawling.md`
         // не заводят второй источник в этом плане) — прямой bind без config-driven реестра (YAGNI).
 
-        // Основной путь извлечения смет (D3/D40) — единственная реализация ChunkSource до P6.4
-        // (`WindowedChunkSource` добавит оконный путь за отдельным гейтом, не сменой этого bind).
-        $this->app->bind(ChunkSource::class, RowRangeChunkSource::class);
-
         // Источник расхода LLM (P4.2, контракт `root/usage-source-contract.md`, D34): реализация
-        // одна — «наш трекинг» поверх `llm_calls`; второй (биллинг провайдера) нет и класса-заглушки
+        // одна — «наш трекинг» поверх `llm_provider_calls`; второй (биллинг провайдера) нет и класса-заглушки
         // под неё не заводится, место второй реализации описано в контракте ТЕКСТОМ.
         $this->app->bind(UsageSource::class, TrackingUsageSource::class);
-
-        // Стык доменов Llm↔Procurement для исходящего прокси (research/02 §9.2, D16) — порт
-        // в домене Llm, реализация со стороны прокси-слоя; прямой инъекции резолвера в провайдера
-        // LLM это не допускает.
-        $this->app->bind(OutboundProxy::class, PoolOutboundProxy::class);
 
         // Реестр анализаторов типов документа (P2.3, §5.2 контракта): собирается из
         // `config('ai.analyzers')` при ПЕРВОМ резолве и дальше неизменен — отсюда singleton,
         // а не bind (иначе инварианты сборки проверялись бы на каждом резолве).
         $this->app->singleton(DocumentAnalyzerRegistry::class);
+        $this->app->bind(PromptScopeRegistry::class, fn () => $this->app->make(DocumentAnalyzerRegistry::class));
 
         // Правила реакции краулера на отказы: типизированный разбор `crawler.source_control`
         // один раз на процесс; резолвится в `boot()`, чтобы ошибка конфига валила старт.

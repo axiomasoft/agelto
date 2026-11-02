@@ -16,7 +16,6 @@ return [
     'tables' => [
         'prc_events' => 'occurred_at',
         'prc_revisions' => 'detected_at',
-        'llm_calls' => 'called_at',
         'prc_fetches' => 'fetched_at',
         'prc_operation_logs' => 'created_at',
     ],
@@ -30,8 +29,7 @@ return [
     | Retention (P7.7, D33) — DROP старых партиций per-таблица
     |--------------------------------------------------------------------------
     |
-    | ТОЛЬКО эфемерные лог-таблицы (Implementation Rules P7.7): `llm_calls`,
-    | `prc_fetches`, `prc_operation_logs`. `prc_events` и `prc_revisions` НАМЕРЕННО
+    | ТОЛЬКО эфемерные лог-таблицы (Implementation Rules P7.7): `prc_fetches`, `prc_operation_logs`. `prc_events` и `prc_revisions` НАМЕРЕННО
     | отсутствуют в этом списке: это доменная история закупки, а не эфемерный лог
     | (см. `eternal` ниже), поэтому DROP-retention к ним не применяется.
     |
@@ -40,17 +38,10 @@ return [
     | `keep_table` — `false` = DROP партиции по истечении окна (`retention_keep_table`
     | в pg_partman); `true` зарезервировано для будущих таблиц, где нужен DETACH, а не DROP.
     |
-    | `llm_calls` держим ДОЛЬШЕ, чем TTL блобов в MinIO (см. `minio_lifecycle`
-    | ниже, default 90 дней) — Code Guidance: «llm_calls-метаданные ценны дольше блобов,
-    | блобы в MinIO expire раньше, чем строка в БД» (метрики/cost-report продолжают
-    | работать по метаданным `llm_calls` уже без `request_ref`/`response_ref`-файлов).
+    | Provider financial facts are permanent and their pinned receipts are not blanket expired.
     |
     */
     'retention' => [
-        'llm_calls' => [
-            'months' => (int) env('AI_RETENTION_LLM_CALLS_MONTHS', 12),
-            'keep_table' => false,
-        ],
         'prc_fetches' => [
             'months' => (int) env('AI_RETENTION_FETCHES_MONTHS', 6),
             'keep_table' => false,
@@ -85,12 +76,8 @@ return [
     | MinIO ILM — lifecycle-правила для request/response-блобов LLM (P7.7, D33)
     |--------------------------------------------------------------------------
     |
-    | Блоб на КАЖДЫЙ LLM-вызов (вкл. re-ask/shadow, `LlmCallRecorder::storeRaw()`,
-    | префикс `ai/llm-calls/`) — expire по возрасту, ЗНАЧИТЕЛЬНО раньше, чем
-    | retention строки `llm_calls` выше (метаданные переживают блобы).
-    | `prc_estimates.raw_result_ref` (префикс `ai/estimates/`) и gold-документы
-    | (префикс `documents/`) под ЭТО правило НЕ попадают — разные префиксы,
-    | `ai:storage:lifecycle` (P7.7) применяет правило то́чно по `prefix`.
+    | Cleanup of the retired raw prefix only. Canonical llm/receipts/ objects remain
+    | protected by their financial and business provenance.
     |
     */
     'minio_lifecycle' => [

@@ -2,19 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Ai\AnalysisStatus;
-use App\Enums\Procurement\Ai\AnalysisStep;
-use App\Enums\Procurement\Ai\RunMode;
-use App\Enums\Procurement\Document\DocumentStatus;
-use App\Exceptions\Procurement\Ai\AnalysisRunAlreadyActive;
-use App\Exceptions\Procurement\Ai\ScreeningDisabled;
-use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\User;
-use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\Document\DocumentWorkRepository;
 use App\Services\Procurement\Fixture\RunFixtureAnalysisAction;
 use App\Services\Procurement\Fixture\WorkingCopyProvisioner;
@@ -73,44 +65,6 @@ test('prepare producer сохраняет auto без инициатора и ma
     $manual = $runs->firstWhere('kind', 'manual');
     expect($auto->requested_by)->toBeNull()->and($manual->requested_by)->toBe($user->id)
         ->and(DB::table('prc_process_work')->where('state', 'ready')->count())->toBe(2);
-});
-
-test('активный прогон версии → AnalysisRunAlreadyActive, повторный клик не диспатчит второй job', function (): void {
-    $fixture = fixtureRunFixture('EST-XLSX-RUN-002');
-    [, $version] = app(WorkingCopyProvisioner::class)->provision($fixture, false);
-    app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
-    $fixture->refresh();
-    expect(fn () => app(RunFixtureAnalysisAction::class)->run($fixture))->toThrow(AnalysisRunAlreadyActive::class)
-        ->and(DB::table('prc_process_work')->count())->toBe(0)
-        ->and(DocumentVersion::query()->where('document_id', $version->document_id)->count())->toBe(1);
-    Queue::assertNothingPushed();
-});
-
-test('выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана', function (): void {
-    config(['ai.screening.enabled' => false]);
-    $fixture = fixtureRunFixture('EST-XLSX-RUN-003');
-    expect(fn () => app(RunFixtureAnalysisAction::class)->run($fixture))->toThrow(ScreeningDisabled::class)
-        ->and(Document::query()->where('external_id', 'fixture:'.$fixture->code)->exists())->toBeFalse()
-        ->and(DB::table('prc_process_work')->count())->toBe(0);
-    Queue::assertNothingPushed();
-});
-
-test('повторный прогон того же эталона снимает активные анализы обоих шагов и откатывает статус документа в downloaded', function (): void {
-    $fixture = fixtureRunFixture('EST-XLSX-RUN-004');
-    [$document, $version] = app(WorkingCopyProvisioner::class)->provision($fixture, false);
-    $run = app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
-    app(AnalysisRunStoreRepository::class)->markSucceeded($run);
-    $screening = Analysis::factory()->create(['document_version_id' => $version->id, 'analysis_run_id' => $run->id, 'step' => AnalysisStep::Screening, 'status' => AnalysisStatus::Succeeded]);
-    $extraction = Analysis::factory()->create(['document_version_id' => $version->id, 'analysis_run_id' => $run->id, 'step' => AnalysisStep::Extraction, 'status' => AnalysisStatus::Succeeded]);
-    $document->update(['status' => DocumentStatus::Extracted]);
-    $fixture->refresh();
-    app(RunFixtureAnalysisAction::class)->run($fixture);
-    expect($screening->refresh()->superseded_at)->not->toBeNull()
-        ->and($extraction->refresh()->superseded_at)->not->toBeNull()
-        ->and($document->refresh()->status)->toBe(DocumentStatus::Downloaded)
-        ->and(DB::table('prc_process_work')->where('document_version_id', $version->id)->where('state', 'ready')->count())->toBe(1)
-        ->and(DB::table('prc_process_runs')->where('kind', 'manual')->count())->toBe(1);
-    Queue::assertNothingPushed();
 });
 
 test('оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)', function (): void {

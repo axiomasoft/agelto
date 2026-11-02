@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Repositories\Llm;
 
+use App\Enums\Llm\DocumentScope;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Llm\LlmPurpose;
-use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Models\Llm\LlmRoute;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -25,9 +25,9 @@ final readonly class LlmRouteReadRepository
      *
      * @return Collection<int, LlmRoute>
      */
-    public function activeCandidatesFor(AiDocumentType|DocumentTypeScope $documentType, LlmPurpose $purpose): Collection
+    public function activeCandidatesFor(DocumentScope $documentType, LlmPurpose $purpose): Collection
     {
-        $value = $documentType->value;
+        $value = $documentType->key();
 
         return LlmRoute::query()
             ->with('provider')
@@ -47,9 +47,9 @@ final readonly class LlmRouteReadRepository
      * маршруты — отдельное подмножество (обычный основной маршрут `shadow=false` этим методом
      * никогда не возвращается).
      */
-    public function activeShadowRouteFor(AiDocumentType|DocumentTypeScope $documentType, LlmPurpose $purpose): ?LlmRoute
+    public function activeShadowRouteFor(DocumentScope $documentType, LlmPurpose $purpose): ?LlmRoute
     {
-        $value = $documentType->value;
+        $value = $documentType->key();
 
         return LlmRoute::query()
             ->with('provider')

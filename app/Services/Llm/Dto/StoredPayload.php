@@ -34,6 +34,11 @@ final readonly class StoredPayload
         );
     }
 
+    public static function unavailable(): self
+    {
+        return new self(false, null, 'Ответ недоступен: хранилище или проверка целостности не подтвердили сохранённые данные.', false);
+    }
+
     public static function content(string $content, bool $truncated): self
     {
         return new self(available: true, content: $content, unavailableReason: null, truncated: $truncated);

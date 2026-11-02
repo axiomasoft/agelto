@@ -10,7 +10,7 @@ use App\Enums\Procurement\Ai\FixtureClass;
 use App\Enums\Procurement\Ai\GoldSource;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
-use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
+use App\Exceptions\Llm\UnsupportedConsumer;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Fixture;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
@@ -48,7 +48,7 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
     public function dispatchExtraction(int $documentId): void
     {
 
-        EstimateExtractionJob::dispatch($documentId)->afterCommit();
+        throw new UnsupportedConsumer;
     }
 
     /**

@@ -5,11 +5,13 @@ namespace App\Filament\Resources\Procurement\Ai\Analyses\Pages;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\CorrectionReason;
 use App\Enums\Procurement\Ai\ReviewStatus;
+use App\Exceptions\Llm\OperationDenied;
 use App\Filament\Pages\FinalPromptPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
+use App\Filament\Resources\Procurement\Process\Work\WorkItemResource;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
-use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
+use App\Repositories\Procurement\Ai\AnalysisReviewRepository;
 use App\Services\Procurement\Analyzers\Estimate\GoldExampleRecorder;
 use App\Services\Procurement\Extraction\RerunAnalysisAction;
 use Filament\Actions\Action;
@@ -49,7 +51,8 @@ class ViewAnalysis extends ViewRecord
         return Action::make('finalPrompt')
             ->label('Финальный промт')
             ->color('gray')
-            ->url(fn (Analysis $record): string => FinalPromptPage::getUrl(['run' => $record->analysis_run_id]))
+            ->visible(fn (Analysis $record): bool => $record->analysis_run_id !== null)
+            ->url(fn (Analysis $record): ?string => $record->analysis_run_id === null ? null : FinalPromptPage::getUrl(['run' => $record->analysis_run_id]))
             ->openUrlInNewTab();
     }
 
@@ -78,7 +81,7 @@ class ViewAnalysis extends ViewRecord
                     return;
                 }
 
-                app(AnalysisStoreRepository::class)->update($record, [
+                app(AnalysisReviewRepository::class)->update($record, [
                     'review_status' => ReviewStatus::Approved,
                     'reviewed_by' => Auth::id(),
                     'reviewed_at' => now(),
@@ -144,7 +147,7 @@ class ViewAnalysis extends ViewRecord
                     'created_by' => Auth::id(),
                 ]);
 
-                app(AnalysisStoreRepository::class)->update($record, [
+                app(AnalysisReviewRepository::class)->update($record, [
                     'review_status' => ReviewStatus::Rejected,
                     'reviewed_by' => Auth::id(),
                     'reviewed_at' => now(),
@@ -168,11 +171,17 @@ class ViewAnalysis extends ViewRecord
             ->requiresConfirmation()
             ->visible(fn (Analysis $record): bool => in_array($record->status, [AnalysisStatus::Succeeded, AnalysisStatus::Failed], strict: true))
             ->action(function (Analysis $record) {
-                $new = app(RerunAnalysisAction::class)->run($record);
+                try {
+                    $new = app(RerunAnalysisAction::class)->run($record, actorId: is_int(auth()->id()) ? auth()->id() : null);
+                } catch (OperationDenied|\InvalidArgumentException) {
+                    Notification::make()->title('Повторный разбор недоступен: проверьте текущую работу и профиль анализа.')->warning()->send();
+
+                    return null;
+                }
 
                 Notification::make()->title('Повторный разбор запущен')->success()->send();
 
-                return redirect(AnalysisResource::getUrl('view', ['record' => $new]));
+                return redirect(WorkItemResource::getUrl('index', ['tableSearch' => $new->value->value]));
             });
     }
 }

@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
+use App\Jobs\Procurement\Process\ExecuteWorkJob;
+use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Symfony\Component\Finder\Finder;
 
@@ -45,6 +47,9 @@ test('ни один job Procurement не объявляет свойства о�
     expect($violations)->toBe([]);
 });
 
-test('EstimateExtractionJob держит ShouldBeUniqueUntilProcessing — подмена на ShouldBeUnique рвёт checkpoint-requeue (D39)', function (): void {
-    expect(class_implements(EstimateExtractionJob::class))->toHaveKey(ShouldBeUniqueUntilProcessing::class);
+test('AI continuation uses the sole Process delivery without queue uniqueness middleware', function (): void {
+    expect(is_file(app_path('Jobs/Procurement/Analyzers/Estimate/EstimateExtractionJob.php')))->toBeFalse();
+    $interfaces = class_implements(ExecuteWorkJob::class);
+    expect($interfaces)->not->toHaveKey(ShouldBeUniqueUntilProcessing::class)
+        ->not->toHaveKey(ShouldBeUnique::class);
 });

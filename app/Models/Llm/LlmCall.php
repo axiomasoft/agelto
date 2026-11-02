@@ -4,85 +4,50 @@ declare(strict_types=1);
 
 namespace App\Models\Llm;
 
-use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\AnalysisRun;
-use Database\Factories\Llm\LlmCallFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Table;
-use Illuminate\Database\Eloquent\Attributes\UseFactory;
-use Illuminate\Database\Eloquent\Casts\AsCollection;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Collection;
 
 /**
- * Каждый вызов LLM (партиция `llm_calls` RANGE by `called_at`).
+ * One physical provider operation. Consumer relations belong to the consumer; RequestLedger owns writes.
  *
- * `purpose` — СТРОКА объединённого пространства значений (без каста): таблица не несёт
- * `document_type`, поэтому носитель `App\Enums\Llm\LlmPurpose` (интерфейс) резолвится только
- * там, где тип документа известен — `DocumentAnalyzerRegistry::purposeFor()` (P2.5, D101).
- *
- * @property int|null $analysis_run_id
- * @property string|null $request_ref
- * @property string|null $response_ref
+ * @property string $physical_call_id
+ * @property string $logical_request_id
+ * @property string $model
+ * @property string $usage_status
+ * @property string $receipt_state
+ * @property string|null $receipt_disk
+ * @property string|null $receipt_key
+ * @property string|null $cost_actual
+ * @property string $cost_estimate
+ * @property string $provider
+ * @property string $purpose
+ * @property CarbonImmutable|null $called_at
  * @property int|null $prompt_tokens
  * @property int|null $cached_tokens
- * @property Collection<string, int>|null $prompt_version_set
+ * @property int|null $completion_tokens
+ * @property int|null $cost_micros
+ * @property int $reserved_micros
+ * @property bool|null $success
  */
-#[UseFactory(LlmCallFactory::class)]
-#[Fillable([
-    'analysis_id',
-    'analysis_run_id',
-    'purpose',
-    'provider',
-    'model',
-    'prompt_version_set',
-    'cache_id',
-    'request_ref',
-    'response_ref',
-    'prompt_tokens',
-    'completion_tokens',
-    'cached_tokens',
-    'total_tokens',
-    'cost_micros',
-    'success',
-    'error',
-    'duration_ms',
-    'called_at',
-])]
-#[Table(name: 'llm_calls', keyType: 'int')]
+#[Table(name: 'llm_provider_calls', key: 'physical_call_id', keyType: 'string', incrementing: false, timestamps: false)]
 final class LlmCall extends Model
 {
-    /** @use HasFactory<LlmCallFactory> */
-    use HasFactory;
-
-    public $incrementing = true;
-
     protected function casts(): array
     {
-        return [
-            'prompt_version_set' => AsCollection::class,
-            'prompt_tokens' => 'integer',
-            'completion_tokens' => 'integer',
-            'cached_tokens' => 'integer',
-            'total_tokens' => 'integer',
-            'cost_micros' => 'integer',
-            'success' => 'boolean',
-            'duration_ms' => 'integer',
-            'called_at' => 'datetime',
-        ];
+        return ['sent_at' => 'immutable_datetime', 'response_at' => 'immutable_datetime', 'send_claimed_at' => 'immutable_datetime',
+            'called_at' => 'immutable_datetime', 'usage' => 'array', 'cost_estimate' => 'decimal:8', 'cost_actual' => 'decimal:8',
+            'prompt_tokens' => 'integer', 'cached_tokens' => 'integer', 'completion_tokens' => 'integer',
+            'cost_micros' => 'integer', 'reserved_micros' => 'integer', 'success' => 'boolean'];
     }
 
-    /** @return BelongsTo<Analysis, $this> */
-    public function analysis(): BelongsTo
+    protected static function booted(): void
     {
-        return $this->belongsTo(related: Analysis::class);
-    }
-
-    /** @return BelongsTo<AnalysisRun, $this> */
-    public function analysisRun(): BelongsTo
-    {
-        return $this->belongsTo(related: AnalysisRun::class);
+        self::saving(static function (): never {
+            throw new \LogicException('Provider facts require RequestLedger.');
+        });
+        self::deleting(static function (): never {
+            throw new \LogicException('Provider facts require financial retention authority.');
+        });
     }
 }

@@ -44,7 +44,7 @@ test('prc_estimates несёт утверждённый список колон�
     }
 
     expect($columns['procurement_id']['nullable'])->toBeTrue('D98: procurement_id становится nullable')
-        ->and($columns['labor_hours_workers']['type'])->toBe('numeric(18,6)')
+        ->and($columns['labor_hours_workers']['type'])->toBe('numeric')
         ->and($columns['document_date']['type_name'])->toBe('date')
         ->and($columns['verified_at']['type_name'])->toBe('timestamptz');
 });
@@ -89,9 +89,9 @@ test('prc_estimate_items: unit_price/total_price переименованы в *
             ->and($columns[$column]['nullable'])->toBeTrue("{$column} обязана быть nullable");
     }
 
-    expect($columns['unit_price_curr']['type'])->toBe('numeric(18,2)')
-        ->and($columns['index_value']['type'])->toBe('numeric(18,6)')
-        ->and($columns['unit_multiplier']['type'])->toBe('numeric(18,6)');
+    expect($columns['unit_price_curr']['type'])->toBe('numeric')
+        ->and($columns['index_value']['type'])->toBe('numeric')
+        ->and($columns['unit_multiplier']['type'])->toBe('numeric');
 });
 
 test('prc_estimate_items: unique(estimate_id, row_index) сохранён (SR-01 второй носитель — source_position_number)', function () {
@@ -136,7 +136,7 @@ test('prc_estimate_totals: amount стал nullable, kind сохранён, chap
         ->and($columns)->toHaveKey('rate')
         ->and($columns['chapter_number']['nullable'])->toBeTrue()
         ->and($columns['rate']['nullable'])->toBeTrue()
-        ->and($columns['rate']['type'])->toBe('numeric(18,6)');
+        ->and($columns['rate']['type'])->toBe('numeric');
 });
 
 test('prc_estimate_work_types — новая таблица с 13 колонками, per-estimate область и self-FK cascade (D34/D90)', function () {

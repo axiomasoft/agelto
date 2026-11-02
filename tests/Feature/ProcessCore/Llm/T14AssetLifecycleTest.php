@@ -77,7 +77,7 @@ function p312CachedFixture(WireFixture $server): ProviderSendFixtures
         $prefix = AssetFixtures::prefix($base);
         $cache = new ContextCacheAsset($prefix->key, 'cachedContents/p312-prefix', gmdate('c', time() + 3600));
         $input = new ProviderGenerationInput($base->generation->system, $base->generation->user, $base->generation->schema,
-            $prefix->files, $cache, $prefix, AssetFixtures::capabilities($base->context));
+            $prefix->files, $cache, $prefix, AssetFixtures::capabilities($base->context), purpose: $base->generation->purpose);
         $plan = new ProviderOperationPlan($base->identity, $base->context, $base->pricing, $base->consumerCorrelationId, generation: $input);
 
         return [$plan, (new GeminiGenerateContentClient($origin))->compile($plan)];
@@ -121,7 +121,7 @@ test('cached wire исключает system и file prefix; uncached сохра�
     $f = p312CachedFixture($this->server);
     $cached = json_decode($f->wire->body, true, flags: JSON_THROW_ON_ERROR);
     $input = $f->plan->generation;
-    $plain = new ProviderGenerationInput($input->system, $input->user, $input->schema, $input->files, capabilities: $input->capabilities);
+    $plain = new ProviderGenerationInput($input->system, $input->user, $input->schema, $input->files, capabilities: $input->capabilities, purpose: $input->purpose);
     $plan = new ProviderOperationPlan($f->plan->identity, $f->plan->context, $f->plan->pricing, $f->plan->consumerCorrelationId, generation: $plain);
     $wire = (new GeminiGenerateContentClient($this->server->url('/')->origin->value()))->compile($plan);
     $uncached = json_decode($wire->body, true, flags: JSON_THROW_ON_ERROR);
@@ -177,7 +177,7 @@ test('известный бесплатный cache404 допускает ров
     expect($f->lease->checkpoint->providerRecoveryPlan->mode)->toBe(ProviderRecoveryMode::KnownRetryEligible);
     $input = $f->plan->generation;
     $plan = new ProviderOperationPlan($f->plan->identity, $f->plan->context, $f->plan->pricing, $f->plan->consumerCorrelationId,
-        generation: new ProviderGenerationInput($input->system, $input->user, $input->schema, $input->files, capabilities: $input->capabilities));
+        generation: new ProviderGenerationInput($input->system, $input->user, $input->schema, $input->files, capabilities: $input->capabilities, purpose: $input->purpose));
     $wire = (new GeminiGenerateContentClient($this->server->url('/')->origin->value()))->compile($plan);
     $next = app(AnalysisCallCoordinator::class)->authorize($f->lease, $f->run, $plan, $f->period, $wire);
     expect($next->logicalRequestId)->toBe($f->operation->logicalRequestId)->and($next->physicalCallId)->not->toBe($f->operation->physicalCallId)
@@ -335,7 +335,7 @@ test('expired cache выбирает plain wire без refresh', function (): vo
     $input = $f->plan->generation;
     $expired = new ContextCacheAsset($input->cache->key, $input->cache->name, '2020-01-01T00:00:00Z');
     $plan = new ProviderOperationPlan($f->plan->identity, $f->plan->context, $f->plan->pricing, $f->plan->consumerCorrelationId,
-        generation: new ProviderGenerationInput($input->system, $input->user, $input->schema, $input->files, $expired, $input->prefix, $input->capabilities));
+        generation: new ProviderGenerationInput($input->system, $input->user, $input->schema, $input->files, $expired, $input->prefix, $input->capabilities, purpose: $input->purpose));
     $wire = (new GeminiGenerateContentClient)->compile($plan);
     expect(json_decode($wire->body, true, flags: JSON_THROW_ON_ERROR))->not->toHaveKey('cachedContent')
         ->and(DB::table('llm_provider_calls')->count())->toBe(1);
@@ -353,6 +353,20 @@ test('usage разделяет uncached cached output thinking storage и не �
         ->and($policy->assess(OperationPurpose::CacheRefresh, 200, json_encode(AssetFixtures::envelope('cache'), JSON_THROW_ON_ERROR))->usage->unknown)->toBeTrue()
         ->and($policy->assess(OperationPurpose::CacheCreate, 200, json_encode(AssetFixtures::envelope('cache'), JSON_THROW_ON_ERROR))->usage->cacheStorageTokenHours)->toBe(2048);
 });
+
+test('verified generation envelopes retain financial facts for refusal empty and unsupported domain outcomes', function (array $envelope): void {
+    $policy = new GeminiAssetReceiptPolicy;
+    $receipt = $policy->assess(OperationPurpose::Generate, 200, json_encode($envelope, JSON_THROW_ON_ERROR));
+    expect($receipt->outcome->value)->toBe('success')->and($receipt->cost)->toBeNull()
+        ->and($receipt->usage->unknown)->toBeTrue()
+        ->and($policy->assess(OperationPurpose::Generate, 500, json_encode($envelope, JSON_THROW_ON_ERROR))->outcome->value)->toBe('unknown')
+        ->and($policy->assess(OperationPurpose::Generate, 200, '{"error":{"message":"not a generation"},"candidates":[]}')->outcome->value)->toBe('unknown');
+})->with([
+    'refusal' => [['promptFeedback' => ['blockReason' => 'SAFETY']]],
+    'candidate refusal' => [['candidates' => [['finishReason' => 'SAFETY']]]],
+    'empty' => [['candidates' => []]],
+    'unsupported' => [['candidates' => [['finishReason' => 'CONTINUATION']]]],
+]);
 
 test('file identity меняется с account API MIME bytes; модель того же account может использовать тот же файл', function (): void {
     $f = p312AssetFixture($this->server, OperationPurpose::FileUpload);
@@ -379,7 +393,7 @@ test('expiry capability во время network wait отзывает authorizat
         $prefix = AssetFixtures::prefix($base);
         $cache = new ContextCacheAsset($prefix->key, 'cachedContents/p312-prefix', gmdate('c', time() + 3600));
         $caps = new ProviderCapabilities($base->context, 'generateContent', 'expiring/1', gmdate('c', time() + 2), true, true, true, 2048, 8_388_608, 7200, 'fixture expiry during wait');
-        $input = new ProviderGenerationInput($base->generation->system, $base->generation->user, $base->generation->schema, $prefix->files, $cache, $prefix, $caps);
+        $input = new ProviderGenerationInput($base->generation->system, $base->generation->user, $base->generation->schema, $prefix->files, $cache, $prefix, $caps, purpose: $base->generation->purpose);
         $plan = new ProviderOperationPlan($base->identity, $base->context, $base->pricing, $base->consumerCorrelationId, generation: $input);
 
         return [$plan, (new GeminiGenerateContentClient($origin))->compile($plan)];

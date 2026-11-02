@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Enums\Procurement\Process\RunKind;
-use App\Models\Llm\LlmCall;
-use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
@@ -15,6 +13,7 @@ use App\Repositories\Procurement\Process\RunStoreRepository;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ScreeningRuntimeFixtures;
 
 test('расширенная точность prc_items.quantity сохраняет и читает шесть знаков после запятой', function () {
     $item = PurchaseItem::factory()->create(['quantity' => '123.456789']);
@@ -41,11 +40,19 @@ test('FK prc_revisions.crawler_run_id запрещает удаление про
         ->toThrow(QueryException::class, 'prc_revisions_process_run_fk');
 });
 
-test('FK llm_calls.analysis_run_id запрещает удаление прогона анализа, на который ссылается вызов', function () {
-    $analysisRun = AnalysisRun::factory()->create();
-    LlmCall::factory()->create(['analysis_run_id' => $analysisRun->id]);
-
-    expect(fn () => $analysisRun->delete())->toThrow(QueryException::class);
+test('canonical consumer mapping FK protects its analysis and physical financial evidence', function (): void {
+    [$work,$lease,$window,$period] = ScreeningRuntimeFixtures::work();
+    ScreeningRuntimeFixtures::capture($lease, $window, $period, ScreeningRuntimeFixtures::raw());
+    $mapping = DB::table('prc_analysis_llm_requests')->soleValue('id');
+    // INSERT exercises the FKs themselves; UPDATE is correctly rejected earlier by the immutable-linkage trigger.
+    $insert = 'INSERT INTO prc_analysis_llm_requests(id,analysis_run_id,work_id,attempt_id,logical_request_id,physical_call_id,expected_input_hash,recipe_hash,recovery_active)
+        SELECT ?, %s, work_id,attempt_id,logical_request_id,?,expected_input_hash,recipe_hash,false FROM prc_analysis_llm_requests WHERE id=?';
+    expect(fn () => DB::transaction(fn () => DB::insert(sprintf($insert, '?'),
+        [LedgerFixtures::uuid()->value, LedgerFixtures::uuid()->value, LedgerFixtures::uuid()->value, $mapping])))
+        ->toThrow(QueryException::class, 'prc_analysis_llm_requests_analysis_run_id_fkey');
+    expect(fn () => DB::transaction(fn () => DB::insert(sprintf($insert, 'analysis_run_id'),
+        [LedgerFixtures::uuid()->value, LedgerFixtures::uuid()->value, $mapping])))
+        ->toThrow(QueryException::class, 'prc_analysis_llm_requests_physical_call_id_fkey');
 });
 
 test('предсозданные исторические партиции принимают событие с occurred_at в прошлом', function () {

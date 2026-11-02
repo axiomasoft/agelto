@@ -34,6 +34,7 @@ use App\Services\Procurement\Process\WorkFinalizer;
 use App\Services\Procurement\Process\WorkRunner;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\AiFixtures;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\DownloadFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
@@ -104,7 +105,7 @@ test('registered runtime проводит reference download prepare через 
         }
         expect(ExecutionFixtures::work($id)->state)->toBe('succeeded')
             ->and(DB::table('prc_document_representations')->where('range_key', 'complete')->count())->toBe(1)
-            ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBe('handler_not_activated')
+            ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBeNull()
             ->and(DB::table('prc_process_reservations')->count())->toBe(0)
             ->and(DB::table('prc_request_attempts')->count())->toBe(1)
             ->and(DB::table('prc_outbound_operations')->where('kind', 'legacy_bridge')->count())->toBe(0);
@@ -113,6 +114,8 @@ test('registered runtime проводит reference download prepare через 
         // The real screening intent is deliberately not activated or consumed by this fixture.
         $representation = DocumentRepresentation::query()->where('range_key', 'complete')->sole();
         $screening = new WorkId(LedgerFixtures::uuid());
+        $analysis = AiFixtures::pinScreening($representation->id);
+        app()->instance(StageRegistry::class, new StageRegistry);
         ExecutionFixtures::authority([StageCode::Screening]);
         app(StageRegistry::class)->bindHandler(stage: StageCode::Screening,
             handler: new PreparedFixtureAnalysisHandler("[page:1]\ncontent 1\n"));
@@ -121,8 +124,8 @@ test('registered runtime проводит reference download prepare через 
         app(StageRegistry::class)->bindFinalization(StageCode::Screening, new FixtureStagePayloadCodec(StageCode::Screening), new PreparedFixturePublicationRepository($screening));
         app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(
             id: $screening, input: new ScreeningInput(documentVersionId: $representation->document_version_id,
-                representationHash: new ContentHash($representation->content_hash), screeningRecipeHash: ContentHash::of('prepared-fixture-analysis/1')),
-            inputRevision: $prepare->input_revision, intentId: null, cohortKey: $prepare->cohort_key,
+                representationHash: new ContentHash($representation->content_hash), screeningRecipeHash: $analysis->recipe->hash),
+            inputRevision: $analysis->expectedAnalysisGeneration, intentId: null, cohortKey: $prepare->cohort_key,
             platformId: $registry->platform_id, originRunId: new ProcessUuid($prepare->origin_run_id), priority: 100,
             eventId: LedgerFixtures::uuid(), projectionMessageId: LedgerFixtures::uuid(),
         ));
@@ -136,7 +139,7 @@ test('registered runtime проводит reference download prepare через 
             ->and(ExecutionFixtures::work($screening)->state)->toBe('succeeded')
             ->and(DB::table('prc_request_attempts')->count())->toBe(1)
             ->and(DB::table('prc_process_reservations')->count())->toBe(0)
-            ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBe('handler_not_activated')
+            ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBeNull()
             ->and(DB::table('prc_estimates')->count())->toBe(0);
     } finally {
         $wire->stop();

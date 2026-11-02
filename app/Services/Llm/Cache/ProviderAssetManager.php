@@ -13,6 +13,7 @@ use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
 use App\Exceptions\Llm\OperationDenied;
 use App\Repositories\Llm\Cache\AssetRepository;
+use App\Repositories\Llm\Request\FinancialReservationRepository;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Llm\Execution\ReceiptPolicies;
@@ -41,13 +42,32 @@ final readonly class ProviderAssetManager
             throw new OperationDenied('successful_asset_receipt_required');
         }
         $asset = $this->policies->assetMetadata($key, $receipt);
-        DB::transaction(function () use ($receipt, $asset): void {
-            $call = $this->requests->lock($receipt->call);
-            $this->requests->acceptReceiptLocked($receipt);
-            $this->assets->restore($asset, $call);
-        });
+        DB::transaction(fn () => $this->restoreLocked($asset, $receipt));
 
         return $asset;
+    }
+
+    /** Pure metadata preparation; the business finalizer owns the later mutation. */
+    public function prepareRecovery(VerifiedReceipt $receipt): ProviderFileAsset|ContextCacheAsset
+    {
+        if ($receipt->assessment->outcome !== ReceiptOutcome::Success || $receipt->status !== 200
+            || ! in_array($receipt->call->purpose, [OperationPurpose::FileUpload, OperationPurpose::CacheCreate, OperationPurpose::CacheRefresh, OperationPurpose::Lookup], true)) {
+            throw new OperationDenied('successful_asset_receipt_required');
+        }
+        $key = $this->assets->recoveryKey($receipt->call, $this->policies->assetResource($receipt));
+
+        return $this->policies->assetMetadata($key, $receipt);
+    }
+
+    public function restoreLocked(ProviderFileAsset|ContextCacheAsset $asset, VerifiedReceipt $receipt): void
+    {
+        FinancialReservationRepository::requireTransaction();
+        if ($this->prepareRecovery($receipt) != $asset) {
+            throw new OperationDenied('asset_recovery_metadata_drift');
+        }
+        $call = $this->requests->lock($receipt->call);
+        $this->requests->acceptReceiptLocked($receipt);
+        $this->assets->restore($asset, $call);
     }
 
     public function invalidateMissing(FileAssetKey|ContextCacheKey $key, ProviderWireRequest $wire, VerifiedReceipt $receipt): void

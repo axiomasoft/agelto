@@ -178,7 +178,7 @@ return [
     | Отчёт стоимости (P7.2, `ai:cost-report`, ТЗ 04 §6)
     |--------------------------------------------------------------------------
     |
-    | `cost_micros` в `prc_ai_llm_calls` — доллары ×1e6 (`LlmCallRecorder::costMicros()`, цены
+    | `cost_micros` в reporting projection — доллары ×1e6 (цены
     | `capabilities.*` уже в $). `rub_per_usd` — статический курс для дублирующей рублёвой колонки
     | отчёта (никакого внешнего FX API в этом item'е, YAGNI) — меняется по факту env, не привязан
     | к ЦБ РФ.
@@ -293,23 +293,11 @@ return [
     | Скрининг (гейт цепочки стадий, P4.2 → P5)
     |--------------------------------------------------------------------------
     |
-    | `enabled` — выключен по умолчанию: `ScreeningJob` (полная реализация — P5.1/P5.2) ещё
-    | не готов боевым образом; `PrepareDocumentJob` диспатчит его за этим флагом (владелец
-    | цепочки стадий — P4.2, ТЗ 03 §4). `pages` — сколько первых страниц PDF резать перед
-    | загрузкой (D6); `max_tokens` — маленький потолок ответа скрининга (Code Guidance P5.1,
-    | классификация не требует длинного вывода).
-    |
-    | Ветвление (P5.2, `ScreeningOutcomeHandler`, ТЗ 03 §3.4/D36): `ignore_rules` — подстроки
-    | (регистронезависимо) в `Procurement.title`, v1-канон `config('platform.estimate.ignore_rules')`
-    | (пример «Поставка продуктов питания») — категорический `ignored` независимо от классификации
-    | модели. `confidence_low`/`confidence_high` — borderline-зона: ниже low → `unknown`→`ignored`
-    | (не рисковать extraction-токенами), выше high → обычное ветвление по `document_type`, между
-    | ними — `borderline_action` (`escalate`: один повторный скрининг на маршрут классом выше;
-    | `flag`, default: `needs_review=true` в `analysis.result`, статус `screened`, без extraction).
+    | Legacy offline screening parameters. Runtime analysis reads its sealed recipe and the
+    | typed ScreeningPolicySnapshot; controls and Process lanes own execution eligibility.
     |
     */
     'screening' => [
-        'enabled' => (bool) env('AI_SCREENING_ENABLED', false),
         'pages' => (int) env('AI_SCREENING_PAGES', 4),
         'max_tokens' => (int) env('AI_SCREENING_MAX_TOKENS', 1024),
         'ignore_rules' => array_filter(array_map('trim', explode(',', (string) env('AI_SCREENING_IGNORE_RULES', '')))),
@@ -323,34 +311,12 @@ return [
     | Извлечение смет (гейт цепочки стадий, P5.2 → P6.1)
     |--------------------------------------------------------------------------
     |
-    | `enabled` — выключен по умолчанию: `ScreeningOutcomeHandler` диспатчит `EstimateExtractionJob`
-    | для `document_type=estimate` за этим флагом (тот же паттерн, что `ai.screening.enabled` у
-    | `PrepareDocumentJob`, P4.2).
-    |
-    | `windowed_enabled` (D40, default TRUE — `WindowedChunkSource` реализован, P6.4) —
-    | preflight (`ExtractionPreflight`, D29) сверх лимитов маршрута выбирает оконный путь (при
-    | true) ИЛИ терминирует `unprocessable(provider_limit_*)` (при false — ручной откат до
-    | калибровки/инцидента). `ExtractionOrchestrator::runWindowed()` (P6.4) исполняет
-    | трёхстадийный discovery→сегменты→per-segment разбор.
-    |
-    | `row_range_size`/`min_row_range_size` — стартовое/минимальное окно `extract_rows`
-    | (калибровка на реальных сметах — Открытый вопрос `03` §7); окно уменьшается вдвое (до
-    | минимума) при MAX_TOKENS (Implementation Rules P6.1). `checkpoint_ranges`/
-    | `checkpoint_seconds` — порог self-requeue (D31): после M единиц прогресса (паспорт/
-    | диапазон/итоги/discovery-окно) ИЛИ T секунд — что раньше — `EstimateExtractionJob`
-    | персистит progress и ре-диспатчит себя; `checkpoint_seconds` ОБЯЗАН быть строго меньше
-    | максимального следующего provider call плюс persistence/release reserve и меньше job timeout;
-    | полный инвариант живёт в `ai.pipeline.operation_budgets`.
-    | `max_estimates_per_document` — защитный потолок цикла обнаружения смет паспорт-шагом
-    | row-range пути (безопасность от зацикливания на некорректном ответе модели, не
-    | бизнес-лимит). `window_pages`/`window_overlap_pages` — размер/нахлёст страничного окна
-    | оконного пути (D30, P6.4), используется и на стадии discovery, и на per-segment
-    | rows-разбивке (Code Guidance P6.4); `totals_tail_pages` — хвост сегмента, запрашиваемый
-    | под `extract_totals` (§4.2 Стадия 3). Калибровка всех трёх — Pending Work до датасета P7.4.
+    | Offline corpus/eval settings retained for deterministic tooling. Runtime extraction uses
+    | config/llm.php at provisioning, then only its sealed coverage strategy and task manifest.
+    | Split checkpoints and continuations belong to WorkFinalizer, never self-dispatched jobs.
     |
     */
     'extraction' => [
-        'enabled' => (bool) env('AI_EXTRACTION_ENABLED', false),
         'windowed_enabled' => (bool) env('AI_EXTRACTION_WINDOWED_ENABLED', true),
         'row_range_size' => (int) env('AI_EXTRACTION_ROW_RANGE_SIZE', 30),
         'min_row_range_size' => (int) env('AI_EXTRACTION_MIN_ROW_RANGE_SIZE', 5),
@@ -506,9 +472,8 @@ return [
     |
     | `dataset_version` — дефолтная метка `prc_ai_eval_runs.dataset_version`, когда `estimate:eval:run`
     | вызван без `--dataset-version` (владелец меняет по факту снапшота golden-датасета).
-    | `max_orchestrator_iterations` — защитный потолок цикла синхронных повторов
-    | `ExtractionOrchestrator::run()` внутри `estimate:eval:run` (checkpoint-requeue D31 здесь БЕЗ
-    | self-dispatch через очередь — команда синхронна, повторяет вызов в том же процессе).
+    | Live synchronous eval is Unsupported until it has a registered durable owning gate.
+    | The remaining iteration setting is retained solely for offline historical reports.
     |
     */
     'eval' => [

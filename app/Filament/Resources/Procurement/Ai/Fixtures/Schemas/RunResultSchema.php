@@ -60,7 +60,7 @@ final class RunResultSchema
     {
         // Форма `?? null` — не украшение (тот же приём, что `EstimateAnalyzer::summarize()`): вне
         // `??`-контекста Larastan не резолвит тип свойства модели и заводит `property.notFound`.
-        $error = $screening === null ? null : ($screening->last_error ?? null);
+        $error = null; // Execution failures are exposed by the authoritative process workflow, not result rows.
 
         return Section::make('Первичный анализ')
             ->columns(2)
@@ -163,17 +163,13 @@ final class RunResultSchema
         $analysis = self::analysisOfStep($run, AnalysisStep::Extraction);
 
         if ($analysis === null) {
-            return ['message' => $run->finished_at === null
-                ? 'Прогон ещё идёт — разбор появится после его завершения.'
-                : 'Шаг разбора не выполнялся: вердикт первичного анализа не допустил документ дальше (тип без разбора, низкая уверенность либо выключённый рубильник `ai.extraction.enabled`).'];
+            return ['message' => $run->screening_disposition === null || $run->screening_disposition === 'extract'
+                ? 'Результат разбора ещё не опубликован. Состояние и причины ожидания доступны в workflow.'
+                : 'Первичный анализ завершён: '.$run->screening_disposition.'. Разбор не планировался.'];
         }
 
         if ($analysis->status !== AnalysisStatus::Succeeded) {
-            $error = $analysis->last_error;
-            $error = is_string($error) ? $error : null;
-
-            return ['message' => "Разбор не завершён (статус: {$analysis->status->value})."
-                .($error === null ? '' : " Последняя ошибка: {$error}")];
+            return ['message' => 'Результат разбора не опубликован; состояние работы доступно в workflow.'];
         }
 
         $documentType = $analysis->document_type === null

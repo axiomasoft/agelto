@@ -23,8 +23,6 @@ function storageAddressingGateAllowlist(): array
 {
     return [
         // Носители с вердиктом «колонка не нужна» (research/07 §2) — адресация конфигом законна.
-        'LlmCallRecorder.php' => 'llm_calls.request_ref/response_ref — партиционированный носитель без второго поколения (research/07 §2)',
-        'LlmPayloadReader.php' => 'читатель llm_calls.*_ref — тот же вердикт, что у LlmCallRecorder',
         'CsvBlockIngestor.php' => 'prc_fetches.artifact_ref — партиционированный носитель без второго поколения (research/07 §2)',
         'CsvSourceMethod.php' => 'HTML-снапшоты без записи в БД — адресовать колонкой нечего (research/07 §2)',
         'DatasetExportCommand.php' => 'продукт команды (--disk опция), не персистентная ссылка (research/07 §2)',

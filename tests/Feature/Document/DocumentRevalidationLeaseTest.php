@@ -3,20 +3,11 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Document\DocumentHead;
-use App\Enums\Procurement\Ai\AnalysisStatus;
-use App\Enums\Procurement\Ai\AnalysisStep;
-use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Process\CompletionStatus;
 use App\Enums\Procurement\Process\WorkState;
-use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
-use App\Jobs\Procurement\ScreeningJob;
-use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
-use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Procurement\Process\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
@@ -44,25 +35,3 @@ test('новая immutable версия при running prepare fence запре�
 });
 
 // Retained fake-AI compatibility assertions; typed document revalidation uses the head fence above.
-test('AI job не входит в обработку пока документ занят ревалидацией', function (DocumentStatus $status, AnalysisStep $step, string $jobClass): void {
-    Http::preventStrayRequests();
-    $document = Document::factory()->create(['status' => $status]);
-    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
-    expect(app(DocumentStoreRepository::class)->acquireRevalidationLease(
-        document: $document, owner: 'historical-revalidation-fixture', ttlSeconds: 420,
-    ))->toBeTrue();
-
-    $analysis = Analysis::factory()->create([
-        'document_version_id' => $version->id,
-        'step' => $step,
-        'status' => AnalysisStatus::Pending,
-    ]);
-    (new $jobClass(documentId: $document->id))->handle();
-
-    expect($analysis->refresh()->status)->toBe(AnalysisStatus::Pending)
-        ->and($analysis->locked_until)->toBeNull()
-        ->and($document->refresh()->locked_by)->toStartWith('historical-revalidation-fixture'.':');
-})->with([
-    'screening' => [DocumentStatus::Prepared, AnalysisStep::Screening, ScreeningJob::class],
-    'extraction' => [DocumentStatus::Screened, AnalysisStep::Extraction, EstimateExtractionJob::class],
-]);

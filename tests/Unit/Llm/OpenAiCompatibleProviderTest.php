@@ -2,127 +2,52 @@
 
 declare(strict_types=1);
 
-use App\Enums\Llm\FinishReason;
+use App\Exceptions\Llm\UnsupportedConsumer;
 use App\Services\Llm\Dto\JsonSchema;
 use App\Services\Llm\Dto\LlmFileHandle;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use Carbon\CarbonImmutable;
-use Prism\Prism\Enums\FinishReason as PrismFinishReason;
+use Illuminate\Support\Facades\Http;
 use Prism\Prism\Facades\Prism;
-use Prism\Prism\Structured\Response as PrismStructuredResponse;
-use Prism\Prism\Text\Response as PrismTextResponse;
-use Prism\Prism\ValueObjects\Meta as PrismMeta;
-use Prism\Prism\ValueObjects\Usage as PrismUsage;
 
 function vllmOptions(): LlmOptions
 {
-    return new LlmOptions(
-        provider: 'local-vllm',
-        model: 'Qwen3-4B-Instruct',
-        temperature: 0.0,
-        maxTokens: 2048,
-        baseUrl: 'http://vllm.internal:8000/v1',
-        apiKeyEnv: null,
-    );
+    return new LlmOptions(provider: 'local-vllm', model: 'Qwen3-4B-Instruct', temperature: 0.0,
+        maxTokens: 2048, baseUrl: 'http://vllm.internal:8000/v1', apiKeyEnv: null);
 }
 
-test('complete() уходит на OpenAI-совместимый endpoint и маппит usage/finishReason', function (): void {
-    $fake = Prism::fake([
-        new PrismTextResponse(
-            steps: collect([]),
-            text: 'привет',
-            finishReason: PrismFinishReason::Stop,
-            toolCalls: [],
-            toolResults: [],
-            usage: new PrismUsage(promptTokens: 100, completionTokens: 20, cacheReadInputTokens: 30),
-            meta: new PrismMeta('id-1', 'Qwen3-4B-Instruct'),
-            messages: collect([]),
-        ),
-    ]);
+function assertUnownedOpenAiDenied(Closure $call): void
+{
+    $sdk = Prism::fake();
+    expect($call)->toThrow(UnsupportedConsumer::class);
+    $sdk->assertCallCount(0);
+    Http::assertNothingSent();
+}
 
-    $provider = app(OpenAiCompatibleProvider::class);
-    $response = $provider->complete(new LlmPrompt(systemPart: 'система', userParts: ['вопрос']), vllmOptions());
-
-    expect($response->data)->toBe('привет')
-        ->and($response->finishReason)->toBe(FinishReason::Stop)
-        ->and($response->usage->promptTokens)->toBe(100)
-        ->and($response->usage->completionTokens)->toBe(20)
-        ->and($response->usage->cachedTokens)->toBe(30)
-        ->and($response->usage->totalTokens)->toBe(150);
-
-    $fake->assertCallCount(1);
+test('complete without a durable owner is Unsupported before SDK usage or finish-reason mapping', function (): void {
+    assertUnownedOpenAiDenied(fn () => app(OpenAiCompatibleProvider::class)->complete(
+        new LlmPrompt(systemPart: 'система', userParts: ['вопрос']), vllmOptions()));
 });
 
-test('completeStructured() шлёт RawSchema как есть (без Gemini-адаптации) и режим Structured', function (): void {
-    $fake = Prism::fake([
-        new PrismStructuredResponse(
-            steps: collect([]),
-            text: '{"foo":"bar"}',
-            structured: ['foo' => 'bar'],
-            finishReason: PrismFinishReason::Stop,
-            usage: new PrismUsage(promptTokens: 10, completionTokens: 5),
-            meta: new PrismMeta('id-2', 'Qwen3-4B-Instruct'),
-        ),
-    ]);
-
+test('structured caller without a durable owner cannot bypass the gate with a raw schema', function (): void {
     $schema = new JsonSchema(['type' => 'object', '$defs' => ['X' => ['type' => 'object']], 'properties' => ['a' => ['$ref' => '#/$defs/X']]]);
-    $provider = app(OpenAiCompatibleProvider::class);
-
-    $response = $provider->completeStructured(new LlmPrompt(systemPart: 's'), $schema, vllmOptions());
-
-    expect($response->data)->toBe(['foo' => 'bar'])
-        ->and($response->raw)->toBe('{"foo":"bar"}');
-
-    $fake->assertRequest(function (array $recorded) use ($schema): void {
-        // Без Gemini-специфичной down-конвертации (`$ref`/`$defs` разворачиваются НЕ здесь) —
-        // OpenAI-совместимый JSON Schema draft понимает их нативно (в отличие от Gemini
-        // `response_schema`, `GeminiResponseSchemaAdapter` тут не участвует).
-        expect($recorded[0]->schema()->toArray())->toBe($schema->schema);
-    });
+    assertUnownedOpenAiDenied(fn () => app(OpenAiCompatibleProvider::class)->completeStructured(new LlmPrompt(systemPart: 's'), $schema, vllmOptions()));
 });
 
-test('complete() бросает исключение, если у маршрута не задан base_url', function (): void {
-    $provider = app(OpenAiCompatibleProvider::class);
-
+test('missing base URL does not authorize an unowned OpenAI caller', function (): void {
     $options = new LlmOptions(provider: 'local-vllm', model: 'Qwen3-4B', temperature: 0.0, maxTokens: 100, baseUrl: null);
-
-    expect(fn () => $provider->complete(new LlmPrompt(systemPart: 's'), $options))
-        ->toThrow(RuntimeException::class, 'base_url');
+    assertUnownedOpenAiDenied(fn () => app(OpenAiCompatibleProvider::class)->complete(new LlmPrompt(systemPart: 's'), $options));
 });
 
-test('complete() бросает исключение при непустых fileRefs — Files API не поддержан', function (): void {
-    $provider = app(OpenAiCompatibleProvider::class);
-
-    $prompt = new LlmPrompt(
-        systemPart: 's',
-        fileRefs: [new LlmFileHandle(uri: 'files/x', expiresAt: CarbonImmutable::now()->addDay())],
-    );
-
-    expect(fn () => $provider->complete($prompt, vllmOptions()))
-        ->toThrow(RuntimeException::class, 'Files API');
+test('file references cannot activate an unowned OpenAI Files API', function (): void {
+    $prompt = new LlmPrompt(systemPart: 's', fileRefs: [new LlmFileHandle(uri: 'files/x', expiresAt: CarbonImmutable::now()->addDay())]);
+    assertUnownedOpenAiDenied(fn () => app(OpenAiCompatibleProvider::class)->complete($prompt, vllmOptions()));
 });
 
-test('complete() fail-closed, когда настроенный api_key_env не разрешается', function (): void {
-    $envName = 'P10_MISSING_OPENAI_KEY';
-    putenv("{$envName}");
-    putenv("{$envName}_FILE");
-    unset($_ENV[$envName], $_ENV["{$envName}_FILE"], $_SERVER[$envName], $_SERVER["{$envName}_FILE"]);
-
-    $fake = Prism::fake();
-    $provider = app(OpenAiCompatibleProvider::class);
-    $options = new LlmOptions(
-        provider: 'protected-vllm',
-        model: 'Qwen3-4B-Instruct',
-        temperature: 0.0,
-        maxTokens: 2048,
-        baseUrl: 'http://vllm.internal:8000/v1',
-        apiKeyEnv: $envName,
-    );
-
-    expect(fn () => $provider->complete(new LlmPrompt(systemPart: 's'), $options))
-        ->toThrow(RuntimeException::class, 'не найден секрет');
-
-    $fake->assertCallCount(0);
+test('configured missing secret still denies the unowned OpenAI caller before reading credentials', function (): void {
+    $options = new LlmOptions(provider: 'protected-vllm', model: 'Qwen3-4B-Instruct', temperature: 0.0,
+        maxTokens: 2048, baseUrl: 'http://vllm.internal:8000/v1', apiKeyEnv: 'P313_UNOWNED_NO_SECRET');
+    assertUnownedOpenAiDenied(fn () => app(OpenAiCompatibleProvider::class)->complete(new LlmPrompt(systemPart: 's'), $options));
 });

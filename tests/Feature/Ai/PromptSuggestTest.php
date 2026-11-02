@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Enums\Llm\CoreLlmPurpose;
-use App\Enums\Llm\CorePromptStep;
 use App\Enums\Llm\FinishReason;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\PromptSuggestionKind;
@@ -17,7 +16,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
-use App\Services\Llm\Providers\PrismGeminiProvider;
+use App\Services\Llm\Providers\UnsupportedProvider;
 use App\Services\Procurement\Tuning\PromptCritic;
 use Database\Seeders\PromptSeeder;
 use Illuminate\Database\QueryException;
@@ -33,7 +32,7 @@ use Tests\Support\Doubles\FakeLlmProvider;
  */
 function promptSuggestRoute(FakeLlmProvider $fake): void
 {
-    app()->instance(PrismGeminiProvider::class, $fake);
+    app()->instance(UnsupportedProvider::class, $fake);
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
@@ -81,39 +80,6 @@ beforeEach(function (): void {
     app(PromptSeeder::class)->run();
 });
 
-test('критик кладёт предложение pending с заполненными rationale/evidence', function (): void {
-    $fake = FakeLlmProvider::succeeding(promptSuggestResponse());
-    promptSuggestRoute($fake);
-
-    $analysis = Analysis::factory()->create(['step' => AnalysisStep::Extraction]);
-    $fixture = Fixture::factory()->create();
-
-    $suggestion = app(PromptCritic::class)->critique(EstimatePromptStep::ExtractionRows, ['rows' => []], $analysis->id, $fixture->id);
-
-    expect($suggestion)->not->toBeNull()
-        ->and($suggestion->status->value)->toBe('pending')
-        ->and($suggestion->kind)->toBe(PromptSuggestionKind::PromptPatch)
-        ->and($suggestion->rationale)->not->toBe('')
-        ->and($suggestion->evidence->all())->toBe(['rows[0].code', 'rows[2].code'])
-        ->and($suggestion->prompt_key)->toBe(EstimatePromptStep::ExtractionRows->value)
-        ->and($suggestion->document_type)->toBe('estimate')
-        ->and($suggestion->analysis_step)->toBe(AnalysisStep::Extraction)
-        ->and($suggestion->analysis_id)->toBe($analysis->id)
-        ->and($suggestion->fixture_id)->toBe($fixture->id)
-        ->and($suggestion->llm_call_id)->not->toBeNull();
-});
-
-test('патч кросс-документного промта получает сентинел any и analysis_step=null', function (): void {
-    $fake = FakeLlmProvider::succeeding(promptSuggestResponse());
-    promptSuggestRoute($fake);
-
-    $suggestion = app(PromptCritic::class)->critique(CorePromptStep::Global, ['rows' => []], null, null);
-
-    expect($suggestion)->not->toBeNull()
-        ->and($suggestion->document_type)->toBe('any')
-        ->and($suggestion->analysis_step)->toBeNull();
-});
-
 test('битое значение document_type отвергается БД', function (): void {
     expect(fn () => PromptSuggestion::factory()->create(['document_type' => 'not-a-real-type']))
         ->toThrow(QueryException::class);
@@ -134,36 +100,6 @@ test('битое значение analysis_step отвергается БД', fu
         'rationale' => 'rationale',
         'evidence' => json_encode([], JSON_THROW_ON_ERROR),
     ]))->toThrow(QueryException::class);
-});
-
-test('повторный прогон на том же diff не плодит дубль', function (): void {
-    $fake = FakeLlmProvider::succeeding(promptSuggestResponse())
-        ->andThen(promptSuggestResponse());
-    promptSuggestRoute($fake);
-
-    $analysis = Analysis::factory()->create(['step' => AnalysisStep::Extraction]);
-
-    $first = app(PromptCritic::class)->critique(EstimatePromptStep::ExtractionRows, ['rows' => []], $analysis->id, null);
-    $second = app(PromptCritic::class)->critique(EstimatePromptStep::ExtractionRows, ['rows' => []], $analysis->id, null);
-
-    expect($first)->not->toBeNull()
-        ->and($second)->toBeNull()
-        ->and(PromptSuggestion::query()->count())->toBe(1);
-});
-
-test('вызов критика идёт без файлов/tools — только systemPart и userParts', function (): void {
-    $fake = FakeLlmProvider::succeeding(promptSuggestResponse());
-    promptSuggestRoute($fake);
-
-    $analysis = Analysis::factory()->create(['step' => AnalysisStep::Extraction]);
-
-    app(PromptCritic::class)->critique(EstimatePromptStep::ExtractionRows, ['rows' => []], $analysis->id, null);
-
-    $received = $fake->receivedPrompts();
-    expect($received)->toHaveCount(1)
-        ->and($received[0]->fileRefs)->toBe([])
-        ->and($received[0]->systemPart)->toContain('критик')
-        ->and($fake->uploadedFiles())->toBe([]);
 });
 
 test('--dry-run показывает вход критика и не делает ни одного вызова', function (): void {

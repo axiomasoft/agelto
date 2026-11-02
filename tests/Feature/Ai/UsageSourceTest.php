@@ -3,10 +3,12 @@
 declare(strict_types=1);
 
 use App\Enums\Llm\CoreLlmPurpose;
-use App\Models\Llm\LlmCall;
 use App\Services\Llm\Contracts\UsageSource;
 use App\Services\Llm\Dto\UsageQuery;
 use Carbon\CarbonImmutable;
+use Tests\Support\ProcessCore\ProviderReportFixtures;
+
+beforeEach(fn () => ProviderReportFixtures::reset());
 
 // Смещения во времени НЕБОЛЬШИЕ (сутки, часы): `llm_calls` партиционирована RANGE(called_at),
 // далёкая дата ушла бы в несуществующую партицию. Тот же приём, что в `CostReportTest`.
@@ -15,9 +17,9 @@ test('дневная ось режет расход по календарным 
     $today = CarbonImmutable::now();
     $yesterday = $today->subDay();
 
-    LlmCall::factory()->create(['cost_micros' => 1_000, 'called_at' => $yesterday]);
-    LlmCall::factory()->create(['cost_micros' => 2_000, 'called_at' => $today]);
-    LlmCall::factory()->create(['cost_micros' => 3_000, 'called_at' => $today]);
+    ProviderReportFixtures::store(['cost_micros' => 1_000, 'called_at' => $yesterday]);
+    ProviderReportFixtures::store(['cost_micros' => 2_000, 'called_at' => $today]);
+    ProviderReportFixtures::store(['cost_micros' => 3_000, 'called_at' => $today]);
 
     $report = app(UsageSource::class)->usage(new UsageQuery(
         from: $today->subDays(3),
@@ -40,8 +42,8 @@ test('дневная ось режет расход по календарным 
 test('два вызова в ОДНИ сутки дают одну дневную строку', function (): void {
     $moment = CarbonImmutable::now();
 
-    LlmCall::factory()->create(['cost_micros' => 1_000, 'called_at' => $moment]);
-    LlmCall::factory()->create(['cost_micros' => 500, 'called_at' => $moment->subMinutes(10)]);
+    ProviderReportFixtures::store(['cost_micros' => 1_000, 'called_at' => $moment]);
+    ProviderReportFixtures::store(['cost_micros' => 500, 'called_at' => $moment->subMinutes(10)]);
 
     $report = app(UsageSource::class)->usage(new UsageQuery(
         from: $moment->subDay(),
@@ -59,7 +61,7 @@ test('окно полуинтервальное — from включительн�
     // имеет смысл только при таком же округлении с обеих сторон.
     $moment = CarbonImmutable::now()->subHours(2)->startOfSecond();
 
-    LlmCall::factory()->create(['cost_micros' => 700, 'called_at' => $moment]);
+    ProviderReportFixtures::store(['cost_micros' => 700, 'called_at' => $moment]);
 
     $source = app(UsageSource::class);
 
@@ -73,7 +75,7 @@ test('окно полуинтервальное — from включительн�
 });
 
 test('ось, не выбранная запросом, приходит в строке как null', function (): void {
-    LlmCall::factory()->create([
+    ProviderReportFixtures::store([
         'provider' => 'gemini',
         'model' => 'gemini-2.5-flash',
         'purpose' => CoreLlmPurpose::Screening->value,
@@ -86,7 +88,7 @@ test('ось, не выбранная запросом, приходит в ст
         byPurpose: true,
     ));
 
-    expect($report->rows[0]->purpose)->toBe(CoreLlmPurpose::Screening->value)
+    expect($report->rows[0]->purpose)->toBe('generate')
         ->and($report->rows[0]->provider)->toBeNull()
         ->and($report->rows[0]->model)->toBeNull()
         ->and($report->rows[0]->day)->toBeNull();
@@ -100,10 +102,10 @@ test('подпись приходит полем ответа — идентиф
 
     expect($report->signature->sourceId)->toBe('tracking')
         ->and($report->signature->lagSeconds)->toBe(0)
-        ->and($report->signature->toLine())->toContain('наш трекинг (llm_calls)');
+        ->and($report->signature->toLine())->toContain('provider ledger');
 });
 
-test('горизонт подписи следует за конфигом retention, а не за литералом', function (): void {
+test('financial provenance не наследует срок удаления эфемерных логов', function (): void {
     config(['partitioning.retention.llm_calls.months' => 3]);
 
     $report = app(UsageSource::class)->usage(new UsageQuery(
@@ -111,18 +113,17 @@ test('горизонт подписи следует за конфигом reten
         to: CarbonImmutable::now(),
     ));
 
-    expect($report->signature->horizonMonths)->toBe(3)
-        ->and($report->signature->horizonFrom->toDateString())
-        ->toBe(CarbonImmutable::now()->subMonths(3)->toDateString())
-        ->and($report->signature->toLine())->toContain('горизонт 3 мес.');
+    expect($report->signature->horizonMonths)->toBeNull()
+        ->and($report->signature->horizonFrom)->toBeNull()
+        ->and($report->signature->toLine())->toContain('без удаления по возрасту');
 });
 
-test('запрос за пределом горизонта несёт явный признак, а не молча пустую серию', function (): void {
+test('financial history остаётся доступной за пределами прежнего log retention', function (): void {
     config(['partitioning.retention.llm_calls.months' => 12]);
 
     $now = CarbonImmutable::now();
 
-    LlmCall::factory()->create(['cost_micros' => 900, 'called_at' => $now]);
+    ProviderReportFixtures::store(['cost_micros' => 900, 'called_at' => $now]);
 
     $source = app(UsageSource::class);
 
@@ -131,7 +132,7 @@ test('запрос за пределом горизонта несёт явны�
 
     // Признак поднят, но строки в пересечении окна с горизонтом всё равно возвращаются — ответ
     // честен и в части «что осталось», и в части «что могло быть удалено».
-    expect($beyond->beyondHorizon)->toBeTrue()
+    expect($beyond->beyondHorizon)->toBeFalse()
         ->and($beyond->rows)->toHaveCount(1)
         ->and($beyond->rows[0]->costMicros)->toBe(900)
         ->and($within->beyondHorizon)->toBeFalse();

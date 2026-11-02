@@ -21,9 +21,12 @@ final readonly class LlmSpendReport
     public function __construct(
         public Collection $rows,
         public int $totalCostMicros,
-        public int $totalSavingsMicros,
+        public ?int $totalSavingsMicros,
         public array $dailyRows,
         public UsageSignature $signature,
         public bool $beyondHorizon,
+        public string $currency = 'USD',
+        public int $unknownCalls = 0,
+        public int $reservedMicros = 0,
     ) {}
 }

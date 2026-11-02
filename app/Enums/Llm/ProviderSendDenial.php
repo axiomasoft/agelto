@@ -13,4 +13,11 @@ enum ProviderSendDenial: string
     case WireMismatch = 'wire_mismatch';
     case Unsupported = 'unsupported';
     case Dependency = 'dependency';
+    case SliceExhausted = 'slice_exhausted';
+    case RateLimit = 'rate_limit';
+    case CapacityWait = 'capacity_wait';
+    case TargetCooldown = 'target_cooldown';
+    case Paused = 'paused';
+    case PolicyReview = 'policy_review';
+    case Configuration = 'configuration';
 }

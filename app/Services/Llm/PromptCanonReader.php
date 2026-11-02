@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Llm;
 
 use App\Enums\Llm\DocumentTypeScope;
-use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use App\Services\Llm\Contracts\PromptScopeRegistry;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
@@ -30,7 +29,7 @@ final readonly class PromptCanonReader
         '*/ai/prompts/*/*.md' => true,
     ];
 
-    public function __construct(private DocumentAnalyzerRegistry $registry) {}
+    public function __construct(private PromptScopeRegistry $registry) {}
 
     /**
      * @return Collection<int, array{document_type: string, key: string, step: string, content: string, version: int, priority: int, is_active: bool}>
@@ -116,27 +115,23 @@ final readonly class PromptCanonReader
 
         // Fail fast на опечатку в document_type — AiDocumentType либо сентинел any (§1.2/§4.1
         // root/document-type-axis.md).
-        $documentType = AiDocumentType::tryFrom($front['document_type']);
-
-        if ($documentType === null && $front['document_type'] !== DocumentTypeScope::Any->value) {
-            throw new RuntimeException("Файл промта с неизвестным document_type «{$front['document_type']}»: {$path}");
-        }
+        $documentType = $this->registry->documentType($front['document_type']);
 
         // Соответствие «корень ↔ document_type» (D32, Implementation Rule 6 P3.4): кросс-документный
         // файл (document_type=any) обязан лежать в корне ядра, тип-владелец — в доменном корне.
         // Захардкоженной карты «тип → каталог» здесь нет: домен подтверждает СЕБЯ фактом попадания
         // в свой корень, а этот факт сверяется с front-matter — источником истины о владельце.
-        if ($isDomainRoot && $documentType === null) {
+        if ($isDomainRoot && $documentType === DocumentTypeScope::Any) {
             throw new RuntimeException("Файл кросс-документного назначения (document_type=any) лежит в доменном корне канона промтов — нарушает D32: {$path}");
         }
 
-        if (! $isDomainRoot && $documentType !== null) {
-            throw new RuntimeException("Файл с document_type «{$documentType->value}» лежит в корне ядра канона промтов — нарушает D32 (типу-владельцу нужен доменный корень): {$path}");
+        if (! $isDomainRoot && $documentType !== DocumentTypeScope::Any) {
+            throw new RuntimeException("Файл с document_type «{$front['document_type']}» лежит в корне ядра канона промтов — нарушает D32 (типу-владельцу нужен доменный корень): {$path}");
         }
 
         // Fail fast на опечатку в step — обязана совпадать с одним из значений реестра для
         // ЭТОГО document_type (ядерные ∪ собственные значения его анализатора, P2.5 §7 контракта).
-        $this->registry->promptStepFor($documentType ?? DocumentTypeScope::Any, $front['step']);
+        $this->registry->promptStepFor($documentType, $front['step']);
 
         $content = trim($matches['content']);
 

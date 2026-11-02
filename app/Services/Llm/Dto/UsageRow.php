@@ -23,5 +23,8 @@ final readonly class UsageRow
         public int $cachedTokens,
         public int $completionTokens,
         public int $costMicros,
+        public int $unknownCalls = 0,
+        public int $reservedMicros = 0,
+        public string $currency = 'USD',
     ) {}
 }

@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Process\StageOutcome;
+use App\Enums\Procurement\Process\StageCode;
+use App\Services\Procurement\Process\SubjectLockResolver;
 use Symfony\Component\Finder\Finder;
 use Tests\Support\ProcessCore\ProcessSourceRules;
 
@@ -80,5 +82,12 @@ test('T44 application seams и mutable ExecutionContext или Spatie Data не 
         ['app/Services/Procurement/Process/WorkRunner.php', $header.'// if ($stage === StageCode::Listing)'."\n".'$value = 1;'],
     ] as [$path, $source]) {
         expect(ProcessSourceRules::violations($path, $source))->toBe([]);
+    }
+});
+
+test('analysis storage lock membership belongs to the typed subject composition seam', function (): void {
+    $resolver = new SubjectLockResolver;
+    foreach (StageCode::cases() as $stage) {
+        expect($resolver->requiresAnalysisStorageLocks($stage))->toBe(in_array($stage->value, ['screening', 'extraction', 'publication'], true));
     }
 });

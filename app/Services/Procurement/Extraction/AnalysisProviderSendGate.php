@@ -24,11 +24,13 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Llm\ProviderSendDenial;
 use App\Enums\Llm\ProviderTransportFailure;
 use App\Enums\Procurement\Network\IdempotencyClass;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Network\TransportFailure;
 use App\Exceptions\Llm\OperationDenied;
 use App\Exceptions\Procurement\Process\ExecutionInterrupted;
+use App\Exceptions\Procurement\Process\SliceExhausted;
 use App\Repositories\Llm\Request\FinancialReservationRepository;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
@@ -70,6 +72,10 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
         $waitDeadlineNs = hrtime(true) + $this->policy->maxInlineWaitSeconds * 1_000_000_000;
         try {
             $this->revalidate($operation, $wireRequest);
+            $this->context->tick();
+            if (! $this->context->canStart(Duration::seconds($this->profile->totalSeconds))) {
+                throw new OperationDenied('full_timeout_does_not_fit');
+            }
             $provider = new ProviderKey($wireRequest->operation->context->provider);
             $plan = new OutboundRequestPlan(new ProcessUuid($operation->physicalCallId), $this->target, $wireRequest->method,
                 new SafeUrl($wireRequest->endpoint), $this->profile, TrafficClass::Provider,
@@ -79,11 +85,8 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
                 fn () => $this->revalidate($operation, $wireRequest));
             if (! $network instanceof ReservedProviderNetwork) {
                 $this->revoke($operation);
-                $denial = $network instanceof TransportDeferred && $network->reason === NetworkDeferralReason::DependencyUnavailable
-                    ? ProviderSendDenial::Dependency
-                    : ProviderSendDenial::Network;
 
-                return new SendClaimResult(null, $denial, $network instanceof TransportDeferred ? $network->retryAt->value : null);
+                return $this->networkDenial($network);
             }
             do {
                 $this->context->tick();
@@ -96,7 +99,7 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
                     $claim = $this->transactions->run(function () use ($operation, $wireRequest, $network, $provider, $snapshot): NetworkSendClaim {
                         $state = $this->owners->lock($this->context->lease(), $snapshot, $provider);
                         if ($state instanceof TransportBlocked) {
-                            throw new JointProviderSendRejected(new SendClaimResult(null, ProviderSendDenial::Revoked));
+                            throw new JointProviderSendRejected($this->networkDenial($state));
                         }
                         $this->assertConsumer($operation, $wireRequest);
                         if (! $this->requests->claimFinancialLocked($operation, $wireRequest->fingerprint)) {
@@ -105,7 +108,7 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
                         $claim = $this->permits->claimSendLocked($network->permit, $this->context, $state);
                         if (! $claim instanceof NetworkSendClaim || ! $claim->claimed) {
                             throw new JointProviderSendRejected($claim instanceof NetworkPermitWait ? $claim
-                                : new SendClaimResult(null, ProviderSendDenial::Network, $claim instanceof TransportDeferred ? $claim->retryAt->value : null));
+                                : ($claim instanceof NetworkSendClaim ? new SendClaimResult(null, ProviderSendDenial::Revoked) : $this->networkDenial($claim)));
                         }
 
                         return $claim;
@@ -146,14 +149,41 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
             return new SendClaimResult(null, match ($denied->getMessage()) {
                 'already_claimed' => ProviderSendDenial::AlreadyClaimed,
                 'sealed_wire_conflict' => ProviderSendDenial::WireMismatch,
-                default => ProviderSendDenial::Financial,
+                'full_timeout_does_not_fit' => ProviderSendDenial::SliceExhausted,
+                'network_wait_exhausted' => ProviderSendDenial::RateLimit,
+                'account_unknown_hold', 'account_exposure_hold' => ProviderSendDenial::PolicyReview,
+                'authorization_revoked' => ProviderSendDenial::Revoked,
+                default => ProviderSendDenial::Configuration,
             });
-        } catch (ExecutionInterrupted) {
+        } catch (SliceExhausted) {
             $this->abandon($network);
             $this->revoke($operation);
 
-            return new SendClaimResult(null, ProviderSendDenial::Revoked);
+            return new SendClaimResult(null, ProviderSendDenial::SliceExhausted);
+        } catch (ExecutionInterrupted $interrupted) {
+            $this->abandon($network);
+            $this->revoke($operation);
+
+            throw $interrupted;
         }
+    }
+
+    private function networkDenial(TransportDeferred|TransportBlocked $outcome): SendClaimResult
+    {
+        $reason = match ($outcome->reason) {
+            NetworkDeferralReason::NoRoute => ProviderSendDenial::Network,
+            NetworkDeferralReason::RateLimit, NetworkDeferralReason::StatusRefreshBudget => ProviderSendDenial::RateLimit,
+            NetworkDeferralReason::CapacityWait => ProviderSendDenial::CapacityWait,
+            NetworkDeferralReason::TargetCooldown => ProviderSendDenial::TargetCooldown,
+            NetworkDeferralReason::SliceExhausted => ProviderSendDenial::SliceExhausted,
+            NetworkDeferralReason::DependencyUnavailable, NetworkDeferralReason::AttemptsExhausted => ProviderSendDenial::Dependency,
+            NetworkBlockedReason::Paused => ProviderSendDenial::Paused,
+            NetworkBlockedReason::OwnerLost => ProviderSendDenial::Revoked,
+            NetworkBlockedReason::AdapterHeld, NetworkBlockedReason::TargetRetired, NetworkBlockedReason::PolicyReview => ProviderSendDenial::PolicyReview,
+            NetworkBlockedReason::CredentialHold, NetworkBlockedReason::ConfigurationHold, NetworkBlockedReason::UrlPolicyDenied => ProviderSendDenial::Configuration,
+        };
+
+        return new SendClaimResult(null, $reason, $outcome instanceof TransportDeferred ? $outcome->retryAt->value : null);
     }
 
     private function abandon(?ReservedProviderNetwork $network): void
@@ -174,8 +204,7 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
             || $link?->string('physical_call_id') !== $operation->physicalCallId || $link->string('analysis_run_id') !== $this->runId->value
             || $link->string('input_hex') !== $lease->inputHash->hex || $link->string('recipe_hex') !== $wire->operation->identity->recipeHash
             || $run->recipe->hash->hex !== $wire->operation->identity->recipeHash || $run->recipe->llm != $wire->operation->context
-            || ($wire->operation->generation !== null && ($run->recipe->prompt != $wire->operation->generation->system
-                || $run->recipe->schemaHash->hex !== $wire->operation->generation->schema->canonicalHash))) {
+            || ($wire->operation->generation !== null && ! $run->recipe->tasks->matches($wire->operation->generation))) {
             throw new OperationDenied('consumer_operation_drift');
         }
     }

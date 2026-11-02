@@ -57,7 +57,7 @@ final readonly class ProviderWireRequest
         $this->bodyHash = hash('sha256', $body);
         $this->fingerprint = hash('sha256', CanonicalJson::encode([
             'logical_key' => $operation->identity->logicalKey, 'context' => $operation->context->json,
-            'purpose' => $operation->identity->purpose->value, 'input' => $operation->identity->inputHash,
+            'purpose' => $operation->identity->purpose->value, 'task_purpose' => $operation->generation?->purpose->value, 'input' => $operation->identity->inputHash,
             'method' => $method, 'endpoint' => $endpoint, 'origin' => $allowedOrigin, 'body' => $this->bodyHash,
             'content_type' => $contentType, 'headers' => $headers,
             'asset_key' => $assetKey?->hash,

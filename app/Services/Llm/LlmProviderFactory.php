@@ -9,7 +9,7 @@ use App\Repositories\Llm\LlmProviderReadRepository;
 use App\Services\Llm\Contracts\LlmProvider;
 use App\Services\Llm\Contracts\OutboundEndpoints;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
-use App\Services\Llm\Providers\PrismGeminiProvider;
+use App\Services\Llm\Providers\UnsupportedProvider;
 use Illuminate\Contracts\Container\Container;
 
 /**
@@ -40,7 +40,7 @@ final readonly class LlmProviderFactory
     public function forDriver(string $driver): LlmProvider
     {
         return match ($driver) {
-            'gemini' => $this->container->make(PrismGeminiProvider::class),
+            'gemini' => $this->container->make(UnsupportedProvider::class),
             // OpenAI-совместимый транспорт (vLLM/Ollama, P9.4, ТЗ 04 §7) — stateless: base_url/
             // api_key приходят через `LlmOptions`, не через конструктор.
             'openai_compatible' => $this->container->make(OpenAiCompatibleProvider::class),

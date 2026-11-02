@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
-use App\Console\Support\ConsoleProgressReporter;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Exceptions\Procurement\OperationFailed;
@@ -13,12 +12,9 @@ use App\Models\Procurement\Ai\EvalRun;
 use App\Repositories\Procurement\Ai\DatasetExampleReadRepository;
 use App\Repositories\Procurement\Ai\EvalRunStoreRepository;
 use App\Services\Procurement\Analyzers\Estimate\EvalSplitPlanner;
-use App\Services\Procurement\Analyzers\Estimate\ExtractionEvalRunner;
-use App\Services\Procurement\Screening\ScreeningEvalRunner;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
-use Illuminate\Support\Collection;
 use UnexpectedValueException;
 
 /**
@@ -49,8 +45,6 @@ final class EvalRunCommand extends Command
         private readonly DatasetExampleReadRepository $datasetExamples,
         private readonly EvalRunStoreRepository $evalRuns,
         private readonly EvalSplitPlanner $splitPlanner,
-        private readonly ExtractionEvalRunner $extractionRunner,
-        private readonly ScreeningEvalRunner $screeningRunner,
     ) {
         parent::__construct();
     }
@@ -124,127 +118,9 @@ final class EvalRunCommand extends Command
             return self::SUCCESS;
         }
 
-        $progress = new ConsoleProgressReporter($this->output);
+        $this->error('Unsupported: live eval requires a registered durable provider owner. Use --dry-run.');
 
-        if ($task === 'screening') {
-            $result = $this->screeningRunner->run($examples, $datasetVersion, $progress);
-            $this->renderScreeningReport($result['run'], $result['aggregate'], $result['rows']);
-
-            return self::SUCCESS;
-        }
-
-        $result = $this->extractionRunner->run($examples, $datasetVersion, $progress);
-        $this->renderReport($result['run'], $result['aggregate'], $result['rows']);
-
-        return self::SUCCESS;
-    }
-
-    /**
-     * @param  ExtractionAggregate  $aggregate
-     * @param  Collection<int, ExtractionRow>  $rows
-     */
-    private function renderReport(EvalRun $run, array $aggregate, Collection $rows): void
-    {
-        $this->info("EvalRun #{$run->id} (dataset_version={$run->dataset_version}, {$run->provider}/{$run->model}): {$aggregate['succeeded']}/{$aggregate['examples']} эталонов обработано.");
-
-        if ($aggregate['overall'] !== null) {
-            $this->line(sprintf(
-                'Итого: precision=%.4f recall=%.4f f1=%.4f row_coverage=%.4f',
-                $aggregate['overall']['precision'],
-                $aggregate['overall']['recall'],
-                $aggregate['overall']['f1'],
-                $aggregate['row_coverage'],
-            ));
-        }
-
-        /** @var list<array{example: DatasetExample, metrics: array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}}> $successfulRows */
-        $successfulRows = [];
-
-        foreach ($rows as $row) {
-            if (! $this->hasExtractionMetrics($row['metrics'])) {
-                continue;
-            }
-
-            $successfulRows[] = $row;
-        }
-
-        $worst = collect($successfulRows)
-            ->sortBy(fn (array $row): float => $row['metrics']['overall']['f1'])
-            ->take(10);
-
-        if ($worst->isEmpty()) {
-            return;
-        }
-
-        $this->table(
-            ['dataset_example_id', 'f1', 'precision', 'recall', 'row_coverage'],
-            $worst->map(fn (array $row): array => [
-                $row['example']->id,
-                $row['metrics']['overall']['f1'],
-                $row['metrics']['overall']['precision'],
-                $row['metrics']['overall']['recall'],
-                $row['metrics']['row_coverage'],
-            ])->all(),
-        );
-    }
-
-    /**
-     * @param  ScreeningAggregate  $aggregate
-     * @param  Collection<int, ScreeningRow>  $rows
-     */
-    private function renderScreeningReport(EvalRun $run, array $aggregate, Collection $rows): void
-    {
-        $this->info("EvalRun #{$run->id} (dataset_version={$run->dataset_version}, {$run->provider}/{$run->model}): screening — {$aggregate['total']} эталонов.");
-
-        if ($aggregate['accuracy'] !== null) {
-            $this->line(sprintf(
-                'Итого: accuracy=%.4f · false_positive_rate=%s · false_negative_rate=%s · всего=%d',
-                $aggregate['accuracy'],
-                $aggregate['false_positive_rate'] === null ? 'n/a' : sprintf('%.4f', $aggregate['false_positive_rate']),
-                $aggregate['false_negative_rate'] === null ? 'n/a' : sprintf('%.4f', $aggregate['false_negative_rate']),
-                $aggregate['total'],
-            ));
-        }
-
-        if ($aggregate['confusion'] !== []) {
-            $confusionRows = [];
-
-            foreach ($aggregate['confusion'] as $gold => $predictedCounts) {
-                foreach ($predictedCounts as $predicted => $count) {
-                    $confusionRows[] = [$gold, $predicted, $count];
-                }
-            }
-
-            $this->table(['ожидали', 'получили', 'кол-во'], $confusionRows);
-        }
-
-        /** @var list<array{example: DatasetExample, comparison: array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null}}> $mismatchRows */
-        $mismatchRows = [];
-
-        foreach ($rows as $row) {
-            if (! $this->hasScreeningComparison($row['comparison']) || $row['comparison']['match']) {
-                continue;
-            }
-
-            $mismatchRows[] = $row;
-        }
-
-        $mismatches = collect($mismatchRows);
-
-        if ($mismatches->isEmpty()) {
-            return;
-        }
-
-        $this->table(
-            ['код эталона', 'ожидали', 'получили', 'confidence', 'ignore_reason'],
-            $mismatches->map(fn (array $row): array => [
-                $row['comparison']['code'] ?? "#{$row['example']->id}",
-                $row['comparison']['gold'],
-                $row['comparison']['predicted'],
-                $row['comparison']['confidence'],
-                '—',
-            ])->all(),
-        );
+        return self::FAILURE;
     }
 
     private function optionString(string $name): string
@@ -256,25 +132,5 @@ final class EvalRunCommand extends Command
         }
 
         return $value;
-    }
-
-    /**
-     * @param  ExtractionMetrics  $metrics
-     *
-     * @phpstan-assert-if-true array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float} $metrics
-     */
-    private function hasExtractionMetrics(array $metrics): bool
-    {
-        return ! isset($metrics['error']);
-    }
-
-    /**
-     * @param  ScreeningComparison  $comparison
-     *
-     * @phpstan-assert-if-true array{gold: string, predicted: string, match: bool, gold_is_estimate: bool, predicted_is_estimate: bool, code: string|null, confidence: float, classification_note: string|null} $comparison
-     */
-    private function hasScreeningComparison(array $comparison): bool
-    {
-        return ! isset($comparison['error']);
     }
 }

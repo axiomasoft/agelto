@@ -3,15 +3,12 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Acquisition\ListingFetched;
-use App\Services\Llm\Dto\CacheableContent;
-use App\Services\Llm\Dto\LlmCacheOptions;
+use App\Exceptions\Llm\UnsupportedConsumer;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
-use App\Services\Llm\Providers\PrismGeminiProvider;
 use App\Services\Platforms\Eis\Filters\Okpd2NodeSynchronizer;
 use App\Services\Procurement\Process\WorkFinalizer;
-use Carbon\CarbonInterval;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Platforms\Eis\EisCsvFixture;
@@ -103,7 +100,7 @@ test('загрузчик документа читает настоящий boun
     }
 })->group('t03', 'p35');
 
-test('OpenAI SDK отправляет POST через общий handler с provider owner и permit', function (): void {
+test('OpenAI caller without a durable financial owner refuses before any ordinary bridge or HTTP', function (): void {
     $wire = new WireFixture;
     try {
         C::provider($wire);
@@ -112,31 +109,13 @@ test('OpenAI SDK отправляет POST через общий handler с prov
                 'content' => [['type' => 'output_text', 'text' => 'готово', 'annotations' => []]]]],
             'usage' => ['input_tokens' => 1, 'output_tokens' => 2, 'total_tokens' => 3]], JSON_THROW_ON_ERROR);
         $wire->respond('/v1/responses', $body, headers: ['Content-Type' => 'application/json'], method: 'POST');
-        $result = app(OpenAiCompatibleProvider::class)->complete(new LlmPrompt(systemPart: 'test'),
-            new LlmOptions('wire', 'wire-model', 0.0, 32, baseUrl: $wire->url('/v1')->reveal()));
-        expect($result->data)->toBe('готово')
-            ->and(DB::table('prc_outbound_operations')->value('provider_key'))->toBe('wire')
-            ->and(DB::table('prc_outbound_operations')->value('platform_id'))->toBeNull()
-            ->and($wire->receipts()[0]['method'])->toBe('POST');
-        C::assertAccounting($wire, 1, 'legacy.provider');
+        expect(fn () => app(OpenAiCompatibleProvider::class)->complete(new LlmPrompt(systemPart: 'test'),
+            new LlmOptions('wire', 'wire-model', 0.0, 32, baseUrl: $wire->url('/v1')->reveal())))
+            ->toThrow(UnsupportedConsumer::class);
+        expect(DB::table('prc_outbound_operations')->count())->toBe(0)
+            ->and(DB::table('prc_request_attempts')->count())->toBe(0)
+            ->and($wire->receipts())->toBeEmpty();
     } finally {
-        $wire->stop();
-    }
-})->group('t03', 'p26');
-
-test('Gemini cache SDK использует тот же handler вместо скрытого сетевого клиента', function (): void {
-    $wire = new WireFixture;
-    try {
-        C::provider($wire);
-        config(['ai.gemini.files.base_url' => $wire->url('/')->reveal(), 'ai.gemini.api_key_env' => 'WIRE_SYNTHETIC_GEMINI_KEY']);
-        putenv('WIRE_SYNTHETIC_GEMINI_KEY=synthetic-test-key');
-        $wire->respond('/v1beta/cachedContents', json_encode(['name' => 'cachedContents/wire',
-            'expireTime' => '2030-01-01T00:00:00Z'], JSON_THROW_ON_ERROR), headers: ['Content-Type' => 'application/json'], method: 'POST');
-        $handle = app(PrismGeminiProvider::class)->createCache(new CacheableContent('test'), new LlmCacheOptions('wire', CarbonInterval::minutes(1)));
-        expect($handle->id)->toBe('cachedContents/wire');
-        C::assertAccounting($wire, 1, 'legacy.provider');
-    } finally {
-        putenv('WIRE_SYNTHETIC_GEMINI_KEY');
         $wire->stop();
     }
 })->group('t03', 'p26');

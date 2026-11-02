@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\Analyzer;
 
+use App\Exceptions\Llm\UnsupportedConsumer;
 use App\Models\Procurement\Ai\Analysis;
 use App\Services\Procurement\Contracts\DocumentAnalyzer;
 use App\Services\Procurement\Contracts\Dto\AnalysisSummary;
@@ -29,7 +30,7 @@ final readonly class TechSpecFakeAnalyzer implements DocumentAnalyzer
 
     public function dispatchExtraction(int $documentId): void
     {
-        TechSpecFakeExtractionJob::dispatch($documentId)->afterCommit();
+        throw new UnsupportedConsumer;
     }
 
     public function promptSteps(): array

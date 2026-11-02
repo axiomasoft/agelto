@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Models\Llm\LlmCall;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use Tests\Support\ProcessCore\ProviderReportFixtures;
 
 use function Pest\Laravel\artisan;
+
+beforeEach(fn () => ProviderReportFixtures::reset());
 
 // Смещения во времени НЕБОЛЬШИЕ (часы/сутки): `llm_calls` партиционирована RANGE(called_at),
 // далёкая дата ушла бы в несуществующую партицию — тот же приём, что в `UsageSourceTest`.
@@ -25,7 +27,7 @@ function billingExportPath(string $contents): string
 test('дельта НИЖЕ порога — превышение не объявлено', function (): void {
     $today = CarbonImmutable::now()->startOfDay();
 
-    LlmCall::factory()->create(['cost_micros' => 10_000_000, 'called_at' => $today->addHours(2)]);
+    ProviderReportFixtures::store(['cost_micros' => 10_000_000, 'called_at' => $today->addHours(2)]);
 
     $export = billingExportPath("date,cost\n{$today->toDateString()},10.20\n");
 
@@ -41,7 +43,7 @@ test('дельта НИЖЕ порога — превышение не объя�
 test('дельта ВЫШЕ порога — объявлена с процентом и разбивкой по дням', function (): void {
     $today = CarbonImmutable::now()->startOfDay();
 
-    LlmCall::factory()->create(['cost_micros' => 2_300_000, 'called_at' => $today->addHours(2)]);
+    ProviderReportFixtures::store(['cost_micros' => 2_300_000, 'called_at' => $today->addHours(2)]);
 
     $export = billingExportPath("date,cost\n{$today->toDateString()},12.00\n");
 
@@ -57,7 +59,7 @@ test('дельта ВЫШЕ порога — объявлена с процен�
 test('дельта ВЫШЕ порога с --fail-on-breach даёт ненулевой код возврата', function (): void {
     $today = CarbonImmutable::now()->startOfDay();
 
-    LlmCall::factory()->create(['cost_micros' => 2_300_000, 'called_at' => $today->addHours(2)]);
+    ProviderReportFixtures::store(['cost_micros' => 2_300_000, 'called_at' => $today->addHours(2)]);
 
     $export = billingExportPath("date,cost\n{$today->toDateString()},12.00\n");
 
@@ -111,7 +113,7 @@ test('currency ≠ USD — отказ, курс не пересчитывает�
 test('порог следует за config, а не литералом — одна дельта, разные вердикты', function (): void {
     $today = CarbonImmutable::now()->startOfDay();
 
-    LlmCall::factory()->create(['cost_micros' => 10_000_000, 'called_at' => $today->addHours(2)]);
+    ProviderReportFixtures::store(['cost_micros' => 10_000_000, 'called_at' => $today->addHours(2)]);
 
     $export = billingExportPath("date,cost\n{$today->toDateString()},12.00\n");
 

@@ -12,6 +12,7 @@ use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\StageSucceeded;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\StageCode;
+use App\Repositories\Procurement\Ai\AnalysisRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Process\Contracts\StageHandler;
 use Illuminate\Support\Facades\Storage;
@@ -26,10 +27,11 @@ final class PreparedFixtureAnalysisHandler implements StageHandler
     public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
     {
         if (! app()->environment('testing') || getenv('PROCESS_CORE_TEST') !== '1'
-            || ! $input instanceof ScreeningInput || $input->screeningRecipeHash != ContentHash::of('prepared-fixture-analysis/1')) {
+            || ! $input instanceof ScreeningInput) {
             throw new \LogicException('Prepared fixture analysis is testing-only.');
         }
         $execution->tick();
+        app(AnalysisRepository::class)->forScreening($input);
         $representation = LedgerRow::one("SELECT disk,storage_path,coverage_manifest::text AS coverage,coverage_manifest_schema_version
             FROM prc_document_representations WHERE document_version_id=? AND content_hash=decode(?,'hex') AND range_key='complete'",
             [$input->documentVersionId, $input->representationHash->hex])

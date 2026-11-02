@@ -21,10 +21,11 @@ use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
-use App\Repositories\Procurement\Document\DocumentVersionRepository;
 use App\Repositories\Procurement\Document\DocumentWorkRepository;
+use App\Repositories\Procurement\Process\AuthorityRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Document\DocumentFeeder;
+use App\Services\Procurement\Extraction\AnalysisRuntime;
 use App\Services\Procurement\Prepare\PdfPreparationTools;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\ProcessTransaction;
@@ -35,6 +36,7 @@ use App\Services\Procurement\Process\WorkRunner;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\AiFixtures;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
@@ -59,16 +61,16 @@ beforeEach(function (): void {
 /** Fixture activation is explicit and local to this PHP test; the real pending intent stays pending. */
 function p36ScreeningWork(DocumentRepresentation $representation, string $cohort, int $platformId, ProcessUuid $run): WorkId
 {
+    $analysis = AiFixtures::pinScreening($representation->id);
     $input = new ScreeningInput(
         documentVersionId: $representation->document_version_id,
         representationHash: new ContentHash($representation->content_hash),
-        screeningRecipeHash: ContentHash::of('prepared-fixture-analysis/1'),
+        screeningRecipeHash: $analysis->recipe->hash,
     );
     $work = new WorkId(LedgerFixtures::uuid());
-    $head = app(DocumentVersionRepository::class)->head($representation->version->document_id);
-    app(ProcessTransaction::class)->run(function () use ($work, $input, $head, $cohort, $platformId, $run): void {
+    app(ProcessTransaction::class)->run(function () use ($work, $input, $analysis, $cohort, $platformId, $run): void {
         $works = app(WorkStoreRepository::class);
-        $works->storeWork(id: $work, input: $input, inputRevision: $head->generation, intentId: null,
+        $works->storeWork(id: $work, input: $input, inputRevision: $analysis->expectedAnalysisGeneration, intentId: null,
             cohortKey: $cohort, platformId: $platformId, originRunId: $run, priority: 100,
             eventId: LedgerFixtures::uuid(), projectionMessageId: LedgerFixtures::uuid());
         $works->linkRun(runId: $run, workId: $work, relation: RunWorkRelation::Created, role: AccountingRole::Required);
@@ -115,9 +117,10 @@ test('подготовленные bytes двух площадок и manual п�
         ->and(DB::table('prc_process_run_work')->where('work_id', $prepare->id)->where('run_id', $prepare->origin_run_id)->value('accounting_role'))->toBe('required');
     $pending = DB::table('prc_operation_intents')->where('stage', 'screening')->sole();
     expect([$pending->state, $pending->pending_reason, $pending->subject_id, $pending->expected_head_generation])
-        ->toBe(['pending', 'handler_not_activated', (string) $revision->id, $revision->head->generation])
-        ->and(app(StageRegistry::class)->handlerVersion(StageCode::Screening))->toBeNull();
+        ->toBe(['pending', null, (string) $revision->id, $revision->head->generation])
+        ->and(app(StageRegistry::class)->handlerVersion(StageCode::Screening))->toBe(AnalysisRuntime::VERSION);
 
+    app()->instance(StageRegistry::class, new StageRegistry);
     ExecutionFixtures::authority([StageCode::Screening]);
     DB::statement('CREATE TEMP TABLE p36_fixture_publications(work_id uuid PRIMARY KEY,version_id bigint NOT NULL,disk text NOT NULL,object_key text NOT NULL,content_hash text NOT NULL)');
     $this->beforeApplicationDestroyed(fn () => DB::statement('DROP TABLE IF EXISTS p36_fixture_publications'));
@@ -132,8 +135,7 @@ test('подготовленные bytes двух площадок и manual п�
         heartbeatInterval: Duration::seconds(15), finalizationReserve: Duration::seconds(15),
         leaseSafety: Duration::seconds(30),
     );
-    $input = new ScreeningInput(documentVersionId: $revision->id, representationHash: new ContentHash($representation->content_hash),
-        screeningRecipeHash: ContentHash::of('prepared-fixture-analysis/1'));
+    $input = app(AuthorityRepository::class)->readAuthoritySnapshot($work)->input;
     $outcome = $handler->execute(input: $input, execution: $execution);
     if ($boundary === 'new_head') {
         DocumentStorageFixtures::observe(head: $revision->head,
@@ -171,9 +173,9 @@ test('подготовленные bytes двух площадок и manual п�
             ->and(DB::table('prc_process_transitions')->where('work_id', $work->value->value)->where('new_state', 'succeeded')->count())->toBe(1)
             ->and(DB::table('prc_process_reservations')->count())->toBe(0);
     }
-    expect(DB::table('prc_operation_intents')->where('id', $pending->id)->value('pending_reason'))->toBe('handler_not_activated')
+    expect(DB::table('prc_operation_intents')->where('id', $pending->id)->value('pending_reason'))->toBeNull()
         ->and(DB::table('prc_request_attempts')->count())->toBe(0)
         ->and(DB::table('prc_estimates')->count())->toBe(0)
-        ->and(DB::table('prc_ai_analysis_runs')->count())->toBe(0)
+        ->and(DB::table('prc_analysis_runs')->count())->toBe(1)
         ->and(app(DocumentFeeder::class)->reconcile())->toBe($boundary === 'new_head' ? 1 : 0);
 })->with(['eis', 'json', 'manual'])->with(['complete', 'new_head', 'journal_rollback']);

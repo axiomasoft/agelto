@@ -24,7 +24,10 @@ final class ExtractionContract
             throw new \LogicException('Missing pinned extraction prompt.');
         }
 
-        return new StructuredTask(ExtractionOutput::class, new PromptSnapshot($content, 1), TaskPurpose::Rows,
+        /** @var StructuredTask<ExtractionOutput> $task */
+        $task = new StructuredTask(ExtractionOutput::class, new PromptSnapshot($content, 1), TaskPurpose::Rows,
             new ExtractionSemanticValidator($range, $estimateOrdinal, $anchors));
+
+        return $task;
     }
 }
