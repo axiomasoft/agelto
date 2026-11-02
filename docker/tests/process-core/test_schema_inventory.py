@@ -133,7 +133,7 @@ class SchemaInventoryTest(unittest.TestCase):
 
     def test_complete_inventory_and_full_document_pass(self):
         # P3.1 adds immutable document storage while preserving legacy consumers.
-        self.assertEqual(self.inventory["current_item"], "P3.1")
+        self.assertEqual(self.inventory["current_item"], "P3.5")
         self.assertEqual(len(self.inventory["migrations"]), 81)
         self.assertEqual(len(self.inventory["baseline"]["tables"]), 113)
         self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1344)
@@ -157,7 +157,7 @@ class SchemaInventoryTest(unittest.TestCase):
         self.assertRejected("created carrier missing from installed baseline: prc_process_work")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["baseline"]["tables"]["prc_analysis_windows"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
-        self.assertRejected("future carrier activated in P3.1 baseline: prc_analysis_windows")
+        self.assertRejected("future carrier activated in P3.5 baseline: prc_analysis_windows")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["current_item"] = "P1.1"
         self.assertRejected("future carrier activated in P1.1 baseline: prc_process_work")

@@ -26,7 +26,7 @@ final readonly class FileLocationResolver
         return $this->resolveWithFallback(
             carrier: 'document-version',
             recordId: $version->id,
-            disk: $version->disk ?? $this->currentDocumentsDisk(),
+            disk: $version->disk,
             path: $version->storage_path,
             fallbackDisks: $this->documentsFallbackDisks(),
         );
@@ -37,7 +37,7 @@ final readonly class FileLocationResolver
         return $this->resolveWithFallback(
             carrier: 'representation',
             recordId: $representation->id,
-            disk: $representation->disk ?? $this->currentDocumentsDisk(),
+            disk: $representation->disk,
             path: $representation->storage_path,
             fallbackDisks: $this->documentsFallbackDisks(),
         );

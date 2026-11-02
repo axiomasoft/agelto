@@ -409,3 +409,25 @@ PHP converter supervisor использует Linux `/proc`, process groups и s
 active marker или неподтверждённое удаление сохраняют charge. Внешний reconciler, который
 выбирает такие workspaces, подключается при runtime cutover P3.5. Одно истечение lease не
 разрешает release storage. Full T10/T11 и feeder acceptance остаются P3.5/P3.6.
+
+## P3.5 document cutover checks
+
+`core-test-concurrency` includes `T11DocumentFeederConcurrencyTest`: two actual PHP processes and
+PostgreSQL connections, W10/W20, manual+two platform cohorts, parent/child outstanding counts,
+running C and immutable age ordering. The fixture stage is screening; shared parent policy also
+limits extraction after its owning schema/handler activation. This subset is not full T16 load.
+
+`core-test-documents` includes the registered reference→download→prepare path through actual
+Process delivery, local HTTP and storage, source-disabled preparation, pending real AI boundary,
+immutable versions and object repair. The retained format corpus calls a test-only strategy
+probe; it does not dispatch retired jobs. D18 mappings bind changed lifecycle scenarios to their
+new executed cases. `core-test-regression` continues to enforce every original scenario or its
+explicit executed replacement, without TIA, skips or guard exceptions.
+
+If `core-test-up` reports a stale runtime Git snapshot, first run guarded `core-test-down`. Only
+after successful shutdown remove `docker/tests/process-core/runtime-inputs/` and rerun up. Never
+reuse stale metadata, relax identity guards or touch dev volumes.
+
+The full regression CLI runner has an explicit finite `memory_limit=1G` for the retained Laravel/Filament corpus. Worker/application memory settings are unchanged. This is an isolated test resource allowance, not a production memory/throughput claim.
+
+P3.5 per-case scenario dispositions: [document cutover](document-cutover-p35.md).

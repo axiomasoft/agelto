@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Services\Procurement\PipelineRecoveryReconciler;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\Historical\AnalysisRecoveryHarness;
+use Tests\Support\ProcessCore\Historical\PrepareJobHarness;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 test('после commit Prepared без screening dispatch reconciler ставит единственный следующий job', function (): void {
     Queue::fake();
@@ -23,7 +26,7 @@ test('после commit Prepared без screening dispatch reconciler стави
     $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
     AnalysisRun::factory()->create(['document_version_id' => $version->id]);
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 1))->toBe(1);
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 1))->toBe(1);
     Queue::assertPushed(ScreeningJob::class, fn (ScreeningJob $job): bool => $job->documentId === $document->id);
     Queue::assertPushed(ScreeningJob::class, 1);
 });
@@ -35,7 +38,7 @@ test('orphan prepared без run создаёт один initial run и восс
     $document = Document::factory()->create(['status' => DocumentStatus::Prepared]);
     $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 1))->toBe(1)
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 1))->toBe(1)
         ->and(AnalysisRun::query()->where('document_version_id', $version->id)->count())->toBe(1);
 
     Queue::assertPushed(ScreeningJob::class, 1);
@@ -52,7 +55,7 @@ test('terminal run history не запускается повторно recovery
         'finished_at' => now(),
     ]);
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 1))->toBe(0)
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 1))->toBe(0)
         ->and(AnalysisRun::query()->where('document_version_id', $version->id)->count())->toBe(1);
 
     Queue::assertNotPushed(ScreeningJob::class);
@@ -70,7 +73,7 @@ test('recovery limit ограничивает входную выборку, а 
     DB::enableQueryLog();
     DB::flushQueryLog();
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 1))->toBe(1);
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 1))->toBe(1);
 
     $queries = count(DB::getQueryLog());
     DB::disableQueryLog();
@@ -98,7 +101,7 @@ test('PrepareDocumentJob откатывает Prepared при отказе INSER
         'disk' => 's3',
     ]);
 
-    expect(fn () => (new PrepareDocumentJob(
+    expect(fn () => (new PrepareJobHarness(
         documentId: $document->id,
         mode: RunMode::Manual,
         initiatedBy: PHP_INT_MAX,
@@ -115,7 +118,7 @@ test('два recovery ticks создают один run и один claimed cont
     $document = Document::factory()->create(['status' => DocumentStatus::Prepared]);
     $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
 
-    $reconciler = app(PipelineRecoveryReconciler::class);
+    $reconciler = app(AnalysisRecoveryHarness::class);
 
     expect($reconciler->reconcile(limit: 1))->toBe(1)
         ->and($reconciler->reconcile(limit: 1))->toBe(0)
@@ -128,7 +131,7 @@ test('orphan Prepared ждёт выключенный screening и восста�
     Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Prepared]);
     $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
-    $reconciler = app(PipelineRecoveryReconciler::class);
+    $reconciler = app(AnalysisRecoveryHarness::class);
 
     config(['ai.screening.enabled' => false]);
     expect($reconciler->reconcile(limit: 1))->toBe(0)
@@ -156,6 +159,6 @@ test('terminal history перед due документом не вызывает
     $dueVersion = DocumentVersion::factory()->create(['document_id' => $due->id]);
     AnalysisRun::factory()->create(['document_version_id' => $dueVersion->id]);
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 1))->toBe(1);
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 1))->toBe(1);
     Queue::assertPushed(ScreeningJob::class, fn (ScreeningJob $job): bool => $job->documentId === $due->id);
 });

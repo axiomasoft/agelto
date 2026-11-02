@@ -47,9 +47,6 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
 
     public function dispatchExtraction(int $documentId): void
     {
-        if (! config('crawler.downstream_enabled', true)) {
-            return;
-        }
 
         EstimateExtractionJob::dispatch($documentId)->afterCommit();
     }

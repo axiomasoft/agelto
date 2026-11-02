@@ -22,10 +22,17 @@ final readonly class EisPolicy
 
     public EisListingPolicy $listing;
 
+    public string $documentAccessResolver;
+
     public function __construct(Repository $config)
     {
         $root = $config->get('platforms.eis');
-        $this->keys($root, ['block_size', 'source_timezone', 'endpoints', 'listing_bounds'], 'platforms.eis');
+        $this->keys($root, ['block_size', 'source_timezone', 'endpoints', 'listing_bounds', 'document_access_resolver'], 'platforms.eis');
+        $resolver = $root['document_access_resolver'];
+        if (! is_string($resolver) || $resolver === '') {
+            throw new InvalidPlatformDefinition('platforms.eis.document_access_resolver: implementation class required.');
+        }
+        $this->documentAccessResolver = $resolver;
         $bounds = $root['listing_bounds'];
         $this->keys($bounds, ['max_blocks', 'min_interval_cents', 'max_depth', 'max_partitions', 'parser_seconds'], 'platforms.eis.listing_bounds');
         foreach ($bounds as $key => $value) {

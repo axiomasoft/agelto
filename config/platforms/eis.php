@@ -1,10 +1,12 @@
 <?php
 
 declare(strict_types=1);
+use App\Services\Procurement\Document\CatalogDocumentAccess;
 
 // Config-only Definition policy, used by validation and explicit catalog sync.
 return [
     'block_size' => 500,
+    'document_access_resolver' => CatalogDocumentAccess::class,
     'source_timezone' => env('EIS_SOURCE_TIMEZONE', 'Europe/Moscow'),
     'listing_bounds' => [
         'max_blocks' => 12,

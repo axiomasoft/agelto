@@ -17,8 +17,8 @@ beforeEach(function (): void {
     $this->resolver = new FileLocationResolver;
 });
 
-test('forDocumentVersion фолбэкает на текущий диск документов при пустой колонке', function (): void {
-    $version = DocumentVersion::factory()->create(['disk' => null, 'storage_path' => 'documents/aa/hash']);
+test('forDocumentVersion использует обязательный записанный диск canonical версии', function (): void {
+    $version = DocumentVersion::factory()->create(['disk' => app(FileLocationResolver::class)->currentDocumentsDisk(), 'storage_path' => 'documents/aa/hash']);
 
     $location = $this->resolver->forDocumentVersion($version);
 
@@ -34,8 +34,8 @@ test('forDocumentVersion берёт диск из записи, если он м
     expect($location->disk)->toBe('documents_v2');
 });
 
-test('forRepresentation фолбэкает на текущий диск документов при пустой колонке', function (): void {
-    $representation = DocumentRepresentation::factory()->create(['disk' => null, 'storage_path' => 'documents/aa/hash.prepared.pdf']);
+test('forRepresentation использует обязательный записанный диск canonical представления', function (): void {
+    $representation = DocumentRepresentation::factory()->create(['disk' => app(FileLocationResolver::class)->currentDocumentsDisk(), 'storage_path' => 'documents/aa/hash.prepared.pdf']);
 
     $location = $this->resolver->forRepresentation($representation);
 

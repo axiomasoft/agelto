@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -17,6 +16,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\PreparationStrategyProbe;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 function fixtureContent(string $name): string
 {
@@ -43,34 +46,34 @@ function seedVersion(Document $document, string $fixture, string $extension): Do
     ]);
 }
 
-test('подготовка PDF — PassthroughStrategy, документ переходит в prepared без ScreeningJob (флаг выключен)', function () {
+test('format corpus: подготовка PDF — PassthroughStrategy, документ переходит в prepared без ScreeningJob (флаг выключен)', function () {
     Storage::fake('s3');
     Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample-v1.pdf', 'pdf');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
     Queue::assertNothingPushed();
 });
 
-test('подготовка PNG — ImageStrategy без конвертации, документ переходит в prepared', function () {
+test('format corpus: подготовка PNG — ImageStrategy без конвертации, документ переходит в prepared', function () {
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample.png', 'png');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
 });
 
-test('подготовка XLSX — конвертация в PDF записана представлением kind=pdf, документ prepared', function () {
+test('format corpus: подготовка XLSX — конвертация в PDF записана представлением kind=pdf, документ prepared', function () {
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = seedVersion($document, 'sample.xlsx', 'xlsx');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
 
@@ -84,13 +87,13 @@ test('подготовка XLSX — конвертация в PDF записан
     Storage::disk('s3')->assertExists($representation->storage_path);
 })->skip(fn () => ! extension_loaded('gd'), 'требует gd (Mpdf) — см. docker/php/Dockerfile');
 
-test('XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared (D26/P3.4)', function () {
+test('format corpus: XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared (D26/P3.4)', function () {
     config(['ai.prepare.xlsx_max_rows' => 1]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = seedVersion($document, 'sample.xlsx', 'xlsx');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     // Лимит ИНСТРУМЕНТА подготовки ≠ приговор документу (D26/D28): с P3.4 xlsx сверх лимита
     // идёт через LibreOffice-фолбэк `SpreadsheetStrategy`, а не оригиналом через Passthrough.
@@ -101,13 +104,13 @@ test('XLSX сверх лимита строк — ветка LibreOffice про�
         ->and($representation->meta['tool'])->toBe('libreoffice');
 });
 
-test('XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален (D26/P3.4)', function () {
+test('format corpus: XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален (D26/P3.4)', function () {
     config(['ai.prepare.xlsx_max_mb' => 0]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = seedVersion($document, 'sample.xlsx', 'xlsx');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     $representation = app(RepresentationStoreRepository::class)->find($version, RepresentationKind::Pdf);
 
@@ -116,7 +119,7 @@ test('XLSX сверх лимита размера — ветка LibreOffice п�
         ->and($representation->meta['tool'])->toBe('libreoffice');
 });
 
-test('XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed) (P3.4)', function () {
+test('format corpus: XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed) (P3.4)', function () {
     config([
         'ai.prepare.xlsx_max_mb' => 0,
         'ai.prepare.strategies' => [SpreadsheetStrategy::class],
@@ -128,20 +131,20 @@ test('XLSX — обе ветки SpreadsheetStrategy упали — unprocessabl
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample.xlsx', 'xlsx');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     $document->refresh();
     expect($document->status)->toBe(DocumentStatus::Unprocessable)
         ->and($document->last_error)->toContain('conversion_failed');
 });
 
-test('архив с xlsx внутри — создаёт дочерний Document+Version с parent_version_id и событием document_added', function () {
+test('format corpus: архив с xlsx внутри — создаёт дочерний Document+Version с parent_version_id и событием document_added', function () {
     Storage::fake('s3');
     Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = seedVersion($document, 'sample-with-xlsx.zip', 'zip');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Expanded);
 
@@ -156,7 +159,7 @@ test('архив с xlsx внутри — создаёт дочерний Docume
     expect($childVersion->parent_version_id)->toBe($version->id);
     expect($childVersion->archive_entry_path)->toBe('estimates/sample.xlsx');
 
-    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job): bool => $job->documentId === $child->id);
+    Queue::assertNothingPushed();
     Queue::assertNotPushed(ScreeningJob::class);
 
     expect(ProcurementEvent::query()
@@ -166,20 +169,20 @@ test('архив с xlsx внутри — создаёт дочерний Docume
         ->count())->toBe(1);
 });
 
-test('повторный прогон подготовки архива — дочерний документ не дублируется', function () {
+test('format corpus: повторный прогон подготовки архива — дочерний документ не дублируется', function () {
     Storage::fake('s3');
     Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample-with-xlsx.zip', 'zip');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
     $document->update(['status' => DocumentStatus::Downloaded]);
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     expect(Document::query()->where('procurement_id', $document->procurement_id)->where('id', '!=', $document->id)->count())->toBe(1);
 });
 
-test('архив читается с recorded disk, а child пишется на current disk', function () {
+test('format corpus: архив читается с recorded disk, а child пишется на current disk', function () {
     Storage::fake('s3');
     Storage::fake('legacy-documents');
     Queue::fake();
@@ -201,7 +204,7 @@ test('архив читается с recorded disk, а child пишется на
         'downloaded_at' => now(),
     ]);
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     $childVersion = DocumentVersion::query()->where('parent_version_id', $version->id)->sole();
     expect($document->refresh()->status)->toBe(DocumentStatus::Expanded)
@@ -209,7 +212,7 @@ test('архив читается с recorded disk, а child пишется на
     Storage::disk('s3')->assertExists($childVersion->storage_path);
 });
 
-test('identity archive entry принадлежит паре parent version и normalized path', function () {
+test('format corpus: identity archive entry принадлежит паре parent version и normalized path', function () {
     $parentA = DocumentVersion::factory()->create();
     $parentB = DocumentVersion::factory()->create();
 
@@ -231,7 +234,7 @@ test('identity archive entry принадлежит паре parent version и n
     expect($differentParent->archive_entry_path)->toBe('estimates/sample.xlsx');
 });
 
-test('осиротевший дочерний документ архива (child без Version) — ретрай дописывает версию, а не пропускает индексацию', function () {
+test('format corpus: осиротевший дочерний документ архива (child без Version) — ретрай дописывает версию, а не пропускает индексацию', function () {
     // Регрессия ревью-находки P4 HIGH: до фикса `indexChild()` без DB::transaction мог
     // закоммитить child Document раньше DocumentVersion (например, при транзиентном сбое
     // S3-put), а гард идемпотентности по findByExternalId(Document) находил осиротевший
@@ -250,7 +253,7 @@ test('осиротевший дочерний документ архива (chi
         'status' => DocumentStatus::Downloaded,
     ]);
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Expanded);
 
@@ -268,13 +271,13 @@ test('осиротевший дочерний документ архива (chi
         ->and($childVersion->archive_entry_path)->toBe('estimates/sample.xlsx');
 });
 
-test('архив сверх лимита вложенности (max_depth=0) — unprocessable(zip_bomb), без распаковки', function () {
+test('format corpus: архив сверх лимита вложенности (max_depth=0) — unprocessable(zip_bomb), без распаковки', function () {
     config(['ai.prepare.archive.max_depth' => 0]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample-with-xlsx.zip', 'zip');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     $document->refresh();
     expect($document->status)->toBe(DocumentStatus::Unprocessable)
@@ -283,41 +286,41 @@ test('архив сверх лимита вложенности (max_depth=0) �
     expect(Document::query()->where('id', '!=', $document->id)->count())->toBe(0);
 });
 
-test('архив сверх лимита числа файлов — unprocessable(zip_bomb)', function () {
+test('format corpus: архив сверх лимита числа файлов — unprocessable(zip_bomb)', function () {
     config(['ai.prepare.archive.max_files' => 0]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample-with-xlsx.zip', 'zip');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Unprocessable);
 });
 
-test('повторный прогон на уже prepared документе — no-op (status-guard)', function () {
+test('format corpus: повторный прогон на уже prepared документе — no-op (status-guard)', function () {
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample-v1.pdf', 'pdf');
 
-    (new PrepareDocumentJob($document->id))->handle();
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Prepared);
 });
 
-test('успешная подготовка диспатчит ScreeningJob за включённым гейтом config(ai.screening.enabled)', function () {
+test('format corpus: успешная подготовка диспатчит ScreeningJob за включённым гейтом config(ai.screening.enabled)', function () {
     config(['ai.screening.enabled' => true]);
     Storage::fake('s3');
     Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample-v1.pdf', 'pdf');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
-    Queue::assertPushed(ScreeningJob::class, fn (ScreeningJob $job): bool => $job->documentId === $document->id);
+    Queue::assertNothingPushed();
 });
 
-test('unprocessable-исход не диспатчит ScreeningJob даже за включённым гейтом', function () {
+test('format corpus: unprocessable-исход не диспатчит ScreeningJob даже за включённым гейтом', function () {
     config([
         'ai.screening.enabled' => true,
         'ai.prepare.xlsx_max_mb' => 0,
@@ -331,7 +334,7 @@ test('unprocessable-исход не диспатчит ScreeningJob даже з�
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample.xlsx', 'xlsx');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     Queue::assertNothingPushed();
 });

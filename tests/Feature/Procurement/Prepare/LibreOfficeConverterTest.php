@@ -6,6 +6,9 @@ use App\Services\Procurement\Prepare\LibreOfficeConverter;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
  * Обёртка над `soffice --headless --convert-to pdf` (P3.4) — реальный `soffice` в юнит-тестах не

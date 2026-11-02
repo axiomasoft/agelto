@@ -28,12 +28,12 @@ use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use App\Services\Procurement\Extraction\RerunAnalysisAction;
-use App\Services\Procurement\PipelineRecoveryReconciler;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
+use Tests\Support\ProcessCore\Historical\AnalysisRecoveryHarness;
 
 use function Pest\Laravel\artisan;
 
@@ -346,7 +346,7 @@ test('recovery доставляет потерянную задачу ручно
     $newAnalysis = app(RerunAnalysisAction::class)->run($analysis);
     Queue::fake();
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(10))->toBe(1);
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(10))->toBe(1);
     Queue::assertPushed(EstimateExtractionJob::class, 1);
     expect($newAnalysis->fresh()->next_retry_at)->not->toBeNull();
 });

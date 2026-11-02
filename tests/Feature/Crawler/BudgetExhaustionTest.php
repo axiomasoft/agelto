@@ -11,14 +11,11 @@ use App\Dto\Procurement\Network\TransportDeferred;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\RetryAt;
+use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Process\AcquisitionKind;
-use App\Exceptions\Procurement\Network\OutboundUnavailable;
-use App\Models\Procurement\Document\Document;
-use App\Models\Procurement\Platform\Platform;
-use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
@@ -28,23 +25,23 @@ use App\Services\Procurement\Acquisition\AcquisitionScheduler;
 use App\Services\Procurement\Acquisition\DetailArtifacts;
 use App\Services\Procurement\Acquisition\DetailHandler;
 use App\Services\Procurement\Acquisition\ListingHandler;
-use App\Services\Procurement\DocumentDownloader;
-use App\Services\Procurement\Network\Contracts\LegacyOutbound;
+use App\Services\Procurement\Network\Contracts\OutboundAttemptGate;
 use App\Services\Procurement\Platform\Contracts\ListingSource;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\ExecutionContextFactory;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
 use App\Services\Procurement\Process\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Sleep;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
 use Tests\Support\ProcessCore\DetailFixtures;
 use Tests\Support\ProcessCore\DetailFixtureSource;
+use Tests\Support\ProcessCore\DocumentStorageFixtures;
+use Tests\Support\ProcessCore\DownloadFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
-use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 use Tests\Support\ProcessCore\ListingFixtures;
 
 function deferListingBudget(AcquisitionKind $kind): void
@@ -114,22 +111,22 @@ test('исчерпание бюджета карточки не растит det
 });
 
 test('исчерпание бюджета документа не записывает error-блок документа', function (): void {
-    LegacyBusinessNetwork::install();
-    Sleep::fake();
-    Procurement::factory()->create(); // EIS must not own another platform's document budget.
-    config(['crawler.documents_allowed_hosts' => ['budget-document.test']]);
-    $platform = Platform::factory()->create(['base_url' => 'https://budget-document.test/']);
-    $document = Document::factory()->for($platform)->create([
-        'source_url' => 'https://budget-document.test/filestore/file.html?uid=budget', 'attempts' => 2,
-    ]);
-    Http::fake();
-    $network = Mockery::mock(LegacyOutbound::class);
-    $network->shouldReceive('request')->once()->andThrow(new OutboundUnavailable(
-        new TransportDeferred(NetworkDeferralReason::RateLimit, new RetryAt(new DateTimeImmutable('+1 minute')))));
-    app()->instance(LegacyOutbound::class, $network);
-    $version = app(DocumentDownloader::class)->download(document: $document);
-    $document->refresh();
-    expect($version)->toBeNull()->and($document->attempts)->toBe(2)
-        ->and($document->last_error)->toBeNull()->and($document->next_retry_at)->toBeNull();
-    Http::assertNothingSent();
+    PermitFixtures::clean();
+    ExecutionFixtures::truncateLedger();
+    DocumentStorageFixtures::reset();
+    $wire = new WireFixture;
+    try {
+        $f = new DownloadFixtures($wire);
+        [$input,$work,$ctx] = $f->running();
+        DB::table('prc_process_work')->where('id', $work->value->value)->update(['item_failures' => 2]);
+        $gate = Mockery::mock(OutboundAttemptGate::class);
+        $gate->shouldReceive('authorize')->once()->andReturn(new TransportDeferred(NetworkDeferralReason::RateLimit, new RetryAt(new DateTimeImmutable('+1 minute'))));
+        $outcome = $f->handler($gate)->execute($input, $ctx);
+        expect($outcome)->toBeInstanceOf(StageDeferred::class);
+        app(WorkFinalizer::class)->finish($ctx->lease(), $outcome);
+        expect(DB::table('prc_process_work')->where('id', $work->value->value)->value('item_failures'))->toBe(2)
+            ->and(DB::table('prc_document_versions')->count())->toBe(0)->and($wire->receipts())->toBeEmpty();
+    } finally {
+        $wire->stop();
+    }
 });

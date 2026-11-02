@@ -8,6 +8,7 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Document\StoredDocumentWriter;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
@@ -138,7 +139,8 @@ final readonly class DocumentStoreRepository
     {
         return DocumentVersion::query()
             ->where('document_id', $documentId)
-            ->where('content_hash', $contentHash)
+            ->whereRaw("content_hash=decode(?,'hex')", [$contentHash])
+            ->whereIn('id', Document::query()->select('current_version_id')->whereKey($documentId))
             ->first();
     }
 
@@ -155,7 +157,7 @@ final readonly class DocumentStoreRepository
      */
     public function createVersion(array $attributes): DocumentVersion
     {
-        return DocumentVersion::query()->create($attributes);
+        return app(StoredDocumentWriter::class)->version($attributes);
     }
 
     /**
@@ -163,7 +165,7 @@ final readonly class DocumentStoreRepository
      */
     public function updateVersion(DocumentVersion $version, array $attributes): void
     {
-        $version->update($attributes);
+        throw new \LogicException('Document version metadata is immutable.');
     }
 
     /**
@@ -173,8 +175,7 @@ final readonly class DocumentStoreRepository
     {
         return DocumentVersion::query()
             ->where('document_id', $documentId)
-            ->latest('downloaded_at')
-            ->latest('id')
+            ->whereIn('id', Document::query()->select('current_version_id')->whereKey($documentId))
             ->first();
     }
 
@@ -191,14 +192,5 @@ final readonly class DocumentStoreRepository
             ->orderBy('id')
             ->select(['id', 'disk', 'storage_path', 'content_hash'])
             ->cursor();
-    }
-
-    /**
-     * Точечная запись диска версии по `id` — write-путь backfill'а (P6.5), когда объект под рукой
-     * только как примитив (id/disk/path/hash), не гидратированная модель.
-     */
-    public function updateVersionDisk(int $id, string $disk): void
-    {
-        DocumentVersion::query()->whereKey($id)->update(['disk' => $disk]);
     }
 }

@@ -7,7 +7,6 @@ use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -18,6 +17,9 @@ use App\Services\Procurement\Prepare\Gsfx\GsfxReader;
 use App\Services\Procurement\Prepare\GsfxStrategy;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
  * `.gsfx` → структурная модель и текст (P3.3, D2). Синтетический контейнер собирается в тесте
@@ -488,7 +490,7 @@ test('вложение стало дочерним документом', functi
     expect($childVersion->parent_version_id)->toBe($version->id)
         ->and($childVersion->archive_entry_path)->toBe('Attachments/photo.png')
         ->and($childVersion->filename)->toBe('photo.png');
-    Queue::assertPushed(PrepareDocumentJob::class, 1);
+    Queue::assertNothingPushed();
 });
 
 test('вредоносное имя entry (zip-slip) отклоняет весь GSFX без child effects', function () {

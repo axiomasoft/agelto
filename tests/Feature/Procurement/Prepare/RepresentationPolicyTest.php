@@ -6,6 +6,9 @@ use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Prepare\RepresentationResolver;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
  * Правило выбора представления как данные (P6.3, D3/D52, ADR `adr-input-representation.md`):

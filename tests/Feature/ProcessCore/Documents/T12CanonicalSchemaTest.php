@@ -13,14 +13,20 @@ use Tests\Support\ProcessCore\LedgerFixtures;
 
 pest()->group('t12', 'p31');
 
-test('additive staging допускает legacy row, но отвергает каждый неполный canonical tuple', function (): void {
+test('P3.5 требует canonical tuple и bytea hash без legacy partial indexes', function (): void {
     $version = DocumentVersion::factory()->create();
     $representation = DocumentRepresentation::factory()->create(['document_version_id' => $version->id]);
-    expect($version->getAttribute('blob_id'))->toBeNull()
-        ->and(LedgerFixtures::sqlState(fn () => DB::table('prc_document_versions')->where('id', $version->id)->update(['revision_no' => 1])))->toBe('23514')
-        ->and(LedgerFixtures::sqlState(fn () => DB::table('prc_document_representations')->where('id', $representation->id)->update(['tool_version' => 'tool/1'])))->toBe('23514')
-        ->and(DB::table('prc_document_versions')->where('id', $version->id)->value('revision_no'))->toBeNull()
-        ->and(DB::table('prc_document_representations')->where('id', $representation->id)->value('tool_version'))->toBeNull();
+    expect($version->getAttribute('blob_id'))->not->toBeNull()
+        ->and($version->disk)->not->toBeEmpty()
+        ->and($representation->getAttribute('blob_id'))->not->toBeNull();
+    foreach (['revision_no', 'blob_id', 'first_seen_at', 'disk'] as $column) {
+        expect(LedgerFixtures::sqlState(fn () => DB::table('prc_document_versions')->where('id', $version->id)->update([$column => null])))->toBeIn(['23502', '23514']);
+    }
+    foreach (['blob_id', 'preparation_recipe_hash', 'content_hash', 'range_key', 'tool_version', 'coverage_manifest', 'coverage_manifest_schema_version', 'disk', 'size_bytes'] as $column) {
+        expect(LedgerFixtures::sqlState(fn () => DB::table('prc_document_representations')->where('id', $representation->id)->update([$column => null])))->toBeIn(['23502', '23514']);
+    }
+    expect(DB::selectOne('SELECT pg_typeof(content_hash)::text AS type,octet_length(content_hash) AS length FROM prc_document_versions WHERE id=?', [$version->id]))->toMatchObject(['type' => 'bytea', 'length' => 32])
+        ->and(DB::table('pg_indexes')->whereIn('indexname', ['prc_document_versions_legacy_hash_unique', 'prc_document_representations_legacy_kind_unique'])->count())->toBe(0);
 });
 
 test('prepare screening имеют настоящий version FK, но schema support не регистрирует real handlers', function (): void {

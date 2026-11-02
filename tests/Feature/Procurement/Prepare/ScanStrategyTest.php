@@ -6,7 +6,6 @@ use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -15,6 +14,10 @@ use App\Services\Procurement\Prepare\OcrConverter;
 use App\Services\Procurement\Prepare\ScanStrategy;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\PreparationStrategyProbe;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
  * OCR сканов (P3.7, D22). Реальный `ocrmypdf` в тестах не вызывается (Code Guidance): фейковый
@@ -263,13 +266,13 @@ test('исчерпание prepare deadline остаётся retriable ошиб�
     config(['ai.pipeline.operation_budgets.prepare.job_timeout_seconds' => 1]);
     [$document, $version] = makeScanVersion(content: '%PDF-1.7\nскан');
 
-    expect(fn (): mixed => (new PrepareDocumentJob(documentId: $document->id))->handle())
+    expect(fn (): mixed => (new PreparationStrategyProbe(documentId: $document->id))->handle())
         ->toThrow(OperationBudgetExceeded::class);
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Downloaded)
-        ->and($document->attempts)->toBe(1)
-        ->and($document->last_error)->toContain('Недостаточно времени')
-        ->and($document->next_retry_at)->not->toBeNull()
+        ->and($document->attempts)->toBe(0)
+        ->and($document->last_error)->toBeNull()
+        ->and($document->next_retry_at)->toBeNull()
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
 
     Process::assertNotRan(fn ($process): bool => str_contains((string) ($process->command[0] ?? ''), 'pdftotext'));

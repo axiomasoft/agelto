@@ -10,6 +10,8 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
+use App\Repositories\Procurement\Process\LedgerRow;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Local\LocalFilesystemAdapter;
@@ -114,6 +116,67 @@ final readonly class BlobStore
             }
 
             return new VerifiedArtifact($reservation, $expected, $size);
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    /** Verify/repair a deduplicated object's immutable bytes before the DB-only ref acquisition gate. */
+    public function verifyExisting(VerifiedArtifact $artifact, ?ExecutionContext $execution = null): void
+    {
+        $this->outsideTransaction();
+        $row = LedgerRow::one("SELECT disk,object_key,size_bytes FROM prc_document_blobs
+            WHERE storage_domain_id=? AND content_hash=decode(?,'hex') AND deletion_marked_at IS NULL",
+            [$artifact->reservation->domainId->value, $artifact->hash->hex]);
+        if ($row === null) {
+            return;
+        }
+        $disk = Storage::disk($row->string('disk'));
+        $key = $row->string('object_key');
+        if ($this->matches($disk, $key, $artifact, $execution)) {
+            return;
+        }
+        // Recovery writes the exact same immutable content, never another revision under this key.
+        $source = Storage::disk($artifact->reservation->disk)->readStream($artifact->reservation->objectKey());
+        if (! is_resource($source)) {
+            throw new ArtifactUnavailable('Verified repair source unavailable.');
+        }
+        try {
+            $execution?->tick();
+            if (! $disk->put($key, $source) || ! $this->matches($disk, $key, $artifact, $execution)) {
+                throw new ArtifactUnavailable('Immutable duplicate repair unconfirmed.');
+            }
+        } finally {
+            fclose($source);
+        }
+    }
+
+    private function matches(Filesystem $disk, string $key, VerifiedArtifact $artifact, ?ExecutionContext $execution): bool
+    {
+        if (! $disk->exists($key)) {
+            return false;
+        }
+        $stream = $disk->readStream($key);
+        if (! is_resource($stream)) {
+            return false;
+        }
+        try {
+            $hash = hash_init('sha256');
+            $bytes = 0;
+            while (! feof($stream)) {
+                $execution?->tick();
+                $chunk = fread($stream, 8192);
+                if ($chunk === false || ($chunk === '' && ! feof($stream))) {
+                    throw new ArtifactUnavailable('Immutable duplicate verification failed.');
+                }
+                $bytes += strlen($chunk);
+                if ($bytes > $artifact->sizeBytes) {
+                    return false;
+                }
+                hash_update($hash, $chunk);
+            }
+
+            return $bytes === $artifact->sizeBytes && hash_final($hash) === $artifact->hash->hex;
         } finally {
             fclose($stream);
         }

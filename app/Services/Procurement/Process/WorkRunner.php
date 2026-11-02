@@ -109,6 +109,13 @@ final readonly class WorkRunner
                 return $this->finishFault($context, $unavailable);
             }
             $outcome = new StageDeferred($reason, $this->retryAt());
+        } catch (\PDOException $failure) {
+            if (! DatabaseFailureClassifier::isTransient($failure)) {
+                return $this->finishFault($context, $failure);
+            }
+            ProcessLog::dependencyUnavailable('database', $failure);
+
+            return DeliveryOutcome::DependencyUnavailable;
         } catch (\Throwable $fault) {
             return $this->finishFault($context, $fault);
         }

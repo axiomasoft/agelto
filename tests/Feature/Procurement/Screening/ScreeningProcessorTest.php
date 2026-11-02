@@ -19,10 +19,10 @@ use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
-use App\Services\Procurement\PipelineRecoveryReconciler;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
+use Tests\Support\ProcessCore\Historical\AnalysisRecoveryHarness;
 
 function screeningFixtureContent(string $name): string
 {
@@ -191,7 +191,7 @@ test('MAX_TOKENS — ответ не гидратируется, попытка 
     config(['ai.screening.enabled' => true]);
     $this->travel(2)->minutes();
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 10))->toBe(1);
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 10))->toBe(1);
     Queue::assertPushed(ScreeningJob::class, fn (ScreeningJob $job): bool => $job->documentId === $document->id);
 });
 

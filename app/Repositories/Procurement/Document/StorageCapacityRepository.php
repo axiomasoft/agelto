@@ -24,7 +24,7 @@ final readonly class StorageCapacityRepository
             throw new \InvalidArgumentException('Invalid storage domain policy.');
         }
         DB::insert('INSERT INTO prc_storage_domains(id,domain_key,capacity_bytes,high_watermark_bytes,accounted_durable_bytes,policy_version)
-            VALUES (?,?,?,?,0,1) ON CONFLICT (id) DO NOTHING', [$id->value, $key, $capacity, $highWatermark]);
+            VALUES (?,?,?,?,0,1) ON CONFLICT DO NOTHING', [$id->value, $key, $capacity, $highWatermark]);
         $row = LedgerRow::one('SELECT * FROM prc_storage_domains WHERE id=?', [$id->value]) ?? throw new \LogicException('Missing storage domain.');
         if ($row->string('domain_key') !== $key || $row->int('capacity_bytes') !== $capacity || $row->int('high_watermark_bytes') !== $highWatermark) {
             throw new \LogicException('Storage policy changes require a versioned capacity mutation.');

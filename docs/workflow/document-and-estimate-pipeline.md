@@ -6,6 +6,20 @@ status: living
 
 # Путь документа и сметы
 
+> Runtime cutover P3.5: source discovery publishes canonical references/intents.
+> `DocumentFeeder` → common admission/outbox → `ExecuteWorkJob` → `DownloadHandler` → immutable
+> version/blob → `PrepareHandler`. Download and prepare have independent document controls;
+> acquisition pause/health does not gate downloaded bytes. Revalidation is a document producer,
+> not an acquisition callback. `PipelineDispatcher`, `PipelineRecoveryReconciler`, the ordinary
+> document jobs and `crawler.downstream_enabled` are removed.
+>
+> Install authorities/storage with `process:sync-documents`. Real AI is explicitly pending
+> `handler_not_activated` until its recipe/financial ledger cutover. The current typed preparation
+> runtime handles PDF page batches; other formats are explicitly blocked pending typed adaptation.
+> Historical algorithm descriptions below describe the retained format/AI safety corpus, not
+> alternate execution owners. See [process-core](../dev/process-core.md#p35--independent-document-runtime).
+
+
 Как скачанный документ (см. `crawling-and-discovery.md`) превращается — если в нём есть смета —
 в структурированные строки, которые можно анализировать.
 
@@ -204,9 +218,9 @@ unconfirmed cleanup retains its reservation. Immutable bytes and their reference
 crawler availability. GC and reference acquisition share one deletion gate; existing historical
 references prevent deletion, and a deletion-marked object cannot receive a new reference.
 
-These components are not yet the runtime download/prepare cutover. Existing consumers remain
-operational through the additive NULL legacy tuple until P3.5; the exact required schema tightening
-is recorded in [process-core.md](../dev/process-core.md). No new runtime toggle was introduced.
+P3.5 activates runtime download/prepare and removes the additive NULL legacy tuple. Every surviving
+writer now records canonical blob/revision or recipe/range metadata, an explicit disk and bytea
+hashes; see [process-core.md](../dev/process-core.md). No new runtime toggle was introduced.
 
 ### Новый download owner (P3.2, активация в P3.5)
 

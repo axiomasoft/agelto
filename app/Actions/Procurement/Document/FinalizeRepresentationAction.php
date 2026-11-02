@@ -8,7 +8,6 @@ use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
-use Illuminate\Support\Facades\DB;
 
 final readonly class FinalizeRepresentationAction
 {
@@ -17,10 +16,10 @@ final readonly class FinalizeRepresentationAction
     /** @param array<string, mixed> $attributes */
     public function execute(DocumentVersion $version, RepresentationKind $kind, array $attributes): DocumentRepresentation
     {
-        return DB::transaction(fn (): DocumentRepresentation => $this->representations->storeOrUpdate(
+        return $this->representations->storeOrUpdate(
             version: $version,
             kind: $kind,
             attributes: $attributes,
-        ));
+        );
     }
 }

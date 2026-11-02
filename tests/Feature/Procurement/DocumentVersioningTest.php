@@ -48,9 +48,12 @@ test('архив документа распаковывается в новые
     $extractedVersion = DocumentVersion::factory()->create([
         'document_id' => $extractedDocument->id,
         'parent_version_id' => $archiveVersion->id,
+        'normalized_entry_path' => 'смета.pdf',
+        'child_ordinal' => 0,
     ]);
 
     expect($extractedVersion->parent_version_id)->toBe($archiveVersion->id)
+        ->and($extractedVersion->getAttribute('normalized_entry_path'))->toBe('смета.pdf')
         ->and($extractedDocument->id)->not->toBe($archiveDocument->id)
         ->and(Document::query()->where('procurement_id', $archiveDocument->procurement_id)->count())->toBe(2);
 });

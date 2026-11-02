@@ -2,23 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Jobs\Procurement\DownloadDocumentJob;
+use App\Enums\Procurement\Process\StageCode;
 use App\Jobs\Procurement\PipelineJob;
-use App\Jobs\Procurement\RevalidateDocumentJob;
+use App\Services\Procurement\Process\StageQueueMap;
 use Illuminate\Queue\Attributes\Timeout;
 
 test('скачивание и ревалидация имеют Horizon consumer с достаточным timeout', function (): void {
-    foreach ([new DownloadDocumentJob(documentId: 1), new RevalidateDocumentJob(documentId: 1)] as $job) {
-        $consumers = collect(config('horizon.defaults'))->filter(
-            static fn (array $supervisor): bool => in_array($job->queue, $supervisor['queue'], true),
-        );
-
-        expect($consumers)->not->toBeEmpty();
-
-        foreach ($consumers as $supervisor) {
-            expect(queueJobTimeout(job: $job))->toBeLessThan($supervisor['timeout']);
-        }
-    }
+    $route = app(StageQueueMap::class)->forStage(StageCode::Download);
+    expect($route->jobTimeout)->toBe(320)->and($route->horizonTimeout)->toBe(340)
+        ->and($route->retryAfter)->toBeGreaterThan($route->horizonTimeout)->and($route->leaseSeconds)->toBeGreaterThan($route->retryAfter);
 });
 
 test('таймаут каждого horizon-супервизора строго меньше retry_after его connection (инварианты D26 и D117)', function (): void {

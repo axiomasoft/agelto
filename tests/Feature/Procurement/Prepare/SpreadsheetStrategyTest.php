@@ -14,6 +14,9 @@ use App\Services\Procurement\Prepare\WordStrategy;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
  * `doc/docx/rtf/odt`→PDF (`WordStrategy`) и fidelity `xls(x)`→PDF через LibreOffice-фолбэк

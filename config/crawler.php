@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 // Remaining document/reference configuration; acquisition execution belongs to Process.
 return [
-    'downstream_enabled' => env('CRAWLER_DOWNSTREAM_ENABLED', true),
     'stages' => [
         'document' => ['min_pause_ms' => 1000, 'max_pause_ms' => 4000, 'retries' => 5, 'retry_delay_ms' => 500, 'timeout_seconds' => 30],
     ],

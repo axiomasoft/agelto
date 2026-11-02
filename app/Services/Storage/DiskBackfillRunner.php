@@ -76,6 +76,9 @@ final readonly class DiskBackfillRunner
      */
     public function transfer(string $carrier, string $target, int $fromId, bool $dryRun): array
     {
+        if ($carrier === 'document-versions') {
+            throw new RuntimeException('Canonical document artifact locations are immutable; transfer needs a new verified artifact policy.');
+        }
         $processed = 0;
         $copied = 0;
         $skipped = 0;
@@ -194,7 +197,7 @@ final readonly class DiskBackfillRunner
     private function markDisk(string $carrier, int $id, string $disk): void
     {
         match ($carrier) {
-            'document-versions' => $this->documents->updateVersionDisk($id, $disk),
+            'document-versions' => throw new RuntimeException('Canonical version disk cannot be materialized or overwritten.'),
             'fixtures' => $this->fixtures->updateDisk($id, $disk),
             'estimate-raw-results' => $this->estimates->updateRawResultDisk($id, $disk),
             default => throw new RuntimeException("Неизвестный носитель backfill'а: {$carrier}"),

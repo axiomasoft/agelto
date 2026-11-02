@@ -6,18 +6,21 @@ use App\Actions\Procurement\Document\ExpandArchiveEntryAction;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Enums\Procurement\ProcurementEventType;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Platforms\Eis\Card\DocumentsParser;
-use App\Services\Procurement\DocumentIndexer;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Postgres\ConcurrentTransactions;
+use Tests\Support\ProcessCore\DocumentReferenceProbe;
+use Tests\Support\ProcessCore\PreparationStrategyProbe;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 function archivePipelineFixture(string $name): string
 {
@@ -90,7 +93,7 @@ function archivePipelineParent(Document $document, string $content, string $file
     ]);
 }
 
-test('архив создаёт children, каждый проходит обычную подготовку, а parent не скрининг', function () {
+test('format corpus: архив создаёт children, каждый проходит обычную подготовку, а parent не скрининг', function () {
     Storage::fake('s3');
     Queue::fake();
     config(['ai.screening.enabled' => true]);
@@ -106,7 +109,7 @@ test('архив создаёт children, каждый проходит обыч
         ]),
     );
 
-    (new PrepareDocumentJob(documentId: $parent->id))->handle();
+    (new PreparationStrategyProbe(documentId: $parent->id))->handle();
 
     $children = DocumentVersion::query()
         ->where('parent_version_id', $parentVersion->id)
@@ -122,7 +125,7 @@ test('архив создаёт children, каждый проходит обыч
         ])
         ->and($children->every(fn (DocumentVersion $version): bool => $version->disk === 's3'))->toBeTrue();
 
-    Queue::assertPushed(PrepareDocumentJob::class, 3);
+    Queue::assertNothingPushed();
     Queue::assertNotPushed(ScreeningJob::class, fn (ScreeningJob $job): bool => $job->documentId === $parent->id);
 
     $childrenByPath = $children->keyBy('archive_entry_path');
@@ -130,9 +133,9 @@ test('архив создаёт children, каждый проходит обыч
     $unsupported = $childrenByPath['unsupported/payload.exe']->document;
     $nested = $childrenByPath['nested/archive.zip']->document;
 
-    (new PrepareDocumentJob(documentId: $supported->id))->handle();
-    (new PrepareDocumentJob(documentId: $unsupported->id))->handle();
-    (new PrepareDocumentJob(documentId: $nested->id))->handle();
+    (new PreparationStrategyProbe(documentId: $supported->id))->handle();
+    (new PreparationStrategyProbe(documentId: $unsupported->id))->handle();
+    (new PreparationStrategyProbe(documentId: $nested->id))->handle();
 
     $grandchild = DocumentVersion::query()
         ->where('parent_version_id', $childrenByPath['nested/archive.zip']->id)
@@ -144,7 +147,7 @@ test('архив создаёт children, каждый проходит обыч
         ->and($nested->refresh()->status)->toBe(DocumentStatus::Expanded)
         ->and($grandchild->archive_entry_path)->toBe('deep/unsupported.bin');
 
-    (new PrepareDocumentJob(documentId: $grandchild->document_id))->handle();
+    (new PreparationStrategyProbe(documentId: $grandchild->document_id))->handle();
 
     expect($grandchild->document->refresh()->unprocessable_reason)->toBe(UnprocessableReason::UnsupportedFormat)
         ->and(ProcurementEvent::query()
@@ -153,7 +156,7 @@ test('архив создаёт children, каждый проходит обыч
             ->count())->toBe(4);
 });
 
-test('retry архива сохраняет одну logical child на parent и path', function () {
+test('format corpus: retry архива сохраняет одну logical child на parent и path', function () {
     Storage::fake('s3');
     Queue::fake();
 
@@ -164,9 +167,9 @@ test('retry архива сохраняет одну logical child на parent �
         filename: 'sample-with-xlsx.zip',
     );
 
-    (new PrepareDocumentJob(documentId: $parent->id))->handle();
+    (new PreparationStrategyProbe(documentId: $parent->id))->handle();
     $parent->update(['status' => DocumentStatus::Downloaded]);
-    (new PrepareDocumentJob(documentId: $parent->id))->handle();
+    (new PreparationStrategyProbe(documentId: $parent->id))->handle();
 
     expect(DocumentVersion::query()
         ->where('parent_version_id', $parentVersion->id)
@@ -177,10 +180,10 @@ test('retry архива сохраняет одну logical child на parent �
             ->where('event_type', ProcurementEventType::DocumentAdded)
             ->count())->toBe(1);
 
-    Queue::assertPushed(PrepareDocumentJob::class, 1);
+    Queue::assertNothingPushed();
 });
 
-test('complete platform reindex не снимает child, созданный ExpandArchiveEntryAction', function () {
+test('format corpus: complete platform reindex не снимает child, созданный ExpandArchiveEntryAction', function () {
     Storage::fake('s3');
     Queue::fake();
     $procurement = Procurement::factory()->create();
@@ -192,7 +195,7 @@ test('complete platform reindex не снимает child, созданный Ex
 
     $snapshot = app(DocumentsParser::class)->parse($html);
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: $snapshot);
 
     $parent = Document::query()
         ->where('procurement_id', $procurement->id)
@@ -218,7 +221,7 @@ test('complete platform reindex не снимает child, созданный Ex
         unlink($path);
     }
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: $snapshot);
 
     $child = DocumentVersion::query()
         ->where('parent_version_id', $parentVersion->id)
@@ -229,7 +232,7 @@ test('complete platform reindex не снимает child, созданный Ex
         ->and($child?->refresh()->removed_at)->toBeNull();
 });
 
-test('concurrent archive entry materialization создаёт одну logical child и одно событие', function () {
+test('format corpus: concurrent archive entry materialization создаёт одну logical child и одно событие', function () {
     $fixture = ConcurrentTransactions::execute(<<<'PHP'
 $platform = \App\Models\Procurement\Platform\Platform::factory()->create(attributes: [
     'code' => 'archive-pipeline-concurrency',
@@ -347,30 +350,11 @@ PHP);
 
 function archivePipelineConcurrentCleanup(int $parentId, int $parentVersionId): void
 {
-    ConcurrentTransactions::execute(<<<PHP
-\$versions = \App\Models\Procurement\Document\DocumentVersion::query()
-    ->where('parent_version_id', {$parentVersionId})
-    ->get();
-\$childIds = \$versions->pluck('document_id')->all();
-\$parent = \App\Models\Procurement\Document\Document::query()->findOrFail({$parentId});
-\$procurement = \App\Models\Procurement\Procurement::query()->findOrFail(\$parent->procurement_id);
-\$registryId = \$procurement->registry_id;
-\$platformId = \$parent->platform_id;
-
-\App\Models\Procurement\ProcurementEvent::query()
-    ->where('procurement_id', \$parent->procurement_id)
-    ->where('event_type', \App\Enums\Procurement\ProcurementEventType::DocumentAdded)
-    ->delete();
-\App\Models\Procurement\Document\DocumentVersion::query()->whereIn('id', \$versions->pluck('id'))->delete();
-\App\Models\Procurement\Document\Document::query()->whereIn('id', \$childIds)->delete();
-\App\Models\Procurement\Document\DocumentVersion::query()->whereKey({$parentVersionId})->delete();
-\$parent->delete();
-\$procurement->delete();
-\App\Models\Procurement\Platform\Registry::query()->whereKey(\$registryId)->delete();
-\App\Models\Procurement\Platform\Platform::query()->whereKey(\$platformId)->delete();
-
+    ConcurrentTransactions::execute(<<<'PHP'
+\Tests\Support\ProcessCore\StoredDocumentFixtures::reset();
 return ['cleaned' => true];
 PHP);
+
 }
 
 dataset('hostileArchive', [
@@ -397,7 +381,7 @@ dataset('hostileArchive', [
     ],
 ]);
 
-test('hostile archive завершается без children, events и follow-up jobs', function (Closure $content, UnprocessableReason $reason, array $config = []) {
+test('format corpus: hostile archive завершается без children, events и follow-up jobs', function (Closure $content, UnprocessableReason $reason, array $config = []) {
     Storage::fake('s3');
     Queue::fake();
     config($config);
@@ -405,7 +389,7 @@ test('hostile archive завершается без children, events и follow-u
     $parent = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $parentVersion = archivePipelineParent(document: $parent, content: $content());
 
-    (new PrepareDocumentJob(documentId: $parent->id))->handle();
+    (new PreparationStrategyProbe(documentId: $parent->id))->handle();
 
     expect($parent->refresh()->status)->toBe(DocumentStatus::Unprocessable)
         ->and($parent->unprocessable_reason)->toBe($reason)
@@ -417,3 +401,24 @@ test('hostile archive завершается без children, events и follow-u
 
     Queue::assertNothingPushed();
 })->with('hostileArchive');
+
+test('manual archive concurrent materialization commit-ит одну child version без orphan child при NULL procurement', function (): void {
+    $parent = Document::factory()->create(['procurement_id' => null]);
+    $version = DocumentVersion::factory()->create(['document_id' => $parent->id]);
+    $root = sys_get_temp_dir().'/manual-archive-concurrency-'.uniqid();
+    mkdir($root, 0700, true);
+    $payload = $root.'/payload.pdf';
+    file_put_contents($payload, archivePipelineFixture('sample-v1.pdf'));
+    try {
+        $workers = ConcurrentTransactions::concurrently([
+            'first' => archivePipelineConcurrentWorker($parent->id, $version->id, $payload, $root),
+            'second' => archivePipelineConcurrentWorker($parent->id, $version->id, $payload, $root),
+        ]);
+        expect($workers['first']['backend_pid'])->not->toBe($workers['second']['backend_pid'])
+            ->and(Document::query()->whereNull('procurement_id')->where('external_id', $version->id.':concurrent/sample.pdf')->count())->toBe(1)
+            ->and(DocumentVersion::query()->where('parent_version_id', $version->id)->count())->toBe(1);
+    } finally {
+        StoredDocumentFixtures::reset();
+        File::deleteDirectory($root);
+    }
+});

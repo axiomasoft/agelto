@@ -597,7 +597,10 @@ def suite(folder, name):
         fixture_proof(folder)
     prepare_runtime()
     junit = f"storage/app/testing/process-core/{folder.name}-{name}.xml"
-    command = ["./vendor/bin/pest", "--no-tia", "--compact", "--log-junit=" + junit]
+    # The full retained project corpus rebuilds Laravel/Filament thousands of times. Keep the
+    # isolated regression runner finite without inheriting the app worker's 256 MiB CLI default.
+    command = (["php", "-d", "memory_limit=1G"] if name == "regression" else []) + [
+        "./vendor/bin/pest", "--no-tia", "--compact", "--log-junit=" + junit]
     command += ["--testsuite=Unit"] if name == "unit" else SUITE_PATHS.get(name, [])
     result = compose("exec", "-T", "app", *command, check=False)
     (folder / (name + ".log")).write_text(result.stdout + result.stderr)

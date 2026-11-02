@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Acquisition\ListingFetched;
-use App\Models\Procurement\Document\Document;
 use App\Services\Llm\Dto\CacheableContent;
 use App\Services\Llm\Dto\LlmCacheOptions;
 use App\Services\Llm\Dto\LlmOptions;
@@ -11,11 +10,14 @@ use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Providers\OpenAiCompatibleProvider;
 use App\Services\Llm\Providers\PrismGeminiProvider;
 use App\Services\Platforms\Eis\Filters\Okpd2NodeSynchronizer;
-use App\Services\Procurement\DocumentDownloader;
+use App\Services\Procurement\Process\WorkFinalizer;
 use Carbon\CarbonInterval;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Platforms\Eis\EisCsvFixture;
+use Tests\Support\ProcessCore\DocumentStorageFixtures;
+use Tests\Support\ProcessCore\DownloadFixtures;
+use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\Http\AcquisitionWireFixture;
 use Tests\Support\ProcessCore\Http\CallerFixtures as C;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
@@ -80,23 +82,26 @@ test('синхронизатор ОКПД2 использует общий тр�
     }
 })->group('t03', 'p26');
 
-test('загрузчик документа читает настоящий TLS поток и сохраняет проверенный hash без fetch writer', function (): void {
-    $wire = new WireFixture(443);
+test('загрузчик документа читает настоящий bounded поток через Process permit без ordinary bridge', function (): void {
+    ExecutionFixtures::truncateLedger();
+    DocumentStorageFixtures::reset();
+    $wire = new WireFixture;
     try {
-        $registry = C::platform($wire);
-        Storage::fake('s3');
         $content = file_get_contents(base_path('tests/Fixtures/Documents/sample-v1.pdf'));
         $wire->respond('/document', $content, headers: ['Content-Type' => 'application/pdf']);
-        $document = Document::factory()->create(['source_url' => $wire->url('/document', true)->reveal(), 'platform_id' => $registry->platform_id]);
-        $version = app(DocumentDownloader::class)->download($document);
-        expect($version)->not->toBeNull()->and($version?->content_hash)->toBe(hash('sha256', $content))
-            ->and($document->refresh()->attempts)->toBe(0);
-        Storage::disk('s3')->assertExists($version->storage_path);
-        C::assertAccounting($wire, 1, 'legacy.document_download');
+        $f = new DownloadFixtures($wire);
+        [$input, $work, $ctx] = $f->running();
+        app(WorkFinalizer::class)->finish($ctx->lease(), $f->handler()->execute($input, $ctx));
+        $version = DB::table('prc_document_versions')->selectRaw("*,encode(content_hash,'hex') AS content_hash")->sole();
+        expect($version->content_hash)->toBe(hash('sha256', $content))
+            ->and(DB::table('prc_process_work')->where('id', $work->value->value)->value('item_failures'))->toBe(0)
+            ->and(DB::table('prc_outbound_operations')->where('kind', 'legacy_bridge')->count())->toBe(0)
+            ->and(DB::table('prc_request_attempts')->count())->toBe(1)->and($wire->receipts())->toHaveCount(1);
+        Storage::disk($version->disk)->assertExists($version->storage_path);
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('t03', 'p35');
 
 test('OpenAI SDK отправляет POST через общий handler с provider owner и permit', function (): void {
     $wire = new WireFixture;

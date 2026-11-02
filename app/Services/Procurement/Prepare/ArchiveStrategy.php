@@ -106,7 +106,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                 );
             }
 
-            foreach ($entries as $entry) {
+            foreach ($entries as $ordinal => $entry) {
                 if ($entry->isDirectory) {
                     continue;
                 }
@@ -116,6 +116,7 @@ final readonly class ArchiveStrategy implements PreparationStrategy
                     parentVersion: $version,
                     entryPath: $entry->path,
                     localPath: $extractPath.'/'.$entry->path,
+                    childOrdinal: $ordinal,
                 );
             }
         } finally {

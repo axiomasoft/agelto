@@ -6,6 +6,7 @@ namespace App\Console\Commands\Platform;
 
 use App\Enums\Procurement\Process\StageCode;
 use App\Services\Procurement\Acquisition\AcquisitionRuntime;
+use App\Services\Procurement\Document\DocumentRuntime;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\ProcessAuthoritySync;
 use Illuminate\Console\Attributes\Description;
@@ -38,6 +39,9 @@ final class SyncPlatformCatalogCommand extends Command
                 $reports = [...$sync->syncRegistered($codes), ...$sync->syncProviders($providerKeys)];
             }
             if ($reports !== []) {
+                foreach ([StageCode::Download, StageCode::Prepare] as $stage) {
+                    app(ProcessAuthoritySync::class)->registerHandler($stage, DocumentRuntime::VERSION);
+                }
                 $authority = app(ProcessAuthoritySync::class);
                 $authority->ensureBaseline();
                 foreach ([StageCode::Listing, StageCode::Detail,

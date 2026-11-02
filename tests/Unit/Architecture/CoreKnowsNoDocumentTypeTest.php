@@ -86,7 +86,9 @@ test('периметр ядра собран правилом вычитания
     // 113 = 111 + generic Llm endpoint declaration and configured provider reader (P2.6).
     // 114 = 113 + generic DiagnosticSourceMethod full-validation capability (D49).
     // P2.18 removes two acquisition jobs and their obsolete cooperative contract.
-    expect($classes)->toHaveCount(111)
+    // P3.5 removes three ordinary document delivery jobs; Process owns their stages.
+    // Canonical bytea hashing adds the type-neutral Sha256Cast at the Eloquent boundary.
+    expect($classes)->toHaveCount(109)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');

@@ -8,19 +8,27 @@ use App\Dto\Procurement\Document\DocumentRange;
 use App\Dto\Procurement\Document\PreparedDocument;
 use App\Dto\Procurement\Document\PrepareOcrCheckpoint;
 use App\Dto\Procurement\Document\RepresentationCoverage;
+use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\PrepareInput;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\StageCheckpoint;
+use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\ValidatedStageResult;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Document\CoverageUnit;
 use App\Enums\Procurement\Document\RepresentationKind;
+use App\Enums\Procurement\Process\IntentState;
+use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\SubjectKind;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Document\PreparePolicy;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
+use Illuminate\Support\Facades\DB;
 
 final readonly class PrepareFinalizer implements StagePublicationRepository
 {
@@ -49,7 +57,7 @@ final readonly class PrepareFinalizer implements StagePublicationRepository
             || $input->preparationRecipeHash != $result->manifest->recipeHash || ! $result->manifest->coverage()->complete()) {
             throw new \InvalidArgumentException('Incomplete or unbound preparation.');
         }
-        $source = LedgerRow::one('SELECT content_hash FROM prc_document_versions WHERE id=? AND document_id=?', [$input->documentVersionId, $result->head->documentId]);
+        $source = LedgerRow::one("SELECT encode(content_hash,'hex') AS content_hash FROM prc_document_versions WHERE id=? AND document_id=?", [$input->documentVersionId, $result->head->documentId]);
         if ($source === null || $source->string('content_hash') !== $result->manifest->sourceHash?->hex || $input->preparationRecipeHash != $this->policy->hash) {
             throw new \InvalidArgumentException('Preparation result source/recipe mismatch.');
         }
@@ -79,7 +87,20 @@ final readonly class PrepareFinalizer implements StagePublicationRepository
                 $result->manifest->originalPages, $result->manifest->coverage()->covered, [], $result->manifest->pages(),
                 $result->manifest->qualityLabel($this->policy->qualityThreshold)));
 
-        return []; // Real screening activation belongs to P3.13; no fake runtime success.
+        $key = ContentHash::of('screening-pending:'.$input->documentVersionId.':'.$input->preparationRecipeHash->hex.':'.$result->text->hash->hex);
+        $id = ListingStoreRepository::id('screening-intent:'.$key->hex);
+        if (LedgerRow::one('SELECT id FROM prc_operation_intents WHERE id=?', [$id->value]) === null) {
+            app(WorkStoreRepository::class)->storeIntent($id, $key,
+                StageCode::Screening,
+                new SubjectKey(SubjectKind::DocumentVersion, $input->documentVersionId),
+                $input->preparationRecipeHash, $result->text->hash, 1, $result->head->generation,
+                IntentState::Pending);
+            DB::update("UPDATE prc_operation_intents SET pending_reason='handler_not_activated' WHERE id=?", [$id->value]);
+        }
+
+        DB::update("UPDATE prc_documents SET status='prepared' WHERE id=?", [$result->head->documentId]);
+
+        return []; // P3.13 supplies the real recipe, paid ledger and handler activation.
     }
 
     public function afterSuccessors(WorkInput $input, WorkId $workId, ProcessUuid $eventId, ProcessUuid $projectionId): void {}

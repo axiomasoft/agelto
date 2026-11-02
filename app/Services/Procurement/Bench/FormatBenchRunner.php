@@ -466,7 +466,7 @@ final readonly class FormatBenchRunner
             $pdfContent = (string) file_get_contents($pdfPath);
             @unlink($pdfPath);
 
-            $storagePath = Fixture::derivedPathFor($fixture->code, 'bench/pdf_alt.pdf');
+            $storagePath = Fixture::derivedPathFor($fixture->code, 'bench/pdf_alt.'.hash('sha256', $pdfContent).'.pdf');
             Storage::disk($fixturesDisk)->put($storagePath, $pdfContent);
 
             return $this->representations->storeOrUpdate($version, RepresentationKind::PdfAlt, [

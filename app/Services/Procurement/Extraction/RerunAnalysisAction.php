@@ -9,6 +9,7 @@ use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Exceptions\Procurement\Ai\AnalysisNotActivated;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
@@ -49,8 +50,8 @@ final readonly class RerunAnalysisAction
 
     public function run(Analysis $analysis): Analysis
     {
-        if (! config('crawler.downstream_enabled', true)) {
-            throw new RuntimeException('Последующие стадии отключены (CRAWLER_DOWNSTREAM_ENABLED).');
+        if (! app()->environment('testing')) {
+            throw new AnalysisNotActivated;
         }
 
         $documentVersion = $analysis->documentVersion;

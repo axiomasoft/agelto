@@ -2,148 +2,24 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Document\DocumentStatus;
-use App\Jobs\Procurement\DownloadDocumentJob;
-use App\Jobs\Procurement\PrepareDocumentJob;
-use App\Models\Procurement\Document\Document;
-use App\Models\Procurement\Procurement;
-use App\Services\Procurement\PipelineDispatcher;
+use App\Services\Procurement\Document\DocumentFeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\ProcessCore\DocumentStorageFixtures;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\PrepareFixtures;
 
-test('dispatch ставит discovered в DownloadDocumentJob и downloaded в PrepareDocumentJob, снятые пропускает', function () {
+test('document producer не дублирует ready work и не имеет ordinary dispatch bridge', function (): void {
+    PermitFixtures::clean();
+    ExecutionFixtures::truncateLedger();
+    DocumentStorageFixtures::reset();
+    new PrepareFixtures;
     Queue::fake();
-    $procurement = Procurement::factory()->create();
-    $downloaded = Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Downloaded]);
-    $discovered = Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Discovered]);
-    Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Downloaded, 'removed_at' => now()]);
-
-    $count = app(PipelineDispatcher::class)->dispatch(procurement: $procurement);
-
-    expect($count)->toBe(2)
-        ->and($downloaded->refresh()->status)->toBe(DocumentStatus::Downloaded);
-    Queue::assertPushed(DownloadDocumentJob::class, fn (DownloadDocumentJob $job) => $job->documentId === $discovered->id);
-    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => $job->documentId === $downloaded->id);
-    Queue::assertPushed(PrepareDocumentJob::class, 1);
-});
-
-test('повторный dispatch не плодит доп. документов, не меняет статус и не дублирует job в очереди (ShouldBeUnique)', function () {
-    Queue::fake();
-    $procurement = Procurement::factory()->create();
-    Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Downloaded]);
-
-    $dispatcher = app(PipelineDispatcher::class);
-    $first = $dispatcher->dispatch(procurement: $procurement);
-    $second = $dispatcher->dispatch(procurement: $procurement);
-
-    expect($first)->toBe(1)
-        ->and($second)->toBe(1)
-        ->and(Document::query()->where('procurement_id', $procurement->id)->count())->toBe(1);
-    // `dispatch()` сам по себе не дедуплицирует enqueue (оба вызова видят один и тот же
-    // downloaded-документ и оба пытаются диспатчнуть) — анти-дубль в очереди даёт
-    // `ShouldBeUnique` на `PrepareDocumentJob` (P4.1 D39): `Illuminate\Foundation\Bus\PendingDispatch`
-    // проверяет `UniqueLock` ДО похода в очередь (даже под `Queue::fake()`), второй вызов с тем же
-    // `uniqueId()` лока не берёт — реально запушен в очередь только один job.
-    Queue::assertPushed(PrepareDocumentJob::class, 1);
-});
-
-test('dispatchBacklog добирает downloaded-документы по всем закупкам (поллер-страховка)', function () {
-    Queue::fake();
-    $procurementA = Procurement::factory()->create();
-    $procurementB = Procurement::factory()->create();
-    $documentA = Document::factory()->create(['procurement_id' => $procurementA->id, 'status' => DocumentStatus::Downloaded]);
-    $documentB = Document::factory()->create(['procurement_id' => $procurementB->id, 'status' => DocumentStatus::Downloaded]);
-    Document::factory()->create(['procurement_id' => $procurementA->id, 'status' => DocumentStatus::Prepared]);
-
-    $count = app(PipelineDispatcher::class)->dispatchBacklog(limit: 100);
-
-    expect($count)->toBe(2);
-    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => $job->documentId === $documentA->id);
-    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => $job->documentId === $documentB->id);
-    Queue::assertPushed(PrepareDocumentJob::class, 2);
-});
-
-test('dispatchBacklog уважает лимит', function () {
-    Queue::fake();
-    $procurement = Procurement::factory()->create();
-    Document::factory()->count(3)->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Downloaded]);
-
-    $count = app(PipelineDispatcher::class)->dispatchBacklog(limit: 2);
-
-    expect($count)->toBe(2);
-    Queue::assertPushed(PrepareDocumentJob::class, 2);
-});
-
-test('dispatchBacklog не переотправляет провалившийся документ раньше next_retry_at (backoff) и не трогает dead-letter (ревью-находка HIGH)', function () {
-    Queue::fake();
-    $procurement = Procurement::factory()->create();
-    $inBackoff = Document::factory()->create([
-        'procurement_id' => $procurement->id,
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 1,
-        'next_retry_at' => now()->addMinutes(30),
-        'failed_permanently' => false,
-    ]);
-    $deadLetter = Document::factory()->create([
-        'procurement_id' => $procurement->id,
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 5,
-        'next_retry_at' => null,
-        'failed_permanently' => true,
-    ]);
-    $due = Document::factory()->create([
-        'procurement_id' => $procurement->id,
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 1,
-        'next_retry_at' => now()->subMinute(),
-        'failed_permanently' => false,
-    ]);
-
-    $count = app(PipelineDispatcher::class)->dispatchBacklog(limit: 100);
-
-    expect($count)->toBe(1);
-    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => $job->documentId === $due->id);
-    Queue::assertPushed(PrepareDocumentJob::class, 1);
-    expect($inBackoff->refresh()->status)->toBe(DocumentStatus::Downloaded)
-        ->and($deadLetter->refresh()->status)->toBe(DocumentStatus::Downloaded);
-});
-
-test('dispatch (прямой путь) тоже уважает backoff — не переотправляет документ раньше next_retry_at (ревью-находка HIGH)', function () {
-    Queue::fake();
-    $procurement = Procurement::factory()->create();
-    Document::factory()->create([
-        'procurement_id' => $procurement->id,
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 1,
-        'next_retry_at' => now()->addMinutes(30),
-        'failed_permanently' => false,
-    ]);
-
-    $count = app(PipelineDispatcher::class)->dispatch(procurement: $procurement);
-
-    expect($count)->toBe(0);
-    Queue::assertNotPushed(PrepareDocumentJob::class);
-});
-
-test('uniqueFor pipeline-job задаёт TTL unique-лока больше TTL лиза (600с) — защита от вечного лока на Redis (ADR-0009)', function () {
-    expect(app(PrepareDocumentJob::class, ['documentId' => 1])->uniqueFor())->toBeGreaterThan(600);
-});
-
-test('unique-лок PrepareDocumentJob протухает по истечении uniqueFor — следующий dispatch пушит job (D25)', function () {
-    Queue::fake();
-    $procurement = Procurement::factory()->create();
-    $document = Document::factory()->create(['procurement_id' => $procurement->id, 'status' => DocumentStatus::Downloaded]);
-
-    $dispatcher = app(PipelineDispatcher::class);
-    $dispatcher->dispatch(procurement: $procurement);
-    Queue::assertPushed(PrepareDocumentJob::class, 1);
-
-    // лок ещё держится (uniqueFor = час по умолчанию) — повторный dispatch не пушит доп. job
-    $dispatcher->dispatch(procurement: $procurement);
-    Queue::assertPushed(PrepareDocumentJob::class, 1);
-
-    $this->travel(config('ai.pipeline.unique_lock_minutes') + 1)->minutes();
-    $dispatcher->dispatch(procurement: $procurement);
-
-    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => $job->documentId === $document->id);
-    Queue::assertPushed(PrepareDocumentJob::class, 2);
+    expect(app(DocumentFeeder::class)->reconcile())->toBe(0)->and(app(DocumentFeeder::class)->reconcile())->toBe(0)
+        ->and(DB::table('prc_process_work')->where('stage', 'prepare')->count())->toBe(1)
+        ->and(DB::table('prc_admission_groups')->count())->toBe(0)
+        ->and(is_file(app_path('Services/Procurement/PipelineDispatcher.php')))->toBeFalse()
+        ->and(is_file(app_path('Jobs/Procurement/PrepareDocumentJob.php')))->toBeFalse();
+    Queue::assertNothingPushed();
 });

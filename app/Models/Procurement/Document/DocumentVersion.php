@@ -7,6 +7,7 @@ namespace App\Models\Procurement\Document;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\DatasetExample;
+use App\Support\Files\Sha256Cast;
 use Database\Factories\Procurement\Document\DocumentVersionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -30,7 +31,7 @@ use Illuminate\Support\Carbon;
  * @property string $extension
  * @property string $mime
  * @property string $storage_path
- * @property string|null $disk
+ * @property string $disk
  * @property Carbon $downloaded_at
  * @property int|null $parent_version_id
  * @property string|null $archive_entry_path
@@ -38,7 +39,7 @@ use Illuminate\Support\Carbon;
  */
 #[UseFactory(DocumentVersionFactory::class)]
 #[Fillable([
-    'document_id',
+    'document_id', 'revision_no', 'blob_id', 'first_seen_at', 'normalized_entry_path', 'child_ordinal',
     'content_hash',
     'size_bytes',
     'filename',
@@ -59,6 +60,7 @@ final class DocumentVersion extends Model
     protected function casts(): array
     {
         return [
+            'content_hash' => Sha256Cast::class,
             'size_bytes' => 'integer',
             'downloaded_at' => 'datetime',
         ];

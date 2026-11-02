@@ -6,7 +6,6 @@ use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -30,18 +29,18 @@ return new class extends Migration
             // Текстом, не PG-enum: новый вид представления не должен требовать миграции (D25).
             $table->text('kind')->comment('значение App\Enums\Procurement\Document\RepresentationKind');
 
-            // Canonical tuple is strict when present; legacy prepare remains usable until P3.5.
-            $table->uuid('blob_id')->nullable();
-            $table->binary('preparation_recipe_hash')->nullable();
-            $table->binary('content_hash')->nullable();
-            $table->text('range_key')->nullable();
-            $table->text('tool_version')->nullable();
-            $table->jsonb('coverage_manifest')->nullable();
-            $table->smallInteger('coverage_manifest_schema_version')->nullable();
+            // P3.5: canonical recipe/range/blob metadata is mandatory.
+            $table->uuid('blob_id');
+            $table->binary('preparation_recipe_hash');
+            $table->binary('content_hash');
+            $table->text('range_key');
+            $table->text('tool_version');
+            $table->jsonb('coverage_manifest');
+            $table->smallInteger('coverage_manifest_schema_version');
             $table->text('storage_path');
-            $table->text('disk')->nullable()->comment('null = диск документов config(crawler.documents_disk)');
+            $table->text('disk');
 
-            $table->bigInteger('size_bytes')->nullable();
+            $table->bigInteger('size_bytes');
             $table->integer('page_count')->nullable();
             $table->integer('token_estimate')->nullable();
 
@@ -54,7 +53,6 @@ return new class extends Migration
 
             $table->unique(['document_version_id', 'preparation_recipe_hash', 'kind', 'range_key'], 'prc_document_representations_recipe_range_unique');
         });
-        DB::statement('CREATE UNIQUE INDEX prc_document_representations_legacy_kind_unique ON prc_document_representations(document_version_id,kind) WHERE preparation_recipe_hash IS NULL');
     }
 
     public function down(): void

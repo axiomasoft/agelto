@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\Support\Doubles\FakeLlmProvider;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 // Harness бенчмарка форматов (Scope Included P6.1, D48–D50): сухой обход БЕЗ LLM-вызова + сейм
 // принуждения представления. `FakeLlmProvider` — единственный допустимый провайдер в тестах

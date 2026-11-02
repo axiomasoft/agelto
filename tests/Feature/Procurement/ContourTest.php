@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
  * Девять гейтов контракта `root/document-contour.md` (§7, D91/D92/D93) — единый контур
@@ -34,7 +37,7 @@ test('документ без platform_id не создаётся (NOT NULL)', f
 });
 
 test('выборка витрины не содержит смету и документ площадки «Обучалка»', function (): void {
-    $training = Platform::factory()->training()->create();
+    $training = Platform::query()->firstOrCreate(['code' => Platform::TRAINING_CODE], Platform::factory()->training()->raw());
     $public = Platform::factory()->create();
 
     $trainingDocument = Document::factory()->create(['platform_id' => $training->id]);
@@ -53,7 +56,7 @@ test('выборка витрины не содержит смету и доку
 });
 
 test('прогон с mode=auto над документом площадки «Обучалка» не создаётся', function (): void {
-    Platform::factory()->training()->create();
+    Platform::query()->firstOrCreate(['code' => Platform::TRAINING_CODE], Platform::factory()->training()->raw());
 
     $fixturesDisk = config('ai.fixtures.disk');
     $documentsDisk = config('crawler.documents_disk');

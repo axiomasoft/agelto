@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Ai\Screening\ScreeningDecision;
 use App\Dto\Procurement\Ai\Screening\StoredScreeningResult;
+use App\Dto\Procurement\Process\RetryAt;
+use App\Dto\Procurement\Process\StageDeferred;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
@@ -11,95 +13,36 @@ use App\Enums\Procurement\Ai\EstimateCardinality;
 use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Ai\ScreeningDisposition;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Process\DeferralReason;
+use App\Enums\Procurement\Process\StageCode;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
-use App\Jobs\Procurement\DownloadDocumentJob;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Process\WorkFeeder;
+use App\Services\Procurement\Process\WorkFinalizer;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Tests\Support\ProcessCore\DocumentFeederFixtures;
+use Tests\Support\ProcessCore\DocumentStorageFixtures;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\Historical\AnalysisRecoveryHarness;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
 
-test('ретраит документ, у которого наступил next_retry_at, и не трогает документы без попыток/в ожидании backoff', function () {
-    Queue::fake();
-    $due = Document::factory()->create([
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 1,
-        'next_retry_at' => now()->subMinute(),
-        'failed_permanently' => false,
-    ]);
-    $notYetDue = Document::factory()->create([
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 1,
-        'next_retry_at' => now()->addHour(),
-        'failed_permanently' => false,
-    ]);
-    $neverFailed = Document::factory()->create([
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 0,
-        'next_retry_at' => null,
-        'failed_permanently' => false,
-    ]);
-    $deadLetter = Document::factory()->create([
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 5,
-        'next_retry_at' => null,
-        'failed_permanently' => true,
-    ]);
-
-    $this->artisan('pipeline:retry-failed')->assertSuccessful();
-
-    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => $job->documentId === $due->id);
-    Queue::assertPushed(PrepareDocumentJob::class, 1);
-    expect($due->refresh()->next_retry_at->isFuture())->toBeTrue();
-
-    Queue::assertNotPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job) => in_array($job->documentId, [
-        $notYetDue->id, $neverFailed->id, $deadLetter->id,
-    ], true));
-});
-
-test('claim атомарный: захваченный документ второй раз в том же тике не диспатчится', function () {
-    Queue::fake();
-    Document::factory()->create([
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 1,
-        'next_retry_at' => now()->subMinute(),
-        'failed_permanently' => false,
-    ]);
-
-    $this->artisan('pipeline:retry-failed')->assertSuccessful();
-    $this->artisan('pipeline:retry-failed')->assertSuccessful();
-
-    Queue::assertPushed(PrepareDocumentJob::class, 1);
-});
-
-test('ретраит только наступившее скачивание discovered-документа отдельной job', function () {
-    Queue::fake();
-    $due = Document::factory()->create([
-        'status' => DocumentStatus::Discovered,
-        'attempts' => 1,
-        'next_retry_at' => now()->subMinute(),
-        'failed_permanently' => false,
-    ]);
-    $future = Document::factory()->create([
-        'status' => DocumentStatus::Discovered,
-        'attempts' => 1,
-        'next_retry_at' => now()->addHour(),
-        'failed_permanently' => false,
-    ]);
-    $permanent = Document::factory()->create([
-        'status' => DocumentStatus::Discovered,
-        'attempts' => 5,
-        'next_retry_at' => null,
-        'failed_permanently' => true,
-    ]);
-
-    $this->artisan('pipeline:retry-failed')->assertSuccessful();
-
-    Queue::assertPushed(DownloadDocumentJob::class, fn (DownloadDocumentJob $job) => $job->documentId === $due->id);
-    Queue::assertPushed(DownloadDocumentJob::class, 1);
-    Queue::assertNotPushed(DownloadDocumentJob::class, fn (DownloadDocumentJob $job) => in_array($job->documentId, [$future->id, $permanent->id], true));
-    expect($due->refresh()->next_retry_at->isFuture())->toBeTrue();
+test('document retry принадлежит durable due и не имеет отдельной retry команды', function (): void {
+    PermitFixtures::clean();
+    ExecutionFixtures::truncateLedger();
+    DocumentStorageFixtures::reset();
+    FinalizeFixtures::authority([StageCode::Screening]);
+    $work = DocumentFeederFixtures::analysis('manual');
+    $lease = FinalizeFixtures::running($work);
+    app(WorkFinalizer::class)->finish($lease, new StageDeferred(DeferralReason::ProviderUnavailable, new RetryAt(new DateTimeImmutable('+1 hour'))));
+    expect(app(WorkFeeder::class)->tick('analysis'))->toBe(0)
+        ->and(DB::table('prc_process_reservations')->count())->toBe(0)
+        ->and(DB::table('prc_process_work')->where('id', $work->value->value)->value('state'))->toBe('deferred')
+        ->and(is_file(app_path('Console/Commands/Procurement/PipelineRetryFailed.php')))->toBeFalse();
 });
 
 test('ретраит анализ на стадии screening по next_retry_at', function () {
@@ -116,7 +59,7 @@ test('ретраит анализ на стадии screening по next_retry_at
         'failed_permanently' => false,
     ]);
 
-    $this->artisan('pipeline:retry-failed')->assertSuccessful();
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(50))->toBe(1);
 
     Queue::assertPushed(ScreeningJob::class, fn (ScreeningJob $job) => $job->documentId === $version->document_id);
     Queue::assertPushed(ScreeningJob::class, 1);
@@ -161,56 +104,9 @@ test('ретраит анализ на стадии extraction по next_retry_a
         'next_retry_at' => now()->subMinute(),
         'failed_permanently' => false,
     ]);
-    $this->artisan('pipeline:retry-failed')->assertSuccessful();
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(50))->toBe(1);
 
     Queue::assertPushed(EstimateExtractionJob::class, fn (EstimateExtractionJob $job) => $job->documentId === $document->id);
     Queue::assertPushed(EstimateExtractionJob::class, 1);
     expect($analysis->refresh()->next_retry_at->isFuture())->toBeTrue();
-});
-
-test('лимит --limit ограничивает выборку за тик', function () {
-    Queue::fake();
-    Document::factory()->count(3)->create([
-        'status' => DocumentStatus::Downloaded,
-        'attempts' => 1,
-        'next_retry_at' => now()->subMinute(),
-        'failed_permanently' => false,
-    ]);
-
-    $this->artisan('pipeline:retry-failed', ['--limit' => 2])->assertSuccessful();
-
-    Queue::assertPushed(PrepareDocumentJob::class, 2);
-});
-
-test('discovered с нулём попыток подбирается тем же bounded claim', function (): void {
-    Queue::fake();
-    $document = Document::factory()->create([
-        'status' => DocumentStatus::Discovered,
-        'attempts' => 0,
-        'next_retry_at' => null,
-        'failed_permanently' => false,
-    ]);
-
-    $this->artisan('pipeline:retry-failed', ['--limit' => 10])->assertSuccessful();
-
-    Queue::assertPushed(DownloadDocumentJob::class, fn (DownloadDocumentJob $job): bool => $job->documentId === $document->id);
-    $document->refresh();
-    expect($document->attempts)->toBe(0)
-        ->and($document->next_retry_at)->not->toBeNull();
-});
-
-test('discovered с активным lease не получает конкурирующий download claim', function (): void {
-    Queue::fake();
-    Document::factory()->create([
-        'status' => DocumentStatus::Discovered,
-        'attempts' => 0,
-        'next_retry_at' => null,
-        'failed_permanently' => false,
-        'locked_by' => 'active-worker:token',
-        'locked_until' => now()->addMinutes(5),
-    ]);
-
-    $this->artisan('pipeline:retry-failed', ['--limit' => 10])->assertSuccessful();
-
-    Queue::assertNotPushed(DownloadDocumentJob::class);
 });

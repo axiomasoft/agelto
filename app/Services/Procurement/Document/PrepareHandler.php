@@ -30,12 +30,14 @@ use App\Exceptions\Procurement\Prepare\PreparationRecipeMismatch;
 use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Exceptions\Procurement\Prepare\ToolFailed;
 use App\Exceptions\Procurement\Prepare\ToolUnavailable;
+use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Repositories\Procurement\Document\PrepareSourceRepository;
 use App\Repositories\Procurement\Document\PrepareStorageRepository;
 use App\Services\Procurement\Prepare\PdfPreparationTools;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\StageHandler;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\FilesystemException;
 
 /** One whole-page batch per delivery, one guarded durable checkpoint, no legacy state writers. */
 final readonly class PrepareHandler implements StageHandler
@@ -45,6 +47,15 @@ final readonly class PrepareHandler implements StageHandler
         private BlobStore $blobs, private ArtifactGarbageCollector $gc, private ProcessClock $clock, private PrepareWorkspace $workspace) {}
 
     public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
+    {
+        try {
+            return $this->prepare($input, $execution);
+        } catch (FilesystemException $failure) {
+            throw new DependencyUnavailable('storage', $failure);
+        }
+    }
+
+    private function prepare(WorkInput $input, ExecutionContext $execution): StageOutcome
     {
         if (! $input instanceof PrepareInput) {
             throw new \InvalidArgumentException('Prepare input required.');

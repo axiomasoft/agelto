@@ -410,7 +410,7 @@
       "adapter_version": "acquisition/1",
       "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
       "captured_at": "2026-10-31",
-      "sha256": "160ceef56c66281f2481dbfb9460c7bfe23b724ec6fa9ef429017ffefa21d69d",
+      "sha256": "9171d850242a2d08a10e341df8c2763c0f8aa67205d7374176b4dc75bce29cff",
       "expected": {
         "assessment": "exact_executed_replacements",
         "schema_version": 1
@@ -424,8 +424,8 @@
       "coverage": "scenario_transfer_only",
       "original_sha256": "b84a6969f30b39cc562caf30f3aeae7df951aa99a36b9e5d58ec11620d8a53a5",
       "original_path": "tests/Fixtures/ProcessCore/scenario-transfers.json",
-      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
-      "accepted_change_item": "P2.18"
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only.",
+      "accepted_change_item": "P3.5"
     },
     {
       "id": "p218-listing-facts",
@@ -506,6 +506,29 @@
         "T25"
       ],
       "coverage": "real_tools_and_durable_checkpoint"
+    },
+    {
+      "id": "p35-semantic-dispositions",
+      "path": "tests/Fixtures/ProcessCore/Documents/p35-semantic-dispositions.json",
+      "sha256": "3a78fe05f1c0947be3a6321020f9266d4f7531f7192d85dafc8d3f5aad2b16dc",
+      "scenario_ids": [
+        "T10",
+        "T11",
+        "T12"
+      ],
+      "coverage": "assertion_contract_disposition_not_automatic_equivalence",
+      "original_sha256": "ba8f5c33ab84927b23a6a5442abfc189d130088e30a8e2eadb589f4508c840f6",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage.",
+      "kind": "assertion_dispositions",
+      "platform": null,
+      "adapter_version": null,
+      "provenance": "Hand-authored P3.5 D18 source-to-assertion dispositions against HEAD 31a0e452; historical harness hashes identify preserved test-only checks. Not a declaration of semantic equivalence.",
+      "captured_at": "2026-11-02",
+      "expected": {
+        "assessment": "assertion_contract_dispositions_not_runtime_equivalence",
+        "schema_version": 1
+      }
     }
   ],
   "files": [
@@ -522,7 +545,7 @@
     },
     {
       "path": "tests/Feature/Ai/BenchFormatsTest.php",
-      "sha256": "14a5231f460dd5f38b5e2cd175ec1086ed4712d8ca48bc8620bb04cdf928abce",
+      "sha256": "24f228341d3a8edb0a338b0013d0ecd6d25c7b659b417ab423228898ef549b6f",
       "scenarios": [
         "сухой прогон не делает ни одного LLM-вызова и заполняет predicted",
         "ячейка с несуществующим вариантом — not_applicable, прогон не падает",
@@ -533,7 +556,10 @@
         "эталон без детерминированного gold пропущен — не входит в матрицу",
         "повторный сухой прогон даёт тот же артефакт (кроме generated_at)",
         "artisan(estimate:bench:formats) без --out пишет артефакт под config(ai.fixtures.reports_dir) (D111)"
-      ]
+      ],
+      "original_sha256": "14a5231f460dd5f38b5e2cd175ec1086ed4712d8ca48bc8620bb04cdf928abce",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
     },
     {
       "path": "tests/Feature/Ai/CachesTest.php",
@@ -580,7 +606,7 @@
     },
     {
       "path": "tests/Feature/Ai/DatasetExportTest.php",
-      "sha256": "3e063320337fd782d4bd65a2eba7424b825074a5b1113539ae2e02736a7312cc",
+      "sha256": "e1fec51e9b34d47084a84caa6cf3af2af8c33833d263ec98732b608fd382d0fd",
       "scenarios": [
         "SFT-строка несёт ТЕКСТ представления, а не ссылку на документ",
         "запись без текстового представления пропущена с причиной no_textual_representation",
@@ -592,11 +618,14 @@
         "--split=holdout отбирает только коды holdout",
         "повторный прогон на неизменённых данных даёт байт-идентичный JSONL",
         "вход длиннее потолка пропущен с причиной input_too_large"
-      ]
+      ],
+      "original_sha256": "3e063320337fd782d4bd65a2eba7424b825074a5b1113539ae2e02736a7312cc",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "tests/Feature/Ai/DatasetImportTest.php",
-      "sha256": "fe12bbc1eddc0f9487ecf8f55e0fdf083521f32b3cea4cad0d00fca14b5c07b7",
+      "sha256": "0ef93e30e25aeaee0cf6ec07e798bcb0d85f0819da1e7880a40bbf551cd89445",
       "scenarios": [
         "импорт валидной пары создаёт Document/DocumentVersion вне закупки и DatasetExample с gold",
         "повторный импорт той же пары идемпотентен — обновляет gold, не плодит Document/DatasetExample",
@@ -605,7 +634,10 @@
         "P8.6: эталон БЕЗ пометки остаётся валидным — quality необязателен",
         "P8.6: битая пометка отклоняется поимённо — неизвестный ключ, неизвестная причина, причина не model-origin, пустой перечень полей",
         "осиротевший *.gold.json без файла-источника отклоняется без падения всего импорта"
-      ]
+      ],
+      "original_sha256": "fe12bbc1eddc0f9487ecf8f55e0fdf083521f32b3cea4cad0d00fca14b5c07b7",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "tests/Feature/Ai/DocumentTypeAxisTest.php",
@@ -758,7 +790,7 @@
     },
     {
       "path": "tests/Feature/Ai/FixtureRunTest.php",
-      "sha256": "95b552ee9c151767c2e5746f632225b0fe3273c65b14b39d4ab79e232bde53f2",
+      "sha256": "5b61e74411a04487c1a23f56d959f89a315445eb172a4b6a76e544ff33f058e8",
       "scenarios": [
         "запуск создаёт рабочую копию и диспатчит PrepareDocumentJob с RunMode::Manual и id инициатора",
         "PrepareDocumentJob со значениями по умолчанию заводит прогон auto без инициатора, а с явными параметрами — manual с initiated_by (D135)",
@@ -766,7 +798,10 @@
         "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана",
         "повторный прогон того же эталона снимает активные анализы обоих шагов и откатывает статус документа в downloaded",
         "оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)"
-      ]
+      ],
+      "original_sha256": "95b552ee9c151767c2e5746f632225b0fe3273c65b14b39d4ab79e232bde53f2",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "tests/Feature/Ai/FixtureStorageConfigTest.php",
@@ -821,7 +856,7 @@
     },
     {
       "path": "tests/Feature/Ai/GoldImportTest.php",
-      "sha256": "ffe9ddfc2e43d194515a31462a660a3b92ac1f05fb3d5d69ceee1a107110f711",
+      "sha256": "99010ea0bbd79e3e34d233077ec65b40fdc05eb1297ffb75764db877a6c0cc80",
       "scenarios": [
         "эталон с extraction-gold → документ, версия и запись task=extraction с fixture_id и source=deterministic",
         "эталон со screening-gold → вторая запись task=screening",
@@ -830,7 +865,10 @@
         "невалидный gold → отклонение индивидуальное, остальные импортированы",
         "--dry-run → ноль записей",
         "is_verified остался false после прогона"
-      ]
+      ],
+      "original_sha256": "ffe9ddfc2e43d194515a31462a660a3b92ac1f05fb3d5d69ceee1a107110f711",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
     },
     {
       "path": "tests/Feature/Ai/PromptApplyTest.php",
@@ -1303,9 +1341,9 @@
     },
     {
       "path": "tests/Feature/Crawler/BudgetExhaustionTest.php",
-      "sha256": "c569efc70675395b9f07f885b0e639126561e73e5d79ce5857132279e0374182",
+      "sha256": "ab609b38660a4141ed50c196409c1b715463a84e7b237752219bc3895162c03a",
       "original_sha256": "4c9c3f5927d7b70e857db7416da468a5b6bad3de3f36e94cdfa280f6a81e0311",
-      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
+      "change_reason": "Independent document owner cutover; original scenario coverage is enforced by scenario-transfers.json and full no-TIA regression.",
       "scenarios": [
         "исчерпание бюджета листинга завершает срез чекпоинтом без падения прогона",
         "исчерпание бюджета archive сохраняет недренированный день и не переводит run в failed",
@@ -1315,7 +1353,7 @@
         "исчерпание бюджета документа не записывает error-блок документа"
       ],
       "original_path": "tests/Feature/Crawler/BudgetExhaustionTest.php",
-      "accepted_change_item": "P2.18"
+      "accepted_change_item": "P3.5"
     },
     {
       "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
@@ -1927,7 +1965,7 @@
     },
     {
       "path": "tests/Feature/Crawler/StageOneIsolationTest.php",
-      "sha256": "dfd335127b82cc160cc725efc6ddcae3bfbc021884e8290bc3ab0fb174c35787",
+      "sha256": "596bb7303ab7df23580655d8fb02c89921442983284e46865f62bae7cab42cc2",
       "scenarios": [
         "legacy downstream pause blocks document backlog retry and revalidation without claims",
         "CSV-only останавливает уже поставленные document jobs до чтения данных и lease",
@@ -1939,7 +1977,7 @@
       ],
       "original_sha256": "5b9343e79639322f502a99852e6efa3911ee78d6280589bb807dc3675afbcd26",
       "original_path": "tests/Feature/Crawler/StageOneIsolationTest.php",
-      "change_reason": "P2.18 Process caller cutover and lossless ListingFacts publication; original provenance retained and renamed cases tracked by scenario-transfers.json.",
+      "change_reason": "Independent document cutover; original scenario coverage enforced by full no-TIA regression and explicit D18 transfers.",
       "original_scenarios": [
         "CSV-only запрещает прямой и пакетный detail, backlog, retry и revalidation без claims",
         "CSV-only останавливает уже поставленные document jobs до чтения данных и lease",
@@ -1948,7 +1986,8 @@
         "отключённая стадия называет причину отказа fixture без рабочей копии и dispatch",
         "включение downstream возвращает штатный detail dispatch",
         "CSV-only не диспатчит подготовку извлечённого дочернего документа архива"
-      ]
+      ],
+      "accepted_change_item": "P3.5"
     },
     {
       "path": "tests/Feature/Crawler/SuspendedRunResumerTest.php",
@@ -1990,7 +2029,7 @@
     },
     {
       "path": "tests/Feature/Document/DocumentDownloaderTest.php",
-      "sha256": "590a9168b07c35f00141904d841898fb7673e4a15ff5b662564a9befb9f41f70",
+      "sha256": "9f00aec759e29c947addc38d0a2436b5494050ec78f3eb65116f97216c264335",
       "scenarios": [
         "download первого файла создаёт версию, кладёт файл в storage и пишет событие document_added",
         "download того же контента повторно — no-op, версия не дублируется",
@@ -2014,11 +2053,12 @@
       ],
       "original_sha256": "ca97e4df9cf40b36ddbd922a588b6ec71c0d420d46d9718d01af1dc51c095900",
       "original_path": "tests/Feature/Document/DocumentDownloaderTest.php",
-      "change_reason": "P2.12 V4 correction: bounded factory platform code and exact platform/origin download target selection; original scenarios and assertions retained."
+      "change_reason": "Independent document owner cutover; original scenario coverage is enforced by scenario-transfers.json and full no-TIA regression.",
+      "accepted_change_item": "P3.5"
     },
     {
       "path": "tests/Feature/Document/DocumentIndexerTest.php",
-      "sha256": "a554e7fda2516ca73d3db90704fc0617c96442f7a9fa808f12f5085da4ad187e",
+      "sha256": "0dfec972e7f3bafec16f3946cd2ed46b4eea5c4306cf436b29b4cecd4d96667d",
       "scenarios": [
         "index создаёт документы со статусом discovered",
         "index идемпотентен: повтор не плодит документы и не сбрасывает статус",
@@ -2029,20 +2069,24 @@
       ],
       "original_path": "tests/Feature/Document/DocumentIndexerTest.php",
       "original_sha256": "3d09a006de360b5ab343f719a14f18b7457c722e4749ce2367bd7cab5f288f0d",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "Independent document owner cutover; original scenario coverage is enforced by scenario-transfers.json and full no-TIA regression.",
+      "accepted_change_item": "P3.5"
     },
     {
       "path": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
-      "sha256": "72824784cffaa88b5f50f1deb08631b7a43f19d294da6e5b2bf17e15cdcd60ae",
+      "sha256": "06c63a68d562b61fa4230ddd241c05014119fba253aeb42c21bc197658261ee2",
       "scenarios": [
         "ревалидация ждёт завершения текущего анализа даже между checkpoint jobs",
         "AI job не входит в обработку пока документ занят ревалидацией",
         "selector фильтрует активный анализ до limit и не голодает на первых 25 документах"
-      ]
+      ],
+      "original_sha256": "72824784cffaa88b5f50f1deb08631b7a43f19d294da6e5b2bf17e15cdcd60ae",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Document/DocumentRevalidationTest.php",
-      "sha256": "0fcfd5622ccdbed0fc6a08139f8dd8d9607e96a9c3c17a7d831a7d6cd9ff1bf0",
+      "sha256": "fbc2939b33319344d9e443da3d09943577308ecde1d908c4a67180d54e2cd0cd",
       "scenarios": [
         "revision-trigger ограниченно ставит существующий uid на ревалидацию",
         "low-rate policy подбирает старую версию без новой редакции",
@@ -2053,29 +2097,34 @@
       ],
       "original_sha256": "d84af1935f3ef29b5d7cd2155326fba82989a0b7c1127d1f746240d4e0e2150d",
       "original_path": "tests/Feature/Document/DocumentRevalidationTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Independent document cutover; original scenario coverage enforced by full no-TIA regression and explicit D18 transfers.",
+      "accepted_change_item": "P3.5"
     },
     {
       "path": "tests/Feature/Document/DocumentVersionDiskColumnTest.php",
-      "sha256": "33009b506fc8259752571789a43730e49efbda128dd386ea31d31943d52c51bd",
+      "sha256": "b1f98fae326c0284ce8ea81532e1c4a0bd3f761b3a226ee72ec152f846646da8",
       "scenarios": [
         "колонка диска версии документа пишется и читается"
-      ]
+      ],
+      "original_sha256": "33009b506fc8259752571789a43730e49efbda128dd386ea31d31943d52c51bd",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "tests/Feature/Document/DownloadDocumentJobTest.php",
-      "sha256": "54f19c733570f0622b6e16704de9ddb759c6e9caa1540591377e71deb1988870",
+      "sha256": "3c78a1971132473b3b57175c25594c1fb196062d42d7e6ad164f8b9c5038fd81",
       "scenarios": [
         "due download job скачивает discovered-документ через единый downloader route",
         "due download job безопасно пропускает документ без download input"
       ],
       "original_sha256": "1a6d3dfaa3e56a3db718c5a3cb6af3f9a6e07961380c640fa3f5d2794672ea69",
       "original_path": "tests/Feature/Document/DownloadDocumentJobTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "Independent document owner cutover; original scenario coverage is enforced by scenario-transfers.json and full no-TIA regression.",
+      "accepted_change_item": "P3.5"
     },
     {
       "path": "tests/Feature/Document/PipelineDispatcherTest.php",
-      "sha256": "719e36a9710e13a1c6a758f2618ef27971087c6bab3175cb5c4fb4e1aa7f2bbb",
+      "sha256": "56d6395b21c57f9558a6e90ed8c5ca77be5edcc0c40cab6563b66b8c338e6eaa",
       "scenarios": [
         "dispatch ставит discovered в DownloadDocumentJob и downloaded в PrepareDocumentJob, снятые пропускает",
         "повторный dispatch не плодит доп. документов, не меняет статус и не дублирует job в очереди (ShouldBeUnique)",
@@ -2085,7 +2134,10 @@
         "dispatch (прямой путь) тоже уважает backoff — не переотправляет документ раньше next_retry_at (ревью-находка HIGH)",
         "uniqueFor pipeline-job задаёт TTL unique-лока больше TTL лиза (600с) — защита от вечного лока на Redis (ADR-0009)",
         "unique-лок PrepareDocumentJob протухает по истечении uniqueFor — следующий dispatch пушит job (D25)"
-      ]
+      ],
+      "original_sha256": "719e36a9710e13a1c6a758f2618ef27971087c6bab3175cb5c4fb4e1aa7f2bbb",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Independent document cutover; original scenario coverage enforced by full no-TIA regression and explicit D18 transfers."
     },
     {
       "path": "tests/Feature/Documentation/PrivateDocumentationAccessTest.php",
@@ -3107,10 +3159,13 @@
     },
     {
       "path": "tests/Feature/Procurement/Ai/AnalysisStoreRepositoryConcurrencyTest.php",
-      "sha256": "667533dc18a3f1783cada6738aca50153b96b7f880cd9ecdc96aa806a12236e7",
+      "sha256": "aeafe321bdcaaf9e2dd5eb726e7bf45f14ab8f8b3e6f69c626a31ef7c0918728",
       "scenarios": [
         "два PostgreSQL worker получают один active analysis для версии и шага"
-      ]
+      ],
+      "original_sha256": "667533dc18a3f1783cada6738aca50153b96b7f880cd9ecdc96aa806a12236e7",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "tests/Feature/Procurement/Ai/DocumentAnalyzerRegistryTest.php",
@@ -3131,7 +3186,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Ai/OperatorFeedbackLoopTest.php",
-      "sha256": "5c82329e4d4c8e793ce48de202bca0d7e7011e1cd4bedfb47fe33e397f847f0a",
+      "sha256": "b1e978b4680538241219a1c1c142b36c586a2b96fc374541f822a589692758a3",
       "scenarios": [
         "отклонённый анализ с коррекцией → re-run подмешивает hint в USER-часть промта, новый анализ ссылается на старый, старые сметы заменяются",
         "ошибка создания повторного анализа откатывает supersede и новый run",
@@ -3141,7 +3196,10 @@
         "re-run стадии извлечения диспатчит job через реестр — ядро имени job’а не знает",
         "re-run извлечения при типе без анализатора не мутирует анализ и падает громко",
         "оператор авторизован на действия карточки анализа (update-право), аналитик — только на чтение"
-      ]
+      ],
+      "original_sha256": "5c82329e4d4c8e793ce48de202bca0d7e7011e1cd4bedfb47fe33e397f847f0a",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Ai/SecondDocumentTypeTest.php",
@@ -3306,7 +3364,7 @@
     },
     {
       "path": "tests/Feature/Procurement/ContourTest.php",
-      "sha256": "ee66a326efeca3e6b8e9da7c6486ab76d9db62d0cbd5a5001ed7aa55dea0caad",
+      "sha256": "c0f4509c2fc4895e82a2326a245a53d04a8bed1010d698f1afde2275f723ec78",
       "scenarios": [
         "документ без platform_id не создаётся (NOT NULL)",
         "выборка витрины не содержит смету и документ площадки «Обучалка»",
@@ -3314,7 +3372,10 @@
         "второй незавершённый прогон по той же версии отвергается базой",
         "дочерний документ архива наследует площадку родителя",
         "анализ без активного прогона бросает NoActiveAnalysisRun, а не создаётся тихо"
-      ]
+      ],
+      "original_sha256": "ee66a326efeca3e6b8e9da7c6486ab76d9db62d0cbd5a5001ed7aa55dea0caad",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
     },
     {
       "path": "tests/Feature/Procurement/CustomerOrgOwnershipTest.php",
@@ -3377,11 +3438,14 @@
     },
     {
       "path": "tests/Feature/Procurement/DocumentVersioningTest.php",
-      "sha256": "fbec9ee6681b0f9dd4941be087bd935679b0168b55f190012daf2bd7dc57e1d2",
+      "sha256": "b9ab78bdfb88ccc285393d566bd29f2a06d6f5f8219d07bf730d464f5503b1a9",
       "scenarios": [
         "документ заменяется новой версией по тому же external_id, анализы старой версии остаются",
         "архив документа распаковывается в новые doc_documents со связью через parent_version_id"
-      ]
+      ],
+      "original_sha256": "fbec9ee6681b0f9dd4941be087bd935679b0168b55f190012daf2bd7dc57e1d2",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "tests/Feature/Procurement/Estimate/EstimateSchemaTest.php",
@@ -3571,7 +3635,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
-      "sha256": "84060dd206e9a05175145b54559173862b91f7362cea51e2d6b5d603d62a3fd0",
+      "sha256": "9c8395f1796f61c22c200d6a8f1e48579e4a5f5fe45d553a615544d85bc13ab0",
       "scenarios": [
         "восстанавливает обе DB→queue границы ровно одним job при повторном sweep",
         "не продолжает permanent failure и screening disposition без extraction",
@@ -3579,11 +3643,14 @@
         "recovery доходит до следующего документа после завершённых и отложенных записей",
         "выключенный screening не занимает LIMIT перед due extraction",
         "два PostgreSQL worker получают ровно один recovery claim"
-      ]
+      ],
+      "original_sha256": "84060dd206e9a05175145b54559173862b91f7362cea51e2d6b5d603d62a3fd0",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
-      "sha256": "e0fe9b4ad118e10e52c0205c731f86e98431bc3e03c9bdcddf59c7021724b5ac",
+      "sha256": "2c5775619d2a19327b0fa5e61062538c725d3e399f40f9b6b6325e794e625f4e",
       "scenarios": [
         "ретраит документ, у которого наступил next_retry_at, и не трогает документы без попыток/в ожидании backoff",
         "claim атомарный: захваченный документ второй раз в том же тике не диспатчится",
@@ -3593,11 +3660,14 @@
         "лимит --limit ограничивает выборку за тик",
         "discovered с нулём попыток подбирается тем же bounded claim",
         "discovered с активным lease не получает конкурирующий download claim"
-      ]
+      ],
+      "original_sha256": "e0fe9b4ad118e10e52c0205c731f86e98431bc3e03c9bdcddf59c7021724b5ac",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
-      "sha256": "4a40dcb69720eb595a63ee25c573aa744cf9f8adca3dad36cdab604da9fbc386",
+      "sha256": "96568ca548196e152bec53d6bda37d68ce841de15cb8be46068782c274bfd615",
       "scenarios": [
         "после commit Prepared без screening dispatch reconciler ставит единственный следующий job",
         "orphan prepared без run создаёт один initial run и восстанавливает screening",
@@ -3607,15 +3677,21 @@
         "два recovery ticks создают один run и один claimed continuation",
         "orphan Prepared ждёт выключенный screening и восстанавливается после включения",
         "terminal history перед due документом не вызывает starvation"
-      ]
+      ],
+      "original_sha256": "4a40dcb69720eb595a63ee25c573aa744cf9f8adca3dad36cdab604da9fbc386",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Pipeline/QueueTimeoutFaultInjectionTest.php",
-      "sha256": "4ab9e3ae9f2d896f6a71988371ffa01e08782f6d8bc0cf7eb311416e0c4bb419",
+      "sha256": "1d7a228572a75facf5adeb1870ad772580259b4a798f3250e2d765ab845a31a8",
       "scenarios": [
         "pipeline jobs carry their bounded worker timeout and the OCR job uses its isolated connection",
         "a live pipeline lease prevents concurrent redelivery only for its own configured active slice"
-      ]
+      ],
+      "original_sha256": "4ab9e3ae9f2d896f6a71988371ffa01e08782f6d8bc0cf7eb311416e0c4bb419",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Independent document owner cutover; original scenario coverage is enforced by scenario-transfers.json and full no-TIA regression."
     },
     {
       "path": "tests/Feature/Procurement/Pipeline/StuckCheckTest.php",
@@ -3665,7 +3741,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
-      "sha256": "338714441d28e6907d08d6e720c2eddf54ca6549b00965088bdcd9ac3e5e17c9",
+      "sha256": "65c43401e0cf271a5a086d4444e822feab2bf3b3c9dc3a8c6650b757d25835c7",
       "scenarios": [
         "архив создаёт children, каждый проходит обычную подготовку, а parent не скрининг",
         "retry архива сохраняет одну logical child на parent и path",
@@ -3675,11 +3751,12 @@
       ],
       "original_path": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
       "original_sha256": "1b9faf96d75b82614e4ea47dad8387c2cceb4924006eacd3ff14cab21838fff6",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage.",
+      "accepted_change_item": "P3.5"
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ArchiveStrategyTest.php",
-      "sha256": "20eff8855dabce3ae9c833dcdbeb8897cc4deeab28e401f9fd0a8380a1e4782b",
+      "sha256": "c79cd375cb977edb8f02028cc55756438984372977401333995ebea10a7ec2ff",
       "scenarios": [
         "ZIP metadata проходит CHECKCONS и entry извлекается потоком",
         "7z → дочерние документы созданы",
@@ -3690,20 +3767,26 @@
         "битый rar (не распознан unar) — unprocessable(archive_unsupported)",
         "RAR adapter имеет runtime evidence без сфабрикованного happy path",
         "повторный прогон 7z — дочерний документ не дублируется"
-      ]
+      ],
+      "original_sha256": "20eff8855dabce3ae9c833dcdbeb8897cc4deeab28e401f9fd0a8380a1e4782b",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/DocumentFormatContractTest.php",
-      "sha256": "e79ae761d17a2f03a48a536ff502beb0902f2379eb2dc261c4bc9247e2f7f390",
+      "sha256": "7da16abc227f35c1eda8e972c257c6079b02ba1ea4abc6dc3327bf27212661a2",
       "scenarios": [
         "contract dataset supplies valid and terminal mismatch evidence for every format",
         "known extension with incompatible bytes is terminal format_mismatch",
         "unknown extension is terminal unsupported_format before a handler can be selected"
-      ]
+      ],
+      "original_sha256": "e79ae761d17a2f03a48a536ff502beb0902f2379eb2dc261c4bc9247e2f7f390",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
-      "sha256": "60742596a52e89e63a020efa018555002fee7513e8653d2847d82e631e9c3b17",
+      "sha256": "ebe89ed437cfa738b5d2ab2956045f9892ffd54fc2e2189177306f639c428911",
       "scenarios": [
         "подготовка PDF — PassthroughStrategy, документ переходит в prepared без ScreeningJob (флаг выключен)",
         "подготовка PNG — ImageStrategy без конвертации, документ переходит в prepared",
@@ -3721,11 +3804,14 @@
         "повторный прогон на уже prepared документе — no-op (status-guard)",
         "успешная подготовка диспатчит ScreeningJob за включённым гейтом config(ai.screening.enabled)",
         "unprocessable-исход не диспатчит ScreeningJob даже за включённым гейтом"
-      ]
+      ],
+      "original_sha256": "60742596a52e89e63a020efa018555002fee7513e8653d2847d82e631e9c3b17",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/GsfxStrategyTest.php",
-      "sha256": "25c32defbf1ce43dd2f9af3539c066991c58114e8b8dd170190f873d67d74a74",
+      "sha256": "1b0570007bfe0a592362d358dfa029b5c2f00921d0c036886a143b6ef93cfb4b",
       "scenarios": [
         "паспорт разобран из cp1251 без мусора",
         "позиция несёт обе цены",
@@ -3753,11 +3839,14 @@
         "повторный прогон идемпотентен — одно представление каждого kind",
         "registry и inspector подтверждают typed GSFX contract",
         "inspector отклоняет gsfx-расширение без ZIP-сигнатуры"
-      ]
+      ],
+      "original_sha256": "25c32defbf1ce43dd2f9af3539c066991c58114e8b8dd170190f873d67d74a74",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/LibreOfficeConverterTest.php",
-      "sha256": "38f8ceb44ee68e268aa8d7f2494e0eded18c724dc59698842aebff383f70dbbd",
+      "sha256": "db70f55446f74cea7c8ad0680fa0a02e01960868fb07eaa9801748494c24fad1",
       "scenarios": [
         "состав аргументов несёт headless, изолированный профиль и путь на выход",
         "успешная конвертация возвращает путь к PDF в outputDir",
@@ -3766,11 +3855,14 @@
         "два одновременных вызова конвертера получают разные пути профиля",
         "version() возвращает первую строку вывода --version",
         "version() возвращает null, если бинарь не отвечает"
-      ]
+      ],
+      "original_sha256": "38f8ceb44ee68e268aa8d7f2494e0eded18c724dc59698842aebff383f70dbbd",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/RepresentationContractTest.php",
-      "sha256": "f8fc468db63d0da7e5bc6b123d6a6f5c5fdaef8f0fd28c7ff9b1feec60609dbd",
+      "sha256": "7e96cadbd412952d84ac8235bca1035da75add4e170151849d59eb129d787d58",
       "scenarios": [
         "повторный storeOrUpdate по паре версия+kind обновляет ту же запись, а не плодит вторую",
         "пара версия+kind уникальна на уровне схемы — вторая запись тем же kind отбивается БД",
@@ -3779,33 +3871,42 @@
         "резолвер с представлением pdf отдаёт его вместо оригинала",
         "резолвер отдаёт диск представления, если тот записан явно (производные эталонов P6)",
         "registry закрывает known extensions и не даёт catch-all для неизвестного формата"
-      ]
+      ],
+      "original_sha256": "f8fc468db63d0da7e5bc6b123d6a6f5c5fdaef8f0fd28c7ff9b1feec60609dbd",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/RepresentationPolicyTest.php",
-      "sha256": "9efc87a41cd217861f6ba565c0ea611464b595fe7b4256d7815fcee2335ca611",
+      "sha256": "73d8228d31eb2c2146549c48254bd819883cc4dad6c8d6e35bfd988908c77280",
       "scenarios": [
         "политика по формату выбрана из конфига — подменённый config() меняет результат резолвера",
         "отсутствие всех kind ов политики отдаёт оригинал версии при fallback_to_source = true",
         "отсутствие всех kind ов политики отдаёт null при fallback_to_source = false",
         "forceKind перебивает политику даже если политика указывает на другой kind",
         "формат вне карты policy идёт по default"
-      ]
+      ],
+      "original_sha256": "9efc87a41cd217861f6ba565c0ea611464b595fe7b4256d7815fcee2335ca611",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/RepresentationStorageFaultInjectionTest.php",
-      "sha256": "2cad60e70a6547efdd8d71b021a60500a8e71674e265afb260aea8c2167365df",
+      "sha256": "2835912d86f366fdf8713261aa8ee11346e6111bcc3305e760f1ab673ccc05a4",
       "scenarios": [
         "false object write does not finalize any prepared representation",
         "storage exception does not finalize a representation",
         "streamed representation uses stream IO for upload and verification",
         "retry after database finalization failure converges on the newly generated object",
         "retry repairs a corrupt pre-existing content-addressed object through staging"
-      ]
+      ],
+      "original_sha256": "2cad60e70a6547efdd8d71b021a60500a8e71674e265afb260aea8c2167365df",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ScanStrategyTest.php",
-      "sha256": "829707a3abccb9a32453d3eefbf4753770695fd7946ebd8afd111588906e0e12",
+      "sha256": "a24ce8440978b9c79578ca4cc1ec49ee8fe4460ceefa86f7db16d09db4e8d75f",
       "scenarios": [
         "registry направляет PDF в typed scan handler",
         "PDF с текстовым слоем — стратегия вернула false, OCR не запускался",
@@ -3820,11 +3921,14 @@
         "OCR не начинается, если после text-layer probe не помещается весь обязательный хвост",
         "text-layer probe допускается после двух секунд source setup",
         "исчерпание prepare deadline остаётся retriable ошибкой, а не unprocessable PDF"
-      ]
+      ],
+      "original_sha256": "829707a3abccb9a32453d3eefbf4753770695fd7946ebd8afd111588906e0e12",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/SpreadsheetStrategyTest.php",
-      "sha256": "01cfd32bd45929cb02cc026f33bf2bf48d8e98e01098d0cb4524fc017d7291b5",
+      "sha256": "4dd4d671bfdd0a6dbd358d81196bad82cbce4357c0aa6db0084a0d204c898649",
       "scenarios": [
         "registry направляет текстовые документы в typed Word handler",
         "docx → представление pdf с meta.tool=libreoffice, документ не терминален",
@@ -3838,11 +3942,14 @@
         "обе ветки упали — unprocessable(conversion_failed)",
         "повторный прогон SpreadsheetStrategy идемпотентен — представление не пересоздаётся",
         "ошибка object storage после LibreOffice-фолбэка таблицы остаётся retryable"
-      ]
+      ],
+      "original_sha256": "01cfd32bd45929cb02cc026f33bf2bf48d8e98e01098d0cb4524fc017d7291b5",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/TextGridRendererTest.php",
-      "sha256": "e8ad67fa4d7400d786142117d1d11c30eeb832b1cc07a5ddba9607345f6f74ed",
+      "sha256": "33dd835a5d87b1208b131fd6994070a8f1640117c5a54eac42865e17f2b4417a",
       "scenarios": [
         "горизонтальный merge развёрнут в повтор значения по всем ячейкам диапазона",
         "полностью пустая строка опущена, row_index следующей строки не сдвинулся",
@@ -3854,7 +3961,10 @@
         "регрессия разреженности — далёкая непустая ячейка не заставляет обход материализовать пустой used-range",
         "непустая неякорная ячейка внутри merge при пустом якоре рендерится пустой",
         "превышение бюджета ячеек — false, не исключение"
-      ]
+      ],
+      "original_sha256": "e8ad67fa4d7400d786142117d1d11c30eeb832b1cc07a5ddba9607345f6f74ed",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/ProcurementFactoryTest.php",
@@ -3929,7 +4039,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Screening/ScreeningBranchingTest.php",
-      "sha256": "37a96e517290348d847396613ae3425df17979cc9ea638f66b7cb95ddadf7102",
+      "sha256": "296b31068c8dc00497c08742794f61027d1c26d1819579ac17c32b39089ec709",
       "scenarios": [
         "не-смета (протокол) сохраняет тип без разбора — screened, extraction не диспатчится",
         "тип с зарегистрированным анализатором БЕЗ извлечения — screened без диспатча",
@@ -3943,7 +4053,10 @@
         "теневой screening сохраняет v2 evidence без изменения primary document и без dispatch",
         "stale screening token после replacement не меняет analysis document event run и не dispatch extraction",
         "повтор идемпотентен — событие document_screened и дочерний dispatch не дублируются"
-      ]
+      ],
+      "original_sha256": "37a96e517290348d847396613ae3425df17979cc9ea638f66b7cb95ddadf7102",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "tests/Feature/Procurement/Screening/ScreeningContractMatrixTest.php",
@@ -3954,7 +4067,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Screening/ScreeningProcessorTest.php",
-      "sha256": "0c25cc3cab3e77f2c533cc011b2ad0b5e89fdbcdb99528830dd92d329aa13930",
+      "sha256": "3149357cccef436038eec8068649bd350546d85d5b57bfdbba15beaf01174b5f",
       "scenarios": [
         "успешный скрининг PDF — Analysis succeeded, document_type/result заполнены, Document доводится до screened (P5.2 branching)",
         "исчерпанный общий deadline остаётся retryable и не классифицируется как unreadable PDF",
@@ -3965,7 +4078,10 @@
         "неподдержанный формат, дошедший до скрининга, — unprocessable(unreadable_format), не generic failed",
         "битый PDF — qpdf проваливается, unprocessable(unreadable_format) вместо retryable failed",
         "повторный запуск идемпотентен — статус документа prepared не даёт создать дубль Analysis"
-      ]
+      ],
+      "original_sha256": "0c25cc3cab3e77f2c533cc011b2ad0b5e89fdbcdb99528830dd92d329aa13930",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
     },
     {
       "path": "tests/Feature/Procurement/Screening/ScreeningResultSchemaMigrationTest.php",
@@ -4115,7 +4231,7 @@
     },
     {
       "path": "tests/Feature/Storage/DiskBackfillTest.php",
-      "sha256": "da20b31d223188d84ef6dc5f3a9ec6f7d8092e4dd58440b4f090f2a448b645fc",
+      "sha256": "1d4f530f95aa9ec2c40e7ce4e02f66d81852c4237a867cefd28a6c2ca11b084b",
       "scenarios": [
         "перенос копирует объект потоком и обновляет диск записи после совпадения хэша",
         "повторный прогон переноса идемпотентен: расхождений нет, диск не меняется повторно",
@@ -4123,7 +4239,10 @@
         "подменённый объект на приёмнике даёт расхождение: запись не обновляется, код возврата ненулевой",
         "materialize-only проставляет диск и не пишет ни одного объекта",
         "перенос estimate-raw-results считает эталон с источника — колонки хэша у носителя нет"
-      ]
+      ],
+      "original_sha256": "da20b31d223188d84ef6dc5f3a9ec6f7d8092e4dd58440b4f090f2a448b645fc",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
     },
     {
       "path": "tests/Feature/Storage/FileLocationFallbackTest.php",
@@ -4138,7 +4257,7 @@
     },
     {
       "path": "tests/Feature/Storage/FileLocationResolverTest.php",
-      "sha256": "6ab2cc23e6498e410227d78d5ec759a55f93a7477c9aaf4e0ef3783d90900fd7",
+      "sha256": "ff0031de0e177ce98f9fd39925ca57f9478bb3daeda986441ba90b7cfee6ceb0",
       "scenarios": [
         "forDocumentVersion фолбэкает на текущий диск документов при пустой колонке",
         "forDocumentVersion берёт диск из записи, если он материализован",
@@ -4149,7 +4268,10 @@
         "write-аксессоры читают текущие конфиг-ключи диска, каждый свой",
         "write-аксессоры отклоняют нетипизированное имя диска",
         "fallback-цепочка отклоняет нетипизированное имя диска"
-      ]
+      ],
+      "original_sha256": "6ab2cc23e6498e410227d78d5ec759a55f93a7477c9aaf4e0ef3783d90900fd7",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
     },
     {
       "path": "tests/Feature/Storage/StorageAddressingGateTest.php",
@@ -4333,7 +4455,7 @@
     },
     {
       "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "sha256": "37c0f8cd3702f131f7629c7bc87a84e57c9ad5cbab52c485016701ed0e75c59c",
+      "sha256": "7e3d1b709fa2e227bc72d1d4db1f2396954c1fb9a032e6c8d386b226156f60bf",
       "scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -4341,9 +4463,9 @@
       ],
       "original_sha256": "e8b967abe0a3214efa331b93cfd41887239c3959d7c8b2b9071b3e441ef22370",
       "harness_correction": "P4.1 checks.2: canary 109 -> 110 for the existing neutral CooperativeListingSourceMethod added by 60d6162c; original case names retained and explicit membership asserted.",
-      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
+      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only.",
       "original_path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "accepted_change_item": "P2.18",
+      "accepted_change_item": "P3.5",
       "original_scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -4406,13 +4528,16 @@
     },
     {
       "path": "tests/Unit/Config/QueueTimeoutInvariantTest.php",
-      "sha256": "bcf19342e790db783ac9a7abe3fdeadb57da5252fbd3a63a68bded86ee97b4a9",
+      "sha256": "e1e6c68053de71eaa69f5863547d8f3b6015c2cb4a65d5d41443c5708395c7c3",
       "scenarios": [
         "скачивание и ревалидация имеют Horizon consumer с достаточным timeout",
         "таймаут каждого horizon-супервизора строго меньше retry_after его connection (инварианты D26 и D117)",
         "versioned pipeline operation budget leaves the next call reserve and preserves all timeout chains",
         "long lane сохраняет обе timeout-цепочки и documented stop_grace_period (инвариант D117)"
-      ]
+      ],
+      "original_sha256": "bcf19342e790db783ac9a7abe3fdeadb57da5252fbd3a63a68bded86ee97b4a9",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Independent document owner cutover; original scenario coverage is enforced by scenario-transfers.json and full no-TIA regression."
     },
     {
       "path": "tests/Unit/Crawler/CrawlSettingsResolverTest.php",
@@ -5162,7 +5287,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100019_create_prc_document_versions_table.php",
-      "sha256": "561a79848f78d4395177b0e4dc21d4ae92b51cbe3e7cf7869bec63e0fc712d3c"
+      "sha256": "56d3697cde720d5282f1f7371a4391cf6a9ad87d006b1d2f804156c54b2b2c30",
+      "original_sha256": "561a79848f78d4395177b0e4dc21d4ae92b51cbe3e7cf7869bec63e0fc712d3c",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "database/migrations/2026_07_04_100020_create_prc_protocols_table.php",
@@ -5292,7 +5420,10 @@
     },
     {
       "path": "database/migrations/2026_07_27_100055_create_prc_document_representations_table.php",
-      "sha256": "222117292cd8cf321a2e33c22dd09770df1eb59649437aa526bb2840f5ec1488"
+      "sha256": "bace3da672778ab8657fc47832cf5d8f7769a4196a1a742acf7e442004fa14f2",
+      "original_sha256": "222117292cd8cf321a2e33c22dd09770df1eb59649437aa526bb2840f5ec1488",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     },
     {
       "path": "database/migrations/2026_07_27_100057_create_prc_estimate_work_types_table.php",
@@ -5427,7 +5558,10 @@
     },
     {
       "path": "database/migrations/2026_11_01_100000_create_prc_document_storage_tables.php",
-      "sha256": "6375c41dede894fa58fe9d6b3ff0c1a0ce2ca80b6e755b78d41141cc28d6f689"
+      "sha256": "993c055e451320efb4e88c10d3db056ed9bb519fea0da4012437b6b5f7a15b5f",
+      "original_sha256": "6375c41dede894fa58fe9d6b3ff0c1a0ce2ca80b6e755b78d41141cc28d6f689",
+      "accepted_change_item": "P3.5",
+      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
     }
   ],
   "source_classes": [

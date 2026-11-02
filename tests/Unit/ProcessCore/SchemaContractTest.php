@@ -39,8 +39,8 @@ test('полный enum стадий не активирует будущую с
         expect($matches[1])->toBe(array_column($inventory['staging'], null, 'at')['P3.1']['supported']);
     }
 
-    // P2.18 installs acquisition carriers; document execution and AI remain future owners.
-    expect($inventory['current_item'])->toBe('P3.1');
+    // P3.5 completes document metadata cutover; future AI carriers remain absent.
+    expect($inventory['current_item'])->toBe('P3.5');
     foreach ($inventory['carriers'] as $table => $carrier) {
         expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15', 'P2.1', 'P2.16', 'P2.18', 'P3.1'], true), $table);
     }

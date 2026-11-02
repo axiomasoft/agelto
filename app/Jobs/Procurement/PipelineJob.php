@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs\Procurement;
 
+use App\Exceptions\Procurement\Ai\AnalysisNotActivated;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -34,8 +35,9 @@ abstract class PipelineJob implements ShouldQueue
 
     final public function handle(): void
     {
-        if (! config('crawler.downstream_enabled', true)) {
-            return;
+
+        if (! app()->environment('testing')) {
+            throw new AnalysisNotActivated;
         }
 
         $this->executionStartedAt = microtime(as_float: true);

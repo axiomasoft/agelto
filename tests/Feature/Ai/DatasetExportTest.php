@@ -47,7 +47,9 @@ function putTextRepresentation(DocumentVersion $version, string $text, Represent
         'document_version_id' => $version->id,
         'kind' => $kind,
         'storage_path' => $path,
-        'disk' => null,
+        'disk' => 's3',
+        'content_hash' => hash('sha256', $text),
+        'size_bytes' => strlen($text),
         'mime' => 'text/plain',
     ]);
 }

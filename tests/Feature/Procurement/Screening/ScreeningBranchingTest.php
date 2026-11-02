@@ -12,7 +12,6 @@ use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
@@ -25,12 +24,17 @@ use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\PrismGeminiProvider;
+use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Screening\ScreeningOutcomeHandler;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\ExtractionlessAnalyzer;
 use Tests\Support\Doubles\FakeLlmProvider;
+use Tests\Support\ProcessCore\PreparationStrategyProbe;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /*
  * Сценарии ТЗ 03 §6 для ветвления скрининга (`ScreeningOutcomeHandler`, D36): «не-смета сохраняет
@@ -128,6 +132,7 @@ test('тип с зарегистрированным анализатором Б
         'ai.extraction.enabled' => true,
         'ai.analyzers' => [AiDocumentType::TechSpec->value => ExtractionlessAnalyzer::class],
     ]);
+    app()->forgetInstance(DocumentAnalyzerRegistry::class);
     $fake = FakeLlmProvider::succeeding(branchingResponse('tech_spec', 0.9));
     seedBranchingRoute($fake);
 
@@ -170,6 +175,7 @@ test('тип БЕЗ анализатора — screened без диспатча,
     Storage::fake('s3');
     Queue::fake();
     config(['ai.extraction.enabled' => true, 'ai.analyzers' => []]);
+    app()->forgetInstance(DocumentAnalyzerRegistry::class);
     $fake = FakeLlmProvider::succeeding(branchingResponse('estimate', 0.95));
     seedBranchingRoute($fake);
 
@@ -292,14 +298,14 @@ test('архив со сметой внутри доходит до кандид
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedBranchingVersion($document, 'sample-with-xlsx.zip', 'zip', 'application/octet-stream');
 
-    (new PrepareDocumentJob($document->id))->handle();
+    (new PreparationStrategyProbe($document->id))->handle();
 
     $child = Document::query()
         ->where('procurement_id', $document->procurement_id)
         ->where('id', '!=', $document->id)
         ->firstOrFail();
 
-    (new PrepareDocumentJob($child->id))->handle();
+    (new PreparationStrategyProbe($child->id))->handle();
     expect($child->refresh()->status)->toBe(DocumentStatus::Prepared);
 
     // `ai.screening.enabled` не включён (в отличие от `ai.extraction.enabled` выше) — launch-точка

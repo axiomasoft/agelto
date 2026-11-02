@@ -17,9 +17,12 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Services\Procurement\PipelineRecoveryReconciler;
 use Illuminate\Support\Facades\Queue;
 use Tests\Support\Postgres\ConcurrentTransactions;
+use Tests\Support\ProcessCore\Historical\AnalysisRecoveryHarness;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /** @return array{DocumentVersion, AnalysisRun} */
 function pipelineRecoveryVersion(Document $document): array
@@ -66,7 +69,7 @@ test('восстанавливает обе DB→queue границы ровно
         'result' => pipelineRecoveryScreeningResult(disposition: 'extract', extractionDispatched: true),
     ]);
 
-    $reconciler = app(PipelineRecoveryReconciler::class);
+    $reconciler = app(AnalysisRecoveryHarness::class);
 
     expect($reconciler->reconcile(limit: 10))->toBe(2)
         ->and($reconciler->reconcile(limit: 10))->toBe(0);
@@ -106,7 +109,7 @@ test('не продолжает permanent failure и screening disposition бе�
         ]);
     }
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 10))->toBe(0);
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 10))->toBe(0);
     Queue::assertNothingPushed();
 });
 
@@ -123,7 +126,7 @@ test('repair доводит stranded succeeded extraction из screened в extra
         'finished_at' => now(),
     ]);
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 10))->toBe(1)
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 10))->toBe(1)
         ->and($document->fresh()->status)->toBe(DocumentStatus::Extracted);
     Queue::assertNothingPushed();
 });
@@ -149,7 +152,7 @@ test('recovery доходит до следующего документа по�
     $due = Document::factory()->create(['status' => DocumentStatus::Prepared]);
     pipelineRecoveryVersion(document: $due);
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 1))->toBe(1);
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 1))->toBe(1);
     Queue::assertPushed(ScreeningJob::class, fn (ScreeningJob $job): bool => $job->documentId === $due->id);
     Queue::assertPushed(ScreeningJob::class, 1);
 });
@@ -172,7 +175,7 @@ test('выключенный screening не занимает LIMIT перед du
         'result' => pipelineRecoveryScreeningResult(disposition: 'extract', extractionDispatched: true),
     ]);
 
-    expect(app(PipelineRecoveryReconciler::class)->reconcile(limit: 1))->toBe(1);
+    expect(app(AnalysisRecoveryHarness::class)->reconcile(limit: 1))->toBe(1);
     Queue::assertPushed(EstimateExtractionJob::class, fn (EstimateExtractionJob $job): bool => $job->documentId === $screened->id);
     Queue::assertNotPushed(ScreeningJob::class);
 });
@@ -216,15 +219,11 @@ PHP);
         expect($workers['first']['backend_pid'])->not->toBe($workers['second']['backend_pid'])
             ->and((int) $workers['first']['claimed'] + (int) $workers['second']['claimed'])->toBe(1);
     } finally {
-        ConcurrentTransactions::execute(<<<PHP
-\App\Models\Procurement\Ai\Analysis::query()->whereKey({$fixture['analysis_id']})->delete();
-\App\Models\Procurement\Ai\AnalysisRun::query()->whereKey({$fixture['run_id']})->delete();
-\App\Models\Procurement\Document\DocumentVersion::query()->whereKey({$fixture['version_id']})->delete();
-\App\Models\Procurement\Document\Document::query()->whereKey({$fixture['document_id']})->delete();
-\App\Models\Procurement\Platform\Platform::query()->whereKey({$fixture['platform_id']})->delete();
-
+        ConcurrentTransactions::execute(<<<'PHP'
+\Tests\Support\ProcessCore\StoredDocumentFixtures::reset();
 return ['cleaned' => true];
 PHP);
+
     }
 });
 

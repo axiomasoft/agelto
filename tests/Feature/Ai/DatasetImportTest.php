@@ -10,12 +10,16 @@ use App\Models\Procurement\Platform\Platform;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
 /**
  * §8 `docs/dev/ai/estimate-extraction.md` — формат папки эталонов (`<name>.<ext>` +
  * `<name>.gold.json`), валидация контрактом P2.2, персистентность вне закупки (D22).
  */
-beforeEach(fn () => Platform::factory()->training()->create());
+beforeEach(function (): void {
+    StoredDocumentFixtures::reset();
+    Platform::query()->firstOrCreate(['code' => Platform::TRAINING_CODE], Platform::factory()->training()->raw());
+});
 
 function datasetFixtureFolder(): string
 {

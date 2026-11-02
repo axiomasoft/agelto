@@ -1,0 +1,1872 @@
+{
+  "format": "process-core-semantic-dispositions/v1",
+  "owner": "P3.5",
+  "note": "This is a reviewable assertion/contract disposition, not automatic semantic equivalence. Executed-case accounting alone cannot prove behavior.",
+  "cases": [
+    {
+      "source": {
+        "file": "tests/Feature/Ai/FixtureRunTest.php",
+        "name": "запуск создаёт рабочую копию и диспатчит PrepareDocumentJob с RunMode::Manual и id инициатора"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "fixture request создаёт canonical рабочую копию и manual run с инициатором"
+        }
+      ],
+      "note": "Distinct fixture assertions retained: canonical working copy identity/hash/platform/link; durable auto/manual run and requested_by replace ordinary queue dispatch. This is the P3.5 delivery contract change, not equivalence to handler_not_activated."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Ai/FixtureRunTest.php",
+        "name": "PrepareDocumentJob со значениями по умолчанию заводит прогон auto без инициатора, а с явными параметрами — manual с initiated_by (D135)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "prepare producer сохраняет auto без инициатора и manual с инициатором в durable run"
+        }
+      ],
+      "note": "Distinct fixture assertions retained: canonical working copy identity/hash/platform/link; durable auto/manual run and requested_by replace ordinary queue dispatch. This is the P3.5 delivery contract change, not equivalence to handler_not_activated."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Ai/FixtureRunTest.php",
+        "name": "активный прогон версии → AnalysisRunAlreadyActive, повторный клик не диспатчит второй job"
+      },
+      "disposition": "assertions_retained",
+      "targets": [
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "активный прогон версии → AnalysisRunAlreadyActive, повторный клик не диспатчит второй job"
+        }
+      ],
+      "note": "Original distinct assertions retained in the same named case; queue delivery replaced by durable ready work/manual run metadata. No inactive-handler equivalence."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Ai/FixtureRunTest.php",
+        "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+      },
+      "disposition": "assertions_retained",
+      "targets": [
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "Original distinct assertions retained in the same named case; queue delivery replaced by durable ready work/manual run metadata. No inactive-handler equivalence."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Ai/FixtureRunTest.php",
+        "name": "повторный прогон того же эталона снимает активные анализы обоих шагов и откатывает статус документа в downloaded"
+      },
+      "disposition": "assertions_retained",
+      "targets": [
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "повторный прогон того же эталона снимает активные анализы обоих шагов и откатывает статус документа в downloaded"
+        }
+      ],
+      "note": "Original distinct assertions retained in the same named case; queue delivery replaced by durable ready work/manual run metadata. No inactive-handler equivalence."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Ai/FixtureRunTest.php",
+        "name": "оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)"
+      },
+      "disposition": "assertions_retained",
+      "targets": [
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)"
+        }
+      ],
+      "note": "Original distinct assertions retained in the same named case; queue delivery replaced by durable ready work/manual run metadata. No inactive-handler equivalence."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "CSV-only останавливает уже поставленные document jobs до чтения данных и lease with data set \"('App\\Jobs\\Procurement\\Download…entJob')\""
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "CSV-only останавливает уже поставленные document jobs до чтения данных и lease with data set \"('App\\Jobs\\Procurement\\PrepareD…entJob')\""
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "CSV-only останавливает уже поставленные document jobs до чтения данных и lease with data set \"('App\\Jobs\\Procurement\\Revalida…entJob')\""
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "CSV-only останавливает уже поставленные document jobs до чтения данных и lease with data set \"('App\\Jobs\\Procurement\\ScreeningJob')\""
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "CSV-only останавливает уже поставленные document jobs до чтения данных и lease with data set \"('App\\Jobs\\Procurement\\Analyzer…ionJob')\""
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "CSV-only блокирует ручные AI входы до изменения анализа и fixture"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "отключённая стадия называет причину отказа fixture без рабочей копии и dispatch with data set \"dataset \"downstream выключен, screening включён\"\""
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "отключённая стадия называет причину отказа fixture без рабочей копии и dispatch with data set \"dataset \"downstream включён, screening выключен\"\""
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "отключённая стадия называет причину отказа fixture без рабочей копии и dispatch with data set \"dataset \"оба выключены, downstream проверяется первым\"\""
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+        "name": "CSV-only не диспатчит подготовку извлечённого дочернего документа архива"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Crawler/StageOneIsolationTest.php",
+          "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
+        },
+        {
+          "file": "tests/Feature/Ai/FixtureRunTest.php",
+          "name": "выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана"
+        }
+      ],
+      "note": "CHANGED CONTRACT: crawler downstream switch is removed, downloaded-byte preparation and fixture analysis are independent of acquisition. Screening/manual preconditions remain distinct assertions; no global handler_not_activated replacement."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "download первого файла создаёт версию, кладёт файл в storage и пишет событие document_added"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "name": "download first same replaced bytes публикует файл immutable версии и ровно соответствующие события"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
+        }
+      ],
+      "note": "Actual bytes, same-content idempotency, immutable revisions/blobs/validators and exact added/replaced events execute through the new fenced finalizer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "download того же контента повторно — no-op, версия не дублируется"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "name": "download first same replaced bytes публикует файл immutable версии и ровно соответствующие события"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
+        }
+      ],
+      "note": "Actual bytes, same-content idempotency, immutable revisions/blobs/validators and exact added/replaced events execute through the new fenced finalizer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "same-hash retry восстанавливает потерянный object без дублирования версии или события"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+          "name": "новый downloader восстанавливает missing corrupt object без новой source revision with data set \"(false)\""
+        },
+        {
+          "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+          "name": "новый downloader восстанавливает missing corrupt object без новой source revision with data set \"(true)\""
+        }
+      ],
+      "note": "Actual missing/corrupt object repair checks retained bytes, one revision/blob and two successful transfers; both fault variants execute."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "same-hash retry исправляет повреждённый canonical object без дублирования версии или события"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+          "name": "новый downloader восстанавливает missing corrupt object без новой source revision with data set \"(false)\""
+        },
+        {
+          "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+          "name": "новый downloader восстанавливает missing corrupt object без новой source revision with data set \"(true)\""
+        }
+      ],
+      "note": "Actual missing/corrupt object repair checks retained bytes, one revision/blob and two successful transfers; both fault variants execute."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "false staging write не создаёт version или event и не удаляет canonical object"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "name": "download storage false write или exception не публикует версию событие и не удаляет previous canonical object with data set \"(false)\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "name": "download storage false write или exception не публикует версию событие и не удаляет previous canonical object with data set \"(true)\""
+        }
+      ],
+      "note": "Real DownloadHandler storage failure injection asserts deferred, zero extra version/event/item cost and unchanged prior canonical bytes for false return and filesystem exception."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "storage exception не создаёт version или event и не удаляет canonical object"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "name": "download storage false write или exception не публикует версию событие и не удаляет previous canonical object with data set \"(false)\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "name": "download storage false write или exception не публикует версию событие и не удаляет previous canonical object with data set \"(true)\""
+        }
+      ],
+      "note": "Real DownloadHandler storage failure injection asserts deferred, zero extra version/event/item cost and unchanged prior canonical bytes for false return and filesystem exception."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "concurrent canonical winner is verified before one version and event are finalized"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+          "name": "два процесса current head CAS принимают ровно одну competing revision"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "name": "download first same replaced bytes публикует файл immutable версии и ровно соответствующие события"
+        }
+      ],
+      "note": "Actual PostgreSQL head competitors admit one revision; publication separately verifies file bytes and exact domain events. No assertion of exactly-once physical HTTP."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "два прямых скачивания иного контента создают новую версию и document_replaced"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "name": "download first same replaced bytes публикует файл immutable версии и ровно соответствующие события"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
+        }
+      ],
+      "note": "Actual bytes, same-content idempotency, immutable revisions/blobs/validators and exact added/replaced events execute through the new fenced finalizer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "download при ошибке сети записывает error-блок и не бросает исключение"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "два connection failures и success дают три физических request и ноль item failures"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "truncated response и исчерпание retries откладывают work без версии и item failures with data set \"('/drop')\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "truncated response и исчерпание retries откладывают work без версии и item failures with data set \"('/truncated')\""
+        }
+      ],
+      "note": "Typed deferred dependency and real request counts replace the document error-block writer; zero versions/item failures on exhausted transfers are asserted."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "download без source_url возвращает null без побочных эффектов"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10ProducerRecoveryCoverageTest.php",
+          "name": "document без source reference и bytes не создаёт intents work или outbound effects"
+        }
+      ],
+      "note": "No source descriptor/bytes produces no intent, work or request. New producer authority replaces a direct nullable download return."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "download без активной proxy-привязки идёт напрямую и пишет это в лог"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php",
+          "name": "missing document route profile даёт configuration hold без handler fault и HTTP"
+        }
+      ],
+      "note": "CHANGED CONTRACT: implicit direct fallback is removed. Missing explicit route profile must hold configuration with zero HTTP/item/fault. The old direct-fallback/log assertion is not claimed preserved."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "download отклоняет loopback до HTTP sink"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
+          "name": "T21 every private reserved mapped и multicast literal denied before connect"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+          "name": "T21 redirects имеют отдельные identity и target а cross-origin secrets удалены"
+        }
+      ],
+      "note": "The sole HTTP gate checks private/reserved literals before connect and revalidates each redirect with distinct authorization. Real transport tests retain this security boundary."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "download повторно валидирует redirect target и не следует на loopback"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
+          "name": "T21 every private reserved mapped и multicast literal denied before connect"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+          "name": "T21 redirects имеют отдельные identity и target а cross-origin secrets удалены"
+        }
+      ],
+      "note": "The sole HTTP gate checks private/reserved literals before connect and revalidates each redirect with distinct authorization. Real transport tests retain this security boundary."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "download останавливает фактический поток сверх лимита без доверия к Content-Length"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+          "name": "T03 truncated body retries bounded а separate wire budget aborts streaming"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+          "name": "byte ceiling прерывает upload и temporary capacity освобождается только после verified cleanup"
+        }
+      ],
+      "note": "Actual streaming abort and byte ceiling are checked independently of Content-Length; unverified output never acquires a blob reference."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "повтор после 5xx берёт слот бюджета площадки и пишется в журнал запросов"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
+          "name": "executor использует реальный scheduled gate для retries и redirect без hidden sends"
+        }
+      ],
+      "note": "Every physical retry/redirect goes through the real scheduled permit gate and request ledger; no Http retry bypass."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "исчерпанные повторы 429 не превышают настроенное число запросов"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Network/T04RouteHealthTest.php",
+          "name": "429 не rotates и не изменяет proxy series а503 retry остаётся на текущем egress"
+        }
+      ],
+      "note": "Actual retry/429 sends remain bounded; cooldown prevents rotating around the rate limit. No legacy local retry counter equivalence is claimed."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "единый deadline прекращает повторы 503 без публикации частичного документа"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
+          "name": "полный request timeout finalization не помещается и не расходует ticket TAT или transport"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('expiry')\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('head')\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('takeover')\""
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+          "name": "put-before-reference сохраняет reserve, uncertain writer и incomplete cleanup не освобождают bytes"
+        }
+      ],
+      "note": "CHANGED CONTRACT: full configured timeout must fit before send; final publication remains fenced. Uncertain staged bytes stay charged until verified cleanup instead of the legacy unconditional deadline delete."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "цепочка redirect закрывает каждый поток и расходует HTTP бюджет на каждый переход"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+          "name": "T21 redirects имеют отдельные identity и target а cross-origin secrets удалены"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
+          "name": "T03 pause после первого response запрещает повторный send и binary redirect очищает промежуточный artifact"
+        }
+      ],
+      "note": "Each redirect has its own request/permit and intermediate binary artifacts are cleaned; assertions inspect actual requests and artifacts."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentDownloaderTest.php",
+        "name": "deadline на проверке canonical storage не публикует версию и удаляет staging"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
+          "name": "полный request timeout finalization не помещается и не расходует ticket TAT или transport"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('expiry')\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('head')\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('takeover')\""
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+          "name": "put-before-reference сохраняет reserve, uncertain writer и incomplete cleanup не освобождают bytes"
+        }
+      ],
+      "note": "CHANGED CONTRACT: full configured timeout must fit before send; final publication remains fenced. Uncertain staged bytes stay charged until verified cleanup instead of the legacy unconditional deadline delete."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
+        "name": "ревалидация ждёт завершения текущего анализа даже между checkpoint jobs"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
+          "name": "новая immutable версия при running prepare fence запрещает checkpoint и late publication старой версии"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('expiry')\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('head')\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('takeover')\""
+        }
+      ],
+      "note": "CHANGED CONTRACT: document head/generation fences replace the shared legacy analysis/download lease. Tests assert zero stale checkpoint/publication rather than claiming the old lease wait still exists."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
+        "name": "selector фильтрует активный анализ до limit и не голодает на первых 25 документах"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
+          "name": "новая immutable версия при running prepare fence запрещает checkpoint и late publication старой версии"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('expiry')\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('head')\""
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('takeover')\""
+        }
+      ],
+      "note": "CHANGED CONTRACT: document head/generation fences replace the shared legacy analysis/download lease. Tests assert zero stale checkpoint/publication rather than claiming the old lease wait still exists."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+        "name": "revision-trigger ограниченно ставит существующий uid на ревалидацию"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+          "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
+        }
+      ],
+      "note": "Document-owned DB-clock due cycle replaces revision callbacks, raw retry columns and source scheduler ownership. Stable UID metadata refresh does not reset analysis; new bytes produce a new head and independently pinned prepare work."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+        "name": "low-rate policy подбирает старую версию без новой редакции"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+          "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
+        }
+      ],
+      "note": "Document-owned DB-clock due cycle replaces revision callbacks, raw retry columns and source scheduler ownership. Stable UID metadata refresh does not reset analysis; new bytes produce a new head and independently pinned prepare work."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+        "name": "selector уважает removal backoff permanent failure и активный lease"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+          "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
+        }
+      ],
+      "note": "Document-owned DB-clock due cycle replaces revision callbacks, raw retry columns and source scheduler ownership. Stable UID metadata refresh does not reset analysis; new bytes produce a new head and independently pinned prepare work."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+        "name": "production revalidation прежнего uid с новыми bytes создаёт версию и возвращает документ в подготовку"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+          "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
+        }
+      ],
+      "note": "Document-owned DB-clock due cycle replaces revision callbacks, raw retry columns and source scheduler ownership. Stable UID metadata refresh does not reset analysis; new bytes produce a new head and independently pinned prepare work."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+        "name": "production revalidation тех же bytes сохраняет терминал и сбрасывает прошлые ошибки"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+          "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
+        }
+      ],
+      "note": "Document-owned DB-clock due cycle replaces revision callbacks, raw retry columns and source scheduler ownership. Stable UID metadata refresh does not reset analysis; new bytes produce a new head and independently pinned prepare work."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+        "name": "возврат A B A восстанавливает порядок версий событие и новый анализ даже в один момент времени"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationTest.php",
+          "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
+        }
+      ],
+      "note": "Document-owned DB-clock due cycle replaces revision callbacks, raw retry columns and source scheduler ownership. Stable UID metadata refresh does not reset analysis; new bytes produce a new head and independently pinned prepare work."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DownloadDocumentJobTest.php",
+        "name": "due download job скачивает discovered-документ через единый downloader route"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DownloadDocumentJobTest.php",
+          "name": "повторная download delivery не запускает handler владельца второй раз"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php",
+          "name": "registered runtime проводит reference download prepare через sole Process job затем явно держит real AI"
+        }
+      ],
+      "note": "Ordinary download job is removed; ExecuteWorkJob performs generation-fenced claim. No typed input means no work/send, duplicate delivery cannot execute the existing owner twice."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DownloadDocumentJobTest.php",
+        "name": "due download job безопасно пропускает документ без download input"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DownloadDocumentJobTest.php",
+          "name": "повторная download delivery не запускает handler владельца второй раз"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php",
+          "name": "registered runtime проводит reference download prepare через sole Process job затем явно держит real AI"
+        }
+      ],
+      "note": "Ordinary download job is removed; ExecuteWorkJob performs generation-fenced claim. No typed input means no work/send, duplicate delivery cannot execute the existing owner twice."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/PipelineDispatcherTest.php",
+        "name": "dispatch ставит discovered в DownloadDocumentJob и downloaded в PrepareDocumentJob, снятые пропускает"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "name": "два document producers атомарно activate один intent и создают один missing prepare"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
+        }
+      ],
+      "note": "PostgreSQL delivery generation/outbox recovery plus competing real producers prove one logical work, stale-message rejection and no terminal reset. Old document timestamp/lease/Redis-unique ownership is retired; paid AI behavior is not inferred."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/PipelineDispatcherTest.php",
+        "name": "повторный dispatch не плодит доп. документов, не меняет статус и не дублирует job в очереди (ShouldBeUnique)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "name": "два document producers атомарно activate один intent и создают один missing prepare"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
+        }
+      ],
+      "note": "PostgreSQL delivery generation/outbox recovery plus competing real producers prove one logical work, stale-message rejection and no terminal reset. Old document timestamp/lease/Redis-unique ownership is retired; paid AI behavior is not inferred."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/PipelineDispatcherTest.php",
+        "name": "dispatchBacklog добирает downloaded-документы по всем закупкам (поллер-страховка)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "name": "два document producers атомарно activate один intent и создают один missing prepare"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
+        }
+      ],
+      "note": "PostgreSQL delivery generation/outbox recovery plus competing real producers prove one logical work, stale-message rejection and no terminal reset. Old document timestamp/lease/Redis-unique ownership is retired; paid AI behavior is not inferred."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/PipelineDispatcherTest.php",
+        "name": "dispatchBacklog уважает лимит"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10ProducerRecoveryCoverageTest.php",
+          "name": "document producer LIMIT50 стоит на входной выборке и terminal history не заслоняет missing prepare"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "name": "age900 сохраняет старый analysis перед новым ingress внутри выбранного cohort"
+        }
+      ],
+      "note": "Bounded producer candidate selection and aged ready work have actual row-count and fairness assertions. Terminal work identity remains durable and is excluded from missing-work repair."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/PipelineDispatcherTest.php",
+        "name": "dispatchBacklog не переотправляет провалившийся документ раньше next_retry_at (backoff) и не трогает dead-letter (ревью-находка HIGH)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "analysis defer освобождает parent child slots сохраняя immutable age и future due"
+        }
+      ],
+      "note": "Actual future due and immutable age survive deferral; the entire reservation group is released and feeder cannot admit before due. Work ledger replaces next_retry_at on documents/analyses."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/PipelineDispatcherTest.php",
+        "name": "dispatch (прямой путь) тоже уважает backoff — не переотправляет документ раньше next_retry_at (ревью-находка HIGH)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "analysis defer освобождает parent child slots сохраняя immutable age и future due"
+        }
+      ],
+      "note": "Actual future due and immutable age survive deferral; the entire reservation group is released and feeder cannot admit before due. Work ledger replaces next_retry_at on documents/analyses."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/PipelineDispatcherTest.php",
+        "name": "uniqueFor pipeline-job задаёт TTL unique-лока больше TTL лиза (600с) — защита от вечного лока на Redis (ADR-0009)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "name": "два document producers атомарно activate один intent и создают один missing prepare"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
+        }
+      ],
+      "note": "PostgreSQL delivery generation/outbox recovery plus competing real producers prove one logical work, stale-message rejection and no terminal reset. Old document timestamp/lease/Redis-unique ownership is retired; paid AI behavior is not inferred."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/PipelineDispatcherTest.php",
+        "name": "unique-лок PrepareDocumentJob протухает по истечении uniqueFor — следующий dispatch пушит job (D25)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "name": "два document producers атомарно activate один intent и создают один missing prepare"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
+        }
+      ],
+      "note": "PostgreSQL delivery generation/outbox recovery plus competing real producers prove one logical work, stale-message rejection and no terminal reset. Old document timestamp/lease/Redis-unique ownership is retired; paid AI behavior is not inferred."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+        "name": "ретраит документ, у которого наступил next_retry_at, и не трогает документы без попыток/в ожидании backoff"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "analysis defer освобождает parent child slots сохраняя immutable age и future due"
+        }
+      ],
+      "note": "Actual future due and immutable age survive deferral; the entire reservation group is released and feeder cannot admit before due. Work ledger replaces next_retry_at on documents/analyses."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+        "name": "claim атомарный: захваченный документ второй раз в том же тике не диспатчится"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "name": "два document producers атомарно activate один intent и создают один missing prepare"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
+        }
+      ],
+      "note": "PostgreSQL delivery generation/outbox recovery plus competing real producers prove one logical work, stale-message rejection and no terminal reset. Old document timestamp/lease/Redis-unique ownership is retired; paid AI behavior is not inferred."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+        "name": "ретраит только наступившее скачивание discovered-документа отдельной job"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "analysis defer освобождает parent child slots сохраняя immutable age и future due"
+        }
+      ],
+      "note": "Actual future due and immutable age survive deferral; the entire reservation group is released and feeder cannot admit before due. Work ledger replaces next_retry_at on documents/analyses."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+        "name": "лимит --limit ограничивает выборку за тик"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10ProducerRecoveryCoverageTest.php",
+          "name": "document producer LIMIT50 стоит на входной выборке и terminal history не заслоняет missing prepare"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "name": "age900 сохраняет старый analysis перед новым ingress внутри выбранного cohort"
+        }
+      ],
+      "note": "Bounded producer candidate selection and aged ready work have actual row-count and fairness assertions. Terminal work identity remains durable and is excluded from missing-work repair."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+        "name": "discovered с нулём попыток подбирается тем же bounded claim"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "standalone activation отделена от admission и повторного queue dispatch"
+        }
+      ],
+      "note": "An initial typed intent creates ready work without an artificial prior failure; it has no admission/queue side effect and repeated producer execution deduplicates it."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+        "name": "discovered с активным lease не получает конкурирующий download claim"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+        },
+        {
+          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "name": "два document producers атомарно activate один intent и создают один missing prepare"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
+        }
+      ],
+      "note": "PostgreSQL delivery generation/outbox recovery plus competing real producers prove one logical work, stale-message rejection and no terminal reset. Old document timestamp/lease/Redis-unique ownership is retired; paid AI behavior is not inferred."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+        "name": "архив создаёт children, каждый проходит обычную подготовку, а parent не скрининг"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+          "name": "format corpus: архив создаёт children, каждый проходит обычную подготовку, а parent не скрининг"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+        "name": "retry архива сохраняет одну logical child на parent и path"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+          "name": "format corpus: retry архива сохраняет одну logical child на parent и path"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+        "name": "complete platform reindex не снимает child, созданный ExpandArchiveEntryAction"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+          "name": "format corpus: complete platform reindex не снимает child, созданный ExpandArchiveEntryAction"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+        "name": "concurrent archive entry materialization создаёт одну logical child и одно событие"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+          "name": "format corpus: concurrent archive entry materialization создаёт одну logical child и одно событие"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+        "name": "hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"path traversal\"\""
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+          "name": "format corpus: hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"path traversal\"\""
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+        "name": "hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"symbolic link\"\""
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+          "name": "format corpus: hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"symbolic link\"\""
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+        "name": "hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"entry count bomb\"\""
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+          "name": "format corpus: hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"entry count bomb\"\""
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+        "name": "hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"password protected\"\""
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+          "name": "format corpus: hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"password protected\"\""
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+        "name": "hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"corrupt bytes\"\""
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
+          "name": "format corpus: hostile archive завершается без children, events и follow-up jobs with data set \"dataset \"corrupt bytes\"\""
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "подготовка PDF — PassthroughStrategy, документ переходит в prepared без ScreeningJob (флаг выключен)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: подготовка PDF — PassthroughStrategy, документ переходит в prepared без ScreeningJob (флаг выключен)"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "подготовка PNG — ImageStrategy без конвертации, документ переходит в prepared"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: подготовка PNG — ImageStrategy без конвертации, документ переходит в prepared"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "подготовка XLSX — конвертация в PDF записана представлением kind=pdf, документ prepared"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: подготовка XLSX — конвертация в PDF записана представлением kind=pdf, документ prepared"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared (D26/P3.4)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared (D26/P3.4)"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален (D26/P3.4)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален (D26/P3.4)"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed) (P3.4)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed) (P3.4)"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "архив с xlsx внутри — создаёт дочерний Document+Version с parent_version_id и событием document_added"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: архив с xlsx внутри — создаёт дочерний Document+Version с parent_version_id и событием document_added"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "повторный прогон подготовки архива — дочерний документ не дублируется"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: повторный прогон подготовки архива — дочерний документ не дублируется"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "архив читается с recorded disk, а child пишется на current disk"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: архив читается с recorded disk, а child пишется на current disk"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "identity archive entry принадлежит паре parent version и normalized path"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: identity archive entry принадлежит паре parent version и normalized path"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "осиротевший дочерний документ архива (child без Version) — ретрай дописывает версию, а не пропускает индексацию"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: осиротевший дочерний документ архива (child без Version) — ретрай дописывает версию, а не пропускает индексацию"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "архив сверх лимита вложенности (max_depth=0) — unprocessable(zip_bomb), без распаковки"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: архив сверх лимита вложенности (max_depth=0) — unprocessable(zip_bomb), без распаковки"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "архив сверх лимита числа файлов — unprocessable(zip_bomb)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: архив сверх лимита числа файлов — unprocessable(zip_bomb)"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "повторный прогон на уже prepared документе — no-op (status-guard)"
+      },
+      "disposition": "target_assertions",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: повторный прогон на уже prepared документе — no-op (status-guard)"
+        }
+      ],
+      "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "успешная подготовка диспатчит ScreeningJob за включённым гейтом config(ai.screening.enabled)"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: успешная подготовка диспатчит ScreeningJob за включённым гейтом config(ai.screening.enabled)"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T12StoredDocumentWriterTest.php",
+          "name": "prepare publication и pending analysis intent откатываются вместе при mandatory insert failure"
+        }
+      ],
+      "note": "Format assertions retained in the test-only strategy probe. CHANGED CONTRACT: durable pending screening intent is atomic with canonical preparation, not ordinary ScreeningJob dispatch. Paid AI stays inactive."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+        "name": "unprocessable-исход не диспатчит ScreeningJob даже за включённым гейтом"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
+          "name": "format corpus: unprocessable-исход не диспатчит ScreeningJob даже за включённым гейтом"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T12StoredDocumentWriterTest.php",
+          "name": "prepare publication и pending analysis intent откатываются вместе при mandatory insert failure"
+        }
+      ],
+      "note": "Format assertions retained in the test-only strategy probe. CHANGED CONTRACT: durable pending screening intent is atomic with canonical preparation, not ordinary ScreeningJob dispatch. Paid AI stays inactive."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/RepresentationContractTest.php",
+        "name": "повторный storeOrUpdate по паре версия+kind обновляет ту же запись, а не плодит вторую"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/RepresentationContractTest.php",
+          "name": "повторный storeOrUpdate идемпотентен по recipe kind range и отвергает изменение immutable bytes"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
+          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+        }
+      ],
+      "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Prepare/RepresentationContractTest.php",
+        "name": "пара версия+kind уникальна на уровне схемы — вторая запись тем же kind отбивается БД"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Prepare/RepresentationContractTest.php",
+          "name": "tuple version recipe kind range уникален на уровне схемы — повтор отбивается БД"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
+          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+        }
+      ],
+      "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Storage/FileLocationResolverTest.php",
+        "name": "forDocumentVersion фолбэкает на текущий диск документов при пустой колонке"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Storage/FileLocationResolverTest.php",
+          "name": "forDocumentVersion использует обязательный записанный диск canonical версии"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
+          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+        }
+      ],
+      "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Storage/FileLocationResolverTest.php",
+        "name": "forRepresentation фолбэкает на текущий диск документов при пустой колонке"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Storage/FileLocationResolverTest.php",
+          "name": "forRepresentation использует обязательный записанный диск canonical представления"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
+          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+        }
+      ],
+      "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Storage/DiskBackfillTest.php",
+        "name": "materialize-only проставляет диск и не пишет ни одного объекта"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Storage/DiskBackfillTest.php",
+          "name": "materialize-only оставляет обязательный canonical disk и не пишет ни одного объекта"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
+          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+        }
+      ],
+      "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
+        "name": "AI job не входит в обработку пока документ занят ревалидацией with data set \"dataset \"screening\"\""
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
+          "name": "AI job не входит в обработку пока документ занят ревалидацией with data set \"dataset \"screening\"\""
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
+        "name": "AI job не входит в обработку пока документ занят ревалидацией with data set \"dataset \"extraction\"\""
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentRevalidationLeaseTest.php",
+          "name": "AI job не входит в обработку пока документ занят ревалидацией with data set \"dataset \"extraction\"\""
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Ai/OperatorFeedbackLoopTest.php",
+        "name": "recovery доставляет потерянную задачу ручного extraction re-run"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Ai/OperatorFeedbackLoopTest.php",
+          "name": "recovery доставляет потерянную задачу ручного extraction re-run"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+        "name": "восстанавливает обе DB→queue границы ровно одним job при повторном sweep"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+          "name": "восстанавливает обе DB→queue границы ровно одним job при повторном sweep"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+        "name": "не продолжает permanent failure и screening disposition без extraction"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+          "name": "не продолжает permanent failure и screening disposition без extraction"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+        "name": "repair доводит stranded succeeded extraction из screened в extracted без нового job"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+          "name": "repair доводит stranded succeeded extraction из screened в extracted без нового job"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+        "name": "recovery доходит до следующего документа после завершённых и отложенных записей"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+          "name": "recovery доходит до следующего документа после завершённых и отложенных записей"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+        "name": "выключенный screening не занимает LIMIT перед due extraction"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+          "name": "выключенный screening не занимает LIMIT перед due extraction"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+        "name": "два PostgreSQL worker получают ровно один recovery claim"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PipelineRecoveryFaultInjectionTest.php",
+          "name": "два PostgreSQL worker получают ровно один recovery claim"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+        "name": "ретраит анализ на стадии screening по next_retry_at"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+          "name": "ретраит анализ на стадии screening по next_retry_at"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+        "name": "ретраит анализ на стадии extraction по next_retry_at — диспатчит EstimateExtractionJob через реестр (Д-4)"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PipelineRetryFailedTest.php",
+          "name": "ретраит анализ на стадии extraction по next_retry_at — диспатчит EstimateExtractionJob через реестр (Д-4)"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+        "name": "после commit Prepared без screening dispatch reconciler ставит единственный следующий job"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+          "name": "после commit Prepared без screening dispatch reconciler ставит единственный следующий job"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+        "name": "orphan prepared без run создаёт один initial run и восстанавливает screening"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+          "name": "orphan prepared без run создаёт один initial run и восстанавливает screening"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+        "name": "terminal run history не запускается повторно recovery-проходом"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+          "name": "terminal run history не запускается повторно recovery-проходом"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+        "name": "recovery limit ограничивает входную выборку, а не только число dispatch"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+          "name": "recovery limit ограничивает входную выборку, а не только число dispatch"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+        "name": "PrepareDocumentJob откатывает Prepared при отказе INSERT analysis run"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+          "name": "PrepareDocumentJob откатывает Prepared при отказе INSERT analysis run"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+        "name": "два recovery ticks создают один run и один claimed continuation"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+          "name": "два recovery ticks создают один run и один claimed continuation"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+        "name": "orphan Prepared ждёт выключенный screening и восстанавливается после включения"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+          "name": "orphan Prepared ждёт выключенный screening и восстанавливается после включения"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+        "name": "terminal history перед due документом не вызывает starvation"
+      },
+      "disposition": "historical_assertions_retained_not_runtime_proof",
+      "targets": [
+        {
+          "file": "tests/Feature/Procurement/Pipeline/PrepareDocumentJobTest.php",
+          "name": "terminal history перед due документом не вызывает starvation"
+        }
+      ],
+      "note": "Original distinct assertions execute against canonical factories/current algorithms and repositories. Pre-P3.5 AI eligibility/dispatch is retained in a testing-only frozen harness, never registered in application runtime; this is a compatibility tripwire until owning AI cutover, not new-feeder acceptance."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Document/DocumentVersionDiskColumnTest.php",
+        "name": "колонка диска версии документа пишется и читается"
+      },
+      "disposition": "changed_contract",
+      "targets": [
+        {
+          "file": "tests/Feature/Document/DocumentVersionDiskColumnTest.php",
+          "name": "колонка диска версии документа пишется и читается"
+        },
+        {
+          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
+          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+        }
+      ],
+      "note": "CHANGED CONTRACT: the factory materializes its explicit default disk and preserves custom disk roundtrip. Historical NULL-disk fallback is intentionally removed; strict schema cases assert mandatory metadata, rather than treating NULL behavior as equivalent."
+    }
+  ],
+  "historical_harness": {
+    "source_head": "31a0e45255d44558ec582ab4f853b89103b9707f",
+    "guard": "APP_ENV=testing, PROCESS_CORE_TEST=1, canonical test DB, QueueFake for recovery",
+    "activation": "Tests only; no app import/registration/schedule",
+    "sources": [
+      {
+        "source": "app/Services/Procurement/PipelineRecoveryReconciler.php",
+        "source_sha256": "8a80ddd5f20deb04569b714bdcd70456f38f502c9fb2c376d70ee65a7107a546",
+        "harness": "tests/Support/ProcessCore/Historical/AnalysisRecoveryHarness.php",
+        "harness_sha256": "e3f3358a73b7d0f42ac114d11e1593ba00b8cdd46d1a22f2a468f76d71004c0f"
+      },
+      {
+        "source": "app/Jobs/Procurement/PrepareDocumentJob.php",
+        "source_sha256": "1e5b0641abc67fe250d9221c6921b2060b4e53545c75c448eb9a9f9f6455a142",
+        "harness": "tests/Support/ProcessCore/Historical/PrepareJobHarness.php",
+        "harness_sha256": "75e71d906096ad5761bfe8585a315b0cbe3c8f9391d41c0458e5829ec4beaf0d"
+      }
+    ]
+  }
+}

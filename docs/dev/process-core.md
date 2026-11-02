@@ -913,15 +913,22 @@ accounting with that generation. A marked blob rejects new references until veri
 current and historical version/representation references protect it. DB reference triggers also
 reject a direct INSERT racing with deletion. Failed cleanup retains both the mark and capacity.
 
-Coordinator-authorized staging decision (2026-11-01): until P3.5, legacy rows have an entirely NULL
-canonical tuple and retain the old partial uniqueness rules; canonical rows have strict complete-tuple
-CHECKs, blob reference checks and immutable content metadata. A legacy writer cannot append to a
-canonical document or representation. Version hashes remain hex text only for legacy compatibility;
-blob and representation hashes are bytea. P3.5 **must** switch all surviving writers, require canonical
-metadata and explicit disk on every version/representation, convert version hashes to bytea, remove
-the legacy partial indexes and remove the NULL-tuple exception. This is additive schema staging,
-not a second document catalog or an alternate runtime state owner. Prepare/screening are now
-schema-supported; their real handlers remain unregistered until their owning activation.
+P3.5 completes the canonical cutover: every version/representation has an explicit nonempty disk
+and complete blob metadata. Version hashes are PostgreSQL bytea(32); Eloquent exposes validated hex
+at its boundary. The legacy NULL-tuple exceptions and partial uniqueness indexes are removed.
+Versions are revisions (A→B→A is three observations/two blobs), representations use immutable
+(version, recipe, kind, range) identities. No writer may update their bytes or disk in place.
+
+Surviving manual/fixture/dataset/archive and format/bench writers use StoredDocumentWriter:
+object hash/size verification outside transactions, early storage authority locks, blob reference/
+deletion gate and canonical publication. A catalogue object deleted after verification cannot be
+resurrected from stale metadata. Factories create explicit synthetic canonical metadata only; they
+are not evidence that physical bytes exist. Recorded version/representation disks no longer fall
+back from NULL. The generic disk-copy algorithm remains tested on mutable fixture carriers;
+document-version transfer is rejected before I/O. Typed runtime download/prepare stays owned by
+WorkFinalizer. Manual fixture entry preserves working-copy identity, active-run/screening guards,
+supersede rules and requested-by provenance, producing durable preparation work rather than an
+ordinary queue job. Real provider stages remain unregistered at this boundary.
 
 P3.1 evidence comes from `make core-test-documents`: current-head CAS on separate PostgreSQL
 processes, A→B→A, GC/reference interleavings, storage capacity contention, uncertain uploads,
@@ -1019,3 +1026,43 @@ T26 fixtures: `Documents/prepare-v1.json`, mixed native/scanned/empty PDF; deter
 mismatch, stale publication и tmp accounting. Real tools проверяют sidecar omission и successful
 exit с tesseract timeout; реальные процессы — stall, lease loss и PHP SIGKILL/orphan reap.
 Archive safety corpus по-прежнему выполняется `make core-test-documents`.
+
+## P3.5 — independent document runtime
+
+`DocumentFeeder` runs as a bounded producer before admission in `process:daemon feed`. It allocates
+due revalidation cycles and activates pending download intents under the document head lock. The
+common `WorkFeeder`, admission groups, outbox relay, `ExecuteWorkJob` and `RecoveryReconciler` own
+all execution, retry, W/C and recovery. Acquisition runs do not own document revalidation.
+
+Explicit provisioning is `php artisan process:sync-documents` after migrations and before workers.
+It validates storage capacities and installs download/prepare handler authorities; routine boot is
+pure composition. `platform:sync-catalog` also registers document handler versions.
+
+Download publication atomically creates the immutable revision and its independent prepare work
+with the current head generation. Missing prepare work is recovered by the producer. Ready,
+blocked, failed and terminal work identities are never reset by polling. Document status is only
+a read projection. Network failures do not consume the document item budget.
+
+After verified bytes, acquisition pause and source retirement do not stop prepare or fixture
+analysis. Screening/extraction share the analysis parent quota; T11 exercises the current screening
+fixture with manual and two platform cohorts at W10/W20. Extraction runtime/schema activation
+remains P3.8–P3.13; no extraction fixture is claimed against a nonexistent analysis-window schema.
+Successful prepare creates a pending screening intent with `handler_not_activated`. Real paid AI
+is not activated here. Existing legacy AI algorithms are retained solely for deterministic
+fake-provider regression until P3.13; their old job/manual entrypoints reject non-testing runtime.
+The fixture UI fails explicitly before provisioning or mutation.
+
+PDF page preparation is the currently activated typed prepare path. Other format strategies retain
+their deterministic safety corpus through a test-only strategy probe; they are not presented as
+activated typed runtime. Unsupported formats remain explicitly blocked(policy_review). This is an
+existing P3.3 boundary, not successful conversion or complete-source publication.
+
+Document storage cleanup is a bounded category of the common reconcile daemon. It waits for
+revocation/terminal work and verified tool/workspace stop; expiry alone cannot delete an artifact
+of an unrecovered owner. Checkpoint-referenced batches remain protected, uncertain writers retain
+their charge. Duplicate downloads verify or restore identical canonical bytes before the DB-only
+reference gate. No network/object I/O runs in a DB transaction.
+
+P3.5 evidence covers bounded concurrency, not the 1000-document/30-minute T16 load proof, which
+belongs to P3.18/P3.19. D18 scenario dispositions are recorded in
+`tests/Fixtures/ProcessCore/scenario-transfers.json` and the document cutover runbook.

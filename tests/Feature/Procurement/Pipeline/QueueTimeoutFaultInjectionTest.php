@@ -3,25 +3,26 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Process\StageCode;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Jobs\Procurement\PipelineJob;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
+use App\Services\Procurement\Process\StageQueueMap;
 use Illuminate\Queue\Attributes\Timeout;
 
 test('pipeline jobs carry their bounded worker timeout and the OCR job uses its isolated connection', function (): void {
-    $prepare = new PrepareDocumentJob(documentId: 1);
+    $prepare = app(StageQueueMap::class)->forStage(StageCode::Prepare);
     $screening = new ScreeningJob(documentId: 1);
     $extraction = new EstimateExtractionJob(documentId: 1);
 
-    expect(pipelineJobTimeout(job: $prepare))->toBe(config('ai.pipeline.operation_budgets.prepare.job_timeout_seconds'))
-        ->and($prepare->connection)->toBe('redis_prepare')
-        ->and($prepare->queue)->toBe('doc_prepare')
+    expect($prepare->jobTimeout)->toBe(260)
+        ->and($prepare->connection)->toBe('process_long')
+        ->and($prepare->queue)->toBe('process-prepare')
         ->and(pipelineJobTimeout(job: $screening))->toBe(config('ai.pipeline.operation_budgets.screening.job_timeout_seconds'))
         ->and(pipelineJobTimeout(job: $extraction))->toBe(config('ai.pipeline.operation_budgets.extraction.job_timeout_seconds'))
-        ->and(pipelineJobLeaseSeconds(job: $prepare))->toBe(config('ai.pipeline.operation_budgets.prepare.lease_seconds'))
+        ->and($prepare->leaseSeconds)->toBe(360)
         ->and(pipelineJobLeaseSeconds(job: $screening))->toBe(config('ai.pipeline.operation_budgets.screening.lease_seconds'))
         ->and(pipelineJobLeaseSeconds(job: $extraction))->toBe(config('ai.pipeline.operation_budgets.extraction.lease_seconds'));
 });
@@ -30,7 +31,7 @@ test('a live pipeline lease prevents concurrent redelivery only for its own conf
     $document = Document::factory()->create();
     $screening = Analysis::factory()->create(['step' => AnalysisStep::Screening]);
     $extraction = Analysis::factory()->create(['step' => AnalysisStep::Extraction]);
-    $prepareLeaseSeconds = (int) config('ai.pipeline.operation_budgets.prepare.lease_seconds');
+    $prepareLeaseSeconds = (int) 360;
     $screeningLeaseSeconds = (int) config('ai.pipeline.operation_budgets.screening.lease_seconds');
     $extractionLeaseSeconds = (int) config('ai.pipeline.operation_budgets.extraction.lease_seconds');
 

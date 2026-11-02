@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Jobs\Procurement;
+namespace Tests\Support\ProcessCore\Historical;
 
 use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PreparationResult;
+use App\Jobs\Procurement\PipelineJob;
+use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
@@ -25,7 +27,7 @@ use Throwable;
  * за гейтом `config('ai.screening.enabled', false)` (ТЗ 03 §4).
  */
 #[Timeout(2580)]
-final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
+final class PrepareJobHarness extends PipelineJob implements ShouldBeUnique
 {
     private ?Document $documentCache = null;
 
@@ -34,6 +36,9 @@ final class PrepareDocumentJob extends PipelineJob implements ShouldBeUnique
         public readonly RunMode $mode = RunMode::Auto,
         public readonly ?int $initiatedBy = null,
     ) {
+        if (! app()->environment('testing') || getenv('PROCESS_CORE_TEST') !== '1') {
+            throw new \LogicException('Historical preparation harness is testing-only.');
+        }
         $this->onConnection('redis_prepare');
         $this->onQueue('doc_prepare');
     }

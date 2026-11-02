@@ -136,14 +136,17 @@ fallback: пустой или unhealthy exact set даёт `NoProxyAvailableExce
 двум воркерам создать одного child дважды. Terminal причина неподдерживаемого или несовпавшего
 формата живёт в `prc_documents.unprocessable_reason`, а не только в человекочитаемом `last_error`.
 
-Три носителя, у которых файл переживает окно отката (`prc_document_versions.storage_path`,
-`prc_ai_fixtures.storage_path`, `prc_estimates.raw_result_ref`), несут `disk` (`nullable`):
-`null` означает «диск по конфиг-ключу носителя НА МОМЕНТ ЧТЕНИЯ» (`crawler.documents_disk` /
-`ai.fixtures.disk` / `crawler.raw_disk`), непустое значение — конкретное имя диска, записанное в
-момент создания строки. Единственная точка, которая читает/пишет это поле — `FileLocationResolver`
-(`architecture.md`); прямое обращение к конфиг-ключу диска в обход резолвера — дефект.
+В P3.5 `prc_document_versions` и `prc_document_representations` требуют explicit nonempty `disk`
+и полную canonical metadata; version/representation hashes хранятся как bytea(32). Их адреса и
+content metadata immutable, NULL fallback и in-place disk transfer запрещены. Source identity —
+revision, representation identity — `(version, recipe, kind, range)`, blob dedup остаётся отдельным.
+`FileLocationResolver` читает записанный адрес; смена config не переписывает историю.
 
-**Инвариант материализации (D51):** смена диска-по-умолчанию (флип конфиг-ключа) переживается
+`prc_ai_fixtures.storage_path` и `prc_estimates.raw_result_ref` пока сохраняют nullable disk с
+отдельной legacy-семантикой. Generic stream-copy/backfill алгоритмы остаются проверяемы на этих
+mutable carriers. Они не предоставляют обход immutable document metadata.
+
+**Инвариант материализации nullable carriers (D51):** смена диска-по-умолчанию (флип конфиг-ключа) переживается
 только строками, у которых `disk` уже заполнен явно. Перед флипом обязана пройти материализация
 (`storage:disk-backfill <носитель> --materialize-only` — проставляет текущее по конфигу имя во ВСЕ
 строки с `disk IS NULL`, не читая объектов); флип раньше материализации рвёт адресацию всех

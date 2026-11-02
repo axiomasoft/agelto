@@ -8,207 +8,131 @@ use App\Enums\Procurement\Ai\RunMode;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Exceptions\Procurement\Ai\AnalysisRunAlreadyActive;
 use App\Exceptions\Procurement\Ai\ScreeningDisabled;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\User;
 use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
-use App\Repositories\Procurement\Document\DocumentStoreRepository;
+use App\Repositories\Procurement\Document\DocumentWorkRepository;
 use App\Services\Procurement\Fixture\RunFixtureAnalysisAction;
 use App\Services\Procurement\Fixture\WorkingCopyProvisioner;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\DocumentStorageFixtures;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
 
-/*
- * P5.2 — `RunFixtureAnalysisAction` (D41/D135/D136): рабочая копия сеймом P3.3 → гейты
- * предусловий → снятие активных анализов на повторном прогоне → диспатч штатного входа.
- */
 beforeEach(function (): void {
-    Platform::factory()->training()->create();
+    PermitFixtures::clean();
+    ExecutionFixtures::truncateLedger();
+    DocumentStorageFixtures::reset();
+    Platform::query()->firstOrCreate(['code' => Platform::TRAINING_CODE], Platform::factory()->training()->raw());
     config(['ai.screening.enabled' => true]);
+    Storage::fake(config('ai.fixtures.disk'));
+    Storage::fake(config('crawler.documents_disk'));
+    Queue::fake();
 });
 
-function fixtureRunFixture(string $fixturesDisk, string $code): Fixture
+function fixtureRunFixture(string $code): Fixture
 {
-    Storage::disk($fixturesDisk)->put(Fixture::storagePathFor($code, 'xlsx'), 'contenido');
+    $bytes = 'fixture contents '.$code;
+    $path = Fixture::storagePathFor($code, 'xlsx');
+    Storage::disk(config('ai.fixtures.disk'))->put($path, $bytes);
 
-    return Fixture::factory()->create([
-        'code' => $code,
-        'storage_path' => Fixture::storagePathFor($code, 'xlsx'),
-        'sha256' => hash('sha256', $code),
-    ]);
+    return Fixture::factory()->create(['code' => $code, 'storage_path' => $path, 'sha256' => hash('sha256', $bytes), 'size_bytes' => strlen($bytes)]);
 }
 
-function fixtureRunSeedVersion(Document $document): DocumentVersion
-{
-    $content = file_get_contents(base_path('tests/Fixtures/Documents/sample-v1.pdf'));
-    $hash = hash('sha256', $content);
-    $storagePath = "documents/{$hash}";
-
-    Storage::disk('s3')->put($storagePath, $content);
-
-    return DocumentVersion::factory()->create([
-        'document_id' => $document->id,
-        'content_hash' => $hash,
-        'size_bytes' => strlen($content),
-        'filename' => 'sample-v1.pdf',
-        'extension' => 'pdf',
-        'mime' => 'application/pdf',
-        'storage_path' => $storagePath,
-        'downloaded_at' => now(),
-    ]);
-}
-
-test('запуск создаёт рабочую копию и диспатчит PrepareDocumentJob с RunMode::Manual и id инициатора', function (): void {
-    $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
-    Storage::fake($fixturesDisk);
-    Storage::fake($documentsDisk);
-    Queue::fake();
-
-    $fixture = fixtureRunFixture($fixturesDisk, 'EST-XLSX-RUN-001');
+test('fixture request создаёт canonical рабочую копию и manual run с инициатором', function (): void {
+    $fixture = fixtureRunFixture('EST-XLSX-RUN-001');
     $user = User::factory()->create();
-
     app(RunFixtureAnalysisAction::class)->run($fixture, $user->id);
-
-    $document = Document::query()->where('external_id', "fixture:{$fixture->code}")->firstOrFail();
+    $document = Document::query()->where('external_id', 'fixture:'.$fixture->code)->sole();
+    $version = DocumentVersion::query()->where('document_id', $document->id)->sole();
+    $work = DB::table('prc_process_work')->where('document_version_id', $version->id)->sole();
+    $run = DB::table('prc_process_runs')->where('id', $work->origin_run_id)->sole();
     expect($document->platform_id)->toBe(Platform::training()->id)
-        ->and($fixture->refresh()->document_id)->toBe($document->id);
-
-    $version = DocumentVersion::query()->where('document_id', $document->id)->firstOrFail();
-    expect($version->content_hash)->toBe($fixture->sha256);
-
-    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job): bool => $job->documentId === $document->id
-        && $job->mode === RunMode::Manual
-        && $job->initiatedBy === $user->id);
+        ->and($fixture->refresh()->document_id)->toBe($document->id)
+        ->and($version->content_hash)->toBe($fixture->sha256)
+        ->and($version->getAttribute('blob_id'))->not->toBeNull()
+        ->and([$work->stage, $work->state, $run->kind, $run->requested_by])->toBe(['prepare', 'ready', 'manual', $user->id]);
+    Queue::assertNothingPushed(); // Process outbox owns delivery, not an ordinary preparation job.
 });
 
-test('PrepareDocumentJob со значениями по умолчанию заводит прогон auto без инициатора, а с явными параметрами — manual с initiated_by (D135)', function (): void {
-    Storage::fake('s3');
-    Queue::fake();
-
-    $documentA = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $versionA = fixtureRunSeedVersion($documentA);
-
-    (new PrepareDocumentJob($documentA->id))->handle();
-
-    $runA = AnalysisRun::query()->where('document_version_id', $versionA->id)->firstOrFail();
-    expect($runA->mode)->toBe(RunMode::Auto)
-        ->and($runA->initiated_by)->toBeNull();
-
-    $documentB = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $versionB = fixtureRunSeedVersion($documentB);
+test('prepare producer сохраняет auto без инициатора и manual с инициатором в durable run', function (): void {
+    $a = DocumentVersion::factory()->create();
+    $b = DocumentVersion::factory()->create();
     $user = User::factory()->create();
-
-    (new PrepareDocumentJob($documentB->id, RunMode::Manual, $user->id))->handle();
-
-    $runB = AnalysisRun::query()->where('document_version_id', $versionB->id)->firstOrFail();
-    expect($runB->mode)->toBe(RunMode::Manual)
-        ->and($runB->initiated_by)->toBe($user->id);
+    app(DocumentWorkRepository::class)->prepare($a->document_id);
+    app(DocumentWorkRepository::class)->prepare($b->document_id, $user->id, manual: true);
+    $runs = DB::table('prc_process_runs')->orderBy('requested_by')->get();
+    expect($runs)->toHaveCount(2);
+    $auto = $runs->firstWhere('kind', 'profile');
+    $manual = $runs->firstWhere('kind', 'manual');
+    expect($auto->requested_by)->toBeNull()->and($manual->requested_by)->toBe($user->id)
+        ->and(DB::table('prc_process_work')->where('state', 'ready')->count())->toBe(2);
 });
 
 test('активный прогон версии → AnalysisRunAlreadyActive, повторный клик не диспатчит второй job', function (): void {
-    $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
-    Storage::fake($fixturesDisk);
-    Storage::fake($documentsDisk);
-
-    $fixture = fixtureRunFixture($fixturesDisk, 'EST-XLSX-RUN-002');
-    [, $version] = app(WorkingCopyProvisioner::class)->provision($fixture, dryRun: false);
+    $fixture = fixtureRunFixture('EST-XLSX-RUN-002');
+    [, $version] = app(WorkingCopyProvisioner::class)->provision($fixture, false);
     app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
-    // `document` — belongsTo лениво закэшированный на первом (ещё "null") обращении внутри
-    // provision() — без refresh() второй provision() внутри Action увидел бы стухший кэш и
-    // завёл БЫ второй документ/версию мимо только что созданной (реальный вызов из UI получает
-    // $fixture свежим из запроса — эта строка только устраняет double-provision артефакт теста).
     $fixture->refresh();
-
-    Queue::fake();
-
-    expect(fn () => app(RunFixtureAnalysisAction::class)->run($fixture))
-        ->toThrow(AnalysisRunAlreadyActive::class);
-
+    expect(fn () => app(RunFixtureAnalysisAction::class)->run($fixture))->toThrow(AnalysisRunAlreadyActive::class)
+        ->and(DB::table('prc_process_work')->count())->toBe(0)
+        ->and(DocumentVersion::query()->where('document_id', $version->document_id)->count())->toBe(1);
     Queue::assertNothingPushed();
 });
 
 test('выключенный ai.screening.enabled → ScreeningDisabled, рабочая копия не создана', function (): void {
     config(['ai.screening.enabled' => false]);
-    $fixturesDisk = config('ai.fixtures.disk');
-    Storage::fake($fixturesDisk);
-    Storage::fake(config('crawler.documents_disk'));
-
-    $fixture = fixtureRunFixture($fixturesDisk, 'EST-XLSX-RUN-003');
-
-    expect(fn () => app(RunFixtureAnalysisAction::class)->run($fixture))
-        ->toThrow(ScreeningDisabled::class);
-
-    expect(Document::query()->where('external_id', "fixture:{$fixture->code}")->exists())->toBeFalse();
+    $fixture = fixtureRunFixture('EST-XLSX-RUN-003');
+    expect(fn () => app(RunFixtureAnalysisAction::class)->run($fixture))->toThrow(ScreeningDisabled::class)
+        ->and(Document::query()->where('external_id', 'fixture:'.$fixture->code)->exists())->toBeFalse()
+        ->and(DB::table('prc_process_work')->count())->toBe(0);
+    Queue::assertNothingPushed();
 });
 
 test('повторный прогон того же эталона снимает активные анализы обоих шагов и откатывает статус документа в downloaded', function (): void {
-    $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
-    Storage::fake($fixturesDisk);
-    Storage::fake($documentsDisk);
-
-    $fixture = fixtureRunFixture($fixturesDisk, 'EST-XLSX-RUN-004');
-    [$document, $version] = app(WorkingCopyProvisioner::class)->provision($fixture, dryRun: false);
-
-    $finishedRun = app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
-    app(AnalysisRunStoreRepository::class)->markSucceeded($finishedRun);
-
-    $screening = Analysis::factory()->create([
-        'document_version_id' => $version->id,
-        'analysis_run_id' => $finishedRun->id,
-        'step' => AnalysisStep::Screening,
-        'status' => AnalysisStatus::Succeeded,
-    ]);
-    $extraction = Analysis::factory()->create([
-        'document_version_id' => $version->id,
-        'analysis_run_id' => $finishedRun->id,
-        'step' => AnalysisStep::Extraction,
-        'status' => AnalysisStatus::Succeeded,
-    ]);
-
-    app(DocumentStoreRepository::class)->update($document, ['status' => DocumentStatus::Extracted]);
+    $fixture = fixtureRunFixture('EST-XLSX-RUN-004');
+    [$document, $version] = app(WorkingCopyProvisioner::class)->provision($fixture, false);
+    $run = app(AnalysisRunStoreRepository::class)->start($version->id, RunMode::Auto);
+    app(AnalysisRunStoreRepository::class)->markSucceeded($run);
+    $screening = Analysis::factory()->create(['document_version_id' => $version->id, 'analysis_run_id' => $run->id, 'step' => AnalysisStep::Screening, 'status' => AnalysisStatus::Succeeded]);
+    $extraction = Analysis::factory()->create(['document_version_id' => $version->id, 'analysis_run_id' => $run->id, 'step' => AnalysisStep::Extraction, 'status' => AnalysisStatus::Succeeded]);
+    $document->update(['status' => DocumentStatus::Extracted]);
     $fixture->refresh();
-
-    Queue::fake();
-
     app(RunFixtureAnalysisAction::class)->run($fixture);
-
     expect($screening->refresh()->superseded_at)->not->toBeNull()
         ->and($extraction->refresh()->superseded_at)->not->toBeNull()
-        ->and($document->refresh()->status)->toBe(DocumentStatus::Downloaded);
-
-    Queue::assertPushed(PrepareDocumentJob::class, fn (PrepareDocumentJob $job): bool => $job->documentId === $document->id
-        && $job->mode === RunMode::Manual);
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Downloaded)
+        ->and(DB::table('prc_process_work')->where('document_version_id', $version->id)->where('state', 'ready')->count())->toBe(1)
+        ->and(DB::table('prc_process_runs')->where('kind', 'manual')->count())->toBe(1);
+    Queue::assertNothingPushed();
 });
 
 test('оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)', function (): void {
-    $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
-    Storage::fake($fixturesDisk);
-    Storage::fake($documentsDisk);
-
-    $fixture = fixtureRunFixture($fixturesDisk, 'EST-XLSX-RUN-005');
-
-    $this->artisan('estimate:gold:import', ['--code' => [$fixture->code]])->assertExitCode(0);
-
-    $documentFromImport = Document::query()->where('external_id', "fixture:{$fixture->code}")->firstOrFail();
-    $versionFromImport = DocumentVersion::query()->where('document_id', $documentFromImport->id)->firstOrFail();
-
-    Queue::fake();
-    $fixture->refresh();
+    $fixture = fixtureRunFixture('EST-XLSX-RUN-005');
+    $this->artisan('estimate:gold:import', ['--code' => [$fixture->code]])->assertSuccessful();
+    $a = DocumentVersion::query()->where('document_id', $fixture->refresh()->document_id)->sole();
     app(RunFixtureAnalysisAction::class)->run($fixture);
+    $b = DocumentVersion::query()->where('document_id', $fixture->refresh()->document_id)->sole();
+    expect($b->id)->toBe($a->id)->and($b->document_id)->toBe($a->document_id)->and($b->content_hash)->toBe($fixture->sha256)
+        ->and(DB::table('prc_process_work')->where('document_version_id', $b->id)->count())->toBe(1);
+});
 
-    $documentFromRun = Document::query()->where('external_id', "fixture:{$fixture->code}")->firstOrFail();
-    $versionFromRun = DocumentVersion::query()->where('document_id', $documentFromRun->id)->firstOrFail();
-
-    expect($documentFromRun->id)->toBe($documentFromImport->id)
-        ->and($versionFromRun->id)->toBe($versionFromImport->id)
-        ->and($versionFromRun->content_hash)->toBe($fixture->sha256);
+test('working copy A B A сохраняет три canonical revisions и current head вместо выбора historical hash', function (): void {
+    $fixture = fixtureRunFixture('EST-XLSX-RUN-ABA');
+    $a = 'fixture contents '.$fixture->code;
+    foreach ([$a, 'changed fixture bytes', $a] as $bytes) {
+        Storage::disk(config('ai.fixtures.disk'))->put($fixture->storage_path, $bytes);
+        $fixture->update(['sha256' => hash('sha256', $bytes), 'size_bytes' => strlen($bytes)]);
+        [, $version] = app(WorkingCopyProvisioner::class)->provision($fixture->refresh(), false);
+        expect($version->content_hash)->toBe(hash('sha256', $bytes));
+    }
+    expect(DocumentVersion::query()->where('document_id', $fixture->document_id)->count())->toBe(3)
+        ->and(Document::query()->findOrFail($fixture->document_id)->getAttribute('current_version_id'))->toBe($version->id)
+        ->and(DB::table('prc_document_blobs')->count())->toBe(2);
 });

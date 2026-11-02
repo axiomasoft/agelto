@@ -25,8 +25,10 @@ use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\DeferralReason;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
+use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
 use App\Repositories\Procurement\Document\DownloadStorageRepository;
+use App\Services\Procurement\Platform\Contracts\DocumentAccessResolver;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
@@ -44,6 +46,15 @@ final readonly class DownloadHandler implements StageHandler
         private DownloadPolicy $policy, private ProcessClock $clock) {}
 
     public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
+    {
+        try {
+            return $this->download($input, $execution);
+        } catch (FilesystemException $failure) {
+            throw new DependencyUnavailable('storage', $failure);
+        }
+    }
+
+    private function download(WorkInput $input, ExecutionContext $execution): StageOutcome
     {
         if (! $input instanceof DownloadInput) {
             throw new \InvalidArgumentException('Download input required.');
@@ -137,6 +148,7 @@ final readonly class DownloadHandler implements StageHandler
                 if ($artifact->sizeBytes !== $binary->bytes || $artifact->hash->hex !== $binary->artifact->sha256->hex) {
                     throw new ArtifactUnavailable('Transport artifact checksum or size mismatch.');
                 }
+                $this->blobs->verifyExisting($artifact, $execution);
                 $modified = $response->header('Last-Modified');
                 $lastModified = $modified === null ? false : \DateTimeImmutable::createFromFormat(DATE_RFC7231, $modified);
 

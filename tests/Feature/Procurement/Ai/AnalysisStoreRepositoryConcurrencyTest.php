@@ -54,10 +54,11 @@ PHP);
             ->and($state['count'])->toBe(1);
     } finally {
         ConcurrentTransactions::execute(<<<PHP
-\App\Models\Procurement\Ai\Analysis::query()->where('document_version_id', {$fixture['version_id']})->delete();
-\App\Models\Procurement\Ai\AnalysisRun::query()->where('document_version_id', {$fixture['version_id']})->delete();
-\App\Models\Procurement\Document\DocumentVersion::query()->whereKey({$fixture['version_id']})->delete();
-\App\Models\Procurement\Document\Document::query()->whereKey({$fixture['document_id']})->delete();
+// Canonical artifacts are immutable; reset only the guarded isolated test database.
+\Tests\Support\TestEnvironmentGuard::assertBootstrapTestDatabase(app());
+if (getenv('PROCESS_CORE_TEST') !== '1') { throw new \LogicException('Core rig required.'); }
+\Tests\Support\ProcessCore\ExecutionFixtures::truncateLedger();
+\Tests\Support\ProcessCore\DocumentStorageFixtures::reset();
 \App\Models\Procurement\Procurement::query()->whereKey({$fixture['procurement_id']})->delete();
 \App\Models\Procurement\Platform\Registry::query()->whereKey({$fixture['registry_id']})->delete();
 \App\Models\Procurement\Platform\Platform::query()->whereKey({$fixture['platform_id']})->delete();

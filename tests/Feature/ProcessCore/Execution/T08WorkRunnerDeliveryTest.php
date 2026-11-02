@@ -200,6 +200,24 @@ function runnerFailNextWorkRead(string $sqlState): void
     });
 }
 
+test('transient SQL внутри handler не расходует fault budget и остаётся durable running для recovery', function (): void {
+    $handler = runnerHandler();
+    $handler->behavior = static function (): never {
+        runnerFailNextWorkRead('08006');
+        DB::selectOne('SELECT id FROM prc_process_work LIMIT 1');
+        throw new LogicException('Expected injected database failure.');
+    };
+    $work = runnerAdmitted();
+
+    expect(app(WorkRunner::class)->runDelivery(runnerEnvelope($work)))->toBe(DeliveryOutcome::DependencyUnavailable)
+        ->and($handler->calls)->toBe(1)
+        ->and([runnerWork($work)->state, runnerWork($work)->item_failures])->toBe(['running', 0]);
+    $attempt = DB::table('prc_process_attempts')->where('work_id', $work->value->value)->sole();
+    expect($attempt->finished_at)->toBeNull()
+        ->and($attempt->fault_signature)->toBeNull()
+        ->and(DB::table('prc_crawl_blocks')->whereNotNull('terminal_proof')->count())->toBe(0);
+});
+
 test('job ACK-ит transient DB failure без исполнения, а нетранзиентную SQL ошибку пробрасывает видимо', function (): void {
     $handler = runnerHandler();
     $work = runnerAdmitted();

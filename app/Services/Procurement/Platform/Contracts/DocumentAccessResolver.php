@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Procurement\Document;
+namespace App\Services\Procurement\Platform\Contracts;
 
 use App\Dto\Procurement\Acquisition\FetchBlocked;
 use App\Dto\Procurement\Acquisition\FetchDeferred;

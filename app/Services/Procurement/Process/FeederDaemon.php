@@ -13,6 +13,7 @@ use App\Enums\Procurement\Process\OutboxKind;
 use App\Repositories\Procurement\Process\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
+use App\Services\Procurement\Process\Contracts\ReconcileCategory;
 use Illuminate\Support\Str;
 
 /**
@@ -26,6 +27,14 @@ use Illuminate\Support\Str;
 final class FeederDaemon implements ProcessDaemon
 {
     private ?int $nextFullTickNs = null;
+
+    /** @var array<string, ReconcileCategory> */
+    private array $producers = [];
+
+    public function registerProducer(ReconcileCategory $producer): void
+    {
+        $this->producers[$producer->name()] = $producer;
+    }
 
     public function __construct(
         private readonly OutboxRepository $outbox,
@@ -54,6 +63,9 @@ final class FeederDaemon implements ProcessDaemon
 
         try {
             $granted = 0;
+            foreach ($this->producers as $producer) {
+                $granted += $producer->reconcile();
+            }
             foreach ($this->parentLanes() as $lane) {
                 $granted += $this->feeder->tick($lane);
             }

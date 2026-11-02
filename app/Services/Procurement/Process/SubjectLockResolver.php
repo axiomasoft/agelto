@@ -9,6 +9,7 @@ use App\Dto\Procurement\Process\DownloadInput;
 use App\Dto\Procurement\Process\ListingInput;
 use App\Dto\Procurement\Process\LockedSubject;
 use App\Dto\Procurement\Process\PrepareInput;
+use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\StatusRefreshInput;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\WorkInput;
@@ -30,7 +31,7 @@ final readonly class SubjectLockResolver
             $input instanceof DetailInput => [new SubjectKey(SubjectKind::Procurement, $input->procurementId)],
             $input instanceof StatusRefreshInput => [new SubjectKey(SubjectKind::Procurement, $input->procurementId)],
             $input instanceof DownloadInput => [new SubjectKey(SubjectKind::Document, $input->documentId)],
-            $input instanceof PrepareInput => [new SubjectKey(SubjectKind::Document, $documentId ?? throw new \InvalidArgumentException('Preloaded document ancestor required.')), new SubjectKey(SubjectKind::DocumentVersion, $input->documentVersionId)],
+            ($input instanceof PrepareInput || $input instanceof ScreeningInput) => [new SubjectKey(SubjectKind::Document, $documentId ?? throw new \InvalidArgumentException('Preloaded document ancestor required.')), new SubjectKey(SubjectKind::DocumentVersion, $input->documentVersionId)],
             default => throw new \InvalidArgumentException('Stage is not schema-supported by the current baseline: '.$input->stage()->value),
         };
     }
@@ -45,7 +46,7 @@ final readonly class SubjectLockResolver
      */
     public function inputInvalidated(WorkInput $input, int $inputRevision, array $locked): bool
     {
-        if ($input instanceof PrepareInput) {
+        if ($input instanceof PrepareInput || $input instanceof ScreeningInput) {
             foreach ($locked as $subject) {
                 if ($subject->subject->kind === SubjectKind::Document) {
                     return $subject->headGeneration !== $inputRevision || $subject->currentDocumentVersionId !== $input->documentVersionId;

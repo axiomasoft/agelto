@@ -13,6 +13,9 @@ use App\Models\Procurement\Platform\Platform;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
  * P5.5 — `estimate:gold:import` создаёт рабочие копии `Document`/`DocumentVersion` вне закупки (D19) и
@@ -20,7 +23,7 @@ use Illuminate\Support\Str;
  * `estimates/gold/<CODE>.{gold,screening}.json`. `--prepare` не покрывается здесь глубоко —
  * реальный прогон фабрики представлений по корпусу (P3) — предмет Completion Notes, не синтетики.
  */
-beforeEach(fn () => Platform::factory()->training()->create());
+beforeEach(fn () => Platform::query()->firstOrCreate(['code' => Platform::TRAINING_CODE], Platform::factory()->training()->raw()));
 
 function goldImportGoldDir(): string
 {

@@ -2,45 +2,54 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Document\DocumentHead;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Process\CompletionStatus;
+use App\Enums\Procurement\Process\WorkState;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
-use App\Jobs\Procurement\RevalidateDocumentJob;
 use App\Jobs\Procurement\ScreeningJob;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
-use App\Services\Procurement\DocumentRevalidationSelector;
+use App\Services\Procurement\Process\WorkFinalizer;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\ProcessCore\DocumentStorageFixtures;
+use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\PrepareFixtures;
+use Tests\Support\ProcessCore\StubPdfTools;
 
-test('ревалидация ждёт завершения текущего анализа даже между checkpoint jobs', function (): void {
-    Http::fake();
-    $document = Document::factory()->create(['status' => DocumentStatus::Screened]);
-    $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
-    Analysis::factory()->create([
-        'document_version_id' => $version->id,
-        'step' => AnalysisStep::Extraction,
-        'status' => AnalysisStatus::Running,
-        'locked_until' => null,
-    ]);
-
-    (new RevalidateDocumentJob(documentId: $document->id))->handle();
-
-    Http::assertNothingSent();
-    expect($document->refresh()->status)->toBe(DocumentStatus::Screened)
-        ->and($document->locked_until)->toBeNull();
+test('новая immutable версия при running prepare fence запрещает checkpoint и late publication старой версии', function (): void {
+    PermitFixtures::clean();
+    ExecutionFixtures::truncateLedger();
+    DocumentStorageFixtures::reset();
+    $f = new PrepareFixtures;
+    $ctx = $f->context();
+    $tools = new StubPdfTools(1);
+    $outcome = $f->handler($tools)->execute($f->input, $ctx);
+    app(WorkFinalizer::class)->finish($ctx->lease(), $outcome);
+    $ctx = $f->context();
+    $outcome = $f->handler($tools)->execute($f->input, $ctx);
+    $doc = DB::table('prc_document_versions')->where('id', $f->input->documentVersionId)->value('document_id');
+    DocumentStorageFixtures::observe(new DocumentHead($doc, 2, $f->input->documentVersionId),
+        DocumentStorageFixtures::upload('new source bytes', DocumentStorageFixtures::domain()));
+    $result = app(WorkFinalizer::class)->finish($ctx->lease(), $outcome);
+    expect($result->status)->toBe(CompletionStatus::Applied)->and($result->state)->toBe(WorkState::Superseded)
+        ->and(DB::table('prc_document_representations')->where('range_key', 'complete')->count())->toBe(0)
+        ->and(DB::table('prc_process_reservations')->count())->toBe(0);
 });
 
+// Retained fake-AI compatibility assertions; typed document revalidation uses the head fence above.
 test('AI job не входит в обработку пока документ занят ревалидацией', function (DocumentStatus $status, AnalysisStep $step, string $jobClass): void {
     Http::preventStrayRequests();
     $document = Document::factory()->create(['status' => $status]);
     $version = DocumentVersion::factory()->create(['document_id' => $document->id]);
     expect(app(DocumentStoreRepository::class)->acquireRevalidationLease(
-        document: $document, owner: RevalidateDocumentJob::class, ttlSeconds: 420,
+        document: $document, owner: 'historical-revalidation-fixture', ttlSeconds: 420,
     ))->toBeTrue();
 
     $analysis = Analysis::factory()->create([
@@ -52,68 +61,8 @@ test('AI job не входит в обработку пока документ �
 
     expect($analysis->refresh()->status)->toBe(AnalysisStatus::Pending)
         ->and($analysis->locked_until)->toBeNull()
-        ->and($document->refresh()->locked_by)->toStartWith(RevalidateDocumentJob::class.':');
+        ->and($document->refresh()->locked_by)->toStartWith('historical-revalidation-fixture'.':');
 })->with([
     'screening' => [DocumentStatus::Prepared, AnalysisStep::Screening, ScreeningJob::class],
     'extraction' => [DocumentStatus::Screened, AnalysisStep::Extraction, EstimateExtractionJob::class],
 ]);
-
-test('selector фильтрует активный анализ до limit и не голодает на первых 25 документах', function (): void {
-    $procurement = Procurement::factory()->create(['current_revision_detected_at' => now()]);
-    $dueAt = now()->subDays(2);
-
-    for ($index = 0; $index < 13; $index++) {
-        $document = Document::factory()->create(['procurement_id' => $procurement->id]);
-        DocumentVersion::factory()->create([
-            'document_id' => $document->id,
-            'downloaded_at' => $dueAt,
-        ]);
-        $latestVersion = DocumentVersion::factory()->create([
-            'document_id' => $document->id,
-            'downloaded_at' => $dueAt,
-        ]);
-        AnalysisRun::factory()->create(['document_version_id' => $latestVersion->id]);
-    }
-
-    for ($index = 0; $index < 12; $index++) {
-        $document = Document::factory()->create(['procurement_id' => $procurement->id]);
-        $analyzedVersion = DocumentVersion::factory()->create([
-            'document_id' => $document->id,
-            'downloaded_at' => $dueAt->copy()->subDay(),
-        ]);
-        $analysisRun = AnalysisRun::factory()->succeeded()->create([
-            'document_version_id' => $analyzedVersion->id,
-        ]);
-        Analysis::factory()->create([
-            'document_version_id' => $analyzedVersion->id,
-            'analysis_run_id' => $analysisRun->id,
-            'step' => AnalysisStep::Extraction,
-            'status' => AnalysisStatus::Running,
-            'locked_until' => now()->addHour(),
-        ]);
-        DocumentVersion::factory()->create([
-            'document_id' => $document->id,
-            'downloaded_at' => $dueAt,
-        ]);
-    }
-
-    $eligible = Document::factory()->create(['procurement_id' => $procurement->id]);
-    $olderTiedVersion = DocumentVersion::factory()->create([
-        'document_id' => $eligible->id,
-        'downloaded_at' => now()->subDay(),
-    ]);
-    AnalysisRun::factory()->create(['document_version_id' => $olderTiedVersion->id]);
-    DocumentVersion::factory()->create([
-        'document_id' => $eligible->id,
-        'downloaded_at' => $olderTiedVersion->downloaded_at,
-    ]);
-
-    $due = app(DocumentRevalidationSelector::class)->due(limit: 25);
-
-    expect($due->modelKeys())->toBe([$eligible->id])
-        ->and(app(DocumentStoreRepository::class)->acquireRevalidationLease(
-            document: $eligible,
-            owner: RevalidateDocumentJob::class,
-            ttlSeconds: 420,
-        ))->toBeTrue();
-});

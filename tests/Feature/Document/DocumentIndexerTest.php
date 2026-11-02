@@ -12,7 +12,8 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Services\Platforms\Eis\Card\DocumentsParser;
-use App\Services\Procurement\DocumentIndexer;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\DocumentReferenceProbe;
 
 function documentsFixtureSnapshotForIndexerTest(): DocumentsSnapshot
 {
@@ -24,7 +25,7 @@ function documentsFixtureSnapshotForIndexerTest(): DocumentsSnapshot
 test('index создаёт документы со статусом discovered', function () {
     $procurement = Procurement::factory()->create();
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: documentsFixtureSnapshotForIndexerTest());
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: documentsFixtureSnapshotForIndexerTest());
 
     expect(Document::query()->where('procurement_id', $procurement->id)->count())->toBe(6);
 
@@ -38,12 +39,12 @@ test('index идемпотентен: повтор не плодит докум�
     $procurement = Procurement::factory()->create();
     $snapshot = documentsFixtureSnapshotForIndexerTest();
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: $snapshot);
 
     $notice = Document::query()->where('external_id', 'F160E393C87D4C65ACEDF22204D1A9C9')->firstOrFail();
     $notice->update(['status' => DocumentStatus::Downloaded]);
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: $snapshot);
 
     expect(Document::query()->where('procurement_id', $procurement->id)->count())->toBe(6);
     expect($notice->refresh()->status)->toBe(DocumentStatus::Downloaded);
@@ -54,7 +55,7 @@ test('повторный uid обновляет метаданные, но не 
     $snapshot = documentsFixtureSnapshotForIndexerTest();
     $source = $snapshot->documents[0];
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: $snapshot);
 
     $document = Document::query()->where('external_id', $source->externalId)->firstOrFail();
     $document->update(['status' => DocumentStatus::Downloaded]);
@@ -67,7 +68,7 @@ test('повторный uid обновляет метаданные, но не 
         externalId: $source->externalId,
     );
 
-    app(DocumentIndexer::class)->index(
+    app(DocumentReferenceProbe::class)->index(
         procurement: $procurement,
         snapshot: new DocumentsSnapshot(
             status: DetailSnapshotStatus::Complete,
@@ -76,7 +77,7 @@ test('повторный uid обновляет метаданные, но не 
     );
 
     expect($document->refresh()->title)->toBe('Обновлённое название при прежнем uid.pdf')
-        ->and($document->source_url)->toBe('https://zakupki.gov.ru/filestore/file.html?uid='.$source->externalId)
+        ->and(json_decode((string) $document->getRawOriginal('access_descriptor'), true)['url'])->toBe('https://zakupki.gov.ru/filestore/file.html?uid='.$source->externalId)
         ->and($document->status)->toBe(DocumentStatus::Downloaded)
         ->and(DocumentVersion::query()->where('document_id', $document->id)->count())->toBe(1);
 });
@@ -85,10 +86,10 @@ test('index помечает removed_at документ, снятый с кар
     $procurement = Procurement::factory()->create();
     $snapshot = documentsFixtureSnapshotForIndexerTest();
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: $snapshot);
 
     // Второй прогон — только первый документ, остальные пропали с карточки.
-    app(DocumentIndexer::class)->index(
+    app(DocumentReferenceProbe::class)->index(
         procurement: $procurement,
         snapshot: new DocumentsSnapshot(
             status: DetailSnapshotStatus::Complete,
@@ -98,7 +99,7 @@ test('index помечает removed_at документ, снятый с кар
 
     $removed = Document::query()->where('external_id', '9150E995B84D4E8481913B1EC0654651')->firstOrFail();
 
-    expect($removed->removed_at)->not->toBeNull();
+    expect(DB::table('prc_procurement_documents')->where('document_id', $removed->id)->value('removed_at'))->not->toBeNull();
 
     expect(ProcurementEvent::query()
         ->where('procurement_id', $procurement->id)
@@ -110,8 +111,8 @@ test('index не снимает platform attachments при incomplete snapshot'
     $procurement = Procurement::factory()->create();
     $snapshot = documentsFixtureSnapshotForIndexerTest();
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
-    app(DocumentIndexer::class)->index(
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: $snapshot);
+    app(DocumentReferenceProbe::class)->index(
         procurement: $procurement,
         snapshot: new DocumentsSnapshot(
             status: DetailSnapshotStatus::Incomplete,
@@ -130,7 +131,7 @@ test('index сохраняет archive child при complete reindex неизм�
     $procurement = Procurement::factory()->create();
     $snapshot = documentsFixtureSnapshotForIndexerTest();
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: $snapshot);
 
     $parent = Document::query()->where('procurement_id', $procurement->id)->firstOrFail();
     $parentVersion = DocumentVersion::factory()->create(['document_id' => $parent->id]);
@@ -145,7 +146,7 @@ test('index сохраняет archive child при complete reindex неизм�
         'archive_entry_path' => 'archive/estimate.pdf',
     ]);
 
-    app(DocumentIndexer::class)->index(procurement: $procurement, snapshot: $snapshot);
+    app(DocumentReferenceProbe::class)->index(procurement: $procurement, snapshot: $snapshot);
 
     expect($parent->refresh()->removed_at)->toBeNull()
         ->and($child->refresh()->removed_at)->toBeNull();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Document;
 
 use App\Enums\Procurement\Document\RepresentationKind;
+use App\Support\Files\Sha256Cast;
 use Database\Factories\Procurement\Document\DocumentRepresentationFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
@@ -24,7 +25,7 @@ use Illuminate\Support\Collection;
  * @property int $document_version_id
  * @property RepresentationKind $kind
  * @property string $storage_path
- * @property string|null $disk
+ * @property string $disk
  * @property int|null $size_bytes
  * @property int|null $page_count
  * @property int|null $token_estimate
@@ -34,7 +35,7 @@ use Illuminate\Support\Collection;
  */
 #[UseFactory(DocumentRepresentationFactory::class)]
 #[Fillable([
-    'document_version_id',
+    'document_version_id', 'blob_id', 'preparation_recipe_hash', 'content_hash', 'range_key', 'tool_version', 'coverage_manifest', 'coverage_manifest_schema_version',
     'kind',
     'storage_path',
     'disk',
@@ -54,6 +55,8 @@ final class DocumentRepresentation extends Model
     protected function casts(): array
     {
         return [
+            'content_hash' => Sha256Cast::class,
+            'preparation_recipe_hash' => Sha256Cast::class,
             'kind' => RepresentationKind::class,
             'meta' => AsCollection::class,
             'size_bytes' => 'integer',

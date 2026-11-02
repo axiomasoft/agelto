@@ -22,10 +22,10 @@ use App\Dto\Procurement\Platform\SourceIdentifierType;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Dto\Procurement\Platform\SupportedDetailCapability;
+use App\Dto\Procurement\Platform\SupportedDocumentAccessCapability;
 use App\Dto\Procurement\Platform\SupportedListingCapability;
 use App\Dto\Procurement\Platform\SupportedListingPartitioningCapability;
 use App\Dto\Procurement\Platform\SupportedStatusCapability;
-use App\Dto\Procurement\Platform\UnsupportedCapability;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Filament\Platforms\Eis\EisUiExtension;
@@ -85,7 +85,7 @@ final readonly class EisDefinition implements PlatformDefinitionProvider
             listing: new SupportedListingCapability(EisListingSource::class, ['listing']),
             detail: new SupportedDetailCapability(EisDetailSource::class, ['card']),
             status: new SupportedStatusCapability(EisDetailSource::class, ['card']),
-            documents: new UnsupportedCapability('Document access adapter belongs to document cutover.'),
+            documents: new SupportedDocumentAccessCapability($this->policy->documentAccessResolver, ['document']),
             checks: new DiagnosticChecks(['listing_filter' => Diagnostics\ListingFilterCheck::class]),
             sourceTargets: $this->targets,
             partitioning: new SupportedListingPartitioningCapability(EisListingPartitioner::class, ['listing']),

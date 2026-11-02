@@ -14,6 +14,7 @@ use App\Dto\Procurement\Process\LockedSubject;
 use App\Dto\Procurement\Process\PrepareInput;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScopeDefinition;
+use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\SubjectAuthoritySnapshot;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\SubjectLockSnapshot;
@@ -131,7 +132,7 @@ final readonly class AuthorityRepository
         $laneIds = array_map(static fn (LedgerRow $lane): string => $lane->string('id'), $lanes);
 
         $documentId = null;
-        if ($input instanceof PrepareInput) {
+        if ($input instanceof PrepareInput || $input instanceof ScreeningInput) {
             $documentId = LedgerRow::one('SELECT document_id FROM prc_document_versions WHERE id=?', [$input->documentVersionId])?->int('document_id');
             if ($documentId === null) {
                 return AuthorityGap::SubjectMissing;
@@ -339,7 +340,7 @@ final readonly class AuthorityRepository
             $subjects[$expected->subject->key()] = new LockedSubject($expected->subject, $row->int('head_generation'), $row->nullableInt('input_revision'), $row->nullableInt('current_version_id'));
         }
 
-        if ($snapshot->input instanceof PrepareInput) {
+        if ($snapshot->input instanceof PrepareInput || $snapshot->input instanceof ScreeningInput) {
             $version = LedgerRow::one('SELECT v.document_id,d.current_version_id FROM prc_document_versions v JOIN prc_documents d ON d.id=v.document_id WHERE v.id=?', [$snapshot->input->documentVersionId]);
             $parent = null;
             foreach ($snapshot->subjects->subjects as $s) {

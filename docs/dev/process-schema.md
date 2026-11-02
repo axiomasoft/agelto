@@ -136,7 +136,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_04_100016_create_prc_financing_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100017_create_prc_eis_details_table.php` | adapt | P2.14 | Canonical platform-scoped primary identity and single EIS extension writer baseline cutover. |
 | `2026_07_04_100018_create_prc_documents_table.php` | adapt_baseline | P2.18 | Atomic acquisition cutover; versioned source document reference descriptor. |
-| `2026_07_04_100019_create_prc_document_versions_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_04_100019_create_prc_document_versions_table.php` | rewrite-baseline | P3.5 | Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness. |
 | `2026_07_04_100020_create_prc_protocols_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100021_create_prc_bids_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100022_create_prc_awards_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
@@ -166,7 +166,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_09_100051_set_hot_partition_autovacuum.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
 | `2026_07_09_100052_create_prc_ai_corrections_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_27_100053_create_prc_ai_fixtures_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_27_100055_create_prc_document_representations_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
+| `2026_07_27_100055_create_prc_document_representations_table.php` | rewrite-baseline | P3.5 | Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness. |
 | `2026_07_27_100057_create_prc_estimate_work_types_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_28_100058_create_prc_ai_prompt_suggestions_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_29_100059_create_prc_ai_analysis_runs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
@@ -196,7 +196,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_10_28_100000_create_prc_process_projection_tables.php` | create | P1.15 | P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured. |
 | `2026_10_28_100002_create_prc_acquisition_snapshot_tables.php` | create | P2.16 | Durable immutable detail observations and recurring status cycles; runtime binding remains P2.18. |
 | `2026_10_31_100000_create_prc_acquisition_schedules_table.php` | create | P2.18 | Durable profile/kind schedule; allocation and next_due advancement share one transaction. |
-| `2026_11_01_100000_create_prc_document_storage_tables.php` | CREATE | P3.1 | Immutable document storage ownership; additive catalog staging before P3.5 cutover. |
+| `2026_11_01_100000_create_prc_document_storage_tables.php` | rewrite-baseline | P3.5 | Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness. |
 
 ### Legacy lifecycle
 
@@ -2946,16 +2946,16 @@ Owner: Procurement; retention: business.
 | id | bigint / int8 | NO | bigint NOT NULL |
 | document_version_id | bigint / int8 | NO | bigint NOT NULL |
 | kind | text / text | NO | text NOT NULL |
-| blob_id | uuid / uuid | YES | uuid |
-| preparation_recipe_hash | bytea / bytea | YES | bytea |
-| content_hash | bytea / bytea | YES | bytea |
-| range_key | text / text | YES | text |
-| tool_version | text / text | YES | text |
-| coverage_manifest | jsonb / jsonb | YES | jsonb |
-| coverage_manifest_schema_version | smallint / int2 | YES | smallint |
+| blob_id | uuid / uuid | NO | uuid NOT NULL |
+| preparation_recipe_hash | bytea / bytea | NO | bytea NOT NULL |
+| content_hash | bytea / bytea | NO | bytea NOT NULL |
+| range_key | text / text | NO | text NOT NULL |
+| tool_version | text / text | NO | text NOT NULL |
+| coverage_manifest | jsonb / jsonb | NO | jsonb NOT NULL |
+| coverage_manifest_schema_version | smallint / int2 | NO | smallint NOT NULL |
 | storage_path | text / text | NO | text NOT NULL |
-| disk | text / text | YES | text |
-| size_bytes | bigint / int8 | YES | bigint |
+| disk | text / text | NO | text NOT NULL |
+| size_bytes | bigint / int8 | NO | bigint NOT NULL |
 | page_count | integer / int4 | YES | integer |
 | token_estimate | integer / int4 | YES | integer |
 | mime | text / text | NO | text NOT NULL |
@@ -2966,14 +2966,13 @@ Owner: Procurement; retention: business.
 
 Constraints:
 - `prc_document_representations_blob_fk`: `FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)`
-- `prc_document_representations_canonical_tuple_check`: `CHECK ((((blob_id IS NULL) AND (preparation_recipe_hash IS NULL) AND (content_hash IS NULL) AND (range_key IS NULL) AND (tool_version IS NULL) AND (coverage_manifest IS NULL) AND (coverage_manifest_schema_version IS NULL)) OR ((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1))))`
+- `prc_document_representations_canonical_tuple_check`: `CHECK (((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1)))`
 - `prc_document_representations_document_version_id_foreign`: `FOREIGN KEY (document_version_id) REFERENCES prc_document_versions(id) ON DELETE CASCADE`
 - `prc_document_representations_pkey`: `PRIMARY KEY (id)`
 - `prc_document_representations_recipe_range_unique`: `UNIQUE (document_version_id, preparation_recipe_hash, kind, range_key)`
 
 Indexes:
 - `prc_document_representations_document_version_id_index`: `CREATE INDEX prc_document_representations_document_version_id_index ON public.prc_document_representations USING btree (document_version_id)`
-- `prc_document_representations_legacy_kind_unique`: `CREATE UNIQUE INDEX prc_document_representations_legacy_kind_unique ON public.prc_document_representations USING btree (document_version_id, kind) WHERE (preparation_recipe_hash IS NULL)`
 - `prc_document_representations_pkey`: `CREATE UNIQUE INDEX prc_document_representations_pkey ON public.prc_document_representations USING btree (id)`
 - `prc_document_representations_recipe_range_unique`: `CREATE UNIQUE INDEX prc_document_representations_recipe_range_unique ON public.prc_document_representations USING btree (document_version_id, preparation_recipe_hash, kind, range_key)`
 
@@ -2985,20 +2984,20 @@ Owner: Procurement; retention: business.
 | --- | --- | --- | --- |
 | id | bigint / int8 | NO | bigint NOT NULL |
 | document_id | bigint / int8 | NO | bigint NOT NULL |
-| revision_no | bigint / int8 | YES | bigint |
-| blob_id | uuid / uuid | YES | uuid |
+| revision_no | bigint / int8 | NO | bigint NOT NULL |
+| blob_id | uuid / uuid | NO | uuid NOT NULL |
 | etag | text / text | YES | text |
 | last_modified | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
-| first_seen_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
+| first_seen_at | timestamp with time zone / timestamptz | NO | timestamp(6) with time zone NOT NULL |
 | normalized_entry_path | text / text | YES | text |
 | child_ordinal | bigint / int8 | YES | bigint |
-| content_hash | text / text | NO | text NOT NULL |
+| content_hash | bytea / bytea | NO | bytea NOT NULL |
 | size_bytes | bigint / int8 | NO | bigint NOT NULL |
 | filename | text / text | NO | text NOT NULL |
 | extension | text / text | NO | text NOT NULL |
 | mime | text / text | NO | text NOT NULL |
 | storage_path | text / text | NO | text NOT NULL |
-| disk | text / text | YES | text |
+| disk | text / text | NO | text NOT NULL |
 | downloaded_at | timestamp with time zone / timestamptz | NO | timestamp(0) with time zone NOT NULL |
 | parent_version_id | bigint / int8 | YES | bigint |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
@@ -3007,7 +3006,7 @@ Owner: Procurement; retention: business.
 
 Constraints:
 - `prc_document_versions_blob_fk`: `FOREIGN KEY (blob_id) REFERENCES prc_document_blobs(id)`
-- `prc_document_versions_canonical_tuple_check`: `CHECK ((((revision_no IS NULL) AND (blob_id IS NULL) AND (first_seen_at IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL) AND (etag IS NULL) AND (last_modified IS NULL)) OR ((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (content_hash ~ '^[0-9a-f]{64}$'::text) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0))))))`
+- `prc_document_versions_canonical_tuple_check`: `CHECK (((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (octet_length(content_hash) = 32) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0)))))`
 - `prc_document_versions_document_id_foreign`: `FOREIGN KEY (document_id) REFERENCES prc_documents(id)`
 - `prc_document_versions_document_id_revision_no_unique`: `UNIQUE (document_id, revision_no)`
 - `prc_document_versions_id_document_id_unique`: `UNIQUE (id, document_id)`
@@ -3020,7 +3019,6 @@ Indexes:
 - `prc_document_versions_document_id_index`: `CREATE INDEX prc_document_versions_document_id_index ON public.prc_document_versions USING btree (document_id)`
 - `prc_document_versions_document_id_revision_no_unique`: `CREATE UNIQUE INDEX prc_document_versions_document_id_revision_no_unique ON public.prc_document_versions USING btree (document_id, revision_no)`
 - `prc_document_versions_id_document_id_unique`: `CREATE UNIQUE INDEX prc_document_versions_id_document_id_unique ON public.prc_document_versions USING btree (id, document_id)`
-- `prc_document_versions_legacy_hash_unique`: `CREATE UNIQUE INDEX prc_document_versions_legacy_hash_unique ON public.prc_document_versions USING btree (document_id, content_hash) WHERE (revision_no IS NULL)`
 - `prc_document_versions_parent_archive_entry_path_unique`: `CREATE UNIQUE INDEX prc_document_versions_parent_archive_entry_path_unique ON public.prc_document_versions USING btree (parent_version_id, archive_entry_path) WHERE ((parent_version_id IS NOT NULL) AND (archive_entry_path IS NOT NULL))`
 - `prc_document_versions_parent_version_id_index`: `CREATE INDEX prc_document_versions_parent_version_id_index ON public.prc_document_versions USING btree (parent_version_id)`
 - `prc_document_versions_parent_version_id_normalized_entry_path_u`: `CREATE UNIQUE INDEX prc_document_versions_parent_version_id_normalized_entry_path_u ON public.prc_document_versions USING btree (parent_version_id, normalized_entry_path)`

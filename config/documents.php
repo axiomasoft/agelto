@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 return [
+    'storage' => [
+        'documents.originals' => ['capacity_bytes' => 274877906944, 'high_watermark_bytes' => 219902325555],
+        'documents.temporary' => ['capacity_bytes' => 17179869184, 'high_watermark_bytes' => 13743895347],
+    ],
     'prepare' => [
         'max_ocr_pages' => 300,
         'chain_seconds' => 200,

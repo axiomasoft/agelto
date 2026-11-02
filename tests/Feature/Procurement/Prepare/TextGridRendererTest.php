@@ -5,6 +5,9 @@ declare(strict_types=1);
 use App\Services\Procurement\Prepare\TextGridRenderer;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
  * Формат `text_grid` (P3.5, D3): строка = `<row_index>\t<ячейка>…`, лист = `## SHEET: <имя>`,

@@ -32,6 +32,7 @@ use Tests\Support\Platforms\Contract\FixtureCorpus;
 use Tests\Support\Platforms\Contract\RecordingOutbound;
 use Tests\Support\Platforms\Contract\SemanticObservation as Observation;
 use Tests\Support\ProcessCore\ContractFixtures;
+use Tests\Support\ProcessCore\DocumentAccessProbe;
 
 final readonly class EisContractManifest
 {
@@ -163,6 +164,12 @@ final readonly class EisContractManifest
                     return new Observation($result->incompleteReason === null ? State::Complete : State::Partial,
                         $result->incompleteReason ?? Reason::Valid, count($result->children));
                 });
+        }
+
+        foreach (['valid', 'expired'] as $name) {
+            $cases[] = new ContractCase('documents', $name, [self::CARD.'contract-documents.html'],
+                new Observation($name === 'valid' ? State::Complete : State::Unavailable, $name === 'valid' ? Reason::Valid : Reason::InvalidResponse),
+                fn (): Observation => DocumentAccessProbe::observe((new EisDefinition(config()))->definition(), 'https://zakupki.gov.ru/fixture.pdf', $name === 'expired'));
         }
 
         return new ContractManifest((new EisDefinition(config()))->definition(), $cases, ['listing.blank', 'detail.login']);

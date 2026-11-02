@@ -17,6 +17,7 @@ use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
+use App\Services\Procurement\Platform\Contracts\DocumentAccessResolver;
 use Illuminate\Support\Str;
 
 /** Pure HTTP descriptor resolution; a signed-reference adapter may replace this narrow port. */

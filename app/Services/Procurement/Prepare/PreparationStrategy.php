@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Prepare;
 
 use App\Enums\Procurement\Document\PreparationResult;
-use App\Jobs\Procurement\PrepareDocumentJob;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 
@@ -13,7 +12,7 @@ use App\Models\Procurement\Document\DocumentVersion;
  * Стратегия подготовки документа к скринингу/извлечению (ТЗ 03 §3.3, канон v1
  * `Old/app/Process/DocumentPrepare/Strategies/PreparationStrategy.php`) — выбор по
  * расширению/сигнатуре версии, реестр порядка — `config('ai.prepare.strategies')`.
- * Стратегия не переводит документ в `prepared` — это делает {@see PrepareDocumentJob} после успеха.
+ * Стратегия не переводит документ в `prepared` — это делает WorkFinalizer после успеха.
  *
  * `process()` возвращает typed `PreparationResult`: `ReadyForScreening`, `ExpandedContainer` или
  * `Unprocessable`. Терминальный `unprocessable` стратегия

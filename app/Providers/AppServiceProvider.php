@@ -24,11 +24,15 @@ use App\Services\Procurement\Acquisition\DetailValueCodec;
 use App\Services\Procurement\Analyzers\Estimate\ChunkSource;
 use App\Services\Procurement\Analyzers\Estimate\RowRangeChunkSource;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use App\Services\Procurement\Document\DocumentFeeder;
+use App\Services\Procurement\Document\DocumentRuntime;
+use App\Services\Procurement\Document\DocumentStorageReconciler;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\NetworkProbeReconcileCategory;
 use App\Services\Procurement\Network\NetworkReconcileCategory;
 use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
+use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ReconcileDaemon;
 use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Proxy\PoolOutboundProxy;
@@ -60,9 +64,17 @@ class AppServiceProvider extends ServiceProvider
         $this->app->afterResolving(StageRegistry::class, function (StageRegistry $registry): void {
             $this->app->make(AcquisitionRuntime::class)->register($registry, $this->app->make(DetailValueCodec::class));
         });
+        $this->app->afterResolving(StageRegistry::class, function (StageRegistry $registry): void {
+            $this->app->make(DocumentRuntime::class)->register($registry);
+        });
+        $this->app->afterResolving(FeederDaemon::class,
+            static function (FeederDaemon $daemon): void {
+                $daemon->registerProducer(app(DocumentFeeder::class));
+            });
         $this->app->bind(LegacyOutbound::class, LegacyOutboundClient::class);
         $this->app->afterResolving(ReconcileDaemon::class,
             static function (ReconcileDaemon $daemon): void {
+                $daemon->register(app(DocumentStorageReconciler::class));
                 $daemon->register(app(NetworkReconcileCategory::class));
                 $daemon->register(app(NetworkProbeReconcileCategory::class));
             });

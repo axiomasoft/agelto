@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P3.1",
+  "current_item": "P3.5",
   "conventions": {
     "work_states": [
       "ready",
@@ -52,7 +52,7 @@
       "app/Models/Llm/Provider.php": "57ef2eb3052664f58982e1ea1ac57ed389f6fb2f8231589d034b29d8d0dde2d2",
       "app/Models/Organization/Organization.php": "d6e9b935b4195fbb5bd656af7b6be221375d25ef0ae4942223ae6570cf9c7f79",
       "app/Models/Organization/OrganizationIdentifier.php": "9d4b7c15051ab39aa11db8827aa15dc967aef398e6d7cbd8c4926fd81336f0e5",
-      "app/Models/Platforms/Eis/EisDetails.php": "5f3aa94e6e32a8e580a60163d1f69c3be0a3f332d2c7b9a166cfd793d655be70",
+      "app/Models/Platforms/Eis/EisDetails.php": "88a5a00780d6cba9c98ce625ccd19c5e3c4a29397db0d78e32420f2e907db127",
       "app/Models/Procurement/Ai/Analysis.php": "ceae4f47ddbf02f478aa26fca1bd2a3120287e89d22374dbba9ae3bc4b2311b8",
       "app/Models/Procurement/Ai/AnalysisRun.php": "4d5a508cf22ad0c515aa56a4b4031a152341c37d55f9821a5516de515ef763bf",
       "app/Models/Procurement/Ai/Correction.php": "eb9d2fe9a33f628aa9cbd3ba1efe131f4a7dd13153b5436e22c31e62fb755771",
@@ -65,19 +65,19 @@
       "app/Models/Procurement/Bid.php": "b19a0bfe05403d5974ca022cf52de1ac69e52d9fd7097f02843577e34f9de114",
       "app/Models/Procurement/Cancellation.php": "c37ab34ebcae3b4beee162f08b2aa5763c224901497c6b4b5186872ba562de10",
       "app/Models/Procurement/Clarification.php": "7a6c5b5b7359bc2d4a88ed4b84a316b2e0f6cf15f2bef664b6373a02ce7116f6",
-      "app/Models/Procurement/Crawler/Crawler.php": "61569f695067204188a1ca4e2b93180cf1240157db4e1688b42d208f0d164378",
-      "app/Models/Procurement/Crawler/Fetch.php": "571043aaca471e0d99b2d6d2f6bae0c384b5a1d96a5821bb49b611e52e4135a2",
+      "app/Models/Procurement/Crawler/Crawler.php": "b56537c34c72282d2abc2386b8357b9294586809be836812fd24e0bdaafdd206",
+      "app/Models/Procurement/Crawler/Fetch.php": "219b217c62ca264f64c032bc6180f7bb9aec4539cffed8c7e95fee354c20fa8e",
       "app/Models/Procurement/Crawler/IgnoredItem.php": "c04fb8fb7ea3d56bdcee165560ed6c098e77a48b4c2e1efa89ca15480510c308",
-      "app/Models/Procurement/Crawler/Proxy.php": "01ab249c9b6ac6a65f51b80b931bae79e4800da43620fcfabcc22508cde67ac7",
+      "app/Models/Procurement/Crawler/Proxy.php": "5d4292d04f35524ed69e8f6bef59d55ac24355078ee524dbfbbc46b821c48741",
       "app/Models/Procurement/Crawler/ProxyCheck.php": "c32c1e0261e6e4f2892acfb65d82ecce40d5d9f9178c189405503955db50fa8e",
       "app/Models/Procurement/Crawler/ProxyTarget.php": "7e4452141aceee856d07d9d538343a65da36f901384de5ef60a05d8002fd30e9",
       "app/Models/Procurement/Crawler/RawArtifact.php": "c410d5cce4e262434cb0f0e5497d56f8c8304023f7db2bb99ac360428628fbeb",
       "app/Models/Procurement/Crawler/Run.php": "67947460a22fe1f79972016746a22e1b4fd1a8be7f13d744c13d35b951920720",
       "app/Models/Procurement/Crawler/SourceCircuit.php": "9cf54fafe3952ee8347ec84ebe955c49be99d5b0d032137947be4b6eb44a4c5a",
       "app/Models/Procurement/Crawler/SourceIncident.php": "4af5366048dd8ffda935351bf02852985a4e4862ea85e1a84207c18dc4f94975",
-      "app/Models/Procurement/Document/Document.php": "aa8c2f14d774edb101ba454ba35eb5b89a269d23e2e7b82126934d2a5a6ef90b",
-      "app/Models/Procurement/Document/DocumentRepresentation.php": "e75d29a820f2b04939106fff3f670e63e58419805cb8b5091e2ff34410967988",
-      "app/Models/Procurement/Document/DocumentVersion.php": "9649ec9286f0b633c2dc091c55c3857481adba0a0a01b762aecd1b3fe56ffa7c",
+      "app/Models/Procurement/Document/Document.php": "daeb7b503bf3e4686265696f4a27f05a410b5144afc78ce38283f6045e4f58e4",
+      "app/Models/Procurement/Document/DocumentRepresentation.php": "9a67f07e1d63abf87a14cd01a8a2d7fd2c55660a9a2a75f0914857e20a80eb89",
+      "app/Models/Procurement/Document/DocumentVersion.php": "794caf279571575ebd37ccb64345abd02b9f41c2851023afa5484eaf29c6f182",
       "app/Models/Procurement/Estimate/Estimate.php": "c6aec4873cef22a803b0c19c525314a56969d8c68220d7970f672683cbafe631",
       "app/Models/Procurement/Estimate/Item.php": "2b194868b9a833874a7a6b6908e709567025da9fe494916731cfa8be220c1de2",
       "app/Models/Procurement/Estimate/Resource.php": "6b6d1e96c6cca558a5b013c3c4e0e201eba2206e9c608551b5a5d3085c19ae8a",
@@ -92,10 +92,10 @@
       "app/Models/Procurement/Platform/Platform.php": "89f23dcc04041683f58a5839bb8c693ccb1beae02b59da42bb744d658979de6b",
       "app/Models/Procurement/Platform/Registry.php": "f8541fad51c97d9405af5ec0ee61a80b17c0212f7539b1e54237eb4082867cc3",
       "app/Models/Procurement/Platform/StatusMapping.php": "c87735e8fc61f82a2b592b71c4042f6e2a327fb271b7d8546f09670e0291442d",
-      "app/Models/Procurement/Procurement.php": "0c626b8cbe1e45e4737a1f3ad478e964c480105f199b3f8d63e19fcad7145a78",
+      "app/Models/Procurement/Procurement.php": "809cdfb035d7961a908825ee12b4909089809a34900519870777a62914c6f39f",
       "app/Models/Procurement/ProcurementEvent.php": "d736f094bc2fcb5e8d613bc032f22cf06fbcaa654e782ac67ee157dd1b6b5455",
       "app/Models/Procurement/ProcurementParty.php": "61c67c9f332750e0847ffe040c5eae35961751990f4f816dcc3d2124a3972b8f",
-      "app/Models/Procurement/ProcurementRevision.php": "12475d73bc8846ad0a7c8341ffb0b546b39c075d5920687ab3fe711553425c4e",
+      "app/Models/Procurement/ProcurementRevision.php": "d9cca69ec5b5bc8f5ce09cde53e8fccc98de3a419c73591165c62b3a31947ad9",
       "app/Models/Procurement/Protocol.php": "b5164816ff47cbaea37fd4363603525da6818f6d095476ccb7ca4aea836cbb1d",
       "app/Models/Procurement/PurchaseItem.php": "3fcba6940e4d2ecb2b052ab0ac3167cf54df96a6957ffcb2ab5b8c7680488fd8",
       "app/Models/Reference/Kbk.php": "5e2e29c60430fe6f87e17dcd6ada3d66038dc24177e7cfa732b94e99bb6b71f7",
@@ -109,7 +109,7 @@
       "database/migrations/0001_01_01_000001_create_cache_table.php": "2ca8398390ecef8eaf72aeac7fefce67f7de631b6f2ec7b7081c8db8953215dc",
       "database/migrations/0001_01_01_000002_create_jobs_table.php": "7c9c712adf4091c87bf2612f4d0dccdfa1df4501553e4ac068b83d7bd5462fa5",
       "database/migrations/2026_07_04_100000_create_prc_platforms_table.php": "b6f2e189767a9d51fab08a77ea287042ad71438bf95f46979f32085aa4336a6a",
-      "database/migrations/2026_07_04_100001_create_prc_registries_table.php": "6259ed20e13970f29294315bcee4e92f45c21226101d5dfafdb5455af33f7aac",
+      "database/migrations/2026_07_04_100001_create_prc_registries_table.php": "d56a642292679e8eb4e60349913b19450727d94c154811edbf171a7af4eda267",
       "database/migrations/2026_07_04_100002_create_prc_status_mappings_table.php": "cd76e78520a6e289c1df1d5f772cb3dde693aa651a964505f4dd57cb0ab1e2e5",
       "database/migrations/2026_07_04_100005_create_ref_okpd2_table.php": "5eeb5c12e029c9b0cde464b7fec47d8871219c03f7aae1fc2ebeda8cd5865347",
       "database/migrations/2026_07_04_100006_create_ref_ktru_table.php": "fab4b6382ce718928431f30aa9202aa64b86a40b450671555b0e8cbe9bd0f5a0",
@@ -117,15 +117,15 @@
       "database/migrations/2026_07_04_100008_create_ref_kbk_table.php": "b7938c2567b4c163504fb65282e118b63c59bda8a5d6ded438e273a7a2d6b73e",
       "database/migrations/2026_07_04_100009_create_org_organizations_table.php": "3b0d7d792c10cc7ffa0224f8dd58f7aaf7f11051769adec538401d2385efb99e",
       "database/migrations/2026_07_04_100010_create_prc_procurement_parties_table.php": "f4127e2d7efd712ce30676e3959fb0faf3b2f1a13a6b0ba36fc79d0b78189532",
-      "database/migrations/2026_07_04_100011_create_prc_procurements_table.php": "90c953aceeb46fd37e164039ee233618045471b668ea6da34575e3546b65f695",
-      "database/migrations/2026_07_04_100012_create_prc_revisions_table.php": "771a631ecf85b0f448e70a7041b530437c137842a711c2ae6047483f0565f77f",
+      "database/migrations/2026_07_04_100011_create_prc_procurements_table.php": "c3c4bfea9d566d4389405e1cccb6aa2f52334c544fb2b0aba9a51d3bd8de1ade",
+      "database/migrations/2026_07_04_100012_create_prc_revisions_table.php": "5bc6574f7262dc17280e669e05c0b88b1c708707d891807ff91aea85c47c99b4",
       "database/migrations/2026_07_04_100013_create_prc_events_table.php": "3c51de91cce657f3311d7a5abad04d0dc97268f82e2c73a8dd7a59275b29a927",
       "database/migrations/2026_07_04_100014_create_prc_lots_table.php": "0077a56ada41fd628272837366d8ed3ebafb1e588f3f64c9df0130bc523fe694",
       "database/migrations/2026_07_04_100015_create_prc_items_table.php": "0a76edd8c58d42f86ceda6a96f888160ff5086e2467ad1a629d7b623844aa4c8",
       "database/migrations/2026_07_04_100016_create_prc_financing_table.php": "7a62001fab79f040091fea404db066a41553de8e927451905db5cc6a9f42e9cc",
-      "database/migrations/2026_07_04_100017_create_prc_eis_details_table.php": "ae90524de01460073c772abdeb7b5fc59588d1ef0f3fe4fb9db5e6ff506dd7f1",
-      "database/migrations/2026_07_04_100018_create_prc_documents_table.php": "63c2fc342a7a7dea95f0258a27998981be227519ce6ce82b127561990357c584",
-      "database/migrations/2026_07_04_100019_create_prc_document_versions_table.php": "17a7191a08958fb58de1212525fe5c6524be83438e98573216c6b719e4f135e9",
+      "database/migrations/2026_07_04_100017_create_prc_eis_details_table.php": "27dcc5d237d17a1e8275756a4f72548b6686db0d32b05d1230888289aaf5f0c3",
+      "database/migrations/2026_07_04_100018_create_prc_documents_table.php": "05fca4c9dce4a6fd33194f9141775d7a11fdeac691f5625f7d613fa49295a534",
+      "database/migrations/2026_07_04_100019_create_prc_document_versions_table.php": "56d3697cde720d5282f1f7371a4391cf6a9ad87d006b1d2f804156c54b2b2c30",
       "database/migrations/2026_07_04_100020_create_prc_protocols_table.php": "1ef5efafc8fc26f0012292904eed88bbd5ed35611be131c3763a7e760e2fa2b2",
       "database/migrations/2026_07_04_100021_create_prc_bids_table.php": "b5bb4354deccace52bf0f1f1e0f9878beebfc063d16ca4b5b080f01ef1c81564",
       "database/migrations/2026_07_04_100022_create_prc_awards_table.php": "a921030528f9f8bbbc13ab9a08caeac1ff48e3d246a9b314d27fb2afe379070c",
@@ -144,10 +144,10 @@
       "database/migrations/2026_07_04_100035_create_prc_estimate_items_table.php": "99af0bef12f1a30f3bdafec2c6a39ff169306e8293159ec6756ca17aab86523a",
       "database/migrations/2026_07_04_100036_create_prc_estimate_resources_table.php": "59c3a1edec601ba7f5e0c2b560e674fda7da372a527d12b61207c718380c0032",
       "database/migrations/2026_07_04_100037_create_prc_estimate_totals_table.php": "0853b9ddcde6b1271831e59b4d547808c27f9179066b524e1e90e3cb0fa064b5",
-      "database/migrations/2026_07_04_100038_create_prc_crawlers_table.php": "c714c432418bf62e77fcd3218467b0ee52d73190364b7d394da34ddd67fe52b7",
+      "database/migrations/2026_07_04_100038_create_prc_crawlers_table.php": "3c47d66bb2e4601df3e8d379dcf862f2c7ab33fe14499a6567067a46c0138b12",
       "database/migrations/2026_07_04_100039_create_prc_crawler_runs_table.php": "d4716b27a02ba2176cbed56e342ddd3e9c72d73fe3d2f61d164516f6df89601b",
-      "database/migrations/2026_07_04_100040_create_prc_proxies_table.php": "66b30d1a3b134be076af6727aa748cb4b98e731be0d3fc8501cfd36840affb1f",
-      "database/migrations/2026_07_04_100041_create_prc_fetches_table.php": "0bd546c4fdf2b14f67da4c387c4fdc4a6bcae5c89d2e5472141e8e24c7269279",
+      "database/migrations/2026_07_04_100040_create_prc_proxies_table.php": "088b8e8f74cd200d89d36cd5fbb7657ffb229871d02a9d34dd335ff2feb272e7",
+      "database/migrations/2026_07_04_100041_create_prc_fetches_table.php": "61ed0603252facabc3b7ca2c33c43230d134938f0505b01ac6c9a7eb090b600f",
       "database/migrations/2026_07_04_100042_create_prc_proxy_checks_table.php": "b434dbdd41841cd8e93fd5ae312c9a3ce915e8d799bc1226d5a1c92dc0fc35a1",
       "database/migrations/2026_07_04_100044_create_prc_ignored_items_table.php": "c03b6342c68ac7de2cb31349348b0df037e24f728d741e5807a158554b08e3df",
       "database/migrations/2026_07_04_100046_create_prc_operation_logs_table.php": "5789ae7f1df7bb516d581394a2f4adca301e924f53352b6a1a9c163eb786ff52",
@@ -157,7 +157,7 @@
       "database/migrations/2026_07_09_100051_set_hot_partition_autovacuum.php": "bda36a400d9ff597b993be8ff5331315da01365a30b42b34c74372486abcc768",
       "database/migrations/2026_07_09_100052_create_prc_ai_corrections_table.php": "6b0d0581c092a91bdeb807a82990a54b6eec9cfff8104aa2c3ba3306c8b62f42",
       "database/migrations/2026_07_27_100053_create_prc_ai_fixtures_table.php": "4d5fe37be122e623071bbcb5e612b57256c9c78ad288572c3ae36a5b4701d2fb",
-      "database/migrations/2026_07_27_100055_create_prc_document_representations_table.php": "9cb01e6cf193b9f78b4f82a41953210a1955f2b78c48ed62ec0ee9dc5b2714eb",
+      "database/migrations/2026_07_27_100055_create_prc_document_representations_table.php": "bace3da672778ab8657fc47832cf5d8f7769a4196a1a742acf7e442004fa14f2",
       "database/migrations/2026_07_27_100057_create_prc_estimate_work_types_table.php": "3571feb6614cf92c32f4e8ace6eb73d2b9e88a9291db554fea08f3caaa6b09e9",
       "database/migrations/2026_07_28_100058_create_prc_ai_prompt_suggestions_table.php": "4354d78d6d26812093de898efc6408565c7eb7b453285f2741163618cd0fa53c",
       "database/migrations/2026_07_29_100059_create_prc_ai_analysis_runs_table.php": "46b63d1eaf034bb4c7a296122b7c016d8970397ad6cfb3d459348949266822ac",
@@ -179,11 +179,11 @@
       "database/migrations/2026_09_10_100093_repair_partition_coverage.php": "98152778d1670af2b64ebb8c50baa4892d944ed3d65cb87258b1bbb2c8ba1a57",
       "database/migrations/2026_09_10_100094_add_execution_lease_to_prc_crawler_runs.php": "87edf09d965a63d898f5d4c9ae22e1cbc2e0ff662767dab7e848558159ac2757",
       "database/migrations/2026_09_12_100095_preserve_2025_procurement_events.php": "d2350a7c035319e77273180e0c2776fd5664e665c3444266769c59e6f3c0b332",
-      "database/migrations/2026_10_07_100096_create_prc_source_control_tables.php": "8c27c3b743053ecf21484a2fd9c8ba0ace57b0dbf7c1f2f0273295aba18042ee",
+      "database/migrations/2026_10_07_100096_create_prc_source_control_tables.php": "85999657e5683e248cd067801d808d3cee56f5652356ffa154a7c4fc9c7a1e74",
       "database/migrations/2026_10_08_100101_verify_partition_bounds.php": "eaf3436002de00953f4625637a5982f34457d3e47f29639d37be442aaf0c9aa4",
       "database/migrations/2026_10_08_100102_add_source_resume_claim.php": "36b7d6db6ad3718b5ae58d85665a792c841b5f75d9984c28031bc421d5f29c9e",
       "database/migrations/2026_10_08_100103_store_source_time_precision.php": "423c5b0cff5f8fb9fde8f78fd59833eafd0a44f3e5def1cbea1c9e4f572b5522",
-      "database/migrations/2026_10_08_100104_catalog_raw_artifacts.php": "fa79703594e7ef629eb0553a54537ea620556d77645931d36fbd5e1a3130a77b",
+      "database/migrations/2026_10_08_100104_catalog_raw_artifacts.php": "0d16e09c72d80ba20489da471fe81c7c61d0f6e74e0ac2e39593bbdb7b6c65ac",
       "database/migrations/2026_10_18_170000_add_eis_identity_to_org_organizations.php": "02b38af5253ef463032eb85c19b5a122f56d2d2a69091b2ae517c0dce678c381",
       "database/migrations/2026_10_23_100000_create_org_organization_identifiers_table.php": "5a3321609cca1b6a2a98ce7f08f6316a4b60e4c65f49ba7da17315166bd941f3"
     },
@@ -303,6 +303,13 @@
         "source_report": "storage/app/testing/process-core/reports/20261101T163730.050075Z-2057465",
         "schema_sha256": "c4cb30ce1f8ea0a436a401db42d46b30152fe7f9f325db8f06386e2b5c440b75",
         "note": "Actual guarded isolated reset catalog; projection capture is not acceptance. Two final clean installs still mandatory."
+      },
+      {
+        "item": "P3.5",
+        "source": "isolated guarded install diagnostic 20261101T221508.257065Z-2070869/install-1",
+        "catalog_sha256": "56a9d08c24dd7f158ff7e4424408eceb6aba423711ff238da61c2122a56546f5",
+        "schema_sha256": "b972f0bdcf80dc6cd1605f62282269d3fb910092604edd979b199fb0bc312094",
+        "note": "Remove staging NULL tuple/partial uniqueness; mandatory canonical artifact metadata and bytea version hash. Diagnostic capture is not an accepted install."
       }
     ],
     "p21_catalog": {
@@ -494,10 +501,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100019_create_prc_document_versions_table.php",
-      "sha256": "561a79848f78d4395177b0e4dc21d4ae92b51cbe3e7cf7869bec63e0fc712d3c",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "sha256": "56d3697cde720d5282f1f7371a4391cf6a9ad87d006b1d2f804156c54b2b2c30",
+      "action": "rewrite-baseline",
+      "owner_item": "P3.5",
+      "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness."
     },
     {
       "path": "database/migrations/2026_07_04_100020_create_prc_protocols_table.php",
@@ -706,10 +713,10 @@
     },
     {
       "path": "database/migrations/2026_07_27_100055_create_prc_document_representations_table.php",
-      "sha256": "222117292cd8cf321a2e33c22dd09770df1eb59649437aa526bb2840f5ec1488",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "sha256": "bace3da672778ab8657fc47832cf5d8f7769a4196a1a742acf7e442004fa14f2",
+      "action": "rewrite-baseline",
+      "owner_item": "P3.5",
+      "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness."
     },
     {
       "path": "database/migrations/2026_07_27_100057_create_prc_estimate_work_types_table.php",
@@ -919,10 +926,10 @@
     },
     {
       "path": "database/migrations/2026_11_01_100000_create_prc_document_storage_tables.php",
-      "sha256": "6375c41dede894fa58fe9d6b3ff0c1a0ce2ca80b6e755b78d41141cc28d6f689",
-      "action": "CREATE",
-      "owner_item": "P3.1",
-      "reason": "Immutable document storage ownership; additive catalog staging before P3.5 cutover."
+      "sha256": "993c055e451320efb4e88c10d3db056ed9bb519fea0da4012437b6b5f7a15b5f",
+      "action": "rewrite-baseline",
+      "owner_item": "P3.5",
+      "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness."
     }
   ],
   "baseline": {
@@ -7506,7 +7513,7 @@
             "column_default": null,
             "column_name": "blob_id",
             "data_type": "uuid",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 4,
             "table_name": "prc_document_representations",
             "table_schema": "public",
@@ -7516,7 +7523,7 @@
             "column_default": null,
             "column_name": "preparation_recipe_hash",
             "data_type": "bytea",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 5,
             "table_name": "prc_document_representations",
             "table_schema": "public",
@@ -7526,7 +7533,7 @@
             "column_default": null,
             "column_name": "content_hash",
             "data_type": "bytea",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 6,
             "table_name": "prc_document_representations",
             "table_schema": "public",
@@ -7536,7 +7543,7 @@
             "column_default": null,
             "column_name": "range_key",
             "data_type": "text",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 7,
             "table_name": "prc_document_representations",
             "table_schema": "public",
@@ -7546,7 +7553,7 @@
             "column_default": null,
             "column_name": "tool_version",
             "data_type": "text",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 8,
             "table_name": "prc_document_representations",
             "table_schema": "public",
@@ -7556,7 +7563,7 @@
             "column_default": null,
             "column_name": "coverage_manifest",
             "data_type": "jsonb",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 9,
             "table_name": "prc_document_representations",
             "table_schema": "public",
@@ -7566,7 +7573,7 @@
             "column_default": null,
             "column_name": "coverage_manifest_schema_version",
             "data_type": "smallint",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 10,
             "table_name": "prc_document_representations",
             "table_schema": "public",
@@ -7586,7 +7593,7 @@
             "column_default": null,
             "column_name": "disk",
             "data_type": "text",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 12,
             "table_name": "prc_document_representations",
             "table_schema": "public",
@@ -7596,7 +7603,7 @@
             "column_default": null,
             "column_name": "size_bytes",
             "data_type": "bigint",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 13,
             "table_name": "prc_document_representations",
             "table_schema": "public",
@@ -7682,7 +7689,7 @@
             "type": "f"
           },
           {
-            "definition": "CHECK ((((blob_id IS NULL) AND (preparation_recipe_hash IS NULL) AND (content_hash IS NULL) AND (range_key IS NULL) AND (tool_version IS NULL) AND (coverage_manifest IS NULL) AND (coverage_manifest_schema_version IS NULL)) OR ((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1))))",
+            "definition": "CHECK (((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1)))",
             "name": "prc_document_representations_canonical_tuple_check",
             "schema": "public",
             "table_name": "prc_document_representations",
@@ -7718,12 +7725,6 @@
             "tablename": "prc_document_representations"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_document_representations_legacy_kind_unique ON public.prc_document_representations USING btree (document_version_id, kind) WHERE (preparation_recipe_hash IS NULL)",
-            "indexname": "prc_document_representations_legacy_kind_unique",
-            "schemaname": "public",
-            "tablename": "prc_document_representations"
-          },
-          {
             "indexdef": "CREATE UNIQUE INDEX prc_document_representations_pkey ON public.prc_document_representations USING btree (id)",
             "indexname": "prc_document_representations_pkey",
             "schemaname": "public",
@@ -7736,7 +7737,7 @@
             "tablename": "prc_document_representations"
           }
         ],
-        "definition": "CREATE TABLE public.prc_document_representations (\n    id bigint NOT NULL,\n    document_version_id bigint NOT NULL,\n    kind text NOT NULL,\n    blob_id uuid,\n    preparation_recipe_hash bytea,\n    content_hash bytea,\n    range_key text,\n    tool_version text,\n    coverage_manifest jsonb,\n    coverage_manifest_schema_version smallint,\n    storage_path text NOT NULL,\n    disk text,\n    size_bytes bigint,\n    page_count integer,\n    token_estimate integer,\n    mime text NOT NULL,\n    meta jsonb DEFAULT '{}'::jsonb NOT NULL,\n    generated_at timestamp(0) with time zone NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    CONSTRAINT prc_document_representations_canonical_tuple_check CHECK ((((blob_id IS NULL) AND (preparation_recipe_hash IS NULL) AND (content_hash IS NULL) AND (range_key IS NULL) AND (tool_version IS NULL) AND (coverage_manifest IS NULL) AND (coverage_manifest_schema_version IS NULL)) OR ((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1))))\n);"
+        "definition": "CREATE TABLE public.prc_document_representations (\n    id bigint NOT NULL,\n    document_version_id bigint NOT NULL,\n    kind text NOT NULL,\n    blob_id uuid NOT NULL,\n    preparation_recipe_hash bytea NOT NULL,\n    content_hash bytea NOT NULL,\n    range_key text NOT NULL,\n    tool_version text NOT NULL,\n    coverage_manifest jsonb NOT NULL,\n    coverage_manifest_schema_version smallint NOT NULL,\n    storage_path text NOT NULL,\n    disk text NOT NULL,\n    size_bytes bigint NOT NULL,\n    page_count integer,\n    token_estimate integer,\n    mime text NOT NULL,\n    meta jsonb DEFAULT '{}'::jsonb NOT NULL,\n    generated_at timestamp(0) with time zone NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    CONSTRAINT prc_document_representations_canonical_tuple_check CHECK (((blob_id IS NOT NULL) AND (preparation_recipe_hash IS NOT NULL) AND (octet_length(preparation_recipe_hash) = 32) AND (content_hash IS NOT NULL) AND (octet_length(content_hash) = 32) AND (range_key IS NOT NULL) AND (length(range_key) > 0) AND (tool_version IS NOT NULL) AND (length(tool_version) > 0) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (size_bytes IS NOT NULL) AND (size_bytes >= 0) AND (coverage_manifest IS NOT NULL) AND (jsonb_typeof(coverage_manifest) = 'object'::text) AND (coverage_manifest_schema_version IS NOT NULL) AND (coverage_manifest_schema_version = 1)))\n);"
       },
       "prc_document_versions": {
         "owner": "Procurement",
@@ -7766,7 +7767,7 @@
             "column_default": null,
             "column_name": "revision_no",
             "data_type": "bigint",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 3,
             "table_name": "prc_document_versions",
             "table_schema": "public",
@@ -7776,7 +7777,7 @@
             "column_default": null,
             "column_name": "blob_id",
             "data_type": "uuid",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 4,
             "table_name": "prc_document_versions",
             "table_schema": "public",
@@ -7806,7 +7807,7 @@
             "column_default": null,
             "column_name": "first_seen_at",
             "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 7,
             "table_name": "prc_document_versions",
             "table_schema": "public",
@@ -7835,12 +7836,12 @@
           {
             "column_default": null,
             "column_name": "content_hash",
-            "data_type": "text",
+            "data_type": "bytea",
             "is_nullable": "NO",
             "ordinal_position": 10,
             "table_name": "prc_document_versions",
             "table_schema": "public",
-            "udt_name": "text"
+            "udt_name": "bytea"
           },
           {
             "column_default": null,
@@ -7896,7 +7897,7 @@
             "column_default": null,
             "column_name": "disk",
             "data_type": "text",
-            "is_nullable": "YES",
+            "is_nullable": "NO",
             "ordinal_position": 16,
             "table_name": "prc_document_versions",
             "table_schema": "public",
@@ -7962,7 +7963,7 @@
             "type": "f"
           },
           {
-            "definition": "CHECK ((((revision_no IS NULL) AND (blob_id IS NULL) AND (first_seen_at IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL) AND (etag IS NULL) AND (last_modified IS NULL)) OR ((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (content_hash ~ '^[0-9a-f]{64}$'::text) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0))))))",
+            "definition": "CHECK (((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (octet_length(content_hash) = 32) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0)))))",
             "name": "prc_document_versions_canonical_tuple_check",
             "schema": "public",
             "table_name": "prc_document_versions",
@@ -8037,12 +8038,6 @@
             "tablename": "prc_document_versions"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX prc_document_versions_legacy_hash_unique ON public.prc_document_versions USING btree (document_id, content_hash) WHERE (revision_no IS NULL)",
-            "indexname": "prc_document_versions_legacy_hash_unique",
-            "schemaname": "public",
-            "tablename": "prc_document_versions"
-          },
-          {
             "indexdef": "CREATE UNIQUE INDEX prc_document_versions_parent_archive_entry_path_unique ON public.prc_document_versions USING btree (parent_version_id, archive_entry_path) WHERE ((parent_version_id IS NOT NULL) AND (archive_entry_path IS NOT NULL))",
             "indexname": "prc_document_versions_parent_archive_entry_path_unique",
             "schemaname": "public",
@@ -8067,7 +8062,7 @@
             "tablename": "prc_document_versions"
           }
         ],
-        "definition": "CREATE TABLE public.prc_document_versions (\n    id bigint NOT NULL,\n    document_id bigint NOT NULL,\n    revision_no bigint,\n    blob_id uuid,\n    etag text,\n    last_modified timestamp(6) with time zone,\n    first_seen_at timestamp(6) with time zone,\n    normalized_entry_path text,\n    child_ordinal bigint,\n    content_hash text NOT NULL,\n    size_bytes bigint NOT NULL,\n    filename text NOT NULL,\n    extension text NOT NULL,\n    mime text NOT NULL,\n    storage_path text NOT NULL,\n    disk text,\n    downloaded_at timestamp(0) with time zone NOT NULL,\n    parent_version_id bigint,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    archive_entry_path text,\n    CONSTRAINT prc_document_versions_canonical_tuple_check CHECK ((((revision_no IS NULL) AND (blob_id IS NULL) AND (first_seen_at IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL) AND (etag IS NULL) AND (last_modified IS NULL)) OR ((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (content_hash ~ '^[0-9a-f]{64}$'::text) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0))))))\n);"
+        "definition": "CREATE TABLE public.prc_document_versions (\n    id bigint NOT NULL,\n    document_id bigint NOT NULL,\n    revision_no bigint NOT NULL,\n    blob_id uuid NOT NULL,\n    etag text,\n    last_modified timestamp(6) with time zone,\n    first_seen_at timestamp(6) with time zone NOT NULL,\n    normalized_entry_path text,\n    child_ordinal bigint,\n    content_hash bytea NOT NULL,\n    size_bytes bigint NOT NULL,\n    filename text NOT NULL,\n    extension text NOT NULL,\n    mime text NOT NULL,\n    storage_path text NOT NULL,\n    disk text NOT NULL,\n    downloaded_at timestamp(0) with time zone NOT NULL,\n    parent_version_id bigint,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    archive_entry_path text,\n    CONSTRAINT prc_document_versions_canonical_tuple_check CHECK (((revision_no IS NOT NULL) AND (revision_no >= 1) AND (blob_id IS NOT NULL) AND (first_seen_at IS NOT NULL) AND (disk IS NOT NULL) AND (length(disk) > 0) AND (octet_length(content_hash) = 32) AND (size_bytes >= 0) AND (((parent_version_id IS NULL) AND (normalized_entry_path IS NULL) AND (child_ordinal IS NULL)) OR ((parent_version_id IS NOT NULL) AND (normalized_entry_path IS NOT NULL) AND (length(normalized_entry_path) > 0) AND (child_ordinal IS NOT NULL) AND (child_ordinal >= 0)))))\n);"
       },
       "prc_documents": {
         "owner": "Repositories/Procurement (subject authority; Process head fields from P1.6)",

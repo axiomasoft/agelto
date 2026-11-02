@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 /** DB-only writer, invoked only after WorkFinalizer has fenced ownership and current input/head. */
 final readonly class DownloadFinalizer implements StagePublicationRepository
 {
-    public function __construct(private DocumentVersionRepository $versions, private StorageCapacityRepository $capacity, private DownloadPolicy $policy) {}
+    public function __construct(private DocumentVersionRepository $versions, private StorageCapacityRepository $capacity, private DownloadPolicy $policy, private DocumentWorkRepository $documentWorks) {}
 
     public function publicationLocks(WorkInput $input, ValidatedStageResult $result): PublicationLocks
     {
@@ -53,7 +53,7 @@ final readonly class DownloadFinalizer implements StagePublicationRepository
             [$owner->workId->value, $input->acquisitionIntentId->value, $input->documentId, $owner->generation, $owner->ownerToken->value]) === null) {
             throw new \LogicException('Download artifact belongs to another execution owner.');
         }
-        $this->versions->observeLocked($result->head, $result->artifact, $result->metadata);
+        $revision = $this->versions->observeLocked($result->head, $result->artifact, $result->metadata);
         if (DB::update("UPDATE prc_operation_intents SET state='terminal',next_due_at=clock_timestamp()+(? * interval '1 second')
             WHERE id=? AND stage='download' AND subject_kind='prc_documents' AND subject_id=? AND state='active'
             AND expected_head_generation=? AND access_policy_hash=decode(?,'hex')", [$this->policy->revalidationSeconds,
@@ -63,7 +63,10 @@ final readonly class DownloadFinalizer implements StagePublicationRepository
         DB::update("UPDATE prc_documents SET next_revalidation_due_at=clock_timestamp()+(? * interval '1 second') WHERE id=?",
             [$this->policy->revalidationSeconds, $input->documentId]);
 
-        // Prepare successor activation belongs to P3.3/P3.5, never invoke the legacy preparer here.
+        $platform = LedgerRow::one('SELECT platform_id FROM prc_documents WHERE id=?', [$input->documentId])
+            ?? throw new \LogicException('Missing document platform.');
+        $this->documentWorks->prepareLocked($revision->id, $revision->head->generation, $platform->int('platform_id'));
+
         return [];
     }
 

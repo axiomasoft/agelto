@@ -9,6 +9,9 @@ use App\Services\Procurement\Prepare\RepresentationWriter;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 dataset('prepared representation outputs', [
     'scan pdf' => [RepresentationKind::PdfOcr],
@@ -81,7 +84,7 @@ test('streamed representation uses stream IO for upload and verification', funct
             kind: RepresentationKind::PdfOcr,
             path: 'prepared/stream.pdf',
             stream: $source,
-            attributes: [...representationAttributes(), 'size_bytes' => 1, 'mime' => 'application/pdf'],
+            attributes: [...representationAttributes(), 'disk' => 'representation-stream', 'size_bytes' => 1, 'mime' => 'application/pdf'],
         );
     } finally {
         fclose($source);
@@ -108,7 +111,7 @@ test('retry after database finalization failure converges on the newly generated
         kind: RepresentationKind::Pdf,
         path: $path,
         content: $firstContent,
-        attributes: [...representationAttributes(), 'mime' => null],
+        attributes: [...representationAttributes(), 'disk' => 'representation-retry', 'mime' => null],
     ))->toThrow(QueryException::class);
 
     expect(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
@@ -120,7 +123,7 @@ test('retry after database finalization failure converges on the newly generated
         kind: RepresentationKind::Pdf,
         path: $path,
         content: $secondContent,
-        attributes: [...representationAttributes(), 'size_bytes' => 1, 'mime' => 'application/pdf'],
+        attributes: [...representationAttributes(), 'disk' => 'representation-stream', 'disk' => 'representation-retry', 'size_bytes' => 1, 'mime' => 'application/pdf'],
     );
 
     expect($representation->storage_path)->toBe($secondStoragePath)
@@ -143,7 +146,7 @@ test('retry repairs a corrupt pre-existing content-addressed object through stag
         kind: RepresentationKind::Pdf,
         path: $path,
         content: $content,
-        attributes: [...representationAttributes(), 'mime' => 'application/pdf'],
+        attributes: [...representationAttributes(), 'disk' => 'representation-corrupt', 'mime' => 'application/pdf'],
     );
 
     expect($disk->get($storagePath))->toBe($content)

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Procurement;
+namespace Tests\Support\ProcessCore\Historical;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
@@ -17,9 +17,12 @@ use App\Repositories\Procurement\Ai\AnalysisRunStoreRepository;
 use App\Repositories\Procurement\Ai\AnalysisStoreRepository;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Testing\Fakes\QueueFake;
+use Tests\Support\TestEnvironmentGuard;
 
-/** Recovers durable pipeline state after a queue dispatch is lost or an AI retry becomes due. */
-final readonly class PipelineRecoveryReconciler
+/** Frozen pre-P3.5 compatibility harness for unmigrated fake-AI assertions. Never registered in runtime. Source: HEAD 31a0e452. */
+final readonly class AnalysisRecoveryHarness
 {
     public function __construct(
         private AnalysisStoreRepository $analyses,
@@ -30,6 +33,10 @@ final readonly class PipelineRecoveryReconciler
 
     public function reconcile(int $limit): int
     {
+        TestEnvironmentGuard::assertBootstrapTestDatabase(app());
+        if (! app()->environment('testing') || getenv('PROCESS_CORE_TEST') !== '1' || ! (Queue::getFacadeRoot() instanceof QueueFake)) {
+            throw new \LogicException('Historical compatibility harness is testing-only.');
+        }
         if (! config('crawler.downstream_enabled', true)) {
             return 0;
         }

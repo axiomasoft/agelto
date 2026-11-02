@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
+use App\Services\Storage\DiskBackfillRunner;
+use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\Storage;
 
 /*
@@ -22,13 +25,13 @@ beforeEach(function (): void {
 test('перенос копирует объект потоком и обновляет диск записи после совпадения хэша', function (): void {
     $content = 'содержимое версии';
     Storage::disk('documents_v1')->put('documents/aa/hash', $content);
-    $version = DocumentVersion::factory()->onDisk('documents_v1')->create([
+    $version = Fixture::factory()->onDisk('documents_v1')->create([
         'storage_path' => 'documents/aa/hash',
-        'content_hash' => hash('sha256', $content),
+        'sha256' => hash('sha256', $content),
     ]);
 
     $this->artisan('storage:disk-backfill', [
-        'carrier' => 'document-versions',
+        'carrier' => 'fixtures',
         '--to' => 'documents_v2',
     ])->assertExitCode(0);
 
@@ -39,16 +42,16 @@ test('перенос копирует объект потоком и обнов�
 test('повторный прогон переноса идемпотентен: расхождений нет, диск не меняется повторно', function (): void {
     $content = 'идемпотентное содержимое';
     Storage::disk('documents_v1')->put('documents/bb/hash', $content);
-    $version = DocumentVersion::factory()->onDisk('documents_v1')->create([
+    $version = Fixture::factory()->onDisk('documents_v1')->create([
         'storage_path' => 'documents/bb/hash',
-        'content_hash' => hash('sha256', $content),
+        'sha256' => hash('sha256', $content),
     ]);
 
-    $this->artisan('storage:disk-backfill', ['carrier' => 'document-versions', '--to' => 'documents_v2'])
+    $this->artisan('storage:disk-backfill', ['carrier' => 'fixtures', '--to' => 'documents_v2'])
         ->assertExitCode(0);
     expect($version->fresh()->disk)->toBe('documents_v2');
 
-    $this->artisan('storage:disk-backfill', ['carrier' => 'document-versions', '--to' => 'documents_v2'])
+    $this->artisan('storage:disk-backfill', ['carrier' => 'fixtures', '--to' => 'documents_v2'])
         ->assertExitCode(0);
     expect($version->fresh()->disk)->toBe('documents_v2');
 });
@@ -59,17 +62,17 @@ test('прерванный прогон продолжается с --from-id: �
     Storage::disk('documents_v1')->put('documents/cc/a', $contentA);
     Storage::disk('documents_v1')->put('documents/cc/b', $contentB);
 
-    $first = DocumentVersion::factory()->onDisk('documents_v1')->create([
+    $first = Fixture::factory()->onDisk('documents_v1')->create([
         'storage_path' => 'documents/cc/a',
-        'content_hash' => hash('sha256', $contentA),
+        'sha256' => hash('sha256', $contentA),
     ]);
-    $second = DocumentVersion::factory()->onDisk('documents_v1')->create([
+    $second = Fixture::factory()->onDisk('documents_v1')->create([
         'storage_path' => 'documents/cc/b',
-        'content_hash' => hash('sha256', $contentB),
+        'sha256' => hash('sha256', $contentB),
     ]);
 
     $this->artisan('storage:disk-backfill', [
-        'carrier' => 'document-versions',
+        'carrier' => 'fixtures',
         '--to' => 'documents_v2',
         '--from-id' => $second->id,
     ])->assertExitCode(0);
@@ -84,20 +87,20 @@ test('подменённый объект на приёмнике даёт ра�
     Storage::disk('documents_v1')->put('documents/dd/hash', $content);
     Storage::disk('documents_v2')->put('documents/dd/hash', 'подменённое содержимое');
 
-    $version = DocumentVersion::factory()->onDisk('documents_v1')->create([
+    $version = Fixture::factory()->onDisk('documents_v1')->create([
         'storage_path' => 'documents/dd/hash',
-        'content_hash' => hash('sha256', $content),
+        'sha256' => hash('sha256', $content),
     ]);
 
-    $this->artisan('storage:disk-backfill', ['carrier' => 'document-versions', '--to' => 'documents_v2'])
+    $this->artisan('storage:disk-backfill', ['carrier' => 'fixtures', '--to' => 'documents_v2'])
         ->assertExitCode(1);
 
     expect($version->fresh()->disk)->toBe('documents_v1')
         ->and(Storage::disk('documents_v2')->get('documents/dd/hash'))->toBe('подменённое содержимое');
 });
 
-test('materialize-only проставляет диск и не пишет ни одного объекта', function (): void {
-    $version = DocumentVersion::factory()->create(['disk' => null, 'storage_path' => 'documents/ee/hash']);
+test('materialize-only оставляет обязательный canonical disk и не пишет ни одного объекта', function (): void {
+    $version = DocumentVersion::factory()->create(['disk' => app(FileLocationResolver::class)->currentDocumentsDisk(), 'storage_path' => 'documents/ee/hash']);
 
     $this->artisan('storage:disk-backfill', [
         'carrier' => 'document-versions',
@@ -124,4 +127,12 @@ test('перенос estimate-raw-results считает эталон с ист�
     expect($estimate->fresh()->raw_result_disk)->toBe('documents_v2')
         ->and($withoutRef->fresh()->raw_result_disk)->toBeNull();
     Storage::disk('documents_v2')->assertExists('ai/estimates/1/1.json');
+});
+
+test('canonical version disk transfer отказывает до object I/O и не меняет immutable location', function (): void {
+    $version = DocumentVersion::factory()->onDisk('documents_v1')->create(['storage_path' => 'immutable-source']);
+    expect(fn () => app(DiskBackfillRunner::class)->transfer('document-versions', 'documents_v2', 0, false))
+        ->toThrow(RuntimeException::class, 'immutable');
+    expect($version->refresh()->disk)->toBe('documents_v1');
+    Storage::disk('documents_v2')->assertMissing('immutable-source');
 });

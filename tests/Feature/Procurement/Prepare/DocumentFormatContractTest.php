@@ -8,6 +8,9 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Prepare\DocumentFormatInspector;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Documents\DocumentFormatContract;
+use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+beforeEach(fn () => StoredDocumentFixtures::reset());
 
 test('contract dataset supplies valid and terminal mismatch evidence for every format', function (): void {
     foreach (DocumentFormatContract::cases() as $case) {
