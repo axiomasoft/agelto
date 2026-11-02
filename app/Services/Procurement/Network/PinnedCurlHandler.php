@@ -15,6 +15,8 @@ final class PinnedCurlHandler
 
     private int $connectStatus = 0;
 
+    private bool $consumed = false;
+
     public function __construct()
     {
         if (! extension_loaded('curl') || ! defined('CURLOPT_CONNECT_TO') || ! defined('CURLOPT_LOW_SPEED_TIME')) {
@@ -32,6 +34,12 @@ final class PinnedCurlHandler
     /** @param array<array-key, mixed> $options */
     public function __invoke(RequestInterface $request, array $options): PromiseInterface
     {
+        // CurlFactory::finish may re-enter the handler on an ambiguous rewind failure.
+        // One pump is one physical request; only the outer owner can authorize another.
+        if ($this->consumed) {
+            throw new \RuntimeException('The physical cURL pump is already consumed.');
+        }
+        $this->consumed = true;
         $easy = $this->factory->create($request, $options);
         if (! $easy->handle instanceof \CurlHandle) {
             throw new \LogicException('Expected a native cURL handle.');

@@ -4474,7 +4474,7 @@
     },
     {
       "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-      "sha256": "7fd959ff97ccf1af9147c5d6cc30f031aaa0dfdc1dc8ca6346b8164a892c9144",
+      "sha256": "c21c00fb06b30ce4595a52bc7b0f1fbc07c6cc5f8c68fc26b64eb810798ad6e2",
       "scenarios": [
         "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
         "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -5590,7 +5590,7 @@
     },
     {
       "path": "database/migrations/2026_11_02_100001_create_llm_request_ledger.php",
-      "sha256": "f28461591671399c93ec84c9a7ad50bd29a31ff82c52de39e30df810f942809e",
+      "sha256": "0b0b970714643cee250545875c6682d09baeea2d971f3be4e8d2bdfeccf74eb6",
       "change_reason": "P3.9 additive generic financial and receipt ledger; legacy consumers retained."
     }
   ],

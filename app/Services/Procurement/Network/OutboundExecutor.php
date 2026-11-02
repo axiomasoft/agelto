@@ -9,10 +9,15 @@ use App\Dto\Procurement\Network\DecodedTextBody;
 use App\Dto\Procurement\Network\FinalHttpResponseEvidence;
 use App\Dto\Procurement\Network\HttpAttemptResult;
 use App\Dto\Procurement\Network\HttpRequestPayload;
+use App\Dto\Procurement\Network\NetworkDemandTicket;
+use App\Dto\Procurement\Network\NetworkPermitWait;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
+use App\Dto\Procurement\Network\ProviderKey;
+use App\Dto\Procurement\Network\ReservedProviderNetwork;
 use App\Dto\Procurement\Network\RetryRoutePreference;
 use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Network\ScheduledNetworkPermit;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
@@ -32,7 +37,9 @@ use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Exceptions\Procurement\Process\ExecutionInterrupted;
 use App\Exceptions\Procurement\Process\LeaseLost;
 use App\Exceptions\Procurement\Process\SliceExhausted;
+use App\Repositories\Procurement\Network\NetworkPermitRepository;
 use App\Services\Procurement\Network\Contracts\OutboundAttemptGate;
+use App\Services\Procurement\Network\Contracts\OutboundRouteSelector;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
 use Illuminate\Support\Facades\Storage;
@@ -41,7 +48,40 @@ use Illuminate\Support\Str;
 /** Sole physical-attempt loop for Process, bounded probes and surviving legacy callers. */
 final readonly class OutboundExecutor
 {
-    public function __construct(private HttpTransport $transport, private RetryPolicy $retryPolicy = new RetryPolicy) {}
+    public function __construct(private HttpTransport $transport, private NetworkPermitRepository $permits, private RetryPolicy $retryPolicy = new RetryPolicy) {}
+
+    /** Authorization API for the financial owner: reserves once, never claims or sends/retries. */
+    public function reserveProviderSend(OutboundRequestPlan $plan, ExecutionContext $context, OutboundRouteSelector $routes,
+        UrlPolicy $policy, ProviderKey $provider, \Closure $revalidate): ReservedProviderNetwork|TransportDeferred|TransportBlocked
+    {
+        $context->tick();
+        $revalidate();
+        $resolved = $policy->resolve($plan->url, $context, $plan->profile->connectSeconds);
+        $route = $routes->select($plan, new RetryRoutePreference([], null, false, 1));
+        if ($route instanceof TransportBlocked || $route instanceof TransportDeferred) {
+            return $route;
+        }
+        $ticket = $this->permits->register($plan, $context, $route->selection, $provider);
+        if (! $ticket instanceof NetworkDemandTicket) {
+            return $ticket;
+        }
+        try {
+            do {
+                $context->tick();
+                $revalidate();
+                $permit = $this->permits->reserve($ticket, $context, $provider);
+                if ($permit instanceof NetworkPermitWait) {
+                    // One second maximum; next iteration revalidates finance and Process authority.
+                    usleep(100_000);
+                }
+            } while ($permit instanceof NetworkPermitWait);
+        } catch (\Throwable $exception) {
+            $this->permits->abandon($ticket, $context);
+            throw $exception;
+        }
+
+        return $permit instanceof ScheduledNetworkPermit ? new ReservedProviderNetwork($permit, $route, $resolved) : $permit;
+    }
 
     public function execute(OutboundRequestPlan $plan, ExecutionContext|OutboundExecutionContext $context, OutboundAttemptGate $gate, UrlPolicy $policy, TransferBudget $budget, HttpRequestPayload $payload = new HttpRequestPayload): TransportOutcome
     {

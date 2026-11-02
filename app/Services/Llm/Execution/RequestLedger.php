@@ -18,9 +18,9 @@ final readonly class RequestLedger
 {
     public function __construct(private RequestRepository $requests, private ReceiptStore $receipts) {}
 
-    public function authorize(ProviderOperationPlan $plan, string $attempt, int $generation, string $periodId, ProviderOperationIds $ids): AuthorizedProviderOperation
+    public function authorize(ProviderOperationPlan $plan, string $attempt, int $generation, string $periodId, ProviderOperationIds $ids, ?ProviderWireRequest $wire = null): AuthorizedProviderOperation
     {
-        return $this->requests->authorize($plan, $attempt, $generation, $periodId, $ids);
+        return $this->requests->authorize($plan, $attempt, $generation, $periodId, $ids, $wire);
     }
 
     public function capture(ProviderCall $call, int $status, string $body): VerifiedReceipt

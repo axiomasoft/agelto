@@ -10,11 +10,13 @@ use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Process\AuthoritySnapshot;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\ControlSnapshot;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Network\DemandPurpose;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Enums\Procurement\Process\ControlMode;
 use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\StageCode;
 use App\Repositories\Procurement\Process\AuthorityRepository;
@@ -27,17 +29,26 @@ final readonly class NetworkOwnerFence
 {
     public function __construct(private AuthorityRepository $authority, private SubjectLockResolver $subjects) {}
 
-    public function snapshot(ExecutionLease|OutboundOperationHandle $owner): ?AuthoritySnapshot
+    public function snapshot(ExecutionLease|OutboundOperationHandle $owner, ?ProviderKey $provider = null): ?AuthoritySnapshot
     {
         if ($owner instanceof OutboundOperationHandle) {
             return null;
         }
         $snapshot = $this->authority->readAuthoritySnapshot($owner->workId, $owner->handlerVersion);
+        if ($snapshot instanceof AuthoritySnapshot && $provider !== null) {
+            $control = LedgerRow::one('SELECT id,scope_key,desired_mode,control_version FROM prc_control_scopes WHERE scope_key=?', ['provider:'.$provider->value]);
+            if ($control === null || ! in_array($owner->stage, [StageCode::Screening, StageCode::Extraction], true)) {
+                return null;
+            }
+            $snapshot = new AuthoritySnapshot($snapshot->workId, $snapshot->input, $snapshot->inputRevision, $snapshot->inputHash,
+                [...$snapshot->controls, new ControlSnapshot(new ProcessUuid($control->string('id')), $control->string('scope_key'), ControlMode::from($control->string('desired_mode')), $control->int('control_version'))],
+                $snapshot->handler, $snapshot->capacity, $snapshot->subjects, $snapshot->admissionGroup, $snapshot->providerOperations);
+        }
 
         return $snapshot instanceof AuthoritySnapshot ? $snapshot : null;
     }
 
-    public function lock(ExecutionLease|OutboundOperationHandle $owner, ?AuthoritySnapshot $snapshot): NetworkOwnerState|TransportBlocked
+    public function lock(ExecutionLease|OutboundOperationHandle $owner, ?AuthoritySnapshot $snapshot, ?ProviderKey $provider = null): NetworkOwnerState|TransportBlocked
     {
         CallerTransaction::require('Network owner prefix');
         if ($owner instanceof ExecutionLease) {
@@ -77,7 +88,7 @@ final readonly class NetworkOwnerFence
                 return new TransportBlocked(NetworkBlockedReason::OwnerLost);
             }
 
-            return new NetworkOwnerState(DemandPurpose::Ordinary, null, null, $versions, $work->nullableInt('platform_id'),
+            return new NetworkOwnerState(DemandPurpose::Ordinary, null, null, $versions, $provider === null ? $work->nullableInt('platform_id') : null, $provider,
                 adapterHealthId: ($id = $attempt->nullableString('adapter_health_id')) === null ? null : new ProcessUuid($id),
                 adapterHealthEpoch: $attempt->nullableInt('adapter_health_epoch'), attemptId: $owner->attemptId);
         }

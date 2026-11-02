@@ -1495,6 +1495,7 @@ Create: P3.9; activation boundary: P3.13; owner: `Services/Llm/Execution/Request
 | send_claimed_at | timestamptz | yes | send_claimed_at timestamptz |
 | sent_at | timestamptz | yes | sent_at timestamptz |
 | response_at | timestamptz | yes | response_at timestamptz |
+| wire_fingerprint | bytea | yes | wire_fingerprint bytea CHECK(octet_length(wire_fingerprint)=32) |
 | http_status | smallint | yes | http_status smallint |
 | finish_reason | text | yes | finish_reason text |
 | usage_status | text | no | usage_status text NOT NULL |
@@ -1542,6 +1543,7 @@ Constraints:
 - `CONSTRAINT llm_provider_calls_reservation_id_key UNIQUE (reservation_id)`
 - `CONSTRAINT llm_provider_calls_usage_schema_version_check CHECK ((usage_schema_version > 0))`
 - `CONSTRAINT llm_provider_calls_usage_status_check CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))`
+- `CONSTRAINT llm_provider_calls_wire_fingerprint_check CHECK ((octet_length(wire_fingerprint) = 32))`
 
 Indexes:
 - `CREATE INDEX llm_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`
@@ -5760,6 +5762,7 @@ Owner: P3.9; retention: financial.
 | send_claimed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
 | sent_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
 | response_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| wire_fingerprint | bytea / bytea | YES | bytea |
 | http_status | smallint / int2 | YES | smallint |
 | finish_reason | text / text | YES | text |
 | usage_status | text / text | NO | text NOT NULL |
@@ -5807,6 +5810,7 @@ Constraints:
 - `llm_provider_calls_reservation_id_key`: `UNIQUE (reservation_id)`
 - `llm_provider_calls_usage_schema_version_check`: `CHECK ((usage_schema_version > 0))`
 - `llm_provider_calls_usage_status_check`: `CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))`
+- `llm_provider_calls_wire_fingerprint_check`: `CHECK ((octet_length(wire_fingerprint) = 32))`
 
 Indexes:
 - `llm_calls_account_idx`: `CREATE INDEX llm_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)`

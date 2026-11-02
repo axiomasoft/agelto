@@ -49,6 +49,17 @@ final class AnalysisRequestRepository
             FROM prc_analysis_llm_requests WHERE physical_call_id=?", [$physical]) ?? throw new \LogicException('Missing exact analysis provider mapping.');
     }
 
+    /** Rechecked while the joint owner holds document/version subjects; no latest-call heuristic. */
+    public function current(string $physical): bool
+    {
+        return LedgerRow::one('SELECT 1 AS current FROM prc_analysis_llm_requests m
+            JOIN prc_analysis_runs r ON r.id=m.analysis_run_id JOIN prc_document_versions v ON v.id=r.document_version_id
+            JOIN prc_documents d ON d.id=v.document_id
+            WHERE m.physical_call_id=? AND m.recovery_active AND m.recipe_hash=r.recipe_hash
+              AND d.current_version_id=v.id AND d.head_generation=r.expected_document_head_generation
+              AND v.current_analysis_run_id=r.id AND v.analysis_generation=r.expected_analysis_generation', [$physical]) !== null;
+    }
+
     /** Caller has committed the associated chunk/progress or explicit next workflow step. */
     public function consumeLocked(WorkId $work, string $physical): void
     {

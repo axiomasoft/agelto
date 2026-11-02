@@ -17,6 +17,7 @@ use App\Repositories\Procurement\Process\AuthorityRepository;
 use App\Repositories\Procurement\Process\LockedPrefix;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Llm\Execution\ProviderOperationPlan;
+use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Llm\Execution\RequestLedger;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\SubjectLockResolver;
@@ -36,7 +37,7 @@ final readonly class AnalysisCallCoordinator
         private WorkStoreRepository $works,
     ) {}
 
-    public function authorize(ExecutionLease $lease, ProcessUuid $runId, ProviderOperationPlan $plan, string $periodId): AuthorizedProviderOperation
+    public function authorize(ExecutionLease $lease, ProcessUuid $runId, ProviderOperationPlan $plan, string $periodId, ?ProviderWireRequest $wire = null): AuthorizedProviderOperation
     {
         $snapshot = $this->authority->readAuthoritySnapshot($lease->workId);
         if (! $snapshot instanceof AuthoritySnapshot) {
@@ -46,7 +47,7 @@ final readonly class AnalysisCallCoordinator
         $ids = ProviderOperationIds::allocate();
         $linkId = new ProcessUuid((string) Str::uuid());
 
-        return $this->transactions->run(function () use ($lease, $runId, $plan, $periodId, $snapshot, $ids, $linkId): AuthorizedProviderOperation {
+        return $this->transactions->run(function () use ($lease, $runId, $plan, $periodId, $snapshot, $ids, $linkId, $wire): AuthorizedProviderOperation {
             $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: false);
             if (! $prefix instanceof LockedPrefix || ! $prefix->controlsEnabled || ! $prefix->handlerHealthy || ! $prefix->intentActive
                 || $prefix->work->string('state') !== 'running' || $prefix->work->int('generation') !== $lease->generation
@@ -57,13 +58,15 @@ final readonly class AnalysisCallCoordinator
                 throw new OperationDenied('consumer_send_authority_revoked');
             }
             $run = $this->analyses->getRun($runId);
-            if ($run->recipe->hash->hex !== $plan->identity->recipeHash || $run->recipe->llm != $plan->context) {
+            if ($run->recipe->hash->hex !== $plan->identity->recipeHash || $run->recipe->llm != $plan->context
+                || ($plan->generation !== null && ($run->recipe->prompt != $plan->generation->system
+                    || $run->recipe->schemaHash->hex !== $plan->generation->schema->canonicalHash))) {
                 throw new OperationDenied('analysis_recipe_drift');
             }
             if ($plan->identity->replayIntentId !== $runId->value && ! $this->requests->approvedReplay($plan->identity)) {
                 throw new OperationDenied('replay_intent_not_authorized');
             }
-            $operation = $this->ledger->authorize($plan, $lease->attemptId->value, $lease->generation, $periodId, $ids);
+            $operation = $this->ledger->authorize($plan, $lease->attemptId->value, $lease->generation, $periodId, $ids, $wire);
             $prior = $this->mapping->active($lease->workId);
             if ($prior !== null && $prior->string('physical_call_id') !== $operation->physicalCallId) {
                 $old = $this->requests->get($prior->string('physical_call_id'));

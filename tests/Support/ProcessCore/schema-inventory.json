@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P3.9",
+  "current_item": "P3.10",
   "conventions": {
     "work_states": [
       "ready",
@@ -962,10 +962,11 @@
     },
     {
       "path": "database/migrations/2026_11_02_100001_create_llm_request_ledger.php",
-      "sha256": "f28461591671399c93ec84c9a7ad50bd29a31ff82c52de39e30df810f942809e",
+      "sha256": "0b0b970714643cee250545875c6682d09baeea2d971f3be4e8d2bdfeccf74eb6",
       "action": "create",
       "owner_item": "P3.9",
-      "reason": "Permanent financial/request/receipt and exact consumer linkage carriers; paid stages inactive until P3.13."
+      "reason": "Permanent financial/request/receipt and exact consumer linkage carriers; paid stages inactive until P3.13.",
+      "change_reason": "P3.10 immutable per-physical wire fingerprint; additive inactive transport staging."
     }
   ],
   "baseline": {
@@ -23614,10 +23615,20 @@
           },
           {
             "column_default": null,
+            "column_name": "wire_fingerprint",
+            "data_type": "bytea",
+            "is_nullable": "YES",
+            "ordinal_position": 16,
+            "table_name": "llm_provider_calls",
+            "table_schema": "public",
+            "udt_name": "bytea"
+          },
+          {
+            "column_default": null,
             "column_name": "http_status",
             "data_type": "smallint",
             "is_nullable": "YES",
-            "ordinal_position": 16,
+            "ordinal_position": 17,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "int2"
@@ -23627,7 +23638,7 @@
             "column_name": "finish_reason",
             "data_type": "text",
             "is_nullable": "YES",
-            "ordinal_position": 17,
+            "ordinal_position": 18,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "text"
@@ -23637,7 +23648,7 @@
             "column_name": "usage_status",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 18,
+            "ordinal_position": 19,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "text"
@@ -23647,7 +23658,7 @@
             "column_name": "usage",
             "data_type": "jsonb",
             "is_nullable": "YES",
-            "ordinal_position": 19,
+            "ordinal_position": 20,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "jsonb"
@@ -23657,7 +23668,7 @@
             "column_name": "usage_schema_version",
             "data_type": "smallint",
             "is_nullable": "YES",
-            "ordinal_position": 20,
+            "ordinal_position": 21,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "int2"
@@ -23667,7 +23678,7 @@
             "column_name": "cost_estimate",
             "data_type": "numeric",
             "is_nullable": "NO",
-            "ordinal_position": 21,
+            "ordinal_position": 22,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "numeric"
@@ -23677,7 +23688,7 @@
             "column_name": "cost_actual",
             "data_type": "numeric",
             "is_nullable": "YES",
-            "ordinal_position": 22,
+            "ordinal_position": 23,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "numeric"
@@ -23687,7 +23698,7 @@
             "column_name": "receipt_id",
             "data_type": "uuid",
             "is_nullable": "YES",
-            "ordinal_position": 23,
+            "ordinal_position": 24,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "uuid"
@@ -23697,7 +23708,7 @@
             "column_name": "receipt_state",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 24,
+            "ordinal_position": 25,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "text"
@@ -23707,7 +23718,7 @@
             "column_name": "receipt_upload_key",
             "data_type": "text",
             "is_nullable": "NO",
-            "ordinal_position": 25,
+            "ordinal_position": 26,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "text"
@@ -23717,7 +23728,7 @@
             "column_name": "receipt_disk",
             "data_type": "text",
             "is_nullable": "YES",
-            "ordinal_position": 26,
+            "ordinal_position": 27,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "text"
@@ -23727,7 +23738,7 @@
             "column_name": "receipt_key",
             "data_type": "text",
             "is_nullable": "YES",
-            "ordinal_position": 27,
+            "ordinal_position": 28,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "text"
@@ -23737,7 +23748,7 @@
             "column_name": "receipt_hash",
             "data_type": "bytea",
             "is_nullable": "YES",
-            "ordinal_position": 28,
+            "ordinal_position": 29,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "bytea"
@@ -23747,7 +23758,7 @@
             "column_name": "receipt_schema_version",
             "data_type": "smallint",
             "is_nullable": "YES",
-            "ordinal_position": 29,
+            "ordinal_position": 30,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "int2"
@@ -23757,7 +23768,7 @@
             "column_name": "reservation_id",
             "data_type": "uuid",
             "is_nullable": "NO",
-            "ordinal_position": 30,
+            "ordinal_position": 31,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "uuid"
@@ -23767,7 +23778,7 @@
             "column_name": "outcome",
             "data_type": "text",
             "is_nullable": "YES",
-            "ordinal_position": 31,
+            "ordinal_position": 32,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "text"
@@ -23777,7 +23788,7 @@
             "column_name": "charge_evidence",
             "data_type": "text",
             "is_nullable": "YES",
-            "ordinal_position": 32,
+            "ordinal_position": 33,
             "table_name": "llm_provider_calls",
             "table_schema": "public",
             "udt_name": "text"
@@ -23979,6 +23990,13 @@
             "schema": "public",
             "table_name": "llm_provider_calls",
             "type": "c"
+          },
+          {
+            "definition": "CHECK ((octet_length(wire_fingerprint) = 32))",
+            "name": "llm_provider_calls_wire_fingerprint_check",
+            "schema": "public",
+            "table_name": "llm_provider_calls",
+            "type": "c"
           }
         ],
         "indexes": [
@@ -24025,7 +24043,7 @@
             "tablename": "llm_provider_calls"
           }
         ],
-        "definition": "CREATE TABLE public.llm_provider_calls (\n    physical_call_id uuid NOT NULL,\n    logical_request_id uuid NOT NULL,\n    ordinal bigint NOT NULL,\n    provider_id bigint NOT NULL,\n    account_id text NOT NULL,\n    api_surface text NOT NULL,\n    model text NOT NULL,\n    resolved_model_version text,\n    request_epoch bigint NOT NULL,\n    owner_attempt_id uuid NOT NULL,\n    owner_work_generation bigint NOT NULL,\n    send_authorization_token uuid NOT NULL,\n    send_claimed_at timestamp with time zone,\n    sent_at timestamp with time zone,\n    response_at timestamp with time zone,\n    http_status smallint,\n    finish_reason text,\n    usage_status text NOT NULL,\n    usage jsonb,\n    usage_schema_version smallint,\n    cost_estimate numeric(24,8) NOT NULL,\n    cost_actual numeric(24,8),\n    receipt_id uuid,\n    receipt_state text NOT NULL,\n    receipt_upload_key text NOT NULL,\n    receipt_disk text,\n    receipt_key text,\n    receipt_hash bytea,\n    receipt_schema_version smallint,\n    reservation_id uuid NOT NULL,\n    outcome text,\n    charge_evidence text,\n    CONSTRAINT llm_provider_calls_check CHECK (((usage IS NULL) = (usage_schema_version IS NULL))),\n    CONSTRAINT llm_provider_calls_check1 CHECK (((receipt_key IS NULL) = (receipt_hash IS NULL))),\n    CONSTRAINT llm_provider_calls_check2 CHECK (((receipt_key IS NULL) = (receipt_schema_version IS NULL))),\n    CONSTRAINT llm_provider_calls_check3 CHECK (((receipt_state = 'verified'::text) = (receipt_key IS NOT NULL))),\n    CONSTRAINT llm_provider_calls_check4 CHECK (((receipt_state <> ALL (ARRAY['verified'::text, 'unknown'::text])) OR (send_claimed_at IS NOT NULL))),\n    CONSTRAINT llm_provider_calls_check5 CHECK (((receipt_state <> 'not_sent'::text) OR ((send_claimed_at IS NULL) AND (cost_actual = (0)::numeric)))),\n    CONSTRAINT llm_provider_calls_check6 CHECK (((receipt_key IS NULL) OR (receipt_key = receipt_upload_key))),\n    CONSTRAINT llm_provider_calls_cost_actual_check CHECK ((cost_actual >= (0)::numeric)),\n    CONSTRAINT llm_provider_calls_cost_estimate_check CHECK ((cost_estimate >= (0)::numeric)),\n    CONSTRAINT llm_provider_calls_http_status_check CHECK (((http_status >= 100) AND (http_status <= 599))),\n    CONSTRAINT llm_provider_calls_ordinal_check CHECK ((ordinal >= 1)),\n    CONSTRAINT llm_provider_calls_outcome_check CHECK ((outcome = ANY (ARRAY['not_sent'::text, 'success'::text, 'known_nonbillable_cache_miss'::text, 'known_retryable_nonbillable'::text, 'billed_error'::text, 'unknown'::text]))),\n    CONSTRAINT llm_provider_calls_owner_work_generation_check CHECK ((owner_work_generation >= 1)),\n    CONSTRAINT llm_provider_calls_receipt_hash_check CHECK ((octet_length(receipt_hash) = 32)),\n    CONSTRAINT llm_provider_calls_receipt_schema_version_check CHECK ((receipt_schema_version = 1)),\n    CONSTRAINT llm_provider_calls_receipt_state_check CHECK ((receipt_state = ANY (ARRAY['pending'::text, 'verified'::text, 'not_sent'::text, 'unknown'::text]))),\n    CONSTRAINT llm_provider_calls_request_epoch_check CHECK ((request_epoch >= 1)),\n    CONSTRAINT llm_provider_calls_usage_schema_version_check CHECK ((usage_schema_version > 0)),\n    CONSTRAINT llm_provider_calls_usage_status_check CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))\n);"
+        "definition": "CREATE TABLE public.llm_provider_calls (\n    physical_call_id uuid NOT NULL,\n    logical_request_id uuid NOT NULL,\n    ordinal bigint NOT NULL,\n    provider_id bigint NOT NULL,\n    account_id text NOT NULL,\n    api_surface text NOT NULL,\n    model text NOT NULL,\n    resolved_model_version text,\n    request_epoch bigint NOT NULL,\n    owner_attempt_id uuid NOT NULL,\n    owner_work_generation bigint NOT NULL,\n    send_authorization_token uuid NOT NULL,\n    send_claimed_at timestamp with time zone,\n    sent_at timestamp with time zone,\n    response_at timestamp with time zone,\n    wire_fingerprint bytea,\n    http_status smallint,\n    finish_reason text,\n    usage_status text NOT NULL,\n    usage jsonb,\n    usage_schema_version smallint,\n    cost_estimate numeric(24,8) NOT NULL,\n    cost_actual numeric(24,8),\n    receipt_id uuid,\n    receipt_state text NOT NULL,\n    receipt_upload_key text NOT NULL,\n    receipt_disk text,\n    receipt_key text,\n    receipt_hash bytea,\n    receipt_schema_version smallint,\n    reservation_id uuid NOT NULL,\n    outcome text,\n    charge_evidence text,\n    CONSTRAINT llm_provider_calls_check CHECK (((usage IS NULL) = (usage_schema_version IS NULL))),\n    CONSTRAINT llm_provider_calls_check1 CHECK (((receipt_key IS NULL) = (receipt_hash IS NULL))),\n    CONSTRAINT llm_provider_calls_check2 CHECK (((receipt_key IS NULL) = (receipt_schema_version IS NULL))),\n    CONSTRAINT llm_provider_calls_check3 CHECK (((receipt_state = 'verified'::text) = (receipt_key IS NOT NULL))),\n    CONSTRAINT llm_provider_calls_check4 CHECK (((receipt_state <> ALL (ARRAY['verified'::text, 'unknown'::text])) OR (send_claimed_at IS NOT NULL))),\n    CONSTRAINT llm_provider_calls_check5 CHECK (((receipt_state <> 'not_sent'::text) OR ((send_claimed_at IS NULL) AND (cost_actual = (0)::numeric)))),\n    CONSTRAINT llm_provider_calls_check6 CHECK (((receipt_key IS NULL) OR (receipt_key = receipt_upload_key))),\n    CONSTRAINT llm_provider_calls_cost_actual_check CHECK ((cost_actual >= (0)::numeric)),\n    CONSTRAINT llm_provider_calls_cost_estimate_check CHECK ((cost_estimate >= (0)::numeric)),\n    CONSTRAINT llm_provider_calls_http_status_check CHECK (((http_status >= 100) AND (http_status <= 599))),\n    CONSTRAINT llm_provider_calls_ordinal_check CHECK ((ordinal >= 1)),\n    CONSTRAINT llm_provider_calls_outcome_check CHECK ((outcome = ANY (ARRAY['not_sent'::text, 'success'::text, 'known_nonbillable_cache_miss'::text, 'known_retryable_nonbillable'::text, 'billed_error'::text, 'unknown'::text]))),\n    CONSTRAINT llm_provider_calls_owner_work_generation_check CHECK ((owner_work_generation >= 1)),\n    CONSTRAINT llm_provider_calls_receipt_hash_check CHECK ((octet_length(receipt_hash) = 32)),\n    CONSTRAINT llm_provider_calls_receipt_schema_version_check CHECK ((receipt_schema_version = 1)),\n    CONSTRAINT llm_provider_calls_receipt_state_check CHECK ((receipt_state = ANY (ARRAY['pending'::text, 'verified'::text, 'not_sent'::text, 'unknown'::text]))),\n    CONSTRAINT llm_provider_calls_request_epoch_check CHECK ((request_epoch >= 1)),\n    CONSTRAINT llm_provider_calls_usage_schema_version_check CHECK ((usage_schema_version > 0)),\n    CONSTRAINT llm_provider_calls_usage_status_check CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text]))),\n    CONSTRAINT llm_provider_calls_wire_fingerprint_check CHECK ((octet_length(wire_fingerprint) = 32))\n);"
       },
       "llm_budget_reservations": {
         "owner": "P3.9",
@@ -28984,6 +29002,11 @@
           "nullable": true,
           "definition": "response_at timestamptz"
         },
+        "wire_fingerprint": {
+          "type": "bytea",
+          "nullable": true,
+          "definition": "wire_fingerprint bytea CHECK(octet_length(wire_fingerprint)=32)"
+        },
         "http_status": {
           "type": "smallint",
           "nullable": true,
@@ -29106,7 +29129,8 @@
         "CONSTRAINT llm_provider_calls_reservation_fk FOREIGN KEY (reservation_id, physical_call_id) REFERENCES llm_budget_reservations(id, operation_id) DEFERRABLE INITIALLY DEFERRED",
         "CONSTRAINT llm_provider_calls_reservation_id_key UNIQUE (reservation_id)",
         "CONSTRAINT llm_provider_calls_usage_schema_version_check CHECK ((usage_schema_version > 0))",
-        "CONSTRAINT llm_provider_calls_usage_status_check CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))"
+        "CONSTRAINT llm_provider_calls_usage_status_check CHECK ((usage_status = ANY (ARRAY['known'::text, 'unknown'::text])))",
+        "CONSTRAINT llm_provider_calls_wire_fingerprint_check CHECK ((octet_length(wire_fingerprint) = 32))"
       ],
       "indexes": [
         "CREATE INDEX llm_calls_account_idx ON public.llm_provider_calls USING btree (account_id, logical_request_id)",

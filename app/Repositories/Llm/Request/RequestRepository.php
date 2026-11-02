@@ -15,6 +15,7 @@ use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
 use App\Exceptions\Llm\OperationDenied;
 use App\Services\Llm\Execution\ProviderOperationPlan;
+use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Llm\Schema\CanonicalJson;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -30,9 +31,10 @@ final readonly class RequestRepository
             AND replay_of IS NOT NULL AND command_id IS NOT NULL AND replay_actor IS NOT NULL AND replay_reason IS NOT NULL", [$identity->logicalKey]) !== null;
     }
 
-    public function authorize(ProviderOperationPlan $plan, string $attempt, int $generation, string $periodId, ?ProviderOperationIds $ids = null): AuthorizedProviderOperation
+    public function authorize(ProviderOperationPlan $plan, string $attempt, int $generation, string $periodId, ?ProviderOperationIds $ids = null, ?ProviderWireRequest $wire = null): AuthorizedProviderOperation
     {
         FinancialReservationRepository::requireTransaction();
+        $wire?->assertOperation($plan);
         $ids ??= ProviderOperationIds::allocate();
         if (! Str::isUuid($attempt) || $generation < 1) {
             throw new \InvalidArgumentException('Invalid opaque operation owner.');
@@ -55,7 +57,12 @@ final readonly class RequestRepository
         // Duplicate authorize is not a new reserve. It can only return the same unclaimed owner.
         $prior = ProviderRow::one('SELECT physical_call_id,owner_attempt_id,owner_work_generation FROM llm_provider_calls WHERE logical_request_id=? ORDER BY ordinal DESC LIMIT 1', [$requestId]);
         if ($request->string('state') === 'sending' && $prior !== null && $prior->string('owner_attempt_id') === $attempt && $prior->int('owner_work_generation') === $generation) {
-            return $this->get($prior->string('physical_call_id'))->authorization;
+            $call = $this->get($prior->string('physical_call_id'));
+            if ($call->wireFingerprint !== $wire?->fingerprint) {
+                throw new OperationDenied('sealed_wire_conflict');
+            }
+
+            return $call->authorization;
         }
         if (! in_array($request->string('state'), ['prepared', 'failed_known'], true)) {
             throw new OperationDenied('request_not_retry_eligible');
@@ -85,10 +92,10 @@ final readonly class RequestRepository
         $token = $ids->authorizationToken;
         $epoch = $request->int('request_epoch') + ($ordinal > 1 ? 1 : 0);
         DB::insert("INSERT INTO llm_provider_calls(physical_call_id,logical_request_id,ordinal,provider_id,account_id,api_surface,model,request_epoch,
-            owner_attempt_id,owner_work_generation,send_authorization_token,usage_status,cost_estimate,receipt_id,receipt_state,receipt_upload_key,receipt_disk,reservation_id)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,'unknown',?,?,'pending',?,'local',?)", [
+            owner_attempt_id,owner_work_generation,send_authorization_token,usage_status,cost_estimate,receipt_id,receipt_state,receipt_upload_key,receipt_disk,reservation_id,wire_fingerprint)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,'unknown',?,?,'pending',?,'local',?,decode(?,'hex'))", [
             $physical, $requestId, $ordinal, $provider->int('id'), $plan->context->account, $plan->context->apiVersion, $plan->context->model,
-            $epoch, $attempt, $generation, $token, $plan->pricing->upperBound, $ids->receiptId, 'llm/receipts/'.$physical.'/response', $reservation,
+            $epoch, $attempt, $generation, $token, $plan->pricing->upperBound, $ids->receiptId, 'llm/receipts/'.$physical.'/response', $reservation, $wire?->fingerprint,
         ]);
         DB::insert("INSERT INTO llm_budget_reservations(id,operation_id,period_id,upper_bound,state,pricing_snapshot,pricing_snapshot_schema_version)
             VALUES (?,?,?,?,'reserved',?::jsonb,1)", [$reservation, $physical, $periodId, $plan->pricing->upperBound, $plan->pricing->json]);
@@ -118,7 +125,7 @@ final readonly class RequestRepository
 
     public function get(string $physical): ProviderCall
     {
-        $row = ProviderRow::one("SELECT c.*,q.purpose,q.state,encode(q.recipe_hash,'hex') AS recipe_hex,encode(q.input_hash,'hex') AS input_hex,
+        $row = ProviderRow::one("SELECT c.*,encode(c.wire_fingerprint,'hex') AS wire_hex,q.purpose,q.state,encode(q.recipe_hash,'hex') AS recipe_hex,encode(q.input_hash,'hex') AS input_hex,
             q.context_json::text AS context_json,p.currency,r.period_id,r.upper_bound,encode(c.receipt_hash,'hex') AS receipt_hex
             FROM llm_provider_calls c JOIN llm_provider_requests q ON q.logical_request_id=c.logical_request_id
             JOIN llm_budget_reservations r ON r.id=c.reservation_id JOIN llm_budget_periods p ON p.id=r.period_id WHERE c.physical_call_id=?", [$physical])
@@ -131,7 +138,7 @@ final readonly class RequestRepository
             $row->string('state'), $row->nullableString('send_claimed_at') !== null, $row->string('receipt_id'), $row->string('receipt_disk'),
             $row->string('receipt_upload_key'), $row->nullableString('receipt_hex'), $row->nullableString('outcome'),
             $row->nullableString('receipt_hex') === null ? null : new ReceiptAssessment(ReceiptOutcome::from($row->string('outcome')),
-                $row->nullableString('cost_actual'), $row->string('charge_evidence')));
+                $row->nullableString('cost_actual'), $row->string('charge_evidence')), $row->nullableString('wire_hex'));
     }
 
     public function lock(ProviderCall $expected): ProviderCall
@@ -149,11 +156,17 @@ final readonly class RequestRepository
     }
 
     /** Financial half of joint-send; caller owns the full consumer prefix and network atomicity. */
-    public function claimFinancialLocked(AuthorizedProviderOperation $authorization): bool
+    public function claimFinancialLocked(AuthorizedProviderOperation $authorization, ?string $wireFingerprint = null): bool
     {
         $call = $this->lock($this->get($authorization->physicalCallId));
-        if ($call->authorization != $authorization || $call->claimed || $call->requestState !== 'sending') {
+        if ($call->authorization != $authorization || $call->claimed || $call->requestState !== 'sending' || $call->outcome === 'not_sent'
+            || $call->wireFingerprint !== $wireFingerprint) {
             return false;
+        }
+        $reservation = ProviderRow::one("SELECT state,(pricing_snapshot->>'valid_until')::timestamptz > clock_timestamp() AS pricing_current
+            FROM llm_budget_reservations WHERE id=? FOR UPDATE", [$call->authorization->reservationId]);
+        if ($reservation === null || $reservation->string('state') !== 'reserved' || ! $reservation->bool('pricing_current')) {
+            throw new OperationDenied('pricing_or_reservation_expired');
         }
         $account = $this->finance->lockAccount($call->context->account, $call->currency);
         $this->finance->assertSendEligible($account, $call->upperBound, alreadyReserved: true);

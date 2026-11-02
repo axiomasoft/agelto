@@ -16,6 +16,7 @@ final readonly class ProviderOperationPlan
         public PricingSnapshot $pricing,
         public string $consumerCorrelationId,
         public int $maxPhysicalAttempts = 3,
+        public ?ProviderGenerationInput $generation = null,
     ) {
         if ($identity->purpose !== $pricing->purpose || $consumerCorrelationId === '' || $maxPhysicalAttempts < 1 || $maxPhysicalAttempts > 10) {
             throw new \InvalidArgumentException('Invalid operation plan.');

@@ -6,6 +6,38 @@ status: living
 
 # LLM-провайдеры
 
+P3.10 добавляет staged путь `GeminiGenerateContentClient` → `ProviderWireRequest` →
+`AnalysisCallCoordinator::authorize(..., wire)` → `AnalysisProviderSendGate` →
+`StructuredCallExecutor`. Gemini-клиент — чистый codec: из immutable operation plan он собирает
+`systemInstruction`, отдельный user `contents`, `generationConfig.responseJsonSchema`, output и
+thinking bounds. Ключ передаётся только при transport binding. Default origin фиксирован;
+явный origin для локальной fixture проходит тот же URL/DNS policy и сетевой permit.
+Wire format сверён с [официальным generateContent API](https://ai.google.dev/api/generate-content)
+2026-11-02. Выбор production модели, account capabilities и live accuracy этим срезом не проверяются.
+
+Provisional authorization сохраняет immutable SHA-256 wire fingerprint и финансовую reservation,
+но не даёт HTTP. `OutboundExecutor::reserveProviderSend` выбирает один маршрут и ждёт network
+slot вне транзакции. Финансовый hold проверяется на каждом цикле; network owner проверяет полный
+Process prefix вместе с provider control. Joint gate в одной транзакции повторяет current
+input/recipe/attempt/lease guards, claims provider и network, создаёт request intent с тем же
+UUID и расширяет permit на полный transfer timeout + cleanup. Любой отказ откатывает обе claims.
+Доказанный pre-claim отказ отзывает authorization и освобождает not-sent reserve.
+
+После commit возвращается `PreparedProviderTransport` с private Laravel client, закреплённым
+cURL/DNS/route, bounded sink, heartbeat и deadline. Только `sendOnce` может использовать capability;
+повтор, clone и serialization запрещены. Клиент не повторяет запросы и не следует redirects.
+`StructuredCallExecutor` сохраняет raw receipt независимо от optional network observation;
+неполученный результат после claim остаётся unknown с удержанным budget. Crash после joint commit
+до wire также unknown: отсутствие server receipt не доказывает отсутствие отправленных bytes.
+Финансовые факты не отменяют cancel и не дают права публикации.
+
+`T35ProviderJointSendTest` запускается через `make core-test-concurrency`: local real HTTP,
+два PHP/PG процесса, pause/handler/account/provider hold/retire/cancel во время slot wait,
+rollback второй scope, duplicate capability, late full-timeout coverage и SIGKILL до wire.
+Paid stage handlers остаются `handler_not_activated`; runtime cutover legacy providers и
+полный parser/cache/files/publication принадлежат последующим срезам. Caller без owning
+`ProviderSendGate` получает typed `Unsupported` и не отправляет запрос.
+
 Транспортный LLM-слой — `App\Services\Llm\**`. Контракт `LlmProvider` не завязан на конкретного
 вендора (D14): сегодня Gemini через Prism (`PrismGeminiProvider`), OpenAI-совместимый адаптер
 (`OpenAiCompatibleProvider`) — задел под vLLM/Ollama (локальная LLM, `docs/dev/ai/training-loop.md`)

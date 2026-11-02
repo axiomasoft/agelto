@@ -35,9 +35,9 @@ final class AiFixtures
             new CoverageStrategy(20, 1), 'RUB', 'ru-RU');
     }
 
-    public static function window(): AnalysisWindowSnapshot
+    public static function window(?PinnedLlmContext $context = null): AnalysisWindowSnapshot
     {
-        $recipe = self::recipe();
+        $recipe = self::recipe($context);
         $document = DocumentStorageFixtures::document();
         $domain = DocumentStorageFixtures::domain();
         $source = DocumentStorageFixtures::observe(new DocumentHead($document->id, 1, null), DocumentStorageFixtures::upload('fixture source', $domain));

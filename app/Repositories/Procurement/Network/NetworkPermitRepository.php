@@ -14,6 +14,7 @@ use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundOperationHandle;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\PermitEvidence;
+use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Network\ScheduledNetworkPermit;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
@@ -43,14 +44,14 @@ final readonly class NetworkPermitRepository
     public function __construct(private NetworkOwnerFence $owners, private NetworkAuthorityRepository $network,
         private ProcessTransaction $transaction, private OutboundPolicy $policy, private HealthRepository $health) {}
 
-    public function register(OutboundRequestPlan $plan, ExecutionContext|OutboundExecutionContext $context, NetworkRouteSelection $route): NetworkDemandTicket|TransportDeferred|TransportBlocked
+    public function register(OutboundRequestPlan $plan, ExecutionContext|OutboundExecutionContext $context, NetworkRouteSelection $route, ?ProviderKey $provider = null): NetworkDemandTicket|TransportDeferred|TransportBlocked
     {
         $id = (string) Str::uuid();
         $owner = $context->lease();
-        $snapshot = $this->owners->snapshot($owner);
+        $snapshot = $this->owners->snapshot($owner, $provider);
 
-        return $this->transaction->run(function () use ($id, $plan, $context, $route, $owner, $snapshot) {
-            $state = $this->owners->lock($owner, $snapshot);
+        return $this->transaction->run(function () use ($id, $plan, $context, $route, $owner, $snapshot, $provider) {
+            $state = $this->owners->lock($owner, $snapshot, $provider);
             if ($state instanceof TransportBlocked) {
                 return $state;
             }
@@ -111,14 +112,14 @@ final readonly class NetworkPermitRepository
         });
     }
 
-    public function reserve(NetworkDemandTicket $ticket, ExecutionContext|OutboundExecutionContext $context): ScheduledNetworkPermit|NetworkPermitWait|TransportDeferred|TransportBlocked
+    public function reserve(NetworkDemandTicket $ticket, ExecutionContext|OutboundExecutionContext $context, ?ProviderKey $provider = null): ScheduledNetworkPermit|NetworkPermitWait|TransportDeferred|TransportBlocked
     {
         $permitId = (string) Str::uuid();
         $owner = $context->lease();
-        $snapshot = $this->owners->snapshot($owner);
+        $snapshot = $this->owners->snapshot($owner, $provider);
 
-        return $this->transaction->run(function () use ($ticket, $context, $owner, $snapshot, $permitId) {
-            $state = $this->owners->lock($owner, $snapshot);
+        return $this->transaction->run(function () use ($ticket, $context, $owner, $snapshot, $permitId, $provider) {
+            $state = $this->owners->lock($owner, $snapshot, $provider);
             if ($state instanceof TransportBlocked) {
                 $this->cancelOwned($ticket, $owner);
 

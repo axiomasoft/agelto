@@ -53,6 +53,7 @@ return new class extends Migration
                 request_epoch bigint NOT NULL CHECK(request_epoch>=1), owner_attempt_id uuid NOT NULL,
                 owner_work_generation bigint NOT NULL CHECK(owner_work_generation>=1), send_authorization_token uuid NOT NULL,
                 send_claimed_at timestamptz NULL, sent_at timestamptz NULL, response_at timestamptz NULL,
+                wire_fingerprint bytea NULL CHECK(octet_length(wire_fingerprint)=32),
                 http_status smallint NULL CHECK(http_status BETWEEN 100 AND 599), finish_reason text NULL,
                 usage_status text NOT NULL CHECK(usage_status IN ('known','unknown')),
                 usage jsonb NULL, usage_schema_version smallint NULL CHECK(usage_schema_version>0),

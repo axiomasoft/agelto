@@ -10,12 +10,14 @@ use App\Dto\Procurement\Network\HttpAttemptResult;
 use App\Dto\Procurement\Network\HttpRequestPayload;
 use App\Dto\Procurement\Network\HttpResponseHead;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
+use App\Dto\Procurement\Network\ReservedProviderNetwork;
 use App\Dto\Procurement\Network\ResolvedUrl;
 use App\Dto\Procurement\Network\ResponseEnvelope;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportMetrics;
 use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Enums\Procurement\Network\TransportFailure;
@@ -24,6 +26,8 @@ use App\Exceptions\Procurement\Network\ResponseDecodeFailed;
 use App\Exceptions\Procurement\Network\ResponseLimitExceeded;
 use App\Exceptions\Procurement\Network\TransportInterrupted;
 use App\Exceptions\Procurement\Process\ExecutionInterrupted;
+use App\Services\Llm\Execution\PreparedProviderTransport;
+use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Procurement\SourceTlsTrust;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
@@ -221,5 +225,56 @@ final readonly class HttpTransport
                 Storage::disk('local')->delete($artifactKey);
             }
         }
+    }
+
+    public function prepareProvider(ProviderWireRequest $wire, string $physical, ReservedProviderNetwork $network,
+        ExecutionContext $context, string $apiKey, int $latestStartNs): PreparedProviderTransport
+    {
+        $plan = $network->permit->ticket->plan;
+        $profile = $plan->profile;
+        $host = $plan->url->origin->host;
+        $port = $plan->url->origin->port;
+        $ip = $network->resolved->address;
+        $route = $network->route->binding;
+        $budget = new TransferBudget($profile->maxEntityBytes, $profile->maxEntityBytes);
+        $sink = new BoundedSink($profile->maxEntityBytes, fn () => $context->tick(), $budget);
+        $downloaded = 0;
+        $curl = [CURLOPT_LOW_SPEED_LIMIT => 1, CURLOPT_LOW_SPEED_TIME => $profile->lowSpeedSeconds,
+            CURLOPT_FRESH_CONNECT => true, CURLOPT_FORBID_REUSE => true, CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_CONNECT_TO => [(str_contains($host, ':') ? '['.$host.']' : $host).':'.$port.':'.(str_contains($ip, ':') ? '['.$ip.']' : $ip).':'.$port],
+            CURLOPT_HTTPPROXYTUNNEL => $route->proxy() !== '', CURLOPT_SUPPRESS_CONNECT_HEADERS => true];
+        if ($route->credentials() !== null) {
+            $curl[CURLOPT_PROXYUSERPWD] = $route->credentials();
+        }
+        $trust = $this->trust->optionsFor($host);
+        if (isset($trust['verify']) && ! is_readable($trust['verify'])) {
+            throw new \LogicException('Configured TLS trust is unavailable.');
+        }
+        $request = (new PendingRequest)->setClient(new Client(['handler' => new PinnedCurlHandler]))->withOptions([
+            'allow_redirects' => false, 'http_errors' => false, 'cookies' => false, 'stream' => false,
+            'proxy' => $route->proxy(), 'verify' => true, 'connect_timeout' => $profile->connectSeconds, 'timeout' => $profile->totalSeconds,
+            'decode_content' => false, 'headers' => ['Content-Type' => 'application/json', 'Content-Length' => (string) strlen($wire->body),
+                'Expect' => '', 'Accept-Encoding' => 'identity', 'x-goog-api-key' => $apiKey],
+            'sink' => $sink, 'curl' => $curl,
+            'progress' => function (int $total, int $received) use ($context, $budget, &$downloaded): void {
+                $context->tick();
+                $budget->wire(max(0, $received - $downloaded));
+                $downloaded = max($downloaded, $received);
+            },
+            'on_headers' => static function (ResponseInterface $response): void {
+                $size = 0;
+                foreach ($response->getHeaders() as $name => $values) {
+                    $size += strlen($name) + array_sum(array_map(strlen(...), $values));
+                }
+                if ($size > 65_536 || ! in_array(strtolower($response->getHeaderLine('Content-Encoding')), ['', 'identity'], true)) {
+                    throw new \RuntimeException('Unsupported or oversized provider response headers.');
+                }
+            }, ...$trust]);
+
+        return new PreparedProviderTransport($request, $wire, $physical, $latestStartNs, $sink, function () use ($context, $profile): bool {
+            $context->tick();
+
+            return $context->canStart(Duration::seconds($profile->totalSeconds));
+        }, usesProxy: $route->proxy() !== '');
     }
 }

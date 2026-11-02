@@ -132,11 +132,11 @@ class SchemaInventoryTest(unittest.TestCase):
                 self.assertRejected(error, actual=actual)
 
     def test_complete_inventory_and_full_document_pass(self):
-        # P3.9 adds canonical financial/receipt carriers while preserving legacy consumers.
-        self.assertEqual(self.inventory["current_item"], "P3.9")
+        # P3.10 adds the immutable wire fingerprint; legacy consumers remain staged.
+        self.assertEqual(self.inventory["current_item"], "P3.10")
         self.assertEqual(len(self.inventory["migrations"]), 83)
         self.assertEqual(len(self.inventory["baseline"]["tables"]), 123)
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1477)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1478)
         adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
                            for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]
                            if c["column_name"] in ("adapter_health_id", "adapter_health_epoch")}
@@ -157,7 +157,7 @@ class SchemaInventoryTest(unittest.TestCase):
         self.assertRejected("created carrier missing from installed baseline: prc_process_work")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["baseline"]["tables"]["llm_file_assets"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_process_outbox"])
-        self.assertRejected("future carrier activated in P3.9 baseline: llm_file_assets")
+        self.assertRejected("future carrier activated in P3.10 baseline: llm_file_assets")
         self.inventory = copy.deepcopy(self.original)
         self.inventory["current_item"] = "P1.1"
         self.assertRejected("future carrier activated in P1.1 baseline: prc_process_work")

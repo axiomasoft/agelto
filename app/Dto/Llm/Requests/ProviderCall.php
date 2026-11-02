@@ -27,5 +27,6 @@ final readonly class ProviderCall
         public ?string $receiptHash,
         public ?string $outcome,
         public ?ReceiptAssessment $recordedAssessment,
+        public ?string $wireFingerprint = null,
     ) {}
 }

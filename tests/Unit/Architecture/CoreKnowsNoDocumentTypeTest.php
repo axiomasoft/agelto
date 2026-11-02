@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\File;
 use Symfony\Component\Finder\Finder;
 
 /*
@@ -90,7 +91,8 @@ test('периметр ядра собран правилом вычитания
     // Canonical bytea hashing adds the type-neutral Sha256Cast at the Eloquent boundary.
     // P3.8 adds ten provider-neutral schema/task validation and staged extraction contract classes.
     // P3.9 adds twelve provider-neutral financial/receipt and consumer coordination classes.
-    expect($classes)->toHaveCount(131)
+    // P3.10 adds twelve provider-neutral wire, send capability and joint owner classes.
+    expect($classes)->toHaveCount(143)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');
@@ -104,6 +106,15 @@ test('ядро не импортирует поверхность типа до�
             'App\Models\Procurement\Estimate',
         ]);
     }
+});
+
+test('новый Llm execution port не импортирует Procurement и Gemini codec не отправляет HTTP', function (): void {
+    foreach (File::allFiles(app_path('Services/Llm/Execution')) as $file) {
+        $source = $file->getContents();
+        expect($source)->not->toContain('App\\Services\\Procurement', 'App\\Repositories\\Procurement', 'App\\Dto\\Procurement');
+    }
+    $codec = file_get_contents(app_path('Services/Llm/Providers/GeminiGenerateContentClient.php'));
+    expect($codec)->not->toContain('Facades\\Http', 'PendingRequest', 'Prism\\', 'ProxyResolver', '->send(', '->retry(');
 });
 
 test('ядро не несёт идентификатор Estimate/литерал \'estimate\' кроме AiDocumentType::Estimate — (г) §6.3', function (): void {
