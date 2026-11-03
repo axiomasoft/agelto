@@ -38,7 +38,7 @@ final readonly class ProviderAssetManager
     public function restore(FileAssetKey|ContextCacheKey $key, VerifiedReceipt $receipt): ProviderFileAsset|ContextCacheAsset
     {
         if ($receipt->assessment->outcome !== ReceiptOutcome::Success || $receipt->status !== 200
-            || $receipt->call->purpose === OperationPurpose::Generate) {
+            || ! in_array($receipt->call->purpose, [OperationPurpose::FileUpload, OperationPurpose::CacheCreate, OperationPurpose::CacheRefresh, OperationPurpose::Lookup], true)) {
             throw new OperationDenied('successful_asset_receipt_required');
         }
         $asset = $this->policies->assetMetadata($key, $receipt);

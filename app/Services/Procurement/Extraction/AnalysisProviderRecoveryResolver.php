@@ -79,7 +79,7 @@ final class AnalysisProviderRecoveryResolver implements ProviderRecoveryPolicy, 
     public function settleLocked(ProviderRecoveryPlan $plan): void
     {
         $mapping = $this->mapping->physical($plan->physicalCallId->value);
-        $call = $this->requests->get($plan->physicalCallId->value);
+        $call = $this->requests->lock($this->requests->get($plan->physicalCallId->value));
         if ($call->authorization->logicalRequestId !== $plan->logicalRequestId->value || $call->authorization->requestEpoch !== $plan->requestEpoch
             || $call->recipeHash !== $plan->recipeHash->hex || $mapping->string('input_hex') !== $plan->expectedInputHash->hex || self::purpose($call->purpose) !== $plan->purpose) {
             throw new \LogicException('Provider settlement identity drift.');
@@ -104,7 +104,7 @@ final class AnalysisProviderRecoveryResolver implements ProviderRecoveryPolicy, 
         if ($mapping === null) {
             return;
         }
-        $call = $this->requests->get($mapping->string('physical_call_id'));
+        $call = $this->requests->lock($this->requests->get($mapping->string('physical_call_id')));
         $receipt = $this->verified[$call->authorization->physicalCallId] ?? null;
         if ($receipt !== null) {
             $this->requests->acceptReceiptLocked($receipt);
