@@ -8,6 +8,7 @@ use App\Dto\Llm\Requests\AuthorizedProviderOperation;
 use App\Dto\Llm\Requests\PinnedLlmContext;
 use App\Dto\Llm\Requests\ProviderCall;
 use App\Dto\Llm\Requests\ProviderOperationIds;
+use App\Dto\Llm\Requests\ProviderUsage;
 use App\Dto\Llm\Requests\ReceiptAssessment;
 use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Llm\Requests\VerifiedReceipt;
@@ -154,7 +155,9 @@ final readonly class RequestRepository
             $row->string('state'), $row->nullableString('send_claimed_at') !== null, $row->string('receipt_id'), $row->string('receipt_disk'),
             $row->string('receipt_upload_key'), $row->nullableString('receipt_hex'), $row->nullableString('outcome'),
             $row->nullableString('receipt_hex') === null ? null : new ReceiptAssessment(ReceiptOutcome::from($row->string('outcome')),
-                $row->nullableString('cost_actual'), $row->string('charge_evidence')), $row->nullableString('wire_hex'));
+                $row->nullableString('cost_actual'), $row->string('charge_evidence'),
+                ($usage = $row->nullableString('usage')) === null ? null : ProviderUsage::restore($usage),
+                $row->nullableString('resolved_model_version'), $row->nullableString('finish_reason')), $row->nullableString('wire_hex'));
     }
 
     public function lock(ProviderCall $expected): ProviderCall
@@ -233,9 +236,11 @@ final readonly class RequestRepository
             $this->finance->settleLocked($call, $amount, $receipt->hash);
         }
         DB::update("UPDATE llm_provider_calls SET receipt_state='verified',receipt_key=receipt_upload_key,receipt_hash=decode(?,'hex'),receipt_schema_version=1,
-            http_status=?,response_at=clock_timestamp(),outcome=?,charge_evidence=?,cost_actual=?,usage_status=?,usage=?::jsonb,usage_schema_version=? WHERE physical_call_id=?", [
-            $receipt->hash, $receipt->status, $assessment->outcome->value, $assessment->policyEvidence, $amount, $unknown ? 'unknown' : 'known',
-            $assessment->usage?->json(), $assessment->usage === null ? null : 1, $call->authorization->physicalCallId,
+            http_status=?,response_at=clock_timestamp(),outcome=?,charge_evidence=?,cost_actual=?,usage_status=?,usage=?::jsonb,usage_schema_version=?,
+            resolved_model_version=?,finish_reason=? WHERE physical_call_id=?", [
+            $receipt->hash, $receipt->status, $assessment->outcome->value, $assessment->policyEvidence, $amount,
+            $unknown || ($assessment->usage->unknown ?? true) ? 'unknown' : 'known',
+            $assessment->usage?->json(), $assessment->usage === null ? null : 1, $assessment->resolvedModelVersion, $assessment->finishReason, $call->authorization->physicalCallId,
         ]);
         $state = match ($assessment->outcome) {
             ReceiptOutcome::Success => 'completed',

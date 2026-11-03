@@ -3,6 +3,32 @@
   "captured_before": "P4.1 harness; no namespace move",
   "contract_fixtures": [
     {
+      "id": "p314-structured-ai-acceptance",
+      "kind": "contract_eval_manifest",
+      "path": "tests/Fixtures/ProcessCore/Llm/acceptance-v1.json",
+      "platform": null,
+      "adapter_version": "analysis/1",
+      "provenance": "P3.14 current contract/prompt/schema/test hashes and legacy eval inventory. No paid model calls; unverified legacy labels are explicitly not canonical quality proof.",
+      "captured_at": "2026-11-03",
+      "sha256": "b910db33b772938f028a1734cba5942d004684718ab5b6058caa5e7c86e16063",
+      "expected": {"assessment": "orchestration_contracts_quality_not_measured", "schema_version": 1},
+      "scenario_ids": ["T13", "T14", "T15", "T22", "T30", "T35"],
+      "coverage": "deterministic_contract_inventory_not_live_quality"
+    },
+    {
+      "id": "p314-generation-response",
+      "kind": "raw_provider_generation_envelope",
+      "path": "tests/Fixtures/ProcessCore/Llm/generation-response-v1.json",
+      "platform": null,
+      "adapter_version": "gemini-generate-content/v1beta",
+      "provenance": "Hand-authored synthetic Gemini STOP envelope wrapping the existing exact-decimal canonical fixture, explicit token counts, response ID and returned model version; no provider I/O.",
+      "captured_at": "2026-11-03",
+      "sha256": "a104d519fdb5bdb69d760e00772e6133e72ac48df3d29c21ea2c525d11558bad",
+      "expected": {"assessment": "generation_success_conservative_settlement", "schema_version": 1},
+      "scenario_ids": ["T13", "T15", "T22", "T30", "T35"],
+      "coverage": "actual_local_http_through_chunk_and_publication"
+    },
+    {
       "id": "local-wire-v1",
       "kind": "http_proxy_fake_llm",
       "path": "docker/tests/process-core/fixtures/wire-v1.json",

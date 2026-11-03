@@ -53,11 +53,14 @@ final readonly class GeminiAssetReceiptPolicy implements AssetRecoveryPolicy
             if (! is_array($candidates) && ! (is_array($feedback) && is_string($feedback['blockReason'] ?? null))) {
                 return $unknown;
             }
+            $model = self::provenance($value['modelVersion'] ?? null);
+            $candidate = is_array($candidates) ? ($candidates[0] ?? null) : null;
+            $finish = self::provenance(is_array($candidate) ? ($candidate['finishReason'] ?? null) : null);
             // A verified generation envelope is a financial fact even when its output is refused,
             // empty or unsupported. The domain policy must see it, with the original bound retained.
             if (! is_array($usage)) {
                 return new ReceiptAssessment(ReceiptOutcome::Success, null, 'gemini-assets/1:generation_unknown_usage_conservative_bound',
-                    new ProviderUsage(0, 0, 0, 0, 0, true));
+                    new ProviderUsage(0, 0, 0, 0, 0, true), $model, $finish);
             }
             $prompt = $usage['promptTokenCount'] ?? null;
             $cached = $usage['cachedContentTokenCount'] ?? 0;
@@ -73,7 +76,7 @@ final readonly class GeminiAssetReceiptPolicy implements AssetRecoveryPolicy
             }
 
             return new ReceiptAssessment(ReceiptOutcome::Success, null, 'gemini-assets/1:generation_conservative_bound',
-                new ProviderUsage($prompt - $cached, $cached, $output, $thinking, 0, false));
+                new ProviderUsage($prompt - $cached, $cached, $output, $thinking, 0, false), $model, $finish);
         }
         $metadata = $purpose === OperationPurpose::FileUpload ? ($value['file'] ?? null) : $value;
         if (! is_array($metadata) || ! is_string($metadata['name'] ?? null)) {
@@ -108,6 +111,11 @@ final readonly class GeminiAssetReceiptPolicy implements AssetRecoveryPolicy
 
         return new ReceiptAssessment(ReceiptOutcome::Success, null, 'gemini-assets/1:successful_metadata_conservative_bound',
             new ProviderUsage(0, 0, 0, 0, $tokenHours, ! $storageKnown));
+    }
+
+    private static function provenance(mixed $value): ?string
+    {
+        return is_string($value) && preg_match('/^[a-zA-Z0-9][a-zA-Z0-9._\/:+-]{0,127}$/D', $value) === 1 ? $value : null;
     }
 
     public function assetMetadata(FileAssetKey|ContextCacheKey $key, VerifiedReceipt $receipt): ProviderFileAsset|ContextCacheAsset

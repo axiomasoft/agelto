@@ -121,3 +121,7 @@ T35 — joint send, local HTTP server count и provider/network facts.
 Concurrency использует реальные PostgreSQL connections/barriers.
 Acceptance, два isolated clean installs и полный no-TIA regression выполняет coordinator;
 paid/live eval и deployment в этот cutover не входят.
+
+P3.14 связывает actual HTTP и финансовый ledger с chunk/publication и receipt-only recovery.
+См. [readiness report](../runbooks/structured-ai-readiness.md): deterministic orchestration и
+неизмеренная model quality имеют отдельные выводы; legacy eval labels не заменяют human holdout.

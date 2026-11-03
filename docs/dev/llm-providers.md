@@ -104,3 +104,6 @@ Financial tables имеют отдельный retention owner. UI не реко
 Deterministic T13/T15/T22/T35 используют isolated PostgreSQL и local HTTP fixtures без paid API.
 Они доказывают fencing, recovery, schema и financial/network accounting; real-model accuracy
 не заявляется. Coordinator выполняет acceptance, два clean installs и полный no-TIA regression.
+
+Связная wire→receipt→chunk→publication проверка, hashes contract/eval manifests и ограничения
+quality readiness описаны в [runbook structured AI](runbooks/structured-ai-readiness.md).
