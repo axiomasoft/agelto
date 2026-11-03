@@ -113,7 +113,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(DocumentAnalyzerRegistry::class);
         $this->app->bind(PromptScopeRegistry::class, fn () => $this->app->make(DocumentAnalyzerRegistry::class));
 
-        // Правила реакции краулера на отказы: типизированный разбор `crawler.source_control`
+        // Правила реакции краулера на отказы: типизированный разбор `Process controls and network policy`
         // один раз на процесс; резолвится в `boot()`, чтобы ошибка конфига валила старт.
     }
 
