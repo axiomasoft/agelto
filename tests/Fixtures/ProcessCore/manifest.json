@@ -3,6 +3,32 @@
   "captured_before": "P4.1 harness; no namespace move",
   "contract_fixtures": [
     {
+      "id": "p316-platform-metrics",
+      "kind": "operational_metrics_contract",
+      "path": "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
+      "platform": null,
+      "adapter_version": "platform-metrics/1",
+      "provenance": "Hand-authored expectations on real PostgreSQL listing finalization and projection facts; complete-empty, gap, archive, incomplete, no-data, replay and consumer assertions. No live source or paid AI.",
+      "captured_at": "2026-11-03",
+      "sha256": "30fa7c2d47de20bdb442b3824743c707141f5b7721889501f7c94c45ad4b4ce8",
+      "expected": {"assessment": "contiguous_source_day_coverage_unknown_second_precision_replay_idempotent", "schema_version": 1},
+      "scenario_ids": ["T46"],
+      "coverage": "actual_pg_producer_projection_cli_pulse"
+    },
+    {
+      "id": "p316-platform-ui",
+      "kind": "platform_ui_contract",
+      "path": "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php",
+      "platform": null,
+      "adapter_version": "platform-ui/1",
+      "provenance": "Synthetic EIS and JSON rows with independent Livewire rendering/escaping and 1-versus-20-row SQL count assertions; table does not consume extension fields. No new table UI API.",
+      "captured_at": "2026-11-03",
+      "sha256": "1f6c229558ba9ac8e797e6682e36fa4a9e9638b8cbfe1b4373515f226f3c403a",
+      "expected": {"assessment": "json_common_eis_extension_escaped_constant_list_query_count", "schema_version": 1},
+      "scenario_ids": ["T48"],
+      "coverage": "actual_livewire_common_detail_and_list_queries"
+    },
+    {
       "id": "p314-structured-ai-acceptance",
       "kind": "contract_eval_manifest",
       "path": "tests/Fixtures/ProcessCore/Llm/acceptance-v1.json",

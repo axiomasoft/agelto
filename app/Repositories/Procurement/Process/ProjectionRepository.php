@@ -9,6 +9,7 @@ use App\Dto\Procurement\Process\MetricTotalRow;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ProjectedEvent;
 use App\Dto\Procurement\Process\ProjectionState;
+use App\Dto\Procurement\Process\ProjectionTotals;
 use App\Enums\Procurement\Process\ProjectionMode;
 use Illuminate\Support\Facades\DB;
 
@@ -20,10 +21,11 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class ProjectionRepository
 {
-    private const string EVENT_COLUMNS = 't.event_id::text AS event_id, t.entity_kind, t.entity_seq, t.previous_state, t.new_state,
-        t.reason_code, t.schema_version, w.stage, w.cohort_key';
+    private const string EVENT_COLUMNS = "t.event_id::text AS event_id, t.entity_kind, t.entity_seq, t.previous_state, t.new_state,
+        t.reason_code, t.schema_version, w.stage,
+        CASE WHEN p.code IS NOT NULL AND w.cohort_key = ('platform:' || w.platform_id::text) THEN 'platform:' || p.code ELSE w.cohort_key END AS cohort_key";
 
-    private const string EVENT_FROM = 'FROM prc_process_transitions t LEFT JOIN prc_process_work w ON w.id = t.work_id';
+    private const string EVENT_FROM = 'FROM prc_process_transitions t LEFT JOIN prc_process_work w ON w.id = t.work_id LEFT JOIN prc_platforms p ON p.id = w.platform_id';
 
     private const string NIL_UUID = '00000000-0000-0000-0000-000000000000';
 
@@ -142,16 +144,26 @@ final readonly class ProjectionRepository
      */
     public function activeTotals(string $projectorKey): array
     {
-        return array_map(
-            static fn (LedgerRow $row): MetricTotalRow => new MetricTotalRow($row->string('metric_key'), $row->string('dimension_key'), $row->int('value')),
-            LedgerRow::all(
-                'SELECT t.metric_key, t.dimension_key, t.value
-                 FROM prc_process_projection_states s
-                 JOIN prc_process_metric_totals t ON t.projector_key = s.projector_key AND t.generation = s.active_generation
-                 WHERE s.projector_key = ? ORDER BY t.metric_key, t.dimension_key',
-                [$projectorKey],
-            ),
-        );
+        return $this->activeSnapshot($projectorKey)->totals;
+    }
+
+    /** Active generation, mode and counters must agree even if a rebuild flips between reads. */
+    public function activeSnapshot(string $projectorKey): ProjectionTotals
+    {
+        $rows = LedgerRow::all("SELECT s.projector_key, s.mode, s.active_generation,
+                encode(s.catalog_hash, 'hex') AS catalog_hash, s.history_complete,
+                s.maintenance_token::text AS maintenance_token, t.metric_key, t.dimension_key, t.value
+            FROM prc_process_projection_states s
+            LEFT JOIN prc_process_metric_totals t ON t.projector_key=s.projector_key AND t.generation=s.active_generation
+            WHERE s.projector_key=? ORDER BY t.metric_key, t.dimension_key", [$projectorKey]);
+        $totals = [];
+        foreach ($rows as $row) {
+            if ($row->nullableString('metric_key') !== null) {
+                $totals[] = new MetricTotalRow($row->string('metric_key'), $row->string('dimension_key'), $row->int('value'));
+            }
+        }
+
+        return new ProjectionTotals($rows === [] ? null : self::projectionState($rows[0]), $totals);
     }
 
     /** @return list<MetricTotalRow> */
@@ -335,6 +347,12 @@ final readonly class ProjectionRepository
         if ($row === null) {
             return null;
         }
+
+        return self::projectionState($row);
+    }
+
+    private static function projectionState(LedgerRow $row): ProjectionState
+    {
         $token = $row->nullableString('maintenance_token');
 
         return new ProjectionState(

@@ -18,6 +18,14 @@ spec.loader.exec_module(rig)
 
 
 class RigGuardsTest(unittest.TestCase):
+    def test_single_file_selection_rejects_directories_options_and_path_escape(self):
+        valid = "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php"
+        with patch.dict(os.environ, {"TEST_FILE": valid}):
+            self.assertEqual(rig.single_test_path(), valid)
+        for value in ["", "tests/Feature", "--testsuite=Feature", "tests/../artisan", "tests/Feature/AbsentTest.php"]:
+            with patch.dict(os.environ, {"TEST_FILE": value}), self.assertRaises(rig.GuardError):
+                rig.single_test_path()
+
     @classmethod
     def setUpClass(cls):
         cls.config = rig.config_identity()  # compose config only; no containers or DB commands.
@@ -226,7 +234,7 @@ class RigGuardsTest(unittest.TestCase):
                 compose.assert_not_called()
 
     def test_execution_suite_runs_only_owned_paths_and_rejects_empty_or_skipped_selection(self):
-        for name in ("documents", "execution", "network", "platforms", "acquisition"):
+        for name in ("documents", "execution", "network", "platforms", "acquisition", "e2e"):
             self.assertNotIn(name, rig.FUTURE)
             for cases, error in [([], "empty test selection"),
                                  ([{"name": "skipped", "skipped": True}, {"name": "claim", "skipped": False}], "failed/skipped"),
@@ -298,7 +306,7 @@ class RigGuardsTest(unittest.TestCase):
 
     def test_network_suite_runs_initial_machinery_after_guarded_clean_reset(self):
         self.assertIn("network", rig.IMPLEMENTED)
-        self.assertEqual(rig.FUTURE, {"e2e", "faults", "load"})
+        self.assertEqual(rig.FUTURE, {"faults", "load"})
         self.assertEqual(rig.SUITE_PATHS["network"], [
             "tests/Feature/ProcessCore/Network",
             "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php",
@@ -347,6 +355,26 @@ class RigGuardsTest(unittest.TestCase):
                 patch.object(rig, "write_json"), patch("sys.stdout", new=io.StringIO()):
             self.assertEqual(rig.execute("core-test-acquisition", "acquisition"), 0)
         self.assertEqual(calls, ["clock", ("reset", "clean-reset"), ("suite", "acquisition")])
+
+    def test_e2e_suite_runs_owned_contracts_after_guarded_clean_reset(self):
+        self.assertIn("e2e", rig.IMPLEMENTED)
+        self.assertNotIn("e2e", rig.FUTURE)
+        self.assertEqual(rig.SUITE_PATHS["e2e"], [
+            "tests/Feature/ProcessCore/E2e",
+            "tests/Integration/ProcessCore/E2e",
+            "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
+            "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php",
+        ])
+        calls = []
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "ROOT", Path(temp).parent), \
+                patch.object(rig, "new_report", return_value=(Path(temp), {"command": "core-test-e2e"})), \
+                patch.object(rig, "install_clock", side_effect=lambda: calls.append("clock") or {"epoch": 1}), \
+                patch.object(rig, "reset", side_effect=lambda folder, clock: calls.append(("reset", folder.name))), \
+                patch.object(rig, "suite", side_effect=lambda folder, name: calls.append(("suite", name)) or {"executed": 1, "exit": 0}), \
+                patch.object(rig, "write_json"), patch("sys.stdout", new=io.StringIO()):
+            self.assertEqual(rig.execute("core-test-e2e", "e2e"), 0)
+        self.assertEqual(calls, ["clock", ("reset", "clean-reset"), ("suite", "e2e")])
 
     def test_fixture_proof_requires_success_nonempty_assertions_and_no_skips(self):
         for code, result in [(1, {"executed": 1, "skipped": 0}),

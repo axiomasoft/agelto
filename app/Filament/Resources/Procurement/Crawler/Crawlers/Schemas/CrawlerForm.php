@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 
-use App\Contracts\Procurement\Platform\PlatformUiExtension;
 use App\Dto\Procurement\Platform\PlatformCode;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Platform\PlatformRegistry;
+use App\Services\Procurement\Platform\PlatformUiResolver;
 use Cron\CronExpression;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -91,13 +90,8 @@ final class CrawlerForm
             if (! is_string($code)) {
                 return [self::unavailablePlatformPlaceholder()];
             }
-            $definition = app(PlatformRegistry::class)->get(new PlatformCode($code));
-            if ($definition->uiExtension === null) {
-                return [];
-            }
-            $extension = app($definition->uiExtension);
 
-            return $extension instanceof PlatformUiExtension ? $extension->profileFormSchema() : [self::unavailablePlatformPlaceholder()];
+            return app(PlatformUiResolver::class)->resolve(new PlatformCode($code))?->profileFormSchema() ?? [];
         } catch (Throwable) {
             return [self::unavailablePlatformPlaceholder()];
         }

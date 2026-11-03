@@ -14,6 +14,7 @@ use App\Dto\Platforms\Eis\EisPolicy;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
+use App\Pulse\Cards\ProcessPlatformHealthCard;
 use App\Services\Llm\Contracts\PromptScopeRegistry;
 use App\Services\Llm\Contracts\UsageSource;
 use App\Services\Llm\Execution\ReceiptPolicies;
@@ -153,6 +154,7 @@ class AppServiceProvider extends ServiceProvider
         // item'а несёт `app/Pulse/**`), поэтому регистрация explicit, не Livewire-конвенцией.
         Livewire::component('pulse.pipeline-stages', PipelineStagesCard::class);
         Livewire::component('pulse.llm-spend', LlmSpendCard::class);
+        Livewire::component('pulse.process-platform-health', ProcessPlatformHealthCard::class);
 
         // Pulse — отдельная страница за auth (Implementation Rules P7.5): ТОТ ЖЕ предикат, что
         // `User::canAccessPanel()` (super-admin или есть роль), а не «любой аутентифицированный» —

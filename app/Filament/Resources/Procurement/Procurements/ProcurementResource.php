@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Procurements;
 
 use App\Filament\Resources\Procurement\Procurements\Pages\ListProcurements;
@@ -51,7 +53,7 @@ class ProcurementResource extends Resource
     // Eager-load связи, показанной в таблице (registry.name) — против N+1 в реестре.
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery()->with('registry')->addSelect([
+        $query = parent::getEloquentQuery()->with('registry.platform')->addSelect([
             'detail_fetched_at' => DB::table('prc_detail_snapshots')->selectRaw('max(created_at)')
                 ->whereColumn('procurement_id', 'prc_procurements.id')->where('part_key', 'like', '%:published')
                 ->where('completeness', 'complete'),

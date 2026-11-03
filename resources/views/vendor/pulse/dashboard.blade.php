@@ -4,6 +4,8 @@
 
     <livewire:pulse.llm-spend cols="6" />
 
+    <livewire:pulse.process-platform-health cols="full" />
+
     <livewire:pulse.servers cols="full" />
 
     <livewire:pulse.usage cols="4" rows="2" />

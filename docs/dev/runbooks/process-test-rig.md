@@ -68,9 +68,16 @@ JUnit/evidence capture отвергает пустую выборку, skips и 
 T07/T12/T27 listing/detail/coverage, T17/T18 run lifecycle через настоящий `AcquisitionScheduler`
 (open/closed empty, shared required, cancel, superseded successor, pending document handoff),
 T02 независимость площадок, T40–T42 identity/status/extension, T35 adapter validation и EXR-01
-sidebar после circuits cutover. `core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
+sidebar после circuits cutover. `core-test-e2e` (P3.16) запускает после guarded clean reset
+`tests/Feature/ProcessCore/E2e` и `tests/Integration/ProcessCore/E2e` (`T17ProcessPipelineE2eTest`,
+`T48OperatorNavigationE2eTest`, `T31MultiProcessPipelineE2eTest`), а также отдельные
+`T46PlatformMetricsProjectionTest` и `T48PlatformUiRegistryTest` для replay/freshness/N+1 assertions.
+`core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
 с exit 78 и JSON `suite_not_implemented`. Их реализуют owning P3 packages. Это не green skip.
-Browser service отдельный, доступен через профиль `browser`; operator E2E ещё не реализован.
+Browser service отдельный, доступен через профиль `browser`; текущие operator E2E проверяют
+HTTP responses и Livewire actions, но не browser automation. Redis jobs исполняются через
+queue pop/fire; отдельный PHP worker process проверяется многопроцессным сценарием.
+Управление жизненным циклом Horizon этим набором не проверяется.
 Horizon потребляет только `process-core-fixtures`, scheduler работает с пустым business baseline.
 Нет live crawling, paid model eval, production deployment или уведомлений.
 
@@ -450,3 +457,13 @@ totals depth5/cycles, sealed recipes, PostgreSQL immutable owner rows and chunk 
 The staged parser cannot send, continue or reask. No production paid handler, financial recovery,
 cache/file transport, actual split scheduler or estimate publication is claimed by this subset.
 All required acceptance commands must run sequentially on the same final source fingerprint.
+
+## Single-file executor proof
+
+`make core-test-file TEST_FILE=tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php`
+запускает один существующий `*Test.php` из Unit/Feature/Integration через тот же guarded rig.
+Directory, CLI options, absent paths и path escape отвергаются. Target не делает reset;
+требуется готовая isolated schema. Он удерживает общий project lock, останавливает только
+test workers и сохраняет JUnit, список actual scenarios и fingerprint inputs. Для повторного
+старта workers используйте обычный guarded runtime lifecycle. Domain/quality acceptance
+этим target не заменяется; executor не запускает полную suite из withheld acceptance.

@@ -1191,3 +1191,33 @@ recovery directive атомарны с обязательными transition/out
 описывают split/reask policy, provisioning, explicit Unsupported для callers без owning gate
 и границу deterministic evidence. V1–V4, два clean installs и полный no-TIA regression
 принадлежат coordinator; single-file executor checks не заменяют их.
+
+## Platform UI и operational metrics (P3.16)
+
+`process:status --platform=eis` и Pulse-карточка «Площадки: покрытие и процессы» читают
+один `PlatformMetricsReadRepository`. Команда без фильтра перечисляет зарегистрированные
+definitions; неизвестный код отклоняется. Чтение не запускает работы, rebuild или внешние
+запросы. Карточка показывает время измерения UTC, current work counts/reasons, due lag,
+projection lag, maintenance и active generation. Исторические counters получены из существующей
+проекции с durable receipts; state и totals читаются одним SQL-снимком даже во время rebuild.
+
+`covered_through` — включительная исходная календарная дата непрерывного покрытия **каждого**
+fresh stream. Complete-empty продвигает её, gap удерживает, archive не заменяет fresh.
+`closesAt` означает конец периода стабилизации и не используется как время покрытия.
+Существующая проекция не сохраняет timezone/UTC boundary исходного дня, поэтому секундный
+`acquisition_watermark_lag_seconds` явно `unknown (coverage_day_precision)`, когда известна
+только дата. Отсутствие coverage даёт `unknown (no_data|coverage_gap)`. Возраст последней
+публикации не используется для объявления outage.
+
+`listing_closed_complete_ratio` считает terminal leaf partitions за 24 часа по времени
+accepted transition; incomplete входит в знаменатель, page/pass/split и open partitions
+не считаются закрытыми. Нулевой знаменатель — Unknown. Current counts читаются из work,
+поэтому старый event не откатывает gauge. Due lag читает subject status cadence и detail
+intent/ready-work authority; manual pause выводится отдельно и исключает соответствующий
+due lag. Эти значения диагностические, без автоматических SLO incidents или уведомлений.
+
+Оба UI consumer используют существующий optional `PlatformUiResolver`: форма профиля и
+карточка закупки. JSON без расширения показывает общие sections; `EisUiExtension` читает свои
+поля при построении detail schema. Таблица не потребляет extension fields и не делает запросов
+к extension table. Общие relations загружаются batch, без новой table-extension API.
+Проверки и текущая граница evidence: [P3.16 acceptance](process-core-acceptance.md).

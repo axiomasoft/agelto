@@ -24,8 +24,8 @@ SERVICES = {"app", "core-postgres", "core-redis", "object-storage", "fixture-htt
 VOLUMES = {"core-postgres", "core-redis", "core-objects", "core-storage", "core-bootstrap", "core-pest",
            "core-prompts", "core-estimate-prompts"}
 RUNTIME_INPUTS = ROOT / "docker/tests/process-core/runtime-inputs"
-FUTURE = { "e2e", "faults", "load"}
-IMPLEMENTED = {"ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "regression", "report", "down"}
+FUTURE = {"faults", "load"}
+IMPLEMENTED = {"file", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
 # Domain suites run only the files their owning package filled with real assertions. execution:
 # P1.6 ledger/authority + P1.7 admission/claim/controls + P1.8 lease/checkpoint/finalize on real PG.
 # concurrency: only separate PHP processes/PG connections with deterministic barriers (P1.7 pause/
@@ -40,7 +40,11 @@ SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Fea
                             "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php"],
                "platforms": ["tests/Feature/ProcessCore/Platforms",
                              "tests/Unit/Architecture/PlatformsDomainLayoutTest.php",
-                             "tests/Unit/Architecture/PlatformExtensionContractTest.php"]}
+                             "tests/Unit/Architecture/PlatformExtensionContractTest.php"],
+               "e2e": ["tests/Feature/ProcessCore/E2e",
+                       "tests/Integration/ProcessCore/E2e",
+                       "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
+                       "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php"]}
 
 
 class GuardError(RuntimeError):
@@ -585,7 +589,16 @@ def scenario_proof(folder, cases):
     return comparison
 
 
+def single_test_path():
+    value = os.environ.get("TEST_FILE", "")
+    require(re.fullmatch(r"tests/(Unit|Feature|Integration)/[A-Za-z0-9_/]+Test\.php", value)
+            and (ROOT / value).is_file() and (ROOT / value).resolve().is_relative_to(ROOT / "tests"),
+            "TEST_FILE must name one repository test file")
+    return value
+
+
 def suite(folder, name):
+    selected = [single_test_path()] if name == "file" else None
     if name == "unit":
         # Pure tests need the isolated runtime identity, not a migrated domain schema.
         identity()
@@ -601,7 +614,7 @@ def suite(folder, name):
     # isolated regression runner finite without inheriting the app worker's 256 MiB CLI default.
     command = (["php", "-d", "memory_limit=1G"] if name == "regression" else []) + [
         "./vendor/bin/pest", "--no-tia", "--compact", "--log-junit=" + junit]
-    command += ["--testsuite=Unit"] if name == "unit" else SUITE_PATHS.get(name, [])
+    command += selected if selected is not None else (["--testsuite=Unit"] if name == "unit" else SUITE_PATHS.get(name, []))
     result = compose("exec", "-T", "app", *command, check=False)
     (folder / (name + ".log")).write_text(result.stdout + result.stderr)
     compose("cp", f"app:/var/www/html/{junit}", str(folder / "junit.xml"))
@@ -692,7 +705,7 @@ def main(command):
 def execute(command, name):
     folder, result = new_report(command)
     try:
-        if name in {"reset", "install", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "regression"}:
+        if name in {"reset", "install", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
             clock = install_clock()
             result["install_clock"] = clock
             write_json(folder / "install-clock.json", clock)
@@ -717,8 +730,8 @@ def execute(command, name):
             write_json(folder / "install-comparison.json", {"first": before, "second": after})
             require(before == after, "two clean installs produced different manifests")
             result["manifests"] = after
-        elif name in {"unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "regression"}:
-            if name in {"execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "regression"}:
+        elif name in {"file", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
+            if name in {"execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
                 reset_folder = folder / "clean-reset"
                 reset_folder.mkdir()
                 reset(reset_folder, clock=clock)
