@@ -6,7 +6,9 @@ use App\Services\Procurement\Process\StageRegistry;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\Console\Input\ArgvInput;
+use Tests\Support\ProcessCore\AcceptanceRuntime;
 use Tests\Support\ProcessCore\InstallClock;
+use Tests\Support\ProcessCore\PipelineHorizonRuntime;
 use Tests\Support\TestEnvironmentGuard;
 use Tests\Support\TestFilesystemIsolation;
 
@@ -41,6 +43,14 @@ config(['horizon.environments.testing' => [
         'timeout' => 30,
     ],
 ]]);
+
+if (getenv('PROCESS_CORE_ACCEPTANCE_FILE') !== false) {
+    AcceptanceRuntime::boot((string) getenv('PROCESS_CORE_ACCEPTANCE_FILE'));
+}
+
+if (getenv('PROCESS_CORE_PIPELINE_FILE') !== false) {
+    PipelineHorizonRuntime::boot((string) getenv('PROCESS_CORE_PIPELINE_FILE'));
+}
 
 $status = $app->handleCommand(new ArgvInput);
 

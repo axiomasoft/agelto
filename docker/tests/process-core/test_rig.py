@@ -225,13 +225,30 @@ class RigGuardsTest(unittest.TestCase):
             with self.assertRaises(rig.GuardError):
                 rig.container_identity(self.config, "app", forged)
 
-    def test_future_suite_is_nonzero_without_runtime_commands(self):
-        for name in rig.FUTURE:
-            with self.subTest(suite=name), patch.object(rig, "compose") as compose, \
-                    patch("sys.stdout", new=io.StringIO()) as out:
-                self.assertEqual(rig.main("core-test-" + name), 78)
-                self.assertIn("suite_not_implemented", out.getvalue())
-                compose.assert_not_called()
+    def test_unknown_suite_is_nonzero_without_runtime_commands(self):
+        with patch.object(rig, "compose") as compose, \
+                self.assertRaisesRegex(rig.GuardError, "unknown core target"):
+            rig.main("core-test-unknown")
+        compose.assert_not_called()
+
+    def test_load_width_fails_before_clock_or_reset(self):
+        for width in ("", "1", "100", "20;exit", "010"):
+            with self.subTest(width=width), tempfile.TemporaryDirectory() as temp, \
+                    patch.dict(os.environ, {"WIDTH": width}), \
+                    patch.object(rig, "ROOT", Path(temp).parent), \
+                    patch.object(rig, "new_report", return_value=(Path(temp), {})), \
+                    patch.object(rig, "install_clock") as clock, patch.object(rig, "reset") as reset, \
+                    patch("sys.stdout", new=io.StringIO()):
+                self.assertEqual(rig.execute("core-test-load", "load"), 1)
+                clock.assert_not_called()
+                reset.assert_not_called()
+
+    def test_faults_and_load_are_separate_nonempty_owned_suites(self):
+        for name in ("faults", "load"):
+            self.assertIn(name, rig.IMPLEMENTED)
+            self.assertNotIn(name, rig.FUTURE)
+            self.assertTrue(rig.SUITE_PATHS[name])
+            self.assertNotEqual(rig.SUITE_PATHS[name], rig.SUITE_PATHS["e2e"])
 
     def test_execution_suite_runs_only_owned_paths_and_rejects_empty_or_skipped_selection(self):
         for name in ("documents", "execution", "network", "platforms", "acquisition", "e2e"):
@@ -306,7 +323,7 @@ class RigGuardsTest(unittest.TestCase):
 
     def test_network_suite_runs_initial_machinery_after_guarded_clean_reset(self):
         self.assertIn("network", rig.IMPLEMENTED)
-        self.assertEqual(rig.FUTURE, {"faults", "load"})
+        self.assertEqual(rig.FUTURE, set())
         self.assertEqual(rig.SUITE_PATHS["network"], [
             "tests/Feature/ProcessCore/Network",
             "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php",

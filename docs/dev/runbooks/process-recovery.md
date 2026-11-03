@@ -11,6 +11,12 @@ Horizon process counts and technical logs are delivery or diagnostic evidence. R
 [Process controls](process-controls.md) for versioned operator actions and
 [Process core](../process-core.md) for ownership and recovery bounds.
 
+The isolated fault corpus records a named boundary, the exact worker PID and the same persisted
+work ID through recovery. A kill command alone is not recovery proof. Inspect the rig JUnit and
+candidate hashes; use separate e2e/fault/W10/W20/regression/quality results. The test runtime uses
+short, ordered timeouts and a real DB-clock expiry; these are not production recovery SLOs.
+See [acceptance evidence](../process-core-acceptance.md) for the corpus and claim boundaries.
+
 P3.17 removes source incident navigation, readers, factory and baseline table together.
 Circuits were removed earlier. The existing journal URL reads `prc_process_transitions`;
 Process incidents provide the open badge, filter and audited acknowledge action. Recreating

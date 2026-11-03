@@ -5,6 +5,7 @@ from collections import Counter
 from contextlib import contextmanager
 import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -24,8 +25,8 @@ SERVICES = {"app", "core-postgres", "core-redis", "object-storage", "fixture-htt
 VOLUMES = {"core-postgres", "core-redis", "core-objects", "core-storage", "core-bootstrap", "core-pest",
            "core-prompts", "core-estimate-prompts"}
 RUNTIME_INPUTS = ROOT / "docker/tests/process-core/runtime-inputs"
-FUTURE = {"faults", "load"}
-IMPLEMENTED = {"file", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
+FUTURE = set()
+IMPLEMENTED = {"faults", "load", "file", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
 # Domain suites run only the files their owning package filled with real assertions. execution:
 # P1.6 ledger/authority + P1.7 admission/claim/controls + P1.8 lease/checkpoint/finalize on real PG.
 # concurrency: only separate PHP processes/PG connections with deterministic barriers (P1.7 pause/
@@ -45,7 +46,23 @@ SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Fea
                        "tests/Integration/ProcessCore/E2e",
                        "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php",
                        "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
-                       "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php"]}
+                       "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php"],
+               "load": ["tests/Integration/ProcessCore/Load/T16LoadTest.php",
+                        "tests/Integration/ProcessCore/Concurrency/T11AdmissionFairnessConcurrencyTest.php",
+                        "tests/Feature/ProcessCore/Network/T34BoundedFifoDemandTest.php"],
+               "faults": ["tests/Integration/ProcessCore/Faults",
+                          "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
+                          "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
+                          "tests/Integration/ProcessCore/Concurrency/T31DaemonRedisLossAcceptanceTest.php",
+                          "tests/Integration/ProcessCore/Concurrency/T09FinalizeFenceConcurrencyTest.php",
+                          "tests/Feature/ProcessCore/Execution/T22BlockedProviderRecoveryTest.php",
+                          "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php",
+                          "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
+                          "tests/Feature/ProcessCore/Network/T37NetworkDemandRecoveryTest.php",
+                          "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+                          "tests/Feature/ProcessCore/Observability/T18PostCommitSinksTest.php",
+                          "tests/Feature/ProcessCore/Observability/T20ProjectionRetentionTest.php",
+                          "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php"]}
 
 
 class GuardError(RuntimeError):
@@ -598,6 +615,19 @@ def single_test_path():
     return value
 
 
+def load_width():
+    value = os.environ.get("WIDTH", "")
+    require(value in {"10", "20"}, "WIDTH must be exactly 10 or 20")
+    return int(value)
+
+
+def validate_load_report(report, width):
+    spec = importlib.util.spec_from_file_location("core_load_report", Path(__file__).with_name("load_report.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.validate(report, width)
+
+
 def suite(folder, name):
     selected = [single_test_path()] if name == "file" else None
     if name == "unit":
@@ -616,7 +646,15 @@ def suite(folder, name):
     command = (["php", "-d", "memory_limit=1G"] if name == "regression" else []) + [
         "./vendor/bin/pest", "--no-tia", "--compact", "--log-junit=" + junit]
     command += selected if selected is not None else (["--testsuite=Unit"] if name == "unit" else SUITE_PATHS.get(name, []))
-    result = compose("exec", "-T", "app", *command, check=False)
+    options = []
+    small_load = name == "file" and selected == ["tests/Integration/ProcessCore/Load/T16LoadTest.php"]
+    if name == "load":
+        options = ["-e", "PROCESS_CORE_LOAD_WIDTH=" + str(load_width()),
+                   "-e", "PROCESS_CORE_LOAD_SECONDS=1800", "-e",
+                   "PROCESS_CORE_EVIDENCE_PATH=/var/www/html/storage/app/testing/process-core/" + folder.name + "-load.json"]
+    elif small_load:
+        options = ["-e", "PROCESS_CORE_EVIDENCE_PATH=/var/www/html/storage/app/testing/process-core/" + folder.name + "-load.json"]
+    result = compose("exec", "-T", *options, "app", *command, check=False)
     (folder / (name + ".log")).write_text(result.stdout + result.stderr)
     compose("cp", f"app:/var/www/html/{junit}", str(folder / "junit.xml"))
     tree = ET.parse(folder / "junit.xml")
@@ -630,6 +668,12 @@ def suite(folder, name):
     require(all(c["status"] == "passed" for c in cases), "baseline contains failed/skipped scenarios")
     require(sum(int(c.get("assertions", "0")) for c in tree.iter("testcase")) > 0,
             "suite executed no assertions")
+    if small_load or name == "load":
+        compose("cp", "app:/var/www/html/storage/app/testing/process-core/" + folder.name + "-load.json", str(folder / "load.json"))
+    if name == "load":
+        proof = validate_load_report(json.loads((folder / "load.json").read_text()), load_width())
+        write_json(folder / "load-validation.json", proof)
+        return {"executed": len(cases), "exit": result.returncode, "load": proof}
     if name == "regression":
         inventory = json.loads((ROOT / "tests/Fixtures/ProcessCore/manifest.json").read_text())
         # PHPUnit encodes the file path in Pest's generated classname. Keep both forms.
@@ -706,7 +750,9 @@ def main(command):
 def execute(command, name):
     folder, result = new_report(command)
     try:
-        if name in {"reset", "install", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
+        if name == "load":
+            result["width"] = load_width()  # Reject invalid input before reset or any mutation.
+        if name in {"faults", "load", "reset", "install", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
             clock = install_clock()
             result["install_clock"] = clock
             write_json(folder / "install-clock.json", clock)
@@ -731,8 +777,8 @@ def execute(command, name):
             write_json(folder / "install-comparison.json", {"first": before, "second": after})
             require(before == after, "two clean installs produced different manifests")
             result["manifests"] = after
-        elif name in {"file", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
-            if name in {"execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
+        elif name in {"faults", "load", "file", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
+            if name in {"faults", "load", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
                 reset_folder = folder / "clean-reset"
                 reset_folder.mkdir()
                 reset(reset_folder, clock=clock)

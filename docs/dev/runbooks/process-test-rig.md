@@ -72,13 +72,20 @@ sidebar после circuits cutover. `core-test-e2e` (P3.16) запускает 
 `tests/Feature/ProcessCore/E2e` и `tests/Integration/ProcessCore/E2e` (`T17ProcessPipelineE2eTest`,
 `T48OperatorNavigationE2eTest`, `T31MultiProcessPipelineE2eTest`), а также отдельные
 `T46PlatformMetricsProjectionTest` и `T48PlatformUiRegistryTest` для replay/freshness/N+1 assertions.
-`core-test-faults`, `core-test-load WIDTH=10` и `WIDTH=20` пока завершаются
-с exit 78 и JSON `suite_not_implemented`. Их реализуют owning P3 packages. Это не green skip.
+`core-test-faults` (P3.18) исполняет именованные Horizon kills и отдельные owning fault files.
+`core-test-load WIDTH=10` и `WIDTH=20` выполняют отдельные 1800-second/1000-document profiles;
+некорректная WIDTH отвергается до reset. `load.json` и `load-validation.json` сохраняют измерения
+и проверенный verdict. Малый single-file/regression corpus не удовлетворяет load gate.
 Browser service отдельный, доступен через профиль `browser`; текущие operator E2E проверяют
-HTTP responses и Livewire actions, но не browser automation. Redis jobs исполняются через
-queue pop/fire; отдельный PHP worker process проверяется многопроцессным сценарием.
-Управление жизненным циклом Horizon этим набором не проверяется.
-Horizon потребляет только `process-core-fixtures`, scheduler работает с пустым business baseline.
+HTTP responses и Livewire actions, но не browser automation. Исходный queue pop/fire сценарий
+сохранён. Дополнительный domain pipeline запускает все реальные handlers через дочерние
+Horizon workers до normalized publication/status refresh, с теми же immutable disks и local TLS.
+Его test-only bootstrap активируется явным `PROCESS_CORE_PIPELINE_FILE` под test storage.
+Дополнительный `T16HorizonPipelineTest` запускает Horizon в отдельном процессе внутри isolated
+app, потребляет настоящий `process-ai` и связывает slices с work/attempt/request facts.
+Тестовый runtime активируется только явным `PROCESS_CORE_ACCEPTANCE_FILE` под test storage;
+дочерние Horizon процессы используют тот же bootstrap. Обычный service Horizon продолжает
+потреблять только `process-core-fixtures`; scheduler работает с пустым business baseline.
 Нет live crawling, paid model eval, production deployment или уведомлений.
 
 ## Локальные wire fixtures

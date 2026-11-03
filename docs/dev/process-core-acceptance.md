@@ -6,6 +6,82 @@ status: living
 
 # Process core: acceptance evidence
 
+## P3.18 — отдельные fault/load gates
+
+`core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10`, `core-test-load WIDTH=20`,
+`core-test-regression` и `core-quality` — шесть разных проверок. Результат faults не является
+результатом load/regression. Каждый target сохраняет собственный candidate hash и JUnit.
+Полные V1–V6 выполняет coordinator; targeted evidence ниже не заменяет их.
+
+`T16HorizonPipelineTest` использует настоящий Horizon master/supervisor/workers, Redis
+`ExecuteWorkJob`, PostgreSQL admission/finalization и GCRA/FIFO с actual local HTTP.
+Corpus создаёт реальные immutable document/version/representation/analysis subjects двух
+площадок; тестовый screening возвращает три bounded slices. Он доказывает механизм исполнения,
+но не качество AI и не нормализацию сметы. Полный domain workflow остаётся отдельным
+`T17ProcessPipelineE2eTest` с настоящими handlers, OCR и fake Gemini. Его исходный inline
+сценарий сохранён; дополнительный сценарий передаёт ту же конфигурацию/immutable disks в
+реальные Horizon children и проверяет исполнение всех восьми стадий их PID до normalized
+publication и status refresh. Test bootstrap не активируется вне isolated rig.
+
+`T15HorizonCrashTest` связывает named barrier, worker PID и тот же work ID после SIGKILL:
+before-claim, after-lease, before-send, sent-intent-before-wire, after-bytes,
+finalize-before-commit, mid-range-checkpoint, commit-before-ack. Отдельный SIGTERM case
+сохраняет уже полученный результат. Recovery ждёт настоящий PostgreSQL срок, без UPDATE lease
+в прошлое. Test profile: heartbeat 2 s, reserve 15 s; slice/job/Horizon/retry_after/lease =
+24/26/28/30/34 s. Production policy не меняется.
+
+Faults target также запускает owning storage, provider joint-send/raw/output kill, late receipt,
+Redis loss, stale-owner, journal/sink/projection/retention и network fence/recovery files.
+Точный список — `SUITE_PATHS` в harness; JUnit фиксирует исполненные cases, а не только T-номера.
+Paid unknown не принимается за бесплатный retry. Внешние reads могут повторяться;
+единственная accepted business finalization проверяется отдельно.
+
+`T08RelayKillTest` убивает настоящий daemon после committed claim и после Redis publish до
+mark; новый relay ждёт реальный короткий claim expiry и завершает ту же работу один раз.
+`T18DatabaseDisconnectTest` адресно завершает backend только текущего `agelto_test` внутри
+finalization transaction, проверяя rollback journal/result и последующее recovery.
+`T22PaidResponseKillTest` убивает реальный extraction runner после provisional authorization
+либо после получения HTTP response до durable raw. Первый случай отзывает старый token и
+разрешает known-not-sent retry того же logical request; второй сохраняет reserve и blocked
+unknown без нового send. Это отдельные assertions от durable-raw/output recovery upstream.
+
+Load target требует минимум 1000 documents, две площадки, 1800 s для каждой WIDTH и три slices
+на work. Старые low-priority работы конкурируют с fresh ingress; два отдельных feeder процесса
+соревнуются на PostgreSQL. Во время soak повторяются named SIGKILL, Redis loss и Horizon restart.
+`load.json` содержит W/C samples, per-worker/controller RSS, declared caps/noise, stage/cohort
+p50/p95/p99, очередь/outbox lag, request/server counts, FIFO grant order, history/resource
+accounting и final drain. `load_report.py` отвергает короткую длительность, missing samples,
+oversubscription, loss/duplicates, pending reservations/outbox, RSS growth и отсутствие repeated
+faults. Его negative fixtures не являются load evidence.
+
+Одиночный/regression запуск load test использует малый corpus того же runtime. Только
+`core-test-load` включает полный профиль и валидирует report. Ни такой малый запуск, ни fake
+Gemini не подтверждают production throughput, model accuracy, browser automation или deployment.
+Финальные results и limitations собирает P3.19 после шести coordinator checks.
+
+Targeted outputs и сводка исполнителя находятся в `storage/app/testing/process-core/p318/`.
+Малый joint proof `20261103T131142.401218Z-1150689` измерил 12 документов, 36 requests/server
+receipts, 0 FIFO inversions, 0 активных reservations/pending outbox после drain; длительность
+79.6 s включает разрешённые durable deferrals и не удовлетворяет soak gate. Этот runtime
+фактически сообщает PHP 8.5.8; совместимость с PHP 8.4 этим запуском не измерялась.
+
+Финальные single-file proofs (все exit 0, candidate/input hashes в каждом report):
+
+| Проверка | Cases | Report |
+| --- | ---: | --- |
+| Domain EIS/OCR/Gemini pipeline, inline и Horizon, recovery | 3 | `20261103T133317.717363Z-1365300` |
+| Horizon document subjects / три network slices | 1 | `20261103T132828.850358Z-1324824` |
+| Worker SIGKILL/SIGTERM boundaries | 9 | `20261103T132346.948484Z-1275243` |
+| Relay claim/publish SIGKILL | 2 | `20261103T131911.961904Z-1214937` |
+| PostgreSQL disconnect при finalization | 1 | `20261103T131305.307597Z-1157831` |
+| Provider authorization/response до durable raw | 2 | `20261103T131931.344504Z-1220820` |
+| Малый joint admission/FIFO load | 1 | `20261103T132046.465057Z-1236629` |
+| Docs integrity | 5 | `20261103T133344.103200Z-1368966` |
+
+Это 24 целевых PHP cases; ещё 41 Python harness и 3 load-validator tests, targeted Pint,
+PHP syntax, fixture hashes и diff whitespace проверены отдельно. Они не являются pass V1–V6.
+Точные команды, source hashes и границы claims — `p318/proof.json`.
+
 ## P3.17 — final legacy removal
 
 Единый consumer/schema cutover удаляет source incidents, legacy fetch/operation-log tables,

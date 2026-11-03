@@ -3,6 +3,19 @@
   "captured_before": "P4.1 harness; no namespace move",
   "contract_fixtures": [
     {
+      "adapter_version": "acceptance-runtime/1",
+      "captured_at": "2026-11-03",
+      "coverage": "real_horizon_pg_redis_local_http_fault_load_contract",
+      "expected": {"assessment": "same_work_recovery_bounded_admission_fifo_and_explicit_unknown", "schema_version": 1},
+      "id": "p318-acceptance-corpus",
+      "kind": "execution_acceptance_contract",
+      "path": "tests/Fixtures/ProcessCore/p318-acceptance-v1.json",
+      "platform": null,
+      "provenance": "Hand-authored expected counts and named boundaries for real isolated Horizon/PostgreSQL/Redis/local HTTP tests. Synthetic screening content and fake provider envelopes; no paid model calls or production throughput claim. Passing runs are separate candidate-bound reports.",
+      "scenario_ids": ["T08", "T09", "T11", "T15", "T16", "T18", "T22", "T34"],
+      "sha256": "df0d7c221bf913b7a756eac939263a7c8c2bcb1059507b7993de73a85531fef8"
+    },
+    {
       "id": "p316-platform-metrics",
       "kind": "operational_metrics_contract",
       "path": "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
