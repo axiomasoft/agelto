@@ -302,7 +302,7 @@ function archivePipelineConcurrentWorker(int $parentId, int $parentVersionId, st
 
     return <<<PHP
 config([
-    'crawler.documents_disk' => 'archive-concurrency',
+    'documents.disk' => 'archive-concurrency',
     'filesystems.disks.archive-concurrency' => [
         'driver' => 'local',
         'root' => {$diskRoot},

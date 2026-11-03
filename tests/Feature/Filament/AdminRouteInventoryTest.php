@@ -27,7 +27,7 @@ function adminRouteInventory(): array
 
 function committedAdminRouteInventory(): array
 {
-    $matrix = file_get_contents(base_path('plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md'));
+    $matrix = file_get_contents(base_path('tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.md'));
 
     preg_match_all(
         '/^\| `(?<method>[^`]+)` \| `(?<uri>[^`]+)` \| `(?<name>[^`]+)` \| `(?<action>[^`]+)` \|$/m',
@@ -72,6 +72,7 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     $runtimeRoutes = adminRouteInventory();
     $historical = committedAdminRouteInventory();
     $retired = [
+        'filament.admin.resources.procurement.crawler.source-incidents.index',
         'filament.admin.resources.procurement.crawler.source-circuits.edit',
         'filament.admin.resources.procurement.crawler.source-circuits.index',
         'filament.admin.resources.procurement.crawler.runs.index',
@@ -93,7 +94,7 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     usort($runtimeRoutes, static fn (array $a, array $b): int => [$a['uri'], $a['name']] <=> [$b['uri'], $b['name']]);
 
     expect($runtimeRoutes)
-        ->toHaveCount(61)
+        ->toHaveCount(60)
         ->toEqual($matrixRoutes)
         ->and(array_column($runtimeRoutes, 'name'))
         ->toHaveCount(count(array_unique(array_column($runtimeRoutes, 'name'))));

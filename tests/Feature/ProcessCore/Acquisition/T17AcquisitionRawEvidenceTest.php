@@ -123,7 +123,7 @@ test('raw acquisition evidence storage failure is a dependency and cannot confir
 });
 
 test('actual EIS detail raw retention remains optional and gzip evidence uses physical request identities', function (bool $enabled): void {
-    config(['crawler.raw_html_retention_enabled' => $enabled, 'crawler.raw_html_gzip' => true]);
+    config(['acquisition.raw_html_retention_enabled' => $enabled, 'acquisition.raw_html_gzip' => true]);
     $bodies = EisDetailFixtures::bodies();
     foreach ($bodies as $tab => $body) {
         $this->wire->respond('/'.$tab, $body, headers: ['Content-Type' => 'text/html; charset=UTF-8']);
@@ -148,7 +148,7 @@ test('actual EIS detail raw retention remains optional and gzip evidence uses ph
 })->with(['enabled' => [true], 'disabled' => [false]]);
 
 test('actual Process detail identity rejection persists matching assessed bytes before item finalization even with raw retention disabled', function (): void {
-    config(['crawler.raw_html_retention_enabled' => false]);
+    config(['acquisition.raw_html_retention_enabled' => false]);
     DetailFixtures::bind();
     $f = DetailFixtures::work(registry: $this->fixture->registry, value: '0338200009125000001', adapterVersion: '1');
     DB::table('prc_process_work')->where('id', $f['work']->value->value)->update(['platform_id' => $f['p']->platform_id]);
@@ -189,7 +189,7 @@ test('actual Process detail identity rejection persists matching assessed bytes 
 });
 
 test('actual rejection evidence storage failure after HTTP success is a dependency and never an adapter handler fault', function (): void {
-    config(['crawler.raw_html_retention_enabled' => false]);
+    config(['acquisition.raw_html_retention_enabled' => false]);
     DetailFixtures::bind();
     $f = DetailFixtures::work(registry: $this->fixture->registry, value: '0338200009125000001', adapterVersion: '1');
     DB::table('prc_process_work')->where('id', $f['work']->value->value)->update(['platform_id' => $f['p']->platform_id]);

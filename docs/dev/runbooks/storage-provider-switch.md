@@ -36,7 +36,7 @@ status: living
 Сегодняшние имена (`s3`, `estimates`, `estimates_s3`) нарушают соглашение (D53: имя диска в БД —
 логическое и поколенческое, `<роль>_v<N>`, без драйвера/провайдера/региона в строке — иначе смена
 `filesystems.php` превращается в миграцию данных). Переименовать здесь — значит поменять ТОЛЬКО
-логический ключ диска в конфиге (`config/filesystems.php`, `config/crawler.php`, `config/ai.php`,
+логический ключ диска в конфиге (`config/filesystems.php`, `config/documents.php, config/acquisition.php`, `config/ai.php`,
 `.env.example`, тесты), например `s3` → `documents_v1`, `estimates` → `fixtures_v1`. Бакеты и уже
 записанные объекты не трогаются.
 
@@ -45,7 +45,7 @@ status: living
 делать данными то, от чего конвенция как раз защищает.
 
 - **Проверка:** `docker compose exec app php artisan test` зелёный; `grep -rn "'s3'\|'estimates'"
-  config/filesystems.php config/crawler.php config/ai.php` не находит старых ключей вне
+  config/filesystems.php config/documents.php, config/acquisition.php config/ai.php` не находит старых ключей вне
   зафиксированного реестра grandfather'ов.
 - **Откат:** вернуть прежние ключи в конфигах — данных это не касается.
 
@@ -78,9 +78,9 @@ docker compose exec app php artisan storage:disk-backfill estimate-raw-results -
 
 Прописать текущее (старое) поколение в `*_fallback_disks`:
 
-- `config('crawler.documents_fallback_disks')` — для `document-versions`/`representations`;
+- `config('documents.fallback_disks')` — для `document-versions`/`representations`;
 - `config('ai.fixtures.fallback_disks')` — для `fixtures`;
-- `config('crawler.raw_fallback_disks')` — для `estimate-raw-results`.
+- `config('acquisition.raw_fallback_disks')` — для `estimate-raw-results`.
 
 `FileLocationResolver` пробует цепочку, только если объекта нет на диске записи
 (`exists() === false`) — сбой самого драйвера не фолбэчит, пробрасывается как есть (P6.4).
@@ -121,8 +121,8 @@ docker compose exec app php artisan storage:disk-backfill estimate-raw-results -
 
 ### Шаг 6 — флип конфига записи
 
-Переключить конфиг-ключ **записи** на новое поколение: `crawler.documents_disk`,
-`ai.fixtures.disk`, `crawler.raw_disk`. Старое поколение ОСТАЁТСЯ в `*_fallback_disks` (шаг 3 не
+Переключить конфиг-ключ **записи** на новое поколение: `documents.disk`,
+`ai.fixtures.disk`, `acquisition.raw_disk`. Старое поколение ОСТАЁТСЯ в `*_fallback_disks` (шаг 3 не
 откатывается здесь).
 
 После флипа перезапустить Horizon-воркеры (`make prod:workers-restart`) — держат конфиг в памяти,

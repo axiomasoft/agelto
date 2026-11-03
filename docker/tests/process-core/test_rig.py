@@ -362,7 +362,8 @@ class RigGuardsTest(unittest.TestCase):
         self.assertEqual(rig.SUITE_PATHS["e2e"], [
             "tests/Feature/ProcessCore/E2e",
             "tests/Integration/ProcessCore/E2e",
-            "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
+            "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php",
+                       "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
             "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php",
         ])
         calls = []

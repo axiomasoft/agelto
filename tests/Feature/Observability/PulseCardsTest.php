@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Console\Commands\Procurement\PipelineStuckCheck;
+use App\Console\Commands\Process\ProcessDiagnosticsCommand;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\StageFailedItem;
 use App\Dto\Procurement\Process\WorkId;
@@ -82,10 +82,10 @@ test('PipelineStagesCard считает succeeded/failed по стадиям pre
         ->and($stages['extraction']['failed'])->toBe(0);
 
     test()->artisan('pipeline:status')->expectsOutputToContain('AI work (prc_process_work)')->assertSuccessful();
-    config(['ai.pipeline.failure_rate_threshold_percent' => 30.0]);
+    config(['process.diagnostic_thresholds.failure_rate_threshold_percent' => 30.0]);
     // Exercise the read-only detector without invoking the command's external notification sink.
-    $method = new ReflectionMethod(PipelineStuckCheck::class, 'failureRateSpike');
-    $findings = $method->invoke(app(PipelineStuckCheck::class));
+    $method = new ReflectionMethod(ProcessDiagnosticsCommand::class, 'failureRateSpike');
+    $findings = $method->invoke(app(ProcessDiagnosticsCommand::class));
     expect($findings['failure_rate'])->toContain('33.3%', '(1/3,');
 });
 

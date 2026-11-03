@@ -82,7 +82,7 @@ final readonly class PdfPageSlicer
 
     private function timeout(?float $deadlineAt): int
     {
-        $configured = config('ai.pipeline.operation_budgets.screening.operation_timeout_seconds.pdf_slice', 60);
+        $configured = config('documents.format_tools.pdf_slice_seconds', 60);
 
         if (! is_int($configured) || $configured < 1) {
             throw new RuntimeException('Screening PDF timeout must be a positive integer.');

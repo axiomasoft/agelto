@@ -39,7 +39,7 @@ function adapterCardInput(AcquisitionWireFixture $fixture, bool $completeResults
 {
     $wire = $fixture->wire;
     $registry = $fixture->registry;
-    config(['crawler.documents_allowed_hosts' => ['fixture.test', 'zakupki.gov.ru']]);
+    config(['documents.allowed_hosts' => ['fixture.test', 'zakupki.gov.ru']]);
     $registry->update(['settings' => [
         'procedure_url_types' => ['Электронный аукцион' => 'ea20'],
         'card_url_templates' => ['ea20' => [

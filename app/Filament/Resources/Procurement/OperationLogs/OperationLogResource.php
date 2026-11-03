@@ -6,15 +6,18 @@ namespace App\Filament\Resources\Procurement\OperationLogs;
 
 use App\Filament\Resources\Procurement\OperationLogs\Pages\ListOperationLogs;
 use App\Filament\Resources\Procurement\OperationLogs\Tables\OperationLogsTable;
-use App\Models\Procurement\OperationLog;
+use App\Guards\Admin\Permissions\OperationLogPermission;
+use App\Models\Procurement\Process\Transition;
+use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 final class OperationLogResource extends Resource
 {
-    protected static ?string $model = OperationLog::class;
+    protected static ?string $model = Transition::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Система';
 
@@ -36,5 +39,34 @@ final class OperationLogResource extends Resource
     public static function getPages(): array
     {
         return ['index' => ListOperationLogs::route('/')];
+    }
+
+    public static function canViewAny(): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && $user->hasPermission(OperationLogPermission::ViewAny);
+    }
+
+    public static function canView(Model $record): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User && $user->hasPermission(OperationLogPermission::View);
+    }
+
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return false;
     }
 }

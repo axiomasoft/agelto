@@ -319,7 +319,7 @@ final class SchemaInventory
             }
         }
 
-        foreach (['prc_source_circuits' => 'P2.18', 'prc_source_incidents' => 'P3.17', 'prc_ai_analysis_runs' => 'P3.13', 'llm_calls' => 'P3.13'] as $table => $at) {
+        foreach (['prc_source_circuits' => 'P2.18', 'prc_source_incidents' => 'P3.17', 'prc_fetches' => 'P3.17', 'prc_operation_logs' => 'P3.17', 'prc_ai_analysis_runs' => 'P3.13', 'llm_calls' => 'P3.13'] as $table => $at) {
             $mustExist = self::order((string) ($inventory['current_item'] ?? '')) < self::order($at);
             $require(isset($baseline[$table]) === $mustExist && ($inventory['legacy'][$table]['drop_at'] ?? null) === $at, 'legacy reader/table cutover differs: '.$table);
         }

@@ -14,7 +14,6 @@ use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionReso
 use App\Filament\Resources\Procurement\Ai\Providers\ProviderResource;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\CrawlerResource;
 use App\Filament\Resources\Procurement\Crawler\Proxies\ProxyResource;
-use App\Filament\Resources\Procurement\Crawler\SourceIncidents\SourceIncidentResource;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Filament\Resources\Procurement\Health\PlatformChecks\PlatformCheckResource;
 use App\Filament\Resources\Procurement\OperationLogs\OperationLogResource;
@@ -45,7 +44,6 @@ test('назначает всем обнаруженным ресурсам ос
         PlatformCheckResource::class => ['Площадки', 'Проверки площадок', 40],
         CrawlerResource::class => ['Сбор данных', 'Задания сбора', 10],
         ProxyResource::class => ['Сбор данных', 'Прокси-серверы', 30],
-        SourceIncidentResource::class => ['Сбор данных', 'Источники: инциденты', 41],
         FixtureResource::class => ['Качество анализа', 'Эталонные документы', 10],
         DatasetExampleResource::class => ['Качество анализа', 'Проверенные примеры', 20],
         ProviderResource::class => ['Настройка AI', 'AI-провайдеры', 10],

@@ -145,10 +145,10 @@ final readonly class PlatformHealthChecker
 
     private function repeatAlertHours(): int
     {
-        $value = config('crawler.health.repeat_alert_hours');
+        $value = config('process.diagnostics.repeat_alert_hours');
 
         if (! is_int($value)) {
-            throw new LogicException('crawler.health.repeat_alert_hours must be an integer.');
+            throw new LogicException('process.diagnostics.repeat_alert_hours must be an integer.');
         }
 
         return $value;

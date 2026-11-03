@@ -6,6 +6,7 @@ namespace App\Actions\Procurement\Crawler;
 
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Models\Procurement\Crawler\RawArtifact;
+use App\Services\Procurement\Process\RawArtifactRetention;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -22,14 +23,17 @@ final readonly class StoreRawFetchArtifactAction
         $identityHash = hash('sha256', $this->canonicalJson($requestIdentity));
         $contentHash = hash('sha256', $contents);
         $path = "{$prefix}/{$identityHash}/{$contentHash}.{$extension}";
-        DB::table((new RawArtifact)->getTable())->upsert([
-            ['id' => hash('sha256', $disk.':'.$path), 'disk' => $disk, 'path' => $path, 'last_seen_at' => now()],
-        ], ['id'], ['last_seen_at' => DB::raw('GREATEST(prc_raw_artifacts.last_seen_at, EXCLUDED.last_seen_at)')]);
-        try {
-            return $this->write($disk, $path, $contents, $contentHash);
-        } catch (FilesystemException $failure) {
-            throw new DependencyUnavailable('raw_artifact_storage', $failure);
-        }
+
+        return RawArtifactRetention::withAddress($disk, $path, function () use ($disk, $path, $contents, $contentHash): string {
+            DB::table((new RawArtifact)->getTable())->upsert([
+                ['id' => hash('sha256', $disk.':'.$path), 'disk' => $disk, 'path' => $path, 'last_seen_at' => now()],
+            ], ['id'], ['last_seen_at' => DB::raw('GREATEST(prc_raw_artifacts.last_seen_at, EXCLUDED.last_seen_at)')]);
+            try {
+                return $this->write($disk, $path, $contents, $contentHash);
+            } catch (FilesystemException $failure) {
+                throw new DependencyUnavailable('raw_artifact_storage', $failure);
+            }
+        });
     }
 
     private function write(string $disk, string $path, string $contents, string $contentHash): string

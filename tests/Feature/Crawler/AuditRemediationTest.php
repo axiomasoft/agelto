@@ -17,7 +17,6 @@ use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\RawArtifact;
-use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\PartitionCoverage;
 use App\Services\Platforms\Eis\Card\DocumentsParser;
@@ -172,7 +171,7 @@ test('Process progress reports a durable wait reason independently from delivery
     $lease = FinalizeFixtures::running($work);
     app(WorkFinalizer::class)->finish($lease, new StageDeferred(
         DeferralReason::RateLimit, new RetryAt(new DateTimeImmutable('+1 hour'))));
-    expect(Artisan::call('crawler:progress'))->toBe(0)->and(Artisan::output())->toContain('rate_limit', 'deferred');
+    expect(Artisan::call('process:health-report'))->toBe(0)->and(Artisan::output())->toContain('rate_limit', 'deferred');
 });
 
 test('direct raw catalog registration preserves the newest usage of an immutable repeated path', function (): void {
@@ -189,8 +188,8 @@ test('direct raw catalog registration preserves the newest usage of an immutable
 });
 
 test('acquisition raw catalog respects independently configured listing and detail disks', function (): void {
-    config(['crawler.raw_disk' => 'listing-disk', 'crawler.raw_html_disk' => 'detail-disk',
-        'crawler.raw_html_retention_enabled' => true, 'crawler.raw_html_gzip' => false]);
+    config(['acquisition.raw_disk' => 'listing-disk', 'acquisition.raw_html_disk' => 'detail-disk',
+        'acquisition.raw_html_retention_enabled' => true, 'acquisition.raw_html_gzip' => false]);
     Storage::fake('listing-disk');
     Storage::fake('detail-disk');
     $capture = app(AcquisitionArtifacts::class);
@@ -281,14 +280,13 @@ test('секреты скрываются в URL SQL и вложенном ко�
 });
 
 test('retention удаляет ограниченную порцию просроченных объектов и оставляет свежие', function (): void {
-    SourceIncident::factory()->count(3)->create(['created_at' => now()->subDays(100)]);
     $action = app(StoreRawFetchArtifactAction::class);
     $this->travel(-31)->days();
     $old = $action->execute('s3', 'raw/test', ['id' => 1], 'old', 'txt');
     $this->travelBack();
     $fresh = $action->execute('s3', 'raw/test', ['id' => 2], 'fresh', 'txt');
-    expect(Artisan::call('crawler:prune-history', ['--limit' => 1]))->toBe(0)
-        ->and(SourceIncident::query()->count())->toBe(2);
+    expect(Artisan::call('process:retention', ['--limit' => 1]))->toBe(0)
+        ->and(Schema::hasTable('prc_source_incidents'))->toBeFalse();
     Storage::disk('s3')->assertMissing($old);
     Storage::disk('s3')->assertExists($fresh);
 });

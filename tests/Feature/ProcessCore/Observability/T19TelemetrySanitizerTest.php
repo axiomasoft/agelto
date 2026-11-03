@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\OperationLogWriter;
 use App\Support\Telemetry\SafeJsonLogProcessor;
 use App\Support\Telemetry\SentrySanitizer;
 use App\Support\Telemetry\TelemetrySanitizer;
@@ -240,7 +239,7 @@ test('breadcrumb собирается заново и теряет секрет 
         ->and(count($kept))->toBeLessThanOrEqual(51);
 });
 
-test('тело ответа RequestException не попадает в context, Sentry и OperationLogWriter', function (): void {
+test('response body stays out of context and Sentry while the retired log writer is absent', function (): void {
     $exception = new RequestException(new HttpClientResponse(new Psr7Response(500, [], 'RAW_DOCUMENT_BODY')));
     $context = (new TelemetrySanitizer)->context(['exception' => $exception]);
 
@@ -253,8 +252,7 @@ test('тело ответа RequestException не попадает в context, S
     expect($safe)->not->toBeNull()
         ->and($safe->getExceptions()[0]->getValue())->not->toContain('RAW_DOCUMENT_BODY');
 
-    $log = app(OperationLogWriter::class)->documentFailed(1, $exception);
-    expect(json_encode($log->context, JSON_THROW_ON_ERROR))->not->toContain('RAW_DOCUMENT_BODY');
+    expect(class_exists('App\\Services\\Procurement\\OperationLogWriter'))->toBeFalse();
 });
 
 test('AssignTraceId кладёт в Context route/origin/шаблон пути, а не raw fullUrl с query', function (): void {

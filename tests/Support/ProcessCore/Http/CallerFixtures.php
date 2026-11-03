@@ -13,6 +13,7 @@ use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 final class CallerFixtures
 {
@@ -23,8 +24,9 @@ final class CallerFixtures
             'platforms.eis.endpoints.card.url' => $wire->url('/card')->reveal(),
             'platforms.eis.endpoints.document.url' => $wire->url('/')->reveal(),
             'platforms.eis.endpoints.document.target' => 'document.'.substr($wire->url('/')->origin->hash()->hex, 0, 16),
-            'crawler.okpd2.children_endpoint' => $wire->url('/children')->reveal(),
-            'crawler.documents_allowed_hosts' => ['fixture.test'],
+            'platforms.eis.okpd2.children_endpoint' => $wire->url('/children')->reveal(),
+            'documents.allowed_hosts' => ['fixture.test'],
+            'platforms.eis.documents_allowed_hosts' => ['fixture.test'],
             'outbound.http.tls_bundles' => ['fixture.test' => $wire->root.'/cert.pem']]);
         app()->instance(LegacyOutbound::class, app()->makeWith(LegacyOutboundClient::class, ['urls' => $wire->policy()]));
         $platform = Platform::query()->firstOrCreate(['code' => 'eis'], ['name' => 'ЕИС', 'base_url' => $wire->url('/')->reveal(), 'is_active' => true]);
@@ -63,6 +65,6 @@ final class CallerFixtures
             ->and(DB::table('prc_outbound_operations')->where('caller_code', $caller)->where('state', 'closed')->count())->toBe($sends)
             ->and(DB::table('prc_network_permits')->count())->toBe($sends)
             ->and(DB::table('prc_request_attempts')->whereNotNull('finished_at')->count())->toBe($sends)
-            ->and(DB::table('prc_fetches')->count())->toBe(0);
+            ->and(Schema::hasTable('prc_fetches'))->toBeFalse();
     }
 }

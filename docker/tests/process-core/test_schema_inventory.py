@@ -133,11 +133,11 @@ class SchemaInventoryTest(unittest.TestCase):
 
     def test_complete_inventory_and_full_document_pass(self):
         # P3.13 activates canonical AI and removes both legacy run/call tables.
-        self.assertEqual(self.inventory["current_item"], "P3.13")
-        self.assertEqual(len(self.inventory["migrations"]), 82)
-        self.assertEqual(len(self.inventory["baseline"]["tables"]), 123)
+        self.assertEqual(self.inventory["current_item"], "P3.17")
+        self.assertEqual(len(self.inventory["migrations"]), 77)
+        self.assertEqual(len(self.inventory["baseline"]["tables"]), 120)
         # P3.13 adds sealed coverage/publication metadata and normalized estimate provenance.
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1477)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1429)
         adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
                            for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]
                            if c["column_name"] in ("adapter_health_id", "adapter_health_epoch")}
@@ -271,17 +271,23 @@ class SchemaInventoryTest(unittest.TestCase):
         self.inventory["legacy"]["prc_source_incidents"]["drop_at"] = "P1.14"
         self.assertRejected("legacy reader/table cutover differs")
 
-    def test_cutover_rejects_retained_circuits_and_missing_incidents(self):
-        self.inventory["baseline"]["tables"]["prc_source_circuits"] = copy.deepcopy(
-            self.original["baseline"]["tables"]["prc_source_incidents"])
+    def test_cutover_rejects_retained_circuits_and_incidents(self):
+        self.inventory["baseline"]["tables"]["prc_source_circuits"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_crawlers"])
         self.assertRejected("legacy reader/table cutover differs: prc_source_circuits")
         self.inventory = copy.deepcopy(self.original)
-        del self.inventory["baseline"]["tables"]["prc_source_incidents"]
+        self.inventory["baseline"]["tables"]["prc_source_incidents"] = copy.deepcopy(self.original["baseline"]["tables"]["prc_crawlers"])
         self.assertRejected("legacy reader/table cutover differs: prc_source_incidents")
 
     def test_circuits_cannot_disappear_before_their_owning_cutover(self):
         self.inventory["current_item"] = "P2.16"
         self.assertRejected("legacy reader/table cutover differs: prc_source_circuits")
+
+    def test_final_log_tables_cannot_be_retained(self):
+        for name in ("prc_fetches", "prc_operation_logs"):
+            self.inventory = copy.deepcopy(self.original)
+            self.inventory["baseline"]["tables"][name] = copy.deepcopy(
+                self.original["baseline"]["tables"]["prc_crawlers"])
+            self.assertRejected("legacy reader/table cutover differs: " + name)
 
     def test_headings_only_document_and_removed_column_row_fail(self):
         self.assertRejected("docs/schema manifest mismatch", document="# Process schema\n## Versioned inventory\n")

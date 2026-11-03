@@ -13,11 +13,28 @@ use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\Proxy\RoutePolicy;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
 
 beforeEach(fn () => F::clean());
 afterEach(fn () => F::clean());
+
+test('T32 ordinary work cannot allocate a legacy bridge even when health requires a probe', function (): void {
+    $f = new F;
+    $target = DB::table('prc_source_targets')->where('id', $f->target->value)->sole();
+    foreach (['closed', 'unknown'] as $state) {
+        DB::table('prc_route_health')->update(['state' => $state]);
+        $result = app(LegacyOutboundClient::class)->execute('fixture.ordinary', $target->platform_id, null,
+            $target->target_key, $f->profile->code, $f->url, TrafficClass::Detail,
+            new RoutePolicy([new HttpRouteBinding($f->route->routeId)]), ['acquisition:platform:'.$f->code], 60);
+        expect($result)->toBeInstanceOf(TransportBlocked::class)
+            ->and($result->reason)->toBe(NetworkBlockedReason::OwnerLost)
+            ->and(DB::table('prc_outbound_operations')->count())->toBe(0)
+            ->and(DB::table('prc_network_demands')->count())->toBe(0)
+            ->and(DB::table('prc_request_attempts')->count())->toBe(0);
+    }
+})->group('t32', 'p317');
 
 test('malformed catalog profile is a configuration hold before any operation or request', function (mixed $profiles): void {
     $f = new F;
@@ -25,7 +42,7 @@ test('malformed catalog profile is a configuration hold before any operation or 
     DB::table('prc_source_targets')->where('id', $f->target->value)
         ->update(['endpoint_policy' => json_encode(['profiles' => $profiles], JSON_THROW_ON_ERROR)]);
     $result = app(LegacyOutboundClient::class)->execute('fixture.bad_catalog', $target->platform_id, null,
-        $target->target_key, $f->profile->code, $f->url, TrafficClass::Detail,
+        $target->target_key, $f->profile->code, $f->url, TrafficClass::Diagnostic,
         new RoutePolicy([new HttpRouteBinding($f->route->routeId)]), ['acquisition:platform:'.$f->code], 60);
     expect($result)->toBeInstanceOf(TransportBlocked::class)
         ->and($result->reason)->toBe(NetworkBlockedReason::ConfigurationHold)
@@ -34,14 +51,14 @@ test('malformed catalog profile is a configuration hold before any operation or 
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
 })->with(['noncollection' => [false], 'nonprofile' => [[7]], 'invalidprofile' => [[['code' => 'broken']]]])->group('t04', 'p26');
 
-test('legacy адаптер выполняет реальные повторы через один owner и отдельные permits', function (): void {
+test('bounded reference maintenance uses a diagnostic owner and sole physical retries', function (): void {
     $wire = new WireFixture;
     try {
         $fixture = new F($wire);
         $platformId = DB::table('prc_source_targets')->where('id', $fixture->target->value)->value('platform_id');
         $client = app()->makeWith(LegacyOutboundClient::class, ['urls' => $wire->policy()]);
-        $response = $client->request(callerCode: 'fixture.legacy_call', platformId: $platformId,
-            providerKey: null, capability: 'detail', url: $wire->url('/sequence'), trafficClass: TrafficClass::Detail,
+        $response = $client->request(callerCode: 'legacy.reference_sync', platformId: $platformId,
+            providerKey: null, capability: 'detail', url: $wire->url('/sequence'), trafficClass: TrafficClass::ReferenceSync,
             routePolicy: new RoutePolicy([new HttpRouteBinding($fixture->route->routeId)]),
             controls: ['acquisition:platform:'.$fixture->code], deadlineSeconds: 60);
         expect($response->status())->toBe(200)
@@ -51,7 +68,7 @@ test('legacy адаптер выполняет реальные повторы �
             ->and(DB::table('prc_request_attempts')->count())->toBe(3)
             ->and(DB::table('prc_request_attempts')->whereNotNull('finished_at')->count())->toBe(3)
             ->and(DB::table('prc_network_permits')->count())->toBe(3)
-            ->and(DB::table('prc_fetches')->count())->toBe(0);
+            ->and(Schema::hasTable('prc_fetches'))->toBeFalse();
     } finally {
         $wire->stop();
     }
@@ -86,7 +103,7 @@ test('первый реальный read-only caller получает соста
         $platformId = DB::table('prc_source_targets')->where('id', $fixture->target->value)->value('platform_id');
         $client = app()->makeWith(LegacyOutboundClient::class, ['urls' => $wire->policy()]);
         $response = $client->request(callerCode: 'fixture.initial_canary', platformId: $platformId,
-            providerKey: null, capability: 'detail', url: $wire->url('/ok'), trafficClass: TrafficClass::Detail,
+            providerKey: null, capability: 'detail', url: $wire->url('/ok'), trafficClass: TrafficClass::Diagnostic,
             routePolicy: new RoutePolicy([new HttpRouteBinding($fixture->route->routeId)]),
             controls: ['acquisition:platform:'.$fixture->code], deadlineSeconds: 60);
         expect($response->status())->toBe(200)
@@ -117,7 +134,7 @@ test('сбой DB на границе caller откладывает зависи
     });
     $invoke = $boundary === 'profile' ? fn () => $routes->profile()
         : fn () => $client->request(callerCode: 'fixture.db_fault', platformId: $platformId,
-            providerKey: null, capability: 'detail', url: $f->url, trafficClass: TrafficClass::Detail,
+            providerKey: null, capability: 'detail', url: $f->url, trafficClass: TrafficClass::Diagnostic,
             routePolicy: new RoutePolicy([new HttpRouteBinding($f->route->routeId)]),
             controls: ['acquisition:platform:'.$f->code], deadlineSeconds: 60);
     if ($sqlstate === '08006') {

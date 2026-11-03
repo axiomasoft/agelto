@@ -38,41 +38,16 @@ test('T33 Platforms layout совпадает с путями и явным fixt
         ->and($violations)->toBe([]);
 });
 
-test('T33 dependency baseline содержит ровно существующие legacy пары и сокращается', function (): void {
-    $baseline = require __DIR__.'/platforms-dependency-baseline.php';
-    $keys = array_map(static fn (array $entry): string => $entry['file'].' -> '.$entry['import'], $baseline);
-    $sorted = $keys;
-    sort($sorted, SORT_STRING);
-
-    expect($keys)->toBe($sorted)
-        ->and(count(array_unique($keys)))->toBe(count($keys));
-
-    foreach ($baseline as $entry) {
-        expect($entry['owner'])->toBeIn(['P2.6', 'P2.18', 'P3.17']);
-    }
-
-    expect(PlatformSourceRules::dependencyViolations(sources: platformArchitectureSources(), baseline: $baseline))->toBe([]);
+test('T33 final dependency graph has no temporary baseline', function (): void {
+    expect(is_file(__DIR__.'/platforms-dependency-baseline.php'))->toBeFalse()
+        ->and(PlatformSourceRules::dependencyViolations(platformArchitectureSources()))->toBe([]);
 });
 
-test('T33 forbidden dependency и удалённая baseline пара дают file/import диагностику', function (): void {
+test('T33 forbidden dependency reports exact file and import without a baseline bypass', function (): void {
     $path = 'app/Services/Platforms/JsonProcurement/Csv/Parser.php';
     $import = 'App\Services\Procurement\Proxy\ProxyResolver';
-    $source = '<?php namespace App\Services\Platforms\JsonProcurement\Csv; use '.$import.';';
-    $fixture = tempnam(sys_get_temp_dir(), 'platform-direction-');
-
-    try {
-        file_put_contents($fixture, $source);
-        $sources = [$path => file_get_contents($fixture)];
-        $baseline = [['file' => $path, 'import' => $import, 'owner' => 'P2.6']];
-
-        expect(PlatformSourceRules::dependencyViolations(sources: $sources, baseline: []))
-            ->toBe(['forbidden dependency: '.$path.' -> '.$import])
-            ->and(PlatformSourceRules::dependencyViolations(sources: $sources, baseline: $baseline))->toBe([])
-            ->and(PlatformSourceRules::dependencyViolations(sources: [$path => '<?php'], baseline: $baseline))
-            ->toBe(['stale baseline: '.$path.' -> '.$import]);
-    } finally {
-        unlink($fixture);
-    }
+    expect(PlatformSourceRules::dependencyViolations([$path => '<?php use '.$import.';']))
+        ->toBe(['forbidden dependency: '.$path.' -> '.$import]);
 });
 
 test('T33 scanner видит use absolute FQCN и оба варианта escaping class strings', function (): void {
@@ -88,24 +63,23 @@ test('T33 scanner видит use absolute FQCN и оба варианта escapi
         "<?php \$class = '".str_replace('\\', '\\\\', $import)."';",
         '<?php $class = "'.str_replace('\\', '\\\\', $import).'";',
     ] as $source) {
-        expect(PlatformSourceRules::dependencyViolations(sources: [$path => $source], baseline: []))->toBe($expected);
+        expect(PlatformSourceRules::dependencyViolations(sources: [$path => $source]))->toBe($expected);
     }
 
     expect(PlatformSourceRules::dependencyViolations(
-        sources: [$path => '<?php use App\Services\Procurement\Proxy\{ProxyResolver};'], baseline: [],
+        sources: [$path => '<?php use App\Services\Procurement\Proxy\{ProxyResolver};'],
     ))->toBe(['group use is not supported: '.$path]);
 
     $interpolation = '<?php namespace App\Services\Platforms\JsonProcurement\Csv; class Parser { public function run($value) { $message = "{$value}"; return function () use ($value) { return $value; }; } }';
     expect(PlatformSourceRules::inspect($interpolation)['group_use'])->toBeFalse();
 });
 
-test('T33 cross-platform dependency запрещена даже через legacy baseline', function (): void {
+test('T33 cross-platform dependency запрещена без исключений', function (): void {
     $path = 'app/Services/Platforms/JsonProcurement/Csv/Parser.php';
     $import = 'App\Services\Platforms\Eis\Csv\EisCsvParser';
-    $baseline = [['file' => $path, 'import' => $import, 'owner' => 'P2.12']];
 
     expect(PlatformSourceRules::dependencyViolations(
-        sources: [$path => '<?php use '.$import.';'], baseline: $baseline,
+        sources: [$path => '<?php use '.$import.';'],
     ))->toContain('cross-platform dependency: '.$path.' -> '.$import);
 });
 
@@ -115,17 +89,17 @@ test('T33 exact roles не разрешают модели и repositories др�
     $ui = 'app/Filament/Platforms/Eis/EisCrawlerPlatformForm.php';
     $parser = 'app/Services/Platforms/Eis/Card/DocumentsParser.php';
 
-    expect(PlatformSourceRules::dependencyViolations(sources: [$ui => $source], baseline: []))->toBe([])
-        ->and(PlatformSourceRules::dependencyViolations(sources: [$parser => $source], baseline: []))
+    expect(PlatformSourceRules::dependencyViolations(sources: [$ui => $source]))->toBe([])
+        ->and(PlatformSourceRules::dependencyViolations(sources: [$parser => $source]))
         ->toBe(['forbidden dependency: '.$parser.' -> '.$model])
-        ->and(PlatformSourceRules::dependencyViolations(sources: [$ui => $source.' Crawler::query()->update([]);'], baseline: []))
+        ->and(PlatformSourceRules::dependencyViolations(sources: [$ui => $source.' Crawler::query()->update([]);']))
         ->toBe(['UI process write: '.$ui]);
 
     $repository = 'App\Repositories\Procurement\Platform\Okpd2NodeStoreRepository';
     $synchronizer = 'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php';
 
-    expect(PlatformSourceRules::dependencyViolations(sources: [$synchronizer => '<?php use '.$repository.';'], baseline: []))->toBe([])
-        ->and(PlatformSourceRules::dependencyViolations(sources: [$parser => '<?php use '.$repository.';'], baseline: []))
+    expect(PlatformSourceRules::dependencyViolations(sources: [$synchronizer => '<?php use '.$repository.';']))->toBe([])
+        ->and(PlatformSourceRules::dependencyViolations(sources: [$parser => '<?php use '.$repository.';']))
         ->toBe(['forbidden dependency: '.$parser.' -> '.$repository]);
 });
 
@@ -195,14 +169,14 @@ test('T33 каждый перенесённый class enum factory и seeder д�
 test('T33 profile preparation role cannot acquire execution persistence dependencies', function (): void {
     $violations = PlatformSourceRules::dependencyViolations([
         'app/Services/Platforms/Eis/Listing/EisProfilePreparer.php' => '<?php use App\\Repositories\\Procurement\\Process\\WorkStoreRepository;',
-    ], []);
+    ]);
     expect($violations)->toContain('forbidden dependency: app/Services/Platforms/Eis/Listing/EisProfilePreparer.php -> App\\Repositories\\Procurement\\Process\\WorkStoreRepository');
 });
 
 test('T33 diagnostic assessment cannot select routes or read acquisition models', function (): void {
     $path = 'app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php';
     foreach (['App\\Models\\Procurement\\Crawler\\Crawler', 'App\\Services\\Procurement\\Proxy\\ProxyResolver'] as $dependency) {
-        expect(PlatformSourceRules::dependencyViolations([$path => '<?php use '.$dependency.';'], []))
+        expect(PlatformSourceRules::dependencyViolations([$path => '<?php use '.$dependency.';']))
             ->toBe(['forbidden dependency: '.$path.' -> '.$dependency]);
     }
 });

@@ -24,7 +24,7 @@ beforeEach(function (): void {
     Platform::query()->firstOrCreate(['code' => Platform::TRAINING_CODE], Platform::factory()->training()->raw());
     config(['ai.screening.enabled' => true]);
     Storage::fake(config('ai.fixtures.disk'));
-    Storage::fake(config('crawler.documents_disk'));
+    Storage::fake(config('documents.disk'));
     Queue::fake();
 });
 

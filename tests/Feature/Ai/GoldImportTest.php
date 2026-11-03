@@ -59,7 +59,7 @@ function goldImportFixture(string $fixturesDisk, string $code, string $content):
 
 test('эталон с extraction-gold → документ, версия и запись task=extraction с fixture_id и source=deterministic', function (): void {
     $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
+    $documentsDisk = config('documents.disk');
     Storage::fake($fixturesDisk);
     Storage::fake($documentsDisk);
     $goldDir = goldImportGoldDir();
@@ -87,7 +87,7 @@ test('эталон с extraction-gold → документ, версия и за
 
 test('эталон со screening-gold → вторая запись task=screening', function (): void {
     $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
+    $documentsDisk = config('documents.disk');
     Storage::fake($fixturesDisk);
     Storage::fake($documentsDisk);
     $goldDir = goldImportGoldDir();
@@ -110,7 +110,7 @@ test('эталон со screening-gold → вторая запись task=screen
 
 test('повторный прогон идемпотентен (числа не изменились, файл не перезаписан)', function (): void {
     $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
+    $documentsDisk = config('documents.disk');
     Storage::fake($fixturesDisk);
     Storage::fake($documentsDisk);
     $goldDir = goldImportGoldDir();
@@ -137,7 +137,7 @@ test('повторный прогон идемпотентен (числа не 
 
 test('эталон без gold → пропуск со строкой отчёта', function (): void {
     $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
+    $documentsDisk = config('documents.disk');
     Storage::fake($fixturesDisk);
     Storage::fake($documentsDisk);
     $goldDir = goldImportGoldDir();
@@ -156,7 +156,7 @@ test('эталон без gold → пропуск со строкой отчёт
 
 test('невалидный gold → отклонение индивидуальное, остальные импортированы', function (): void {
     $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
+    $documentsDisk = config('documents.disk');
     Storage::fake($fixturesDisk);
     Storage::fake($documentsDisk);
     $goldDir = goldImportGoldDir();
@@ -182,7 +182,7 @@ test('невалидный gold → отклонение индивидуаль�
 
 test('--dry-run → ноль записей', function (): void {
     $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
+    $documentsDisk = config('documents.disk');
     Storage::fake($fixturesDisk);
     Storage::fake($documentsDisk);
     $goldDir = goldImportGoldDir();
@@ -201,7 +201,7 @@ test('--dry-run → ноль записей', function (): void {
 
 test('is_verified остался false после прогона', function (): void {
     $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
+    $documentsDisk = config('documents.disk');
     Storage::fake($fixturesDisk);
     Storage::fake($documentsDisk);
     $goldDir = goldImportGoldDir();

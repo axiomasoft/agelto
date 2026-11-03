@@ -67,7 +67,7 @@ final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRa
         public ?int $priceFrom = null,
         /**
          * Верхняя граница НМЦК, включительно (`priceToGeneral`); `null` → дефолт
-         * `config('crawler.archive.price_ceiling')` в сканере. Ноль запрещён валидацией:
+         * `platform listing price bound` в сканере. Ноль запрещён валидацией:
          * `priceToGeneral=0` обнуляет выдачу (`findings/P4-eis-recon.md` §5.2, Р-4).
          */
         public ?int $priceTo = null,

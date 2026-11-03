@@ -27,7 +27,7 @@ beforeEach(fn () => StoredDocumentFixtures::reset());
 function makeDocumentVersion(string $extension, string $content, ?int $sizeBytes = null): array
 {
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $disk = Storage::fake((string) config('documents.disk'));
     $storagePath = "documents/test.{$extension}";
     $disk->put($storagePath, $content);
 
@@ -96,7 +96,7 @@ test('docx → представление pdf с meta.tool=libreoffice, доку
         ->and($representation->mime)->toBe('application/pdf')
         ->and($representation->meta['tool'])->toBe('libreoffice');
 
-    Storage::disk((string) config('crawler.documents_disk'))->assertExists($representation->storage_path);
+    Storage::disk((string) config('documents.disk'))->assertExists($representation->storage_path);
 });
 
 test('падение LibreOffice-конверсии docx → unprocessable(conversion_failed), исход терминален', function () {
@@ -123,7 +123,7 @@ test('повторный прогон WordStrategy идемпотентен — 
 });
 
 test('два документа одного исходного хеша сохраняют различающиеся результаты LibreOffice без конфликта', function () {
-    $diskName = (string) config('crawler.documents_disk');
+    $diskName = (string) config('documents.disk');
     $disk = Storage::fake($diskName);
     $source = '{\rtf1 одинаковый исходный документ}';
     $sourceHash = hash('sha256', $source);
@@ -193,7 +193,7 @@ test('два документа одного исходного хеша сох�
 
 test('ошибка object storage после Word-конверсии остаётся retryable', function () {
     fakeSoffice(conversionSucceeds: true);
-    $diskName = (string) config('crawler.documents_disk');
+    $diskName = (string) config('documents.disk');
     $sourcePath = 'documents/transient.docx';
     $source = 'заглушка docx-содержимого';
     $sourceHash = hash('sha256', $source);
@@ -314,7 +314,7 @@ test('повторный прогон SpreadsheetStrategy идемпотенте
 test('ошибка object storage после LibreOffice-фолбэка таблицы остаётся retryable', function () {
     config(['ai.prepare.xlsx_max_mb' => 0]);
     fakeSoffice(conversionSucceeds: true);
-    $diskName = (string) config('crawler.documents_disk');
+    $diskName = (string) config('documents.disk');
     $sourcePath = 'documents/transient.xlsx';
     $source = file_get_contents(base_path('tests/Fixtures/Documents/sample.xlsx'));
     $sourceHash = hash('sha256', $source);

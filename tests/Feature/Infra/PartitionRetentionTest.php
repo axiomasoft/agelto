@@ -7,13 +7,10 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 
-test('retention-конфиг покрывает 2 эфемерные таблицы и исключает financial provenance и domain events', function () {
+test('final partition retention excludes retired logs and financial or domain facts', function () {
     $retentionTables = array_keys(config('partitioning.retention'));
 
-    expect($retentionTables)->toEqualCanonicalizing([
-        'prc_fetches',
-        'prc_operation_logs',
-    ]);
+    expect($retentionTables)->toEqualCanonicalizing([]);
 
     expect($retentionTables)->not->toContain('prc_events', 'prc_revisions');
 });
@@ -60,13 +57,8 @@ test('миграция part_config.retention идемпотентна — пов
     $migration->up();
     $migration->up();
 
-    $row = DB::selectOne(
-        'SELECT retention, retention_keep_table FROM partman.part_config WHERE parent_table = ?',
-        ['public.prc_fetches'],
-    );
+    expect(DB::table('partman.part_config')->whereIn('parent_table', ['public.prc_fetches', 'public.prc_operation_logs'])->count())->toBe(0);
 
-    expect($row->retention)->toBe(config('partitioning.retention.prc_fetches.months').' months');
-    expect((bool) $row->retention_keep_table)->toBeFalse();
 });
 
 test('fallback-путь дропает партиции старше retention-окна, когда pg_partman недоступен', function () {

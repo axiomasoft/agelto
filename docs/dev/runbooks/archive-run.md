@@ -70,10 +70,9 @@ docker exec agelto_app php artisan crawler:fetch-details <procurement_id>
 
 ### Что смотреть по ходу и после
 
-- `select count(*) from prc_fetches where proxy_id is null` — обязано быть **0** (весь трафик
-  прошёл через прокси, D3).
-- `select http_status, count(*) from prc_fetches group by 1` — не должно быть систематических
-  403/429/5xx.
+- `process:status --platform=eis` и Work drilldown: required graph, completeness, reason,
+  absolute retry и request provenance. Physical sends находятся в `prc_request_attempts`,
+  source/capacity health — в новых Network authorities; legacy fetch table отсутствует.
 - Идемпотентность повтора: повторный прогон того же дня не создаёт вторых ревизий
   (`select count(*) from prc_revisions where revision_number > 1` не растёт).
 - Документы после успешного detail сначала имеют `discovered`: скачивание выполняют отдельные

@@ -27,7 +27,6 @@ use App\Dto\Procurement\Platform\SupportedListingCapability;
 use App\Dto\Procurement\Platform\SupportedListingPartitioningCapability;
 use App\Dto\Procurement\Platform\SupportedStatusCapability;
 use App\Enums\Procurement\Network\ResponseKind;
-use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Filament\Platforms\Eis\EisUiExtension;
 use App\Services\Procurement\Platform\Contracts\PlatformDefinitionProvider;
 use Illuminate\Contracts\Config\Repository;
@@ -53,20 +52,12 @@ final readonly class EisDefinition implements PlatformDefinitionProvider
                 adapterContract: in_array($capability, ['listing', 'detail'], true)
                     ? new AdapterContractRef('eis', $capability, '1', '1') : null);
         }
-        // Existing reference/document consumers retain these config keys until their cutover.
-        // Declaration assembly stays here; no runtime adapter or second catalog is constructed.
-        $referenceUrl = $config->get('crawler.okpd2.children_endpoint');
-        $hosts = $config->get('crawler.documents_allowed_hosts');
-        if (! is_string($referenceUrl) || ! is_array($hosts) || ! array_is_list($hosts) || $hosts === []) {
-            throw new InvalidPlatformDefinition('crawler.okpd2.children_endpoint/documents_allowed_hosts: invalid catalog declaration.');
-        }
+        $referenceUrl = $this->policy->referenceEndpoint;
+        $hosts = $this->policy->documentHosts;
         $targets['okpd2'] = new SourceTargetDefinition('okpd2', 'reference_sync', CanonicalOrigin::fromUrl($referenceUrl), [
             new RequestProfile('eis.reference', 5, 10, 20, 2_097_152, 6_291_456, 3, 2, 2, [200], ResponseKind::Text, 'UTF-8', 1),
         ]);
         foreach ($hosts as $host) {
-            if (! is_string($host) || $host === '') {
-                throw new InvalidPlatformDefinition('crawler.documents_allowed_hosts: expected nonempty host strings.');
-            }
             $origin = CanonicalOrigin::of('https', $host);
             $key = 'document.'.substr($origin->hash()->hex, 0, 16);
             $targets[$key] ??= new SourceTargetDefinition($key, 'download', $origin, [$this->policy->endpoints->get('document')->profile]);

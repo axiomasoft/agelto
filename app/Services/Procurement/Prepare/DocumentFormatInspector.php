@@ -28,7 +28,7 @@ final readonly class DocumentFormatInspector
             return new DocumentFormatEvidence(null, $extension, $version->mime, null, UnprocessableReason::UnsupportedFormat, 'расширение отсутствует в закрытом registry');
         }
 
-        $maxBytes = $this->positiveIntegerConfig(key: 'crawler.documents_max_bytes', default: 104_857_600);
+        $maxBytes = $this->positiveIntegerConfig(key: 'documents.inspection_max_bytes', default: 104_857_600);
 
         if ($version->size_bytes > $maxBytes) {
             return new DocumentFormatEvidence($entry['format'], $extension, $version->mime, null, UnprocessableReason::TooLarge, "размер версии превышает {$maxBytes} байт");
@@ -42,7 +42,7 @@ final readonly class DocumentFormatInspector
         }
 
         try {
-            $content = fread($stream, max(1, $this->positiveIntegerConfig(key: 'crawler.documents_signature_bytes', default: 8192)));
+            $content = fread($stream, max(1, $this->positiveIntegerConfig(key: 'documents.signature_bytes', default: 8192)));
 
             if (! is_string($content)) {
                 throw new RuntimeException('Не удалось прочитать сигнатуру документа.');

@@ -7,7 +7,6 @@ use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\AccountingRole;
 use App\Enums\Procurement\Process\RunWorkRelation;
 use App\Enums\Procurement\Process\StageCode;
-use App\Filament\Resources\Procurement\Crawler\SourceIncidents\SourceIncidentResource;
 use App\Filament\Resources\Procurement\Process\ControlScopes\ControlScopeResource;
 use App\Filament\Resources\Procurement\Process\ControlScopes\Pages\ListControlScopes;
 use App\Filament\Resources\Procurement\Process\Incidents\IncidentResource;
@@ -19,7 +18,6 @@ use App\Filament\Resources\Procurement\Process\Work\WorkItemResource;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
-use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Process\ControlScope;
 use App\Models\Procurement\Process\Incident;
 use App\Models\Procurement\Process\ProcessRun;
@@ -120,13 +118,12 @@ function uiBlockedByFaultLimit(): WorkId
     return $work;
 }
 
-test('T17 EXR-01: полный sidebar админки на промежуточном baseline (legacy badge + новый Process UI) рендерится без undefined-table', function (): void {
-    SourceIncident::factory()->create();
+test('T17 EXR-01: final sidebar renders Process UI without legacy incident readers', function (): void {
     $admin = processUiUser(SuperAdminRole::class);
 
     $html = actingAs($admin)->get(ProcessRunResource::getUrl())->assertOk()->getContent();
 
-    expect($html)->toContain(SourceIncidentResource::getNavigationLabel())
+    expect($html)->not->toContain('source-incidents')
         ->and($html)->toContain('Процессы: запуски')
         ->and($html)->toContain('Процессы: работа')
         ->and($html)->toContain('Процессы: управление')

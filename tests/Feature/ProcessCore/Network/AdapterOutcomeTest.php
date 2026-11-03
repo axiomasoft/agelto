@@ -51,7 +51,7 @@ function adapterOutcomeFixture(WireFixture $wire): array
 function adapterOutcomeCall(F $f, AdapterContractRef $ref, RoutePolicy $routes, string $input): AdapterValidationCall
 {
     return new AdapterValidationCall('fixture.full_validation', DB::table('prc_platforms')->where('code', $f->code)->value('id'),
-        $ref, LedgerFixtures::hash($input), $f->url, TrafficClass::Detail, $routes, ['system', 'acquisition:platform:'.$f->code], 120);
+        $ref, LedgerFixtures::hash($input), $f->url, TrafficClass::Diagnostic, $routes, ['system', 'acquisition:platform:'.$f->code], 120);
 }
 
 function adapterOutcomeInspect(LegacyOutboundClient $client, AdapterValidationCall $call, int $tabs = 1,
@@ -125,7 +125,7 @@ test('разрешённый redirect полной canary проходит от�
         $wire->respond('/start', '', 302, ['Location' => '/ok']);
         $call = adapterOutcomeCall($f, $ref, $routes, 'redirected');
         $call = new AdapterValidationCall($call->callerCode, $call->platformId, $ref, $call->inputHash,
-            $wire->url('/start'), TrafficClass::Detail, $routes, $call->controls, 120);
+            $wire->url('/start'), TrafficClass::Diagnostic, $routes, $call->controls, 120);
         $result = $client->validated($call, adapterOutcomeInspect($client, $call));
         expect($wire->receipts())->toHaveCount(2)
             ->and(DB::table('prc_network_permits')->where('state', 'released')->count())->toBe(2)

@@ -9,7 +9,7 @@ use App\Enums\Procurement\Crawler\SourceStage;
 use App\Exceptions\Procurement\Crawler\SourceControlConfigurationException;
 
 /**
- * Типизированная `config('crawler.source_control')`: HTTP-статус → вид отказа и правила
+ * Типизированная `historical source-control fixture policy`: HTTP-статус → вид отказа и правила
  * каждого этапа. Разбирается и проверяется один раз (singleton, резолвится при старте в
  * `AppServiceProvider::boot`), дальше код работает только с enum и этим объектом.
  */

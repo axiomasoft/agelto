@@ -20,7 +20,6 @@ use App\Enums\Procurement\Process\ControlMode;
 use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
-use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\User;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\Process\ControlRepository;
@@ -90,7 +89,7 @@ test('отказ ниже порога: этап работает, событи�
     expect(DB::table('prc_route_health')->where('route_id', $proxy->id->value)->sole()->consecutive_failures)->toBe(1)
         ->and(DB::table('prc_route_health')->where('route_id', $proxy->id->value)->sole()->state)->toBe('closed')
         ->and(DB::table('prc_observations')->where('kind', 'network_transport')->count())->toBe(1)
-        ->and(SourceIncident::query()->count())->toBe(0);
+        ->and(Schema::hasTable('prc_source_incidents'))->toBeFalse();
 });
 
 test('порог: ожидание на интервал, событие об ожидании, доменное событие', function (): void {
@@ -104,7 +103,7 @@ test('порог: ожидание на интервал, событие об о
         ->and(Schema::hasTable('prc_source_circuits'))->toBeFalse();
     // Transport evidence replaces the retired source event publisher; old incidents remain read-only.
     expect(DB::table('prc_observations')->where('kind', 'network_transport')->count())->toBe(app(HealthPolicy::class)->globalFailures)
-        ->and(SourceIncident::query()->count())->toBe(0);
+        ->and(Schema::hasTable('prc_source_incidents'))->toBeFalse();
 });
 
 test('изменилась структура и порог: этап остановлен до оператора, таймера нет', function (): void {
@@ -134,7 +133,7 @@ test('ошибки нашего кода и пустое тело не счит�
     expect(DB::table('prc_process_transitions')->where('reason_code', 'handler_fault')->count())->toBe(2)
         ->and(DB::table('prc_process_attempts')->whereNotNull('finished_at')->count())->toBe(2)
         ->and(DB::table('prc_observations')->where('kind', 'network_transport')->count())->toBe(2)
-        ->and(SourceIncident::query()->count())->toBe(0)
+        ->and(Schema::hasTable('prc_source_incidents'))->toBeFalse()
         ->and(DB::table('prc_route_health')->sole()->consecutive_failures)->toBe(0);
     Log::shouldHaveReceived('info')->with('work.deferred', Mockery::on(fn (array $context): bool => $context['reason'] === 'handler_fault'))->twice();
     Log::shouldHaveReceived('info')->with('Crawler outbound attempt', Mockery::any())->twice();
@@ -240,7 +239,7 @@ test('404 по умолчанию — только лог: ни журнала, 
         $f->outcome(new HttpAttemptResult(new ResponseEnvelope(404, [], new DecodedTextBody('none', 'UTF-8'), 4, 4),
             null, 4, 4, metrics: TransportMetrics::fromCurlStats(['http_code' => 404])));
     }
-    expect(SourceIncident::query()->count())->toBe(0)->and(DB::table('prc_route_health')->sole()->consecutive_failures)->toBe(0)
+    expect(Schema::hasTable('prc_source_incidents'))->toBeFalse()->and(DB::table('prc_route_health')->sole()->consecutive_failures)->toBe(0)
         ->and(DB::table('prc_observations')->where('kind', 'network_transport')->count())->toBe(5);
     Log::shouldHaveReceived('info')->with('Crawler outbound attempt', Mockery::on(fn (array $context): bool => $context['http_status'] === 404))->times(5);
 });

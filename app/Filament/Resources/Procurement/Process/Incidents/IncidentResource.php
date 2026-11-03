@@ -37,6 +37,13 @@ final class IncidentResource extends Resource
         return IncidentsTable::configure($table);
     }
 
+    public static function getNavigationBadge(): ?string
+    {
+        $open = Incident::query()->where('state', 'open')->count();
+
+        return $open > 0 ? (string) $open : null;
+    }
+
     public static function canCreate(): bool
     {
         return false;

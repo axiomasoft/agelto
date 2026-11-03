@@ -11,8 +11,13 @@
       "provenance": "Hand-authored expectations on real PostgreSQL listing finalization and projection facts; complete-empty, gap, archive, incomplete, no-data, replay and consumer assertions. No live source or paid AI.",
       "captured_at": "2026-11-03",
       "sha256": "30fa7c2d47de20bdb442b3824743c707141f5b7721889501f7c94c45ad4b4ce8",
-      "expected": {"assessment": "contiguous_source_day_coverage_unknown_second_precision_replay_idempotent", "schema_version": 1},
-      "scenario_ids": ["T46"],
+      "expected": {
+        "assessment": "contiguous_source_day_coverage_unknown_second_precision_replay_idempotent",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T46"
+      ],
       "coverage": "actual_pg_producer_projection_cli_pulse"
     },
     {
@@ -24,8 +29,13 @@
       "provenance": "Synthetic EIS and JSON rows with independent Livewire rendering/escaping and 1-versus-20-row SQL count assertions; table does not consume extension fields. No new table UI API.",
       "captured_at": "2026-11-03",
       "sha256": "1f6c229558ba9ac8e797e6682e36fa4a9e9638b8cbfe1b4373515f226f3c403a",
-      "expected": {"assessment": "json_common_eis_extension_escaped_constant_list_query_count", "schema_version": 1},
-      "scenario_ids": ["T48"],
+      "expected": {
+        "assessment": "json_common_eis_extension_escaped_constant_list_query_count",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T48"
+      ],
       "coverage": "actual_livewire_common_detail_and_list_queries"
     },
     {
@@ -37,8 +47,18 @@
       "provenance": "P3.14 current contract/prompt/schema/test hashes and legacy eval inventory. No paid model calls; unverified legacy labels are explicitly not canonical quality proof.",
       "captured_at": "2026-11-03",
       "sha256": "b910db33b772938f028a1734cba5942d004684718ab5b6058caa5e7c86e16063",
-      "expected": {"assessment": "orchestration_contracts_quality_not_measured", "schema_version": 1},
-      "scenario_ids": ["T13", "T14", "T15", "T22", "T30", "T35"],
+      "expected": {
+        "assessment": "orchestration_contracts_quality_not_measured",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T13",
+        "T14",
+        "T15",
+        "T22",
+        "T30",
+        "T35"
+      ],
       "coverage": "deterministic_contract_inventory_not_live_quality"
     },
     {
@@ -50,8 +70,17 @@
       "provenance": "Hand-authored synthetic Gemini STOP envelope wrapping the existing exact-decimal canonical fixture, explicit token counts, response ID and returned model version; no provider I/O.",
       "captured_at": "2026-11-03",
       "sha256": "a104d519fdb5bdb69d760e00772e6133e72ac48df3d29c21ea2c525d11558bad",
-      "expected": {"assessment": "generation_success_conservative_settlement", "schema_version": 1},
-      "scenario_ids": ["T13", "T15", "T22", "T30", "T35"],
+      "expected": {
+        "assessment": "generation_success_conservative_settlement",
+        "schema_version": 1
+      },
+      "scenario_ids": [
+        "T13",
+        "T15",
+        "T22",
+        "T30",
+        "T35"
+      ],
       "coverage": "actual_local_http_through_chunk_and_publication"
     },
     {
@@ -462,7 +491,7 @@
       "adapter_version": "acquisition/1",
       "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
       "captured_at": "2026-10-31",
-      "sha256": "27e743bf6892acf49f4420ca538b29733a3fe6064a48c43103c86c9202d0eaea",
+      "sha256": "36d7342156f868778826afd7232c55bc4607a8d10cdaaab06880efc33945db1b",
       "expected": {
         "assessment": "exact_executed_replacements",
         "schema_version": 1
@@ -476,8 +505,8 @@
       "coverage": "scenario_transfer_only",
       "original_sha256": "b84a6969f30b39cc562caf30f3aeae7df951aa99a36b9e5d58ec11620d8a53a5",
       "original_path": "tests/Fixtures/ProcessCore/scenario-transfers.json",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only.",
-      "accepted_change_item": "P3.13"
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained.",
+      "accepted_change_item": "P3.17"
     },
     {
       "id": "p218-listing-facts",
@@ -636,7 +665,7 @@
     },
     {
       "path": "tests/Feature/Ai/BenchFormatsTest.php",
-      "sha256": "a5f47de42afaef7fb9efcbcd5f18773c4121cc4ada884fe1b4d0a2e9182c55f7",
+      "sha256": "cef0ca57e17e35df483580532e2a110b63c0d0361da146d2ca8183cd5446eccb",
       "scenarios": [
         "сухой прогон не делает ни одного LLM-вызова и заполняет predicted",
         "ячейка с несуществующим вариантом — not_applicable, прогон не падает",
@@ -648,8 +677,8 @@
         "artisan(estimate:bench:formats) без --out пишет артефакт под config(ai.fixtures.reports_dir) (D111)"
       ],
       "original_sha256": "14a5231f460dd5f38b5e2cd175ec1086ed4712d8ca48bc8620bb04cdf928abce",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Ai/CachesTest.php",
@@ -884,7 +913,7 @@
     },
     {
       "path": "tests/Feature/Ai/FixtureRunTest.php",
-      "sha256": "24202e971128e0f35f93f551a14976dc197fd92b9945659d77e682416fb2c3ae",
+      "sha256": "e59de99eefe1cca2301a7c627e6f0ea3c63c5900f6eedd5c9848689b3711f62a",
       "scenarios": [
         "fixture request создаёт canonical рабочую копию и manual run с инициатором",
         "prepare producer сохраняет auto без инициатора и manual с инициатором в durable run",
@@ -892,8 +921,8 @@
         "working copy A B A сохраняет три canonical revisions и current head вместо выбора historical hash"
       ],
       "original_sha256": "95b552ee9c151767c2e5746f632225b0fe3273c65b14b39d4ab79e232bde53f2",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Ai/FixtureStorageConfigTest.php",
@@ -948,7 +977,7 @@
     },
     {
       "path": "tests/Feature/Ai/GoldImportTest.php",
-      "sha256": "99010ea0bbd79e3e34d233077ec65b40fdc05eb1297ffb75764db877a6c0cc80",
+      "sha256": "33876dda853715c902cc4ed92bb420fba19366799b461f9cc2f53f0ba5cc3bc7",
       "scenarios": [
         "эталон с extraction-gold → документ, версия и запись task=extraction с fixture_id и source=deterministic",
         "эталон со screening-gold → вторая запись task=screening",
@@ -959,8 +988,8 @@
         "is_verified остался false после прогона"
       ],
       "original_sha256": "ffe9ddfc2e43d194515a31462a660a3b92ac1f05fb3d5d69ceee1a107110f711",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Ai/PromptApplyTest.php",
@@ -1022,15 +1051,15 @@
     },
     {
       "path": "tests/Feature/Ai/PromptSuggestTest.php",
-      "sha256": "481894688970efe2c701460a92cda3340da6f004d2a943af65e45872115fbc07",
+      "sha256": "dffbb5902b5b4359d99d73dbcb320edc3a9544e519e409072c71f222e3c6c0ca",
       "scenarios": [
         "битое значение document_type отвергается БД",
         "битое значение analysis_step отвергается БД",
         "--dry-run показывает вход критика и не делает ни одного вызова"
       ],
       "original_sha256": "e534aa3b51e5039270b9e3cce4fddba597f2f12294633f5449cb7a95b3fb234b",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Ai/PromptsSyncTest.php",
@@ -1340,7 +1369,7 @@
     },
     {
       "path": "tests/Feature/Crawler/AuditRemediationTest.php",
-      "sha256": "002f9d59567b8ea5b92ee1b7c583f111637b96545a634ccc3aa36235d468e100",
+      "sha256": "123fb1a40124fef509b8fee82fb1d435e1950a9ca52d4ca36b2f4841b0ffe9d0",
       "scenarios": [
         "typed document parser accepts a known empty container and rejects an unrecognized page",
         "Process detail admission visits a small platform cohort before consuming the large cohort backlog",
@@ -1364,8 +1393,8 @@
       ],
       "original_path": "tests/Feature/Crawler/AuditRemediationTest.php",
       "original_sha256": "b8802ab121b995eecd0467070aa140cee74d8a52994c846e5f735a04c8982675",
-      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
-      "accepted_change_item": "P2.18",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained.",
+      "accepted_change_item": "P3.17",
       "original_scenarios": [
         "распакованное тело ограничено фактическими байтами и поток закрывается после отказа",
         "просроченный deadline закрывает тело до его чтения",
@@ -1586,7 +1615,7 @@
     },
     {
       "path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
-      "sha256": "c9c46e12b8816f48e18b90e525b0a7e390ddbc1fa4b7ba0572d481e0fd973543",
+      "sha256": "ce06b50ab99f8b54f0abc8c6cd9b038a6fc3958b16f3cb4d09f0c884f82fb49c",
       "scenarios": [
         "Process CSV publication creates canonical purchases revisions and discovered events together",
         "Process CSV preserves earliest source day precision independently from publication dates",
@@ -1601,8 +1630,8 @@
       ],
       "original_sha256": "f21a2a9e2d79c32818dd1f28527abdb13550091366f4cb028f224f4197367023",
       "original_path": "tests/Feature/Crawler/CsvBlockIngestorTest.php",
-      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
-      "accepted_change_item": "P2.18",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and historical provenance retained.",
+      "accepted_change_item": "P3.17",
       "original_scenarios": [
         "фикстурный блок создаёт закупки, ревизии и события discovered",
         "передаёт точность самой старой даты обновления из маппера",
@@ -1958,7 +1987,7 @@
     },
     {
       "path": "tests/Feature/Crawler/RawArtifactIdentityTest.php",
-      "sha256": "1bd5ba457cd3604ad79383523700c51d24b40c741ca17c19a97bd15096cefe42",
+      "sha256": "88e34ca709a8f2f7ecd76e1daba4233ec6db1ed1dbd93351a57afc4a7bb6ebce",
       "scenarios": [
         "distinct CSV request windows retain their own immutable bytes",
         "identical CSV replay reuses its immutable object reference",
@@ -1967,8 +1996,8 @@
       ],
       "original_sha256": "0e41d913fd543fb622a785a772542dec312d67b99d394ab975102c1780d26461",
       "original_path": "tests/Feature/Crawler/RawArtifactIdentityTest.php",
-      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
-      "accepted_change_item": "P2.18"
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and historical provenance retained.",
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "tests/Feature/Crawler/RunStopGateTest.php",
@@ -1990,7 +2019,7 @@
     },
     {
       "path": "tests/Feature/Crawler/SourceCircuitBreakerTest.php",
-      "sha256": "5996e11375373c75c49d87eaac60ff3628f64c4a85d44f9ab80b62bcebca26c5",
+      "sha256": "e02d65c641a5b2ef0849ea3408e99adfa846824f8745586767da726e5d7f6c7f",
       "scenarios": [
         "отказ ниже порога: этап работает, событие отказа записано, ожидания нет",
         "порог: ожидание на интервал, событие об ожидании, доменное событие",
@@ -2010,23 +2039,23 @@
       ],
       "original_sha256": "b254655d9897362fe739a98669f53f9670e39d16ca965a899a0a7e806958e343",
       "original_path": "tests/Feature/Crawler/SourceCircuitBreakerTest.php",
-      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
-      "accepted_change_item": "P2.18"
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and historical provenance retained.",
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "tests/Feature/Crawler/SourceControlScenariosTest.php",
-      "sha256": "ba5ea6d880a5b77ac1b3261d4fc69ece85e1878702f586e502c81beace4d2b4a",
+      "sha256": "26805fb8ae4a683332de2402ed0f9bea48c894077ed4b136be4b29805fbface6",
       "scenarios": [
         "Process repeated handler faults retain cursor and block the work without consuming item budget or source health",
         "late handler failure cannot resurrect cancelled Process work or publish a misleading incident",
         "database dependency interruption leaves durable running work for recovery without a false failure",
         "EIS unrecognized card stays bounded incomplete and preserves canonical documents",
-        "legacy incident navigation and badge remain readable while every acquisition incident writer is absent"
+        "legacy incident navigation readers and schema are absent after final cutover"
       ],
       "original_sha256": "dc3f0766148d3c28f80a656d6dd6f00422d94656466981339b77c850e11762f8",
       "original_path": "tests/Feature/Crawler/SourceControlScenariosTest.php",
-      "change_reason": "Current P2.18 acquisition caller/producer correction with preserved original provenance and exact D18 executed-case transfer inventory. Targeted checks are not acceptance.",
-      "accepted_change_item": "P2.18",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained.",
+      "accepted_change_item": "P3.17",
       "original_scenarios": [
         "пул прокси лёг: 5 отказов → ожидание, прогон на паузе на том же блоке; через 10 мин продолжает, данные целы",
         "всплеск 503 ниже порога: тот же блок повторён после ожидания, обход завершён без пропусков",
@@ -2074,7 +2103,7 @@
     },
     {
       "path": "tests/Feature/Crawler/SuspendedRunResumerTest.php",
-      "sha256": "4ae99cb666d4c6ababae13ff7c546d88f7998a0ff385c07ce9499a08438acbb5",
+      "sha256": "0d5b3a07fd65de1dc578a1004f98dd5527da17b41f08ecdd33a4d4c26f011e0a",
       "scenarios": [
         "Process feeder emits one durable wake when a suspended work becomes due and retains progress",
         "automatic Process retry waits for RetryAt and cannot clear an operator pause",
@@ -2085,8 +2114,8 @@
       ],
       "original_sha256": "4472e68d01e1a941b2466edb873fdc2d6397b73a4ef4c07de4ce6bc8ee407e12",
       "original_path": "tests/Feature/Crawler/SuspendedRunResumerTest.php",
-      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
-      "accepted_change_item": "P2.18",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and historical provenance retained.",
+      "accepted_change_item": "P3.17",
       "original_scenarios": [
         "автоповтор отправляет job и сохраняет метку до фактического возобновления",
         "автоповтор ждёт retry_at и не трогает ручную паузу",
@@ -2183,13 +2212,13 @@
     },
     {
       "path": "tests/Feature/Document/DocumentVersionDiskColumnTest.php",
-      "sha256": "b1f98fae326c0284ce8ea81532e1c4a0bd3f761b3a226ee72ec152f846646da8",
+      "sha256": "0c5354ff9328e389a1b5fe59802dedd4972bf56be7554766c48558abcb7c7c67",
       "scenarios": [
         "колонка диска версии документа пишется и читается"
       ],
       "original_sha256": "33009b506fc8259752571789a43730e49efbda128dd386ea31d31943d52c51bd",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Document/DownloadDocumentJobTest.php",
@@ -2262,14 +2291,14 @@
     },
     {
       "path": "tests/Feature/Filament/AdminRouteInventoryTest.php",
-      "sha256": "83ca13a9b789a77ab5caeb9d34dd6469a890fe5aa250e53f03041c7398efadbe",
+      "sha256": "6d0ee98cce110316557481d5daecc0b295c42333b498aeacf6e82fc01f39db9c",
       "scenarios": [
         "runtime admin routes exactly match committed resource and role matrix"
       ],
       "original_sha256": "ab43e9fc7aa9c0ffe0dd4ae75bfbc49f83221b2c0157485783b8bf7df87bdcb6",
-      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved.",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema.",
       "original_path": "tests/Feature/Filament/AdminRouteInventoryTest.php",
-      "accepted_change_item": "P2.18"
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "tests/Feature/Filament/AnalysisResourceTest.php",
@@ -2493,23 +2522,26 @@
     },
     {
       "path": "tests/Feature/Filament/NavigationLabelsTest.php",
-      "sha256": "7bb3934780a6491eae22c27bc9e82fa96ca99e838587cb4cf6df2e9adffb2b4d",
+      "sha256": "63e4bc50afa58d91fd90b2252e2d04b10540f287f8cac280c057235dd0492ef6",
       "scenarios": [
         "назначает всем обнаруженным ресурсам осмысленные русские navigation labels",
         "фиксирует точный порядок групп и application pages"
       ],
       "original_sha256": "6fba9167bb547c818abc910c6985ba24052ba654374420601abf1330cc385c07",
-      "change_reason": "P2.18 acquisition cutover: preserved scenario names and original hashes; current bytes include Process callers and fenced publication/schema assertions. Executed checks are separate evidence.",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema.",
       "original_path": "tests/Feature/Filament/NavigationLabelsTest.php",
-      "accepted_change_item": "P2.18"
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "tests/Feature/Filament/OperationLogResourceTest.php",
-      "sha256": "9675a55179aa69656e7a3a18ed57d0742e8fd892bf9f81d88ada529c87f655ba",
+      "sha256": "233a4a02d8235be9412c36263154c61e22e24abb538a9b05acfa0376f2559259",
       "scenarios": [
         "оператор читает причину ошибки и объект в журнале процессов без права изменения",
         "аналитик не получает доступ к техническому журналу по прямому URL"
-      ]
+      ],
+      "original_sha256": "9675a55179aa69656e7a3a18ed57d0742e8fd892bf9f81d88ada529c87f655ba",
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and historical provenance retained."
     },
     {
       "path": "tests/Feature/Filament/PlatformCheckResourceTest.php",
@@ -2600,7 +2632,7 @@
     },
     {
       "path": "tests/Feature/Filament/SourceControlResourceTest.php",
-      "sha256": "7e035e13d9f5a1a3b41f418ad69ba1ce980d2843422eb73c91366bd4326bd3c1",
+      "sha256": "0fb8ff9ffbfe37771433a20f57dcc5c758b0b304e64afbc0722bf86a44fd9f56",
       "scenarios": [
         "оператор ставит источник на паузу из админки: инцидент с автором",
         "«Возобновить сейчас» снимает ожидание и ставит приостановленные прогоны в очередь без ожидания",
@@ -2609,8 +2641,8 @@
       ],
       "original_sha256": "22c264defc5532b59536b446bd4fe10af53c046abd006ad8661f87932cb6f233",
       "original_path": "tests/Feature/Filament/SourceControlResourceTest.php",
-      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
-      "accepted_change_item": "P2.18",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and historical provenance retained.",
+      "accepted_change_item": "P3.17",
       "original_scenarios": [
         "оператор ставит источник на паузу из админки: инцидент с автором",
         "«Возобновить сейчас» снимает ожидание и ставит приостановленные прогоны в очередь без ожидания",
@@ -2681,15 +2713,15 @@
     },
     {
       "path": "tests/Feature/Health/DetailParseOutcomeTest.php",
-      "sha256": "cb0e4f0bcc0987dd4cf45fa84f6b405f8dcecd828e9c0b0df1b65449b07126f6",
+      "sha256": "905bdbc2d63976b796c4c1413ea5893c0a90076305a7399bb84585a5a2ecfcb2",
       "scenarios": [
         "Process detail retains incomplete attempt evidence and publishes only the later coherent outcome",
         "missing diagnostic baseline fails closed without consuming detail budget and corrected configuration recovers"
       ],
       "original_sha256": "6799aee810df177cb0a84bdd48d5c6f673af1680d0d740a54100688ab28f35e6",
       "original_path": "tests/Feature/Health/DetailParseOutcomeTest.php",
-      "change_reason": "P2.18 canonical acquisition caller/D18 transfer correction. Original provenance is retained; current hashes and declarations describe the candidate, not acceptance.",
-      "accepted_change_item": "P2.18"
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema.",
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "tests/Feature/Health/EstimateFieldsCheckTest.php",
@@ -2703,25 +2735,37 @@
     },
     {
       "path": "tests/Feature/Health/HealthBaselineReaderTest.php",
-      "sha256": "b7c7d2a647f13106d448ba58b45f338f8a9c373c9c4df7fed47369cf1b9fc628",
+      "sha256": "0944a43363bbc138f4d46c3b6d23b3fc28ca048e305fb040f53807511f9846a6",
       "scenarios": [
         "ридер возвращает типизированный эталон и хеширует байты файла",
         "ридер отклоняет эталон без обязательного ключа",
         "ридер отклоняет нетипизированные значения эталона"
-      ]
+      ],
+      "original_sha256": "b7c7d2a647f13106d448ba58b45f338f8a9c373c9c4df7fed47369cf1b9fc628",
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Health/HealthCheckCommandTest.php",
-      "sha256": "a56aa9176d151242c1332756ea43276f7ac58ccfc6aa3ca0449b7197d248787a",
+      "sha256": "de4172369ab076fe2f9faffcb749dc60382763858d5123f5076095424b1dc76b",
       "scenarios": [
+        "команда записывает по строке на каждую проверку",
+        "dry-run команды не записывает историю",
+        "legacy health execution flag cannot suppress explicit passive diagnostics",
+        "passive health diagnostics have no independent legacy schedule",
+        "legacy health execution flag cannot suppress explicit passive diagnostics",
+        "passive health diagnostics have no independent legacy schedule"
+      ],
+      "original_sha256": "305ee5109d86784d76a1c2e3eef4c7304e56fd9613a6e76abf708b84ee3f3a60",
+      "original_path": "tests/Feature/Health/HealthCheckCommandTest.php",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained.",
+      "accepted_change_item": "P3.17",
+      "original_scenarios": [
         "команда записывает по строке на каждую проверку",
         "dry-run команды не записывает историю",
         "выключенный healthcheck не читает площадку, не пишет историю и не ходит в сеть",
         "выключенный healthcheck не регистрируется в расписании"
-      ],
-      "original_sha256": "305ee5109d86784d76a1c2e3eef4c7304e56fd9613a6e76abf708b84ee3f3a60",
-      "original_path": "tests/Feature/Health/HealthCheckCommandTest.php",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      ]
     },
     {
       "path": "tests/Feature/Health/ListingFilterCheckTest.php",
@@ -2766,10 +2810,13 @@
     },
     {
       "path": "tests/Feature/Health/NotifyPlatformHealthChangedTest.php",
-      "sha256": "17bb5b6fb6ebd3486bc6fbe9450a7d3c29fd14c6f47d8a927820d25abf9b8eeb",
+      "sha256": "7a024f46f323b3d8d2adadcac9de8f6cc64d343170b9193697ae98f6cd013aff",
       "scenarios": [
         "слушатель передаёт изменение здоровья в существующий Telegram-транспорт"
-      ]
+      ],
+      "original_sha256": "17bb5b6fb6ebd3486bc6fbe9450a7d3c29fd14c6f47d8a927820d25abf9b8eeb",
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Health/PlatformCheckStoreTest.php",
@@ -2780,7 +2827,7 @@
     },
     {
       "path": "tests/Feature/Health/PlatformHealthChangedEventTest.php",
-      "sha256": "043fe95bf6e075d134406f0449b9cbf4c9d3bf2ff3f1e9205f264a5ef5396c62",
+      "sha256": "769b26a9ea362eb7f26bb711c4f5d2f8bdd7ca262446bb9559ef9dfd3943e0e0",
       "scenarios": [
         "ухудшение здоровья площадки порождает событие с предыдущим вердиктом",
         "восстановление здоровья площадки до ok порождает событие",
@@ -2789,8 +2836,8 @@
         "событие смены здоровья автоматически связано со слушателем"
       ],
       "original_sha256": "3e614172a6bc993e8b7fea6f4f0c9eba48106b27866eb763c26da7cbb7ece05c",
-      "accepted_change_item": "P2.18",
-      "change_reason": "P2.18 checks.1 correction: current cutover tests/fixture hashes; original provenance and D18 scenario baseline preserved."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/HealthCheckTest.php",
@@ -2808,8 +2855,17 @@
     },
     {
       "path": "tests/Feature/Infra/PartitionCoverageTest.php",
-      "sha256": "aad8406b544bd52a3998b0595b1c105b8ee8ab13209cdb67dc0fe2d61c0e9e35",
+      "sha256": "6013ff76d98c1a82374fc1e67a91d45baa02492960b25e8696962c179d489cd0",
       "scenarios": [
+        "fresh schema has a continuous rolling historical and premake window for every configured partitioned table",
+        "repair migration fills a later installation month idempotently and rolls back only marked partitions",
+        "last historical month keeps domain events and revisions without legacy fetch schema",
+        "все месяцы фиксированного корпуса 2025 принимают доменные события и переживают maintenance"
+      ],
+      "original_sha256": "aad8406b544bd52a3998b0595b1c105b8ee8ab13209cdb67dc0fe2d61c0e9e35",
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained.",
+      "original_scenarios": [
         "fresh schema has a continuous rolling historical and premake window for every configured partitioned table",
         "repair migration fills a later installation month idempotently and rolls back only marked partitions",
         "last historical month accepts fetch, event and revision inserts",
@@ -2818,9 +2874,9 @@
     },
     {
       "path": "tests/Feature/Infra/PartitionRetentionTest.php",
-      "sha256": "fb87342fb0899ea6bcbc83e276d527aba64f36a67fb3180e61eda1c617c1a3e8",
+      "sha256": "3359bec32dc9470c013ae915cb49f9f3fbd4488750b5d43a50451170ce85d7af",
       "scenarios": [
-        "retention-конфиг покрывает 2 эфемерные таблицы и исключает financial provenance и domain events",
+        "final partition retention excludes retired logs and financial or domain facts",
         "«вечные» таблицы (eternal) не пересекаются с DROP-retention списком",
         "миграция выставляет partman.part_config.retention для эфемерных таблиц и не трогает prc_revisions",
         "миграция part_config.retention идемпотентна — повторный up() не бросает и не меняет значения",
@@ -2828,8 +2884,16 @@
         "fallback-путь НЕ дропает партиции таблицы вне retention-конфига"
       ],
       "original_sha256": "b684b4594f0dbf85c937f2674afc8c590f16a37ad6b4c2d96c55ffe3b431ca72",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained.",
+      "original_scenarios": [
+        "retention-конфиг покрывает 2 эфемерные таблицы и исключает financial provenance и domain events",
+        "«вечные» таблицы (eternal) не пересекаются с DROP-retention списком",
+        "миграция выставляет partman.part_config.retention для эфемерных таблиц и не трогает prc_revisions",
+        "миграция part_config.retention идемпотентна — повторный up() не бросает и не меняет значения",
+        "fallback-путь дропает партиции старше retention-окна, когда pg_partman недоступен",
+        "fallback-путь НЕ дропает партиции таблицы вне retention-конфига"
+      ]
     },
     {
       "path": "tests/Feature/Infra/SchemaHardeningTest.php",
@@ -2922,15 +2986,15 @@
     },
     {
       "path": "tests/Feature/Observability/PulseCardsTest.php",
-      "sha256": "036bf689c75430e15524d75eaa965bc0b6e1e880dec0b9e3d526751c2fa79f5d",
+      "sha256": "1d71c1fe47ab35cd40395a7a95f5c4c819f0c6adfaaadff569c2905080923e90",
       "scenarios": [
         "PipelineStagesCard считает succeeded/failed по стадиям prepare/screening/extraction за 24ч",
         "LlmSpendCard группирует токены/стоимость provider ledger по purpose за 24ч",
         "LlmSpendCard подписывает цифру источником — «наш трекинг» с лагом и горизонтом"
       ],
       "original_sha256": "2431a7c464c4a5ff1fb16838a18f3676539b2c49bd2432d08d5dbe94b00396bd",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Observability/PulseGateTest.php",
@@ -3296,7 +3360,7 @@
     },
     {
       "path": "tests/Feature/Procurement/ContourTest.php",
-      "sha256": "643d4f9c69f0327446ace1246668b62086437ff4893d7ef71dbbc9e30d17d371",
+      "sha256": "4ca1a4caf7bb6bddc80b91dcb745329ab70de2dd00785d24f6e59ad7ba601a44",
       "scenarios": [
         "документ без platform_id не создаётся (NOT NULL)",
         "выборка витрины не содержит смету и документ площадки «Обучалка»",
@@ -3304,8 +3368,8 @@
         "дочерний документ архива наследует площадку родителя"
       ],
       "original_sha256": "ee66a326efeca3e6b8e9da7c6486ab76d9db62d0cbd5a5001ed7aa55dea0caad",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Procurement/CustomerOrgOwnershipTest.php",
@@ -3566,7 +3630,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Pipeline/StuckCheckTest.php",
-      "sha256": "f215e616ab2de050c4934430bf2f9c814a9c229de055933542fc7a5aba5e7022",
+      "sha256": "8d3e468eab9a17443ea64eadcdd98100a9ede3bfd843d39ba98ed42b1f51360a",
       "scenarios": [
         "без аномалий команда завершается тихо, без Telegram-алерта",
         "зависший screening-анализ (running, лиз истёк, старше порога) — алерт",
@@ -3587,8 +3651,8 @@
         "pipeline:status отрабатывает без ошибок и показывает счётчики документов/анализов"
       ],
       "original_sha256": "89087cd53f9a9ea904777bc270a3d828b8826635710a9b0e6052bf573f0bcd84",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained."
     },
     {
       "path": "tests/Feature/Procurement/PlatformExtensionContractTest.php",
@@ -3615,7 +3679,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
-      "sha256": "9a7d99f7450a547baa2350b68fe1532994366b709ec0e33adffb47b3ba1476f4",
+      "sha256": "86360ed27c140ba7737e031f4381bd17277ec223eb0071726c7d3d9495e0b6bb",
       "scenarios": [
         "format corpus: архив создаёт children, каждый проходит обычную подготовку, а parent не скрининг",
         "format corpus: retry архива сохраняет одну logical child на parent и path",
@@ -3626,12 +3690,12 @@
       ],
       "original_path": "tests/Feature/Procurement/Prepare/ArchivePipelineTest.php",
       "original_sha256": "1b9faf96d75b82614e4ea47dad8387c2cceb4924006eacd3ff14cab21838fff6",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
-      "accepted_change_item": "P3.13"
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema.",
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ArchiveStrategyTest.php",
-      "sha256": "c79cd375cb977edb8f02028cc55756438984372977401333995ebea10a7ec2ff",
+      "sha256": "f694577850e2805cc9ab5c11675e8bd4c6a43af7ef7fca867856b46428f999b5",
       "scenarios": [
         "ZIP metadata проходит CHECKCONS и entry извлекается потоком",
         "7z → дочерние документы созданы",
@@ -3644,8 +3708,8 @@
         "повторный прогон 7z — дочерний документ не дублируется"
       ],
       "original_sha256": "20eff8855dabce3ae9c833dcdbeb8897cc4deeab28e401f9fd0a8380a1e4782b",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/DocumentFormatContractTest.php",
@@ -3686,7 +3750,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Prepare/GsfxStrategyTest.php",
-      "sha256": "1b0570007bfe0a592362d358dfa029b5c2f00921d0c036886a143b6ef93cfb4b",
+      "sha256": "158a2ab884d6c93753a27881fea58e2f08734b61efe719ea4e9d316c19407575",
       "scenarios": [
         "паспорт разобран из cp1251 без мусора",
         "позиция несёт обе цены",
@@ -3716,8 +3780,8 @@
         "inspector отклоняет gsfx-расширение без ZIP-сигнатуры"
       ],
       "original_sha256": "25c32defbf1ce43dd2f9af3539c066991c58114e8b8dd170190f873d67d74a74",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/LibreOfficeConverterTest.php",
@@ -3737,7 +3801,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Prepare/RepresentationContractTest.php",
-      "sha256": "7e96cadbd412952d84ac8235bca1035da75add4e170151849d59eb129d787d58",
+      "sha256": "cfea9a8e0938c91635a8bce2452d24a3156d4a33650862cea68b9f42595c78be",
       "scenarios": [
         "повторный storeOrUpdate по паре версия+kind обновляет ту же запись, а не плодит вторую",
         "пара версия+kind уникальна на уровне схемы — вторая запись тем же kind отбивается БД",
@@ -3748,12 +3812,12 @@
         "registry закрывает known extensions и не даёт catch-all для неизвестного формата"
       ],
       "original_sha256": "f8fc468db63d0da7e5bc6b123d6a6f5c5fdaef8f0fd28c7ff9b1feec60609dbd",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Canonical schema/writer cutover; distinct behavioral assertions and explicitly historical test-only compatibility coverage."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/RepresentationPolicyTest.php",
-      "sha256": "73d8228d31eb2c2146549c48254bd819883cc4dad6c8d6e35bfd988908c77280",
+      "sha256": "307f0860b0d74717d999a4437527d715652341dd774aef644874b146821032d3",
       "scenarios": [
         "политика по формату выбрана из конфига — подменённый config() меняет результат резолвера",
         "отсутствие всех kind ов политики отдаёт оригинал версии при fallback_to_source = true",
@@ -3762,8 +3826,8 @@
         "формат вне карты policy идёт по default"
       ],
       "original_sha256": "9efc87a41cd217861f6ba565c0ea611464b595fe7b4256d7815fcee2335ca611",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/RepresentationStorageFaultInjectionTest.php",
@@ -3781,7 +3845,7 @@
     },
     {
       "path": "tests/Feature/Procurement/Prepare/ScanStrategyTest.php",
-      "sha256": "a24ce8440978b9c79578ca4cc1ec49ee8fe4460ceefa86f7db16d09db4e8d75f",
+      "sha256": "32057faf0c0c617c51d97f8f3af93b1af1dc0eee79ca7f042dda4ad26430228b",
       "scenarios": [
         "registry направляет PDF в typed scan handler",
         "PDF с текстовым слоем — стратегия вернула false, OCR не запускался",
@@ -3798,12 +3862,12 @@
         "исчерпание prepare deadline остаётся retriable ошибкой, а не unprocessable PDF"
       ],
       "original_sha256": "829707a3abccb9a32453d3eefbf4753770695fd7946ebd8afd111588906e0e12",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/SpreadsheetStrategyTest.php",
-      "sha256": "4dd4d671bfdd0a6dbd358d81196bad82cbce4357c0aa6db0084a0d204c898649",
+      "sha256": "82b1b36bb90b8a91442b22adeb4e47a3d7f210b2ff69fb0ed22787ed73de60f1",
       "scenarios": [
         "registry направляет текстовые документы в typed Word handler",
         "docx → представление pdf с meta.tool=libreoffice, документ не терминален",
@@ -3819,8 +3883,8 @@
         "ошибка object storage после LibreOffice-фолбэка таблицы остаётся retryable"
       ],
       "original_sha256": "01cfd32bd45929cb02cc026f33bf2bf48d8e98e01098d0cb4524fc017d7291b5",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical metadata/writers and distinct assertions; historical AI harness remains test-only."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Procurement/Prepare/TextGridRendererTest.php",
@@ -4060,7 +4124,7 @@
     },
     {
       "path": "tests/Feature/Storage/DiskBackfillTest.php",
-      "sha256": "1d4f530f95aa9ec2c40e7ce4e02f66d81852c4237a867cefd28a6c2ca11b084b",
+      "sha256": "d28f5a0f9eab2e9dba5150463beddfaeeca53305800ed1221913162caf7aed99",
       "scenarios": [
         "перенос копирует объект потоком и обновляет диск записи после совпадения хэша",
         "повторный прогон переноса идемпотентен: расхождений нет, диск не меняется повторно",
@@ -4070,23 +4134,26 @@
         "перенос estimate-raw-results считает эталон с источника — колонки хэша у носителя нет"
       ],
       "original_sha256": "da20b31d223188d84ef6dc5f3a9ec6f7d8092e4dd58440b4f090f2a448b645fc",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Storage/FileLocationFallbackTest.php",
-      "sha256": "f789f1e48655e543332951d383545fd77f4ca1a56b3f2e40d1a10a40d859e338",
+      "sha256": "c6e42b800c2cc81631e3ed5ed3660fc5790eca240582ab15360414325262d695",
       "scenarios": [
         "объект на диске записи — фолбэк не срабатывает, второй диск не трогается",
         "объект только в цепочке — резолвер находит его на старом диске и логирует промах",
         "объекта нет нигде — резолвер возвращает адрес записи без исключения",
         "пустая цепочка — ко второму диску обращения нет вовсе",
         "forFixture использует свою цепочку fallback-дисков эталонов"
-      ]
+      ],
+      "original_sha256": "f789f1e48655e543332951d383545fd77f4ca1a56b3f2e40d1a10a40d859e338",
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Storage/FileLocationResolverTest.php",
-      "sha256": "ff0031de0e177ce98f9fd39925ca57f9478bb3daeda986441ba90b7cfee6ceb0",
+      "sha256": "336115d9cffb3530d379cfa4135638d3eece5f44af6fcd3d2a7fb15216167e0d",
       "scenarios": [
         "forDocumentVersion фолбэкает на текущий диск документов при пустой колонке",
         "forDocumentVersion берёт диск из записи, если он материализован",
@@ -4099,18 +4166,18 @@
         "fallback-цепочка отклоняет нетипизированное имя диска"
       ],
       "original_sha256": "6ab2cc23e6498e410227d78d5ec759a55f93a7477c9aaf4e0ef3783d90900fd7",
-      "accepted_change_item": "P3.5",
-      "change_reason": "Strict canonical schema/writer cutover and distinct behavioral assertions; semantic dispositions are not equivalence claims."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Storage/StorageAddressingGateTest.php",
-      "sha256": "75cafe1dcd5fae9d3d694afc968f2ad1401847ba1cb49ff2d819147977ce9b79",
+      "sha256": "a0f55026bee3cf3377cfa653f54fc8ea7d3dbf558e578653129bf59a4af82dfa",
       "scenarios": [
         "вне app/Services/Storage прямое чтение конфиг-ключей диска запрещено"
       ],
       "original_sha256": "ab2d75a317bb8a649b48111283d055c29a39e62171429a7243512627968c8846",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Feature/Support/PaoContractTest.php",
@@ -4281,8 +4348,8 @@
       "path": "tests/TestCase.php",
       "sha256": "cffae2e6affa0d4da98095731049d0464db3dc66484de13b9f53e298e16764ea",
       "original_sha256": "63312f076231d00f83b03076bb3df9dd19bd6fe7cffcf46f6d03e4b986fa865d",
-      "accepted_change_item": "P2.18",
-      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained."
     },
     {
       "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
@@ -4344,14 +4411,15 @@
     },
     {
       "path": "tests/Unit/Architecture/PlatformExtensionContractTest.php",
-      "sha256": "aae81252b0d2766f60e3011e6312474b0eb549822fc9f6ac84f5a8ff6e41e482",
+      "sha256": "b015e0f2e6cdbe478ed03fff19f5b161009fc69fb49d23ec7968017b09be3d32",
       "scenarios": [
         "source-specific literals разрешены только в exact adapter, descriptor, config и seed boundary",
         "forbidden-core fixture не проходит exact source-literal allowlist"
       ],
       "original_path": "tests/Unit/Architecture/PlatformExtensionContractTest.php",
       "original_sha256": "518553fdd730edc8e4913c7005d619cefc69cb718cbf6da48975504f1f906700",
-      "change_reason": "P4.2 architecture assertions updated for the Platforms roots; original scenario names preserved."
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema.",
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "tests/Unit/Architecture/ScreeningContractTest.php",
@@ -4363,16 +4431,22 @@
     },
     {
       "path": "tests/Unit/Config/QueueTimeoutInvariantTest.php",
-      "sha256": "522e6329b744deb38d6a735aca57a77497144f8c78a6ebe75cb1669501a25d17",
+      "sha256": "df4b339cd9221ffc5aa9af62028d61e12b29d791470ede364cc48cc30881b860",
       "scenarios": [
         "скачивание и ревалидация имеют Horizon consumer с достаточным timeout",
         "таймаут каждого horizon-супервизора строго меньше retry_after его connection (инварианты D26 и D117)",
         "canonical AI stages share one queue map and preserve slice job supervisor retry and lease ordering",
-        "long lane сохраняет обе timeout-цепочки и documented stop_grace_period (инвариант D117)"
+        "final Horizon consumers and actual Compose grace match the Process timeout bounds"
       ],
       "original_sha256": "bcf19342e790db783ac9a7abe3fdeadb57da5252fbd3a63a68bded86ee97b4a9",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained.",
+      "original_scenarios": [
+        "скачивание и ревалидация имеют Horizon consumer с достаточным timeout",
+        "таймаут каждого horizon-супервизора строго меньше retry_after его connection (инварианты D26 и D117)",
+        "canonical AI stages share one queue map and preserve slice job supervisor retry and lease ordering",
+        "long lane сохраняет обе timeout-цепочки и documented stop_grace_period (инвариант D117)"
+      ]
     },
     {
       "path": "tests/Unit/Crawler/CrawlSettingsResolverTest.php",
@@ -4976,11 +5050,14 @@
     },
     {
       "path": "tests/Unit/Procurement/SourceTargetValidatorTest.php",
-      "sha256": "661a6a4c428d656024786c911cdf629126a455c34c9be481a358c6dc16b3b17c",
+      "sha256": "3ee4b2f32a6e60edfe1a8a1e110d4db8192a5d02c36c4b67c1b721b0f724e7a6",
       "scenarios": [
         "trusted EIS document target принимается",
         "unsafe document target отклоняется до транспорта"
-      ]
+      ],
+      "original_sha256": "661a6a4c428d656024786c911cdf629126a455c34c9be481a358c6dc16b3b17c",
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "tests/Unit/Support/PipelineTemporaryFileTest.php",
@@ -5554,7 +5631,10 @@
     },
     {
       "path": "database/migrations/2026_07_04_100033_create_prc_estimates_table.php",
-      "sha256": "58edc5b6573b67fba989ac32ee388f644c7653fdee30bb9331465f0c4c5a5e71"
+      "sha256": "9d7ca1f51e14b90abe812e270796791df5b89bf4e733a1b37216c9548b1d2a98",
+      "original_sha256": "58edc5b6573b67fba989ac32ee388f644c7653fdee30bb9331465f0c4c5a5e71",
+      "accepted_change_item": "P3.17",
+      "change_reason": "Final legacy UI/schema/config cutover; retained scenario names assert the canonical owners and absence of old schema."
     },
     {
       "path": "database/migrations/2026_07_04_100034_create_prc_estimate_sections_table.php",
@@ -5588,19 +5668,8 @@
       "change_reason": "P2.6 atomic caller/schema cutover; original provenance and scenario identities retained."
     },
     {
-      "path": "database/migrations/2026_07_04_100041_create_prc_fetches_table.php",
-      "sha256": "61ed0603252facabc3b7ca2c33c43230d134938f0505b01ac6c9a7eb090b600f",
-      "original_sha256": "0bd546c4fdf2b14f67da4c387c4fdc4a6bcae5c89d2e5472141e8e24c7269279",
-      "accepted_change_item": "P2.18",
-      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
-    },
-    {
       "path": "database/migrations/2026_07_04_100044_create_prc_ignored_items_table.php",
       "sha256": "c03b6342c68ac7de2cb31349348b0df037e24f728d741e5807a158554b08e3df"
-    },
-    {
-      "path": "database/migrations/2026_07_04_100046_create_prc_operation_logs_table.php",
-      "sha256": "5789ae7f1df7bb516d581394a2f4adca301e924f53352b6a1a9c163eb786ff52"
     },
     {
       "path": "database/migrations/2026_07_04_100047_setup_pg_partman.php",
@@ -5616,13 +5685,6 @@
     {
       "path": "database/migrations/2026_07_09_100050_set_pg_partman_retention.php",
       "sha256": "7c77d0c352cc939729b0640be379969b5f5eee5aca604aaf7b3697d36a5d2ce7"
-    },
-    {
-      "path": "database/migrations/2026_07_09_100051_set_hot_partition_autovacuum.php",
-      "sha256": "f6cf974f00d85259aeac038c5c6121f3db7e5da1647ece3fee64c33d166b4202",
-      "original_sha256": "bda36a400d9ff597b993be8ff5331315da01365a30b42b34c74372486abcc768",
-      "accepted_change_item": "P3.13",
-      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer."
     },
     {
       "path": "database/migrations/2026_07_09_100052_create_prc_ai_corrections_table.php",
@@ -5678,10 +5740,6 @@
       "sha256": "c869b36a44a48c703f7f5e01e1f77267178c24e192a8bc42c43b6edcd7284c40"
     },
     {
-      "path": "database/migrations/2026_08_09_100088_add_proxy_source_to_prc_fetches.php",
-      "sha256": "7304dad807210a1b5a2d6674324a469645eb64fa64d6106b750affea73c4ff71"
-    },
-    {
       "path": "database/migrations/2026_08_09_100089_add_unprocessable_reason_to_prc_documents_table.php",
       "sha256": "7c6ac6c3a8cc4b9ba4a75351c81b2b1fd9eb48007da31efe4be259bf59543382"
     },
@@ -5708,13 +5766,6 @@
     {
       "path": "database/migrations/2026_09_12_100095_preserve_2025_procurement_events.php",
       "sha256": "d2350a7c035319e77273180e0c2776fd5664e665c3444266769c59e6f3c0b332"
-    },
-    {
-      "path": "database/migrations/2026_10_07_100096_create_prc_source_control_tables.php",
-      "sha256": "85999657e5683e248cd067801d808d3cee56f5652356ffa154a7c4fc9c7a1e74",
-      "original_sha256": "8c27c3b743053ecf21484a2fd9c8ba0ace57b0dbf7c1f2f0273295aba18042ee",
-      "accepted_change_item": "P2.18",
-      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim."
     },
     {
       "path": "database/migrations/2026_10_08_100101_verify_partition_bounds.php",
@@ -5812,11 +5863,12 @@
     {
       "path": "app/Dto/Platforms/Eis/EisSearchFilter.php",
       "fqcn": "App\\Dto\\Platforms\\Eis\\EisSearchFilter",
-      "sha256": "e268eb17ae7aefc04f3a614c78d68936fea2596ffed74ea5efce4ddd45da4543",
+      "sha256": "96b9dceeec1d86061c9b5b278a6b2c3543b532c7301ffbd682bdcf8e969ad372",
       "original_path": "app/Dto/Procurement/Crawler/EisSearchFilter.php",
       "original_sha256": "47bb558dac2bf92d1f16f669cd722a5b1e86541b657d157f81ebf5788996cb87",
       "original_fqcn": "App\\Dto\\Procurement\\Crawler\\EisSearchFilter",
-      "change_reason": "P4.2 mechanical namespace/import/fixture path move; scenario names and assertions preserved."
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained.",
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "app/Enums/Platforms/Eis/EisProcedureType.php",
@@ -5940,12 +5992,12 @@
     {
       "path": "app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php",
       "fqcn": "App\\Services\\Platforms\\Eis\\Filters\\Okpd2NodeSynchronizer",
-      "sha256": "108176c8b6edf6592dd04fda18de44a5ecdc030aae5f6994f1f5b5fa84da2b14",
+      "sha256": "4ee82c4b675c98d916e1ce98c80fbfc05516c6564c82c161617842bd97cce8dc",
       "original_path": "app/Services/Procurement/Eis/Okpd2NodeSynchronizer.php",
       "original_sha256": "785c129b65dc11a206fd4a30ba9a4d6dfb4bebc964bd07750867a6740fe47d61",
       "original_fqcn": "App\\Services\\Procurement\\Eis\\Okpd2NodeSynchronizer",
-      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
-      "accepted_change_item": "P2.18"
+      "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and historical provenance retained.",
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php",
@@ -6046,6 +6098,45 @@
       "sha256": "46b63d1eaf034bb4c7a296122b7c016d8970397ad6cfb3d459348949266822ac",
       "retired_in": "P3.13",
       "reason": "Coherent canonical AI owner/schema cutover; exact scenario transfers are recorded separately."
+    },
+    {
+      "path": "database/migrations/2026_07_04_100041_create_prc_fetches_table.php",
+      "sha256": "61ed0603252facabc3b7ca2c33c43230d134938f0505b01ac6c9a7eb090b600f",
+      "original_sha256": "0bd546c4fdf2b14f67da4c387c4fdc4a6bcae5c89d2e5472141e8e24c7269279",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "retired_in": "P3.17",
+      "reason": "Final legacy UI/schema cutover; scenario dispositions retained."
+    },
+    {
+      "path": "database/migrations/2026_07_04_100046_create_prc_operation_logs_table.php",
+      "sha256": "5789ae7f1df7bb516d581394a2f4adca301e924f53352b6a1a9c163eb786ff52",
+      "retired_in": "P3.17",
+      "reason": "Final legacy UI/schema cutover; scenario dispositions retained."
+    },
+    {
+      "path": "database/migrations/2026_07_09_100051_set_hot_partition_autovacuum.php",
+      "sha256": "f6cf974f00d85259aeac038c5c6121f3db7e5da1647ece3fee64c33d166b4202",
+      "original_sha256": "bda36a400d9ff597b993be8ff5331315da01365a30b42b34c74372486abcc768",
+      "accepted_change_item": "P3.13",
+      "change_reason": "Canonical AI consumer/schema/owner cutover and scenario transfer.",
+      "retired_in": "P3.17",
+      "reason": "Final legacy UI/schema cutover; scenario dispositions retained."
+    },
+    {
+      "path": "database/migrations/2026_08_09_100088_add_proxy_source_to_prc_fetches.php",
+      "sha256": "7304dad807210a1b5a2d6674324a469645eb64fa64d6106b750affea73c4ff71",
+      "retired_in": "P3.17",
+      "reason": "Final legacy UI/schema cutover; scenario dispositions retained."
+    },
+    {
+      "path": "database/migrations/2026_10_07_100096_create_prc_source_control_tables.php",
+      "sha256": "85999657e5683e248cd067801d808d3cee56f5652356ffa154a7c4fc9c7a1e74",
+      "original_sha256": "8c27c3b743053ecf21484a2fd9c8ba0ace57b0dbf7c1f2f0273295aba18042ee",
+      "accepted_change_item": "P2.18",
+      "change_reason": "P2.18 acquisition cutover candidate; hash refresh preserves original provenance, not a passing-test claim.",
+      "retired_in": "P3.17",
+      "reason": "Final legacy UI/schema cutover; scenario dispositions retained."
     }
   ],
   "retired_source_classes": [

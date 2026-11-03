@@ -51,7 +51,7 @@ test('отсутствие всех kind ов политики отдаёт ор
 
     expect(app(RepresentationResolver::class)->forLlm($version))->toBe([
         'storagePath' => 'documents/policy/original.xlsx',
-        'disk' => (string) config('crawler.documents_disk'),
+        'disk' => (string) config('documents.disk'),
         'extension' => 'xlsx',
         'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ]);

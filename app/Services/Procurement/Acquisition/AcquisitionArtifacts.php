@@ -23,7 +23,7 @@ final readonly class AcquisitionArtifacts
 
     public function __construct(private StoreRawFetchArtifactAction $store, private Repository $config)
     {
-        $disk = $config->get('crawler.raw_disk', 's3');
+        $disk = $config->get('acquisition.raw_disk', 's3');
         if (! is_string($disk) || $disk === '') {
             throw new \InvalidArgumentException('Invalid acquisition raw evidence disk.');
         }
@@ -33,7 +33,7 @@ final readonly class AcquisitionArtifacts
     public function capture(TransportOutcome $outcome, TrafficClass $traffic): void
     {
         $detail = in_array($traffic, [TrafficClass::Detail, TrafficClass::StatusRefresh], true);
-        if ($detail && $this->config->get('crawler.raw_html_retention_enabled') !== true) {
+        if ($detail && $this->config->get('acquisition.raw_html_retention_enabled') !== true) {
             return;
         }
         if ($outcome instanceof TransportSucceeded && $outcome->response->body instanceof DecodedTextBody) {
@@ -46,12 +46,12 @@ final readonly class AcquisitionArtifacts
             return;
         }
         try {
-            $gzip = $detail && $this->config->get('crawler.raw_html_gzip') === true;
+            $gzip = $detail && $this->config->get('acquisition.raw_html_gzip') === true;
             $bytes = $gzip ? gzencode($body->utf8) : $body->utf8;
             if ($bytes === false) {
                 throw new DependencyUnavailable('storage');
             }
-            $disk = $detail ? $this->config->get('crawler.raw_html_disk', $this->disk) : $this->disk;
+            $disk = $detail ? $this->config->get('acquisition.raw_html_disk', $this->disk) : $this->disk;
             if (! is_string($disk) || $disk === '') {
                 throw new \InvalidArgumentException('Invalid detail raw evidence disk.');
             }

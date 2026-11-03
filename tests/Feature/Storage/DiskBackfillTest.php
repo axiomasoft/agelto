@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Storage;
 beforeEach(function (): void {
     Storage::fake('documents_v1');
     Storage::fake('documents_v2');
-    config(['crawler.documents_disk' => 'documents_v1']);
+    config(['documents.disk' => 'documents_v1']);
 });
 
 test('перенос копирует объект потоком и обновляет диск записи после совпадения хэша', function (): void {

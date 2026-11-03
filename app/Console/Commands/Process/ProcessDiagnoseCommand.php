@@ -70,12 +70,6 @@ final class ProcessDiagnoseCommand extends Command
                 return self::FAILURE;
             }
         }
-        if (! config('crawler.health.enabled')) {
-            $this->info('Healthcheck отключён конфигурацией.');
-
-            return self::SUCCESS;
-        }
-
         $platformOption = $this->argument('platform');
         $platformCode = $platformOption;
         $kind = $this->option('kind');
@@ -84,10 +78,10 @@ final class ProcessDiagnoseCommand extends Command
             $checkKind = is_string($kind) && $kind !== '' ? PlatformCheckKind::from($kind) : null;
             $platform = Platform::query()->where('code', $platformCode)->firstOrFail();
             $to = now();
-            $windowHours = config('crawler.health.window_hours');
+            $windowHours = config('process.diagnostics.window_hours');
 
             if (! is_int($windowHours) || $windowHours <= 0) {
-                throw new \UnexpectedValueException('crawler.health.window_hours must be a positive integer.');
+                throw new \UnexpectedValueException('process.diagnostics.window_hours must be a positive integer.');
             }
 
             $from = $to->copy()->subHours($windowHours);

@@ -56,7 +56,7 @@ final readonly class FileLocationResolver
 
     public function currentDocumentsDisk(): string
     {
-        return $this->diskConfig('crawler.documents_disk');
+        return $this->diskConfig('documents.disk');
     }
 
     public function currentFixturesDisk(): string
@@ -66,7 +66,7 @@ final readonly class FileLocationResolver
 
     public function currentRawDisk(): string
     {
-        return $this->diskConfig('crawler.raw_disk');
+        return $this->diskConfig('acquisition.raw_disk');
     }
 
     /**
@@ -107,7 +107,7 @@ final readonly class FileLocationResolver
      */
     private function documentsFallbackDisks(): array
     {
-        return $this->fallbackDisks('crawler.documents_fallback_disks');
+        return $this->fallbackDisks('documents.fallback_disks');
     }
 
     /**

@@ -107,7 +107,7 @@ test('--dry-run показывает вход критика и не делае�
     promptSuggestRoute($fake);
 
     Storage::fake(config('ai.fixtures.disk'));
-    Storage::fake(config('crawler.documents_disk'));
+    Storage::fake(config('documents.disk'));
     $goldDir = promptSuggestGoldDir();
 
     $fixture = Fixture::factory()->create(['code' => 'EST-XLSX-SUGGEST-001', 'sha256' => hash('sha256', 'contenido-suggest')]);

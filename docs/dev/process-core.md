@@ -12,6 +12,24 @@ staging и ownership каждой колонки — [Process schema](process-sc
 
 Обслуживание проекций и управление run описаны в [runbook process controls](runbooks/process-controls.md).
 
+## P3.17: final legacy cutover
+
+Legacy source incidents, request-shaped fetch tables and the second operation-log writer/schema
+are removed. The existing journal URL reads canonical Process transitions; Process incidents own
+the badge and audited acknowledge action. T32 checks the final sidebar, filters/actions, deleted
+readers, strict schedule whitelist and refusal of ordinary standalone bridge allocation.
+
+`config/crawler.php`, old AI retry/pipeline policy, obsolete Horizon supervisors/connections and
+the temporary platform dependency baseline are absent. Permanent exact integration roles remain
+in `PlatformSourceRules::rolePermissions()`. Configuration owners are `documents` for document
+storage and bounded format tools, `acquisition` for raw evidence, `platforms.eis` for EIS reference
+policy and `process.diagnostics` for passive checks. Retention and provider feature options do not
+enable execution stages; durable controls own that authority.
+
+The five-entry final scheduler and coherent rollback are documented in
+[Process recovery](runbooks/process-recovery.md). Earlier staged implementation notes below
+describe their original package boundaries; current schema is the generated inventory.
+
 ## Состав baseline P1.6
 
 | Слой | Таблицы | Назначение |
@@ -271,9 +289,8 @@ notifications/mail.
 
 Supervisors (`maxProcesses` = C+1, authority остаётся ledger): listing 3, acquisition 5, download 5,
 prepare 3, AI 11, publication 3. Horizon `stop_grace_period` ≥ 370 s (максимальный timeout 340 + 30)
-задаётся compose/deploy и в PHP-конфигурации не выражается; старый больший grace сохраняется, пока
-живы legacy long jobs. Legacy `redis_prepare`/`redis_crawl_long` и их supervisors удаляют owning
-cutovers.
+задаётся compose/deploy и в PHP-конфигурации не выражается. P3.17 удаляет legacy
+`redis_prepare`/`redis_crawl_long` и их supervisors; default grace в обоих Compose — 370 s.
 
 **Relay и outbox consumers** (`OutboxRepository::claim/markPublished/releaseClaim/quarantine`).
 Каждый consumer claim-ит только свой `kind` одним statement `FOR UPDATE SKIP LOCKED` с fresh claim
@@ -438,7 +455,7 @@ Environment, file-backed secrets и сеть совпадают с app; зави
 Restart — `unless-stopped`, SIGTERM и grace 60 s позволяют завершить текущую короткую транзакцию.
 Общий `DaemonLoop` сохраняет пределы runtime 3600 s / memory 256 MB из `process.daemons` и
 кооперативный stop; ledger/outbox восстанавливают незавершённую доставку после остановки.
-Horizon сохраняет grace 4200 s, пока существуют legacy long jobs (минимум нового core — 370 s).
+После P3.17 Horizon default grace равен 370 s; legacy long jobs отсутствуют.
 
 Это declarations и contract assertions, без запуска dev/prod services или активации реальных
 application handlers. Isolated Compose/rig не добавляет фоновых daemons: тесты создают собственные

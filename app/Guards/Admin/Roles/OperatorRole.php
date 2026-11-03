@@ -22,7 +22,6 @@ use App\Guards\Admin\Permissions\PromptSuggestionPermission;
 use App\Guards\Admin\Permissions\ProviderPermission;
 use App\Guards\Admin\Permissions\ProxyPermission;
 use App\Guards\Admin\Permissions\RegistryPermission;
-use App\Guards\Admin\Permissions\SourceIncidentPermission;
 use App\Guards\Admin\Permissions\StatusMappingPermission;
 use App\Guards\Admin\Permissions\WorkItemPermission;
 use AzGuard\Roles\BaseRole;
@@ -85,9 +84,6 @@ final class OperatorRole extends BaseRole
             ProcessControlPermission::LaunchRun,
             ProcessControlPermission::RetryFailedItem,
             // Legacy incidents remain readable until the incident UI cutover.
-            SourceIncidentPermission::ViewAny,
-            SourceIncidentPermission::View,
-            SourceIncidentPermission::Update,
             // Матрица статусов ЕИС: оператор читает пары и исправляет только канонический исход;
             // новые натуральные ключи создаёт исключительно StatusMappingService::resolve().
             StatusMappingPermission::ViewAny,

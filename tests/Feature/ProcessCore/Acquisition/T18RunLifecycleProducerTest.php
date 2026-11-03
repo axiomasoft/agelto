@@ -26,11 +26,9 @@ use App\Enums\Procurement\Process\DiscoveryOutcome;
 use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Enums\Procurement\Process\ProcessRunState;
 use App\Enums\Procurement\Process\StageCode;
-use App\Filament\Resources\Procurement\Crawler\SourceIncidents\SourceIncidentResource;
 use App\Filament\Resources\Procurement\Process\Runs\ProcessRunResource;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\User;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
@@ -369,11 +367,10 @@ test('T02 actual producer: пауза площадки A не блокирует
     expect(DB::table('prc_process_runs')->where('id', $runA->value)->value('discovery_outcome'))->toBe('complete');
 });
 
-test('T17 EXR-01 после circuits UI/schema cutover: sidebar с реальным acquisition run строится без legacy circuits', function (): void {
+test('T17 EXR-01 final sidebar preserves a real acquisition run without legacy circuits or incidents', function (): void {
     $this->artisan('guard:sync-roles')->assertSuccessful();
     $profile = EisCrawlerFactory::new()->create();
     $run = app(AcquisitionScheduler::class)->manual(lifecycleLaunch($profile), ListingStoreRepository::id('exr-01'), null);
-    SourceIncident::factory()->create();
     $admin = User::factory()->create();
     $admin->assignRole(SuperAdminRole::class);
 
@@ -381,7 +378,7 @@ test('T17 EXR-01 после circuits UI/schema cutover: sidebar с реальн�
 
     expect(Schema::hasTable('prc_source_circuits'))->toBeFalse()
         ->and(collect(Route::getRoutes()->getRoutesByName())->keys()->filter(fn (string $name): bool => str_contains($name, 'source-circuits'))->all())->toBe([])
-        ->and($html)->toContain(SourceIncidentResource::getNavigationLabel())
+        ->and($html)->not->toContain('source-incidents')
         ->and($html)->toContain('Процессы: запуски')
         ->and($html)->toContain('Процессы: управление')
         ->and($html)->not->toContain('source-circuits')

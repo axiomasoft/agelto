@@ -13,7 +13,7 @@ test('слушатель передаёт изменение здоровья в
     config([
         'services.telegram.bot_token' => 'test-token',
         'services.telegram.chat_id' => '123456',
-        'ai.pipeline.alert_antispam_minutes' => 60,
+        'process.diagnostic_thresholds.alert_antispam_minutes' => 60,
     ]);
     Cache::forget('pipeline_alert:platform_health:999:card_parse:broken');
     Http::fake();

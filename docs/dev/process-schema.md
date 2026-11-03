@@ -57,7 +57,8 @@ DB-only commit допускает истёкший, ещё не отозванн
 поля и ограничения. Для AI P3.8/P3.9 additive carriers используют typed QueryBuilder repositories;
 старые AnalysisRun/LlmCall FQCN и bindings остаются до единого P3.13 swap. prc_ai_analyses сохраняет
 result/review/correction identity и downstream FK; точный surviving consumer map проверяет owning
-AI package до swap. prc_source_incidents и sidebar остаются до P3.17, circuits — до P2.18.
+AI package до swap. В final baseline P3.17 отсутствуют prc_source_incidents, prc_fetches и
+prc_operation_logs; source circuits удалены P2.18. Journal/sidebar читают только Process ledger.
 
 Retention defaults — проектные, а не нормативные сроки. Cleanup не следует автоматически из
 terminal run. Deletion/ref acquisition gate, generation fencing, verified cleanup и original-period
@@ -156,13 +157,10 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_07_04_100037_create_prc_estimate_totals_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100038_create_prc_crawlers_table.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_07_04_100040_create_prc_proxies_table.php` | adapt | P2.6 | Atomic network consumer, provider ownership and route configuration cutover. |
-| `2026_07_04_100041_create_prc_fetches_table.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_07_04_100044_create_prc_ignored_items_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_07_04_100046_create_prc_operation_logs_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_04_100047_setup_pg_partman.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_07_09_000001_create_pulse_tables.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_09_100050_set_pg_partman_retention.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
-| `2026_07_09_100051_set_hot_partition_autovacuum.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_07_09_100052_create_prc_ai_corrections_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_27_100053_create_prc_ai_fixtures_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_07_27_100055_create_prc_document_representations_table.php` | rewrite-baseline | P3.5 | Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness. |
@@ -174,7 +172,6 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_08_07_100078_create_prc_okpd2_nodes_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_08_08_100085_create_prc_platform_checks_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
 | `2026_08_09_099999_create_prc_settings_table.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
-| `2026_08_09_100088_add_proxy_source_to_prc_fetches.php` | delete_with_owner | P3.17 | Удалить вместе с owning legacy table и последними consumers. |
 | `2026_08_09_100089_add_unprocessable_reason_to_prc_documents_table.php` | fold_into_create | P3.1 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_08_09_100090_add_archive_entry_path_to_prc_document_versions_table.php` | fold_into_create | P3.1 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_08_09_100091_migrate_screening_results_to_v2.php` | remove_after_clean_proof | P3.13 | P3.13 clean baseline keeps screening schema/indexes and removes legacy result backfill/restore writers; accepted provenance stays immutable. |
@@ -182,7 +179,6 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_08_12_100092_add_screening_summary_search_index.php` | fold_index_into_create | P3.13 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_09_10_100093_repair_partition_coverage.php` | remove_after_clean_proof | P1.1–P1.4 | Кандидат на удаление только owning пунктом после доказанного clean install без repair; P1.1 не удаляет. |
 | `2026_09_12_100095_preserve_2025_procurement_events.php` | remove_after_clean_proof | P1.1–P1.4 | Кандидат на удаление только owning пунктом после доказанного clean install без repair; P1.1 не удаляет. |
-| `2026_10_07_100096_create_prc_source_control_tables.php` | adapt_baseline | P2.18 | Atomic acquisition producer, profile, provenance and adapter owner cutover. |
 | `2026_10_08_100101_verify_partition_bounds.php` | keep_infrastructure | baseline | Сохранить infrastructure; full DB reset удаляет partman metadata вне public. |
 | `2026_10_08_100103_store_source_time_precision.php` | fold_into_create | P2.14 | Свернуть только в owning CREATE при coherent consumer cutover; P1.1 не меняет DDL. |
 | `2026_10_08_100104_catalog_raw_artifacts.php` | keep | baseline | Существующий CREATE, без изменений в P1.1. |
@@ -3512,45 +3508,6 @@ Indexes:
 - `prc_events_procurement_occurred_index`: `CREATE INDEX prc_events_procurement_occurred_index ON ONLY public.prc_events USING btree (procurement_id, occurred_at)`
 - `prc_events_type_occurred_index`: `CREATE INDEX prc_events_type_occurred_index ON ONLY public.prc_events USING btree (event_type, occurred_at)`
 
-#### prc_fetches
-
-Owner: Procurement; retention: requests.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| crawler_run_id | bigint / int8 | YES | bigint |
-| stage | text / text | YES | text |
-| procurement_id | bigint / int8 | YES | bigint |
-| method | text / text | NO | text NOT NULL |
-| request_params | jsonb / jsonb | YES | jsonb |
-| artifact_ref | text / text | YES | text |
-| http_status | integer / int4 | YES | integer |
-| duration_ms | integer / int4 | YES | integer |
-| wait_ms | integer / int4 | YES | integer |
-| rows_total | integer / int4 | YES | integer |
-| rows_new | integer / int4 | YES | integer |
-| rows_updated | integer / int4 | YES | integer |
-| rows_parsed | integer / int4 | YES | integer |
-| rows_errors | integer / int4 | YES | integer |
-| dedup_signature | text / text | YES | text |
-| proxy_id | bigint / int8 | YES | bigint |
-| fetched_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-| created_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| updated_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
-| proxy_source | text / text | YES | text |
-
-Constraints:
-- `prc_fetches_pkey`: `PRIMARY KEY (id, fetched_at)`
-- `prc_fetches_procurement_id_foreign`: `FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)`
-- `prc_fetches_proxy_id_foreign`: `FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id)`
-
-Indexes:
-- `prc_fetches_crawler_run_id_index`: `CREATE INDEX prc_fetches_crawler_run_id_index ON ONLY public.prc_fetches USING btree (crawler_run_id)`
-- `prc_fetches_pkey`: `CREATE UNIQUE INDEX prc_fetches_pkey ON ONLY public.prc_fetches USING btree (id, fetched_at)`
-- `prc_fetches_procurement_id_index`: `CREATE INDEX prc_fetches_procurement_id_index ON ONLY public.prc_fetches USING btree (procurement_id)`
-- `prc_fetches_proxy_id_index`: `CREATE INDEX prc_fetches_proxy_id_index ON ONLY public.prc_fetches USING btree (proxy_id)`
-
 #### prc_financing
 
 Owner: Procurement; retention: business.
@@ -3987,30 +3944,6 @@ Indexes:
 - `prc_operation_intents_intent_key_unique`: `CREATE UNIQUE INDEX prc_operation_intents_intent_key_unique ON public.prc_operation_intents USING btree (intent_key)`
 - `prc_operation_intents_one_active_unique`: `CREATE UNIQUE INDEX prc_operation_intents_one_active_unique ON public.prc_operation_intents USING btree (stage, subject_kind, subject_id) WHERE (state = 'active'::text)`
 - `prc_operation_intents_pkey`: `CREATE UNIQUE INDEX prc_operation_intents_pkey ON public.prc_operation_intents USING btree (id)`
-
-#### prc_operation_logs
-
-Owner: Procurement; retention: technical.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| level | text / text | NO | text NOT NULL |
-| stage | text / text | YES | text |
-| source | text / text | YES | text |
-| entity_type | text / text | YES | text |
-| entity_id | bigint / int8 | YES | bigint |
-| message | text / text | NO | text NOT NULL |
-| context | jsonb / jsonb | YES | jsonb |
-| trace | text / text | YES | text |
-| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
-
-Constraints:
-- `prc_operation_logs_pkey`: `PRIMARY KEY (id, created_at)`
-
-Indexes:
-- `prc_operation_logs_entity_index`: `CREATE INDEX prc_operation_logs_entity_index ON ONLY public.prc_operation_logs USING btree (entity_type, entity_id)`
-- `prc_operation_logs_pkey`: `CREATE UNIQUE INDEX prc_operation_logs_pkey ON ONLY public.prc_operation_logs USING btree (id, created_at)`
 
 #### prc_outbound_operation_controls
 
@@ -5029,41 +4962,6 @@ Constraints:
 Indexes:
 - `prc_settings_group_name_unique`: `CREATE UNIQUE INDEX prc_settings_group_name_unique ON public.prc_settings USING btree ("group", name)`
 - `prc_settings_pkey`: `CREATE UNIQUE INDEX prc_settings_pkey ON public.prc_settings USING btree (id)`
-
-#### prc_source_incidents
-
-Owner: Procurement; retention: incidents.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| platform_id | bigint / int8 | NO | bigint NOT NULL |
-| crawler_id | bigint / int8 | YES | bigint |
-| run_id | bigint / int8 | YES | bigint |
-| fetch_id | bigint / int8 | YES | bigint |
-| type | text / text | NO | text NOT NULL |
-| severity | text / text | NO | text NOT NULL |
-| failure_kind | text / text | YES | text |
-| http_status | integer / int4 | YES | integer |
-| cursor | jsonb / jsonb | YES | jsonb |
-| request_params | jsonb / jsonb | YES | jsonb |
-| message | text / text | NO | text NOT NULL |
-| context | jsonb / jsonb | YES | jsonb |
-| actor | text / text | YES | text |
-| acknowledged_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
-| acknowledged_by | text / text | YES | text |
-| created_at | timestamp with time zone / timestamptz | NO | timestamp(0) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL |
-
-Constraints:
-- `prc_source_incidents_crawler_id_foreign`: `FOREIGN KEY (crawler_id) REFERENCES prc_crawlers(id) ON DELETE SET NULL`
-- `prc_source_incidents_pkey`: `PRIMARY KEY (id)`
-- `prc_source_incidents_platform_id_foreign`: `FOREIGN KEY (platform_id) REFERENCES prc_platforms(id) ON DELETE CASCADE`
-
-Indexes:
-- `prc_source_incidents_pkey`: `CREATE UNIQUE INDEX prc_source_incidents_pkey ON public.prc_source_incidents USING btree (id)`
-- `prc_source_incidents_platform_id_created_at_index`: `CREATE INDEX prc_source_incidents_platform_id_created_at_index ON public.prc_source_incidents USING btree (platform_id, created_at)`
-- `prc_source_incidents_run_id_index`: `CREATE INDEX prc_source_incidents_run_id_index ON public.prc_source_incidents USING btree (run_id)`
-- `prc_source_incidents_type_created_at_index`: `CREATE INDEX prc_source_incidents_type_created_at_index ON public.prc_source_incidents USING btree (type, created_at)`
 
 #### prc_source_targets
 

@@ -14,6 +14,7 @@ use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Tests\Support\Platforms\Eis\EisListingFactsFixtures as C;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\ListingFixtures as F;
@@ -109,7 +110,7 @@ test('Process CSV invalid responses remain evidence without source incident writ
     $page = C::parse($body, $status, $type);
     expect($page->assessment->completeness)->toBe(Completeness::Partial)->and($page->terminalProof)->toBe(TerminalProof::None)
         ->and($page->summaries->items)->toBe([])->and(Procurement::query()->count())->toBe(0)
-        ->and(DB::table('prc_source_incidents')->count())->toBe(0);
+        ->and(Schema::hasTable('prc_source_incidents'))->toBeFalse();
 })->with(['403' => ['<html>Denied</html>', 403, 'text/html'], 'html 200' => ['<!DOCTYPE html>', 200, 'text/csv'],
     'empty' => ['', 200, 'text/csv'], 'missing header' => ['wrong;columns', 200, 'text/csv']]);
 

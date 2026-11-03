@@ -18,9 +18,9 @@ use Illuminate\Console\Command;
  */
 #[Description('Пересобирает карту «код ОКПД2 → id НСИ» с ЕИС и показывает дрейф id')]
 #[Signature('crawler:okpd2-sync
-        {--root= : id узла-корня НСИ (дефолт — config(crawler.okpd2.root_external_id), раздел F)}
+        {--root= : id узла-корня НСИ (дефолт — config(platforms.eis.okpd2.root_external_id), раздел F)}
         {--dry-run : только отчёт, без записи в prc_okpd2_nodes}
-        {--max-requests= : потолок запросов к площадке (дефолт — config(crawler.okpd2.max_requests))}')]
+        {--max-requests= : потолок запросов к площадке (дефолт — config(platforms.eis.okpd2.max_requests))}')]
 final class SyncOkpd2Nodes extends Command
 {
     public function handle(Okpd2NodeSynchronizer $synchronizer): int

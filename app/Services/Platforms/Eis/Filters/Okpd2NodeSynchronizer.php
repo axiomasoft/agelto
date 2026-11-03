@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis\Filters;
 
+use App\Dto\Platforms\Eis\EisPolicy;
 use App\Dto\Procurement\Network\HttpRequestPayload;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Enums\Procurement\Network\TrafficClass;
@@ -44,11 +45,12 @@ final readonly class Okpd2NodeSynchronizer
         private Okpd2NodeStoreRepository $store,
         private ProxyResolver $proxyResolver,
         private LegacyOutbound $outbound,
+        private EisPolicy $policy,
     ) {}
 
     /**
-     * @param  string|null  $root  id узла-корня НСИ; `null` — `config('crawler.okpd2.root_external_id')`
-     * @param  int|null  $maxRequests  потолок запросов к площадке; `null` — `config('crawler.okpd2.max_requests')`
+     * @param  string|null  $root  id узла-корня НСИ; `null` — `config('platforms.eis.okpd2.root_external_id')`
+     * @param  int|null  $maxRequests  потолок запросов к площадке; `null` — `config('platforms.eis.okpd2.max_requests')`
      * @return array{
      *     requests: int,
      *     nodes_seen: int,
@@ -63,14 +65,14 @@ final readonly class Okpd2NodeSynchronizer
     public function run(?string $root = null, bool $dryRun = false, ?int $maxRequests = null): array
     {
         $platform = $this->requirePlatform();
-        $rootId = $root ?? $this->configString('crawler.okpd2.root_external_id');
-        $limit = $maxRequests ?? $this->configPositiveInt('crawler.okpd2.max_requests');
+        $rootId = $root ?? $this->policy->referenceRoot;
+        $limit = $maxRequests ?? $this->policy->referenceMaxRequests;
 
         $stored = $this->snapshot(platformId: (int) $platform->id);
 
         // Нумерацию детей задаёт уровень корня. Сам корень в карту не пишется, поэтому обычно
         // его там нет — тогда уровень берётся из конфига (раздел = 1).
-        $rootLevel = $this->configPositiveInt('crawler.okpd2.root_level');
+        $rootLevel = $this->policy->referenceRootLevel;
 
         foreach ($stored as $node) {
             if ($node['external_id'] === $rootId) {
@@ -142,7 +144,7 @@ final readonly class Okpd2NodeSynchronizer
      */
     private function traverse(string $rootId, int $rootLevel, int $limit, Platform $platform): array
     {
-        $endpoint = $this->configString('crawler.okpd2.children_endpoint');
+        $endpoint = $this->policy->referenceEndpoint;
         $lease = $this->proxyResolver->profile();
 
         // Корень поддерева в карту НЕ пишется: его `parent_code` неизвестен, а дети получают
@@ -340,28 +342,6 @@ final readonly class Okpd2NodeSynchronizer
         }
 
         return $platform;
-    }
-
-    private function configString(string $key): string
-    {
-        $value = config($key);
-
-        if (! is_string($value) || $value === '') {
-            throw new RuntimeException("{$key} должен быть непустой строкой.");
-        }
-
-        return $value;
-    }
-
-    private function configPositiveInt(string $key): int
-    {
-        $value = config($key);
-
-        if (! is_int($value) || $value < 1) {
-            throw new RuntimeException("{$key} должен быть положительным целым числом.");
-        }
-
-        return $value;
     }
 
     private function attributeString(Okpd2Node $node, string $attribute): string

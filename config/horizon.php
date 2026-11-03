@@ -222,95 +222,6 @@ return [
             'nice' => 0,
         ],
 
-        // Раздельные очереди пайплайна по стоимости/риску (ТЗ 03 §4, приоритет ↓
-        // скачивание→подготовка→скрининг→извлечение). LLM-очереди — маленький maxProcesses
-        // (провайдерский rate-limit, D-конвенции); doc_prepare — CPU/IO-bound, шире.
-        'supervisor-doc-download' => [
-            'connection' => 'redis',
-            'queue' => ['doc_download'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 360,
-            'nice' => 0,
-        ],
-
-        'supervisor-doc-prepare' => [
-            'connection' => 'redis_prepare',
-            'queue' => ['doc_prepare'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 3,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 128,
-            'tries' => 1,
-            // 120s source setup + 180s text probe + 1800s OCR + two 180s metadata probes +
-            // 120s persistence/release reserve. PrepareDocumentJob is capped at 2580s, then
-            // this supervisor at 2640s, before redis_prepare.retry_after=2700s.
-            'timeout' => 2640,
-            'nice' => 0,
-        ],
-
-        // Прогон краулера на очереди (P3.2, D27/D28). Инвариант таймаутов: checkpoint_seconds
-        // (config('crawler.run.checkpoint_seconds')=240) < timeout (300) <
-        // queue.redis.retry_after (config/queue.php, 420) — нарушение отдаёт job ВТОРОМУ
-        // воркеру, пока первый ещё легитимно работает (площадку начнут обходить дважды).
-        // `maxProcesses => 1` — сознательное ограничение: параллельные обходы одной площадки
-        // есть ровно то, ради предотвращения чего существует P4 (общий бюджет запросов);
-        // когда P4 введёт бюджет, значение пересматривается ЕЮ, не этим item'ом.
-        'supervisor-crawl' => [
-            'connection' => 'redis',
-            'queue' => ['crawl'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 300,
-            'nice' => 0,
-        ],
-
-        // Детальная карточка делает до четырёх запросов и скачивания, поэтому queue держим
-        // узкой. Реальный ограничитель нагрузки — общий platform budget; его ожидание (≤60 с)
-        // входит в timeout. Инвариант: 300 < redis.retry_after 420.
-        'supervisor-crawl-detail' => [
-            'connection' => 'redis',
-            'queue' => ['crawl_detail'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => 300,
-            'nice' => 0,
-        ],
-
-        // Отдельная logical connection не даёт long archive job пересечь lease standard lane:
-        // `timeout < redis_crawl_long.retry_after < horizon.stop_grace_period` (P4.7, D117).
-        // Один процесс сохраняет последовательность обхода одной площадки; это не второй Horizon.
-        'supervisor-crawl-long' => [
-            'connection' => 'redis_crawl_long',
-            'queue' => ['crawl_long'],
-            'balance' => 'auto',
-            'autoScalingStrategy' => 'time',
-            'maxProcesses' => 1,
-            'maxTime' => 0,
-            'maxJobs' => 0,
-            'memory' => 128,
-            'tries' => 1,
-            'timeout' => (int) env('CRAWL_LONG_TIMEOUT', 3600),
-            'nice' => 0,
-        ],
-
         // Process delivery supervisors (bp-jobs): ExecuteWorkJob — единственная queue delivery.
         // `tries: 1`: бизнес-retry принадлежит durable ledger, не Horizon. `timeout` — fallback
         // bound, а не второй таймер поверх public job timeout: job < timeout < retry_after
@@ -409,19 +320,11 @@ return [
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
             ],
-            'supervisor-doc-prepare' => [
-                'maxProcesses' => 6,
-                'balanceMaxShift' => 1,
-                'balanceCooldown' => 3,
-            ],
         ],
 
         'local' => [
             'supervisor-1' => [
                 'maxProcesses' => 3,
-            ],
-            'supervisor-doc-prepare' => [
-                'maxProcesses' => 2,
             ],
         ],
     ],

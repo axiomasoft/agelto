@@ -28,7 +28,7 @@ beforeEach(fn () => StoredDocumentFixtures::reset());
 function makeScanVersion(string $extension = 'pdf', string $content = '%PDF-скан'): array
 {
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $disk = Storage::fake((string) config('documents.disk'));
     $storagePath = "documents/scan.{$extension}";
     $disk->put($storagePath, $content);
 
@@ -137,7 +137,7 @@ test('PDF без текстового слоя — созданы два пре�
         ->and($text->mime)->toBe('text/plain')
         ->and($text->token_estimate)->toBeGreaterThan(0);
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $disk->assertExists($pdfOcr->storage_path);
     expect($disk->get($text->storage_path))->toContain('Монтаж дверного блока');
 });
@@ -230,13 +230,12 @@ test('падение OCR на изображении НЕ терминально
 
 test('OCR не начинается, если после text-layer probe не помещается весь обязательный хвост', function (): void {
     Process::fake();
-    $budget = config('ai.pipeline.operation_budgets.prepare');
-    $operations = $budget['operation_timeout_seconds'];
+    $operations = config('documents.format_tools');
     $deadlineAt = microtime(as_float: true)
-        + $operations['ocr']
-        + $operations['tesseract_version']
-        + $operations['pdf_page_count']
-        + $budget['persistence_release_reserve_seconds']
+        + $operations['ocr_seconds']
+        + $operations['tesseract_version_seconds']
+        + $operations['pdf_page_count_seconds']
+        + $operations['persistence_seconds']
         - 2;
 
     expect(fn (): mixed => app(OcrConverter::class)->run(
@@ -251,11 +250,10 @@ test('OCR не начинается, если после text-layer probe не �
 
 test('text-layer probe допускается после двух секунд source setup', function (): void {
     Process::fake(['*pdftotext*' => Process::result(output: '')]);
-    $budget = config('ai.pipeline.operation_budgets.prepare');
 
     app(OcrConverter::class)->textCharsPerPage(
         pdfPath: '/tmp/source.pdf',
-        deadlineAt: microtime(as_float: true) + $budget['job_timeout_seconds'] - 2,
+        deadlineAt: microtime(as_float: true) + config('process.stages.prepare.slice') - 2,
     );
 
     Process::assertRan(fn ($process): bool => str_contains((string) ($process->command[0] ?? ''), 'pdftotext'));
@@ -263,10 +261,9 @@ test('text-layer probe допускается после двух секунд s
 
 test('исчерпание prepare deadline остаётся retriable ошибкой, а не unprocessable PDF', function (): void {
     Process::fake();
-    config(['ai.pipeline.operation_budgets.prepare.job_timeout_seconds' => 1]);
     [$document, $version] = makeScanVersion(content: '%PDF-1.7\nскан');
 
-    expect(fn (): mixed => (new PreparationStrategyProbe(documentId: $document->id))->handle())
+    expect(fn (): mixed => (new PreparationStrategyProbe(documentId: $document->id, budgetSeconds: 1))->handle())
         ->toThrow(OperationBudgetExceeded::class);
 
     expect($document->refresh()->status)->toBe(DocumentStatus::Downloaded)

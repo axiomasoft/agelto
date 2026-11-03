@@ -53,17 +53,17 @@ final readonly class SourceTargetValidator implements DocumentUrlPolicy
     /** @return list<string> */
     private function allowedHosts(): array
     {
-        $hosts = config('crawler.documents_allowed_hosts');
+        $hosts = config('documents.allowed_hosts');
 
         if (! is_array($hosts) || $hosts === []) {
-            throw new UnexpectedValueException('crawler.documents_allowed_hosts must be a non-empty array.');
+            throw new UnexpectedValueException('documents.allowed_hosts must be a non-empty array.');
         }
 
         $normalized = [];
 
         foreach ($hosts as $host) {
             if (! is_string($host) || $host === '') {
-                throw new UnexpectedValueException('crawler.documents_allowed_hosts must contain non-empty strings.');
+                throw new UnexpectedValueException('documents.allowed_hosts must contain non-empty strings.');
             }
 
             $normalized[] = strtolower(rtrim($host, '.'));

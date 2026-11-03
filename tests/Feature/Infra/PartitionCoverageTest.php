@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 test('fresh schema has a continuous rolling historical and premake window for every configured partitioned table', function () {
     $start = now('UTC')->startOfMonth()->subMonthsNoOverflow(12);
@@ -43,14 +43,13 @@ test('repair migration fills a later installation month idempotently and rolls b
     expect(DB::selectOne('SELECT to_regclass(?) IS NOT NULL AS exists', ['test_partition_coverage_probe_2026_10'])->exists)->toBeFalse();
 });
 
-test('last historical month accepts fetch, event and revision inserts', function () {
+test('last historical month keeps domain events and revisions without legacy fetch schema', function () {
     $historicalMonth = now('UTC')->startOfMonth()->subMonthNoOverflow()->addDay();
 
-    Fetch::factory()->create(['fetched_at' => $historicalMonth]);
     ProcurementEvent::factory()->create(['occurred_at' => $historicalMonth]);
     ProcurementRevision::factory()->create(['detected_at' => $historicalMonth]);
 
-    expect(DB::table('prc_fetches')->where('fetched_at', $historicalMonth)->count())->toBe(1)
+    expect(Schema::hasTable('prc_fetches'))->toBeFalse()
         ->and(DB::table('prc_events')->where('occurred_at', $historicalMonth)->count())->toBe(1)
         ->and(DB::table('prc_revisions')->where('detected_at', $historicalMonth)->count())->toBe(1);
 });

@@ -21,6 +21,9 @@ test('T43 policy отвергает неверный тип ноль overflow ti
         ['source_timezone', 'Mars/Olympus'], ['source_timezone', 3], ['unknown', 1],
         ['endpoints.listing.profile.total_seconds', 0], ['endpoints.listing.profile.total_seconds', '90'],
         ['endpoints.listing.profile.unknown', true],
+        ['okpd2.children_endpoint', ''], ['okpd2.root_external_id', 42],
+        ['okpd2.root_level', 0], ['okpd2.max_requests', '20'],
+        ['documents_allowed_hosts', []], ['documents_allowed_hosts', [42]],
     ] as [$key, $value]) {
         $config = new Repository(config()->all());
         $config->set('platforms.eis.'.$key, $value);

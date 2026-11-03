@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Log;
  * Антиспам — per-finding кэш-ключ (Code Guidance: «не чаще раза в час по одинаковой находке»):
  * `notify()` принимает `array<string, string>` (ключ находки → человекочитаемое сообщение),
  * пропускает через `Cache::add()` только находки, ещё не отмеченные в текущем окне
- * (`config('ai.pipeline.alert_antispam_minutes')`), и отправляет ОДНО агрегированное сообщение
+ * (`config('process.diagnostic_thresholds.alert_antispam_minutes')`), и отправляет ОДНО агрегированное сообщение
  * по оставшимся — если все находки тика уже были отмечены раньше, тишина (не дублируем алерт).
  */
 final readonly class PipelineAlert
@@ -34,7 +34,7 @@ final readonly class PipelineAlert
             return;
         }
 
-        $configuredMinutes = config('ai.pipeline.alert_antispam_minutes', 60);
+        $configuredMinutes = config('process.diagnostic_thresholds.alert_antispam_minutes', 60);
         $antispamMinutes = is_int($configuredMinutes) || is_float($configuredMinutes) || is_string($configuredMinutes)
             ? (int) $configuredMinutes
             : 60;

@@ -2,13 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Enums\Procurement\Process\StageCode;
 use App\Filament\Resources\Procurement\OperationLogs\OperationLogResource;
 use App\Filament\Resources\Procurement\OperationLogs\Pages\ListOperationLogs;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
-use App\Models\Procurement\OperationLog;
+use App\Models\Procurement\Process\ControlScope;
+use App\Models\Procurement\Process\Transition;
 use App\Models\User;
+use App\Services\Procurement\Process\ProcessOperatorCommands;
 use Livewire\Livewire;
+use Tests\Support\ProcessCore\ExecutionFixtures;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
@@ -19,16 +23,16 @@ test('оператор читает причину ошибки и объект 
     $operator = User::factory()->create();
     $operator->assignRole(OperatorRole::class);
     actingAs($operator)->get(OperationLogResource::getUrl())->assertOk();
-    $log = OperationLog::factory()->create([
-        'context' => ['error' => 'Соединение с площадкой прервано <script>alert(1)</script>'],
-        'entity_type' => 'document',
-        'entity_id' => 42,
-    ]);
+    ExecutionFixtures::ensureWorkScopes(StageCode::Listing, 'manual');
+    $scope = ControlScope::query()->where('scope_key', 'acquisition')->sole();
+    app(ProcessOperatorCommands::class)->pauseScope($operator, $scope->scope_key, $scope->control_version,
+        'Соединение с площадкой прервано <script>alert(1)</script>');
+    $log = Transition::query()->where('control_id', $scope->id)->sole();
 
     Livewire::test(ListOperationLogs::class)
         ->assertSuccessful()
         ->assertCanSeeTableRecords([$log])
-        ->assertTableColumnStateSet('context.error', $log->context['error'], record: $log)
+        ->assertTableColumnStateSet('details.reason', $log->details['reason'], record: $log)
         ->assertSee('Соединение с площадкой прервано')
         ->assertDontSeeHtml('<script>alert(1)</script>');
     expect(OperationLogResource::canCreate())->toBeFalse()

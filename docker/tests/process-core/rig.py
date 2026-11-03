@@ -43,6 +43,7 @@ SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Fea
                              "tests/Unit/Architecture/PlatformExtensionContractTest.php"],
                "e2e": ["tests/Feature/ProcessCore/E2e",
                        "tests/Integration/ProcessCore/E2e",
+                       "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php",
                        "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
                        "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php"]}
 

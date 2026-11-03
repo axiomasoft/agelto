@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Procurement;
+namespace App\Console\Commands\Process;
 
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\ScreeningDecisionReason;
@@ -33,8 +33,8 @@ use LogicException;
  * (Code Guidance) с антиспамом по ключу находки (не чаще раза в час на одинаковую находку).
  */
 #[Description('Проверяет зависшие/аномальные состояния пайплайна и алертит агрегированным сообщением')]
-#[Signature('pipeline:stuck-check')]
-final class PipelineStuckCheck extends Command
+#[Signature('process:diagnostics')]
+final class ProcessDiagnosticsCommand extends Command
 {
     public function __construct(private readonly PipelineAlert $alert)
     {
@@ -83,7 +83,7 @@ final class PipelineStuckCheck extends Command
      */
     private function stuckAnalyses(AnalysisStep $step, string $configKey, string $findingKey): array
     {
-        $minutes = $this->intConfig("ai.pipeline.{$configKey}", 30);
+        $minutes = $this->intConfig("process.diagnostic_thresholds.{$configKey}", 30);
 
         $count = DB::table('prc_process_work')->where('stage', $step->value)->where('state', 'running')
             ->whereRaw('lease_until<clock_timestamp()')->whereRaw("updated_at<clock_timestamp()-(? * interval '1 minute')", [$minutes])->count();
@@ -98,7 +98,7 @@ final class PipelineStuckCheck extends Command
     /** @return array<string,string> */
     private function stuckRuns(): array
     {
-        $minutes = $this->intConfig('ai.pipeline.document_stuck_minutes', 60);
+        $minutes = $this->intConfig('process.diagnostic_thresholds.document_stuck_minutes', 60);
 
         $count = app(AnalysisRunReadRepository::class)->query()
             ->whereExists(fn (Builder $q) => $q->selectRaw('1')->from('prc_process_work as w')
@@ -126,7 +126,7 @@ final class PipelineStuckCheck extends Command
      */
     private function stuckDocuments(): array
     {
-        $minutes = $this->intConfig('ai.pipeline.document_stuck_minutes', 60);
+        $minutes = $this->intConfig('process.diagnostic_thresholds.document_stuck_minutes', 60);
 
         $rows = Document::query()
             ->whereIn('status', [DocumentStatus::Discovered->value, DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
@@ -158,8 +158,8 @@ final class PipelineStuckCheck extends Command
      */
     private function unknownSpike(): array
     {
-        $windowHours = $this->intConfig('ai.pipeline.spike_window_hours', 24);
-        $threshold = $this->intConfig('ai.pipeline.unknown_spike_threshold', 20);
+        $windowHours = $this->intConfig('process.diagnostic_thresholds.spike_window_hours', 24);
+        $threshold = $this->intConfig('process.diagnostic_thresholds.unknown_spike_threshold', 20);
 
         $count = Analysis::query()
             ->where('step', AnalysisStep::Screening->value)
@@ -182,8 +182,8 @@ final class PipelineStuckCheck extends Command
      */
     private function unprocessableSpike(): array
     {
-        $windowHours = $this->intConfig('ai.pipeline.spike_window_hours', 24);
-        $threshold = $this->intConfig('ai.pipeline.unprocessable_spike_threshold', 5);
+        $windowHours = $this->intConfig('process.diagnostic_thresholds.spike_window_hours', 24);
+        $threshold = $this->intConfig('process.diagnostic_thresholds.unprocessable_spike_threshold', 5);
 
         $count = Document::query()
             ->where('status', DocumentStatus::Unprocessable->value)
@@ -205,8 +205,8 @@ final class PipelineStuckCheck extends Command
      */
     private function estimateMismatchSpike(): array
     {
-        $windowHours = $this->intConfig('ai.pipeline.spike_window_hours', 24);
-        $threshold = $this->intConfig('ai.pipeline.estimate_mismatch_threshold', 5);
+        $windowHours = $this->intConfig('process.diagnostic_thresholds.spike_window_hours', 24);
+        $threshold = $this->intConfig('process.diagnostic_thresholds.estimate_mismatch_threshold', 5);
 
         $count = Estimate::query()
             ->whereIn('validation_status', [EstimateValidationStatus::Suspicious->value, EstimateValidationStatus::Invalid->value])
@@ -277,7 +277,7 @@ final class PipelineStuckCheck extends Command
      */
     private function backlogSpike(): array
     {
-        $threshold = $this->intConfig('ai.pipeline.backlog_threshold', 200);
+        $threshold = $this->intConfig('process.diagnostic_thresholds.backlog_threshold', 200);
 
         $count = Document::query()
             ->whereIn('status', [DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
@@ -300,8 +300,8 @@ final class PipelineStuckCheck extends Command
      */
     private function failureRateSpike(): array
     {
-        $windowHours = $this->intConfig('ai.pipeline.failure_rate_window_hours', 1);
-        $thresholdPercent = $this->floatConfig('ai.pipeline.failure_rate_threshold_percent', 50.0);
+        $windowHours = $this->intConfig('process.diagnostic_thresholds.failure_rate_window_hours', 1);
+        $thresholdPercent = $this->floatConfig('process.diagnostic_thresholds.failure_rate_threshold_percent', 50.0);
         $since = now()->subHours($windowHours);
 
         $terminal = DB::table('prc_process_transitions as t')->join('prc_process_work as w', 'w.id', '=', 't.work_id')
@@ -334,7 +334,7 @@ final class PipelineStuckCheck extends Command
      */
     private function noCompletions(): array
     {
-        $minutes = $this->intConfig('ai.pipeline.no_completions_minutes', 120);
+        $minutes = $this->intConfig('process.diagnostic_thresholds.no_completions_minutes', 120);
 
         $hasBacklog = Document::query()
             ->whereIn('status', [DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])

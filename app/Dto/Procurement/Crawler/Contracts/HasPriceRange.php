@@ -14,7 +14,7 @@ interface HasPriceRange
 {
     /**
      * Форма `"{from}:{to}"`; `null` — верхняя граница не заполнена, сканер падает обратно на
-     * `config('crawler.archive.price_ceiling')`.
+     * `platform listing price bound`.
      */
     public function startingPriceInterval(): ?string;
 }

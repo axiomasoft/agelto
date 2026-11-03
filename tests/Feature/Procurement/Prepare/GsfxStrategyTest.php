@@ -46,14 +46,14 @@ function buildGsfxZip(array $extraEntries = []): string
 function makeGsfxVersion(string $zipPath): array
 {
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $disk = Storage::fake((string) config('documents.disk'));
     $storagePath = 'documents/gsfx-test.gsfx';
     $disk->put($storagePath, file_get_contents($zipPath));
 
     $version = DocumentVersion::factory()->create([
         'document_id' => $document->id,
         'extension' => 'gsfx',
-        'disk' => (string) config('crawler.documents_disk'),
+        'disk' => (string) config('documents.disk'),
         'storage_path' => $storagePath,
         'content_hash' => hash('sha256', $storagePath),
     ]);
@@ -71,7 +71,7 @@ test('паспорт разобран из cp1251 без мусора', function
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     expect($decoded['passport'])->toBe([
@@ -96,7 +96,7 @@ test('позиция несёт обе цены', function () {
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     $position = $decoded['chapters'][0]['positions'][1];
@@ -115,7 +115,7 @@ test('ресурсы привязаны к позиции', function () {
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     $resources = $decoded['chapters'][0]['positions'][0]['resources'];
@@ -168,7 +168,7 @@ test('позиция с IndexCode несёт index_code, позиция без �
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     $positions = $decoded['chapters'][0]['positions'];
@@ -186,7 +186,7 @@ test('каталог индексов разобран в две раздель�
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     $catalog = $decoded['index_catalog'];
@@ -204,7 +204,7 @@ test('запись каталога индексов без MT и EM несёт 
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     expect($decoded['index_catalog']['positions']['7'])->toMatchArray(['mt' => null, 'em' => null]);
@@ -262,7 +262,7 @@ test('позиционный K попал в свою позицию со все
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     $positions = $decoded['chapters'][0]['positions'];
@@ -288,7 +288,7 @@ test('документный K попал в GsfxDocument::coefficients и не 
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     expect($decoded['coefficients'])->toHaveCount(1)
@@ -314,7 +314,7 @@ test('Tzm2022 привязан к своему ресурсу и не появи
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     $resources = $decoded['chapters'][0]['positions'][0]['resources'];
@@ -337,7 +337,7 @@ test('вид работ несёт четыре норматива, а вид б
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     $groups = $decoded['work_type_groups'];
@@ -361,7 +361,7 @@ test('группы видов работ читаются из ОБОИХ бло
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     $groups = $decoded['work_type_groups'];
@@ -380,7 +380,7 @@ test('позиция несёт work_type_id, и его значение сов�
         ->where('kind', RepresentationKind::StructuredXml)
         ->first();
 
-    $disk = Storage::disk((string) config('crawler.documents_disk'));
+    $disk = Storage::disk((string) config('documents.disk'));
     $decoded = json_decode($disk->get($representation->storage_path), true);
 
     $positions = $decoded['chapters'][0]['positions'];
@@ -541,7 +541,7 @@ test('registry и inspector подтверждают typed GSFX contract', funct
 
 test('inspector отклоняет gsfx-расширение без ZIP-сигнатуры', function () {
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $disk = Storage::fake((string) config('documents.disk'));
     $disk->put('documents/not-a-zip.gsfx', 'not a zip at all');
 
     $version = DocumentVersion::factory()->create([

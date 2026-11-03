@@ -70,6 +70,9 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
      */
     public function validated(AdapterValidationCall $call, Closure $inspect, ?Closure $checkpoint = null): AdapterValidatedInput
     {
+        if ($call->trafficClass !== TrafficClass::Diagnostic) {
+            throw new OutboundUnavailable(new TransportBlocked(NetworkBlockedReason::OwnerLost));
+        }
         try {
             $health = $this->adapters->find($call->contract);
             $target = $this->catalog->targetForCall($call->platformId, null, $call->contract->capability, $call->firstUrl->origin->value());
@@ -94,7 +97,7 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
                 throw new OutboundUnavailable($selection);
             }
             $kind = $health->string('state') !== 'healthy' || $selection instanceof TransportDeferred
-                ? OutboundOperationKind::Probe : ($call->trafficClass === TrafficClass::Diagnostic ? OutboundOperationKind::Diagnostic : OutboundOperationKind::LegacyBridge);
+                ? OutboundOperationKind::Probe : OutboundOperationKind::Diagnostic;
 
             return $this->bridge->run($call->callerCode, $call->platformId, $call->controls, $call->deadlineSeconds,
                 $call->contract->fingerprint(), function (OutboundExecutionContext $context) use ($call, $inspect) {
@@ -154,6 +157,10 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
         bool $probeOnly = false,
         ?OutboundExecutionContext $context = null,
     ): TransportOutcome {
+        if ($context === null && $trafficClass !== TrafficClass::Diagnostic
+            && ! ($trafficClass === TrafficClass::ReferenceSync && $callerCode === 'legacy.reference_sync' && $providerKey === null)) {
+            return new TransportBlocked(NetworkBlockedReason::OwnerLost);
+        }
         if ($probeOnly && ($idempotency !== IdempotencyClass::ReadOnly || ! in_array($method, ['GET', 'HEAD'], true))) {
             return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
         }
@@ -246,11 +253,16 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
                 ? $selection : new TransportBlocked(NetworkBlockedReason::OwnerLost);
         }
 
+        if ($trafficClass !== TrafficClass::Diagnostic
+            && ! ($trafficClass === TrafficClass::ReferenceSync && $callerCode === 'legacy.reference_sync' && $providerKey === null)) {
+            return new TransportBlocked(NetworkBlockedReason::OwnerLost);
+        }
+
         return $this->bridge->run($callerCode, $platformId, $controls, $deadlineSeconds, $hash,
             fn (OutboundExecutionContext $context): TransportOutcome => $this->executor->execute(
                 $plan, $context, new ScheduledAttemptGate($this->permits, $this->routes->outboundRoutes($routePolicy), $this->policy),
                 $policy, new TransferBudget($profile->maxEntityBytes, $profile->maxEntityBytes), $payload),
-            $checkpoint, $providerKey);
+            $checkpoint, $providerKey, OutboundOperationKind::Diagnostic);
     }
 
     /**

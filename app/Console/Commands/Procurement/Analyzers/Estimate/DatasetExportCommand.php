@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Storage;
         {--split=all : all|tune|holdout}
         {--source=* : ограничить значениями prc_ai_dataset_examples.source}
         {--dpo-schema=conversational : conversational|standard}
-        {--disk= : диск назначения (по умолчанию — config(crawler.raw_disk))}
+        {--disk= : диск назначения (по умолчанию — config(acquisition.raw_disk))}
         {--path= : путь внутри диска (по умолчанию — ai/dataset-exports/<format>-<timestamp>.jsonl)}')]
 final class DatasetExportCommand extends Command
 {
@@ -113,10 +113,10 @@ final class DatasetExportCommand extends Command
             return $disk;
         }
 
-        $configuredDisk = config('crawler.raw_disk');
+        $configuredDisk = config('acquisition.raw_disk');
 
         if (! is_string($configuredDisk) || $configuredDisk === '') {
-            throw new \UnexpectedValueException('crawler.raw_disk must be a non-empty string.');
+            throw new \UnexpectedValueException('acquisition.raw_disk must be a non-empty string.');
         }
 
         return $configuredDisk;

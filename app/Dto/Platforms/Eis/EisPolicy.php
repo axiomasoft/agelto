@@ -24,10 +24,47 @@ final readonly class EisPolicy
 
     public string $documentAccessResolver;
 
+    public string $referenceEndpoint;
+
+    public string $referenceRoot;
+
+    public int $referenceRootLevel;
+
+    public int $referenceMaxRequests;
+
+    /** @var list<string> */
+    public array $documentHosts;
+
     public function __construct(Repository $config)
     {
         $root = $config->get('platforms.eis');
-        $this->keys($root, ['block_size', 'source_timezone', 'endpoints', 'listing_bounds', 'document_access_resolver'], 'platforms.eis');
+        $this->keys($root, ['block_size', 'source_timezone', 'endpoints', 'listing_bounds', 'document_access_resolver', 'okpd2', 'documents_allowed_hosts'], 'platforms.eis');
+        $reference = $root['okpd2'];
+        $this->keys($reference, ['children_endpoint', 'root_external_id', 'root_level', 'max_requests'], 'platforms.eis.okpd2');
+        foreach (['children_endpoint', 'root_external_id'] as $key) {
+            if (! is_string($reference[$key]) || $reference[$key] === '') {
+                throw new InvalidPlatformDefinition('platforms.eis.okpd2.'.$key.': expected nonempty string.');
+            }
+        }
+        foreach (['root_level', 'max_requests'] as $key) {
+            if (! is_int($reference[$key]) || $reference[$key] < 1) {
+                throw new InvalidPlatformDefinition('platforms.eis.okpd2.'.$key.': expected positive integer.');
+            }
+        }
+        $this->referenceEndpoint = $reference['children_endpoint'];
+        $this->referenceRoot = $reference['root_external_id'];
+        $this->referenceRootLevel = $reference['root_level'];
+        $this->referenceMaxRequests = $reference['max_requests'];
+        $hosts = $root['documents_allowed_hosts'];
+        if (! is_array($hosts) || ! array_is_list($hosts) || $hosts === []) {
+            throw new InvalidPlatformDefinition('platforms.eis.documents_allowed_hosts: expected nonempty list.');
+        }
+        foreach ($hosts as $host) {
+            if (! is_string($host) || $host === '') {
+                throw new InvalidPlatformDefinition('platforms.eis.documents_allowed_hosts: expected nonempty host string.');
+            }
+        }
+        $this->documentHosts = $hosts;
         $resolver = $root['document_access_resolver'];
         if (! is_string($resolver) || $resolver === '') {
             throw new InvalidPlatformDefinition('platforms.eis.document_access_resolver: implementation class required.');

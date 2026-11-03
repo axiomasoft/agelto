@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Services\Procurement\SourceTargetValidator;
 
 test('trusted EIS document target принимается', function (): void {
-    config(['crawler.documents_allowed_hosts' => ['zakupki.gov.ru']]);
+    config(['documents.allowed_hosts' => ['zakupki.gov.ru']]);
 
     app(SourceTargetValidator::class)->assertDocumentUrl(
         url: 'https://zakupki.gov.ru/epz/order/notice/filestore?uid=ok',
@@ -15,7 +15,7 @@ test('trusted EIS document target принимается', function (): void {
 });
 
 test('unsafe document target отклоняется до транспорта', function (string $url): void {
-    config(['crawler.documents_allowed_hosts' => ['zakupki.gov.ru']]);
+    config(['documents.allowed_hosts' => ['zakupki.gov.ru']]);
 
     expect(fn () => app(SourceTargetValidator::class)->assertDocumentUrl(url: $url))
         ->toThrow(InvalidArgumentException::class);

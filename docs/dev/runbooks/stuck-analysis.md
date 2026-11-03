@@ -6,44 +6,27 @@ status: living
 
 # Runbook: анализ завис
 
-## Symptoms
+Сначала откройте [Process recovery](process-recovery.md) и
+[Process controls](process-controls.md). PostgreSQL work/attempt/outbox определяют, что ждёт и
+что уже завершено; длина Redis очереди и статус Horizon не заменяют эти факты.
 
-Документ/анализ не двигается по статусам (`document-pipeline.md` Д1) дольше ожидаемого: висит на
-`Prepared`/`Screened` без перехода в терминальный статус, `EstimateExtractionJob` в очереди
-`ai_extraction`, а `analysis.progress` не обновляется.
+1. Выполните `process:status` и откройте work drilldown. Различайте ready/admitted/running,
+   deferred с absolute retry и blocked с ручной причиной.
+2. Проверьте readiness всех четырёх Process daemons и текущие control scopes. Operator pause,
+   handler hold, storage/provider wait и unknown paid outcome имеют разные действия.
+3. Для явной пассивной диагностики используйте `process:diagnostics`. Эта команда может
+   вызвать существующий notification transport, поэтому запускается оператором осознанно.
+   Scheduled `process:health-report` только читает состояния и причины, без уведомлений.
+4. Recovery expired ownership выполняет reconcile daemon. Manual retry использует
+   audited/versioned Process action и новый intent; прямой UPDATE и старые pipeline retry
+   commands отсутствуют.
 
-## Triage
+Horizon содержит default/mail supervisor и шесть Process supervisors. Проверяйте цепочку
+slice < job timeout < supervisor timeout < retry_after < lease через StageQueueMap.
+Default shutdown grace — 370 s в обоих Compose; W/C ограничиваются DB reservations,
+а увеличение числа workers не увеличивает разрешённую outstanding capacity.
 
-1. `make artisan ARGS="pipeline:status"` — общий срез по статусам документов/анализов.
-2. `make artisan ARGS="pipeline:stuck-check"` (`PipelineStuckCheck`) — целевые находки: зависшие
-   `Screening`/`Extraction` (пороги `analysis_stuck_minutes`/`checkpoint_stuck_minutes`,
-   `config('ai.pipeline.*')` — **не откалиброваны на живом трафике**, открытый вопрос плана),
-   зависшие документы, всплеск `unknown`/`unprocessable`, EOL-модели маршрута, backlog-спайк,
-   рост доли failures, «нет завершений за окно». Находки агрегируются в одно Telegram-сообщение
-   (`PipelineAlert`, антиспам раз в час на находку).
-3. Проверить lease: зависший анализ обычно означает, что предыдущий worker упал, не освободив
-   lease/не откатив статус (падение контейнера, OOM, SIGKILL раньше `stop_grace_period` — см.
-   [`horizon-backlog.md`](horizon-backlog.md)). Read-only команда сама НЕ чинит состояние — только
-   сигналит (docblock `PipelineStuckCheck`).
-
-## Fix
-
-- Технический сбой (временный) — `pipeline:retry-failed [--limit=]`: ретраит `Failed` по
-  backoff-расписанию (`next_retry_at`), НЕ трогает `Unprocessable` (это не сбой, а константация —
-  см. `../document-pipeline.md` §Статусы).
-- Зависшая `EstimateExtractionJob` (lease не освобождён, но job физически не выполняется) — после
-  подтверждения, что worker действительно мёртв (не просто долгий legit checkpoint-цикл), диспатч
-  вручную через `make artisan` для конкретного документа/анализа (точный сценарий зависит от
-  причины — сверить `analysis.progress` перед ручным вмешательством, чтобы не потерять чекпоинт).
-
-## Rollback
-
-Ручное вмешательство в статус документа/анализа — крайняя мера: предпочтителен штатный ретрай
-(`pipeline:retry-failed`) вместо прямого `UPDATE`, чтобы не сломать инварианты идемпотентности
-(`../document-pipeline.md` §Инварианты идемпотентности).
-
-## Escalation
-
-Находки `pipeline:stuck-check` повторяются после `retry-failed`/рестарта worker'ов, ИЛИ порог явно
-некалиброван и генерирует шум — эскалация разработчику (пороги в `config/ai.php`, ключ `pipeline.*`
-— калибровка вне scope этого runbook'а, открытый вопрос плана EST-AI).
+При неизвестном provider outcome не посылайте запрос повторно. Reconciler должен проверить
+immutable receipt и original reservation; elapsed time не доказывает отсутствие оплаты.
+При сохранённом receipt обработка может продолжиться без нового send. При отсутствии
+проверенного факта нужен отдельный operator decision/replay, сохраняющий финансовую историю.

@@ -8,7 +8,6 @@ use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ControlMode;
 use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\StageCode;
-use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\User;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Network\SourceCatalogSync;
@@ -49,7 +48,7 @@ test('Process feeder emits one durable wake when a suspended work becomes due an
         ->and(DB::table('prc_process_outbox')->where('kind', 'work_wake')->count())->toBe($wakes + 1)
         ->and(E::work($work)->checkpoint)->toBe($before->checkpoint)
         ->and(E::work($work)->item_failures)->toBe(0)
-        ->and(SourceIncident::query()->count())->toBe(0)
+        ->and(Schema::hasTable('prc_source_incidents'))->toBeFalse()
         ->and(Schema::hasTable('prc_source_circuits'))->toBeFalse();
 });
 

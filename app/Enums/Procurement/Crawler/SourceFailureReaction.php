@@ -7,7 +7,7 @@ namespace App\Enums\Procurement\Crawler;
 use Filament\Support\Contracts\HasLabel;
 
 /**
- * Что этап делает с отказом данного вида. Задаётся в `config('crawler.source_control')` для
+ * Что этап делает с отказом данного вида. Задаётся в `historical source-control fixture policy` для
  * каждой пары (этап, вид отказа); значения по умолчанию и смысл — там же.
  *
  * Пропуск блока/карточки от реакции не зависит: данных нет — обрабатывать нечего.

@@ -6,7 +6,7 @@ use Symfony\Component\Finder\Finder;
 
 /*
  * Гейт P6.3 (`research/07-storage-addressing.md` §4.5): запрещает прямое чтение конфиг-ключей
- * диска (`crawler.documents_disk`, `ai.fixtures.disk`, `crawler.raw_disk`) вне
+ * диска (`documents.disk`, `ai.fixtures.disk`, `acquisition.raw_disk`) вне
  * `app/Services/Storage/**` — единственные легальные читатели этих ключей ЗАВЕДЕНЫ там
  * (`FileLocationResolver::current*Disk()`). Форма — Finder/grep по дереву (тот же приём, что
  * `tests/Unit/Architecture/DomainLayoutTest.php`), не `pest-plugin-arch`: предмет проверки —

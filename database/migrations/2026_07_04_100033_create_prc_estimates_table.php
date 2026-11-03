@@ -86,7 +86,7 @@ return new class extends Migration
             $table->text('raw_result_ref')->nullable()->comment('object storage только для payload > ~1МБ');
             $table->text('raw_result_disk')
                 ->nullable()
-                ->comment('null = диск сырого результата config(crawler.raw_disk)');
+                ->comment('null = диск сырого результата config(acquisition.raw_disk)');
 
             $table->integer('rows_expected')->nullable();
             $table->integer('rows_extracted')->nullable();

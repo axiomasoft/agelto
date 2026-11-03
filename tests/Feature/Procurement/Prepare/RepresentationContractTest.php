@@ -71,7 +71,7 @@ test('резолвер без представлений отдаёт ориги
 
     expect(app(RepresentationResolver::class)->forLlm($version))->toBe([
         'storagePath' => 'documents/bb/original.xlsx',
-        'disk' => (string) config('crawler.documents_disk'),
+        'disk' => (string) config('documents.disk'),
         'extension' => 'xlsx',
         'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ]);
@@ -94,7 +94,7 @@ test('резолвер с представлением pdf отдаёт его �
 
     expect(app(RepresentationResolver::class)->forLlm($version))->toBe([
         'storagePath' => 'documents/bb/original.prepared.pdf',
-        'disk' => (string) config('crawler.documents_disk'),
+        'disk' => (string) config('documents.disk'),
         'extension' => 'pdf',
         'mime' => 'application/pdf',
     ]);

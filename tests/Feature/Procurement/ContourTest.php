@@ -54,7 +54,7 @@ test('прогон с mode=auto над документом площадки «�
     Platform::query()->firstOrCreate(['code' => Platform::TRAINING_CODE], Platform::factory()->training()->raw());
 
     $fixturesDisk = config('ai.fixtures.disk');
-    $documentsDisk = config('crawler.documents_disk');
+    $documentsDisk = config('documents.disk');
     Storage::fake($fixturesDisk);
     Storage::fake($documentsDisk);
 
@@ -104,7 +104,7 @@ test('дочерний документ архива наследует площ
     $result = Process::path($workDir)->timeout(30)->run(['7z', 'a', $archivePath, '.']);
     expect($result->successful())->toBeTrue($result->errorOutput());
 
-    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $disk = Storage::fake((string) config('documents.disk'));
     $content = file_get_contents($archivePath);
     $storagePath = 'documents/contour-archive-test.7z';
     $disk->put($storagePath, $content);

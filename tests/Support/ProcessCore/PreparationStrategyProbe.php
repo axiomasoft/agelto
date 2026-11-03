@@ -13,7 +13,7 @@ use App\Services\Procurement\Prepare\DocumentPreparer;
 /** Legacy FORMAT corpus only. Fixture status models the next strategy input; no job/lease/retry/AI. */
 final readonly class PreparationStrategyProbe
 {
-    public function __construct(private int $documentId) {}
+    public function __construct(private int $documentId, private ?int $budgetSeconds = null) {}
 
     public function handle(): void
     {
@@ -25,7 +25,7 @@ final readonly class PreparationStrategyProbe
         if ($version === null) {
             throw new \LogicException('Missing format fixture version.');
         }
-        $seconds = config('ai.pipeline.operation_budgets.prepare.job_timeout_seconds');
+        $seconds = $this->budgetSeconds ?? config('process.stages.prepare.slice');
         if (! is_int($seconds)) {
             throw new \LogicException('Missing bounded format probe profile.');
         }

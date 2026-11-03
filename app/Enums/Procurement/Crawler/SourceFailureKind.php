@@ -15,7 +15,7 @@ use Filament\Support\Contracts\HasLabel;
  * базовые селекторы эталона есть на каждой странице; нет — страница не обрабатывается.
  *
  * Вид — это факт, а не поведение: что делать с каждым видом на каждом этапе, задаёт
- * `config('crawler.source_control')` (`SourceFailureReaction`).
+ * `historical source-control fixture policy` (`SourceFailureReaction`).
  */
 enum SourceFailureKind: string implements HasLabel
 {

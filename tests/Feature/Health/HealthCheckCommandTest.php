@@ -30,18 +30,18 @@ test('dry-run команды не записывает историю', function
     expect(PlatformCheck::query()->count())->toBe(0);
 });
 
-test('выключенный healthcheck не читает площадку, не пишет историю и не ходит в сеть', function (): void {
-    config(['crawler.health.enabled' => false]);
+test('legacy health execution flag cannot suppress explicit passive diagnostics', function (): void {
+    config(['process.diagnostics.enabled' => false]);
     Http::fake();
 
+    Platform::factory()->create(['code' => 'eis']);
     $this->artisan('process:diagnose', ['platform' => 'eis'])->assertExitCode(0);
-
-    expect(PlatformCheck::query()->count())->toBe(0);
+    expect(PlatformCheck::query()->count())->toBe(4);
     Http::assertNothingSent();
 });
 
-test('выключенный healthcheck не регистрируется в расписании', function (): void {
-    config(['crawler.health.enabled' => false]);
+test('passive health diagnostics have no independent legacy schedule', function (): void {
+    config(['process.diagnostics.enabled' => false]);
     $schedule = app(Schedule::class);
     $healthEventsBefore = collect($schedule->events())
         ->filter(fn ($event): bool => str_contains((string) $event->command, 'crawler:health-check'))

@@ -17,8 +17,8 @@ final readonly class HealthBaselineReader
         $expectedPlatform = $registry === null ? $platform : $registry->platform;
         $code = $expectedPlatform?->getAttribute('code');
         $platformCode = is_string($code) ? $code : '';
-        $configuredPath = $expectedPlatform === null ? config('crawler.health.baseline_path')
-            : config("crawler.health.platform_baselines.{$platformCode}");
+        $configuredPath = $expectedPlatform === null ? config('process.diagnostics.baseline_path')
+            : config("process.diagnostics.platform_baselines.{$platformCode}");
 
         if (! is_string($configuredPath) || $configuredPath === '') {
             throw new HealthBaselineUnavailableException('путь к эталону должен быть непустой строкой');

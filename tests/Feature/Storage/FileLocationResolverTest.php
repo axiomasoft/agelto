@@ -9,9 +9,9 @@ use App\Services\Storage\FileLocationResolver;
 
 beforeEach(function (): void {
     config([
-        'crawler.documents_disk' => 'documents_v1',
+        'documents.disk' => 'documents_v1',
         'ai.fixtures.disk' => 'fixtures_v1',
-        'crawler.raw_disk' => 'raw_v1',
+        'acquisition.raw_disk' => 'raw_v1',
     ]);
 
     $this->resolver = new FileLocationResolver;
@@ -75,14 +75,14 @@ test('write-аксессоры читают текущие конфиг-ключ
 });
 
 test('write-аксессоры отклоняют нетипизированное имя диска', function (): void {
-    config(['crawler.documents_disk' => 42]);
+    config(['documents.disk' => 42]);
 
     expect(fn (): string => $this->resolver->currentDocumentsDisk())
         ->toThrow(LogicException::class, 'должен быть непустым именем диска');
 });
 
 test('fallback-цепочка отклоняет нетипизированное имя диска', function (): void {
-    config(['crawler.documents_fallback_disks' => ['documents_v0', 42]]);
+    config(['documents.fallback_disks' => ['documents_v0', 42]]);
     $version = DocumentVersion::factory()->create(['storage_path' => 'documents/aa/hash']);
 
     expect(fn () => $this->resolver->forDocumentVersion($version))

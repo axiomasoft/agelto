@@ -51,7 +51,7 @@ final class AdapterFixtures
     public function call(string $input): AdapterValidationCall
     {
         return new AdapterValidationCall('fixture.contract', DB::table('prc_platforms')->where('code', $this->network->code)->sole()->id,
-            $this->contract, LedgerFixtures::hash($input), $this->wire->url('/validate'), TrafficClass::Detail,
+            $this->contract, LedgerFixtures::hash($input), $this->wire->url('/validate'), TrafficClass::Diagnostic,
             $this->routes, ['system', 'acquisition:platform:'.$this->network->code], 120);
     }
 

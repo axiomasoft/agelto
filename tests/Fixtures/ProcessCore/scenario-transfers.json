@@ -1,6 +1,6 @@
 {
   "format": "process-core-scenario-transfers/v1",
-  "owner": "P3.13",
+  "owner": "P3.17",
   "before_cases_sha256": "94c888646045db7c28688b7a96622f8ec6c332a5496c3b2e4322043f3cbbd65a",
   "transfers": [
     {
@@ -5725,7 +5725,7 @@
       "replacements": [
         {
           "file": "tests/Feature/Crawler/SourceControlScenariosTest.php",
-          "name": "legacy incident navigation and badge remain readable while every acquisition incident writer is absent"
+          "name": "legacy incident navigation readers and schema are absent after final cutover"
         },
         {
           "file": "tests/Feature/Crawler/SourceCircuitBreakerTest.php",
@@ -7825,7 +7825,7 @@
       "replacements": [
         {
           "file": "tests/Feature/Infra/PartitionRetentionTest.php",
-          "name": "retention-конфиг покрывает 2 эфемерные таблицы и исключает financial provenance и domain events"
+          "name": "final partition retention excludes retired logs and financial or domain facts"
         }
       ],
       "reason": "P3.13 replaces legacy mutable state/log-partition/ordinary-send semantics with the explicit canonical contract; retained offline/format/authorization tests remain.",
@@ -13616,6 +13616,70 @@
       ],
       "reason": "Clean canonical baseline has no legacy data backfill/restore writer. The replacement proves schema-only rollback/reapply preserves accepted/history bytes and incompatible flat data is rejected without rewriting; offline legacy codec mapping remains explicit.",
       "contract": "P3.13 canonical cutover, immutable accepted provenance, D18"
+    },
+    {
+      "source": {
+        "file": "tests/Unit/Config/QueueTimeoutInvariantTest.php",
+        "name": "long lane сохраняет обе timeout-цепочки и documented stop_grace_period (инвариант D117)"
+      },
+      "replacements": [
+        {
+          "file": "tests/Unit/Config/QueueTimeoutInvariantTest.php",
+          "name": "final Horizon consumers and actual Compose grace match the Process timeout bounds"
+        }
+      ],
+      "reason": "P3.17 final UI/schema/config cutover: legacy reader/flag behavior is retired; the named successor asserts canonical ownership and absence, preserving each remaining scenario obligation.",
+      "contract": "D18; structure#s06; legacy-inventory#li-absence; P3.17"
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Health/HealthCheckCommandTest.php",
+        "name": "выключенный healthcheck не читает площадку, не пишет историю и не ходит в сеть"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Health/HealthCheckCommandTest.php",
+          "name": "legacy health execution flag cannot suppress explicit passive diagnostics"
+        },
+        {
+          "file": "tests/Feature/Health/HealthCheckCommandTest.php",
+          "name": "passive health diagnostics have no independent legacy schedule"
+        }
+      ],
+      "reason": "P3.17 final UI/schema/config cutover: legacy reader/flag behavior is retired; the named successor asserts canonical ownership and absence, preserving each remaining scenario obligation.",
+      "contract": "D18; structure#s06; legacy-inventory#li-absence; P3.17"
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Health/HealthCheckCommandTest.php",
+        "name": "выключенный healthcheck не регистрируется в расписании"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Health/HealthCheckCommandTest.php",
+          "name": "legacy health execution flag cannot suppress explicit passive diagnostics"
+        },
+        {
+          "file": "tests/Feature/Health/HealthCheckCommandTest.php",
+          "name": "passive health diagnostics have no independent legacy schedule"
+        }
+      ],
+      "reason": "P3.17 final UI/schema/config cutover: legacy reader/flag behavior is retired; the named successor asserts canonical ownership and absence, preserving each remaining scenario obligation.",
+      "contract": "D18; structure#s06; legacy-inventory#li-absence; P3.17"
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Infra/PartitionCoverageTest.php",
+        "name": "last historical month accepts fetch, event and revision inserts"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Infra/PartitionCoverageTest.php",
+          "name": "last historical month keeps domain events and revisions without legacy fetch schema"
+        }
+      ],
+      "reason": "P3.17 final UI/schema/config cutover: legacy reader/flag behavior is retired; the named successor asserts canonical ownership and absence, preserving each remaining scenario obligation.",
+      "contract": "D18; structure#s06; legacy-inventory#li-absence; P3.17"
     }
   ]
 }

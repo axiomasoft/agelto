@@ -6,6 +6,39 @@ status: living
 
 # Process core: acceptance evidence
 
+## P3.17 — final legacy removal
+
+Единый consumer/schema cutover удаляет source incidents, legacy fetch/operation-log tables,
+их модели/factories/writer и старые maintenance commands. Journal URL сохраняет прежние
+точные `OperationLogPermission` grants и читает transitions. Process incident badge/filter/
+acknowledge проверяются с реальным SQL, operator audit и analyst denial.
+
+| Test | Assertion / evidence boundary |
+| --- | --- |
+| `LegacyOwnershipAbsenceTest` | Production symbol/config/table scan, negative fixtures каждого forbidden семейства, lawful new health/feature options |
+| `PlatformsDomainLayoutTest`, `PlatformsBaselineOriginTest` | Baseline отсутствует; historical pairs закрыты; exact permanent role permissions не расширены |
+| `T32FinalCutoverTest` | Final schema, полный admin sidebar/badges, incident filter/action/audit, canonical journal, zero SQL к deleted tables, runtime schedule/list whitelist |
+| `LegacyOutboundClientTest` | Ordinary work без owning context не создаёт operation/demand/request, даже при unknown health; bounded diagnostic/reference owner сохраняется |
+| `T32RawRetentionConcurrencyTest` | Отдельные PG sessions, адресный gate, concurrent raw publish/prune, bounded deletion и сохранение canonical raw evidence |
+| `OperationLogResourceTest`, `SourceControlResourceTest`, `AdminRouteInventoryTest` | Существующие URL/RBAC/escaping, отсутствие deleted route, canonical action owner |
+| `PartitionCoverageTest`, `PartitionRetentionTest`, `QueueTimeoutInvariantTest` | Сохранённая domain history/partman policy; только Process/default consumers; shutdown grace |
+
+Executor evidence хранится в `storage/app/testing/process-core/p317/` и отдельных rig reports.
+Запускаются только single-file proofs, schema-inventory/harness unit checks, syntax/Pint и diff
+checks. V1–V4, полный regression и двукратный clean install принадлежат coordinator и здесь
+не объявляются выполненными. Нет production deployment, paid model eval или live crawling.
+
+D18: исторические scenario names и SHA provenance сохранены в fixture manifest. Изменённые
+имена/закрытие временного baseline имеют exact transfers в `scenario-transfers.json`; тесты
+старых incident readers проверяют final absence и canonical sidebar/action. Старое поведение
+«health.enabled подавляет explicit diagnose» удалено: explicit passive diagnostics работают,
+а execution eligibility принадлежит durable controls. OCR helper tests используют текущие
+bounded tool policies и Process slice, без сохранения второй job/lease/queue matrix.
+
+Canonical raw evidence conservatively remains pinned; automatic reclamation of that namespace
+is not established by this slice. E2E browser/Horizon lifecycle, full fault/load and production
+throughput remain later acceptance boundaries.
+
 ## P3.16 — platform UI и operational metrics
 
 Этот срез добавляет CLI/Pulse consumers существующих coverage facts и replayable counters.

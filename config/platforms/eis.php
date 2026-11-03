@@ -5,6 +5,27 @@ use App\Services\Procurement\Document\CatalogDocumentAccess;
 
 // Config-only Definition policy, used by validation and explicit catalog sync.
 return [
+    'okpd2' => [
+        'children_endpoint' => 'https://zakupki.gov.ru/epz/api/nsi/okpd2/children.html',
+
+        // Корень поддерева пересборки — раздел `F` «Сооружения и строительные работы»
+        // (`findings/P1-okpd2-probe.md` §5). Именно ПАРАМЕТР, а не константа кода: ветка 223-ФЗ
+        // (Q10) и любое расширение пойдут от другого корня, снимаемого тем же запросом.
+        'root_external_id' => '8873866',
+
+        // Уровень корня в нумерации карты (раздел = 1): дети получают `root_level + 1`, поэтому
+        // классы `41`/`42`/`43` ложатся уровнем 2 — так карту снял P1.2 и засидировал P2.1.
+        // Значение читается только когда корня НЕТ в таблице (сам раздел `F` в карту не пишется).
+        'root_level' => 1,
+
+        // Потолок запросов на прогон, жёсткий: обход до уровня групп стоит 14 запросов
+        // (`findings/P1-okpd2-map.md` §6.1), запас — на появление новых подклассов. Полный обход
+        // до листьев (≈541 запрос, §7) сюда сознательно не помещается: остаток честно
+        // помечается «не обойдено» в отчёте команды.
+        'max_requests' => 20,
+    ],
+    'documents_allowed_hosts' => ['zakupki.gov.ru'],
+
     'block_size' => 500,
     'document_access_resolver' => CatalogDocumentAccess::class,
     'source_timezone' => env('EIS_SOURCE_TIMEZONE', 'Europe/Moscow'),

@@ -36,17 +36,18 @@ test('canonical AI stages share one queue map and preserve slice job supervisor 
     expect(config('horizon.defaults'))->not->toHaveKeys(['supervisor-ai-screening', 'supervisor-ai-extraction', 'supervisor-ai-shadow']);
 });
 
-test('long lane сохраняет обе timeout-цепочки и documented stop_grace_period (инвариант D117)', function (): void {
-    expect(config('horizon.defaults.supervisor-crawl.timeout'))->toBe(300)
-        ->and(config('queue.connections.redis.retry_after'))->toBe(420)
-        ->and(config('horizon.defaults.supervisor-crawl-long.timeout'))->toBe(3600)
-        ->and(config('queue.connections.redis_crawl_long.retry_after'))->toBe(3900);
+test('final Horizon consumers and actual Compose grace match the Process timeout bounds', function (): void {
+    $supervisors = config('horizon.defaults');
+    expect(array_keys($supervisors))->toEqualCanonicalizing([
+        'supervisor-1', 'supervisor-process-listing', 'supervisor-process-acquisition',
+        'supervisor-process-download', 'supervisor-process-prepare', 'supervisor-process-ai',
+        'supervisor-process-publication',
+    ]);
+    expect(config('queue.connections'))->not->toHaveKeys(['redis_prepare', 'redis_crawl_long']);
+    foreach (['docker-compose.yml', 'docker-compose.prod.yml'] as $path) {
+        $compose = file_get_contents(base_path($path));
+        expect($compose)->toContain('370s')->not->toContain('4200s');
+    }
+    expect(collect($supervisors)->max('timeout'))->toBeLessThan(370);
 
-    $longestSupervisorTimeout = collect((array) config('horizon.defaults'))->max('timeout');
-
-    // Compose не читается из PHP-рантайма; фиксируем согласованный D117 default, чтобы будущая
-    // правка Horizon не превысила `stop_grace_period` в dev/prod (4200s).
-    $documentedStopGracePeriodSeconds = 4200;
-
-    expect($longestSupervisorTimeout)->toBeLessThan($documentedStopGracePeriodSeconds);
 });

@@ -9,9 +9,7 @@ use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
-use App\Filament\Resources\Procurement\Crawler\SourceIncidents\SourceIncidentResource;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
-use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Document\Document;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
@@ -52,7 +50,7 @@ test('Process repeated handler faults retain cursor and block the work without c
         ->and(E::work($work)->item_failures)->toBe(0)
         ->and((int) DB::table('prc_crawl_blocks')->where('id', E::work($work)->crawl_block_id)->value('cursor->position'))->toBe(501)
         ->and(DB::table('prc_process_incidents')->where('kind', 'handler_fault_limit')->count())->toBe(1)
-        ->and(DB::table('prc_observations')->count())->toBe(0)->and(SourceIncident::query()->count())->toBe(0);
+        ->and(DB::table('prc_observations')->count())->toBe(0)->and(Schema::hasTable('prc_source_incidents'))->toBeFalse();
 });
 
 test('late handler failure cannot resurrect cancelled Process work or publish a misleading incident', function (): void {
@@ -63,7 +61,7 @@ test('late handler failure cannot resurrect cancelled Process work or publish a 
     expect(app(WorkFinalizer::class)->finishHandlerFault($lease, F::fault('late-fault'))->status->value)->toBe('lost_ownership')
         ->and(AcquisitionProfileFixtures::workSnapshot($work->value->value))->toBe($before)
         ->and(E::work($work)->state)->toBe('cancelled')
-        ->and(DB::table('prc_process_incidents')->count())->toBe(0)->and(SourceIncident::query()->count())->toBe(0);
+        ->and(DB::table('prc_process_incidents')->count())->toBe(0)->and(Schema::hasTable('prc_source_incidents'))->toBeFalse();
 });
 
 test('database dependency interruption leaves durable running work for recovery without a false failure', function (): void {
@@ -107,11 +105,10 @@ test('EIS unrecognized card stays bounded incomplete and preserves canonical doc
         ->and(DB::table('prc_detail_snapshots')->where('part_key', 'like', '%:published')->count())->toBe(0);
 });
 
-test('legacy incident navigation and badge remain readable while every acquisition incident writer is absent', function (): void {
-    $incident = SourceIncident::factory()->create();
-    expect(Schema::hasTable('prc_source_incidents'))->toBeTrue()->and(Schema::hasTable('prc_source_circuits'))->toBeFalse()
-        ->and(SourceIncidentResource::getNavigationBadge())->toBe('1')
-        ->and(SourceIncident::query()->findOrFail($incident->id)->message)->toBe($incident->message);
+test('legacy incident navigation readers and schema are absent after final cutover', function (): void {
+    expect(Schema::hasTable('prc_source_incidents'))->toBeFalse()
+        ->and(Schema::hasTable('prc_source_circuits'))->toBeFalse()
+        ->and(class_exists('App\\Models\\Procurement\\Crawler\\SourceIncident'))->toBeFalse();
     foreach (['SourceEventReporter', 'SourceIncidentPublisher', 'SourceEventLogger'] as $writer) {
         expect(is_file(app_path('Services/Procurement/SourceControl/'.$writer.'.php')))->toBeFalse();
     }

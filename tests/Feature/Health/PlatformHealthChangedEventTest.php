@@ -85,7 +85,7 @@ test('восстановление здоровья площадки до ok п�
 
 test('неизменившийся плохой вердикт внутри окна напоминания не порождает событие', function (): void {
     Event::fake();
-    config(['crawler.health.repeat_alert_hours' => 24]);
+    config(['process.diagnostics.repeat_alert_hours' => 24]);
     $platform = platformForPlatformHealthCheck();
     platformHealthCheck(platform: $platform, verdict: PlatformCheckVerdict::Broken, checkedAt: now()->subHours(23));
     procurementForPlatformHealthCheck(platform: $platform, broken: true);
@@ -97,7 +97,7 @@ test('неизменившийся плохой вердикт внутри ок
 
 test('неизменившийся плохой вердикт после окна напоминания порождает событие', function (): void {
     Event::fake();
-    config(['crawler.health.repeat_alert_hours' => 24]);
+    config(['process.diagnostics.repeat_alert_hours' => 24]);
     $platform = platformForPlatformHealthCheck();
     platformHealthCheck(platform: $platform, verdict: PlatformCheckVerdict::Broken, checkedAt: now()->subHours(25));
     procurementForPlatformHealthCheck(platform: $platform, broken: true);

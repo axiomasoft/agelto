@@ -7,7 +7,7 @@ use App\Services\Procurement\Health\HealthBaselineReader;
 
 test('ридер возвращает типизированный эталон и хеширует байты файла', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'health-baseline-');
-    config(['crawler.health.baseline_path' => $path]);
+    config(['process.diagnostics.baseline_path' => $path]);
 
     file_put_contents($path, json_encode([
         'platform' => 'eis', 'captured_at' => '2026-08-08T00:00:00+00:00', 'source' => 'test',
@@ -27,7 +27,7 @@ test('ридер возвращает типизированный эталон 
 
 test('ридер отклоняет эталон без обязательного ключа', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'health-baseline-');
-    config(['crawler.health.baseline_path' => $path]);
+    config(['process.diagnostics.baseline_path' => $path]);
     file_put_contents($path, json_encode(['platform' => 'eis'], JSON_THROW_ON_ERROR));
 
     expect(fn () => app(HealthBaselineReader::class)->read())
@@ -38,7 +38,7 @@ test('ридер отклоняет эталон без обязательног
 
 test('ридер отклоняет нетипизированные значения эталона', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'health-baseline-');
-    config(['crawler.health.baseline_path' => $path]);
+    config(['process.diagnostics.baseline_path' => $path]);
     file_put_contents($path, json_encode([
         'platform' => 44, 'captured_at' => '2026-08-08T00:00:00+00:00', 'source' => 'test',
         'card_tabs' => [], 'listing_csv' => ['required_headers' => []], 'thresholds' => [], 'calibrated' => false,

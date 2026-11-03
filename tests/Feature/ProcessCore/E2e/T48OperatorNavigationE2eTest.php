@@ -24,7 +24,6 @@ use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionReso
 use App\Filament\Resources\Procurement\Ai\Providers\ProviderResource;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\CrawlerResource;
 use App\Filament\Resources\Procurement\Crawler\Proxies\ProxyResource;
-use App\Filament\Resources\Procurement\Crawler\SourceIncidents\SourceIncidentResource;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Filament\Resources\Procurement\Health\PlatformChecks\PlatformCheckResource;
 use App\Filament\Resources\Procurement\OperationLogs\OperationLogResource;
@@ -45,7 +44,6 @@ use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\Platforms\Eis\EisDetails;
-use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
@@ -127,7 +125,6 @@ test('EXR-01 навигация и все страницы админки рен
         PlatformCheckResource::class => 'Площадки',
         CrawlerResource::class => 'Сбор данных',
         ProxyResource::class => 'Сбор данных',
-        SourceIncidentResource::class => 'Сбор данных',
         FixtureResource::class => 'Качество анализа',
         DatasetExampleResource::class => 'Качество анализа',
         ProviderResource::class => 'Настройка AI',
@@ -172,9 +169,7 @@ test('EXR-01 навигация и все страницы админки рен
     actingAs($admin)->get('/admin')->assertOk();
     actingAs($admin)->get('/admin/roles')->assertOk();
 
-    // Seed an unresolved SourceIncident and Process entities to verify badge and table coexistence.
-    SourceIncident::factory()->create();
-    expect(SourceIncidentResource::getNavigationBadge())->toBe('1');
+    expect(Schema::hasTable('prc_source_incidents'))->toBeFalse();
 
     // Seed canonical AI UI fixtures for full EXR-01 page rendering.
     [$fixture, $analysisRun, $analysis] = AiUiFixtures::accepted();

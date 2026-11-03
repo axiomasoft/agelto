@@ -216,7 +216,7 @@ test('forceKind = null даёт сегодняшнее поведение рез
     expect($withNullForce)->toBe($withoutForce)
         ->and($withoutForce)->toBe([
             'storagePath' => 'documents/bb/original.xlsx',
-            'disk' => (string) config('crawler.documents_disk'),
+            'disk' => (string) config('documents.disk'),
             'extension' => 'xlsx',
             'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);

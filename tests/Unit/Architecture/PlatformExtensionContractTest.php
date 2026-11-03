@@ -45,7 +45,6 @@ function platformExtensionSourceLiteralIsAllowed(string $path): bool
         app_path('Services/Procurement/Health/PlatformHealthChecker.php'),
         app_path('Services/Procurement/Modes/DetailAnalysisProcessor.php'),
         app_path('Services/Procurement/Modes/FreshRunProcessor.php'),
-        config_path('crawler.php'),
         database_path('seeders/StatusMappingSeeder.php'),
         database_path('seeders/BaseSeeder.php'),
         database_path('seeders/Procurement/CrawlerProfileSeeder.php'),
@@ -58,7 +57,7 @@ function platformExtensionSourceLiteralIsAllowed(string $path): bool
 
 function platformExtensionPhpSources(): array
 {
-    $paths = [config_path('crawler.php')];
+    $paths = [];
 
     foreach ([app_path(), database_path('seeders')] as $root) {
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root));

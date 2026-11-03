@@ -19,7 +19,7 @@ use Illuminate\Console\Command;
  * `DocumentPreparer` синхронно и записывает эталонные ОТВЕТЫ
  * `estimates/gold/<CODE>.gold.json`/`<CODE>.screening.json` в `prc_ai_dataset_examples` со
  * ссылкой `fixture_id` и `source=deterministic`. Курируемый оригинал (диск эталонов) и рабочая
- * копия (`crawler.documents_disk`) — сознательно РАЗНЫЕ носители (D19): эта команда создаёт только
+ * копия (`documents.disk`) — сознательно РАЗНЫЕ носители (D19): эта команда создаёт только
  * вторую, эталон на диске эталонов не трогает. Резолв рабочей копии и импорт примера вынесены в
  * {@see WorkingCopyProvisioner}/{@see GoldExampleImporter} (P3.3).
  */

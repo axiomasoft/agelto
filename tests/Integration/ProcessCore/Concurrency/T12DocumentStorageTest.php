@@ -143,7 +143,7 @@ test('archive lineage повторяется идемпотентно и зап�
 test('representation фиксирует recipe range disk coverage, sources pause и default disk не меняют bytes', function (): void {
     $domain = Fx::domain();
     $revision = Fx::observe(app(DocumentVersionRepository::class)->head(Fx::document()->id), Fx::upload('source bytes', $domain));
-    config(['crawler.downstream_enabled' => false, 'crawler.documents_disk' => 'unconfigured-disk']);
+    config(['crawler.downstream_enabled' => false, 'documents.disk' => 'unconfigured-disk']);
     $prepared = Fx::upload('native text', $domain);
     $coverage = new RepresentationCoverage(CoverageUnit::Page, 2, [new DocumentRange(0, 1)], [new DocumentRange(1, 2)]);
     $store = fn (): int => app(ProcessTransaction::class)->run(function () use ($domain, $revision, $prepared, $coverage): int {

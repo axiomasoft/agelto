@@ -263,18 +263,12 @@ final class PlatformSourceRules
 
     /**
      * @param  array<string, string>  $sources
-     * @param  list<array{file: string, import: string, owner: string}>  $baseline
      * @return list<string>
      */
-    public static function dependencyViolations(array $sources, array $baseline): array
+    public static function dependencyViolations(array $sources): array
     {
         $violations = [];
         $actual = [];
-        $expected = [];
-
-        foreach ($baseline as $entry) {
-            $expected[] = $entry['file'].' -> '.$entry['import'];
-        }
 
         foreach ($sources as $path => $source) {
             $inspection = self::inspect($source);
@@ -300,41 +294,8 @@ final class PlatformSourceRules
             }
         }
 
-        foreach (array_diff($actual, $expected) as $key) {
+        foreach ($actual as $key) {
             $violations[] = 'forbidden dependency: '.$key;
-        }
-
-        foreach (array_diff($expected, $actual) as $key) {
-            $violations[] = 'stale baseline: '.$key;
-        }
-
-        sort($violations, SORT_STRING);
-
-        return $violations;
-    }
-
-    /**
-     * @param  list<array{file: string, import: string, owner: string}>  $baseline
-     * @param  list<array{file: string, import: string, owner: string}>  $origin
-     * @return list<string>
-     */
-    public static function baselineGrowthViolations(array $baseline, array $origin): array
-    {
-        $violations = [];
-        $seen = [];
-
-        foreach ($baseline as $entry) {
-            $key = $entry['file'].' -> '.$entry['import'];
-
-            if (isset($seen[$key])) {
-                $violations[] = 'duplicate baseline pair: '.$key;
-            }
-
-            $seen[$key] = true;
-
-            if (! in_array($entry, $origin, strict: true)) {
-                $violations[] = 'expanded baseline or changed owner: '.$key;
-            }
         }
 
         sort($violations, SORT_STRING);

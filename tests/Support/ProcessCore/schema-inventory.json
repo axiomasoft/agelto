@@ -1,6 +1,6 @@
 {
   "format": "process-schema-inventory/v1",
-  "current_item": "P3.13",
+  "current_item": "P3.17",
   "conventions": {
     "work_states": [
       "ready",
@@ -630,10 +630,12 @@
     },
     {
       "path": "database/migrations/2026_07_04_100033_create_prc_estimates_table.php",
-      "sha256": "58edc5b6573b67fba989ac32ee388f644c7653fdee30bb9331465f0c4c5a5e71",
+      "sha256": "9d7ca1f51e14b90abe812e270796791df5b89bf4e733a1b37216c9548b1d2a98",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "58edc5b6573b67fba989ac32ee388f644c7653fdee30bb9331465f0c4c5a5e71",
+      "accepted_change_item": "P3.17"
     },
     {
       "path": "database/migrations/2026_07_04_100034_create_prc_estimate_sections_table.php",
@@ -680,22 +682,8 @@
       "original_sha256": "66b30d1a3b134be076af6727aa748cb4b98e731be0d3fc8501cfd36840affb1f"
     },
     {
-      "path": "database/migrations/2026_07_04_100041_create_prc_fetches_table.php",
-      "sha256": "61ed0603252facabc3b7ca2c33c43230d134938f0505b01ac6c9a7eb090b600f",
-      "action": "adapt_baseline",
-      "owner_item": "P2.18",
-      "reason": "Atomic acquisition producer, profile, provenance and adapter owner cutover."
-    },
-    {
       "path": "database/migrations/2026_07_04_100044_create_prc_ignored_items_table.php",
       "sha256": "c03b6342c68ac7de2cb31349348b0df037e24f728d741e5807a158554b08e3df",
-      "action": "keep",
-      "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
-    },
-    {
-      "path": "database/migrations/2026_07_04_100046_create_prc_operation_logs_table.php",
-      "sha256": "5789ae7f1df7bb516d581394a2f4adca301e924f53352b6a1a9c163eb786ff52",
       "action": "keep",
       "owner_item": "baseline",
       "reason": "Существующий CREATE, без изменений в P1.1."
@@ -720,13 +708,6 @@
       "action": "keep_infrastructure",
       "owner_item": "baseline",
       "reason": "Сохранить infrastructure; full DB reset удаляет partman metadata вне public."
-    },
-    {
-      "path": "database/migrations/2026_07_09_100051_set_hot_partition_autovacuum.php",
-      "sha256": "f6cf974f00d85259aeac038c5c6121f3db7e5da1647ece3fee64c33d166b4202",
-      "action": "rewrite",
-      "owner_item": "P3.13",
-      "reason": "Canonical AI recipe/chunk/publication and provider-ledger consumer cutover."
     },
     {
       "path": "database/migrations/2026_07_09_100052_create_prc_ai_corrections_table.php",
@@ -806,13 +787,6 @@
       "reason": "Существующий CREATE, без изменений в P1.1."
     },
     {
-      "path": "database/migrations/2026_08_09_100088_add_proxy_source_to_prc_fetches.php",
-      "sha256": "7304dad807210a1b5a2d6674324a469645eb64fa64d6106b750affea73c4ff71",
-      "action": "delete_with_owner",
-      "owner_item": "P3.17",
-      "reason": "Удалить вместе с owning legacy table и последними consumers."
-    },
-    {
       "path": "database/migrations/2026_08_09_100089_add_unprocessable_reason_to_prc_documents_table.php",
       "sha256": "7c6ac6c3a8cc4b9ba4a75351c81b2b1fd9eb48007da31efe4be259bf59543382",
       "action": "fold_into_create",
@@ -860,13 +834,6 @@
       "action": "remove_after_clean_proof",
       "owner_item": "P1.1–P1.4",
       "reason": "Кандидат на удаление только owning пунктом после доказанного clean install без repair; P1.1 не удаляет."
-    },
-    {
-      "path": "database/migrations/2026_10_07_100096_create_prc_source_control_tables.php",
-      "sha256": "85999657e5683e248cd067801d808d3cee56f5652356ffa154a7c4fc9c7a1e74",
-      "action": "adapt_baseline",
-      "owner_item": "P2.18",
-      "reason": "Atomic acquisition producer, profile, provenance and adapter owner cutover."
     },
     {
       "path": "database/migrations/2026_10_08_100101_verify_partition_bounds.php",
@@ -1006,8 +973,6 @@
     ],
     "partman_parents": [
       "public.prc_events",
-      "public.prc_fetches",
-      "public.prc_operation_logs",
       "public.prc_revisions"
     ],
     "tables": {
@@ -10262,272 +10227,6 @@
         "owner": "Procurement",
         "retention": "business"
       },
-      "prc_fetches": {
-        "columns": [
-          {
-            "column_default": null,
-            "column_name": "id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "crawler_run_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 2,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "stage",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 3,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "procurement_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 4,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "method",
-            "data_type": "text",
-            "is_nullable": "NO",
-            "ordinal_position": 5,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "request_params",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
-            "ordinal_position": 6,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "jsonb"
-          },
-          {
-            "column_default": null,
-            "column_name": "artifact_ref",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 7,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "http_status",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 8,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "duration_ms",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 9,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "wait_ms",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 10,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "rows_total",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 11,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "rows_new",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 12,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "rows_updated",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 13,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "rows_parsed",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 14,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "rows_errors",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 15,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "dedup_signature",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 16,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "proxy_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 17,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "fetched_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "NO",
-            "ordinal_position": 18,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "created_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 19,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "updated_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 20,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "proxy_source",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 21,
-            "table_name": "prc_fetches",
-            "table_schema": "public",
-            "udt_name": "text"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "PRIMARY KEY (id, fetched_at)",
-            "name": "prc_fetches_pkey",
-            "schema": "public",
-            "table_name": "prc_fetches",
-            "type": "p"
-          },
-          {
-            "definition": "FOREIGN KEY (procurement_id) REFERENCES prc_procurements(id)",
-            "name": "prc_fetches_procurement_id_foreign",
-            "schema": "public",
-            "table_name": "prc_fetches",
-            "type": "f"
-          },
-          {
-            "definition": "FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id)",
-            "name": "prc_fetches_proxy_id_foreign",
-            "schema": "public",
-            "table_name": "prc_fetches",
-            "type": "f"
-          }
-        ],
-        "definition": "CREATE TABLE public.prc_fetches (\n    id bigint NOT NULL,\n    crawler_run_id bigint,\n    stage text,\n    procurement_id bigint,\n    method text NOT NULL,\n    request_params jsonb,\n    artifact_ref text,\n    http_status integer,\n    duration_ms integer,\n    wait_ms integer,\n    rows_total integer,\n    rows_new integer,\n    rows_updated integer,\n    rows_parsed integer,\n    rows_errors integer,\n    dedup_signature text,\n    proxy_id bigint,\n    fetched_at timestamp with time zone NOT NULL,\n    created_at timestamp with time zone,\n    updated_at timestamp with time zone,\n    proxy_source text\n)\nPARTITION BY RANGE (fetched_at);",
-        "indexes": [
-          {
-            "indexdef": "CREATE INDEX prc_fetches_crawler_run_id_index ON ONLY public.prc_fetches USING btree (crawler_run_id)",
-            "indexname": "prc_fetches_crawler_run_id_index",
-            "schemaname": "public",
-            "tablename": "prc_fetches"
-          },
-          {
-            "indexdef": "CREATE UNIQUE INDEX prc_fetches_pkey ON ONLY public.prc_fetches USING btree (id, fetched_at)",
-            "indexname": "prc_fetches_pkey",
-            "schemaname": "public",
-            "tablename": "prc_fetches"
-          },
-          {
-            "indexdef": "CREATE INDEX prc_fetches_procurement_id_index ON ONLY public.prc_fetches USING btree (procurement_id)",
-            "indexname": "prc_fetches_procurement_id_index",
-            "schemaname": "public",
-            "tablename": "prc_fetches"
-          },
-          {
-            "indexdef": "CREATE INDEX prc_fetches_proxy_id_index ON ONLY public.prc_fetches USING btree (proxy_id)",
-            "indexname": "prc_fetches_proxy_id_index",
-            "schemaname": "public",
-            "tablename": "prc_fetches"
-          }
-        ],
-        "owner": "Procurement",
-        "retention": "requests"
-      },
       "prc_financing": {
         "columns": [
           {
@@ -12985,136 +12684,6 @@
         ],
         "owner": "Repositories/Procurement/Process",
         "retention": "authority"
-      },
-      "prc_operation_logs": {
-        "columns": [
-          {
-            "column_default": null,
-            "column_name": "id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "level",
-            "data_type": "text",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "stage",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 3,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "source",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 4,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "entity_type",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 5,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "entity_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 6,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "message",
-            "data_type": "text",
-            "is_nullable": "NO",
-            "ordinal_position": 7,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "context",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
-            "ordinal_position": 8,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "jsonb"
-          },
-          {
-            "column_default": null,
-            "column_name": "trace",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 9,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "created_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "NO",
-            "ordinal_position": 10,
-            "table_name": "prc_operation_logs",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "PRIMARY KEY (id, created_at)",
-            "name": "prc_operation_logs_pkey",
-            "schema": "public",
-            "table_name": "prc_operation_logs",
-            "type": "p"
-          }
-        ],
-        "definition": "CREATE TABLE public.prc_operation_logs (\n    id bigint NOT NULL,\n    level text NOT NULL,\n    stage text,\n    source text,\n    entity_type text,\n    entity_id bigint,\n    message text NOT NULL,\n    context jsonb,\n    trace text,\n    created_at timestamp with time zone NOT NULL\n)\nPARTITION BY RANGE (created_at);",
-        "indexes": [
-          {
-            "indexdef": "CREATE INDEX prc_operation_logs_entity_index ON ONLY public.prc_operation_logs USING btree (entity_type, entity_id)",
-            "indexname": "prc_operation_logs_entity_index",
-            "schemaname": "public",
-            "tablename": "prc_operation_logs"
-          },
-          {
-            "indexdef": "CREATE UNIQUE INDEX prc_operation_logs_pkey ON ONLY public.prc_operation_logs USING btree (id, created_at)",
-            "indexname": "prc_operation_logs_pkey",
-            "schemaname": "public",
-            "tablename": "prc_operation_logs"
-          }
-        ],
-        "owner": "Procurement",
-        "retention": "technical"
       },
       "prc_outbound_operation_controls": {
         "columns": [
@@ -19268,232 +18837,6 @@
         ],
         "owner": "Procurement",
         "retention": "business"
-      },
-      "prc_source_incidents": {
-        "columns": [
-          {
-            "column_default": "nextval('prc_source_incidents_id_seq'::regclass)",
-            "column_name": "id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "platform_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "crawler_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 3,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "run_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 4,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "fetch_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 5,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "type",
-            "data_type": "text",
-            "is_nullable": "NO",
-            "ordinal_position": 6,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "severity",
-            "data_type": "text",
-            "is_nullable": "NO",
-            "ordinal_position": 7,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "failure_kind",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 8,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "http_status",
-            "data_type": "integer",
-            "is_nullable": "YES",
-            "ordinal_position": 9,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "cursor",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
-            "ordinal_position": 10,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "jsonb"
-          },
-          {
-            "column_default": null,
-            "column_name": "request_params",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
-            "ordinal_position": 11,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "jsonb"
-          },
-          {
-            "column_default": null,
-            "column_name": "message",
-            "data_type": "text",
-            "is_nullable": "NO",
-            "ordinal_position": 12,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "context",
-            "data_type": "jsonb",
-            "is_nullable": "YES",
-            "ordinal_position": 13,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "jsonb"
-          },
-          {
-            "column_default": null,
-            "column_name": "actor",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 14,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": null,
-            "column_name": "acknowledged_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 15,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          },
-          {
-            "column_default": null,
-            "column_name": "acknowledged_by",
-            "data_type": "text",
-            "is_nullable": "YES",
-            "ordinal_position": 16,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "text"
-          },
-          {
-            "column_default": "CURRENT_TIMESTAMP",
-            "column_name": "created_at",
-            "data_type": "timestamp with time zone",
-            "is_nullable": "NO",
-            "ordinal_position": 17,
-            "table_name": "prc_source_incidents",
-            "table_schema": "public",
-            "udt_name": "timestamptz"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "FOREIGN KEY (crawler_id) REFERENCES prc_crawlers(id) ON DELETE SET NULL",
-            "name": "prc_source_incidents_crawler_id_foreign",
-            "schema": "public",
-            "table_name": "prc_source_incidents",
-            "type": "f"
-          },
-          {
-            "definition": "PRIMARY KEY (id)",
-            "name": "prc_source_incidents_pkey",
-            "schema": "public",
-            "table_name": "prc_source_incidents",
-            "type": "p"
-          },
-          {
-            "definition": "FOREIGN KEY (platform_id) REFERENCES prc_platforms(id) ON DELETE CASCADE",
-            "name": "prc_source_incidents_platform_id_foreign",
-            "schema": "public",
-            "table_name": "prc_source_incidents",
-            "type": "f"
-          }
-        ],
-        "definition": "CREATE TABLE public.prc_source_incidents (\n    id bigint NOT NULL,\n    platform_id bigint NOT NULL,\n    crawler_id bigint,\n    run_id bigint,\n    fetch_id bigint,\n    type text NOT NULL,\n    severity text NOT NULL,\n    failure_kind text,\n    http_status integer,\n    cursor jsonb,\n    request_params jsonb,\n    message text NOT NULL,\n    context jsonb,\n    actor text,\n    acknowledged_at timestamp(0) with time zone,\n    acknowledged_by text,\n    created_at timestamp(0) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL\n);",
-        "indexes": [
-          {
-            "indexdef": "CREATE UNIQUE INDEX prc_source_incidents_pkey ON public.prc_source_incidents USING btree (id)",
-            "indexname": "prc_source_incidents_pkey",
-            "schemaname": "public",
-            "tablename": "prc_source_incidents"
-          },
-          {
-            "indexdef": "CREATE INDEX prc_source_incidents_platform_id_created_at_index ON public.prc_source_incidents USING btree (platform_id, created_at)",
-            "indexname": "prc_source_incidents_platform_id_created_at_index",
-            "schemaname": "public",
-            "tablename": "prc_source_incidents"
-          },
-          {
-            "indexdef": "CREATE INDEX prc_source_incidents_run_id_index ON public.prc_source_incidents USING btree (run_id)",
-            "indexname": "prc_source_incidents_run_id_index",
-            "schemaname": "public",
-            "tablename": "prc_source_incidents"
-          },
-          {
-            "indexdef": "CREATE INDEX prc_source_incidents_type_created_at_index ON public.prc_source_incidents USING btree (type, created_at)",
-            "indexname": "prc_source_incidents_type_created_at_index",
-            "schemaname": "public",
-            "tablename": "prc_source_incidents"
-          }
-        ],
-        "owner": "Procurement",
-        "retention": "incidents"
       },
       "prc_source_targets": {
         "columns": [
@@ -30556,6 +29899,46 @@
       "owner_item": "baseline",
       "reason": "Atomic canonical AI consumer/schema cutover; one UUID authority replaces this legacy table.",
       "retired_at": "P3.13"
+    },
+    {
+      "path": "database/migrations/2026_07_04_100041_create_prc_fetches_table.php",
+      "sha256": "61ed0603252facabc3b7ca2c33c43230d134938f0505b01ac6c9a7eb090b600f",
+      "action": "adapt_baseline",
+      "owner_item": "P2.18",
+      "reason": "Final legacy UI/schema cutover",
+      "retired_in": "P3.17"
+    },
+    {
+      "path": "database/migrations/2026_07_04_100046_create_prc_operation_logs_table.php",
+      "sha256": "5789ae7f1df7bb516d581394a2f4adca301e924f53352b6a1a9c163eb786ff52",
+      "action": "keep",
+      "owner_item": "baseline",
+      "reason": "Final legacy UI/schema cutover",
+      "retired_in": "P3.17"
+    },
+    {
+      "path": "database/migrations/2026_07_09_100051_set_hot_partition_autovacuum.php",
+      "sha256": "f6cf974f00d85259aeac038c5c6121f3db7e5da1647ece3fee64c33d166b4202",
+      "action": "rewrite",
+      "owner_item": "P3.13",
+      "reason": "Final legacy UI/schema cutover",
+      "retired_in": "P3.17"
+    },
+    {
+      "path": "database/migrations/2026_08_09_100088_add_proxy_source_to_prc_fetches.php",
+      "sha256": "7304dad807210a1b5a2d6674324a469645eb64fa64d6106b750affea73c4ff71",
+      "action": "delete_with_owner",
+      "owner_item": "P3.17",
+      "reason": "Final legacy UI/schema cutover",
+      "retired_in": "P3.17"
+    },
+    {
+      "path": "database/migrations/2026_10_07_100096_create_prc_source_control_tables.php",
+      "sha256": "85999657e5683e248cd067801d808d3cee56f5652356ffa154a7c4fc9c7a1e74",
+      "action": "adapt_baseline",
+      "owner_item": "P2.18",
+      "reason": "Final legacy UI/schema cutover",
+      "retired_in": "P3.17"
     }
   ]
 }

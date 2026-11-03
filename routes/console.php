@@ -44,13 +44,8 @@ if ($hasTable('prc_acquisition_schedules')) {
     Schedule::command('process:schedule-acquisition')->everyMinute()->withoutOverlapping();
 }
 
-// Document production/admission runs in process:daemon feed; all recovery uses reconcile.
-if ($hasTable('prc_documents')) {
-    Schedule::command('pipeline:cleanup-temp')->hourly()->withoutOverlapping();
-    Schedule::command('pipeline:stuck-check')->everyFifteenMinutes()->withoutOverlapping();
-}
-
-// Bounded retention runs separately from HTTP workers.
-if ($hasTable('prc_raw_artifacts')) {
-    Schedule::command('crawler:prune-history')->hourly()->withoutOverlapping();
+// Delivery, recovery and document due production belong to durable daemons.
+if ($hasTable('prc_process_transitions')) {
+    Schedule::command('process:retention')->hourly()->withoutOverlapping();
+    Schedule::command('process:health-report')->everyFiveMinutes()->withoutOverlapping();
 }

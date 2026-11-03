@@ -19,8 +19,8 @@ beforeEach(function (): void {
     Storage::fake('documents_v1');
 
     config([
-        'crawler.documents_disk' => 'documents_v2',
-        'crawler.documents_fallback_disks' => ['documents_v1'],
+        'documents.disk' => 'documents_v2',
+        'documents.fallback_disks' => ['documents_v1'],
     ]);
 
     $this->resolver = new FileLocationResolver;
@@ -65,7 +65,7 @@ test('объекта нет нигде — резолвер возвращает
 });
 
 test('пустая цепочка — ко второму диску обращения нет вовсе', function (): void {
-    config(['crawler.documents_fallback_disks' => []]);
+    config(['documents.fallback_disks' => []]);
 
     $version = DocumentVersion::factory()->onDisk('documents_v2')->create(['storage_path' => 'documents/dd/hash']);
     Storage::disk('documents_v1')->put('documents/dd/hash', 'содержимое, которое фолбэк не обязан найти');

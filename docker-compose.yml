@@ -112,8 +112,8 @@ services:
     restart: unless-stopped
     stop_signal: SIGTERM
     # P4.7 (D117): `supervisor-crawl-long.timeout` (3600s) < long retry_after (3900s) < grace.
-    # Без 4200s Docker SIGKILL'ит годовой CSV archive job раньше, чем Horizon дождётся её.
-    stop_grace_period: 4200s
+    # Без 370s Docker SIGKILL'ит годовой CSV archive job раньше, чем Horizon дождётся её.
+    stop_grace_period: 370s
     working_dir: /var/www/html
     command: ["php", "artisan", "horizon"]
     volumes:

@@ -6,7 +6,7 @@ namespace App\Exceptions\Procurement\Crawler;
 
 use RuntimeException;
 
-/** Неверная секция `config('crawler.source_control')`; сообщение содержит путь к ошибке. */
+/** Неверная секция `historical source-control fixture policy`; сообщение содержит путь к ошибке. */
 final class SourceControlConfigurationException extends RuntimeException
 {
     public static function at(string $path, string $problem): self

@@ -4,41 +4,26 @@ declare(strict_types=1);
 
 use Tests\Support\Architecture\PlatformSourceRules;
 
-test('T33 legacy baseline остаётся подмножеством исходных пар P4.2 с теми же owners', function (): void {
-    $map = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/platforms-move-map.json')), associative: true, flags: JSON_THROW_ON_ERROR);
-    $origin = $map['dependency_origin'];
-    $baseline = require __DIR__.'/platforms-dependency-baseline.php';
-    // Owner-approved cutover clarification: surviving original P2.12 pairs belong to P2.18.
-    // Original inventory remains immutable; no new file/import pair is admitted.
-    $cutoverOrigin = array_map(static fn (array $entry): array => [
-        ...$entry, 'owner' => $entry['owner'] === 'P2.12' ? 'P2.18' : $entry['owner'],
-    ], $origin['pairs']);
-
-    expect($origin['commit'])->toBe('02f41f9dbcc5e50237abcf4ee54b953d052de068')
-        ->and($origin['pairs'])->not->toBeEmpty()
-        ->and(PlatformSourceRules::baselineGrowthViolations(baseline: $baseline, origin: $cutoverOrigin))->toBe([]);
-
-    foreach ($baseline as $entry) {
-        expect(PlatformSourceRules::rolePermissions()[$entry['file']] ?? [])->not->toContain($entry['import']);
+test('T33 historical baseline pairs are either removed or allowed by permanent exact roles', function (): void {
+    $map = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/platforms-move-map.json')), true, flags: JSON_THROW_ON_ERROR);
+    expect($map['dependency_origin']['commit'])->toBe('02f41f9dbcc5e50237abcf4ee54b953d052de068');
+    foreach ($map['dependency_origin']['pairs'] as $pair) {
+        if (! is_file(base_path($pair['file']))) {
+            continue;
+        }
+        expect(PlatformSourceRules::forbiddenDependencies($pair['file'], file_get_contents(base_path($pair['file']))))
+            ->not->toContain($pair['import']);
     }
+    expect(is_file(__DIR__.'/platforms-dependency-baseline.php'))->toBeFalse();
 });
 
-test('T33 добавление существующей forbidden пары и смена owner не расширяют baseline', function (): void {
-    $entry = [
-        'file' => 'app/Services/Platforms/JsonProcurement/Csv/Parser.php',
-        'import' => 'App\Services\Procurement\Proxy\ProxyResolver',
-        'owner' => 'P2.6',
-    ];
-    $source = '<?php use '.$entry['import'].';';
-    $sources = [$entry['file'] => $source];
-
-    expect(PlatformSourceRules::dependencyViolations(sources: $sources, baseline: [$entry]))->toBe([])
-        ->and(PlatformSourceRules::baselineGrowthViolations(baseline: [$entry], origin: []))
-        ->toBe(['expanded baseline or changed owner: '.$entry['file'].' -> '.$entry['import']])
-        ->and(PlatformSourceRules::baselineGrowthViolations(baseline: [], origin: [$entry]))->toBe([])
-        ->and(PlatformSourceRules::baselineGrowthViolations(baseline: [$entry], origin: [$entry]))->toBe([])
-        ->and(PlatformSourceRules::baselineGrowthViolations(baseline: [[...$entry, 'owner' => 'P3.17']], origin: [$entry]))
-        ->toBe(['expanded baseline or changed owner: '.$entry['file'].' -> '.$entry['import']])
-        ->and(PlatformSourceRules::baselineGrowthViolations(baseline: [$entry, $entry], origin: [$entry]))
-        ->toBe(['duplicate baseline pair: '.$entry['file'].' -> '.$entry['import']]);
+test('T33 permanent role permissions do not grant the same import to a neighboring file', function (): void {
+    foreach (PlatformSourceRules::rolePermissions() as $path => $imports) {
+        foreach ($imports as $import) {
+            expect(PlatformSourceRules::forbiddenDependencies($path, '<?php use '.$import.';'))->toBe([]);
+        }
+    }
+    $path = 'app/Filament/Platforms/Eis/OtherForm.php';
+    expect(PlatformSourceRules::forbiddenDependencies($path, '<?php use App\Models\Procurement\Crawler\Crawler;'))
+        ->toContain('App\Models\Procurement\Crawler\Crawler');
 });

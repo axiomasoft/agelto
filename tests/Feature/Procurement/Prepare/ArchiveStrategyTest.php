@@ -44,7 +44,7 @@ function build7z(array $files, array $extraArgs = []): string
 function makeArchiveVersion(string $localArchivePath, string $extension): array
 {
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
-    $disk = Storage::fake((string) config('crawler.documents_disk'));
+    $disk = Storage::fake((string) config('documents.disk'));
     $content = file_get_contents($localArchivePath);
     $storagePath = "documents/archive-test.{$extension}";
     $disk->put($storagePath, $content);

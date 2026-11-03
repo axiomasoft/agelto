@@ -57,8 +57,9 @@ publication fencing and real PostgreSQL adapter admission concurrency.
 Manual commands pin the first resolved default window. Reusing a command UUID with
 changed explicit bounds, profile or actor conflicts. Explicit item retry creates a
 new intent/work budget and retains the failed work and its three item failures;
-required links move only for non-cancelled runs. The source incident table/readers
-remain, while source circuits and old acquisition jobs/managers have been removed.
+required links move only for non-cancelled runs. P3.17 removes the source incident table/readers together with their sidebar resource.
+Process incidents and canonical transitions provide the operator view; source circuits and old
+acquisition jobs/managers are also absent.
 
 Q4 is implemented. `DiagnosticRunner` selects the profile and pinned route policy;
 the registered `DiagnosticCheck` receives an immutable acquisition launch and returns a

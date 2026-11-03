@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
-use App\Models\Procurement\Crawler\Fetch;
 use App\Models\Procurement\Crawler\RawArtifact;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 test('distinct CSV request windows retain their own immutable bytes', function (): void {
@@ -17,7 +17,7 @@ test('distinct CSV request windows retain their own immutable bytes', function (
         ->and(RawArtifact::query()->whereIn('path', [$one, $two])->count())->toBe(2)
         ->and(Storage::disk('s3')->get($one))->toBe('day one')
         ->and(Storage::disk('s3')->get($two))->toBe('day two')
-        ->and(Fetch::query()->count())->toBe(0);
+        ->and(Schema::hasTable('prc_fetches'))->toBeFalse();
 });
 
 test('identical CSV replay reuses its immutable object reference', function (): void {
@@ -37,7 +37,7 @@ test('failed checked write does not create a fetch claiming an artifact', functi
     expect(fn () => app(StoreRawFetchArtifactAction::class)->execute(
         's3', 'raw/csv/process', ['from' => 1], 'cannot persist', 'csv'))
         ->toThrow(DependencyUnavailable::class)
-        ->and(Fetch::query()->count())->toBe(0);
+        ->and(Schema::hasTable('prc_fetches'))->toBeFalse();
 });
 
 test('raw artifact action does not expose request values in its path', function (): void {

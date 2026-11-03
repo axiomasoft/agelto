@@ -36,14 +36,14 @@ beforeEach(function () {
     config([
         'services.telegram.bot_token' => 'test-token',
         'services.telegram.chat_id' => '123456',
-        'ai.pipeline.analysis_stuck_minutes' => 30,
-        'ai.pipeline.checkpoint_stuck_minutes' => 60,
-        'ai.pipeline.document_stuck_minutes' => 60,
-        'ai.pipeline.spike_window_hours' => 24,
-        'ai.pipeline.unknown_spike_threshold' => 2,
-        'ai.pipeline.unprocessable_spike_threshold' => 2,
-        'ai.pipeline.estimate_mismatch_threshold' => 2,
-        'ai.pipeline.alert_antispam_minutes' => 60,
+        'process.diagnostic_thresholds.analysis_stuck_minutes' => 30,
+        'process.diagnostic_thresholds.checkpoint_stuck_minutes' => 60,
+        'process.diagnostic_thresholds.document_stuck_minutes' => 60,
+        'process.diagnostic_thresholds.spike_window_hours' => 24,
+        'process.diagnostic_thresholds.unknown_spike_threshold' => 2,
+        'process.diagnostic_thresholds.unprocessable_spike_threshold' => 2,
+        'process.diagnostic_thresholds.estimate_mismatch_threshold' => 2,
+        'process.diagnostic_thresholds.alert_antispam_minutes' => 60,
         'ai.model_eol_warn_days' => 30,
     ]);
 });
@@ -70,7 +70,7 @@ function stuckAnalysisFixture(AnalysisStep $step, bool $expired, int $ageMinutes
 test('без аномалий команда завершается тихо, без Telegram-алерта', function () {
     Http::fake();
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertNothingSent();
 });
@@ -80,7 +80,7 @@ test('зависший screening-анализ (running, лиз истёк, ст�
 
     stuckAnalysisFixture(AnalysisStep::Screening, true, 31);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertSentCount(1);
 });
@@ -90,7 +90,7 @@ test('running screening-анализ моложе порога НЕ считае
 
     stuckAnalysisFixture(AnalysisStep::Screening, true, 5);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertNothingSent();
 });
@@ -100,7 +100,7 @@ test('running screening-анализ с ДЕЙСТВУЮЩИМ лизом НЕ �
 
     stuckAnalysisFixture(AnalysisStep::Screening, false, 31);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertNothingSent();
 });
@@ -111,12 +111,12 @@ test('зависший extraction-анализ использует СВОЙ (б
     // 31 минута — зависший screening-порог, НО меньше extraction-порога (60) — не алертит.
     stuckAnalysisFixture(AnalysisStep::Extraction, true, 31);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
     Http::assertNothingSent();
 
     stuckAnalysisFixture(AnalysisStep::Extraction, true, 61);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
     Http::assertSentCount(1);
 });
 
@@ -136,7 +136,7 @@ test('документ, застрявший в prepared сверх порога
         'attempts' => 5,
     ]);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertSentCount(1);
 });
@@ -154,7 +154,7 @@ test('документ, застрявший в discovered сверх порог
         'updated_at' => now()->subMinutes(61),
     ]);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertSentCount(1);
 });
@@ -167,7 +167,7 @@ test('expanded archive не считается зависшей стадией',
         'updated_at' => now()->subMinutes(61),
     ]);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertNothingSent();
 });
@@ -181,7 +181,7 @@ test('всплеск unknown в скрининге сверх порога — �
         'updated_at' => now()->subHour(),
     ]);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertSentCount(1);
 });
@@ -195,7 +195,7 @@ test('unknown-скрининги ниже порога не алертят', fun
         'updated_at' => now()->subHour(),
     ]);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertNothingSent();
 });
@@ -209,7 +209,7 @@ test('всплеск unprocessable за окно — алерт', function () {
         'updated_at' => now()->subHour(),
     ]);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertSentCount(1);
 });
@@ -222,7 +222,7 @@ test('всплеск suspicious/invalid смет за окно — алерт', 
         'updated_at' => now()->subHour(),
     ]);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertSentCount(1);
 });
@@ -242,7 +242,7 @@ test('модель активного маршрута ближе порога �
         'is_active' => true,
     ]);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertSent(fn ($request): bool => str_contains((string) $request['text'], 'eol-soon-model')
         && str_contains((string) $request['text'], 'eol-soon-model-v2'));
@@ -263,7 +263,7 @@ test('модель НЕактивного маршрута близко к eol_d
         'is_active' => false,
     ]);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertNothingSent();
 });
@@ -273,8 +273,8 @@ test('антиспам: повторный тик в течение окна н�
 
     stuckAnalysisFixture(AnalysisStep::Screening, true, 31);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertSentCount(1);
 });
@@ -285,7 +285,7 @@ test('без Telegram-конфига алерт не падает, а тихо �
 
     stuckAnalysisFixture(AnalysisStep::Screening, true, 31);
 
-    $this->artisan('pipeline:stuck-check')->assertSuccessful();
+    $this->artisan('process:diagnostics')->assertSuccessful();
 
     Http::assertNothingSent();
 });

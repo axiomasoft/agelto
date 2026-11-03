@@ -72,7 +72,7 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            // Standard pipeline lane. The versioned matrix in ai.pipeline.operation_budgets
+            // Standard pipeline lane. The versioned matrix in documents.format_probe_budgets
             // binds every job to `job < supervisor < retry_after`; its longest standard
             // supervisor is extraction (360s), hence the 420s visibility lease.
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 420),
@@ -83,26 +83,10 @@ return [
         // OCR is the only bounded-but-minute-scale pipeline call. Keeping it off the standard
         // Redis visibility lease prevents an OCR-compatible timeout from silently widening every
         // other queue. PrepareDocumentJob is explicitly routed here.
-        'redis_prepare' => [
-            'driver' => 'redis',
-            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
-            'queue' => 'doc_prepare',
-            'retry_after' => (int) env('REDIS_PREPARE_RETRY_AFTER', 2700),
-            'block_for' => null,
-            'after_commit' => false,
-        ],
 
         // Длинный lease ТОЛЬКО для profile-driven archive lane (P4.7, D117). Это отдельная
         // logical connection на тот же Redis, иначе standard `redis.retry_after=420` вернёт ещё
         // работающую часовую job второму воркеру. Остальные очереди не получают новый lease.
-        'redis_crawl_long' => [
-            'driver' => 'redis',
-            'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
-            'queue' => 'crawl_long',
-            'retry_after' => (int) env('REDIS_CRAWL_LONG_RETRY_AFTER', 3900),
-            'block_for' => null,
-            'after_commit' => false,
-        ],
 
         // Process delivery connections (bp-jobs, execution#lane-defaults): общий Redis, но
         // retry_after каждой connection покрывает самый долгий job своих lanes и остаётся выше

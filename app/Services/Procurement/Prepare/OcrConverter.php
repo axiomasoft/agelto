@@ -14,7 +14,7 @@ use RuntimeException;
  * не знает, домен живёт в {@see ScanStrategy} (тот же приём, что у {@see LibreOfficeConverter},
  * переиспользуется замером потолка `research/04-ocr-ceiling.md`).
  *
- * Таймаут OCR — СВОЙ (`ai.tools.ocr_timeout_seconds`), а не общий `default_timeout_seconds`:
+ * Таймаут OCR — СВОЙ (`documents.format_tools.ocr_seconds`), а не общий `default_timeout_seconds`:
  * распознавание сотни сканированных страниц идёт минутами, а не секундами.
  */
 final readonly class OcrConverter
@@ -136,7 +136,7 @@ final readonly class OcrConverter
 
     private function timeoutSeconds(): int
     {
-        return $this->configPositiveInt('ai.tools.ocr_timeout_seconds', 1800);
+        return $this->configPositiveInt('documents.format_tools.ocr_seconds');
     }
 
     /**
@@ -166,12 +166,12 @@ final readonly class OcrConverter
 
     private function operationTimeoutSeconds(string $operation): int
     {
-        return $this->configPositiveInt("ai.pipeline.operation_budgets.prepare.operation_timeout_seconds.{$operation}");
+        return $this->configPositiveInt("documents.format_tools.{$operation}_seconds");
     }
 
     private function persistenceReserveSeconds(): int
     {
-        return $this->configPositiveInt('ai.pipeline.operation_budgets.prepare.persistence_release_reserve_seconds');
+        return $this->configPositiveInt('documents.format_tools.persistence_seconds');
     }
 
     private function configString(string $key, ?string $default = null): string

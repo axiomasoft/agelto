@@ -2,23 +2,25 @@
 
 declare(strict_types=1);
 
-use App\Filament\Resources\Procurement\Crawler\SourceIncidents\Pages\ListSourceIncidents;
-use App\Filament\Resources\Procurement\Crawler\SourceIncidents\SourceIncidentResource;
 use App\Filament\Resources\Procurement\Process\ControlScopes\ControlScopeResource;
 use App\Filament\Resources\Procurement\Process\ControlScopes\Pages\ListControlScopes;
+use App\Filament\Resources\Procurement\Process\Incidents\IncidentResource;
+use App\Filament\Resources\Procurement\Process\Incidents\Pages\ListIncidents;
 use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
-use App\Models\Procurement\Crawler\SourceIncident;
 use App\Models\Procurement\Process\ControlScope;
+use App\Models\Procurement\Process\Incident;
 use App\Models\User;
 use App\Repositories\Procurement\Process\ControlRepository;
+use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
+use Tests\Support\ProcessCore\LedgerFixtures;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
@@ -64,22 +66,27 @@ test('legacy circuits routes and schema are gone while the complete operator sid
     $this->get('/admin/procurement/crawler/source-circuits')->assertNotFound();
     $this->get('/admin/procurement/crawler/source-circuits/1/edit')->assertNotFound();
     $this->get(ControlScopeResource::getUrl())->assertOk();
-    $this->get(SourceIncidentResource::getUrl())->assertOk();
+    $this->get('/admin/procurement/crawler/source-incidents')->assertNotFound();
+    $this->get(IncidentResource::getUrl())->assertOk();
 });
 
 test('журнал инцидентов: оператор отмечает разобранным; аналитик журнал не видит', function (): void {
-    $incident = SourceIncident::factory()->create(['platform_id' => $this->crawler->registry->platform_id]);
+    $id = LedgerFixtures::uuid();
+    app(ProcessTransaction::class)->run(fn () => app(IncidentRepository::class)->open(
+        LedgerFixtures::hash('p317-rbac'), 'acquisition', 'operator_test', [],
+        $id, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+    $incident = Incident::query()->findOrFail($id->value);
     actAsSourceOperator();
 
-    Livewire::test(ListSourceIncidents::class)
+    Livewire::test(ListIncidents::class)
         ->assertCanSeeTableRecords([$incident])
-        ->callTableAction('acknowledge', record: $incident);
+        ->callTableAction('acknowledge', record: $incident, data: ['reason' => 'Проверено']);
 
-    expect($incident->fresh()->acknowledged_by)->toBe('operator@agelto.ru');
+    expect($incident->fresh()->acknowledged_by)->toBe(auth()->id());
 
     $analyst = User::factory()->create();
     $analyst->assignRole(AnalystRole::class);
     actingAs($analyst);
 
-    $this->get('/admin/procurement/crawler/source-incidents')->assertForbidden();
+    $this->get(IncidentResource::getUrl())->assertForbidden();
 });

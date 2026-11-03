@@ -5,7 +5,6 @@ use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
 
 $defaultToolTimeoutSeconds = (int) env('AI_TOOLS_DEFAULT_TIMEOUT_SECONDS', 180);
-$ocrTimeoutSeconds = (int) env('AI_TOOLS_OCR_TIMEOUT_SECONDS', 1800);
 
 return [
     /*
@@ -48,22 +47,6 @@ return [
             'every_seconds' => (int) env('AI_GEMINI_RATE_LIMIT_EVERY_SECONDS', 60),
             'block_seconds' => (int) env('AI_GEMINI_RATE_LIMIT_BLOCK_SECONDS', 30),
         ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Error-блок / backoff (P4.1)
-    |--------------------------------------------------------------------------
-    |
-    | Единая формула экспоненциального backoff с потолком для ВСЕХ jobs пайплайна
-    | (`App\Models\Procurement\Concerns\HasErrorBlock`) — v1-урок: разнобой из трёх формул
-    | по job'ам (research/A §Слабые) был источником багов. `max_attempts` — порог
-    | `failed_permanently` (dead-letter, retry-команда P4.3 их не подбирает).
-    |
-    */
-    'retry' => [
-        'max_attempts' => (int) env('AI_RETRY_MAX_ATTEMPTS', 5),
-        'max_backoff_minutes' => (int) env('AI_RETRY_MAX_BACKOFF_MINUTES', 240),
     ],
 
     /*
@@ -285,7 +268,6 @@ return [
         | и общий 180-секундный потолок инструментов сюда не годится.
         */
         'ocr_languages' => env('AI_TOOLS_OCR_LANGUAGES', 'rus+eng'),
-        'ocr_timeout_seconds' => $ocrTimeoutSeconds,
     ],
 
     /*
@@ -343,126 +325,6 @@ return [
     */
     'analyzers' => [
         AiDocumentType::Estimate->value => EstimateAnalyzer::class,
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Мост crawling → пайплайн документов (P4.3, ТЗ 03 §4)
-    |--------------------------------------------------------------------------
-    |
-    | `dispatch_batch_limit` — лимит немедленного dispatch() по одной закупке (прямой путь,
-    | сразу после `FetchDetails`); `backlog_batch_limit` — лимит everyMinute-поллера
-    | (research/L finding 12: страховка на пропущенный/несработавший прямой путь, не основной
-    | канал); `retry_batch_limit` — дефолт `--limit` у `pipeline:retry-failed` за один тик.
-    |
-    */
-    'pipeline' => [
-        'dispatch_batch_limit' => (int) env('AI_PIPELINE_DISPATCH_BATCH_LIMIT', 100),
-        'backlog_batch_limit' => (int) env('AI_PIPELINE_BACKLOG_BATCH_LIMIT', 100),
-        'retry_batch_limit' => (int) env('AI_PIPELINE_RETRY_BATCH_LIMIT', 50),
-        'recovery_claim_hold_minutes' => (int) env('AI_PIPELINE_RECOVERY_CLAIM_HOLD_MINUTES', 10),
-        'temporary_stale_seconds' => (int) env('AI_PIPELINE_TEMPORARY_STALE_SECONDS', 86400),
-
-        // Single source of truth for P3.5 operation budgets. A stage may start an external
-        // operation only when its remaining operation chain and persistence/release reserve fit
-        // in the job deadline. Horizon/queue values are asserted against this matrix.
-        'operation_budgets' => [
-            'schema_version' => 'pipeline-operation-budget/v1',
-            'prepare' => [
-                // OCR preparation is a sequential chain, not one 1800-second call: text-layer
-                // probe → OCR → Tesseract version → PDF page count → persistence/release.
-                // These values are shared with `ai.tools`, so an env override cannot silently
-                // invalidate admission or the queue timeout chain.
-                'operation_timeout_seconds' => [
-                    'text_layer_probe' => $defaultToolTimeoutSeconds,
-                    'ocr' => $ocrTimeoutSeconds,
-                    'tesseract_version' => $defaultToolTimeoutSeconds,
-                    'pdf_page_count' => $defaultToolTimeoutSeconds,
-                ],
-                // Copying/inspecting the source happens before the first tool admission. Keep a
-                // separate allowance so a normal multi-second setup does not reject all PDFs.
-                'setup_allowance_seconds' => 120,
-                'job_timeout_seconds' => 2580,
-                'max_next_call_seconds' => $ocrTimeoutSeconds,
-                'persistence_release_reserve_seconds' => 120,
-                'supervisor_timeout_seconds' => 2640,
-                'retry_after_seconds' => 2700,
-                'lease_seconds' => 2700,
-            ],
-            'screening' => [
-                'operation_timeout_seconds' => [
-                    'pdf_slice' => 60,
-                    'file_upload_and_poll' => 150,
-                    'generation' => 90,
-                ],
-                'setup_allowance_seconds' => 30,
-                'job_timeout_seconds' => 360,
-                'max_next_call_seconds' => 150,
-                'persistence_release_reserve_seconds' => 30,
-                'supervisor_timeout_seconds' => 390,
-                'retry_after_seconds' => 420,
-                'lease_seconds' => 420,
-            ],
-            'extraction' => [
-                'job_timeout_seconds' => 300,
-                'max_next_call_seconds' => 150,
-                'persistence_release_reserve_seconds' => 30,
-                'checkpoint_seconds' => 120,
-                'supervisor_timeout_seconds' => 360,
-                'retry_after_seconds' => 420,
-                'lease_seconds' => 420,
-            ],
-        ],
-
-        // Fallback for pipeline jobs outside the P3.5 matrix (currently downloading). Matrix
-        // stages use their own `lease_seconds`, so a short screening/extraction recovery is not
-        // held behind the OCR-sized lease after Redis makes its job visible again.
-        'lease_seconds' => (int) env('AI_PIPELINE_LEASE_SECONDS', 2040),
-
-        /*
-        | TTL unique-лока pipeline-job'ов (`PipelineJob::uniqueFor()`, ADR-0009). На Redis (прод)
-        | лок без `EXPIRE` вечен — убитый воркер (SIGKILL/OOM/рестарт) навсегда запирает документ;
-        | на array-store (тесты) `seconds === 0` протухает за секунду, поэтому дефект там не виден.
-        | Значение обязано быть больше TTL лиза (600 c, `HasLease`) и не больше
-        | `document_stuck_minutes` (60), чтобы протухший лок самовосстанавливался не позже, чем
-        | `pipeline:stuck-check` о нём просигналит.
-        */
-        'unique_lock_minutes' => (int) env('AI_PIPELINE_UNIQUE_LOCK_MINUTES', 60),
-
-        /*
-        | Пороги `pipeline:stuck-check` (P7.3, ТЗ 03 §5). `analysis_stuck_minutes` — screening
-        | (single-shot, v1-канон ANALYSIS_STUCK_MINUTES=30); `checkpoint_stuck_minutes` —
-        | extraction ОТДЕЛЬНО (D31): self-requeue-цепочка легитимно проходит через паузы между
-        | checkpoint-прогонами дольше единичного вызова, общий с screening порог давал бы
-        | ложные срабатывания. `document_stuck_minutes` — застревание документа в
-        | downloaded/prepared/screened (мост между стадиями, ревью K п.20). `spike_window_hours`
-        | — общее окно для счётчиков всплесков (unknown/unprocessable/расхождение rows);
-        | `*_spike_threshold`/`estimate_mismatch_threshold` — сами пороги счётчиков.
-        | `alert_antispam_minutes` — не чаще одного Telegram-сообщения на одну и ту же находку
-        | (`PipelineAlert::notify()`, Code Guidance).
-        */
-        'analysis_stuck_minutes' => (int) env('AI_PIPELINE_ANALYSIS_STUCK_MINUTES', 30),
-        'checkpoint_stuck_minutes' => (int) env('AI_PIPELINE_CHECKPOINT_STUCK_MINUTES', 60),
-        'document_stuck_minutes' => (int) env('AI_PIPELINE_DOCUMENT_STUCK_MINUTES', 60),
-        'spike_window_hours' => (int) env('AI_PIPELINE_SPIKE_WINDOW_HOURS', 24),
-        'unknown_spike_threshold' => (int) env('AI_PIPELINE_UNKNOWN_SPIKE_THRESHOLD', 20),
-        'unprocessable_spike_threshold' => (int) env('AI_PIPELINE_UNPROCESSABLE_SPIKE_THRESHOLD', 5),
-        'estimate_mismatch_threshold' => (int) env('AI_PIPELINE_ESTIMATE_MISMATCH_THRESHOLD', 5),
-        'alert_antispam_minutes' => (int) env('AI_PIPELINE_ALERT_ANTISPAM_MINUTES', 60),
-
-        /*
-        | SQL-алерты стадий (P7.5, D25 Intent п.5) — подключены к тому же `PipelineAlert`
-        | (P7.3), НЕ второй транспорт. `backlog_threshold` — документов в
-        | downloaded/prepared/screened одновременно (очередь, не возраст — тот класс сигнала,
-        | что уже даёт `stuckDocuments()`, но по количеству, не по времени). `failure_rate_*` —
-        | доля failed среди succeeded+failed анализов (оба шага) за окно. `no_completions_minutes`
-        | — ни одного succeeded-анализа за окно ПРИ НЕПУСТОМ backlog (иначе «пайплайну просто
-        | нечего делать» ложно читалось бы как «пайплайн встал»).
-        */
-        'backlog_threshold' => (int) env('AI_PIPELINE_BACKLOG_THRESHOLD', 200),
-        'failure_rate_window_hours' => (int) env('AI_PIPELINE_FAILURE_RATE_WINDOW_HOURS', 1),
-        'failure_rate_threshold_percent' => (float) env('AI_PIPELINE_FAILURE_RATE_THRESHOLD_PERCENT', 50.0),
-        'no_completions_minutes' => (int) env('AI_PIPELINE_NO_COMPLETIONS_MINUTES', 120),
     ],
 
     /*

@@ -321,7 +321,7 @@ final readonly class ArchiveExtractor
 
     private function persistenceReserveSeconds(): int
     {
-        return $this->nonNegativeInt(config('ai.pipeline.operation_budgets.prepare.persistence_release_reserve_seconds', 120), 'archive persistence reserve');
+        return $this->nonNegativeInt(config('documents.format_tools.persistence_seconds', 120), 'archive persistence reserve');
     }
 
     private function configString(string $key): string

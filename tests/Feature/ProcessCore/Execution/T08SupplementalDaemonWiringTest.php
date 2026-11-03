@@ -17,7 +17,7 @@ test('dev и prod разрешают четыре core daemon services на об
         '${COMPOSE_PROJECT_NAME:-agelto}' => 'agelto_daemon_contract',
         '${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}' => 'agelto_daemon_contract',
         '${IMAGE_TAG:?IMAGE_TAG is required}' => 'daemon-contract',
-        '${HORIZON_STOP_GRACE_PERIOD:-4200s}' => '4200s',
+        '${HORIZON_STOP_GRACE_PERIOD:-370s}' => '370s',
     ]));
     $services = $compose['services'];
     $app = $services['app'];

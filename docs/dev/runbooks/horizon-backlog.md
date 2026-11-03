@@ -6,49 +6,27 @@ status: living
 
 # Runbook: затор Horizon
 
-## Symptoms
+Сначала откройте [Process recovery](process-recovery.md) и
+[Process controls](process-controls.md). PostgreSQL work/attempt/outbox определяют, что ждёт и
+что уже завершено; длина Redis очереди и статус Horizon не заменяют эти факты.
 
-Растёт длина очередей `doc_prepare`/`ai_screening`/`ai_extraction`; `pipeline:stuck-check` алертит
-`backlog_threshold` (`config('ai.pipeline.backlog_threshold')`, default 200 документов одновременно
-в downloaded/prepared/screened) или `no_completions_minutes` (ни одного succeeded-анализа за окно
-при непустом бэклоге).
+1. Выполните `process:status` и откройте work drilldown. Различайте ready/admitted/running,
+   deferred с absolute retry и blocked с ручной причиной.
+2. Проверьте readiness всех четырёх Process daemons и текущие control scopes. Operator pause,
+   handler hold, storage/provider wait и unknown paid outcome имеют разные действия.
+3. Для явной пассивной диагностики используйте `process:diagnostics`. Эта команда может
+   вызвать существующий notification transport, поэтому запускается оператором осознанно.
+   Scheduled `process:health-report` только читает состояния и причины, без уведомлений.
+4. Recovery expired ownership выполняет reconcile daemon. Manual retry использует
+   audited/versioned Process action и новый intent; прямой UPDATE и старые pipeline retry
+   commands отсутствуют.
 
-## Triage
+Horizon содержит default/mail supervisor и шесть Process supervisors. Проверяйте цепочку
+slice < job timeout < supervisor timeout < retry_after < lease через StageQueueMap.
+Default shutdown grace — 370 s в обоих Compose; W/C ограничиваются DB reservations,
+а увеличение числа workers не увеличивает разрешённую outstanding capacity.
 
-1. `make artisan ARGS="horizon:status"` / `make logs:core` (app+horizon+scheduler разом) —
-   supervisor'ы живы и обрабатывают, или встали.
-2. `make prod:doctor` (prod) — health `/up`, наличие `vendor`, статус контейнеров одним отчётом.
-3. Проверить инвариант **job timeout < supervisor timeout < `queue.retry_after`** (D26,
-   `config/horizon.php`/`config/queue.php`): самый длинный supervisor —
-   `supervisor-ai-extraction=360s`; extraction checkpoint'ится на 120s и оставляет 150s на
-   следующий provider call плюс 30s reserve, тогда как `redis.retry_after`=420s. Нарушение этого
-   неравенства — job перезапускается очередью ДО того, как сам успел корректно завершиться (не
-   применимо к D31-механике self-requeue — та завершается успешно ДО истечения таймаута по
-   построению).
-4. Redis durability (D34, только prod): `redis:7-alpine` без `appendonly yes` — crash/OOM теряет
-   очередь с последнего RDB-снапшота (до часа работы пайплайна). Прод-конфиг уже несёт
-   `--appendonly yes --appendfsync everysec --maxmemory-policy noeviction`
-   (`docker-compose.prod.yml`) — если бэклог совпал с рестартом Redis, сверить, что контейнер
-   поднялся именно с этой командой, не дефолтной.
-
-## Fix
-
-- Живые supervisor'ы, просто не успевают — временный масштаб (`config/horizon.php` `maxProcesses`)
-  или дождаться (checkpoint-requeue не теряет прогресс, просто растягивает по времени).
-- Мёртвый worker (упал контейнер, не увидел `SIGTERM`) — `make prod:workers-restart` (`horizon`+
-  `scheduler`), затем `pipeline:retry-failed` для добравших `Failed` за время простоя.
-- `stop_grace_period` меньше самого длинного job'а (Docker default 10s убивает 300+с job) — проверить
-  `HORIZON_STOP_GRACE_PERIOD` (prod-канон 600s, `docker-compose.prod.yml`), НЕ снижать без пересчёта
-  под реальный самый длинный supervisor-таймаут.
-
-## Rollback
-
-Деплой во время затора — следовать канону D26 (`process/deploy.md`): `horizon:pause` перед
-рискованным деплоем (`COLD=1`), `horizon:terminate` (graceful, доделывает текущие jobs) НЕ `down`.
-
-## Escalation
-
-Затор не спадает после рестарта worker'ов И инвариант таймаутов не нарушен — вероятная причина вне
-Horizon (провайдер LLM недоступен/квота — [`gemini-errors.md`](gemini-errors.md)); пороги
-`backlog_threshold`/`no_completions_minutes` не откалиброваны на живом трафике (открытый вопрос
-плана EST-AI) — систематические ложные алерты также эскалируются разработчику для калибровки.
+При неизвестном provider outcome не посылайте запрос повторно. Reconciler должен проверить
+immutable receipt и original reservation; elapsed time не доказывает отсутствие оплаты.
+При сохранённом receipt обработка может продолжиться без нового send. При отсутствии
+проверенного факта нужен отдельный operator decision/replay, сохраняющий финансовую историю.

@@ -11,7 +11,7 @@ final class PlatformAdapterUnavailableException extends RuntimeException
 {
     public static function forPlatform(string $platformCode): self
     {
-        return new self("Для площадки «{$platformCode}» не настроен runtime adapter в config('crawler.platforms').");
+        return new self("Для площадки «{$platformCode}» не настроен runtime adapter в PlatformRegistry definitions.");
     }
 
     public static function forSourceMethod(string $platformCode, SourceMethod $method): self

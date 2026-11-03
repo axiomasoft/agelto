@@ -16,8 +16,6 @@ return [
     'tables' => [
         'prc_events' => 'occurred_at',
         'prc_revisions' => 'detected_at',
-        'prc_fetches' => 'fetched_at',
-        'prc_operation_logs' => 'created_at',
     ],
 
     'interval' => '1 month',
@@ -41,16 +39,7 @@ return [
     | Provider financial facts are permanent and their pinned receipts are not blanket expired.
     |
     */
-    'retention' => [
-        'prc_fetches' => [
-            'months' => (int) env('AI_RETENTION_FETCHES_MONTHS', 6),
-            'keep_table' => false,
-        ],
-        'prc_operation_logs' => [
-            'months' => (int) env('AI_RETENTION_OPERATION_LOGS_MONTHS', 6),
-            'keep_table' => false,
-        ],
-    ],
+    'retention' => [],
 
     /*
     |--------------------------------------------------------------------------
