@@ -1,0 +1,2756 @@
+{
+  "format": "process-core-acceptance-contract/v1",
+  "normative_sources": {
+    "provenance": "Hashes and sections supplied by the P3.19 execution-input; no plan carrier read or mutation.",
+    "architecture": {"sha256": "2314ebf0d76716066791ccc83d076839267316cbdc0a1cccd3f160b568582537", "sections": ["s02", "s03", "s06"]},
+    "verification": {"sha256": "b8d87a8b2ba8800de99fa41f5e0f513881e5be0ba6665395dfee27cdd8cffc96", "sections": ["s01", "s02", "s03", "s04", "s05", "s06", "s07", "s08"]},
+    "execution": {"sha256": "80c0981e976e2f6e00cdd50cc995ecf8155439240cd83999c071509124e3011c", "sections": ["s01", "s02", "s03", "s04", "s05", "s06", "s07", "s08", "s09", "s10", "s11", "schema-staging", "subject-locks", "lane-defaults", "handler-fault-budget"]},
+    "documents-ai": {"sha256": "c69ca4afa0435069fdc983d9e3ccb3dc4eca41f5c42f62def78d85c3e75e2499", "sections": ["s01", "s02", "s03", "s04", "s05", "s06", "s07", "s08", "s09", "s10", "ai-outcomes", "joint-send", "recovery-carrier", "blocked-provider-recovery"]},
+    "platform-transport": {"sha256": "a1e6c8bae0d2aeb3afcc252e027784a19a78208ad978eb9f4600cfd800e33638", "sections": ["s01", "s02", "s03", "s04", "s05", "s06", "s07", "defaults"]},
+    "observability": {"sha256": "80f9373c1e01ec3e6c52ec25caee2ac8416a2e082ca5dfe95888de5ce247478b", "sections": ["s01", "s02", "s03", "s04", "s05", "s06", "s07", "s08"]},
+    "structure": {"sha256": "d992a913fd6465a37e444a5a24c1c7cc91df710f5cf699893558460c461d1dbd", "sections": ["s01", "s02", "s03", "s04", "s05", "s06"]},
+    "implementation-blueprint": {"sha256": "2ae5e90cfdc9a7766b542bafefd64c590b06e23dd5604bb1f879524036fe96a0", "sections": ["bp-amendments", "bp-daemons", "bp-test-map", "bp-pitfalls"]},
+    "legacy-inventory": {"sha256": "460ff06be5b3da8c3ea31fb8f3fa0dfb518724aa82cb1a8e38c7c22dce4e0496", "sections": ["li-purpose", "li-schedule", "li-config", "li-absence"]},
+    "refactoring": {"sha256": "ffdbfc6fb39a02a3e009c7224f97f666fca771f0e75c4c98093b6c4e1f0f25a6", "sections": ["rf-observability-ui", "rf-guards"]},
+    "execution-batches": {"sha256": "0a745b9e4efd1314c373868a59e0334ae9eb6a57322dd2aa4ee90cf041309e08", "sections": ["review-policy", "cutovers"], "decision": "D51 supersedes D50 review routing"},
+    "implementation-constraints": {"sha256": "d7421006795a6d28914a2b4cfab5d8e8c55ef99ea839829372551a9fbb384b1a", "sections": ["p3-3"]}
+  },
+  "scenarios": {
+    "T01": [
+      {
+        "file": "tests/Feature/ProcessCore/Execution/ProcessAuthorityRowsTest.php",
+        "group": "t01",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/ProcessLedgerSchemaTest.php",
+        "group": "t01",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/ProcessLedgerStoreTest.php",
+        "group": "t01",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T01LedgerUniquenessConcurrencyTest.php",
+        "group": "t01",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Unit/ProcessCore/SchemaContractTest.php",
+        "group": "t01",
+        "target": "core-test-regression"
+      }
+    ],
+    "T02": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T18RunLifecycleProducerTest.php",
+        "group": "t02",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/T39AdapterResultsTest.php",
+        "group": "t02",
+        "target": "core-test-regression"
+      }
+    ],
+    "T03": [
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T03WorkBudgetDeliveryTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T09FinalizeFenceTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/AdapterCallerValidationTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/CallerWireTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T04RouteHealthTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/TerminalHttpEvidenceTest.php",
+        "group": "t03",
+        "target": "core-test-regression"
+      }
+    ],
+    "T04": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/AdapterContractBindingTest.php",
+        "group": "t04",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/DetailDispatcherEligibilityTest.php",
+        "group": "t04",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php",
+        "group": "t04",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ProviderOwnershipTest.php",
+        "group": "t04",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+        "group": "t04",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
+        "group": "t04",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T04RouteHealthTest.php",
+        "group": "t04",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T29HealthReducerTest.php",
+        "group": "t04",
+        "target": "core-test-regression"
+      }
+    ],
+    "T05": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T35AdapterAdmissionConcurrencyTest.php",
+        "group": "t05",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/AdapterAdmissionTest.php",
+        "group": "t05",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/AdapterInputBudgetTest.php",
+        "group": "t05",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/AdapterOutcomeTest.php",
+        "group": "t05",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+        "group": "t05",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T05ProbeOwnershipTest.php",
+        "group": "t05",
+        "target": "core-test-regression"
+      }
+    ],
+    "T06": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T35ValidatedPublicationTest.php",
+        "group": "t06",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T35WorkAdapterValidationTest.php",
+        "group": "t06",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T06WorkControlTest.php",
+        "group": "t06",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T09ClaimDeliveryTest.php",
+        "group": "t06",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T09FinalizeFenceTest.php",
+        "group": "t06",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+        "group": "t06",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T05ProbeOwnershipTest.php",
+        "group": "t06",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T29HealthReducerTest.php",
+        "group": "t06",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T09FinalizeFenceConcurrencyTest.php",
+        "group": "t06",
+        "target": "core-test-regression"
+      }
+    ],
+    "T07": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T07ListingHandlerTest.php",
+        "group": "t07",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T12DetailPartsTest.php",
+        "group": "t07",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T27ListingConcurrencyTest.php",
+        "group": "t07",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T27ListingCoverageTest.php",
+        "group": "t07",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T27ListingExtensionTest.php",
+        "group": "t07",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T35ValidatedPublicationTest.php",
+        "group": "t07",
+        "target": "core-test-regression"
+      }
+    ],
+    "T08": [
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T08DaemonReadinessTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T08QueueEnvelopeTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T08SupplementalDaemonWiringTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T08WorkRunnerDeliveryTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46ProjectorDaemonTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T08OutboxClaimConcurrencyTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T31DaemonRedisLossAcceptanceTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T31RecoveryReconcileConcurrencyTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/E2e/T16HorizonPipelineTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T08RelayKillTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T15HorizonCrashTest.php",
+        "group": "t08",
+        "target": "core-test-regression"
+      }
+    ],
+    "T09": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T27ListingConcurrencyTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/P19CorrectionRegressionTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T03WorkBudgetDeliveryTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T06WorkControlTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T08WorkRunnerDeliveryTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T09ClaimDeliveryTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T09FinalizeFenceTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T09InvariantScanTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T17HandlerFaultRecoveryTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T22BlockedProviderRecoveryTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22ScreeningRunIdentityTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T09FinalizeFenceConcurrencyTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T09InvariantScanConcurrencyTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T22AnalysisPlanningConcurrencyTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T31DaemonRedisLossAcceptanceTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T31RecoveryReconcileConcurrencyTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T15HorizonCrashTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T18DatabaseDisconnectTest.php",
+        "group": "t09",
+        "target": "core-test-regression"
+      }
+    ],
+    "T10": [
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T10DocumentAcceptanceTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T10ProducerRecoveryCoverageTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T26PrepareManifestTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AiCutoverTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AnalysisPlanningTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+        "group": "t10",
+        "target": "core-test-regression"
+      }
+    ],
+    "T11": [
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T10ProducerRecoveryCoverageTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/P19CorrectionRegressionTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T11AdmissionFairnessTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T11AdmissionFairnessConcurrencyTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T24PauseClaimConcurrencyTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/E2e/T16HorizonPipelineTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Load/T16LoadTest.php",
+        "group": "t11",
+        "target": "core-test-regression"
+      }
+    ],
+    "T12": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T12DetailPartsTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T12DocumentReferenceTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17RefreshCyclesTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T10DocumentAcceptanceTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T12StorageAccountingTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T12StoredDocumentWriterTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22OutputStorageTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T12StorageCapacityTest.php",
+        "group": "t12",
+        "target": "core-test-regression"
+      }
+    ],
+    "T13": [
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13CanonicalContractTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13GenerationReceiptDecoderTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13PageCoverageTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13WindowStitchTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AiCutoverTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22PageExtractionPublicationTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22PageSourceFinalizationTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22PublicationFinalizationTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22ScreeningFinalizationTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22TaskManifestTest.php",
+        "group": "t13",
+        "target": "core-test-regression"
+      }
+    ],
+    "T14": [
+      {
+        "file": "tests/Feature/ProcessCore/Ai/T14AssetRecoveryGuardTest.php",
+        "group": "t14",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
+        "group": "t14",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
+        "group": "t14",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
+        "group": "t14",
+        "target": "core-test-regression"
+      }
+    ],
+    "T15": [
+      {
+        "file": "tests/Feature/ProcessCore/Ai/T14AssetRecoveryGuardTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T22BlockedProviderRecoveryTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22OutputStorageTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22PageSourceFinalizationTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22PublicationFinalizationTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22ScreeningFinalizationTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T31RecoveryReconcileConcurrencyTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T08RelayKillTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T15HorizonCrashTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T18DatabaseDisconnectTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T22PaidResponseKillTest.php",
+        "group": "t15",
+        "target": "core-test-regression"
+      }
+    ],
+    "T16": [
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+        "group": "t16",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/E2e/T16HorizonPipelineTest.php",
+        "group": "t16",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Load/T16LoadTest.php",
+        "group": "t16",
+        "target": "core-test-regression"
+      }
+    ],
+    "T17": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionDiagnosticTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionEntryPointsTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionProducerTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionRuntimeTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17ItemRetryTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17ListingFactsCutoverTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17ProducerConcurrencyTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17ProfilePreparationTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17RefreshConcurrencyTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17RefreshCyclesTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T18RunLifecycleProducerTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T06WorkControlTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T17HandlerFaultRecoveryTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T17ControlScopeRegressionTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T17OperatorCommandsTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T17ProcessControlCommandTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T17ProcessControlResourcesTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T17ReviewRegressionTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T18RunReducerTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php",
+        "group": "t17",
+        "target": "core-test-regression"
+      }
+    ],
+    "T18": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T12DocumentReferenceTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionEntryPointsTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionProducerTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionRuntimeTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17ItemRetryTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17ProducerConcurrencyTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T18RunLifecycleProducerTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T06WorkControlTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T18PostCommitSinksTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T18RunReducerTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46ProjectionApplyTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46ProjectionConcurrencyTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T18DatabaseDisconnectTest.php",
+        "group": "t18",
+        "target": "core-test-regression"
+      }
+    ],
+    "T19": [
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T18PostCommitSinksTest.php",
+        "group": "t19",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T19TelemetrySanitizerTest.php",
+        "group": "t19",
+        "target": "core-test-regression"
+      }
+    ],
+    "T20": [
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T20ProjectionRetentionTest.php",
+        "group": "t20",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T20RetentionServiceTest.php",
+        "group": "t20",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46ProjectionConcurrencyTest.php",
+        "group": "t20",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46ProjectionRebuildTest.php",
+        "group": "t20",
+        "target": "core-test-regression"
+      }
+    ],
+    "T21": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+        "group": "t21",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
+        "group": "t21",
+        "target": "core-test-regression"
+      }
+    ],
+    "T22": [
+      {
+        "file": "tests/Feature/ProcessCore/Ai/T14AssetRecoveryGuardTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T22BlockedProviderRecoveryTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13GenerationReceiptDecoderTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13PageCoverageTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13WindowStitchTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AiCutoverTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AnalysisPlanningTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AnalysisRecipeTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22CanonicalReadModelTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22GenerationRoutingTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22OutputStorageTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22PageExtractionPublicationTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22PageSourceFinalizationTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22PromptScopePortTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22PublicationFinalizationTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22ScreeningFinalizationTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22ScreeningRunIdentityTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22TaskManifestTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T30BudgetLedgerTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T22AnalysisPlanningConcurrencyTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T31RecoveryReconcileConcurrencyTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Faults/T22PaidResponseKillTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Unit/Architecture/AiCutoverTest.php",
+        "group": "t22",
+        "target": "core-test-regression"
+      }
+    ],
+    "T23": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/T23GcraConcurrencyTest.php",
+        "group": "t23",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T34BoundedFifoDemandTest.php",
+        "group": "t23",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
+        "group": "t23",
+        "target": "core-test-regression"
+      }
+    ],
+    "T24": [
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T09FinalizeFenceConcurrencyTest.php",
+        "group": "t24",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T24PauseClaimConcurrencyTest.php",
+        "group": "t24",
+        "target": "core-test-regression"
+      }
+    ],
+    "T25": [
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T26RealToolsTest.php",
+        "group": "t25",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T25ExecutionContextTest.php",
+        "group": "t25",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+        "group": "t25",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
+        "group": "t25",
+        "target": "core-test-regression"
+      }
+    ],
+    "T26": [
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T26PrepareManifestTest.php",
+        "group": "t26",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Documents/T26RealToolsTest.php",
+        "group": "t26",
+        "target": "core-test-regression"
+      }
+    ],
+    "T27": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T07ListingHandlerTest.php",
+        "group": "t27",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17ListingFactsCutoverTest.php",
+        "group": "t27",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T27ListingConcurrencyTest.php",
+        "group": "t27",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T27ListingCoverageTest.php",
+        "group": "t27",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T27ListingExtensionTest.php",
+        "group": "t27",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/T39AdapterResultsTest.php",
+        "group": "t27",
+        "target": "core-test-regression"
+      }
+    ],
+    "T28": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+        "group": "t28",
+        "target": "core-test-regression"
+      }
+    ],
+    "T29": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/T29HealthReducerTest.php",
+        "group": "t29",
+        "target": "core-test-regression"
+      }
+    ],
+    "T30": [
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php",
+        "group": "t30",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
+        "group": "t30",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
+        "group": "t30",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
+        "group": "t30",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
+        "group": "t30",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T30BudgetLedgerTest.php",
+        "group": "t30",
+        "target": "core-test-regression"
+      }
+    ],
+    "T31": [
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T08QueueEnvelopeTest.php",
+        "group": "t31",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
+        "group": "t31",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T08OutboxClaimConcurrencyTest.php",
+        "group": "t31",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T31DaemonRedisLossAcceptanceTest.php",
+        "group": "t31",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T31RecoveryReconcileConcurrencyTest.php",
+        "group": "t31",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/E2e/T31MultiProcessPipelineE2eTest.php",
+        "group": "t31",
+        "target": "core-test-regression"
+      }
+    ],
+    "T32": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php",
+        "group": "t32",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php",
+        "group": "t32",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T32RawRetentionConcurrencyTest.php",
+        "group": "t32",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Unit/Architecture/LegacyOwnershipAbsenceTest.php",
+        "group": "t32",
+        "target": "core-test-regression"
+      }
+    ],
+    "T33": [
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php",
+        "group": "t33",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Unit/Architecture/PlatformsDomainLayoutTest.php",
+        "group": "t33",
+        "group_mode": "case_prefix",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Unit/Architecture/PlatformsBaselineOriginTest.php",
+        "group": "t33",
+        "group_mode": "case_prefix",
+        "target": "core-test-regression"
+      }
+    ],
+    "T34": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/T23GcraConcurrencyTest.php",
+        "group": "t34",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T34BoundedFifoDemandTest.php",
+        "group": "t34",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/E2e/T16HorizonPipelineTest.php",
+        "group": "t34",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Load/T16LoadTest.php",
+        "group": "t34",
+        "target": "core-test-regression"
+      }
+    ],
+    "T35": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionDiagnosticTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17AcquisitionRuntimeTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T35AdapterAdmissionConcurrencyTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T35ValidatedPublicationTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T35WorkAdapterValidationTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22GenerationRoutingTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/AdapterOutcomeTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/AdapterSendFenceTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T23GcraConcurrencyTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
+        "group": "t35",
+        "target": "core-test-regression"
+      }
+    ],
+    "T36": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/T36StatusCapacityQuotaTest.php",
+        "group": "t36",
+        "target": "core-test-regression"
+      }
+    ],
+    "T37": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/NetworkReconcileCategoryTest.php",
+        "group": "t37",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T37LegacyBridgeSchemaTest.php",
+        "group": "t37",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T37NetworkDemandRecoveryTest.php",
+        "group": "t37",
+        "target": "core-test-regression"
+      }
+    ],
+    "T38": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17ProfilePreparationTest.php",
+        "group": "t38",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/PlatformFactoryTest.php",
+        "group": "t38",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/PlatformUiExtensionTest.php",
+        "group": "t38",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/T38PlatformBootValidationTest.php",
+        "group": "t38",
+        "target": "core-test-regression"
+      }
+    ],
+    "T39": [
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/T39AdapterContractKitTest.php",
+        "group": "t39",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/T39AdapterResultsTest.php",
+        "group": "t39",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/T39FetchOutcomeBridgeTest.php",
+        "group": "t39",
+        "target": "core-test-regression"
+      }
+    ],
+    "T40": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17RefreshConcurrencyTest.php",
+        "group": "t40",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T40UnknownMappingConcurrencyTest.php",
+        "group": "t40",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T40UnmappedStatusTest.php",
+        "group": "t40",
+        "target": "core-test-regression"
+      }
+    ],
+    "T41": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T41IdentityPerPlatformTest.php",
+        "group": "t41",
+        "target": "core-test-regression"
+      }
+    ],
+    "T42": [
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T17ListingFactsCutoverTest.php",
+        "group": "t42",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T27ListingExtensionTest.php",
+        "group": "t42",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Acquisition/T42ExtensionSingleWriterTest.php",
+        "group": "t42",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php",
+        "group": "t42",
+        "target": "core-test-regression"
+      }
+    ],
+    "T43": [
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/T43EisPolicyTest.php",
+        "group": "t43",
+        "target": "core-test-regression"
+      }
+    ],
+    "T44": [
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22AiCutoverTest.php",
+        "group": "t44",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Llm/T22CanonicalReadModelTest.php",
+        "group": "t44",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Unit/Architecture/AiCutoverTest.php",
+        "group": "t44",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Unit/Architecture/ProcessCoreArchTest.php",
+        "group": "t44",
+        "target": "core-test-regression"
+      }
+    ],
+    "T45": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/T45SourceCatalogSyncTest.php",
+        "group": "t45",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/T45SourceCatalogSyncTest.php",
+        "group": "t45",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php",
+        "group": "t45",
+        "target": "core-test-regression"
+      }
+    ],
+    "T46": [
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T20ProjectionRetentionTest.php",
+        "group": "t46",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
+        "group": "t46",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46ProjectionApplyTest.php",
+        "group": "t46",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46ProjectionConcurrencyTest.php",
+        "group": "t46",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46ProjectionRebuildTest.php",
+        "group": "t46",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Observability/T46ProjectorDaemonTest.php",
+        "group": "t46",
+        "target": "core-test-regression"
+      }
+    ],
+    "T47": [
+      {
+        "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
+        "group": "t47",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
+        "group": "t47",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/T47ResponseDecoderTest.php",
+        "group": "t47",
+        "target": "core-test-regression"
+      }
+    ],
+    "T48": [
+      {
+        "file": "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php",
+        "group": "t48",
+        "target": "core-test-regression"
+      },
+      {
+        "file": "tests/Unit/Architecture/PlatformUiBoundaryTest.php",
+        "group": "t48",
+        "target": "core-test-regression"
+      }
+    ]
+  },
+  "requirements": {
+    "R01": [
+      "T32",
+      "T33",
+      "T44"
+    ],
+    "R02": [
+      "T01"
+    ],
+    "R03": [
+      "T08",
+      "T09",
+      "T15",
+      "T31"
+    ],
+    "R04": [
+      "T02",
+      "T07",
+      "T33",
+      "T38",
+      "T39",
+      "T41",
+      "T42"
+    ],
+    "R05": [
+      "T03",
+      "T04",
+      "T05",
+      "T23",
+      "T25"
+    ],
+    "R06": [
+      "T13",
+      "T38",
+      "T43",
+      "T44",
+      "T47"
+    ],
+    "R07": [
+      "T07",
+      "T13",
+      "T26",
+      "T39",
+      "T47"
+    ],
+    "R08": [
+      "T10",
+      "T12"
+    ],
+    "R09": [
+      "T11",
+      "T16",
+      "T34"
+    ],
+    "R10": [
+      "T07",
+      "T27",
+      "T40",
+      "T41",
+      "T42"
+    ],
+    "R11": [
+      "T13",
+      "T14",
+      "T22",
+      "T30",
+      "T35"
+    ],
+    "R12": [
+      "T17",
+      "T18",
+      "T19",
+      "T20",
+      "T46"
+    ],
+    "R13": {
+      "boundary": "Planner completeness belongs to coordinator; no product-test verdict"
+    },
+    "R14": {
+      "boundary": "D51 independent final review P3.23 pending; P3.20-P3.22 skipped"
+    },
+    "R15": {
+      "boundary": "No deployment approval; live crawling and paid holdout not executed"
+    }
+  },
+  "accepted_contracts": {
+    "D9 / expiry-free finalize": [
+      "T09",
+      "T24"
+    ],
+    "D10 / FIFO GCRA": [
+      "T23",
+      "T34",
+      "T35",
+      "T36",
+      "T37"
+    ],
+    "D11 / full timeout fit": [
+      "T25",
+      "T28"
+    ],
+    "D12 / breakers": [
+      "T04",
+      "T05",
+      "T29"
+    ],
+    "D13 / cooperative heartbeat": [
+      "T25",
+      "T26"
+    ],
+    "D14 / bounded OCR": [
+      "T26"
+    ],
+    "D16 / delivery-only daemons": [
+      "T08",
+      "T15",
+      "T31"
+    ],
+    "D17 / listing completeness": [
+      "T07",
+      "T27"
+    ],
+    "D18 / scenario transfer": [
+      "T32",
+      "T33"
+    ],
+    "D19 / platform isolation": [
+      "T02",
+      "T33",
+      "T44"
+    ],
+    "G1 / unknown spend safe default": [
+      "T15",
+      "T22",
+      "T30"
+    ],
+    "G2 / conservative source completeness": [
+      "T07",
+      "T27"
+    ],
+    "G3 / no cross-platform merge": [
+      "T41"
+    ],
+    "G5 / real app FKs, no package extraction": [
+      "T01",
+      "T44"
+    ],
+    "R04/R07 / neutral identity and extension": [
+      "T41",
+      "T42"
+    ],
+    "R06 / status carrier and remap": [
+      "T40"
+    ],
+    "R09 / guards with negative fixtures": [
+      "T32",
+      "T33",
+      "T44"
+    ],
+    "R11/R15 / typed source targets and policies": [
+      "T38",
+      "T43",
+      "T45"
+    ],
+    "R13 / replayable bounded metrics": [
+      "T18",
+      "T20",
+      "T46"
+    ],
+    "R16 / durable controls": [
+      "T17",
+      "T32"
+    ],
+    "R17 / optional platform UI": [
+      "T48"
+    ],
+    "SOL-I1/I2/I3 / joint send": [
+      "T15",
+      "T22",
+      "T35"
+    ],
+    "SOL-I4 / recovery carrier": [
+      "T15",
+      "T22"
+    ],
+    "GROK-01/02 / three recovery boundaries": [
+      "T15",
+      "T22"
+    ],
+    "GROK-03 / full capacity prefix": [
+      "T09",
+      "T12"
+    ],
+    "EXG-01 / alternate route unknown independence": [
+      "T03",
+      "T04"
+    ],
+    "EXG-02 / required and observes": [
+      "T17",
+      "T18"
+    ],
+    "EXG-03 / sole network owner": [
+      "T04",
+      "T21",
+      "T32"
+    ],
+    "EXG-04 / three cohorts": [
+      "T11"
+    ],
+    "EXR-01 / sidebar after schema cutover": [
+      "T17",
+      "T32",
+      "T48"
+    ],
+    "EXR-02 / local handler fault budget": [
+      "T09",
+      "T17"
+    ],
+    "EXR-03 / periodic blocked provider recovery": [
+      "T15",
+      "T22"
+    ]
+  },
+  "provenance": "P3.19 current adopted execution-input contracts only. Historical Opus alternatives are not executable authority; this index does not invent dispositions absent from the supplied sections.",
+  "rig_reuse": {
+    "runtime": {
+      "sha256": "f9163e71a45977d467834af96138ccb82fa868b52af511c2bbb7d7d570217417",
+      "ast_sha256": "dcfdd1f824abf513b7157355a6625d469a3a82750ac6700a97b2bbe64bee3e4a"
+    },
+    "install": {
+      "sha256": "f670bdf0b9036c440520e9d4e78e435c8ca9d2c478c0f1f05f0d322b5a5264de",
+      "ast_sha256": "5dd17e4a898512e47880105a691e3e35cf5d4645345f70384f5bf224269d9abc"
+    }
+  },
+  "install_independent_test_inputs": [
+    "docker/tests/process-core/load_report.py",
+    "docker/tests/process-core/test_load_report.py",
+    "tests/Fixtures/ProcessCore/manifest.json",
+    "tests/Fixtures/ProcessCore/p318-acceptance-v1.json",
+    "tests/Support/ProcessCore/AcceptanceRuntime.php",
+    "tests/Support/ProcessCore/AcceptanceScenario.php",
+    "tests/Support/ProcessCore/PipelineHorizonRuntime.php",
+    "tests/Support/ProcessCore/artisan.php"
+  ],
+  "permanent_role_tests": [
+    "tests/Unit/Architecture/PlatformsDomainLayoutTest.php",
+    "tests/Unit/Architecture/PlatformsBaselineOriginTest.php"
+  ],
+  "quality_limits": {
+    "paid_holdout": "not_executed",
+    "live_crawling": "not_executed",
+    "browser_automation": "not_proven",
+    "production_throughput": "not_measured",
+    "deployment_approval": false,
+    "model_semantic_accuracy": "not_measured",
+    "auto_publish_quality_approved": false,
+    "gold_corpus": "legacy labels not canonical verified gold; human-verified 60 independent documents including >=10 per primary format still required",
+    "coverage_hard_rules": [
+      "zero silently accepted missing required ranges",
+      "zero duplicate published rows",
+      "all published numeric fields have provenance and validation"
+    ],
+    "runtime_php": "8.5.8 measured; 8.4 not measured",
+    "source_watermark": "day precision; second lag Unknown",
+    "external_effects": "exactly-once HTTP/billing not guaranteed; unknown spend is retained",
+    "retention": "canonical raw/acquisition evidence pinned; automatic reclamation not established",
+    "review_route": "D51: final Argon Hi review-and-fix P3.23; P3.20-P3.22 skipped"
+  },
+  "test_cases": {
+    "tests/Feature/ProcessCore/Acquisition/T07ListingHandlerTest.php": {
+      "count": 3,
+      "names_sha256": "650ef87846cad36540a45da796ebd5428e7cc03c468425a2891e7b2b107d254f"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T12DetailPartsTest.php": {
+      "count": 10,
+      "names_sha256": "00ada451ed4e32a55ddad17819ef0826f61c71b39d0e7136b2ca0648c51985d1"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T12DocumentReferenceTest.php": {
+      "count": 2,
+      "names_sha256": "480088207c369a3a7dcfc0a63abee57816510a0f96c8b64883884dfd324ad601"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17AcquisitionDiagnosticTest.php": {
+      "count": 8,
+      "names_sha256": "8fb2c2adfdd3dbe2d7ce4cc562a7e52cb36c618823755bffeb79421610b53b2a"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17AcquisitionEntryPointsTest.php": {
+      "count": 4,
+      "names_sha256": "ee63badfa45b30a6e39607905820f37e09a9f368bcb40d616f310bb5196a0906"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17AcquisitionProducerTest.php": {
+      "count": 9,
+      "names_sha256": "e19b223423b97088f443f7efede9aae69446b66ee2861623436a81f9e5fa1056"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17AcquisitionRuntimeTest.php": {
+      "count": 1,
+      "names_sha256": "64e1a0a721b5bcfceadefedd97703e326aa9047bfab0708f43bdba93ef3ca923"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17ItemRetryTest.php": {
+      "count": 1,
+      "names_sha256": "f0d8132ab05f215fde8ec085f08196b86ba9b44bcf66ba06cb5f4b8d5b95dd9b"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17ListingFactsCutoverTest.php": {
+      "count": 7,
+      "names_sha256": "baa17ebf764fbc521ded2238a696fba3789e645299a7d14a3998aba0970ed7bd"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17ProducerConcurrencyTest.php": {
+      "count": 1,
+      "names_sha256": "d2ae99ca3d90c6b2a97168b2b5b4a95234bdb6249905c72a978fc2b8eb96ab70"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17ProfilePreparationTest.php": {
+      "count": 3,
+      "names_sha256": "6fc8ce9599423846ab75cea9d0b97ccd8af3d0929920bbf26de06f23daa9caf0"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17RefreshConcurrencyTest.php": {
+      "count": 3,
+      "names_sha256": "eb6e60866284556b8b0fcaf1bafa3b8312a3fcdf6f6d3eb249de94d3a96f40ab"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T17RefreshCyclesTest.php": {
+      "count": 3,
+      "names_sha256": "46dc4b46ba5a204c5f1c341202fd9b143aba7fc9019b0ccc9901f5b4b1c7fe78"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T18RunLifecycleProducerTest.php": {
+      "count": 6,
+      "names_sha256": "935f319ab4fcbf455ae9915a3ff673d9ac877629942141822d9cea7a79a30991"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T27ListingConcurrencyTest.php": {
+      "count": 1,
+      "names_sha256": "2cc55ec2cf44559dbdf252523db2e46dc3401c240ac30a776a7b6e01a39ced01"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T27ListingCoverageTest.php": {
+      "count": 11,
+      "names_sha256": "26b5b9216bbe3195296a4a6e4219e06c0c08c53cdbb80fb301c5c28138468434"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T27ListingExtensionTest.php": {
+      "count": 2,
+      "names_sha256": "8179cb4d0571b66b5749fb832d3200d752739e71ea6b11f394a3d1e068b2f9f8"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T35AdapterAdmissionConcurrencyTest.php": {
+      "count": 1,
+      "names_sha256": "d1027f135a165de708690ece9f743766f7a6c14ade8918527d68aee651f3ef79"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T35ValidatedPublicationTest.php": {
+      "count": 4,
+      "names_sha256": "3641a38d18a0b560395e83ec6d08cdd81c325eebec8f4803515ed536ffdc4324"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T35WorkAdapterValidationTest.php": {
+      "count": 10,
+      "names_sha256": "2e60ae2b0a1c2ae8548a421766b15a1cafb3b7309a3f989221996783d581a40e"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T40UnknownMappingConcurrencyTest.php": {
+      "count": 1,
+      "names_sha256": "b01db293e91c0be7f26d00188ba26beb6a42c8dac957bc7e1747498ec60f684f"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T40UnmappedStatusTest.php": {
+      "count": 2,
+      "names_sha256": "9853a7fa20ddb68ffc1b2729cd0952cf764da2445eb224af5e1e216d54a0586d"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T41IdentityPerPlatformTest.php": {
+      "count": 10,
+      "names_sha256": "6e9c8a177d460d1a62ecaf9e8e71aa1997f13564637a2fc1872315ace2cd55ae"
+    },
+    "tests/Feature/ProcessCore/Acquisition/T42ExtensionSingleWriterTest.php": {
+      "count": 4,
+      "names_sha256": "39f3018ed514d4dff6f46630f46509164c60c0d85b3edecd57c6e5464ddea7f9"
+    },
+    "tests/Feature/ProcessCore/Ai/T14AssetRecoveryGuardTest.php": {
+      "count": 2,
+      "names_sha256": "358636229d7d42c84db52ff811d2460b3070f06dfc85262adfe0795293cb457a"
+    },
+    "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php": {
+      "count": 22,
+      "names_sha256": "dfe54410a16884ef3c75bda29d8f8e370966e5fb88409991961fe203417e7dee"
+    },
+    "tests/Feature/ProcessCore/Documents/T10DocumentAcceptanceTest.php": {
+      "count": 9,
+      "names_sha256": "357f43b1850bde5bb7c42aead3a5a02df33e9930a4fa787a8f6c2cc57211b4ce"
+    },
+    "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php": {
+      "count": 6,
+      "names_sha256": "54a3458ef80896c70e79d0de5e36a2cf3c201372e42006b9a23544e739d058b5"
+    },
+    "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php": {
+      "count": 3,
+      "names_sha256": "242a0e7cf320e3bb5fa2cd83ee6dd909cfece33bf2a0f41f3c4fd8240d644065"
+    },
+    "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php": {
+      "count": 3,
+      "names_sha256": "3e0e57d85250633c73b8fea81fc43e1822f3625f1d33681c128be060b232054b"
+    },
+    "tests/Feature/ProcessCore/Documents/T10ProducerRecoveryCoverageTest.php": {
+      "count": 3,
+      "names_sha256": "0c73dab54dcf5daf89845cc284716127063b2c6f01df97d926030ac92c477b22"
+    },
+    "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php": {
+      "count": 2,
+      "names_sha256": "7551e0fa66dcdc9b5bca2de9c63c82637e2332b516081d56b468e685dd750a99"
+    },
+    "tests/Feature/ProcessCore/Documents/T12StorageAccountingTest.php": {
+      "count": 1,
+      "names_sha256": "dcd313a645a4b159bcb0e4bae84b2cc8f882603cfbcc21ee5684d5e2c6a19b4e"
+    },
+    "tests/Feature/ProcessCore/Documents/T12StoredDocumentWriterTest.php": {
+      "count": 6,
+      "names_sha256": "cafbaeca19cea15460057889505d33105b406b67d716d5b6dca5ed24adf394fc"
+    },
+    "tests/Feature/ProcessCore/Documents/T26PrepareManifestTest.php": {
+      "count": 14,
+      "names_sha256": "18d0b86004d46bb6a708551f23ff75683396df6522eaa69618b6401f68484e89"
+    },
+    "tests/Feature/ProcessCore/Documents/T26RealToolsTest.php": {
+      "count": 5,
+      "names_sha256": "4066c2f3e981d527e03c6ad151f0fa69469f83d1f653a8b498881aa3019de42c"
+    },
+    "tests/Feature/ProcessCore/Execution/P19CorrectionRegressionTest.php": {
+      "count": 18,
+      "names_sha256": "1531195fbf01510623a08e5d71952d5201679682d0e052d3306f0c835233f784"
+    },
+    "tests/Feature/ProcessCore/Execution/ProcessAuthorityRowsTest.php": {
+      "count": 27,
+      "names_sha256": "37beb74626cf3f35f6d9f0358d0236390cda65dfc0271db6455bf18add0962cc"
+    },
+    "tests/Feature/ProcessCore/Execution/ProcessLedgerSchemaTest.php": {
+      "count": 41,
+      "names_sha256": "54ed6ead31fea02f6936665a9cad1e64d1b0aea317830129d60cbf59f0005eb6"
+    },
+    "tests/Feature/ProcessCore/Execution/ProcessLedgerStoreTest.php": {
+      "count": 11,
+      "names_sha256": "163efda187d845d68e09175e1ee47e7f5d1456a222ce53bb4372d3ded2f76fb4"
+    },
+    "tests/Feature/ProcessCore/Execution/T03WorkBudgetDeliveryTest.php": {
+      "count": 2,
+      "names_sha256": "f8916be85fefed569101181a8c658e3c4756e62c423a4bbac8d7d41899d13482"
+    },
+    "tests/Feature/ProcessCore/Execution/T06WorkControlTest.php": {
+      "count": 5,
+      "names_sha256": "9be26921745015aa93286084675ae1ed81f63efc8e2d398f1af30db1f2840ec0"
+    },
+    "tests/Feature/ProcessCore/Execution/T08DaemonReadinessTest.php": {
+      "count": 12,
+      "names_sha256": "1d395c0636c57b1c88190b7ecfa556b4b40c2d8f2c661cf806178a24ba6af1c8"
+    },
+    "tests/Feature/ProcessCore/Execution/T08QueueEnvelopeTest.php": {
+      "count": 14,
+      "names_sha256": "122f15d320e064740e743b7ac5e0dde2c26d315675f39a3e146311a89da352ad"
+    },
+    "tests/Feature/ProcessCore/Execution/T08SupplementalDaemonWiringTest.php": {
+      "count": 2,
+      "names_sha256": "11010ed702788aca6e622ee13f9309a4d333bdb08bd185e3da00bca7a227977d"
+    },
+    "tests/Feature/ProcessCore/Execution/T08WorkRunnerDeliveryTest.php": {
+      "count": 10,
+      "names_sha256": "6778ce40f9fba31ee329fe94436aa0b1eaf33d205b326f7afbc138d50439a346"
+    },
+    "tests/Feature/ProcessCore/Execution/T09ClaimDeliveryTest.php": {
+      "count": 8,
+      "names_sha256": "532196e9bb60ec59fc15c45919759de8cff4cd2bd3e180ea1152195dee80454b"
+    },
+    "tests/Feature/ProcessCore/Execution/T09FinalizeFenceTest.php": {
+      "count": 11,
+      "names_sha256": "1e93e84bcbd8e3de5ac82884b28ced1d7ebd91f46ec3c9185b28e23fae433115"
+    },
+    "tests/Feature/ProcessCore/Execution/T09InvariantScanTest.php": {
+      "count": 24,
+      "names_sha256": "6bce52766630cdc283a2488d2968cdb4aaae882357eeebf58eaf6132ae390d9c"
+    },
+    "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php": {
+      "count": 7,
+      "names_sha256": "4d7b9e1691b553aa6dd9e2732fd90f44519625a26f724a14fba434f3be469cfa"
+    },
+    "tests/Feature/ProcessCore/Execution/T11AdmissionFairnessTest.php": {
+      "count": 13,
+      "names_sha256": "929090d2107b65df4853dd0f6a7801b593f7c8e91435e22cffb33a6245ffe79f"
+    },
+    "tests/Feature/ProcessCore/Execution/T17HandlerFaultRecoveryTest.php": {
+      "count": 9,
+      "names_sha256": "7884a43f3709a2230132796f5200c6cf4d827cff48bf8d02456f14825297fc20"
+    },
+    "tests/Feature/ProcessCore/Execution/T22BlockedProviderRecoveryTest.php": {
+      "count": 22,
+      "names_sha256": "9e6279bf20fa34f2a3cfd6983e4eac3ee18b7e5c3b843c66544aa4d49abb953c"
+    },
+    "tests/Feature/ProcessCore/Execution/T25ExecutionContextTest.php": {
+      "count": 7,
+      "names_sha256": "5d2e027ec356ba4032d27c25aa6f8bd3f0dfa69b96803044aebd89794386d9f9"
+    },
+    "tests/Feature/ProcessCore/Llm/T13CanonicalContractTest.php": {
+      "count": 39,
+      "names_sha256": "367b7895fa0b2a249b84a6f68db7cd0e6997551398787bbbd7bd5c8408814d5d"
+    },
+    "tests/Feature/ProcessCore/Llm/T13GenerationReceiptDecoderTest.php": {
+      "count": 5,
+      "names_sha256": "601026d638ee488dca8964d0e79985221014ae45a52304c82d795e949f35235e"
+    },
+    "tests/Feature/ProcessCore/Llm/T13PageCoverageTest.php": {
+      "count": 5,
+      "names_sha256": "e31d3cf99c8887c4adc3ec0191f4504267f8dcf9cec49ce23002b1ac19dcf110"
+    },
+    "tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php": {
+      "count": 15,
+      "names_sha256": "42a318caa16cc328a7af8e9f49c53486b7e865f91543c35401ce95193c26bf82"
+    },
+    "tests/Feature/ProcessCore/Llm/T13WindowStitchTest.php": {
+      "count": 9,
+      "names_sha256": "6c29840ea56a836ea1947132066022c9dc774d9f96f6775a3c478c8ede7a74c3"
+    },
+    "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php": {
+      "count": 24,
+      "names_sha256": "b47ad907e701c75365a14a5892f249097da97d19e225959f62f31329ce1e7641"
+    },
+    "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php": {
+      "count": 4,
+      "names_sha256": "3de38caa59566f99f556ec95dd10622906a93657065f3528be48b1d0fef16b4d"
+    },
+    "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php": {
+      "count": 1,
+      "names_sha256": "0972f7165164e56bb037c9e0e55c8d972d574e19a657404c4cf4c47ce7d4190e"
+    },
+    "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php": {
+      "count": 4,
+      "names_sha256": "83d7785adc83e317ff2c05399febbac39a601c0e1d7815aad1d795d02785e690"
+    },
+    "tests/Feature/ProcessCore/Llm/T22AiCutoverTest.php": {
+      "count": 7,
+      "names_sha256": "cc091127c4ee4cbf087672432b3b4507163f10af8a44fa4bb7cc883a8e3840a0"
+    },
+    "tests/Feature/ProcessCore/Llm/T22AnalysisPlanningTest.php": {
+      "count": 4,
+      "names_sha256": "db50c732865e8598e289852c649964f7240be0b50b7de0d22ebfde69142cfb14"
+    },
+    "tests/Feature/ProcessCore/Llm/T22AnalysisRecipeTest.php": {
+      "count": 3,
+      "names_sha256": "6fc4f94b232c8612d18b5c9707d1a8dbb51f92dd3e60653fa97c5e90466c303c"
+    },
+    "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php": {
+      "count": 7,
+      "names_sha256": "ef361b9fee813180f1c1d588b11dc2b269413c3bddf4566130de35c4b36bcb42"
+    },
+    "tests/Feature/ProcessCore/Llm/T22CanonicalReadModelTest.php": {
+      "count": 1,
+      "names_sha256": "e8d5e5354efa0f8c75377b5e207c8b13981756d71f57ced9b5f1762eb1059063"
+    },
+    "tests/Feature/ProcessCore/Llm/T22CanonicalUiTest.php": {
+      "count": 7,
+      "names_sha256": "10666c38af0c32964f6967af2c9adedb88cbb01a2da6c13cd96cdee7ab0fe480"
+    },
+    "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php": {
+      "count": 22,
+      "names_sha256": "e65bca7fc651c6e62bf0e00d5e0ccbdecf08902e7e6f334696d7c3cfce74a80b"
+    },
+    "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php": {
+      "count": 23,
+      "names_sha256": "b62a7c719dd314afed7c1d69f0797c9d7df46ed7162b5971ca1396c9b83993ec"
+    },
+    "tests/Feature/ProcessCore/Llm/T22GenerationRoutingTest.php": {
+      "count": 16,
+      "names_sha256": "8e1394f51090d330b8fc57ae33ef03cf75e52a1ea111b0969ab3ecc364a1b6ac"
+    },
+    "tests/Feature/ProcessCore/Llm/T22OutputStorageTest.php": {
+      "count": 7,
+      "names_sha256": "737bad8598a65148c28512ace02a9ab85542e416b069c9765cff22fc571fe4bc"
+    },
+    "tests/Feature/ProcessCore/Llm/T22PageExtractionPublicationTest.php": {
+      "count": 1,
+      "names_sha256": "ec7fe69c9c08444ae0e34a3c0bde11adee06268bb9828d0e2f096e537e4c7c0b"
+    },
+    "tests/Feature/ProcessCore/Llm/T22PageSourceFinalizationTest.php": {
+      "count": 4,
+      "names_sha256": "f4fad3b8b8f836fec8001bbe464c448bf5fea0b72bf82a98ecc4e3bb780f966a"
+    },
+    "tests/Feature/ProcessCore/Llm/T22PromptScopePortTest.php": {
+      "count": 1,
+      "names_sha256": "1377c3598179cd43baec3d3752b0103b41d0c88196743ecbe93ae43f7f861293"
+    },
+    "tests/Feature/ProcessCore/Llm/T22PublicationFinalizationTest.php": {
+      "count": 12,
+      "names_sha256": "dfc1a0543b7c4991d6db25481a3d6b9b3c0fdc073507b863975d9e3a5fcbfa03"
+    },
+    "tests/Feature/ProcessCore/Llm/T22ScreeningFinalizationTest.php": {
+      "count": 9,
+      "names_sha256": "b642c6be41711e95d156b42de2adc4fa7b82fc48f5b07cec5ed98549b9a7df64"
+    },
+    "tests/Feature/ProcessCore/Llm/T22ScreeningRunIdentityTest.php": {
+      "count": 1,
+      "names_sha256": "a34515d593469ddc25e8686f5317a7031bc901ee7c415cbdd9e89c5b463eb91e"
+    },
+    "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php": {
+      "count": 4,
+      "names_sha256": "9ea36ce3a123a84fcbaedcdd6b08ec0cbb86238615d65a7f95a70c4c12b24240"
+    },
+    "tests/Feature/ProcessCore/Llm/T22TaskManifestTest.php": {
+      "count": 14,
+      "names_sha256": "5ea2ddf1e355acd4c03904b20ef88cb40e98590e7aa2cfaf091e7b36dedd0c9e"
+    },
+    "tests/Feature/ProcessCore/Llm/T30BudgetLedgerTest.php": {
+      "count": 8,
+      "names_sha256": "952ce5dea0f3c6440fd139e8b7ccbb09873f918df1530928427dc016aebc9035"
+    },
+    "tests/Feature/ProcessCore/Network/AdapterAdmissionTest.php": {
+      "count": 2,
+      "names_sha256": "0875bf9ee6709a27eedf719c40a9c6ee6dd3e983555f1b0b49739ad15aae0bf3"
+    },
+    "tests/Feature/ProcessCore/Network/AdapterCallerValidationTest.php": {
+      "count": 6,
+      "names_sha256": "9ff81254d531ce5397966e46fe80872d329cdb9c867b0d97e2efcedddd9fa340"
+    },
+    "tests/Feature/ProcessCore/Network/AdapterContractBindingTest.php": {
+      "count": 3,
+      "names_sha256": "006a07a1c8df2ba7f2c4295099b6dd632fee7438d02e1d2e6a8a789a27a38d1b"
+    },
+    "tests/Feature/ProcessCore/Network/AdapterInputBudgetTest.php": {
+      "count": 2,
+      "names_sha256": "b8cb744b8220293302ec67b51ee170dcceb4b3ca498be8778ccc66cefc6360b1"
+    },
+    "tests/Feature/ProcessCore/Network/AdapterOutcomeTest.php": {
+      "count": 9,
+      "names_sha256": "12fb1c44d44a73f64e397a1358427fec3c15e00d4a895da92d2a39a65f11b9dc"
+    },
+    "tests/Feature/ProcessCore/Network/AdapterSendFenceTest.php": {
+      "count": 3,
+      "names_sha256": "fefc1562010c3ba6f5a99f698a24622cd3476594180f3c772a22cbbd7c85ce77"
+    },
+    "tests/Feature/ProcessCore/Network/CallerWireTest.php": {
+      "count": 5,
+      "names_sha256": "615b8bc1fcb3c074761364d8072a76555fce2624c3c6e6d971fc9fcaf6978cf0"
+    },
+    "tests/Feature/ProcessCore/Network/DetailDispatcherEligibilityTest.php": {
+      "count": 3,
+      "names_sha256": "cf3f5c4ae98845ab8bdca78c1640f256217e1cc64d66a84657545efa9c3f0285"
+    },
+    "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php": {
+      "count": 11,
+      "names_sha256": "f8e6820cde4694af24b72c24f3fdb82faed3fc3aaf79e695bd475c63afbd1ad0"
+    },
+    "tests/Feature/ProcessCore/Network/NetworkReconcileCategoryTest.php": {
+      "count": 1,
+      "names_sha256": "b513a3f542562fa0665f82dadaa07ef2a7a05b5c72208afbd1f79772cb358d2a"
+    },
+    "tests/Feature/ProcessCore/Network/ProviderOwnershipTest.php": {
+      "count": 8,
+      "names_sha256": "ed4e9cdc8ce399d61741506a8e3ce2196dcb0badbf7bc4cf8af790b703edfbeb"
+    },
+    "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php": {
+      "count": 12,
+      "names_sha256": "6c9db285694d935e1636c49fed5a3e3529dc88c15393e74dc86f2355d21288dc"
+    },
+    "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php": {
+      "count": 13,
+      "names_sha256": "2ff8ef0055f8e77d4f4482fbace5bcc7db0370e0ec8f372a2b1fffcc2d8f9a35"
+    },
+    "tests/Feature/ProcessCore/Network/T04RouteHealthTest.php": {
+      "count": 8,
+      "names_sha256": "354f977f6e3ada7a1215edd55bb1b20356bb4da48ab8efa338fdca6662677449"
+    },
+    "tests/Feature/ProcessCore/Network/T05ProbeOwnershipTest.php": {
+      "count": 5,
+      "names_sha256": "5bdc82ed569ad0cb64cc8b6d26eda20e66fcde3436d906aeb5a198f33375b19b"
+    },
+    "tests/Feature/ProcessCore/Network/T23GcraConcurrencyTest.php": {
+      "count": 2,
+      "names_sha256": "764a492f5127f2110a6bfd9a91fbfeff99c9aef7b3840ce714e9cca4d4c65e0e"
+    },
+    "tests/Feature/ProcessCore/Network/T29HealthReducerTest.php": {
+      "count": 23,
+      "names_sha256": "e4b111ea0570e2f89ccd495f6c2058d96d45b2833d13985cd0152e31870a5c7f"
+    },
+    "tests/Feature/ProcessCore/Network/T34BoundedFifoDemandTest.php": {
+      "count": 4,
+      "names_sha256": "a5a5cc4a867f637a5dae2ba7b34a26293f36df436cf0d31492f7539e0bf3b124"
+    },
+    "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php": {
+      "count": 26,
+      "names_sha256": "53399d836cc77f6a702211934f1909d8ef70d4c9b2eddbcbb3fb91e13d9dac81"
+    },
+    "tests/Feature/ProcessCore/Network/T36StatusCapacityQuotaTest.php": {
+      "count": 3,
+      "names_sha256": "6617fe8bd6bfefc2da58ebcb994fb48096fd9de2ee302043769b63d7b76bc06f"
+    },
+    "tests/Feature/ProcessCore/Network/T37LegacyBridgeSchemaTest.php": {
+      "count": 4,
+      "names_sha256": "ea9468a16e119572f4b047e4b9d75115a6c41fd8aae9fad5209ee842547eff04"
+    },
+    "tests/Feature/ProcessCore/Network/T37NetworkDemandRecoveryTest.php": {
+      "count": 6,
+      "names_sha256": "3341acd2d1c4c026e58dd4d24b7a0ca78df62c6e75626b365f8d6364c24bc7db"
+    },
+    "tests/Feature/ProcessCore/Network/T45SourceCatalogSyncTest.php": {
+      "count": 4,
+      "names_sha256": "c37524e26d983ca1ebf2138163c7016a6599407a6f5e756412d7e9b0a0904b58"
+    },
+    "tests/Feature/ProcessCore/Network/T47ResponseDecoderTest.php": {
+      "count": 4,
+      "names_sha256": "abdd25c85fa9b6ba8b3d7ace806327104aaaa69de5e73e273f15f211c3656826"
+    },
+    "tests/Feature/ProcessCore/Network/TerminalHttpEvidenceTest.php": {
+      "count": 2,
+      "names_sha256": "773e5cb60a9c82f0543b55f1cfde00f844a20237762e522e57ba30302e63271a"
+    },
+    "tests/Feature/ProcessCore/Observability/T17ControlScopeRegressionTest.php": {
+      "count": 33,
+      "names_sha256": "3cbc8004978d59b4681d75875399c15af703cfda4fd6c3277fffd59db3162757"
+    },
+    "tests/Feature/ProcessCore/Observability/T17OperatorCommandsTest.php": {
+      "count": 5,
+      "names_sha256": "eb1ea7bdd56a6ba4f76de629b1d5c9762d0fc7cb7e31e9b0feef614f8d9a0069"
+    },
+    "tests/Feature/ProcessCore/Observability/T17ProcessControlCommandTest.php": {
+      "count": 1,
+      "names_sha256": "5e9cfa436b4c0e76c3613c243bb6c80e25734e34a5162c6297bfa042241aac5b"
+    },
+    "tests/Feature/ProcessCore/Observability/T17ProcessControlResourcesTest.php": {
+      "count": 7,
+      "names_sha256": "a61f48bd1a429c07db08b4804fc0982b901c011fa0c14badc721834ccb309819"
+    },
+    "tests/Feature/ProcessCore/Observability/T17ReviewRegressionTest.php": {
+      "count": 40,
+      "names_sha256": "07c6406957ae3c53eef1ec4decaea62a28f3aa4e9499294930a6f7243f84c7a6"
+    },
+    "tests/Feature/ProcessCore/Observability/T18PostCommitSinksTest.php": {
+      "count": 9,
+      "names_sha256": "3f6746fdf79ff7a67616bdc681bcba013ba5af8462e5efc1564ad72596716c61"
+    },
+    "tests/Feature/ProcessCore/Observability/T18RunReducerTest.php": {
+      "count": 25,
+      "names_sha256": "38c1acb67b63f6c326c556340843eb2322b803b4cdcfd5fca484b981b35330d4"
+    },
+    "tests/Feature/ProcessCore/Observability/T19TelemetrySanitizerTest.php": {
+      "count": 14,
+      "names_sha256": "ad789ad09765c483d9bc908af265d3a90946b1f4da45d9ad37f3b2670d0e5715"
+    },
+    "tests/Feature/ProcessCore/Observability/T20ProjectionRetentionTest.php": {
+      "count": 4,
+      "names_sha256": "615586ca0420b567a8191d45a3edf951a0ff7fd11f9d0461ccac0cbb650851e9"
+    },
+    "tests/Feature/ProcessCore/Observability/T20RetentionServiceTest.php": {
+      "count": 11,
+      "names_sha256": "861d0877f14f2e98b595a9aecdea0c7c0dc446aa12e153e13f07dd5c9c3f1762"
+    },
+    "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php": {
+      "count": 2,
+      "names_sha256": "64ba3608fa0bd40bdc306898352bd5f06ec675fbfe4bfcc6dffc9f548923e5e0"
+    },
+    "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php": {
+      "count": 7,
+      "names_sha256": "4abdf9c6041ff7e721aab5070ee1351e03ec268c327192146985d922a9e474ee"
+    },
+    "tests/Feature/ProcessCore/Observability/T46ProjectionApplyTest.php": {
+      "count": 13,
+      "names_sha256": "82e873c3edeac2cec6cbec3d7ff47243f951c3e5dbaffaccc5669a00a8ead320"
+    },
+    "tests/Feature/ProcessCore/Observability/T46ProjectionConcurrencyTest.php": {
+      "count": 19,
+      "names_sha256": "eadc9f7aa606740c78725439efaecb8e1bd2ec8d148ee971a610825cc0ce7f48"
+    },
+    "tests/Feature/ProcessCore/Observability/T46ProjectionRebuildTest.php": {
+      "count": 13,
+      "names_sha256": "5a1f1788da41dbbb85e366db7ff8e89cda2276e49dbdc99707536701d5277850"
+    },
+    "tests/Feature/ProcessCore/Observability/T46ProjectorDaemonTest.php": {
+      "count": 8,
+      "names_sha256": "2910e6d994185ac4ed8948c8eee1bd2d4382bc0977eb839ad8c9331f2000d5f0"
+    },
+    "tests/Feature/ProcessCore/Platforms/PlatformFactoryTest.php": {
+      "count": 1,
+      "names_sha256": "6fa47962265b81f9e07b6a8c9e7bf11ea4e31a6c747318f08d88ebc933294c73"
+    },
+    "tests/Feature/ProcessCore/Platforms/PlatformUiExtensionTest.php": {
+      "count": 2,
+      "names_sha256": "42821a37664bf682f70e27132ff065f318763e91ee0bbe888e80dda95ac33480"
+    },
+    "tests/Feature/ProcessCore/Platforms/T38PlatformBootValidationTest.php": {
+      "count": 11,
+      "names_sha256": "c17dee05c7db9bc789ae482ff81ae42d3a5870cbd37a7fbcb2368a053a8a453d"
+    },
+    "tests/Feature/ProcessCore/Platforms/T39AdapterContractKitTest.php": {
+      "count": 6,
+      "names_sha256": "7510ff9417f68a219d6226bdfe77083fef8d64f391373f8ee7032e551213665b"
+    },
+    "tests/Feature/ProcessCore/Platforms/T39AdapterResultsTest.php": {
+      "count": 14,
+      "names_sha256": "05ff8b4ef148b362b42f592bee1ec6049076c90b93d66127bdab59e38789d091"
+    },
+    "tests/Feature/ProcessCore/Platforms/T39FetchOutcomeBridgeTest.php": {
+      "count": 16,
+      "names_sha256": "504e22270b70ae2fdc1d0f52849e05b8e35d5fd8d73ef430655e73a4757ef189"
+    },
+    "tests/Feature/ProcessCore/Platforms/T43EisPolicyTest.php": {
+      "count": 24,
+      "names_sha256": "14cc243770bfb9ac1b39d1da9ccfc2816269bc741f5853a12c92e42102f88e41"
+    },
+    "tests/Feature/ProcessCore/Platforms/T45SourceCatalogSyncTest.php": {
+      "count": 3,
+      "names_sha256": "8a7bc8b4e5a2120f7aa6286ea82aac880408bbbb63c75446eba219a8bffe48e1"
+    },
+    "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php": {
+      "count": 3,
+      "names_sha256": "addebd6f46b8d4a5c7b1c05afac9d33535ca3ab246debf47d0663ca3a762a903"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T01LedgerUniquenessConcurrencyTest.php": {
+      "count": 5,
+      "names_sha256": "fdd86e83500c381d12127edc00f042b77c0de958754864f6da9369456e18efbb"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T08OutboxClaimConcurrencyTest.php": {
+      "count": 2,
+      "names_sha256": "a9e737a752cdbf436b980fcc977660aada48337c15323ca833e9d64e2642d111"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T09FinalizeFenceConcurrencyTest.php": {
+      "count": 7,
+      "names_sha256": "6719732a4e0268cdfbb37d27fee1170c3f5728155b664e3ec44aea2a61ba673f"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T09InvariantScanConcurrencyTest.php": {
+      "count": 3,
+      "names_sha256": "bb8b7c872415cbee94db04114659306601218124154b4a3bb91f4b5fbb90e0d5"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T11AdmissionFairnessConcurrencyTest.php": {
+      "count": 2,
+      "names_sha256": "c9e5826d1b32d918e985db82851a485cf9656efe31abd486ddcc07270c0bb3f2"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php": {
+      "count": 4,
+      "names_sha256": "aff3dffa45cc5a063c8e9592b47256c111fafe0b62b97f9501032bf350285549"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php": {
+      "count": 10,
+      "names_sha256": "d7f8e63d09bdf6f930cd86f64a3f47f607e5081d6924051085171dfe22024744"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T12StorageCapacityTest.php": {
+      "count": 1,
+      "names_sha256": "476597f31554078a5827e29ff59763dbeb19d1126f5349c2c615677051fb4028"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T22AnalysisPlanningConcurrencyTest.php": {
+      "count": 3,
+      "names_sha256": "a6a9c0d4d6769dd92f65d4a455268f657e063b6ced3244017c3e0078243f5530"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T24PauseClaimConcurrencyTest.php": {
+      "count": 2,
+      "names_sha256": "26b09c89cf82eb335a95cc94604cd2bbb9c62885324098a22a68507e443dd6ee"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T31DaemonRedisLossAcceptanceTest.php": {
+      "count": 2,
+      "names_sha256": "19d30fde5e0644736dc28f6bceb85f6f55a3c94c35451361578477fb07e7ced0"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T31RecoveryReconcileConcurrencyTest.php": {
+      "count": 3,
+      "names_sha256": "347282d37f6fdfddfaec92d038dd93d098ce80a3a2bfb5780cb7dec9970bab11"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T32RawRetentionConcurrencyTest.php": {
+      "count": 2,
+      "names_sha256": "67175718ceb9e212208a2c2028b03f593e572332298d10982e4e93e08921d5f3"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php": {
+      "count": 18,
+      "names_sha256": "6d2c11ecb6691b63803ac77bbd92c579125c5879461586674419e25b30696803"
+    },
+    "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php": {
+      "count": 1,
+      "names_sha256": "afe074c4f8c1a9d7bade499496b72eeb03de4b438e72dada2f80437e04220fba"
+    },
+    "tests/Integration/ProcessCore/E2e/T16HorizonPipelineTest.php": {
+      "count": 1,
+      "names_sha256": "587f7f7af62ea2faad08b594ce275864c28c08abbc7129414e50c46169e340db"
+    },
+    "tests/Integration/ProcessCore/E2e/T31MultiProcessPipelineE2eTest.php": {
+      "count": 1,
+      "names_sha256": "4d2486b2988e44e330a0a4cdedf48f7bcbf711e36865017a74700a0c828f4863"
+    },
+    "tests/Integration/ProcessCore/Faults/T08RelayKillTest.php": {
+      "count": 2,
+      "names_sha256": "a93cbd736561ab10dfc102e2371d926c07fa4ccb6b9dade7e3ad77208dd149af"
+    },
+    "tests/Integration/ProcessCore/Faults/T15HorizonCrashTest.php": {
+      "count": 9,
+      "names_sha256": "63d15bd6710d9177d6544ff849febba4d7fa8fcbad997144ede042b7f5535ecc"
+    },
+    "tests/Integration/ProcessCore/Faults/T18DatabaseDisconnectTest.php": {
+      "count": 1,
+      "names_sha256": "103013ec906c11897ea8bc736bc8ef333b1457b5242e54c93d9df42174881ec7"
+    },
+    "tests/Integration/ProcessCore/Faults/T22PaidResponseKillTest.php": {
+      "count": 2,
+      "names_sha256": "09d81931093eb627bb6b93d144ff9596eb0123dcee030e216f59477013817b7b"
+    },
+    "tests/Integration/ProcessCore/Load/T16LoadTest.php": {
+      "count": 1,
+      "names_sha256": "2fa6d80c570bb52f4d6999313e77e8c8e3df36f5855c02abb27eff17bee6dabb"
+    },
+    "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php": {
+      "count": 8,
+      "names_sha256": "da69d2153cb90c68f3bbaa2b559308e49d71765bef9aeb7e19fe8f63a8ad94d0"
+    },
+    "tests/Unit/Architecture/AiCutoverTest.php": {
+      "count": 2,
+      "names_sha256": "f5180384e27a4f054b1e48f6132b2bb497e112a80451fc6f3b32b03864f43336"
+    },
+    "tests/Unit/Architecture/LegacyOwnershipAbsenceTest.php": {
+      "count": 3,
+      "names_sha256": "3d720482009b25589a8d572682cddb21fb0a13ed50c40d94a55eae180cf4e97c"
+    },
+    "tests/Unit/Architecture/PlatformUiBoundaryTest.php": {
+      "count": 2,
+      "names_sha256": "73657a382bcbf035702869ee1262084f571b23916efb1d9424d40f35c2dcf0c2"
+    },
+    "tests/Unit/Architecture/PlatformsBaselineOriginTest.php": {
+      "count": 2,
+      "names_sha256": "068a6bbde7033d0dad22ae3738a8c8d4be2de6c2ca89ca5ec0c61e9713943a40"
+    },
+    "tests/Unit/Architecture/PlatformsDomainLayoutTest.php": {
+      "count": 11,
+      "names_sha256": "fa3c2c2b9347f54275b48b9ff81eda7d2426e7f20782a58912cf353cbdde4148"
+    },
+    "tests/Unit/Architecture/ProcessCoreArchTest.php": {
+      "count": 5,
+      "names_sha256": "77f52efb179957c8108d01107665d46d5afec3221baae4b4448c9e9dc8c9f449"
+    },
+    "tests/Unit/ProcessCore/SchemaContractTest.php": {
+      "count": 10,
+      "names_sha256": "befd652743f71174338db44b58b052836ad65b866679f0c0eac9a6fe81b12ae5"
+    }
+  },
+  "gate_cases": {
+    "V2": {
+      "tests/Feature/ProcessCore/E2e/T17ProcessPipelineE2eTest.php": {
+        "count": 3,
+        "names_sha256": "6356f7019c4194c3851e234ecaa122d53be3467f6f140307a04331808552c5e2"
+      },
+      "tests/Feature/ProcessCore/E2e/T48OperatorNavigationE2eTest.php": {
+        "count": 3,
+        "names_sha256": "a3b4de34878b8c95e32947cb584f8be730cbe5cba439655f281ee7d76e5218c0"
+      },
+      "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php": {
+        "count": 2,
+        "names_sha256": "64ba3608fa0bd40bdc306898352bd5f06ec675fbfe4bfcc6dffc9f548923e5e0"
+      },
+      "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php": {
+        "count": 7,
+        "names_sha256": "4abdf9c6041ff7e721aab5070ee1351e03ec268c327192146985d922a9e474ee"
+      },
+      "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php": {
+        "count": 3,
+        "names_sha256": "addebd6f46b8d4a5c7b1c05afac9d33535ca3ab246debf47d0663ca3a762a903"
+      },
+      "tests/Integration/ProcessCore/E2e/T16HorizonPipelineTest.php": {
+        "count": 1,
+        "names_sha256": "587f7f7af62ea2faad08b594ce275864c28c08abbc7129414e50c46169e340db"
+      },
+      "tests/Integration/ProcessCore/E2e/T31MultiProcessPipelineE2eTest.php": {
+        "count": 1,
+        "names_sha256": "4d2486b2988e44e330a0a4cdedf48f7bcbf711e36865017a74700a0c828f4863"
+      }
+    },
+    "V3": {
+      "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php": {
+        "count": 3,
+        "names_sha256": "3e0e57d85250633c73b8fea81fc43e1822f3625f1d33681c128be060b232054b"
+      },
+      "tests/Feature/ProcessCore/Execution/T22BlockedProviderRecoveryTest.php": {
+        "count": 22,
+        "names_sha256": "9e6279bf20fa34f2a3cfd6983e4eac3ee18b7e5c3b843c66544aa4d49abb953c"
+      },
+      "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php": {
+        "count": 4,
+        "names_sha256": "3de38caa59566f99f556ec95dd10622906a93657065f3528be48b1d0fef16b4d"
+      },
+      "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php": {
+        "count": 1,
+        "names_sha256": "0972f7165164e56bb037c9e0e55c8d972d574e19a657404c4cf4c47ce7d4190e"
+      },
+      "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php": {
+        "count": 26,
+        "names_sha256": "53399d836cc77f6a702211934f1909d8ef70d4c9b2eddbcbb3fb91e13d9dac81"
+      },
+      "tests/Feature/ProcessCore/Network/T37NetworkDemandRecoveryTest.php": {
+        "count": 6,
+        "names_sha256": "3341acd2d1c4c026e58dd4d24b7a0ca78df62c6e75626b365f8d6364c24bc7db"
+      },
+      "tests/Feature/ProcessCore/Observability/T18PostCommitSinksTest.php": {
+        "count": 9,
+        "names_sha256": "3f6746fdf79ff7a67616bdc681bcba013ba5af8462e5efc1564ad72596716c61"
+      },
+      "tests/Feature/ProcessCore/Observability/T20ProjectionRetentionTest.php": {
+        "count": 4,
+        "names_sha256": "615586ca0420b567a8191d45a3edf951a0ff7fd11f9d0461ccac0cbb650851e9"
+      },
+      "tests/Integration/ProcessCore/Concurrency/T09FinalizeFenceConcurrencyTest.php": {
+        "count": 7,
+        "names_sha256": "6719732a4e0268cdfbb37d27fee1170c3f5728155b664e3ec44aea2a61ba673f"
+      },
+      "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php": {
+        "count": 10,
+        "names_sha256": "d7f8e63d09bdf6f930cd86f64a3f47f607e5081d6924051085171dfe22024744"
+      },
+      "tests/Integration/ProcessCore/Concurrency/T31DaemonRedisLossAcceptanceTest.php": {
+        "count": 2,
+        "names_sha256": "19d30fde5e0644736dc28f6bceb85f6f55a3c94c35451361578477fb07e7ced0"
+      },
+      "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php": {
+        "count": 18,
+        "names_sha256": "6d2c11ecb6691b63803ac77bbd92c579125c5879461586674419e25b30696803"
+      },
+      "tests/Integration/ProcessCore/Faults/T08RelayKillTest.php": {
+        "count": 2,
+        "names_sha256": "a93cbd736561ab10dfc102e2371d926c07fa4ccb6b9dade7e3ad77208dd149af"
+      },
+      "tests/Integration/ProcessCore/Faults/T15HorizonCrashTest.php": {
+        "count": 9,
+        "names_sha256": "63d15bd6710d9177d6544ff849febba4d7fa8fcbad997144ede042b7f5535ecc"
+      },
+      "tests/Integration/ProcessCore/Faults/T18DatabaseDisconnectTest.php": {
+        "count": 1,
+        "names_sha256": "103013ec906c11897ea8bc736bc8ef333b1457b5242e54c93d9df42174881ec7"
+      },
+      "tests/Integration/ProcessCore/Faults/T22PaidResponseKillTest.php": {
+        "count": 2,
+        "names_sha256": "09d81931093eb627bb6b93d144ff9596eb0123dcee030e216f59477013817b7b"
+      }
+    },
+    "V4": {
+      "tests/Feature/ProcessCore/Network/T34BoundedFifoDemandTest.php": {
+        "count": 4,
+        "names_sha256": "a5a5cc4a867f637a5dae2ba7b34a26293f36df436cf0d31492f7539e0bf3b124"
+      },
+      "tests/Integration/ProcessCore/Concurrency/T11AdmissionFairnessConcurrencyTest.php": {
+        "count": 2,
+        "names_sha256": "c9e5826d1b32d918e985db82851a485cf9656efe31abd486ddcc07270c0bb3f2"
+      },
+      "tests/Integration/ProcessCore/Load/T16LoadTest.php": {
+        "count": 1,
+        "names_sha256": "2fa6d80c570bb52f4d6999313e77e8c8e3df36f5855c02abb27eff17bee6dabb"
+      }
+    },
+    "V5": {
+      "tests/Feature/ProcessCore/Network/T34BoundedFifoDemandTest.php": {
+        "count": 4,
+        "names_sha256": "a5a5cc4a867f637a5dae2ba7b34a26293f36df436cf0d31492f7539e0bf3b124"
+      },
+      "tests/Integration/ProcessCore/Concurrency/T11AdmissionFairnessConcurrencyTest.php": {
+        "count": 2,
+        "names_sha256": "c9e5826d1b32d918e985db82851a485cf9656efe31abd486ddcc07270c0bb3f2"
+      },
+      "tests/Integration/ProcessCore/Load/T16LoadTest.php": {
+        "count": 1,
+        "names_sha256": "2fa6d80c570bb52f4d6999313e77e8c8e3df36f5855c02abb27eff17bee6dabb"
+      }
+    }
+  },
+  "fixture_reuse": {
+    "sha256": "61f2b0463acc5c12f454c227c48e17155f906ee41353b71c7cb371a953fdf058",
+    "without_report_contract_sha256": "0a439b219eb4eeefd66c5fce13408de26d3df050eb8ac7861dd2755c95f5b3fe"
+  }
+}

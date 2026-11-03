@@ -3,6 +3,22 @@
   "captured_before": "P4.1 harness; no namespace move",
   "contract_fixtures": [
     {
+      "adapter_version": "acceptance-report/1",
+      "captured_at": "2026-11-03",
+      "coverage": "evidence_inventory_not_new_runtime_or_model_quality_proof",
+      "expected": {
+        "assessment": "missing_stale_or_nonpassing_scenario_evidence_rejected",
+        "schema_version": 1
+      },
+      "id": "p319-acceptance-report",
+      "kind": "acceptance_report_contract",
+      "path": "tests/Fixtures/ProcessCore/acceptance-report-v1.json",
+      "platform": null,
+      "provenance": "P3.19 adopted execution-input requirements and T01-T48 group/file inventory. Case-name digests captured from the executed P3.18 JUnit corpus and independently checked against the named source files; no runtime/model results generated here.",
+      "scenario_ids": ["T01", "T08", "T09", "T11", "T15", "T16", "T22", "T30", "T32", "T33", "T34", "T35", "T44", "T46", "T48"],
+      "sha256": "e9cc93686f6b58cbbc5d2df8902d916ac16abb7e844edd878ad2baaff7c1c5f7"
+    },
+    {
       "adapter_version": "acceptance-runtime/1",
       "captured_at": "2026-11-03",
       "coverage": "real_horizon_pg_redis_local_http_fault_load_contract",

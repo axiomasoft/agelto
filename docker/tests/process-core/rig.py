@@ -715,26 +715,15 @@ def quality(folder):
 
 
 def collect(folder):
-    # The latest run of each command decides: an older green run never outlives a newer red one.
-    latest = {}
-    for path in sorted(REPORTS.glob("*/result.json")):
-        result = json.loads(path.read_text())
-        latest[result["command"]] = (result, path.parent)
-    evidence = {name: result for name, (result, _) in latest.items() if result.get("exit") == 0}
-    locations = {name: folder for name, (result, folder) in latest.items() if result.get("exit") == 0}
-    required = {"core-test-up", "core-test-env", "core-test-install", "core-test-unit",
-                "core-test-regression", "core-quality"}
-    require(required.issubset(evidence), "missing evidence: " + str(sorted(required - set(evidence))))
+    spec = importlib.util.spec_from_file_location("core_acceptance_report", Path(__file__).with_name("acceptance_report.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
     current = json.loads((folder / "inputs.json").read_text())
-    for name in required:
-        require(evidence[name]["candidate"]["input_tree_sha256"] == digest(current), "stale evidence: " + name)
-    comparison_path = locations["core-test-regression"] / "scenario-comparison.json"
-    require(comparison_path.is_file(), "missing regression scenario-comparison.json")
-    require(hashlib.sha256(comparison_path.read_bytes()).hexdigest()
-            == evidence["core-test-regression"].get("tests", {}).get("scenario_comparison_sha256"),
-            "regression scenario comparison hash mismatch")
-    write_json(folder / "summary.json", {"verified": sorted(required), "future": "suite_not_implemented",
-                                        "evidence": evidence})
+    candidate = {"head": run(["git", "rev-parse", "HEAD"]).stdout.strip(),
+                 "input_tree_sha256": digest(current)}
+    manifest = module.build(ROOT, REPORTS, folder, validate_load_report, candidate)
+    write_json(folder / "summary.json", manifest)
+    require(not manifest["errors"], "missing/stale acceptance evidence; see summary.json")
 
 
 def main(command):

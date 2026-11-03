@@ -732,34 +732,19 @@ with rig.project_lock():
                              rig.hashlib.sha256((folder / "scenario-comparison.json").read_bytes()).hexdigest())
 
     def test_report_requires_candidate_bound_comparison_artifact_and_its_hash(self):
-        with tempfile.TemporaryDirectory() as temp, patch.object(rig, "REPORTS", Path(temp)):
-            folder = Path(temp) / "report"
-            folder.mkdir()
-            inputs = {"product.php": "hash"}
-            (folder / "inputs.json").write_text(json.dumps(inputs))
-            commands = ["core-test-up", "core-test-env", "core-test-install", "core-test-unit",
-                        "core-test-regression", "core-quality"]
-            for command in commands:
-                gate = Path(temp) / command
-                gate.mkdir()
-                (gate / "result.json").write_text(json.dumps({"command": command, "exit": 0,
-                    "candidate": {"input_tree_sha256": rig.digest(inputs)}}))
-            with self.assertRaisesRegex(rig.GuardError, "missing regression scenario-comparison"):
-                rig.collect(folder)
-            regression = Path(temp) / "core-test-regression"
-            comparison = regression / "scenario-comparison.json"
-            comparison.write_text('{"preserved_cases": 2014}')
-            with self.assertRaisesRegex(rig.GuardError, "comparison hash mismatch"):
-                rig.collect(folder)
-            result_path = regression / "result.json"
-            result = json.loads(result_path.read_text())
-            result["tests"] = {"scenario_comparison_sha256": rig.hashlib.sha256(comparison.read_bytes()).hexdigest()}
-            result_path.write_text(json.dumps(result))
-            rig.collect(folder)
-            self.assertTrue((folder / "summary.json").is_file())
-            comparison.write_text('{"preserved_cases": 0}')
-            with self.assertRaisesRegex(rig.GuardError, "comparison hash mismatch"):
-                rig.collect(folder)
+        from test_acceptance_report import EvidenceFixture
+        with tempfile.TemporaryDirectory() as temp:
+            evidence = EvidenceFixture(temp)
+            with patch.object(rig, "ROOT", evidence.root), patch.object(rig, "REPORTS", evidence.reports), \
+                 patch.object(rig, "run", return_value=subprocess.CompletedProcess([], 0, "a" * 40, "")), \
+                 patch.object(rig, "validate_load_report", return_value={"verdict": "pass"}):
+                rig.collect(evidence.folder)
+                self.assertEqual("ready_for_owner_review", json.loads((evidence.folder / "summary.json").read_text())["verdict"])
+                (evidence.reports / "V6/scenario-comparison.json").write_text('{"preserved_cases": 0}')
+                with self.assertRaisesRegex(rig.GuardError, "missing/stale acceptance evidence"):
+                    rig.collect(evidence.folder)
+                summary = json.loads((evidence.folder / "summary.json").read_text())
+                self.assertTrue(any(e["id"] == "V6" and "comparison hash mismatch" in e["error"] for e in summary["errors"]))
 
 
 if __name__ == "__main__":

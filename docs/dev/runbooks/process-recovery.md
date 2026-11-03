@@ -33,6 +33,32 @@ legacy tables, clearing old counters or importing old environment switches is no
    Periodic blocked-provider reconciliation may restore a pinned receipt without another
    send. Operator replay requires a separate audited intent and financial reservation.
 
+For Redis loss, restore the isolated/runtime Redis service and observe admitted delivery
+regeneration through relay and reconciliation. Keep the same PostgreSQL database and work IDs;
+do not allocate replacement intents to hide a missing delivery. A live running lease is not
+republished. An expired lease becomes recoverable; the fenced takeover determines ownership.
+Compare the old/new generation, attempts, transitions and accepted publication count.
+
+For PostgreSQL loss, restore connectivity before new effects. Inspect daemon readiness and
+durable state after reconnect; a technical timeout cannot establish whether a transaction
+committed. Identify the existing work/event/request IDs before retrying. For object-store or
+converter interruption, preserve staging/storage reservations until verified bytes or verified
+process-stop/cleanup proof exists. Never free capacity solely because a work lease expired.
+
+For `provider_result_unknown`, inspect the exact logical request, physical call, purpose,
+request epoch, original budget period and pinned recovery envelope. Do not infer zero cost from
+elapsed time, a daily billing aggregate or missing logs. Reconciliation runs a separate periodic
+blocked-provider scan even with no Redis event. A successful generation receipt resumes parsing
+of that immutable receipt with zero new sends/reservations; asset/error receipts follow their
+own typed branch. Cancellation permits financial history and settlement, with zero business
+publication. No verified receipt means retained reserve and an explicit operator decision.
+
+For projector lag, read authoritative work/transition state and pending consumer receipts.
+The bounded `process:metrics-rebuild <projector>` command changes only projection generations.
+It refuses incomplete retained history. A stuck maintenance token requires the versioned
+`process:metrics-rebuild-resume <projector> --expected-token=...` recovery action; never clear
+someone else's token or rerun paid business work to repair a dashboard.
+
 The schedule contains only daily `partitions:maintain`, the minute readiness heartbeat
 callback, minute `process:schedule-acquisition`, hourly `process:retention` and five-minute
 `process:health-report`. The health report reads Process authority and sends no external
@@ -54,3 +80,8 @@ and a clean isolated install. Roll back consumers, schema and configuration toge
 coordinator runs `make core-test-install` to prove two identical full resets, including
 pg_partman, and runs full acceptance. Never reset a dev/shared database. Targeted test files
 do not prove the later fault/load package or authorize deployment.
+
+Preserve the report directory, inputs/JUnit, named boundary, work/request IDs and immutable
+artifact hashes before a rollback. Compare the final candidate manifest after any fix. Changes
+to runtime, schema, fixtures or tests invalidate affected evidence; documentation/report-only
+reuse must satisfy the explicit collector checks. See [quality limits](process-quality-limits.md).

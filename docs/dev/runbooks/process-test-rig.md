@@ -474,3 +474,31 @@ Directory, CLI options, absent paths и path escape отвергаются. Targ
 test workers и сохраняет JUnit, список actual scenarios и fingerprint inputs. Для повторного
 старта workers используйте обычный guarded runtime lifecycle. Domain/quality acceptance
 этим target не заменяется; executor не запускает полную suite из withheld acceptance.
+
+## Final evidence collection
+
+After the coordinator has run or verified the affected acceptance checks, run from repository
+root:
+
+```bash
+make core-test-report
+```
+
+This reads existing reports and writes `reports/<run-id>/summary.json` under the testing root.
+It performs no reset, queue delivery, provider call or load test. A nonzero result preserves a
+manifest with the missing/stale gate and scenario IDs. Correct the evidence or the owning
+implementation; do not rename an old result, drop a case or turn a paid/live gap into pass.
+The latest result is authoritative separately for each load WIDTH.
+
+The [acceptance contract](../process-core-acceptance.md) describes the exact reuse checks and
+T01–T48 traceability. Documentation and the enumerated report-only inputs can differ; the
+collector records them. Actual runtime/config/fixture/test changes require affected new proof.
+The final candidate identity includes both Git HEAD and working-input hash. After committing,
+the coordinator collects again to bind the packet to the resulting commit. Keep the original
+reports and `inputs.json` with the manifest; their referenced hashes make the handoff auditable.
+
+The report checker has deterministic negative examples in
+`docker/tests/process-core/test_acceptance_report.py`; run that one Python test file for a
+collector change. The harness wrapper is covered by `test_rig.py`. Neither test file is a real
+load/recovery result. [Quality limits](process-quality-limits.md) remain explicit even when all
+deterministic reliability gates are green. D51 assigns the independent final review to P3.23.

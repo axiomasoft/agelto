@@ -6,6 +6,88 @@ status: living
 
 # Process core: acceptance evidence
 
+## P3.19 — candidate-bound manifest и передача
+
+Итоговый машинный пакет создаёт `make core-test-report` в
+`storage/app/testing/process-core/reports/<run-id>/summary.json`. Команда читает evidence,
+сохраняет ошибки и возвращает nonzero при missing/stale/nonpassing scenario. Она не запускает
+тесты. `ready_for_owner_review` означает готовность evidence к независимому рассмотрению;
+это не разрешение deployment или автоматического бизнес-использования результатов AI.
+
+Кандидат задаётся парой `candidate.head` + `candidate.input_tree_sha256`; `inputs.json`
+включает фактические рабочие bytes, в том числе untracked product files. Staged snapshot
+не подменяет рабочее дерево. Координатор коммитит финальный кандидат и повторно собирает
+report на этом commit. Hash самого будущего commit не встраивается в его собственные файлы.
+Старые отчёты сохраняют свои исходные commit/input hashes и не переименовываются в новые.
+
+| Validation | Источник доказательства |
+| --- | --- |
+| V1 | `core-test-install`: два полных reset; повторно вычисленные schema/seed/catalog hashes, включая partman |
+| V2 | `core-test-e2e`: real Horizon/Redis/local HTTP/OCR/fake Gemini и operator navigation/RBAC |
+| V3 | `core-test-faults`: exact named cases, JUnit и machine scenario list; same-work crash/recovery |
+| V4 | `core-test-load WIDTH=10`: отдельный полный soak и joint admission/FIFO cases |
+| V5 | `core-test-load WIDTH=20`: отдельный полный soak и joint admission/FIFO cases |
+| V6 | `core-test-regression`: полный no-TIA JUnit, D18 comparison без missing/nonpassing/duplicate cases |
+| V7 | `core-quality`: все пять сохранённых subchecks, без baseline/ignore послаблений |
+| V8 | Collector: вся матрица T01–T48, exact case-name digests, source/config/fixture/recipe hashes и artifact hashes |
+| V9 | Фактическое отсутствие temporary baseline и исполненные permanent exact-role/negative tests из V6 |
+
+Это карта evidence, а не заявление о новом запуске V1–V9 исполнителем P3.19. Latest result
+выбирается отдельно по `(command, WIDTH)`; новый red запрещает reuse прежнего green той же
+проверки. JUnit сверяется с machine list, проверяются ненулевая выборка/assertions и отсутствие
+skip. Case-name/count digests фиксируют фактические dataset cases, включая named fault cases.
+`scenario_traceability` перечисляет все исполненные имена для каждого binding, файл, group,
+target и source SHA-256. Для прежних T33 architecture files selector — явный case prefix T33;
+добавление фиктивного group к старому evidence не требуется.
+
+Полный regression исполняет также owning domain cases; он служит текущим доказательством
+T01–T48 вместо механического повторения старых отдельных domain targets с прежними inputs.
+Группа/наличие файла сами по себе не дают pass. Карты `requirements` и `accepted_contracts`
+связывают R01–R15, принятые D/G/R/SOL/GROK/EXG/EXR контракты с этими assertions.
+Исходные нормативные sections и hashes переданы execution-input; исторические альтернативы
+Opus не являются вторым каноном. R13 (Planner) и R14 (независимый review) имеют явные границы,
+без вымышленного product-test pass. По D51 final review-and-fix — P3.23; P3.20–P3.22 skipped.
+
+Reuse разрешён только после сравнения всех влияющих inputs. Изменения документации и
+точно перечисленных report-only файлов записываются отдельно. Для `rig.py` проверяется
+известный upstream SHA и неизменный AST всех execution частей за исключением collector.
+Для install отдельно проверяется неизменный AST guard/reset/snapshot функций и identities;
+изменения app/config/schema/seeds/dependencies не исключаются. Добавление report contract
+в fixture manifest допускается только при точном совпадении остальных entries и hash нового
+contract. Любой иной runtime/fixture/test input drift требует нового affected evidence.
+Это не общий allowlist для изменения suites или ослабления assertions.
+
+Сохранённые coordinator runs P3.18 на input tree
+`44b4191e8db6201f85c5fd8d47802b5e2e2ff39adb0eddb350d401d67dcd16a8`:
+
+| Target | Report ID | Измеренный результат |
+| --- | --- | --- |
+| e2e | `20261103T134605.139292Z-1401266` | 20 cases, exit 0 |
+| faults | `20261103T133713.318309Z-1401265` | 126 cases, exit 0 |
+| W10 | `20261103T134821.458368Z-1453156` | 1000 docs, 1847.716 s, 6 faults, 3000 sends/receipts |
+| W20 | `20261103T142012.931421Z-1479592` | 1000 docs, 1882.592 s, 6 faults, 3000 sends/receipts |
+| regression | `20261103T145243.850703Z-1620411` | 3010 cases; 2014 original cases preserved |
+| quality | `20261103T151633.427873Z-1774329` | Pint, PHPStan, architecture, schema-docs, schema-tests exit 0 |
+
+Оба soak имеют 0 unaccounted work, 0 FIFO inversions, 0 active reservations/pending outbox
+после drain. W10: attempt p50/p95/p99 = 0.107/0.275/0.438 s; W20: 0.127/0.339/0.432 s.
+Это синтетический screening workload с настоящими execution/network authorities, а не
+throughput измерение модели. Cohort wait p95 около 1015–1031 s отражает намеренный ingress
+и bounded admission; эти величины не production SLO. Raw samples/RSS/history и CPU/DB/storage
+metadata остаются в `load.json`; declared cap — 256 MiB, post-warmup noise — 8 MiB.
+
+Double install `20261103T122653.884757Z-575707` содержит одинаковые результаты:
+schema `95da33090d6e2a502e53eecce6d5eb3b2524021d23389da5724c81e06af0550f`,
+seeds `1b39094651daa4bb830620c667cadcdf29918b8a9c463c979fb6567ae85b61eb`,
+catalog `a4558afa6919d26ca855e69c2cfdf87a74d720681bc99c72d85172bda853cec9`.
+Reuse на новом кандидате всё равно требует машинной проверки inputs; строка в документации
+не заменяет эту проверку. Финальный manifest включает hashes всех приложенных output files.
+
+Качество модели, verified gold и controlled paid holdout ограничены отдельно:
+[quality limits](runbooks/process-quality-limits.md). Восстановление описано в
+[process recovery](runbooks/process-recovery.md), сборка и повтор evidence — в
+[isolated rig](runbooks/process-test-rig.md).
+
 ## P3.18 — отдельные fault/load gates
 
 `core-test-e2e`, `core-test-faults`, `core-test-load WIDTH=10`, `core-test-load WIDTH=20`,
