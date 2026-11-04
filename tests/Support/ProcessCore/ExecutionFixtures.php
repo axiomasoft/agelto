@@ -45,7 +45,7 @@ final class ExecutionFixtures
     private const array LEDGER = [
         'prc_process_outbox', 'prc_process_transitions', 'prc_process_run_work', 'prc_process_reservations',
         'prc_admission_groups', 'prc_process_attempts', 'prc_process_work', 'prc_operation_intents', 'prc_crawl_blocks',
-        'prc_crawl_runs', 'prc_process_handler_holds', 'prc_process_incidents', 'prc_process_runs', 'prc_process_lanes',
+        'prc_crawl_runs', 'prc_detail_snapshots', 'prc_process_handler_holds', 'prc_process_incidents', 'prc_process_runs', 'prc_process_lanes',
         'prc_control_scopes', 'prc_process_daemon_heartbeats',
     ];
 

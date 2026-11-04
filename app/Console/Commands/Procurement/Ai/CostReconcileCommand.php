@@ -45,6 +45,12 @@ final class CostReconcileCommand extends Command
             return self::FAILURE;
         }
 
+        if ($from->gte($to)) {
+            $this->error("Некорректный период сверки: --from ({$from->toDateString()}) должен быть меньше --to ({$to->toDateString()}).");
+
+            return self::FAILURE;
+        }
+
         try {
             $report = $this->reconciler->reconcile($from, $to, $file);
         } catch (OperationFailed $e) {
@@ -70,11 +76,22 @@ final class CostReconcileCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->warn(sprintf(
-            'Расхождение %.2f%% превышает порог %.2f%% (config(ai.reconcile.threshold_percent)) — см. docs/dev/runbooks/billing-reconcile.md.',
-            $report->deltaPercent,
-            $report->thresholdPercent,
-        ));
+        if (! $report->totalExceedsThreshold && $report->dailyExceedsThreshold) {
+            $this->warn(sprintf(
+                'Дневное расхождение до %.2f%% (%d дн., сумма |дельта| %s при итоговой дельте %.2f%%) превышает порог %.2f%% (config(ai.reconcile.threshold_percent)) — см. docs/dev/runbooks/billing-reconcile.md.',
+                $report->maxDailyDeltaPercent,
+                $report->daysExceedingThreshold,
+                $this->formatUsd($report->sumAbsoluteDeltaMicros),
+                $report->deltaPercent,
+                $report->thresholdPercent,
+            ));
+        } else {
+            $this->warn(sprintf(
+                'Расхождение %.2f%% превышает порог %.2f%% (config(ai.reconcile.threshold_percent)) — см. docs/dev/runbooks/billing-reconcile.md.',
+                $report->deltaPercent,
+                $report->thresholdPercent,
+            ));
+        }
 
         return $this->option('fail-on-breach') ? self::FAILURE : self::SUCCESS;
     }
@@ -108,14 +125,23 @@ final class CostReconcileCommand extends Command
     {
         $value = $this->option($name);
 
-        if (! is_string($value) || $value === '') {
+        if (! is_string($value) || preg_match('/^\d{4}-\d{2}-\d{2}$/D', $value) !== 1) {
             return null;
         }
 
-        try {
-            $date = CarbonImmutable::createFromFormat('Y-m-d', $value);
+        $timezone = config('app.timezone');
+        $tz = is_string($timezone) && $timezone !== '' ? $timezone : 'UTC';
 
-            return $date?->startOfDay();
+        try {
+            $date = CarbonImmutable::createFromFormat('!Y-m-d', $value, $tz);
+            $errors = CarbonImmutable::getLastErrors();
+            if (! $date instanceof CarbonImmutable
+                || ($errors !== false && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0))
+                || $date->format('Y-m-d') !== $value) {
+                return null;
+            }
+
+            return $date->startOfDay();
         } catch (InvalidFormatException) {
             return null;
         }

@@ -204,16 +204,53 @@ final readonly class ArtifactRepository
     /**
      * @return list<BlobReference>
      */
-    public function unreferencedCandidates(int $graceSeconds = 900, int $limit = 25): array
+    public function unreferencedCandidates(int $graceSeconds = 900, int $limit = 25, ?string $afterVerifiedAt = null, ?ProcessUuid $afterId = null): array
     {
-        $rows = LedgerRow::all("SELECT b.*, encode(b.content_hash, 'hex') AS hash FROM prc_document_blobs b
+        return array_map(
+            static fn (array $item): BlobReference => $item['blob'],
+            $this->unreferencedBatch($graceSeconds, $limit, $afterVerifiedAt, $afterId),
+        );
+    }
+
+    /**
+     * @return list<array{blob: BlobReference, verifiedAt: string}>
+     */
+    public function unreferencedBatch(int $graceSeconds = 900, int $limit = 25, ?string $afterVerifiedAt = null, ?ProcessUuid $afterId = null): array
+    {
+        $cursorClause = $afterVerifiedAt !== null && $afterId !== null
+            ? ' AND (b.verified_at, b.id) > (?::timestamptz, ?::uuid)'
+            : '';
+        $bindings = [max(900, $graceSeconds)];
+        if ($cursorClause !== '') {
+            $bindings[] = $afterVerifiedAt;
+            $bindings[] = $afterId->value;
+        }
+        $bindings[] = max(1, min(100, $limit));
+
+        $rows = LedgerRow::all("SELECT b.*, b.verified_at::text AS verified_at_cursor, encode(b.content_hash, 'hex') AS hash FROM prc_document_blobs b
             WHERE b.verified_at <= clock_timestamp() - (? * interval '1 second')
+              AND NOT EXISTS (SELECT 1 FROM prc_storage_reservations s WHERE s.disk = b.disk AND s.object_key = b.object_key AND s.status = 'writing')
+              AND NOT EXISTS (
+                  SELECT 1 FROM prc_storage_reservations s
+                  JOIN prc_process_work w ON w.id = s.work_id
+                  WHERE s.disk = b.disk AND s.object_key = b.object_key
+                    AND w.state NOT IN ('succeeded', 'failed_item', 'cancelled', 'superseded')
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM prc_storage_reservations s
+                  JOIN prc_outbound_operations o ON o.id = s.operation_id
+                  WHERE s.disk = b.disk AND s.object_key = b.object_key
+                    AND o.state = 'open'
+              )
               AND NOT EXISTS (SELECT 1 FROM prc_document_versions v WHERE v.blob_id = b.id)
               AND NOT EXISTS (SELECT 1 FROM prc_document_representations r WHERE r.blob_id = b.id)
-              AND NOT EXISTS (SELECT 1 FROM prc_analysis_chunks c WHERE c.output_ref->>'disk' = b.disk AND c.output_ref->>'key' = b.object_key)
-            ORDER BY b.verified_at, b.id LIMIT ?", [max(900, $graceSeconds), max(1, min(100, $limit))]);
+              AND NOT EXISTS (SELECT 1 FROM prc_analysis_chunks c WHERE c.output_ref->>'disk' = b.disk AND c.output_ref->>'key' = b.object_key)"
+            .$cursorClause.' ORDER BY b.verified_at, b.id LIMIT ?', $bindings);
 
-        return array_map(self::reference(...), $rows);
+        return array_map(static fn (LedgerRow $row): array => [
+            'blob' => self::reference($row),
+            'verifiedAt' => $row->string('verified_at_cursor'),
+        ], $rows);
     }
 
     private function checkpointed(LedgerRow $row): bool

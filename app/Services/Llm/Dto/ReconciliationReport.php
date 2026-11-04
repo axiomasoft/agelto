@@ -24,5 +24,10 @@ final readonly class ReconciliationReport
         public float $thresholdPercent,
         public bool $exceedsThreshold,
         public bool $exportEmpty,
+        public int $sumAbsoluteDeltaMicros = 0,
+        public float $maxDailyDeltaPercent = 0.0,
+        public int $daysExceedingThreshold = 0,
+        public bool $totalExceedsThreshold = false,
+        public bool $dailyExceedsThreshold = false,
     ) {}
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
+use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Enums\Procurement\Document\StoragePhase;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
@@ -99,6 +100,159 @@ final readonly class PrepareWorkspace
         $this->capacity->finishStoppedWrite($reservation);
 
         return $this->gc->cleanup($reservation);
+    }
+
+    public function cleanupOrStoppedFile(StorageReservationRequest $reservation): bool
+    {
+        $disk = Storage::disk($reservation->disk);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            return false;
+        }
+        $path = $disk->path($reservation->objectKey());
+        if ($reservation->phase === StoragePhase::Prepare && (is_dir($path) || (! is_file($path) && ! is_file($path.'.owner')))) {
+            return $this->cleanup($reservation);
+        }
+
+        return $this->cleanupStoppedFile($reservation);
+    }
+
+    public function recordFileWriter(StorageReservationRequest $reservation): void
+    {
+        $disk = Storage::disk($reservation->disk);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            return;
+        }
+        if (! $disk->makeDirectory(dirname($reservation->objectKey()))) {
+            throw new ArtifactUnavailable('Local writer directory unavailable.');
+        }
+        $pid = $this->pid();
+        $owner = [
+            'reservation' => $reservation->id->value,
+            'owner_token' => $reservation->ownerToken->value,
+            'generation' => $reservation->generation,
+            'key' => $reservation->objectKey(),
+            'pid' => $pid,
+            'start' => $this->start($pid),
+        ];
+        if (file_put_contents($disk->path($reservation->objectKey()).'.owner', json_encode($owner, JSON_THROW_ON_ERROR)) === false) {
+            throw new ArtifactUnavailable('Local writer owner proof unavailable.');
+        }
+    }
+
+    public function clearFileWriter(StorageReservationRequest $reservation): void
+    {
+        $disk = Storage::disk($reservation->disk);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            return;
+        }
+        $ownerPath = $disk->path($reservation->objectKey()).'.owner';
+        if (is_file($ownerPath)) {
+            @unlink($ownerPath);
+        }
+    }
+
+    public function cleanupStoppedFile(StorageReservationRequest $reservation): bool
+    {
+        $disk = Storage::disk($reservation->disk);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            return false;
+        }
+        $path = $disk->path($reservation->objectKey());
+        $ownerPath = $path.'.owner';
+        $cleanupProof = $path.'.cleanup';
+        if (is_file($cleanupProof) && trim((string) file_get_contents($cleanupProof)) === $reservation->id->value) {
+            if ((is_file($path) && ! @unlink($path)) || (is_file($ownerPath) && ! @unlink($ownerPath)) || is_file($path) || is_file($ownerPath)) {
+                return false;
+            }
+            $this->capacity->finishStoppedWrite($reservation);
+
+            return $this->gc->cleanup($reservation);
+        }
+        if (! is_file($ownerPath)) {
+            return false;
+        }
+        try {
+            $owner = json_decode((string) file_get_contents($ownerPath), true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return false;
+        }
+        if (! is_array($owner)
+            || ($owner['reservation'] ?? null) !== $reservation->id->value
+            || ($owner['owner_token'] ?? null) !== $reservation->ownerToken->value
+            || ($owner['generation'] ?? null) !== $reservation->generation
+            || ($owner['key'] ?? null) !== $reservation->objectKey()
+            || ! is_int($owner['pid'] ?? null)
+            || ! is_string($owner['start'] ?? null)) {
+            return false;
+        }
+        if ($owner['pid'] === $this->pid() || $this->start($owner['pid']) === $owner['start']) {
+            return false;
+        }
+        if (file_put_contents($cleanupProof, $reservation->id->value) === false) {
+            return false;
+        }
+        if ((is_file($path) && ! @unlink($path)) || (is_file($ownerPath) && ! @unlink($ownerPath)) || is_file($path) || is_file($ownerPath)) {
+            return false;
+        }
+        $this->capacity->finishStoppedWrite($reservation);
+
+        return $this->gc->cleanup($reservation);
+    }
+
+    public function recordRepairWriter(BlobReference $blob): void
+    {
+        $disk = Storage::disk($blob->disk);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            return;
+        }
+        $pid = $this->pid();
+        $owner = [
+            'blob' => $blob->id->value,
+            'key' => $blob->objectKey,
+            'pid' => $pid,
+            'start' => $this->start($pid),
+        ];
+        if (file_put_contents($disk->path($blob->objectKey).'.repair-owner', json_encode($owner, JSON_THROW_ON_ERROR)) === false) {
+            throw new ArtifactUnavailable('Canonical repair owner proof unavailable.');
+        }
+    }
+
+    public function clearRepairWriter(BlobReference $blob): void
+    {
+        $disk = Storage::disk($blob->disk);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            return;
+        }
+        $ownerPath = $disk->path($blob->objectKey).'.repair-owner';
+        if (is_file($ownerPath)) {
+            @unlink($ownerPath);
+        }
+    }
+
+    public function repairWriterStopped(BlobReference $blob): bool
+    {
+        $disk = Storage::disk($blob->disk);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            return false;
+        }
+        $ownerPath = $disk->path($blob->objectKey).'.repair-owner';
+        if (! is_file($ownerPath)) {
+            return false;
+        }
+        try {
+            $owner = json_decode((string) file_get_contents($ownerPath), true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return false;
+        }
+        if (! is_array($owner)
+            || ($owner['blob'] ?? null) !== $blob->id->value
+            || ($owner['key'] ?? null) !== $blob->objectKey
+            || ! is_int($owner['pid'] ?? null)
+            || ! is_string($owner['start'] ?? null)) {
+            return false;
+        }
+
+        return $owner['pid'] !== $this->pid() && $this->start($owner['pid']) !== $owner['start'];
     }
 
     private function pid(): int

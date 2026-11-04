@@ -2,25 +2,38 @@
 
 declare(strict_types=1);
 
+use App\Actions\Procurement\Process\RetryHandlerFaultedWork;
 use App\Dto\Platforms\Eis\EisListingCursor;
 use App\Dto\Platforms\Eis\EisListingPolicy;
 use App\Dto\Platforms\Eis\EisSearchFilter;
+use App\Dto\Procurement\Acquisition\DetailRequest;
+use App\Dto\Procurement\Acquisition\ListingDetailReference;
+use App\Dto\Procurement\Acquisition\ListingReceipt;
 use App\Dto\Procurement\Acquisition\ListingTask;
 use App\Dto\Procurement\Platform\CursorEnvelope;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Platform\AssessmentReason;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
+use App\Enums\Procurement\Process\WorkMutationStatus;
 use App\Models\Procurement\Procurement;
+use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
+use App\Repositories\Procurement\Process\ControlRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Platforms\Eis\EisListingPartitioner;
+use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\ProcessCore\DetailFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ListingFixtures;
 
 pest()->group('acquisition-operations', 'platform-adapter-contracts');
 
@@ -158,4 +171,165 @@ test('EisListingPartitioner::split соблюдает граничные инв�
         ->and($left->highCents)->toBe($right->lowCents)
         ->and($left->depth)->toBe(1)
         ->and($right->depth)->toBe(1);
+});
+
+test('DetailSnapshotRepository::request изолирует запрос по intentId, не наследует старый :request чужого intent и сохраняет :request при manual-retry и re-pin', function (): void {
+    DetailFixtures::bind();
+    $fixture = DetailFixtures::work(value: 'audit-ag24-isolation');
+    $procurement = $fixture['p'];
+    $intentA = $fixture['input']->intentId;
+    expect(app(DetailSnapshotRepository::class)->request($procurement->id, $intentA)->locator?->serializedPayload)->toBe('ea20');
+    DB::table('prc_operation_intents')->where('id', $intentA->value)->update(['state' => 'terminal']);
+
+    // Новый listing-блок порождает второй detail intent B с новым курсором card-v2 и ревизией rev-2.
+    $listingRun = ListingFixtures::run(registry: $procurement->registry);
+    $intentB = LedgerFixtures::uuid();
+    $refB = new ListingDetailReference(
+        intentId: $intentB,
+        procurementId: $procurement->id,
+        fingerprint: ContentHash::of('fp-2'),
+        sourceRevision: 'rev-2',
+        locator: new CursorEnvelope('eis.card', 1, 'card-v2'),
+    );
+    app(ProcessTransaction::class)->run(function () use ($procurement, $intentB, $listingRun, $refB): void {
+        app(WorkStoreRepository::class)->storeIntent(
+            id: $intentB,
+            intentKey: LedgerFixtures::hash('detail-b:'.$intentB->value),
+            stage: StageCode::Detail,
+            subject: new SubjectKey(SubjectKind::Procurement, $procurement->id),
+            semanticPolicyHash: LedgerFixtures::hash('semantic'),
+            accessPolicyHash: LedgerFixtures::hash('access'),
+            cycleSeq: 2,
+            expectedHeadGeneration: $procurement->head_generation,
+            state: IntentState::Active,
+        );
+        app(ListingStoreRepository::class)->receipt(
+            $listingRun['input'],
+            new ListingReceipt(ContentHash::of('ids'), [ContentHash::of('obs')], 'complete', details: [$refB]),
+        );
+    });
+
+    // Запрос для intent B обязан резолвить его собственный ListingDetailReference (card-v2), а не старый intentA:request (ea20).
+    $resolvedB = app(DetailSnapshotRepository::class)->request($procurement->id, $intentB);
+    expect($resolvedB->locator?->serializedPayload)->toBe('card-v2');
+
+    // Неизвестный intent C без собственного :request, :reference и manual-retry связи обязан падать, а не красть чужой :request.
+    $unknownIntent = LedgerFixtures::uuid();
+    expect(fn () => app(DetailSnapshotRepository::class)->request($procurement->id, $unknownIntent))
+        ->toThrow(LogicException::class, 'Missing immutable detail request.');
+
+    // Manual retry для blocked(handler_fault_limit) work intent B обязан скопировать DetailRequest под новый retryIntent и выдержать re-pin при росте head_generation.
+    $workB = new WorkId(LedgerFixtures::uuid());
+    $inputB = new DetailInput(
+        $procurement->id,
+        $intentB,
+        $procurement->head_generation,
+        LedgerFixtures::hash('semantic'),
+        LedgerFixtures::hash('access'),
+        'fixture-detail/1',
+    );
+    app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(
+        id: $workB,
+        input: $inputB,
+        inputRevision: $procurement->head_generation,
+        intentId: $intentB,
+        cohortKey: 'manual',
+        platformId: null,
+        originRunId: $listingRun['run'],
+        priority: 100,
+        eventId: LedgerFixtures::uuid(),
+        projectionMessageId: LedgerFixtures::uuid(),
+    ));
+    DB::table('prc_process_work')->where('id', $workB->value->value)->update([
+        'state' => 'blocked',
+        'reason_code' => 'handler_fault_limit',
+    ]);
+    $transitionSeq = (int) DB::table('prc_process_work')->where('id', $workB->value->value)->value('transition_seq');
+
+    app(ControlRepository::class)->ensureScopes(
+        app(ProcessPolicy::class)->workScopes(StageCode::Detail, 'manual'),
+    );
+    $retryResult = app(RetryHandlerFaultedWork::class)->execute(
+        $workB,
+        $transitionSeq,
+        LedgerFixtures::uuid(),
+        'retry detail B',
+    );
+    expect($retryResult->status)->toBe(WorkMutationStatus::Applied)
+        ->and($retryResult->successor)->not->toBeNull();
+    $retryInput = DetailFixtures::input($retryResult->successor);
+    $retryResolved = app(DetailSnapshotRepository::class)->request($procurement->id, $retryInput->intentId);
+    expect($retryResolved->locator?->serializedPayload)->toBe('card-v2');
+
+    // Рост head_generation и re-pin на retryIntent не теряют курсор card-v2.
+    DB::table('prc_procurements')->where('id', $procurement->id)->update(['head_generation' => $procurement->head_generation + 1]);
+    app(DetailSnapshotRepository::class)->saveRequest($procurement->id, $procurement->head_generation + 1, $retryInput->intentId, $retryResolved);
+    $afterRepin = app(DetailSnapshotRepository::class)->request($procurement->id, $retryInput->intentId);
+    expect($afterRepin->locator?->serializedPayload)->toBe('card-v2');
+});
+
+test('ListingStoreRepository проецирует ListingDetailReference в prc_detail_snapshots, выбирает хронологически новейшую ревизию вне зависимости от порядка UUID блока и поддерживает backfill', function (): void {
+    $fixture = DetailFixtures::work(value: 'ag25-26-order');
+    $procurement = $fixture['p'];
+    DB::table('prc_operation_intents')->where('id', $fixture['input']->intentId->value)->update(['state' => 'terminal']);
+    DB::table('prc_procurements')->where('id', $procurement->id)->update(['head_generation' => 2]);
+
+    $run1 = ListingFixtures::run(from: '2026-01-01', registry: $procurement->registry);
+    $run2 = ListingFixtures::run(from: '2026-01-02', registry: $procurement->registry);
+
+    // Назначаем старой ревизии тот блок, чей UUID лексикографически БОЛЬШЕ, чем у блока новой ревизии.
+    [$olderInput, $newerInput] = strcmp($run1['input']->crawlBlockId->value, $run2['input']->crawlBlockId->value) > 0
+        ? [$run1['input'], $run2['input']]
+        : [$run2['input'], $run1['input']];
+    expect(strcmp($olderInput->crawlBlockId->value, $newerInput->crawlBlockId->value))->toBeGreaterThan(0);
+
+    $olderIntent = LedgerFixtures::uuid();
+    $newerIntent = LedgerFixtures::uuid();
+
+    $olderRef = new ListingDetailReference(
+        intentId: $olderIntent,
+        procurementId: $procurement->id,
+        fingerprint: ContentHash::of('fp-old'),
+        sourceRevision: 'rev-old',
+        locator: new CursorEnvelope('eis.card', 1, 'old-cursor'),
+    );
+    $newerRef = new ListingDetailReference(
+        intentId: $newerIntent,
+        procurementId: $procurement->id,
+        fingerprint: ContentHash::of('fp-new'),
+        sourceRevision: 'rev-new',
+        locator: new CursorEnvelope('eis.card', 1, 'new-cursor'),
+    );
+
+    app(ProcessTransaction::class)->run(function () use ($procurement, $olderIntent, $newerIntent, $olderInput, $newerInput, $olderRef, $newerRef): void {
+        $works = app(WorkStoreRepository::class);
+        $subject = new SubjectKey(SubjectKind::Procurement, $procurement->id);
+        $works->storeIntent($olderIntent, LedgerFixtures::hash('old:'.$olderIntent->value), StageCode::Detail, $subject,
+            ContentHash::of('sem'), ContentHash::of('acc'), 2, 1, IntentState::Terminal);
+        $works->storeIntent($newerIntent, LedgerFixtures::hash('new:'.$newerIntent->value), StageCode::Detail, $subject,
+            ContentHash::of('sem'), ContentHash::of('acc'), 3, 2, IntentState::Active);
+
+        $listings = app(ListingStoreRepository::class);
+        $listings->receipt(
+            $olderInput,
+            new ListingReceipt(ContentHash::of('ids-old'), [ContentHash::of('obs-old')], 'complete', details: [$olderRef]),
+        );
+        $listings->receipt(
+            $newerInput,
+            new ListingReceipt(ContentHash::of('ids-new'), [ContentHash::of('obs-new')], 'complete', details: [$newerRef]),
+        );
+    });
+
+    $listings = app(ListingStoreRepository::class);
+    expect($listings->detailReference($olderIntent)?->locator?->serializedPayload)->toBe('old-cursor')
+        ->and($listings->detailReference($newerIntent)?->locator?->serializedPayload)->toBe('new-cursor')
+        ->and($listings->detailReferenceForProcurement($procurement->id)?->locator?->serializedPayload)->toBe('new-cursor')
+        ->and($listings->detailReferenceForProcurement($procurement->id)?->sourceRevision)->toBe('rev-new');
+
+    // Проверяем backfillDetailReferences() для исторических блоков, у которых ещё нет строки :reference в prc_detail_snapshots.
+    DB::table('prc_detail_snapshots')->where('part_key', $newerIntent->value.':reference')->delete();
+    expect($listings->detailReference($newerIntent))->toBeNull();
+    expect($listings->backfillDetailReferences())->toBe(1)
+        ->and($listings->backfillDetailReferences())->toBe(0)
+        ->and($listings->detailReference($newerIntent)?->locator?->serializedPayload)->toBe('new-cursor');
 });

@@ -9,6 +9,7 @@ use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\StoragePhase;
+use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
@@ -18,10 +19,12 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\DownloadFinalizer;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
+use App\Repositories\Procurement\Network\OutboundOperationRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Document\BlobStore;
 use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentStorageReconciler;
+use App\Services\Procurement\Document\PrepareWorkspace;
 use App\Services\Procurement\Document\StoredDocumentWriter;
 use App\Services\Procurement\Prepare\BoundedToolProcess;
 use App\Services\Procurement\Process\ProcessTransaction;
@@ -274,4 +277,196 @@ test('StoredDocumentWriter удаляет неиспользуемый дубл�
         ->and(Storage::disk('local')->exists('imports/dup-version.pdf'))->toBeFalse()
         ->and(Storage::disk('local')->exists('imports/dup-archive.pdf'))->toBeFalse()
         ->and(Storage::disk('local')->exists('imports/dup-repr.txt'))->toBeFalse();
+});
+
+test('ArtifactRepository::unreferencedCandidates и DocumentStorageReconciler пропускают блобы с активными резервациями без голодания очереди GC', function (): void {
+    $domain = DocumentStorageFixtures::domain(capacity: 500_000);
+    $pinnedIds = [];
+
+    // Создаём 25 старых unreferenced блобов, удерживаемых in-flight writing резервацией на repair.
+    for ($i = 0; $i < 25; $i++) {
+        $uploaded = DocumentStorageFixtures::upload(bytes: 'pinned-blob-'.$i, domain: $domain);
+        $blob = app(ProcessTransaction::class)->run(function () use ($domain, $uploaded) {
+            app(StorageCapacityRepository::class)->lockDomains([$domain]);
+
+            return app(ArtifactRepository::class)->acquireLocked($uploaded);
+        });
+        DB::table('prc_document_blobs')->where('id', $blob->id->value)->update([
+            'verified_at' => DB::raw("clock_timestamp() - interval '30 minutes'"),
+        ]);
+        expect(app(ArtifactRepository::class)->beginRepair($blob))->toBeTrue();
+        $pinnedIds[] = $blob->id->value;
+    }
+
+    // 26-й блоб моложе всех 25 удерживаемых, но старше grace-окна и не удерживается резервациями.
+    $eligibleUpload = DocumentStorageFixtures::upload(bytes: 'eligible-blob-26', domain: $domain);
+    $eligibleBlob = app(ProcessTransaction::class)->run(function () use ($domain, $eligibleUpload) {
+        app(StorageCapacityRepository::class)->lockDomains([$domain]);
+
+        return app(ArtifactRepository::class)->acquireLocked($eligibleUpload);
+    });
+    DB::table('prc_document_blobs')->where('id', $eligibleBlob->id->value)->update([
+        'verified_at' => DB::raw("clock_timestamp() - interval '20 minutes'"),
+    ]);
+
+    $candidates = app(ArtifactRepository::class)->unreferencedCandidates(900, 25);
+    expect($candidates)->toHaveCount(1)
+        ->and($candidates[0]->id->value)->toBe($eligibleBlob->id->value);
+
+    app(DocumentStorageReconciler::class)->reconcile();
+    expect(DB::table('prc_document_blobs')->where('id', $eligibleBlob->id->value)->exists())->toBeFalse()
+        ->and(DB::table('prc_document_blobs')->whereIn('id', $pinnedIds)->count())->toBe(25);
+});
+
+test('DocumentStorageReconciler восстанавливает и очищает прерванную запись файла с мёртвым PID, завершает прерванный repair канонического блоба и чистит резервации закрытых outbound-операций', function (): void {
+    $domain = DocumentStorageFixtures::domain(capacity: 500_000);
+    $workspace = app(PrepareWorkspace::class);
+    $blobs = app(BlobStore::class);
+    $reconciler = app(DocumentStorageReconciler::class);
+    $capacity = app(StorageCapacityRepository::class);
+
+    // 1. Download writing-резервация закрытой операции с мёртвым PID в .owner очищается и переводится в released, а без .owner — остаётся в writing.
+    $opHandle = app(ProcessTransaction::class)->run(fn () => app(OutboundOperationRepository::class)->open(
+        LedgerFixtures::uuid(),
+        LedgerFixtures::uuid(),
+        OutboundOperationKind::LegacyBridge,
+        null,
+        'audit.operation.storage',
+        LedgerFixtures::hash('op-policy'),
+        ['system'],
+        120,
+        120,
+    ));
+    app(ProcessTransaction::class)->run(fn () => app(OutboundOperationRepository::class)->close($opHandle));
+
+    $deadDownload = new StorageReservationRequest(
+        id: LedgerFixtures::uuid(),
+        domainId: $domain,
+        ownerToken: $opHandle->ownerToken,
+        generation: $opHandle->generation,
+        byteUpperBound: 64,
+        phase: StoragePhase::Download,
+        disk: 'local',
+        operationId: $opHandle->id,
+    );
+    $uncertainDownload = new StorageReservationRequest(
+        id: LedgerFixtures::uuid(),
+        domainId: $domain,
+        ownerToken: $opHandle->ownerToken,
+        generation: $opHandle->generation,
+        byteUpperBound: 64,
+        phase: StoragePhase::Download,
+        disk: 'local',
+        operationId: $opHandle->id,
+    );
+    app(ProcessTransaction::class)->run(function () use ($capacity, $domain, $deadDownload, $uncertainDownload): void {
+        $capacity->lockDomains([$domain]);
+        $capacity->reserveLocked($deadDownload);
+        $capacity->reserveLocked($uncertainDownload);
+    });
+    $capacity->beginWrite($deadDownload);
+    $capacity->beginWrite($uncertainDownload);
+    Storage::disk('local')->put($deadDownload->objectKey(), 'partial-dead-writer');
+    Storage::disk('local')->put($uncertainDownload->objectKey(), 'partial-uncertain-writer');
+    $workspace->recordFileWriter($deadDownload);
+    file_put_contents(
+        Storage::disk('local')->path($deadDownload->objectKey()).'.owner',
+        json_encode([
+            'reservation' => $deadDownload->id->value,
+            'owner_token' => $deadDownload->ownerToken->value,
+            'generation' => $deadDownload->generation,
+            'key' => $deadDownload->objectKey(),
+            'pid' => 999_999_999,
+            'start' => 'dead-start',
+        ], JSON_THROW_ON_ERROR),
+    );
+
+    // 2. Прерванный repair канонического блоба с валидными байтами на диске и мёртвым PID в .repair-owner переводится в transferred без удаления блоба.
+    $canonicalUpload = DocumentStorageFixtures::upload(bytes: 'canonical-repair-bytes', domain: $domain);
+    $canonicalBlob = app(ProcessTransaction::class)->run(function () use ($domain, $canonicalUpload) {
+        app(StorageCapacityRepository::class)->lockDomains([$domain]);
+
+        return app(ArtifactRepository::class)->acquireLocked($canonicalUpload);
+    });
+    expect(app(ArtifactRepository::class)->beginRepair($canonicalBlob))->toBeTrue();
+    $workspace->recordRepairWriter($canonicalBlob);
+    file_put_contents(
+        Storage::disk('local')->path($canonicalBlob->objectKey).'.repair-owner',
+        json_encode([
+            'blob' => $canonicalBlob->id->value,
+            'key' => $canonicalBlob->objectKey,
+            'pid' => 999_999_999,
+            'start' => 'dead-start',
+        ], JSON_THROW_ON_ERROR),
+    );
+
+    // 3. Staged-резервация, привязанная к закрытой outbound-операции (work_id IS NULL, operation_id IS NOT NULL), освобождается.
+    $opReservation = new StorageReservationRequest(
+        id: LedgerFixtures::uuid(),
+        domainId: $domain,
+        ownerToken: $opHandle->ownerToken,
+        generation: $opHandle->generation,
+        byteUpperBound: 32,
+        phase: StoragePhase::Download,
+        disk: 'local',
+        operationId: $opHandle->id,
+    );
+    $tmp = DocumentStorageFixtures::reservation(DocumentStorageFixtures::domain(prefix: 'tmp'), 32, 'p31_tmp');
+    app(ProcessTransaction::class)->run(function () use ($capacity, $opReservation): void {
+        $capacity->lockDomains([$opReservation->domainId]);
+        $capacity->reserveLocked($opReservation);
+    });
+    $stream = fopen('php://memory', 'w+b');
+    assert(is_resource($stream));
+    fwrite($stream, 'operation-owned-bytes');
+    rewind($stream);
+    $blobs->put($opReservation, $stream, $tmp);
+    fclose($stream);
+
+    $reconciler->reconcile();
+
+    expect(DB::table('prc_storage_reservations')->where('id', $deadDownload->id->value)->value('status'))->toBe('cleaned')
+        ->and(Storage::disk('local')->exists($deadDownload->objectKey()))->toBeFalse()
+        ->and(DB::table('prc_storage_reservations')->where('id', $uncertainDownload->id->value)->value('status'))->toBe('writing')
+        ->and(Storage::disk('local')->exists($uncertainDownload->objectKey()))->toBeTrue()
+        ->and(DB::table('prc_storage_reservations')->where('id', $canonicalBlob->id->value)->value('status'))->toBe('transferred')
+        ->and(Storage::disk('local')->exists($canonicalBlob->objectKey))->toBeTrue()
+        ->and(Storage::disk('local')->exists($canonicalBlob->objectKey.'.repair-owner'))->toBeFalse()
+        ->and(DB::table('prc_storage_reservations')->where('id', $opReservation->id->value)->value('status'))->toBe('cleaned')
+        ->and(Storage::disk('local')->exists($opReservation->objectKey()))->toBeFalse();
+});
+
+test('DocumentStorageReconciler изолирует сбой удаления отдельного объекта и продолжает очистку остальных элементов в том же тике', function (): void {
+    config()->set('filesystems.disks.failing_audit_disk', ['driver' => 'failing_audit_driver']);
+    Storage::extend('failing_audit_driver', static fn () => throw new RuntimeException('Simulated storage driver outage'));
+
+    $domain = DocumentStorageFixtures::domain(capacity: 500_000);
+    $brokenUpload = DocumentStorageFixtures::upload(bytes: 'broken-blob', domain: $domain);
+    $healthyUpload = DocumentStorageFixtures::upload(bytes: 'healthy-blob', domain: $domain);
+
+    $brokenBlob = app(ProcessTransaction::class)->run(function () use ($domain, $brokenUpload) {
+        app(StorageCapacityRepository::class)->lockDomains([$domain]);
+
+        return app(ArtifactRepository::class)->acquireLocked($brokenUpload);
+    });
+    $healthyBlob = app(ProcessTransaction::class)->run(function () use ($domain, $healthyUpload) {
+        app(StorageCapacityRepository::class)->lockDomains([$domain]);
+
+        return app(ArtifactRepository::class)->acquireLocked($healthyUpload);
+    });
+
+    DB::table('prc_document_blobs')->where('id', $brokenBlob->id->value)->update([
+        'disk' => 'failing_audit_disk',
+        'verified_at' => DB::raw("clock_timestamp() - interval '30 minutes'"),
+    ]);
+    DB::table('prc_document_blobs')->where('id', $healthyBlob->id->value)->update([
+        'verified_at' => DB::raw("clock_timestamp() - interval '20 minutes'"),
+    ]);
+
+    $deleted = app(DocumentStorageReconciler::class)->reconcile();
+
+    expect($deleted)->toBe(1)
+        ->and(DB::table('prc_document_blobs')->where('id', $brokenBlob->id->value)->exists())->toBeTrue()
+        ->and(DB::table('prc_document_blobs')->where('id', $healthyBlob->id->value)->exists())->toBeFalse()
+        ->and(Storage::disk('local')->exists($healthyBlob->objectKey))->toBeFalse();
 });

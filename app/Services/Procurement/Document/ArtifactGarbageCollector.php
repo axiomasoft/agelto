@@ -11,6 +11,7 @@ use App\Enums\Procurement\Document\StoragePhase;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 
 final readonly class ArtifactGarbageCollector
 {
@@ -48,6 +49,14 @@ final readonly class ArtifactGarbageCollector
             $proof = $reservation->objectKey().'.cleanup';
             if (! $disk->delete($proof) || $disk->exists($proof)) {
                 return false;
+            }
+        }
+        if ($disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            foreach (['.cleanup', '.owner'] as $suffix) {
+                $sidecar = $disk->path($reservation->objectKey()).$suffix;
+                if (is_file($sidecar) && (! @unlink($sidecar) || is_file($sidecar))) {
+                    return false;
+                }
             }
         }
         $this->artifacts->finishCleanup($reservation);

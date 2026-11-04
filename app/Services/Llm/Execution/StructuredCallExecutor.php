@@ -50,7 +50,13 @@ final readonly class StructuredCallExecutor
         if ($claim->transport === null) {
             return $claim;
         }
-        $outcome = $claim->transport->sendOnce($wire);
+        try {
+            $outcome = $claim->transport->sendOnce($wire);
+        } catch (\Throwable $failure) {
+            DB::transaction(fn () => $this->requests->interruptLocked($this->requests->get($operation->physicalCallId)));
+
+            throw $failure;
+        }
         // Durable raw financial capture is independent of optional network observation.
         try {
             if ($outcome->status !== null && ($body = $outcome->body()) !== null) {

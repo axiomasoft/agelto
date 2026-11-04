@@ -66,6 +66,7 @@ final readonly class ReceiptStore
                     throw new ReceiptUnavailable('Receipt immutable publish failed.');
                 }
             }
+            $this->syncDurablePath($disk->path(''), $path);
             $verified = $this->inspect($call) ?? throw new ReceiptUnavailable('Receipt missing after put.');
             if ($verified->hash !== hash('sha256', $bytes)) {
                 throw new OperationDenied('immutable_receipt_conflict');
@@ -97,6 +98,9 @@ final readonly class ReceiptStore
             $bytes = $disk->get($call->receiptUploadKey);
             if (! is_string($bytes)) {
                 throw new ReceiptUnavailable('Receipt read unavailable.');
+            }
+            if ($call->receiptHash === null && $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+                $this->syncDurablePath($disk->path(''), $disk->path($call->receiptUploadKey));
             }
         } catch (ReceiptUnavailable $failure) {
             throw $failure;
@@ -131,6 +135,41 @@ final readonly class ReceiptStore
     {
         if (DB::connection()->transactionLevel() !== 0) {
             throw new \LogicException('Receipt object I/O is forbidden inside DB transactions.');
+        }
+    }
+
+    private function syncDurablePath(string $rootPath, string $filePath): void
+    {
+        $fileStream = @fopen($filePath, 'rb');
+        if (! is_resource($fileStream)) {
+            throw new ReceiptUnavailable('Receipt file durability sync unavailable.');
+        }
+        try {
+            if (! @fsync($fileStream)) {
+                throw new ReceiptUnavailable('Receipt file durability sync unconfirmed.');
+            }
+        } finally {
+            fclose($fileStream);
+        }
+
+        $root = rtrim($rootPath, DIRECTORY_SEPARATOR);
+        $directory = dirname($filePath);
+        while ($root === '' || str_starts_with($directory, $root)) {
+            $dirStream = @fopen($directory, 'rb');
+            if (! is_resource($dirStream)) {
+                throw new ReceiptUnavailable('Receipt directory durability sync unavailable.');
+            }
+            try {
+                if (! @fsync($dirStream)) {
+                    throw new ReceiptUnavailable('Receipt directory durability sync unconfirmed.');
+                }
+            } finally {
+                fclose($dirStream);
+            }
+            if ($directory === $root || dirname($directory) === $directory) {
+                break;
+            }
+            $directory = dirname($directory);
         }
     }
 }

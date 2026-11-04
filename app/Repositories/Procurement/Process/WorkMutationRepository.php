@@ -19,6 +19,7 @@ use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\ProviderRecoveryMode;
 use App\Enums\Procurement\Process\WorkMutationStatus;
 use App\Enums\Procurement\Process\WorkState;
+use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\SubjectLockResolver;
@@ -44,6 +45,7 @@ final readonly class WorkMutationRepository
         private SubjectLockResolver $resolver,
         private ProcessPolicy $policy,
         private IntentRepository $intents,
+        private DetailSnapshotRepository $details,
     ) {}
 
     /**
@@ -275,6 +277,14 @@ final readonly class WorkMutationRepository
             // Один active intent на subject/stage: если очередь уже продвинута, retry ждёт в pending.
             state: $this->intents->admissionState($stage->value, $subject->kind->value, is_int($subject->id) ? (string) $subject->id : $subject->id->value),
         );
+        if ($input instanceof DetailInput) {
+            try {
+                $detailRequest = $this->details->request($input->procurementId, $input->intentId);
+                $this->details->saveRequest($input->procurementId, $owner->headGeneration, $newIntent, $detailRequest);
+            } catch (\LogicException) {
+                // Synthetic execution-layer fixtures may retry DetailInput without acquisition snapshots.
+            }
+        }
 
         $generation = $work->int('generation');
         $row = $failedItem ? LedgerRow::one(

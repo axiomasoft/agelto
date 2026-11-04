@@ -65,7 +65,10 @@ final readonly class ExtractionSemanticValidator implements SemanticValidator
                     $unitPrice = new MoneyDecimal($price);
                     $rowTotal = new MoneyDecimal($total);
                     $quantity = new QuantityDecimal($row->quantity);
-                    if (bccomp(bcmul($quantity->numeric(), $unitPrice->numeric(), 16), $rowTotal->numeric(), 2) !== 0) {
+                    $scale = max(16, self::fractionLength($quantity->numeric()) + self::fractionLength($unitPrice->numeric()));
+                    $expectedTotal = self::roundHalfUpCents(bcmul($quantity->numeric(), $unitPrice->numeric(), $scale));
+                    $actualTotal = self::roundHalfUpCents($rowTotal->numeric());
+                    if (bccomp($expectedTotal, $actualTotal, 2) !== 0) {
                         $errors[] = 'totals_arithmetic';
                     }
                 }
@@ -131,5 +134,23 @@ final readonly class ExtractionSemanticValidator implements SemanticValidator
         }
 
         return [];
+    }
+
+    private static function fractionLength(string $decimal): int
+    {
+        $dot = strpos($decimal, '.');
+
+        return $dot === false ? 0 : strlen($decimal) - $dot - 1;
+    }
+
+    /**
+     * @param  numeric-string  $decimal
+     * @return numeric-string
+     */
+    private static function roundHalfUpCents(string $decimal): string
+    {
+        $offset = bccomp($decimal, '0', self::fractionLength($decimal)) < 0 ? '-0.005' : '0.005';
+
+        return bcadd($decimal, $offset, 2);
     }
 }

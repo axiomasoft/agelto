@@ -1,811 +1,811 @@
 {
-  "format": "structured-ai-acceptance/v1",
-  "captured_at": "2026-11-03",
-  "contract_hashes_refreshed_at": "2026-11-04",
-  "provenance": "Synthetic orchestration contracts and existing legacy eval inventory; expectations hand-authored, hashes computed from versioned bytes; no paid model invocation or source-original verification. Current contract hashes refreshed after bounded receipt-envelope and recovery-batch fixes with their regression tests; original capture date and legacy eval inventory retained.",
-  "quality": {
-    "status": "not_measured",
-    "paid_holdout_executed": false,
-    "production_caps_approved": false,
-    "source_bytes_verified": false,
-    "gold_contract": "legacy_not_canonical",
-    "required_independent_documents": 60,
-    "required_per_primary_format": 10
-  },
-  "scenario_tests": {
-    "T13": [
-      "tests/Feature/ProcessCore/Llm/CanonicalContractTest.php",
-      "tests/Feature/ProcessCore/Llm/GenerationReceiptDecoderTest.php",
-      "tests/Feature/ProcessCore/Llm/ReceiptProvenanceTest.php",
-      "tests/Feature/ProcessCore/Llm/ExtractionFinalizationTest.php",
-      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
+    "format": "structured-ai-acceptance/v1",
+    "captured_at": "2026-11-03",
+    "contract_hashes_refreshed_at": "2026-11-04",
+    "provenance": "Synthetic orchestration contracts and existing legacy eval inventory; expectations hand-authored, hashes computed from versioned bytes; no paid model invocation or source-original verification. Current contract hashes refreshed after bounded receipt-envelope and recovery-batch fixes with their regression tests; original capture date and legacy eval inventory retained.",
+    "quality": {
+        "status": "not_measured",
+        "paid_holdout_executed": false,
+        "production_caps_approved": false,
+        "source_bytes_verified": false,
+        "gold_contract": "legacy_not_canonical",
+        "required_independent_documents": 60,
+        "required_per_primary_format": 10
+    },
+    "scenario_tests": {
+        "T13": [
+            "tests/Feature/ProcessCore/Llm/CanonicalContractTest.php",
+            "tests/Feature/ProcessCore/Llm/GenerationReceiptDecoderTest.php",
+            "tests/Feature/ProcessCore/Llm/ReceiptProvenanceTest.php",
+            "tests/Feature/ProcessCore/Llm/ExtractionFinalizationTest.php",
+            "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
+        ],
+        "T14": [
+            "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
+            "tests/Feature/ProcessCore/Llm/AssetContinuationTest.php"
+        ],
+        "T15": [
+            "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php",
+            "tests/Feature/ProcessCore/Llm/ProviderRecoveryConcurrencyTest.php",
+            "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
+            "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
+        ],
+        "T22": [
+            "tests/Feature/ProcessCore/Llm/AnalysisRecipeTest.php",
+            "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
+            "tests/Feature/ProcessCore/Llm/PageExtractionPublicationTest.php",
+            "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
+            "tests/Feature/ProcessCore/Llm/AcceptanceManifestTest.php"
+        ],
+        "T30": [
+            "tests/Feature/ProcessCore/Llm/BudgetLedgerTest.php",
+            "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
+            "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
+        ],
+        "T35": [
+            "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
+            "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
+        ]
+    },
+    "inputs": [
+        {
+            "path": "docker/compose.core-test.yml",
+            "sha256": "08428fb40e87961c2fcd0ecbcf5aa25f489b082bd8da186d116ebe0221afa709",
+            "original_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111",
+            "before_polish_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111"
+        },
+        {
+            "path": "app/Dto/Llm/Requests/ProviderUsage.php",
+            "sha256": "2859d90807c7fb565beabc1c297cffa9fb0904eacd4bc94f16539843cafb0129"
+        },
+        {
+            "path": "app/Dto/Llm/Requests/ReceiptAssessment.php",
+            "sha256": "6782390fa295cee2d9bf3074b54d8d297d30635d7da47f0b5d2222b5086b9fa5"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/AnalysisProviderConnection.php",
+            "sha256": "5c4663c5898364de600b80ed22e018e84376e443cf47102554c9add87cf48ab8"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/AnalysisRecipe.php",
+            "sha256": "7d996ae2ead492bce2b30a0c97ebc5a79d7d63a8be6bbd6784966b53a9d42749"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/AnalysisRunSnapshot.php",
+            "sha256": "4cf2af9d1aa67e9091cdfd70f596ea9031eac6c4d1d9207bac4c5ed85bfddafe"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/AnalysisWindowPlan.php",
+            "sha256": "c9025cf655b5956ab202259bb2335b91980513bcfb52a53b09bd68fdf4adb772"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/AnalysisWindowSnapshot.php",
+            "sha256": "db72d0056f6626321efde16fb4164cafd8764a2cb58cb268a6d59f4ac375899f"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/AnchoredEstimateRow.php",
+            "sha256": "3ccb6258970d83af04e367475b96c647b92d428d624371d6840e3169f8f818e2"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ChunkKey.php",
+            "sha256": "d0aa8a0425fb1a5c0876985095dbf1c136fad05094cc9e7346d0bbe8584d5d4a"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ChunkReference.php",
+            "sha256": "fc0b2946b29a8a7b500307369b188af0b984b5b246c7b6e0e2901ed55606415b"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/CoverageMap.php",
+            "sha256": "1b6de7dbc580ea510e58fa83823dd78621cf6a4f0012367695bb033e47b9becf"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/CoverageStrategy.php",
+            "sha256": "903e984e0c3454120ef60b79d0fb18d0e2dd9ca2c3f6c552732dbdbb5e3c7ef9"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/DiscoveredPage.php",
+            "sha256": "a8d843ac1bdd62b9d8faca951a2971dc501a1c6ce6ff07cb145c2857cdf98498"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/DiscoveryCheckpoint.php",
+            "sha256": "9f025775e4a972a7d4418fe70333da563f94c83ef7382d74c1a6a5456693696a"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/EstimateOrdinal.php",
+            "sha256": "2414de2173d6e049ec277d8acb3afe8ff0dfecc6ae5473c9457f016f23821bab"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ExtractionCheckpoint.php",
+            "sha256": "6e96b2495959f255dfb3163500f6fc6f5c5734cf7642070bd1b1d3c10458ee4e"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ExtractionCompleted.php",
+            "sha256": "bc8657fce91a6145cd552c72380738a841d9634a3832d6280d6f4fb8c9731d42"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ExtractionOutput.php",
+            "sha256": "cc1288814bede473f4144b9817f6bdafb48e61f22c8510b4d387556e3a3bdfea"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ExtractionProgress.php",
+            "sha256": "c9dddcb1015c4cabc084407e6a944ba7cb1860ccf79f476d2f63cb4a6c5193ae"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/FlatTotalNode.php",
+            "sha256": "139f37cf00056affb74b2814696607dc99a80a6e128ddd67029423e48b93581d"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/MoneyDecimal.php",
+            "sha256": "72641495dde638e7d4b9446da09598e4e83fe197b424e69227ef88c5c0789cb1"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/PageDiscoveryOutput.php",
+            "sha256": "6a5786908142d0a5cfa9c3ee7fd723aca74a1b10c86ce4fdd6dbf52dcf391281"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/PageExtractionOutput.php",
+            "sha256": "c9db2f1b9f215dd90660274fe981e35558dbf60df31f115fe901757b5f5d6812"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/PageRange.php",
+            "sha256": "4ad3a01548f216824501009bdde4ff011ea8b15eae98101c2ba37ceeb5ee45fe"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/PageSourceManifest.php",
+            "sha256": "d7c7a3129cf8afb815cf6695651e004b0ec35fa6349bddd7134dad0fc5a22bc2"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/PublicationCompleted.php",
+            "sha256": "f49da5c3ebff7c4fc03383f93c90caad85b13bfb453d03f425f55520300056b5"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/PublicationProgress.php",
+            "sha256": "7ec87f1878b17ace62bd8e2fa7e167fa75102b6ca64984fc1c089353e900759d"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/QuantityDecimal.php",
+            "sha256": "db4963189b0398f47b933d0257ff70e80e5a06187cb907b8735c6f107092f8a3"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/RecoveredProviderAsset.php",
+            "sha256": "6363e39e4bbd73c78faeaf58e17a7b05a6ed3333d94f5f75c4c6a3aeb8c69450"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/RowRange.php",
+            "sha256": "7e2152dde77add11ffbc4c9a1690d00ae81aba76548a2f4389265c4dc845dac6"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/Screening/ScreeningDecision.php",
+            "sha256": "d7511cef66cacb04d65b25f2328a41ac7592a5cba45ccaa923ab8e3011998924"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/Screening/ScreeningResult.php",
+            "sha256": "cd1d3ebab3ad439f415039bcb63efcf62e41e170cf8e47f76ca9bab88bbcb37d",
+            "original_sha256": "40798aea297fbf825e8be57e6ea950ff88793c8522d6b1403781c8d3f0ea348e",
+            "before_polish_sha256": "40798aea297fbf825e8be57e6ea950ff88793c8522d6b1403781c8d3f0ea348e"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/Screening/ScreeningValueNormalizer.php",
+            "sha256": "5c8a43d2b7314da9ab1b761ba44a678fab8bf96ebf389b1e10c52230a706dcd3",
+            "original_sha256": "f21db0543fa90c6edde80877994abde164096f537bd45c8ac1e4967aa541bfcd",
+            "before_polish_sha256": "f21db0543fa90c6edde80877994abde164096f537bd45c8ac1e4967aa541bfcd"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/Screening/StoredScreeningResult.php",
+            "sha256": "63ae5bfb283cf1a44564f38a0925b418a0cf1962eeb967ca087720369537f7b5"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ScreeningCompleted.php",
+            "sha256": "62f34df86d365b18e2be9dcc0b6bbaa7024d57028aab0d3fc3a6ef435bf49bc9"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ScreeningPolicySnapshot.php",
+            "sha256": "63cd43d45a588267ed7280c54db068067bff56645ff8957c034b9d7d80dfbcc4"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ScreeningProgress.php",
+            "sha256": "65aceaf5972087692b53320b9a5711d770890571ff622c38708ac06da94e47c3"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/StitchedEstimate.php",
+            "sha256": "faccb4a14d2b4356bbea3cefe32ecd98349f24b474d396b5fbe402fae7233965"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/Tuning/PromptSuggestionResponse.php",
+            "sha256": "f8271b886c16c65ef94e5a24d422517b1b289924a1b34aad44c9734eeeef1db4",
+            "original_sha256": "91de5e29b02ed23d40457054c7c4cb4b81bfb0344408858cbfd5601725d92713",
+            "before_polish_sha256": "91de5e29b02ed23d40457054c7c4cb4b81bfb0344408858cbfd5601725d92713"
+        },
+        {
+            "path": "app/Dto/Procurement/Ai/ValidatedChunk.php",
+            "sha256": "2b2bfa5a8e147d5bff875f106dd43704df9c935bf751148755edf0a11de838d4"
+        },
+        {
+            "path": "app/Repositories/Llm/Request/RequestRepository.php",
+            "sha256": "af8bad8ca42c63f8706ad15e115163eab187b83663fe46495cc97b20c7b42d0e"
+        },
+        {
+            "path": "app/Repositories/Procurement/Ai/PublicationRepository.php",
+            "sha256": "e5a059b5e1227e6cdf328b19feda3d10ef7e77672368f6817f7c697cf096a3de"
+        },
+        {
+            "path": "app/Services/Llm/Execution/ReceiptStore.php",
+            "sha256": "020462db50f638ce73bea02f84e54ed5a9ef6967dc21ec9ea6846aefca9b2daf"
+        },
+        {
+            "path": "app/Services/Llm/Execution/StructuredCallExecutor.php",
+            "sha256": "7e55cbe6826d11eef7763a5b82ca26456c41d07119d74adefc00046ad9faf235"
+        },
+        {
+            "path": "app/Services/Llm/Providers/GeminiAssetReceiptPolicy.php",
+            "sha256": "f3c8222ac3c5fc3909f7d67bf0dfbd867ccd167914104e3e3057da4c94658fd8"
+        },
+        {
+            "path": "app/Services/Llm/Providers/GeminiGenerateContentClient.php",
+            "sha256": "8caaa36ac2382997321838bfc83c596803d5ba99e9289423c21ed6876ace074a"
+        },
+        {
+            "path": "app/Services/Llm/Schema/CanonicalJson.php",
+            "sha256": "174ac2622be87eb69702fa0417e69475269af50e053ccc3d8b5389f3e0046c4e"
+        },
+        {
+            "path": "app/Services/Llm/Schema/CanonicalSchemaValidator.php",
+            "sha256": "9b27ebd25963a9082a879105dc917b25a4e861eab69201db94fa0069228c8447"
+        },
+        {
+            "path": "app/Services/Llm/Schema/ContractAttributeReader.php",
+            "sha256": "9cfcd423873bfa7eb2d2a2560b8d88d96954b93b746f12aaaff52e9f96684dfe",
+            "original_sha256": "47830a73688354e92ca63b0205c7b7c543635ad9320be38bf7219547ccacc0f9",
+            "before_polish_sha256": "47830a73688354e92ca63b0205c7b7c543635ad9320be38bf7219547ccacc0f9"
+        },
+        {
+            "path": "app/Services/Llm/Schema/DataTypeGraph.php",
+            "sha256": "c8de00ce3a99798342fdc27ed54b9050a76482cac520c1e6fc3931e4d0b60aae",
+            "original_sha256": "61e29070121a5a9521c687ab4f5d1abb473be82e7fdc4d6471334fabcc497336",
+            "before_polish_sha256": "61e29070121a5a9521c687ab4f5d1abb473be82e7fdc4d6471334fabcc497336"
+        },
+        {
+            "path": "app/Services/Llm/Schema/GeminiResponseSchemaAdapter.php",
+            "sha256": "0e589e2a6ca7fbca6ee882dd176be061399cdff9cdcc3ea04efa6098734b5fc0",
+            "original_sha256": "122af6d83830f9186cad49d837ebdaf096710350d0758575e57472a015031542",
+            "before_polish_sha256": "122af6d83830f9186cad49d837ebdaf096710350d0758575e57472a015031542"
+        },
+        {
+            "path": "app/Services/Llm/Schema/JsonSchemaGenerator.php",
+            "sha256": "79688a837dc98dbc352b165173515cb5b07bd0c7219f18ba608f352a4370622a",
+            "original_sha256": "d92e25e184f2a0cd56988ebe1348fca78cc8756a1e746db33eb48a7c07e6010e",
+            "before_polish_sha256": "d92e25e184f2a0cd56988ebe1348fca78cc8756a1e746db33eb48a7c07e6010e"
+        },
+        {
+            "path": "app/Services/Llm/Schema/PromptContextGenerator.php",
+            "sha256": "36af0bf0658c3dc1ba28649d2044482aebc4ee0de834b146aa6298750b8c5773",
+            "original_sha256": "b3a5920ee4ec17a7b2642407a3066eb5c90296b3b4272b00fa4f7160224649ce",
+            "before_polish_sha256": "b3a5920ee4ec17a7b2642407a3066eb5c90296b3b4272b00fa4f7160224649ce"
+        },
+        {
+            "path": "app/Services/Llm/Schema/ProviderSchemaCompiler.php",
+            "sha256": "9935616f5dd01ec57a9c772b8253658a7a7b81f28c4f5af1d896b24fc1059cd4"
+        },
+        {
+            "path": "app/Services/Llm/Schema/SchemaConstraints.php",
+            "sha256": "3adbcb5226f461ce81806ee557261d1bb9a17c567cbe1b893d9a3673fde56ded"
+        },
+        {
+            "path": "app/Services/Procurement/Extraction/AnalysisCallCoordinator.php",
+            "sha256": "52ee872b838b410003dd63062740e46f6d9a1258357f48359fdc4267406b00e7"
+        },
+        {
+            "path": "app/Services/Procurement/Extraction/AnalysisGeneration.php",
+            "sha256": "cd8e0a553963829f637e0b3e4fad9abbb903155edb967b17d0074441ac0a90b6"
+        },
+        {
+            "path": "app/Services/Procurement/Extraction/AnalysisProviderSendGate.php",
+            "sha256": "73ecee5e915ec2ba7ca00cedf485afcd18373178fba435a6646db905b21063be"
+        },
+        {
+            "path": "app/Services/Procurement/Extraction/ChunkCommitter.php",
+            "sha256": "3b3c70ea3f48adafe01b69a2e8b499292f5b9bfccf0f35aa99e58db9f7efdef2"
+        },
+        {
+            "path": "app/Services/Procurement/Extraction/ExtractionHandler.php",
+            "sha256": "be4478b13121bf76b3795f3a7da75c392eb0ec7e811e18003afe6f1d7f8136ee"
+        },
+        {
+            "path": "app/Services/Procurement/Process/RecoveryReconciler.php",
+            "sha256": "f5bab6801dafbe590f8a709a522cf7f42934f1346e4830f7d3c2a798a149f759",
+            "original_sha256": "76029ae424584a7051ca1135e49d2fb350069783e981fda17e75e3958100b47b",
+            "before_polish_sha256": "76029ae424584a7051ca1135e49d2fb350069783e981fda17e75e3958100b47b"
+        },
+        {
+            "path": "composer.lock",
+            "sha256": "e5981e6030590ce94182e8d364f1b6c0dfa9ed571e2642bc899a98e3435d912f"
+        },
+        {
+            "path": "estimates/eval-splits.json",
+            "sha256": "3d61b7aedd08b16ae316ab87f0958a4f5a90096b50173e75656759a2063cbd6e"
+        },
+        {
+            "path": "estimates/gold/EST-GSFX-LSR-001.gold.json",
+            "sha256": "449e62ba3cc0ab1ead8a4e066e11e4d5fe504a29841386dc430ec8f7476ea9af"
+        },
+        {
+            "path": "estimates/gold/EST-GSFX-LSR-001.screening.json",
+            "sha256": "9657f56c2dcf17f2fd1fba57cda3291f3ab036e47e409023686ca4bb520d8802"
+        },
+        {
+            "path": "estimates/gold/EST-PDF-SCAN-001.screening.json",
+            "sha256": "48ad8f51455bb3b267ca798b6b807536372f479dc8afc51066aa4ea518e59ae1"
+        },
+        {
+            "path": "estimates/gold/EST-XLS-KS2-001.gold.json",
+            "sha256": "fe4523b387628a8d4fdb12a16d8d0939a770571829b9fa292a99aa5042274087"
+        },
+        {
+            "path": "estimates/gold/EST-XLS-KS2-001.profile.json",
+            "sha256": "2b2f29f34850b4b002317e5a74c87045dce93cf3549d429e595bee139bea3925"
+        },
+        {
+            "path": "estimates/gold/EST-XLS-KS2-001.screening.json",
+            "sha256": "9282f5c1bd9e73d1c2d8f33551ccfc363d846ea30ac7d8bf1b81add63d2fbb8d"
+        },
+        {
+            "path": "estimates/gold/EST-XLS-KS3-001.profile.json",
+            "sha256": "42047be1ec89cd18869c11a666539d434beaf6d1dd249a25a8a106800b6f7e3f"
+        },
+        {
+            "path": "estimates/gold/EST-XLS-KS3-001.screening.json",
+            "sha256": "4b42be127eecc08f209e3e06ed8b020c5cfd8c4448805d2ad9f4d34f6776a01c"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-KS2-001.gold.json",
+            "sha256": "02caf4f268427442bd9290e04f7a250f4beb626f32ab9ffd3a8031066b3ae929"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-KS2-001.profile.json",
+            "sha256": "d0eb01aa6f5f308eb5c33c20450206b34145e201f5dd57ce079648464e913553"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-KS2-001.screening.json",
+            "sha256": "84ec1688f1fae595c510bcf4e7f1c32b8cc70a0df8e364d25aca029a2089aa3c"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-KS2-002.profile.json",
+            "sha256": "8777ba2f304da7de4a50f6067b63362fe52ed8bfa656a07e98db845f70ce5eb1"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-KS2-002.screening.json",
+            "sha256": "91d270f2e3b236a5cfd3cc57462ca321a88e69ec6095f9bf3667ed96015dd172"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-KS2-003.gold.json",
+            "sha256": "45768fcacc0947bee761942ee2bbfc96f51d13437c12321eebb2ba7b5a5b1c7a"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-KS2-003.profile.json",
+            "sha256": "6e488b0e0a18290b8e10906b007ea1d769691d73709df1a7a2f74794bbc2ed97"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-KS2-003.screening.json",
+            "sha256": "c2600e7f4fd03048022b2d506ddbacf2c968b81096f43b4b32b01affad0185e2"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-LSR-001.gold.json",
+            "sha256": "00aa8ca0b7d99a86b6ef1aeb7729bfd6bdb67345605ebb7e8c4c2c86d1cb07a1"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-LSR-001.profile.json",
+            "sha256": "99ea983f0eff95863abbd64a3238388b16fd8bd5a12617d0b4dc8003d5b3f348"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-LSR-001.screening.json",
+            "sha256": "b10c421857b9b7a660f56b69588b7767da6d6bfb344cc4a01ac264543d2ef01b"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-LSR-002.profile.json",
+            "sha256": "315ab35bc2e9cc38ffa6788c2ffffd8c8e2ce42652ee958b24b86554679bbb41"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-LSR-002.screening.json",
+            "sha256": "cff57f905a924f5b4f1b7ebf4f737f7c5a1d30ac46889504be71d39cd204aef5"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-LSR-003.profile.json",
+            "sha256": "f427f22b2464b08db644b028e273cdb79954713f63110c594203b3dd87b71e84"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-LSR-003.screening.json",
+            "sha256": "755b456dfc7dfcce702ddbd3ef77c4ce6d4350b1f3c727a0d9bd2aea529a91f8"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-VOR-001.gold.json",
+            "sha256": "f31cf0a93072bfd87c63eef1b6a3e7ebd92e01e4d952efaeced3372e7eafc105"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-VOR-001.profile.json",
+            "sha256": "5fbcaa2848f7b06c31dd4062b24f05aedd58fdaeb2902dbdce7bc2db38ca2657"
+        },
+        {
+            "path": "estimates/gold/EST-XLSX-VOR-001.screening.json",
+            "sha256": "7781abd159f7c96fd8a4da57afa92e7c640f499bf9049593ecb4967286077314"
+        },
+        {
+            "path": "estimates/manifest.json",
+            "sha256": "a6566e34f8d352954a2b059ceda439e36d6c681f4bd61bd322d3f3d3979d561d"
+        },
+        {
+            "path": "resources/ai/prompts/contracts/extraction-v1.txt",
+            "sha256": "c2f5b54e8c2952f84018ef1164ed87b665bb074db1fc3c296793a255a958a410"
+        },
+        {
+            "path": "resources/ai/prompts/contracts/page-discovery-v1.txt",
+            "sha256": "6726e5a2f69e6f3e7a8818eeb53d221efa7c5f8a7c9540a795ba29e0214add38"
+        },
+        {
+            "path": "resources/ai/prompts/contracts/page-extraction-v1.txt",
+            "sha256": "3131408ec44814ed73d6b177a0e9b2fc15c5ab47c38413d8d9da3209cd7858b9"
+        },
+        {
+            "path": "resources/ai/prompts/contracts/screening-v1.txt",
+            "sha256": "90819a482081c9bc45240a4dab5ecfcc41ddc0987a91d923e50c66aaaf8ff3b4"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/CanonicalContractTest.php",
+            "sha256": "34469f05634adb8b9758b42eba0ccbe1d5d86d6ae0d24ed015bf41976e88b12b",
+            "original_path": "tests/Feature/ProcessCore/Llm/T13CanonicalContractTest.php",
+            "original_sha256": "e11f477df0c281fe77f25b3b27e20213b9120985b6195e92edad5dbd11d61063",
+            "before_polish_sha256": "d6a687d5c084b0619a1f1464c39fa4ad37c9cce6c08e57a1af528d3cd84b8f5b"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/GenerationReceiptDecoderTest.php",
+            "sha256": "4b2b512809fdb4c5971fa826f6938d124bd728618dd96b018d0d515b85ea80c5",
+            "original_path": "tests/Feature/ProcessCore/Llm/T13GenerationReceiptDecoderTest.php",
+            "original_sha256": "597d55b8755b1808b04814c8db38239fe727ebb5ccdc5080600ecbd4f06a2452",
+            "before_polish_sha256": "940965e5e95650bd0b038e081b1d7910494c082ae890f4cbf4c00488bbc948ee"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/ReceiptProvenanceTest.php",
+            "sha256": "e648106b7ed0229bc9671379c05b2372ca428b20c71cbc5c8294e026b2b60788",
+            "original_path": "tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php",
+            "original_sha256": "fc3295a4f8ea484f5887c6fbcbb51dc68a07cf1784e7afd05d2b00c4d67cc148",
+            "before_polish_sha256": "f0e10ff45f0be497720f3acb12df83cda6712fb814f3757bfc308fa300c49265"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
+            "sha256": "feb0fd339e66a8fc8f6d73dcc5e3afea1ab5425767ee72db40e54c834c7a58ce",
+            "original_path": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
+            "original_sha256": "7f9f5020f71bca605ea572604ce50caefbfd91042ad09e204fbfdb7c01f62978",
+            "before_polish_sha256": "b58dd27225daa2d481b3e7a077dfcd59387b70dd83c67f194551b5af08d5cb49"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php",
+            "sha256": "548a8a68d398570274be2f5db7b1d10ec16fbcae99eed498fd06d9f17e19f59b",
+            "original_path": "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
+            "original_sha256": "9b19257e0e9f1d4bb1ca9411654a90dad3861c663d35f260cdf9d7f8fc4e88bf",
+            "before_polish_sha256": "c00e49adcc3aea8007cc8eb81eb06bb586183ef8637b0cf251c15bf9ecd5d9ba"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/ProviderRecoveryConcurrencyTest.php",
+            "sha256": "eb24c81754fce30b59efcc9c3c423bd725c134f9246fee2966207f4bc80df6ab",
+            "original_path": "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php",
+            "original_sha256": "63bac6381774f4f9400b40956d0bfbdc525e063e9daa717d7fa1b79dbcf899d0",
+            "before_polish_sha256": "3a7f960542c50d236d510a5c82489dfb5beac257bde73dad3dd3a015096d1678"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/AcceptanceManifestTest.php",
+            "sha256": "0debe64d0ad48526f44baf4442c6e17e1460c0bd6144c85ea5074ad157887e12",
+            "original_path": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
+            "original_sha256": "c73d20017806309288a6c887029b8d5bc45ed59bb120292e8a2f9f59e9af385a",
+            "before_polish_sha256": "0c3bfc0ef550a21f2a52f5e14cf09ba4e24efc3a92e9cc9da4e2c8ed011e422e"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/AnalysisRecipeTest.php",
+            "sha256": "b88f254a7fe04f37e0b2dbad3ae3917df70151d42d67b52bf29cc9ee62137f6d",
+            "original_path": "tests/Feature/ProcessCore/Llm/T22AnalysisRecipeTest.php",
+            "original_sha256": "e11353a2d0268cbfc644ea9a14786d2d38220a3f6c7774aa2d0bee27957d0708",
+            "before_polish_sha256": "5e6132042eb2134607c9878b4b1d29e65cea76362f187ba0cfc2467e197d1dbe"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/AssetContinuationTest.php",
+            "sha256": "ed5c6659f0bfeb0f6793f0b24130d80c9b3a135a737dc1157837ab7a43d06847",
+            "original_path": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
+            "original_sha256": "a7b6702ec1ab72ff04a787cf98aa651bea9227e9c50cebb1cdda755efcdb25a5",
+            "before_polish_sha256": "f2503a152129a06628a3f7119d1dbc63e261a903fe5aa16258dc4be40576438e"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/ExtractionFinalizationTest.php",
+            "sha256": "d957504f89436a08e62d1deaccdd0ab480950194479496c8d6e695d75bd6e541",
+            "original_path": "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php",
+            "original_sha256": "7427c8ef9e0ac77dd474b693b800e52fce0e3531f142d071a60aed2a9c067069",
+            "before_polish_sha256": "ea260fe6a8aeb088c82b26c85b0108d041af1d708fd1c3377e5b15ac9be8a142"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
+            "sha256": "e387319d87c8bd2cc28df793a5e9fe4f189c7ba534c2e80c4137d2e17414b64d",
+            "original_path": "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
+            "original_sha256": "dacf17d6d6bfae508bb965ec846bddc83c8fcac6d9c777be60bb0b0f2578a798",
+            "before_polish_sha256": "b078a4ecc36ce3a1fdea0064421b211d0bcd0a8ac4f9739c4c09fdcd3d602b71"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/PageExtractionPublicationTest.php",
+            "sha256": "5619941b8060762066ec49ecd7aee629789d6fbd22ff42bb56daa285ba577133",
+            "original_path": "tests/Feature/ProcessCore/Llm/T22PageExtractionPublicationTest.php",
+            "original_sha256": "663eb8264b341550d087ad05c8cc38eeba333f9118a3f721a9fcdf7c79a1af72",
+            "before_polish_sha256": "36125e6a29ea22947578cfdf6d036538543c9ea06d584208be5f9b13b8b5bf2a"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
+            "sha256": "e99194d7d4e007c53d95a18b2e99082b7a24e443178b65a3e82a56e66bad8bc0",
+            "original_path": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
+            "original_sha256": "46e77f62c780d331ce490c88dbc34b8abadff23dfbfe0e924f387bd95f4a1be3",
+            "before_polish_sha256": "ee495e95ec8cdc92f53f358a144838f536c02a96e48173bbac92382baea93961"
+        },
+        {
+            "path": "tests/Feature/ProcessCore/Llm/BudgetLedgerTest.php",
+            "sha256": "b1bc85f108c17deb185b53746bc0645721999267affc5aa1ba6a60f8024410c7",
+            "original_path": "tests/Feature/ProcessCore/Llm/T30BudgetLedgerTest.php",
+            "original_sha256": "b3b4affc2a8ba0522edcaf9fca7879b4ba50b7f857726df29cbe2a148c536e70",
+            "before_polish_sha256": "2d2ec41ef55abb0f4797a40d3cdef515433aaa38adf807657292bde661cdb2bc"
+        },
+        {
+            "path": "tests/Fixtures/Llm/step-json-schemas.json",
+            "sha256": "27c13959fbb2fa7d75111ac5d44246f81f79a4ab2a8f0046e988163235932f0d"
+        },
+        {
+            "path": "tests/Fixtures/ProcessCore/Llm/assets-v1.json",
+            "sha256": "446106814625c925465c98de68bed21a0a1c3a82d5aa3a966aa54a318866727e"
+        },
+        {
+            "path": "tests/Fixtures/ProcessCore/Llm/extraction-v1.json",
+            "sha256": "961d5f0e52479c8501ade5ef25b1ff13837899dacc0d54e1e90d34931b0fb63e"
+        },
+        {
+            "path": "tests/Fixtures/ProcessCore/Llm/generation-response-v1.json",
+            "sha256": "a104d519fdb5bdb69d760e00772e6133e72ac48df3d29c21ea2c525d11558bad"
+        },
+        {
+            "path": "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
+            "sha256": "638a3c6e01ba9a755ba54754f58445985fa00902259f487ac970512c021de89a",
+            "original_path": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
+            "original_sha256": "3985807e1d3087565345db46f99eb544882881b9866ea032a5d214bb41badba6",
+            "before_polish_sha256": "53bfc714887ab48433f91153340129e3a5c8ec975335491560f32a0252e319d7"
+        },
+        {
+            "path": "tests/Support/ProcessCore/StructuredChainFixtures.php",
+            "sha256": "b6114fd3662dea28517cb24169a63e119af538c17a2f3e611adc4ada0219102d"
+        }
     ],
-    "T14": [
-      "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-      "tests/Feature/ProcessCore/Llm/AssetContinuationTest.php"
-    ],
-    "T15": [
-      "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php",
-      "tests/Feature/ProcessCore/Llm/ProviderRecoveryConcurrencyTest.php",
-      "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
-      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
-    ],
-    "T22": [
-      "tests/Feature/ProcessCore/Llm/AnalysisRecipeTest.php",
-      "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
-      "tests/Feature/ProcessCore/Llm/PageExtractionPublicationTest.php",
-      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
-      "tests/Feature/ProcessCore/Llm/AcceptanceManifestTest.php"
-    ],
-    "T30": [
-      "tests/Feature/ProcessCore/Llm/BudgetLedgerTest.php",
-      "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
-      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
-    ],
-    "T35": [
-      "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
-      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
+    "eval_counts": {
+        "documents": 25,
+        "extraction_gold": 6,
+        "human_verified": 0,
+        "tune": 4,
+        "holdout": 2
+    },
+    "eval_inventory": [
+        {
+            "code": "EST-GSFX-LSR-001",
+            "family": "CL-15",
+            "split": "tune",
+            "declared_input_sha256": "d175edac8b7a3032eee20cfd941cb2178b471e75f288e3fcc4fc8e44fc52708b",
+            "source_format": "gsfx",
+            "gold_path": "estimates/gold/EST-GSFX-LSR-001.gold.json",
+            "human_verified": false
+        },
+        {
+            "code": "EST-PDF-SCAN-001",
+            "family": "CL-16",
+            "split": "unassigned",
+            "declared_input_sha256": "089e12f62f9177215ff9867b4aec7978b2677618fd961f729d7019aacaf08c1a",
+            "source_format": "pdf",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "EST-XLS-KS2-001",
+            "family": "CL-13",
+            "split": "tune",
+            "declared_input_sha256": "9461adc4a9a8899d9ba24eef6d0908151ea60589ce674529d0ec5dceca3baa9f",
+            "source_format": "xls",
+            "gold_path": "estimates/gold/EST-XLS-KS2-001.gold.json",
+            "human_verified": false
+        },
+        {
+            "code": "EST-XLS-KS3-001",
+            "family": "CL-03",
+            "split": "unassigned",
+            "declared_input_sha256": "625da41a05cb297916df76396ece997f3087096075b3fc60c7770b122491c3e2",
+            "source_format": "xls",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "EST-XLSX-KS2-001",
+            "family": "CL-01",
+            "split": "holdout",
+            "declared_input_sha256": "60ea7d73cd829178e290cb317fbeff3fc4851eea94e33cd4e96825a90d2a4530",
+            "source_format": "xlsx",
+            "gold_path": "estimates/gold/EST-XLSX-KS2-001.gold.json",
+            "human_verified": false
+        },
+        {
+            "code": "EST-XLSX-KS2-002",
+            "family": "CL-01",
+            "split": "unassigned",
+            "declared_input_sha256": "84673b630651c78a22f0ba04568a431771d7b5bb7c8ca5430d7b355d6204b7d3",
+            "source_format": "xlsx",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "EST-XLSX-KS2-003",
+            "family": "CL-11",
+            "split": "tune",
+            "declared_input_sha256": "0960e17e8b0703e65e64d2d4d2974e1d1a0acd74f8fba0a3fe348578ed141982",
+            "source_format": "xlsx",
+            "gold_path": "estimates/gold/EST-XLSX-KS2-003.gold.json",
+            "human_verified": false
+        },
+        {
+            "code": "EST-XLSX-LSR-001",
+            "family": "CL-05",
+            "split": "holdout",
+            "declared_input_sha256": "f591a274bcec9dea29230e09606d7fc60c9da7b80b37eed06caa3be5564b8351",
+            "source_format": "xlsx",
+            "gold_path": "estimates/gold/EST-XLSX-LSR-001.gold.json",
+            "human_verified": false
+        },
+        {
+            "code": "EST-XLSX-LSR-002",
+            "family": "CL-10",
+            "split": "unassigned",
+            "declared_input_sha256": "81e6bd3ffae62a073b1dcd3d84f8d5a0f0b79a87ff70e63781e393140aec9e4d",
+            "source_format": "xlsx",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "EST-XLSX-LSR-003",
+            "family": "CL-14",
+            "split": "unassigned",
+            "declared_input_sha256": "5c75590d4189072916683b57c4bc09336035969fa6e938342fabbb802426d42d",
+            "source_format": "xlsx",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "EST-XLSX-VOR-001",
+            "family": "CL-12",
+            "split": "tune",
+            "declared_input_sha256": "3fe82a4a401ff3b3db65c8db1fc59d348b996fe137079d4ca801941a422723f8",
+            "source_format": "xlsx",
+            "gold_path": "estimates/gold/EST-XLSX-VOR-001.gold.json",
+            "human_verified": false
+        },
+        {
+            "code": "NEG-DOCX-CONTRACT-001",
+            "family": "CL-23",
+            "split": "unassigned",
+            "declared_input_sha256": "ea128c8cd0ab7c3054540c81d7c05e99fe1a125042d91f76bdac72648ce8d707",
+            "source_format": "docx",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-DOCX-SPEC-001",
+            "family": "CL-07",
+            "split": "unassigned",
+            "declared_input_sha256": "bdcf16e6e179a2ffe8fa4356971e13f9c918796d56bf5516d668d82ebdc34f9d",
+            "source_format": "docx",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-JPG-PHOTO-001",
+            "family": "CL-09",
+            "split": "unassigned",
+            "declared_input_sha256": "262e025876060b22b38dde2f3ae1b2f36959a760651fd6bc8b18b653951536e4",
+            "source_format": "jpg",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-PDF-AOSR-001",
+            "family": "CL-17",
+            "split": "unassigned",
+            "declared_input_sha256": "d5a5238cf833d7197fd0c7acb7565de22e9540c47c9273b4af9d422d55124e1f",
+            "source_format": "pdf",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-PDF-DRAWING-001",
+            "family": "CL-02",
+            "split": "unassigned",
+            "declared_input_sha256": "58c3d580b1b2fe690358fd66ed88bcf40032be8c8af05e5d72b8935cc03ea004",
+            "source_format": "pdf",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-PDF-DRAWING-002",
+            "family": "CL-22",
+            "split": "unassigned",
+            "declared_input_sha256": "16b2a66e42eb63071dc364ac663a01c8c142032213f4d248298457e289d72873",
+            "source_format": "pdf",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-PDF-JOURNAL-001",
+            "family": "CL-08",
+            "split": "unassigned",
+            "declared_input_sha256": "96e837da2497f14284f404420713304103db2b140857cac70ac346081bafd9ea",
+            "source_format": "pdf",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-PDF-VOLUME-001",
+            "family": "CL-04",
+            "split": "unassigned",
+            "declared_input_sha256": "0eeaf93a24bf2d75080f1e392db7bf9b15a5cd8e593a594af93ff2577b521436",
+            "source_format": "pdf",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-XLS-AOSR-001",
+            "family": "CL-06",
+            "split": "unassigned",
+            "declared_input_sha256": "a1251a3030690d15c9f28af059be600ccf3c1a33c2eecba36b63c4eb56859590",
+            "source_format": "xls",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-XLSX-NMCK-001",
+            "family": "CL-20",
+            "split": "unassigned",
+            "declared_input_sha256": "5d70e05e403c6343f039b34a1304d47fd9885ec4a0e84f264f30e5f0e12d5f2f",
+            "source_format": "xlsx",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-XLSX-NMCK-002",
+            "family": "CL-21",
+            "split": "unassigned",
+            "declared_input_sha256": "45259e433a40f45f40c7ee686f6500d204d5b8365ff5dad02ca5233c534e4fc0",
+            "source_format": "xlsx",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-XLSX-VOLUME-001",
+            "family": "CL-18",
+            "split": "unassigned",
+            "declared_input_sha256": "1353166f3d4f617eedfea1f5d9772c815f240bb55040d983855e23332970c83c",
+            "source_format": "xlsx",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "NEG-XLSX-VOLUME-002",
+            "family": "CL-19",
+            "split": "unassigned",
+            "declared_input_sha256": "8d3b082a46130aabc622452d2da2cea7985f90bbf0a8ce546d98ad681eb77a6e",
+            "source_format": "xlsx",
+            "gold_path": null,
+            "human_verified": false
+        },
+        {
+            "code": "EST-PDF-SCAN-002",
+            "family": "CL-16",
+            "split": "unassigned",
+            "declared_input_sha256": "1a63ce8e302870a1408444f622a689c444cf27fdf3d198b0b78ad53fc865acde",
+            "source_format": "pdf",
+            "gold_path": null,
+            "human_verified": false
+        }
     ]
-  },
-  "inputs": [
-    {
-      "path": "docker/compose.core-test.yml",
-      "sha256": "08428fb40e87961c2fcd0ecbcf5aa25f489b082bd8da186d116ebe0221afa709",
-      "original_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111",
-      "before_polish_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111"
-    },
-    {
-      "path": "app/Dto/Llm/Requests/ProviderUsage.php",
-      "sha256": "2859d90807c7fb565beabc1c297cffa9fb0904eacd4bc94f16539843cafb0129"
-    },
-    {
-      "path": "app/Dto/Llm/Requests/ReceiptAssessment.php",
-      "sha256": "6782390fa295cee2d9bf3074b54d8d297d30635d7da47f0b5d2222b5086b9fa5"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/AnalysisProviderConnection.php",
-      "sha256": "5c4663c5898364de600b80ed22e018e84376e443cf47102554c9add87cf48ab8"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/AnalysisRecipe.php",
-      "sha256": "7d996ae2ead492bce2b30a0c97ebc5a79d7d63a8be6bbd6784966b53a9d42749"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/AnalysisRunSnapshot.php",
-      "sha256": "4cf2af9d1aa67e9091cdfd70f596ea9031eac6c4d1d9207bac4c5ed85bfddafe"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/AnalysisWindowPlan.php",
-      "sha256": "c9025cf655b5956ab202259bb2335b91980513bcfb52a53b09bd68fdf4adb772"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/AnalysisWindowSnapshot.php",
-      "sha256": "db72d0056f6626321efde16fb4164cafd8764a2cb58cb268a6d59f4ac375899f"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/AnchoredEstimateRow.php",
-      "sha256": "3ccb6258970d83af04e367475b96c647b92d428d624371d6840e3169f8f818e2"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ChunkKey.php",
-      "sha256": "d0aa8a0425fb1a5c0876985095dbf1c136fad05094cc9e7346d0bbe8584d5d4a"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ChunkReference.php",
-      "sha256": "fc0b2946b29a8a7b500307369b188af0b984b5b246c7b6e0e2901ed55606415b"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/CoverageMap.php",
-      "sha256": "1b6de7dbc580ea510e58fa83823dd78621cf6a4f0012367695bb033e47b9becf"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/CoverageStrategy.php",
-      "sha256": "903e984e0c3454120ef60b79d0fb18d0e2dd9ca2c3f6c552732dbdbb5e3c7ef9"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/DiscoveredPage.php",
-      "sha256": "a8d843ac1bdd62b9d8faca951a2971dc501a1c6ce6ff07cb145c2857cdf98498"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/DiscoveryCheckpoint.php",
-      "sha256": "9f025775e4a972a7d4418fe70333da563f94c83ef7382d74c1a6a5456693696a"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/EstimateOrdinal.php",
-      "sha256": "2414de2173d6e049ec277d8acb3afe8ff0dfecc6ae5473c9457f016f23821bab"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ExtractionCheckpoint.php",
-      "sha256": "6e96b2495959f255dfb3163500f6fc6f5c5734cf7642070bd1b1d3c10458ee4e"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ExtractionCompleted.php",
-      "sha256": "bc8657fce91a6145cd552c72380738a841d9634a3832d6280d6f4fb8c9731d42"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ExtractionOutput.php",
-      "sha256": "cc1288814bede473f4144b9817f6bdafb48e61f22c8510b4d387556e3a3bdfea"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ExtractionProgress.php",
-      "sha256": "c9dddcb1015c4cabc084407e6a944ba7cb1860ccf79f476d2f63cb4a6c5193ae"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/FlatTotalNode.php",
-      "sha256": "139f37cf00056affb74b2814696607dc99a80a6e128ddd67029423e48b93581d"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/MoneyDecimal.php",
-      "sha256": "72641495dde638e7d4b9446da09598e4e83fe197b424e69227ef88c5c0789cb1"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/PageDiscoveryOutput.php",
-      "sha256": "6a5786908142d0a5cfa9c3ee7fd723aca74a1b10c86ce4fdd6dbf52dcf391281"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/PageExtractionOutput.php",
-      "sha256": "c9db2f1b9f215dd90660274fe981e35558dbf60df31f115fe901757b5f5d6812"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/PageRange.php",
-      "sha256": "4ad3a01548f216824501009bdde4ff011ea8b15eae98101c2ba37ceeb5ee45fe"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/PageSourceManifest.php",
-      "sha256": "d7c7a3129cf8afb815cf6695651e004b0ec35fa6349bddd7134dad0fc5a22bc2"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/PublicationCompleted.php",
-      "sha256": "f49da5c3ebff7c4fc03383f93c90caad85b13bfb453d03f425f55520300056b5"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/PublicationProgress.php",
-      "sha256": "7ec87f1878b17ace62bd8e2fa7e167fa75102b6ca64984fc1c089353e900759d"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/QuantityDecimal.php",
-      "sha256": "db4963189b0398f47b933d0257ff70e80e5a06187cb907b8735c6f107092f8a3"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/RecoveredProviderAsset.php",
-      "sha256": "6363e39e4bbd73c78faeaf58e17a7b05a6ed3333d94f5f75c4c6a3aeb8c69450"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/RowRange.php",
-      "sha256": "7e2152dde77add11ffbc4c9a1690d00ae81aba76548a2f4389265c4dc845dac6"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/Screening/ScreeningDecision.php",
-      "sha256": "d7511cef66cacb04d65b25f2328a41ac7592a5cba45ccaa923ab8e3011998924"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/Screening/ScreeningResult.php",
-      "sha256": "cd1d3ebab3ad439f415039bcb63efcf62e41e170cf8e47f76ca9bab88bbcb37d",
-      "original_sha256": "40798aea297fbf825e8be57e6ea950ff88793c8522d6b1403781c8d3f0ea348e",
-      "before_polish_sha256": "40798aea297fbf825e8be57e6ea950ff88793c8522d6b1403781c8d3f0ea348e"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/Screening/ScreeningValueNormalizer.php",
-      "sha256": "5c8a43d2b7314da9ab1b761ba44a678fab8bf96ebf389b1e10c52230a706dcd3",
-      "original_sha256": "f21db0543fa90c6edde80877994abde164096f537bd45c8ac1e4967aa541bfcd",
-      "before_polish_sha256": "f21db0543fa90c6edde80877994abde164096f537bd45c8ac1e4967aa541bfcd"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/Screening/StoredScreeningResult.php",
-      "sha256": "63ae5bfb283cf1a44564f38a0925b418a0cf1962eeb967ca087720369537f7b5"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ScreeningCompleted.php",
-      "sha256": "62f34df86d365b18e2be9dcc0b6bbaa7024d57028aab0d3fc3a6ef435bf49bc9"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ScreeningPolicySnapshot.php",
-      "sha256": "63cd43d45a588267ed7280c54db068067bff56645ff8957c034b9d7d80dfbcc4"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ScreeningProgress.php",
-      "sha256": "65aceaf5972087692b53320b9a5711d770890571ff622c38708ac06da94e47c3"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/StitchedEstimate.php",
-      "sha256": "faccb4a14d2b4356bbea3cefe32ecd98349f24b474d396b5fbe402fae7233965"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/Tuning/PromptSuggestionResponse.php",
-      "sha256": "f8271b886c16c65ef94e5a24d422517b1b289924a1b34aad44c9734eeeef1db4",
-      "original_sha256": "91de5e29b02ed23d40457054c7c4cb4b81bfb0344408858cbfd5601725d92713",
-      "before_polish_sha256": "91de5e29b02ed23d40457054c7c4cb4b81bfb0344408858cbfd5601725d92713"
-    },
-    {
-      "path": "app/Dto/Procurement/Ai/ValidatedChunk.php",
-      "sha256": "2b2bfa5a8e147d5bff875f106dd43704df9c935bf751148755edf0a11de838d4"
-    },
-    {
-      "path": "app/Repositories/Llm/Request/RequestRepository.php",
-      "sha256": "af8bad8ca42c63f8706ad15e115163eab187b83663fe46495cc97b20c7b42d0e"
-    },
-    {
-      "path": "app/Repositories/Procurement/Ai/PublicationRepository.php",
-      "sha256": "e5a059b5e1227e6cdf328b19feda3d10ef7e77672368f6817f7c697cf096a3de"
-    },
-    {
-      "path": "app/Services/Llm/Execution/ReceiptStore.php",
-      "sha256": "53537f489cb1113acd9393d62d55e497464027e44e618b4b10f709326fc899c2"
-    },
-    {
-      "path": "app/Services/Llm/Execution/StructuredCallExecutor.php",
-      "sha256": "6a13577951b9a87a67551812efcd6d686b32b56fe732362a6030b042da4080a2"
-    },
-    {
-      "path": "app/Services/Llm/Providers/GeminiAssetReceiptPolicy.php",
-      "sha256": "f3c8222ac3c5fc3909f7d67bf0dfbd867ccd167914104e3e3057da4c94658fd8"
-    },
-    {
-      "path": "app/Services/Llm/Providers/GeminiGenerateContentClient.php",
-      "sha256": "8caaa36ac2382997321838bfc83c596803d5ba99e9289423c21ed6876ace074a"
-    },
-    {
-      "path": "app/Services/Llm/Schema/CanonicalJson.php",
-      "sha256": "174ac2622be87eb69702fa0417e69475269af50e053ccc3d8b5389f3e0046c4e"
-    },
-    {
-      "path": "app/Services/Llm/Schema/CanonicalSchemaValidator.php",
-      "sha256": "9b27ebd25963a9082a879105dc917b25a4e861eab69201db94fa0069228c8447"
-    },
-    {
-      "path": "app/Services/Llm/Schema/ContractAttributeReader.php",
-      "sha256": "9cfcd423873bfa7eb2d2a2560b8d88d96954b93b746f12aaaff52e9f96684dfe",
-      "original_sha256": "47830a73688354e92ca63b0205c7b7c543635ad9320be38bf7219547ccacc0f9",
-      "before_polish_sha256": "47830a73688354e92ca63b0205c7b7c543635ad9320be38bf7219547ccacc0f9"
-    },
-    {
-      "path": "app/Services/Llm/Schema/DataTypeGraph.php",
-      "sha256": "c8de00ce3a99798342fdc27ed54b9050a76482cac520c1e6fc3931e4d0b60aae",
-      "original_sha256": "61e29070121a5a9521c687ab4f5d1abb473be82e7fdc4d6471334fabcc497336",
-      "before_polish_sha256": "61e29070121a5a9521c687ab4f5d1abb473be82e7fdc4d6471334fabcc497336"
-    },
-    {
-      "path": "app/Services/Llm/Schema/GeminiResponseSchemaAdapter.php",
-      "sha256": "0e589e2a6ca7fbca6ee882dd176be061399cdff9cdcc3ea04efa6098734b5fc0",
-      "original_sha256": "122af6d83830f9186cad49d837ebdaf096710350d0758575e57472a015031542",
-      "before_polish_sha256": "122af6d83830f9186cad49d837ebdaf096710350d0758575e57472a015031542"
-    },
-    {
-      "path": "app/Services/Llm/Schema/JsonSchemaGenerator.php",
-      "sha256": "79688a837dc98dbc352b165173515cb5b07bd0c7219f18ba608f352a4370622a",
-      "original_sha256": "d92e25e184f2a0cd56988ebe1348fca78cc8756a1e746db33eb48a7c07e6010e",
-      "before_polish_sha256": "d92e25e184f2a0cd56988ebe1348fca78cc8756a1e746db33eb48a7c07e6010e"
-    },
-    {
-      "path": "app/Services/Llm/Schema/PromptContextGenerator.php",
-      "sha256": "36af0bf0658c3dc1ba28649d2044482aebc4ee0de834b146aa6298750b8c5773",
-      "original_sha256": "b3a5920ee4ec17a7b2642407a3066eb5c90296b3b4272b00fa4f7160224649ce",
-      "before_polish_sha256": "b3a5920ee4ec17a7b2642407a3066eb5c90296b3b4272b00fa4f7160224649ce"
-    },
-    {
-      "path": "app/Services/Llm/Schema/ProviderSchemaCompiler.php",
-      "sha256": "9935616f5dd01ec57a9c772b8253658a7a7b81f28c4f5af1d896b24fc1059cd4"
-    },
-    {
-      "path": "app/Services/Llm/Schema/SchemaConstraints.php",
-      "sha256": "3adbcb5226f461ce81806ee557261d1bb9a17c567cbe1b893d9a3673fde56ded"
-    },
-    {
-      "path": "app/Services/Procurement/Extraction/AnalysisCallCoordinator.php",
-      "sha256": "52ee872b838b410003dd63062740e46f6d9a1258357f48359fdc4267406b00e7"
-    },
-    {
-      "path": "app/Services/Procurement/Extraction/AnalysisGeneration.php",
-      "sha256": "cd8e0a553963829f637e0b3e4fad9abbb903155edb967b17d0074441ac0a90b6"
-    },
-    {
-      "path": "app/Services/Procurement/Extraction/AnalysisProviderSendGate.php",
-      "sha256": "73ecee5e915ec2ba7ca00cedf485afcd18373178fba435a6646db905b21063be"
-    },
-    {
-      "path": "app/Services/Procurement/Extraction/ChunkCommitter.php",
-      "sha256": "3b3c70ea3f48adafe01b69a2e8b499292f5b9bfccf0f35aa99e58db9f7efdef2"
-    },
-    {
-      "path": "app/Services/Procurement/Extraction/ExtractionHandler.php",
-      "sha256": "be4478b13121bf76b3795f3a7da75c392eb0ec7e811e18003afe6f1d7f8136ee"
-    },
-    {
-      "path": "app/Services/Procurement/Process/RecoveryReconciler.php",
-      "sha256": "4ec4992a72810481f44fbd7f436ce6a4e7d073aae8d32f4cebb076b5b43b4e2a",
-      "original_sha256": "76029ae424584a7051ca1135e49d2fb350069783e981fda17e75e3958100b47b",
-      "before_polish_sha256": "76029ae424584a7051ca1135e49d2fb350069783e981fda17e75e3958100b47b"
-    },
-    {
-      "path": "composer.lock",
-      "sha256": "e5981e6030590ce94182e8d364f1b6c0dfa9ed571e2642bc899a98e3435d912f"
-    },
-    {
-      "path": "estimates/eval-splits.json",
-      "sha256": "3d61b7aedd08b16ae316ab87f0958a4f5a90096b50173e75656759a2063cbd6e"
-    },
-    {
-      "path": "estimates/gold/EST-GSFX-LSR-001.gold.json",
-      "sha256": "449e62ba3cc0ab1ead8a4e066e11e4d5fe504a29841386dc430ec8f7476ea9af"
-    },
-    {
-      "path": "estimates/gold/EST-GSFX-LSR-001.screening.json",
-      "sha256": "9657f56c2dcf17f2fd1fba57cda3291f3ab036e47e409023686ca4bb520d8802"
-    },
-    {
-      "path": "estimates/gold/EST-PDF-SCAN-001.screening.json",
-      "sha256": "48ad8f51455bb3b267ca798b6b807536372f479dc8afc51066aa4ea518e59ae1"
-    },
-    {
-      "path": "estimates/gold/EST-XLS-KS2-001.gold.json",
-      "sha256": "fe4523b387628a8d4fdb12a16d8d0939a770571829b9fa292a99aa5042274087"
-    },
-    {
-      "path": "estimates/gold/EST-XLS-KS2-001.profile.json",
-      "sha256": "2b2f29f34850b4b002317e5a74c87045dce93cf3549d429e595bee139bea3925"
-    },
-    {
-      "path": "estimates/gold/EST-XLS-KS2-001.screening.json",
-      "sha256": "9282f5c1bd9e73d1c2d8f33551ccfc363d846ea30ac7d8bf1b81add63d2fbb8d"
-    },
-    {
-      "path": "estimates/gold/EST-XLS-KS3-001.profile.json",
-      "sha256": "42047be1ec89cd18869c11a666539d434beaf6d1dd249a25a8a106800b6f7e3f"
-    },
-    {
-      "path": "estimates/gold/EST-XLS-KS3-001.screening.json",
-      "sha256": "4b42be127eecc08f209e3e06ed8b020c5cfd8c4448805d2ad9f4d34f6776a01c"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-KS2-001.gold.json",
-      "sha256": "02caf4f268427442bd9290e04f7a250f4beb626f32ab9ffd3a8031066b3ae929"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-KS2-001.profile.json",
-      "sha256": "d0eb01aa6f5f308eb5c33c20450206b34145e201f5dd57ce079648464e913553"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-KS2-001.screening.json",
-      "sha256": "84ec1688f1fae595c510bcf4e7f1c32b8cc70a0df8e364d25aca029a2089aa3c"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-KS2-002.profile.json",
-      "sha256": "8777ba2f304da7de4a50f6067b63362fe52ed8bfa656a07e98db845f70ce5eb1"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-KS2-002.screening.json",
-      "sha256": "91d270f2e3b236a5cfd3cc57462ca321a88e69ec6095f9bf3667ed96015dd172"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-KS2-003.gold.json",
-      "sha256": "45768fcacc0947bee761942ee2bbfc96f51d13437c12321eebb2ba7b5a5b1c7a"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-KS2-003.profile.json",
-      "sha256": "6e488b0e0a18290b8e10906b007ea1d769691d73709df1a7a2f74794bbc2ed97"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-KS2-003.screening.json",
-      "sha256": "c2600e7f4fd03048022b2d506ddbacf2c968b81096f43b4b32b01affad0185e2"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-LSR-001.gold.json",
-      "sha256": "00aa8ca0b7d99a86b6ef1aeb7729bfd6bdb67345605ebb7e8c4c2c86d1cb07a1"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-LSR-001.profile.json",
-      "sha256": "99ea983f0eff95863abbd64a3238388b16fd8bd5a12617d0b4dc8003d5b3f348"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-LSR-001.screening.json",
-      "sha256": "b10c421857b9b7a660f56b69588b7767da6d6bfb344cc4a01ac264543d2ef01b"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-LSR-002.profile.json",
-      "sha256": "315ab35bc2e9cc38ffa6788c2ffffd8c8e2ce42652ee958b24b86554679bbb41"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-LSR-002.screening.json",
-      "sha256": "cff57f905a924f5b4f1b7ebf4f737f7c5a1d30ac46889504be71d39cd204aef5"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-LSR-003.profile.json",
-      "sha256": "f427f22b2464b08db644b028e273cdb79954713f63110c594203b3dd87b71e84"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-LSR-003.screening.json",
-      "sha256": "755b456dfc7dfcce702ddbd3ef77c4ce6d4350b1f3c727a0d9bd2aea529a91f8"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-VOR-001.gold.json",
-      "sha256": "f31cf0a93072bfd87c63eef1b6a3e7ebd92e01e4d952efaeced3372e7eafc105"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-VOR-001.profile.json",
-      "sha256": "5fbcaa2848f7b06c31dd4062b24f05aedd58fdaeb2902dbdce7bc2db38ca2657"
-    },
-    {
-      "path": "estimates/gold/EST-XLSX-VOR-001.screening.json",
-      "sha256": "7781abd159f7c96fd8a4da57afa92e7c640f499bf9049593ecb4967286077314"
-    },
-    {
-      "path": "estimates/manifest.json",
-      "sha256": "a6566e34f8d352954a2b059ceda439e36d6c681f4bd61bd322d3f3d3979d561d"
-    },
-    {
-      "path": "resources/ai/prompts/contracts/extraction-v1.txt",
-      "sha256": "c2f5b54e8c2952f84018ef1164ed87b665bb074db1fc3c296793a255a958a410"
-    },
-    {
-      "path": "resources/ai/prompts/contracts/page-discovery-v1.txt",
-      "sha256": "6726e5a2f69e6f3e7a8818eeb53d221efa7c5f8a7c9540a795ba29e0214add38"
-    },
-    {
-      "path": "resources/ai/prompts/contracts/page-extraction-v1.txt",
-      "sha256": "3131408ec44814ed73d6b177a0e9b2fc15c5ab47c38413d8d9da3209cd7858b9"
-    },
-    {
-      "path": "resources/ai/prompts/contracts/screening-v1.txt",
-      "sha256": "90819a482081c9bc45240a4dab5ecfcc41ddc0987a91d923e50c66aaaf8ff3b4"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/CanonicalContractTest.php",
-      "sha256": "34469f05634adb8b9758b42eba0ccbe1d5d86d6ae0d24ed015bf41976e88b12b",
-      "original_path": "tests/Feature/ProcessCore/Llm/T13CanonicalContractTest.php",
-      "original_sha256": "e11f477df0c281fe77f25b3b27e20213b9120985b6195e92edad5dbd11d61063",
-      "before_polish_sha256": "d6a687d5c084b0619a1f1464c39fa4ad37c9cce6c08e57a1af528d3cd84b8f5b"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/GenerationReceiptDecoderTest.php",
-      "sha256": "4b2b512809fdb4c5971fa826f6938d124bd728618dd96b018d0d515b85ea80c5",
-      "original_path": "tests/Feature/ProcessCore/Llm/T13GenerationReceiptDecoderTest.php",
-      "original_sha256": "597d55b8755b1808b04814c8db38239fe727ebb5ccdc5080600ecbd4f06a2452",
-      "before_polish_sha256": "940965e5e95650bd0b038e081b1d7910494c082ae890f4cbf4c00488bbc948ee"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/ReceiptProvenanceTest.php",
-      "sha256": "e648106b7ed0229bc9671379c05b2372ca428b20c71cbc5c8294e026b2b60788",
-      "original_path": "tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php",
-      "original_sha256": "fc3295a4f8ea484f5887c6fbcbb51dc68a07cf1784e7afd05d2b00c4d67cc148",
-      "before_polish_sha256": "f0e10ff45f0be497720f3acb12df83cda6712fb814f3757bfc308fa300c49265"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-      "sha256": "feb0fd339e66a8fc8f6d73dcc5e3afea1ab5425767ee72db40e54c834c7a58ce",
-      "original_path": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-      "original_sha256": "7f9f5020f71bca605ea572604ce50caefbfd91042ad09e204fbfdb7c01f62978",
-      "before_polish_sha256": "b58dd27225daa2d481b3e7a077dfcd59387b70dd83c67f194551b5af08d5cb49"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php",
-      "sha256": "548a8a68d398570274be2f5db7b1d10ec16fbcae99eed498fd06d9f17e19f59b",
-      "original_path": "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
-      "original_sha256": "9b19257e0e9f1d4bb1ca9411654a90dad3861c663d35f260cdf9d7f8fc4e88bf",
-      "before_polish_sha256": "c00e49adcc3aea8007cc8eb81eb06bb586183ef8637b0cf251c15bf9ecd5d9ba"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/ProviderRecoveryConcurrencyTest.php",
-      "sha256": "eb24c81754fce30b59efcc9c3c423bd725c134f9246fee2966207f4bc80df6ab",
-      "original_path": "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php",
-      "original_sha256": "63bac6381774f4f9400b40956d0bfbdc525e063e9daa717d7fa1b79dbcf899d0",
-      "before_polish_sha256": "3a7f960542c50d236d510a5c82489dfb5beac257bde73dad3dd3a015096d1678"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/AcceptanceManifestTest.php",
-      "sha256": "0debe64d0ad48526f44baf4442c6e17e1460c0bd6144c85ea5074ad157887e12",
-      "original_path": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
-      "original_sha256": "c73d20017806309288a6c887029b8d5bc45ed59bb120292e8a2f9f59e9af385a",
-      "before_polish_sha256": "0c3bfc0ef550a21f2a52f5e14cf09ba4e24efc3a92e9cc9da4e2c8ed011e422e"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/AnalysisRecipeTest.php",
-      "sha256": "b88f254a7fe04f37e0b2dbad3ae3917df70151d42d67b52bf29cc9ee62137f6d",
-      "original_path": "tests/Feature/ProcessCore/Llm/T22AnalysisRecipeTest.php",
-      "original_sha256": "e11353a2d0268cbfc644ea9a14786d2d38220a3f6c7774aa2d0bee27957d0708",
-      "before_polish_sha256": "5e6132042eb2134607c9878b4b1d29e65cea76362f187ba0cfc2467e197d1dbe"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/AssetContinuationTest.php",
-      "sha256": "ed5c6659f0bfeb0f6793f0b24130d80c9b3a135a737dc1157837ab7a43d06847",
-      "original_path": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
-      "original_sha256": "a7b6702ec1ab72ff04a787cf98aa651bea9227e9c50cebb1cdda755efcdb25a5",
-      "before_polish_sha256": "f2503a152129a06628a3f7119d1dbc63e261a903fe5aa16258dc4be40576438e"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/ExtractionFinalizationTest.php",
-      "sha256": "d957504f89436a08e62d1deaccdd0ab480950194479496c8d6e695d75bd6e541",
-      "original_path": "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php",
-      "original_sha256": "7427c8ef9e0ac77dd474b693b800e52fce0e3531f142d071a60aed2a9c067069",
-      "before_polish_sha256": "ea260fe6a8aeb088c82b26c85b0108d041af1d708fd1c3377e5b15ac9be8a142"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
-      "sha256": "e387319d87c8bd2cc28df793a5e9fe4f189c7ba534c2e80c4137d2e17414b64d",
-      "original_path": "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
-      "original_sha256": "dacf17d6d6bfae508bb965ec846bddc83c8fcac6d9c777be60bb0b0f2578a798",
-      "before_polish_sha256": "b078a4ecc36ce3a1fdea0064421b211d0bcd0a8ac4f9739c4c09fdcd3d602b71"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/PageExtractionPublicationTest.php",
-      "sha256": "5619941b8060762066ec49ecd7aee629789d6fbd22ff42bb56daa285ba577133",
-      "original_path": "tests/Feature/ProcessCore/Llm/T22PageExtractionPublicationTest.php",
-      "original_sha256": "663eb8264b341550d087ad05c8cc38eeba333f9118a3f721a9fcdf7c79a1af72",
-      "before_polish_sha256": "36125e6a29ea22947578cfdf6d036538543c9ea06d584208be5f9b13b8b5bf2a"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
-      "sha256": "e99194d7d4e007c53d95a18b2e99082b7a24e443178b65a3e82a56e66bad8bc0",
-      "original_path": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
-      "original_sha256": "46e77f62c780d331ce490c88dbc34b8abadff23dfbfe0e924f387bd95f4a1be3",
-      "before_polish_sha256": "ee495e95ec8cdc92f53f358a144838f536c02a96e48173bbac92382baea93961"
-    },
-    {
-      "path": "tests/Feature/ProcessCore/Llm/BudgetLedgerTest.php",
-      "sha256": "b1bc85f108c17deb185b53746bc0645721999267affc5aa1ba6a60f8024410c7",
-      "original_path": "tests/Feature/ProcessCore/Llm/T30BudgetLedgerTest.php",
-      "original_sha256": "b3b4affc2a8ba0522edcaf9fca7879b4ba50b7f857726df29cbe2a148c536e70",
-      "before_polish_sha256": "2d2ec41ef55abb0f4797a40d3cdef515433aaa38adf807657292bde661cdb2bc"
-    },
-    {
-      "path": "tests/Fixtures/Llm/step-json-schemas.json",
-      "sha256": "27c13959fbb2fa7d75111ac5d44246f81f79a4ab2a8f0046e988163235932f0d"
-    },
-    {
-      "path": "tests/Fixtures/ProcessCore/Llm/assets-v1.json",
-      "sha256": "446106814625c925465c98de68bed21a0a1c3a82d5aa3a966aa54a318866727e"
-    },
-    {
-      "path": "tests/Fixtures/ProcessCore/Llm/extraction-v1.json",
-      "sha256": "961d5f0e52479c8501ade5ef25b1ff13837899dacc0d54e1e90d34931b0fb63e"
-    },
-    {
-      "path": "tests/Fixtures/ProcessCore/Llm/generation-response-v1.json",
-      "sha256": "a104d519fdb5bdb69d760e00772e6133e72ac48df3d29c21ea2c525d11558bad"
-    },
-    {
-      "path": "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
-      "sha256": "638a3c6e01ba9a755ba54754f58445985fa00902259f487ac970512c021de89a",
-      "original_path": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
-      "original_sha256": "3985807e1d3087565345db46f99eb544882881b9866ea032a5d214bb41badba6",
-      "before_polish_sha256": "53bfc714887ab48433f91153340129e3a5c8ec975335491560f32a0252e319d7"
-    },
-    {
-      "path": "tests/Support/ProcessCore/StructuredChainFixtures.php",
-      "sha256": "b6114fd3662dea28517cb24169a63e119af538c17a2f3e611adc4ada0219102d"
-    }
-  ],
-  "eval_counts": {
-    "documents": 25,
-    "extraction_gold": 6,
-    "human_verified": 0,
-    "tune": 4,
-    "holdout": 2
-  },
-  "eval_inventory": [
-    {
-      "code": "EST-GSFX-LSR-001",
-      "family": "CL-15",
-      "split": "tune",
-      "declared_input_sha256": "d175edac8b7a3032eee20cfd941cb2178b471e75f288e3fcc4fc8e44fc52708b",
-      "source_format": "gsfx",
-      "gold_path": "estimates/gold/EST-GSFX-LSR-001.gold.json",
-      "human_verified": false
-    },
-    {
-      "code": "EST-PDF-SCAN-001",
-      "family": "CL-16",
-      "split": "unassigned",
-      "declared_input_sha256": "089e12f62f9177215ff9867b4aec7978b2677618fd961f729d7019aacaf08c1a",
-      "source_format": "pdf",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "EST-XLS-KS2-001",
-      "family": "CL-13",
-      "split": "tune",
-      "declared_input_sha256": "9461adc4a9a8899d9ba24eef6d0908151ea60589ce674529d0ec5dceca3baa9f",
-      "source_format": "xls",
-      "gold_path": "estimates/gold/EST-XLS-KS2-001.gold.json",
-      "human_verified": false
-    },
-    {
-      "code": "EST-XLS-KS3-001",
-      "family": "CL-03",
-      "split": "unassigned",
-      "declared_input_sha256": "625da41a05cb297916df76396ece997f3087096075b3fc60c7770b122491c3e2",
-      "source_format": "xls",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "EST-XLSX-KS2-001",
-      "family": "CL-01",
-      "split": "holdout",
-      "declared_input_sha256": "60ea7d73cd829178e290cb317fbeff3fc4851eea94e33cd4e96825a90d2a4530",
-      "source_format": "xlsx",
-      "gold_path": "estimates/gold/EST-XLSX-KS2-001.gold.json",
-      "human_verified": false
-    },
-    {
-      "code": "EST-XLSX-KS2-002",
-      "family": "CL-01",
-      "split": "unassigned",
-      "declared_input_sha256": "84673b630651c78a22f0ba04568a431771d7b5bb7c8ca5430d7b355d6204b7d3",
-      "source_format": "xlsx",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "EST-XLSX-KS2-003",
-      "family": "CL-11",
-      "split": "tune",
-      "declared_input_sha256": "0960e17e8b0703e65e64d2d4d2974e1d1a0acd74f8fba0a3fe348578ed141982",
-      "source_format": "xlsx",
-      "gold_path": "estimates/gold/EST-XLSX-KS2-003.gold.json",
-      "human_verified": false
-    },
-    {
-      "code": "EST-XLSX-LSR-001",
-      "family": "CL-05",
-      "split": "holdout",
-      "declared_input_sha256": "f591a274bcec9dea29230e09606d7fc60c9da7b80b37eed06caa3be5564b8351",
-      "source_format": "xlsx",
-      "gold_path": "estimates/gold/EST-XLSX-LSR-001.gold.json",
-      "human_verified": false
-    },
-    {
-      "code": "EST-XLSX-LSR-002",
-      "family": "CL-10",
-      "split": "unassigned",
-      "declared_input_sha256": "81e6bd3ffae62a073b1dcd3d84f8d5a0f0b79a87ff70e63781e393140aec9e4d",
-      "source_format": "xlsx",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "EST-XLSX-LSR-003",
-      "family": "CL-14",
-      "split": "unassigned",
-      "declared_input_sha256": "5c75590d4189072916683b57c4bc09336035969fa6e938342fabbb802426d42d",
-      "source_format": "xlsx",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "EST-XLSX-VOR-001",
-      "family": "CL-12",
-      "split": "tune",
-      "declared_input_sha256": "3fe82a4a401ff3b3db65c8db1fc59d348b996fe137079d4ca801941a422723f8",
-      "source_format": "xlsx",
-      "gold_path": "estimates/gold/EST-XLSX-VOR-001.gold.json",
-      "human_verified": false
-    },
-    {
-      "code": "NEG-DOCX-CONTRACT-001",
-      "family": "CL-23",
-      "split": "unassigned",
-      "declared_input_sha256": "ea128c8cd0ab7c3054540c81d7c05e99fe1a125042d91f76bdac72648ce8d707",
-      "source_format": "docx",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-DOCX-SPEC-001",
-      "family": "CL-07",
-      "split": "unassigned",
-      "declared_input_sha256": "bdcf16e6e179a2ffe8fa4356971e13f9c918796d56bf5516d668d82ebdc34f9d",
-      "source_format": "docx",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-JPG-PHOTO-001",
-      "family": "CL-09",
-      "split": "unassigned",
-      "declared_input_sha256": "262e025876060b22b38dde2f3ae1b2f36959a760651fd6bc8b18b653951536e4",
-      "source_format": "jpg",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-PDF-AOSR-001",
-      "family": "CL-17",
-      "split": "unassigned",
-      "declared_input_sha256": "d5a5238cf833d7197fd0c7acb7565de22e9540c47c9273b4af9d422d55124e1f",
-      "source_format": "pdf",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-PDF-DRAWING-001",
-      "family": "CL-02",
-      "split": "unassigned",
-      "declared_input_sha256": "58c3d580b1b2fe690358fd66ed88bcf40032be8c8af05e5d72b8935cc03ea004",
-      "source_format": "pdf",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-PDF-DRAWING-002",
-      "family": "CL-22",
-      "split": "unassigned",
-      "declared_input_sha256": "16b2a66e42eb63071dc364ac663a01c8c142032213f4d248298457e289d72873",
-      "source_format": "pdf",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-PDF-JOURNAL-001",
-      "family": "CL-08",
-      "split": "unassigned",
-      "declared_input_sha256": "96e837da2497f14284f404420713304103db2b140857cac70ac346081bafd9ea",
-      "source_format": "pdf",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-PDF-VOLUME-001",
-      "family": "CL-04",
-      "split": "unassigned",
-      "declared_input_sha256": "0eeaf93a24bf2d75080f1e392db7bf9b15a5cd8e593a594af93ff2577b521436",
-      "source_format": "pdf",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-XLS-AOSR-001",
-      "family": "CL-06",
-      "split": "unassigned",
-      "declared_input_sha256": "a1251a3030690d15c9f28af059be600ccf3c1a33c2eecba36b63c4eb56859590",
-      "source_format": "xls",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-XLSX-NMCK-001",
-      "family": "CL-20",
-      "split": "unassigned",
-      "declared_input_sha256": "5d70e05e403c6343f039b34a1304d47fd9885ec4a0e84f264f30e5f0e12d5f2f",
-      "source_format": "xlsx",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-XLSX-NMCK-002",
-      "family": "CL-21",
-      "split": "unassigned",
-      "declared_input_sha256": "45259e433a40f45f40c7ee686f6500d204d5b8365ff5dad02ca5233c534e4fc0",
-      "source_format": "xlsx",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-XLSX-VOLUME-001",
-      "family": "CL-18",
-      "split": "unassigned",
-      "declared_input_sha256": "1353166f3d4f617eedfea1f5d9772c815f240bb55040d983855e23332970c83c",
-      "source_format": "xlsx",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "NEG-XLSX-VOLUME-002",
-      "family": "CL-19",
-      "split": "unassigned",
-      "declared_input_sha256": "8d3b082a46130aabc622452d2da2cea7985f90bbf0a8ce546d98ad681eb77a6e",
-      "source_format": "xlsx",
-      "gold_path": null,
-      "human_verified": false
-    },
-    {
-      "code": "EST-PDF-SCAN-002",
-      "family": "CL-16",
-      "split": "unassigned",
-      "declared_input_sha256": "1a63ce8e302870a1408444f622a689c444cf27fdf3d198b0b78ad53fc865acde",
-      "source_format": "pdf",
-      "gold_path": null,
-      "human_verified": false
-    }
-  ]
 }

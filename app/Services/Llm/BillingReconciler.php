@@ -37,9 +37,17 @@ final readonly class BillingReconciler
 
     public function reconcile(CarbonInterface $from, CarbonInterface $to, string $exportPath): ReconciliationReport
     {
-        $exportedByDay = $this->parseExport($exportPath, $from, $to);
+        $fromDay = $this->parseStrictDay($from->format('Y-m-d'), 'граница начала периода');
+        $toDay = $this->parseStrictDay($to->format('Y-m-d'), 'граница окончания периода');
+        if ($fromDay->gte($toDay)) {
+            throw new BillingExportUnreadable(
+                "Некорректный период сверки: начало ({$fromDay->toDateString()}) должно быть строго меньше окончания ({$toDay->toDateString()}).",
+            );
+        }
 
-        $usage = $this->usageSource->usage(new UsageQuery(from: $from, to: $to, byDay: true));
+        $exportedByDay = $this->parseExport($exportPath, $fromDay, $toDay);
+
+        $usage = $this->usageSource->usage(new UsageQuery(from: $fromDay, to: $toDay, byDay: true));
 
         $trackedByDay = [];
 
@@ -48,46 +56,58 @@ final readonly class BillingReconciler
                 continue;
             }
 
-            $key = $row->day->toDateString();
-            $trackedByDay[$key] = ($trackedByDay[$key] ?? 0) + $row->costMicros;
+            $key = $this->parseStrictDay($row->day->format('Y-m-d'), 'трекинг')->toDateString();
+            if ($row->costMicros < 0) {
+                throw new BillingExportUnreadable("Отрицательная сумма трекинга за {$key}.");
+            }
+            $trackedByDay[$key] = $this->checkedAdd($trackedByDay[$key] ?? 0, $row->costMicros, "суточной суммы трекинга за {$key}");
         }
 
         $days = array_unique([...array_keys($trackedByDay), ...array_keys($exportedByDay)]);
         sort($days);
 
+        $configuredThreshold = config('ai.reconcile.threshold_percent');
+        $threshold = is_int($configuredThreshold) || is_float($configuredThreshold) || is_string($configuredThreshold)
+            ? (float) $configuredThreshold
+            : 0.0;
+
         $rows = [];
         $trackedTotal = 0;
         $exportedTotal = 0;
+        $sumAbsoluteDeltaMicros = 0;
+        $maxDailyDeltaPercent = 0.0;
+        $daysExceedingThreshold = 0;
 
         foreach ($days as $day) {
             $tracked = $trackedByDay[$day] ?? 0;
             $exported = $exportedByDay[$day] ?? 0;
             $delta = $tracked - $exported;
+            $absDelta = $delta < 0 ? -$delta : $delta;
+            $rowDeltaPercent = $this->percent($delta, $tracked, $exported);
 
-            $date = CarbonImmutable::createFromFormat('Y-m-d', $day);
-
-            if ($date === null) {
-                throw new BillingExportUnreadable("Не удалось собрать дату «{$day}» для отчёта.");
-            }
+            $date = $this->parseStrictDay($day, 'отчёт');
 
             $rows[] = new ReconciliationRow(
-                day: $date->startOfDay(),
+                day: $date,
                 trackedMicros: $tracked,
                 exportedMicros: $exported,
                 deltaMicros: $delta,
-                deltaPercent: $this->percent($delta, $tracked, $exported),
+                deltaPercent: $rowDeltaPercent,
             );
 
-            $trackedTotal += $tracked;
-            $exportedTotal += $exported;
+            $trackedTotal = $this->checkedAdd($trackedTotal, $tracked, 'итоговой суммы трекинга');
+            $exportedTotal = $this->checkedAdd($exportedTotal, $exported, 'итоговой суммы выгрузки');
+            $sumAbsoluteDeltaMicros = $this->checkedAdd($sumAbsoluteDeltaMicros, $absDelta, 'суммы абсолютных дневных расхождений');
+            $maxDailyDeltaPercent = max($maxDailyDeltaPercent, $rowDeltaPercent);
+            if ($rowDeltaPercent > $threshold) {
+                $daysExceedingThreshold++;
+            }
         }
 
         $deltaTotal = $trackedTotal - $exportedTotal;
-        $configuredThreshold = config('ai.reconcile.threshold_percent');
-        $threshold = is_int($configuredThreshold) || is_float($configuredThreshold) || is_string($configuredThreshold)
-            ? (float) $configuredThreshold
-            : 0.0;
         $deltaPercent = $this->percent($deltaTotal, $trackedTotal, $exportedTotal);
+        $totalExceedsThreshold = $deltaPercent > $threshold;
+        $dailyExceedsThreshold = $daysExceedingThreshold > 0;
 
         return new ReconciliationReport(
             rows: $rows,
@@ -97,8 +117,13 @@ final readonly class BillingReconciler
             deltaTotalMicros: $deltaTotal,
             deltaPercent: $deltaPercent,
             thresholdPercent: $threshold,
-            exceedsThreshold: $deltaPercent > $threshold,
+            exceedsThreshold: $totalExceedsThreshold || $dailyExceedsThreshold,
             exportEmpty: $exportedByDay === [],
+            sumAbsoluteDeltaMicros: $sumAbsoluteDeltaMicros,
+            maxDailyDeltaPercent: $maxDailyDeltaPercent,
+            daysExceedingThreshold: $daysExceedingThreshold,
+            totalExceedsThreshold: $totalExceedsThreshold,
+            dailyExceedsThreshold: $dailyExceedsThreshold,
         );
     }
 
@@ -131,44 +156,49 @@ final readonly class BillingReconciler
                 throw new BillingExportUnreadable("Выгрузка пуста — нет строки заголовка: {$exportPath}.");
             }
 
-            $columns = $this->resolveColumns($this->stringCells($header));
+            $headerCells = $this->stringCells($header);
+            $columns = $this->resolveColumns($headerCells);
+            $columnCount = count($headerCells);
             $byDay = [];
+            $rowNumber = 1;
 
             while (($record = fgetcsv($handle)) !== false) {
+                $rowNumber++;
                 if ($record === [null]) {
                     continue;
                 }
 
                 $record = $this->stringCells($record);
+                if (count($record) > $columnCount) {
+                    throw new BillingExportUnreadable(
+                        "Строка {$rowNumber} содержит лишние колонки (".count($record)." вместо {$columnCount}).",
+                    );
+                }
+                if (! array_key_exists($columns['date'], $record) || ! array_key_exists($columns['cost'], $record)) {
+                    throw new BillingExportUnreadable("Строка {$rowNumber} не содержит обязательных ячеек date/cost.");
+                }
 
                 $this->guardCurrency($record, $columns);
 
-                $rawDate = trim((string) ($record[$columns['date']] ?? ''));
-
-                try {
-                    $parsedDay = CarbonImmutable::createFromFormat('Y-m-d', $rawDate);
-
-                    if ($parsedDay === null) {
-                        throw new BillingExportUnreadable("Не удалось разобрать дату «{$rawDate}» в выгрузке — ожидается формат YYYY-MM-DD.");
-                    }
-
-                    $day = $parsedDay->startOfDay();
-                } catch (InvalidFormatException) {
-                    throw new BillingExportUnreadable("Не удалось разобрать дату «{$rawDate}» в выгрузке — ожидается формат YYYY-MM-DD.");
-                }
+                $rawDate = trim((string) $record[$columns['date']]);
+                $day = $this->parseStrictDay($rawDate, "строка {$rowNumber}");
 
                 if ($day->lt($from) || $day->gte($to)) {
                     continue;
                 }
 
-                $rawCost = str_replace(',', '.', trim((string) ($record[$columns['cost']] ?? '')));
-                if (! is_numeric($rawCost) || (float) $rawCost < 0) {
-                    throw new BillingExportUnreadable("Некорректная сумма «{$rawCost}» в выгрузке за {$rawDate}.");
+                $rawCost = str_replace(',', '.', trim((string) $record[$columns['cost']]));
+                if (preg_match('/^(?:0|[1-9]\d{0,11})(?:\.\d{1,18})?$/D', $rawCost) !== 1 || ! is_numeric($rawCost)) {
+                    throw new BillingExportUnreadable("Некорректная сумма «{$rawCost}» в выгрузке за {$rawDate} (строка {$rowNumber}).");
                 }
-                $scaled = bcmul($rawCost, '1000000', 6);
-                $costMicros = (int) bcadd($scaled, bccomp($scaled, '0', 6) >= 0 ? '0.5' : '-0.5', 0);
+                $scaled = bcmul($rawCost, '1000000', 12);
+                $rounded = bcadd($scaled, '0.5', 0);
+                if (bccomp($rounded, (string) PHP_INT_MAX, 0) > 0 || bccomp($rounded, '0', 0) < 0) {
+                    throw new BillingExportUnreadable("Переполнение суммы «{$rawCost}» в выгрузке за {$rawDate} (строка {$rowNumber}).");
+                }
+                $costMicros = (int) $rounded;
                 $key = $day->toDateString();
-                $byDay[$key] = ($byDay[$key] ?? 0) + $costMicros;
+                $byDay[$key] = $this->checkedAdd($byDay[$key] ?? 0, $costMicros, "суточной суммы выгрузки за {$key}");
             }
 
             return $byDay;
@@ -206,6 +236,8 @@ final readonly class BillingReconciler
     private function resolveColumns(array $header): array
     {
         $columns = [];
+        $seenHeaders = [];
+        $duplicates = [];
         $unknown = [];
 
         foreach ($header as $index => $cell) {
@@ -217,7 +249,14 @@ final readonly class BillingReconciler
                 continue;
             }
 
+            if (isset($columns[$role])) {
+                $duplicates[] = sprintf('%s (%s, %s)', $role, $seenHeaders[$role], $cell);
+
+                continue;
+            }
+
             $columns[$role] = $index;
+            $seenHeaders[$role] = $cell;
         }
 
         if ($unknown !== []) {
@@ -225,6 +264,13 @@ final readonly class BillingReconciler
                 'Незнакомые колонки в заголовке выгрузки: %s. Ожидаются: %s.',
                 implode(', ', $unknown),
                 implode(', ', array_keys(self::COLUMN_ALIASES)),
+            ));
+        }
+
+        if ($duplicates !== []) {
+            throw new BillingExportUnreadable(sprintf(
+                'Дублирующиеся или конфликтующие колонки в заголовке выгрузки: %s.',
+                implode('; ', $duplicates),
             ));
         }
 
@@ -236,6 +282,40 @@ final readonly class BillingReconciler
         }
 
         return $columns;
+    }
+
+    private function parseStrictDay(string $rawDate, string $context): CarbonImmutable
+    {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/D', $rawDate) !== 1) {
+            throw new BillingExportUnreadable("Не удалось разобрать дату «{$rawDate}» ({$context}) — ожидается строгий формат YYYY-MM-DD.");
+        }
+
+        $timezone = config('app.timezone');
+        $tz = is_string($timezone) && $timezone !== '' ? $timezone : 'UTC';
+
+        try {
+            $parsedDay = CarbonImmutable::createFromFormat('!Y-m-d', $rawDate, $tz);
+        } catch (InvalidFormatException) {
+            throw new BillingExportUnreadable("Не удалось разобрать дату «{$rawDate}» ({$context}) — ожидается существующая календарная дата YYYY-MM-DD.");
+        }
+
+        $errors = CarbonImmutable::getLastErrors();
+        if (! $parsedDay instanceof CarbonImmutable
+            || ($errors !== false && (($errors['warning_count'] ?? 0) > 0 || ($errors['error_count'] ?? 0) > 0))
+            || $parsedDay->format('Y-m-d') !== $rawDate) {
+            throw new BillingExportUnreadable("Несуществующая календарная дата «{$rawDate}» ({$context}).");
+        }
+
+        return $parsedDay->startOfDay();
+    }
+
+    private function checkedAdd(int $left, int $right, string $context): int
+    {
+        if ($right < 0 || $left > PHP_INT_MAX - $right) {
+            throw new BillingExportUnreadable("Переполнение {$context}.");
+        }
+
+        return $left + $right;
     }
 
     private function roleFor(string $headerCell): ?string

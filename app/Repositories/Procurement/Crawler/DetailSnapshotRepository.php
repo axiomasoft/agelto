@@ -6,6 +6,7 @@ namespace App\Repositories\Procurement\Crawler;
 
 use App\Dto\Procurement\Acquisition\DetailProgress;
 use App\Dto\Procurement\Acquisition\DetailRequest;
+use App\Dto\Procurement\Acquisition\ListingDetailReference;
 use App\Dto\Procurement\Platform\PlatformCode;
 use App\Dto\Procurement\Platform\SourceIdentifierType;
 use App\Dto\Procurement\Platform\SourceIdentifierValue;
@@ -24,30 +25,52 @@ final readonly class DetailSnapshotRepository
 
     public function request(int $procurement, ProcessUuid $intent): DetailRequest
     {
-        $row = LedgerRow::one('SELECT result_ref::text AS payload FROM prc_detail_snapshots WHERE procurement_id=? AND part_key=?', [$procurement, $intent->value.':request']);
-        $knownIntent = $row !== null || LedgerRow::one(
-            "SELECT 1 AS ok FROM prc_operation_intents WHERE id=? AND subject_kind='prc_procurements' AND subject_id=?",
-            [$intent->value, (string) $procurement],
-        ) !== null;
-        if ($row === null && $knownIntent) {
-            $row = LedgerRow::one(
-                "SELECT result_ref::text AS payload FROM prc_detail_snapshots WHERE procurement_id=? AND part_key LIKE '%:request' ORDER BY input_revision DESC, created_at DESC LIMIT 1",
-                [$procurement],
-            );
-        }
+        $row = LedgerRow::one(
+            'SELECT result_ref::text AS payload FROM prc_detail_snapshots WHERE procurement_id=? AND part_key=? ORDER BY input_revision DESC, created_at DESC, id DESC LIMIT 1',
+            [$procurement, $intent->value.':request'],
+        );
         if ($row !== null) {
-            $request = $this->codec->decode($row->string('payload'));
-            if (! $request instanceof DetailRequest) {
-                throw new \LogicException('Invalid persisted request.');
+            return $this->decodeRequest($row->string('payload'));
+        }
+        $reference = $this->listing->detailReference($intent);
+        if ($reference !== null) {
+            if ($reference->procurementId !== $procurement) {
+                throw new \LogicException('Missing immutable detail request.');
             }
 
-            return $request;
+            return $this->fromReference($procurement, $reference);
         }
-        $reference = $this->listing->detailReference($intent)
-            ?? ($knownIntent ? $this->listing->detailReferenceForProcurement($procurement) : null);
-        if ($reference === null || $reference->procurementId !== $procurement) {
-            throw new \LogicException('Missing immutable detail request.');
+        $predecessor = LedgerRow::one(
+            "SELECT work_identity->'input'->>'intent_id' AS base_intent
+             FROM prc_process_work
+             WHERE stage = 'detail'
+               AND intent_id = ?
+               AND (input_payload->>'procurement_id')::bigint = ?
+               AND work_identity->'manual_retry'->>'intent_id' = ?
+             ORDER BY created_at DESC, id DESC
+             LIMIT 1",
+            [$intent->value, $procurement, $intent->value],
+        );
+        $baseIntent = $predecessor?->nullableString('base_intent');
+        if ($baseIntent !== null && $baseIntent !== $intent->value) {
+            return $this->request($procurement, new ProcessUuid($baseIntent));
         }
+
+        throw new \LogicException('Missing immutable detail request.');
+    }
+
+    private function decodeRequest(string $payload): DetailRequest
+    {
+        $request = $this->codec->decode($payload);
+        if (! $request instanceof DetailRequest) {
+            throw new \LogicException('Invalid persisted request.');
+        }
+
+        return $request;
+    }
+
+    private function fromReference(int $procurement, ListingDetailReference $reference): DetailRequest
+    {
         $head = LedgerRow::one('SELECT p.source_identity_type,p.source_identity_value,r.code AS registry,f.code AS platform
             FROM prc_procurements p JOIN prc_registries r ON r.id=p.registry_id JOIN prc_platforms f ON f.id=p.platform_id WHERE p.id=?', [$procurement]) ?? throw new \LogicException('Missing subject.');
 

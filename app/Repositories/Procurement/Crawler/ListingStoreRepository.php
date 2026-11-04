@@ -91,20 +91,53 @@ final readonly class ListingStoreRepository
 
     public function detailReference(ProcessUuid $intentId): ?ListingDetailReference
     {
-        $row = LedgerRow::one("SELECT d.value AS reference FROM prc_crawl_blocks b,
-            LATERAL jsonb_array_elements_text(COALESCE(b.terminal_proof->'details','[]'::jsonb)) d(value)
-            WHERE d.value::jsonb->>'intent'=? ORDER BY b.id LIMIT 1", [$intentId->value]);
+        $id = self::id('reference:'.$intentId->value);
+        $row = LedgerRow::one(
+            "SELECT procurement_id, source_version, result_ref::text AS reference
+             FROM prc_detail_snapshots
+             WHERE id = ? AND part_key = ? AND completeness = 'not_applicable' AND result_ref_schema_version = 1",
+            [$id->value, $intentId->value.':reference'],
+        );
+        if ($row === null) {
+            return null;
+        }
+        $reference = ListingDetailReference::fromJson($row->string('reference'));
+        if ($reference->intentId->value !== $intentId->value
+            || $reference->procurementId !== $row->int('procurement_id')
+            || $reference->sourceRevision !== $row->nullableString('source_version')) {
+            throw new \LogicException('Corrupted listing detail reference snapshot.');
+        }
 
-        return $row === null ? null : ListingDetailReference::fromJson($row->string('reference'));
+        return $reference;
     }
 
     public function detailReferenceForProcurement(int $procurementId): ?ListingDetailReference
     {
-        $row = LedgerRow::one("SELECT d.value AS reference FROM prc_crawl_blocks b,
-            LATERAL jsonb_array_elements_text(COALESCE(b.terminal_proof->'details','[]'::jsonb)) d(value)
-            WHERE (d.value::jsonb->>'procurement')::int=? ORDER BY b.id DESC LIMIT 1", [$procurementId]);
+        $row = LedgerRow::one(
+            "SELECT s.procurement_id, s.source_version, s.result_ref::text AS reference
+             FROM prc_detail_snapshots s
+             LEFT JOIN prc_operation_intents i
+               ON i.id::text = split_part(s.part_key, ':', 1)
+              AND i.subject_kind = 'prc_procurements'
+              AND i.subject_id = s.procurement_id::text
+             WHERE s.procurement_id = ?
+               AND s.part_key LIKE '%:reference'
+               AND s.completeness = 'not_applicable'
+               AND s.result_ref_schema_version = 1
+             ORDER BY s.input_revision DESC, i.cycle_seq DESC NULLS LAST, i.requested_at DESC NULLS LAST, s.created_at DESC, s.id DESC
+             LIMIT 1",
+            [$procurementId],
+        );
+        if ($row === null) {
+            return null;
+        }
+        $reference = ListingDetailReference::fromJson($row->string('reference'));
+        if ($reference->procurementId !== $row->int('procurement_id')
+            || $reference->sourceRevision !== $row->nullableString('source_version')) {
+            throw new \LogicException('Corrupted listing detail reference snapshot.');
+        }
 
-        return $row === null ? null : ListingDetailReference::fromJson($row->string('reference'));
+        return $reference;
     }
 
     public function storeTask(ProcessUuid $crawlRun, ProcessUuid $id, ?ProcessUuid $parent, ListingTask $task): ListingInput
@@ -163,6 +196,66 @@ final readonly class ListingStoreRepository
             [$receipt->json(), $receipt->reason, $input->crawlBlockId->value]) !== 1) {
             throw new \LogicException('Listing page already finalized.');
         }
+        foreach ($receipt->details as $reference) {
+            $this->storeDetailReference($reference);
+        }
+    }
+
+    public function backfillDetailReferences(): int
+    {
+        CallerTransaction::require('Listing detail reference backfill');
+        $rows = LedgerRow::all(
+            "SELECT d.value AS reference
+             FROM prc_crawl_blocks b,
+                  LATERAL jsonb_array_elements_text(COALESCE(b.terminal_proof->'details', '[]'::jsonb)) d(value)
+             WHERE b.terminal_proof IS NOT NULL
+             ORDER BY b.id",
+        );
+        $inserted = 0;
+        foreach ($rows as $row) {
+            if ($this->storeDetailReference(ListingDetailReference::fromJson($row->string('reference')))) {
+                $inserted++;
+            }
+        }
+
+        return $inserted;
+    }
+
+    private function storeDetailReference(ListingDetailReference $reference): bool
+    {
+        $meta = LedgerRow::one(
+            "SELECT p.head_generation, i.expected_head_generation
+             FROM prc_procurements p
+             LEFT JOIN prc_operation_intents i ON i.id = ? AND i.subject_kind = 'prc_procurements' AND i.subject_id = p.id::text
+             WHERE p.id = ?",
+            [$reference->intentId->value, $reference->procurementId],
+        ) ?? throw new \LogicException('Listing detail reference requires an existing procurement subject.');
+        $revision = $meta->nullableInt('expected_head_generation') ?? $meta->int('head_generation');
+        $id = self::id('reference:'.$reference->intentId->value);
+        $partKey = $reference->intentId->value.':reference';
+        $payload = $reference->json();
+        $inserted = DB::affectingStatement(
+            "INSERT INTO prc_detail_snapshots(id, procurement_id, input_revision, part_key, completeness, result_ref, result_ref_schema_version, source_version, created_at)
+             VALUES (?, ?, ?, ?, 'not_applicable', ?::jsonb, 1, ?, clock_timestamp())
+             ON CONFLICT DO NOTHING",
+            [$id->value, $reference->procurementId, $revision, $partKey, $payload, $reference->sourceRevision],
+        ) === 1;
+        $stored = LedgerRow::one(
+            'SELECT procurement_id, part_key, completeness, result_ref_schema_version, source_version, result_ref = ?::jsonb AS same_payload
+             FROM prc_detail_snapshots WHERE id = ?',
+            [$payload, $id->value],
+        );
+        if ($stored === null
+            || $stored->int('procurement_id') !== $reference->procurementId
+            || $stored->string('part_key') !== $partKey
+            || $stored->string('completeness') !== 'not_applicable'
+            || $stored->int('result_ref_schema_version') !== 1
+            || $stored->nullableString('source_version') !== $reference->sourceRevision
+            || ! $stored->bool('same_payload')) {
+            throw new \LogicException('Immutable listing detail reference conflict.');
+        }
+
+        return $inserted;
     }
 
     /** Deterministic IDs also survive transaction retries; no random ID allocation under locks. */

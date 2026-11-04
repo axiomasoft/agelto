@@ -41,6 +41,7 @@ final readonly class BlobStore
         $workspace = $prepareSpool ? $this->workspace->open($temporary) : null;
         if (! $prepareSpool) {
             $this->capacity->beginWrite($temporary);
+            $this->workspace->recordFileWriter($temporary);
         }
         $spool = null;
         try {
@@ -73,6 +74,7 @@ final readonly class BlobStore
             $this->capacity->beginWrite($reservation);
             try {
                 $disk = Storage::disk($reservation->disk);
+                $this->workspace->recordFileWriter($reservation);
                 if ($disk->exists($reservation->objectKey())) {
                     throw new ArtifactUnavailable('Immutable upload key already exists.');
                 }
@@ -83,6 +85,7 @@ final readonly class BlobStore
             } finally {
                 // If PHP dies before this returns, writing remains charged; expiry/cancel is not cleanup.
                 $this->capacity->finishWrite($reservation);
+                $this->workspace->clearFileWriter($reservation);
             }
 
             return $this->verify($reservation, $expected, $size, $execution);
@@ -96,6 +99,7 @@ final readonly class BlobStore
                 }
             } else {
                 $this->capacity->finishWrite($temporary);
+                $this->workspace->clearFileWriter($temporary);
                 if ($cleanupTemporary) {
                     $this->gc->cleanup($temporary);
                 }
@@ -165,6 +169,7 @@ final readonly class BlobStore
             if (! $this->artifacts->beginRepair($blob)) {
                 return;
             }
+            $this->workspace->recordRepairWriter($blob);
             $confirmed = $disk->put($key, $source);
             if (! $confirmed || ! $this->matches($disk, $key, $artifact, $execution)) {
                 throw new ArtifactUnavailable('Immutable duplicate repair unconfirmed.');
@@ -172,12 +177,34 @@ final readonly class BlobStore
         } finally {
             fclose($source);
             if ($confirmed) {
+                $this->workspace->clearRepairWriter($blob);
                 $this->artifacts->finishRepair($blob);
             }
         }
     }
 
+    public function recoverStoppedRepair(BlobReference $blob): bool
+    {
+        $this->outsideTransaction();
+        if (! $this->workspace->repairWriterStopped($blob)) {
+            return false;
+        }
+        $disk = Storage::disk($blob->disk);
+        if (! $this->matchesBlob($disk, $blob->objectKey, $blob->hash, $blob->sizeBytes, null)) {
+            return false;
+        }
+        $this->workspace->clearRepairWriter($blob);
+        $this->artifacts->finishRepair($blob);
+
+        return true;
+    }
+
     private function matches(Filesystem $disk, string $key, VerifiedArtifact $artifact, ?ExecutionContext $execution): bool
+    {
+        return $this->matchesBlob($disk, $key, $artifact->hash, $artifact->sizeBytes, $execution);
+    }
+
+    private function matchesBlob(Filesystem $disk, string $key, ContentHash $expectedHash, int $expectedSize, ?ExecutionContext $execution): bool
     {
         if (! $disk->exists($key)) {
             return false;
@@ -196,13 +223,13 @@ final readonly class BlobStore
                     throw new ArtifactUnavailable('Immutable duplicate verification failed.');
                 }
                 $bytes += strlen($chunk);
-                if ($bytes > $artifact->sizeBytes) {
+                if ($bytes > $expectedSize) {
                     return false;
                 }
                 hash_update($hash, $chunk);
             }
 
-            return $bytes === $artifact->sizeBytes && hash_final($hash) === $artifact->hash->hex;
+            return $bytes === $expectedSize && hash_final($hash) === $expectedHash->hex;
         } finally {
             fclose($stream);
         }
