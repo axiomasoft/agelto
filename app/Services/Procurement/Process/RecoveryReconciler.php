@@ -43,6 +43,24 @@ final class RecoveryReconciler
     /** First isolated failure of the current daemon category, released after its callback. */
     private ?\Throwable $workFailure = null;
 
+    /** @var array{sort: string, id: string}|null */
+    private ?array $expiredRunningCursor = null;
+
+    /** @var array{sort: string, id: string}|null */
+    private ?array $admittedCursor = null;
+
+    /** @var array{sort: string, id: string}|null */
+    private ?array $releasableBlockedCursor = null;
+
+    /** @var array{sort: string, id: string}|null */
+    private ?array $blockedProviderCursor = null;
+
+    /** @var array{sort: string, id: string}|null */
+    private ?array $cancelledProviderCursor = null;
+
+    /** @var array{sort: string, id: string}|null */
+    private ?array $uncheckedFaultsCursor = null;
+
     public function __construct(
         private readonly RecoveryRepository $recovery,
         private readonly AuthorityRepository $authority,
@@ -104,7 +122,7 @@ final class RecoveryReconciler
     public function recoverExpiredRunning(): int
     {
         $recovered = 0;
-        foreach ($this->recovery->expiredRunning(self::BATCH) as $workId) {
+        foreach ($this->recovery->expiredRunning(self::BATCH, $this->expiredRunningCursor) as $workId) {
             $recovered += $this->isolated('recover_running', $workId, function () use ($workId): int {
                 try {
                     $pinned = $this->recovery->pinnedPlan($workId);
@@ -150,7 +168,7 @@ final class RecoveryReconciler
     public function recoverAdmitted(): int
     {
         $recovered = 0;
-        foreach ($this->recovery->admittedCandidates(self::BATCH) as $workId) {
+        foreach ($this->recovery->admittedCandidates(self::BATCH, $this->admittedCursor) as $workId) {
             $recovered += $this->isolated('recover_admitted', $workId, fn (): int => $this->each($workId, false, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->recoverAdmitted($snapshot, $ids)));
         }
 
@@ -160,7 +178,7 @@ final class RecoveryReconciler
     public function releaseBlocked(): int
     {
         $recovered = 0;
-        foreach ($this->recovery->releasableBlocked(self::BATCH) as $workId) {
+        foreach ($this->recovery->releasableBlocked(self::BATCH, $this->releasableBlockedCursor) as $workId) {
             $recovered += $this->isolated('release_blocked', $workId, fn (): int => $this->each($workId, false, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->releaseBlocked($snapshot, $ids)));
         }
 
@@ -171,7 +189,7 @@ final class RecoveryReconciler
     public function recoverBlockedProvider(): int
     {
         $recovered = 0;
-        foreach ([...$this->recovery->blockedProvider(self::BATCH), ...$this->recovery->cancelledProvider(self::BATCH)] as $workId) {
+        foreach ([...$this->recovery->blockedProvider(self::BATCH, $this->blockedProviderCursor), ...$this->recovery->cancelledProvider(self::BATCH, $this->cancelledProviderCursor)] as $workId) {
             $recovered += $this->isolated('recover_blocked_provider', $workId, function () use ($workId): int {
                 $pinned = $this->recovery->pinnedPlan($workId);
                 $plan = $pinned['plan'] ?? null;
@@ -200,11 +218,24 @@ final class RecoveryReconciler
     public function sweepHandlerFaults(): int
     {
         $checked = 0;
-        foreach ($this->recovery->uncheckedFaults(self::BATCH) as $candidate) {
+        $firstFailure = null;
+        foreach ($this->recovery->uncheckedFaults(self::BATCH, $this->uncheckedFaultsCursor) as $candidate) {
             $ids = self::ids();
-            if ($this->transaction->run(fn (): bool => $this->recovery->detectFault($candidate, $ids))) {
-                $checked++;
+            try {
+                if ($this->transaction->run(fn (): bool => $this->recovery->detectFault($candidate, $ids))) {
+                    $checked++;
+                }
+            } catch (\Throwable $failure) {
+                $firstFailure ??= $failure;
+                $this->workFailure ??= $failure;
+                ProcessLog::daemonError('reconcile', 'handler_fault_sweep_work_failed', $failure, [
+                    'work_id' => $candidate['work_id'],
+                    'attempt_id' => $candidate['attempt_id'],
+                ]);
             }
+        }
+        if ($firstFailure !== null) {
+            throw $firstFailure;
         }
 
         return $checked;

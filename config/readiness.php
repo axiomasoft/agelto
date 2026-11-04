@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'timeout_seconds' => 10,
     'cache' => [
         'ttl_seconds' => 30,
     ],

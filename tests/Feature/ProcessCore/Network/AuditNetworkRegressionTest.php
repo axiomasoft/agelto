@@ -5,16 +5,23 @@ declare(strict_types=1);
 use App\Dto\Procurement\Network\HealthSnapshot;
 use App\Dto\Procurement\Network\ProxyNodeConfiguration;
 use App\Dto\Procurement\Network\ScheduledNetworkPermit;
+use App\Dto\Procurement\Network\TransferBudget;
+use App\Dto\Procurement\Process\ArtifactRef;
 use App\Enums\Procurement\Network\CircuitState;
 use App\Enums\Procurement\Network\HealthScope;
 use App\Models\User;
 use App\Repositories\Procurement\Network\HealthRepository;
 use App\Repositories\Procurement\Network\RouteRepository;
+use App\Services\Procurement\Network\ArtifactResponseStream;
 use App\Services\Procurement\Network\NetworkReconcileCategory;
+use App\Services\Procurement\Network\OutboundExecutor;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\SourceTlsTrust;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
+use Tests\Support\ProcessCore\Http\TransportFixtures;
+use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
 beforeEach(function (): void {
@@ -148,4 +155,43 @@ test('HealthRepository::credentialHeld удерживает прокси при 
     config()->set('outbound.http.tls_bundles', ['zakupki.gov.ru' => '/etc/ssl/certs/eis.pem']);
     expect(app(SourceTlsTrust::class)->optionsFor('  ZAKUPKI.GOV.RU. '))
         ->toBe(['verify' => '/etc/ssl/certs/eis.pem']);
+});
+
+test('ArtifactResponseStream идемпотентно удаляет артефакт в деструкторе без close, а OutboundExecutor очищает BinaryBodyArtifact при исключении в record', function (): void {
+    while (DB::transactionLevel() > 0) {
+        DB::rollBack();
+    }
+    Storage::fake('local');
+
+    $key1 = 'outbound-responses/audit-stream-destruct.bin';
+    Storage::disk('local')->put($key1, 'payload-bytes');
+    $artifact1 = new ArtifactRef('local', $key1, LedgerFixtures::hash('payload-bytes'));
+
+    $stream = new ArtifactResponseStream($artifact1);
+    expect($stream->read(7))->toBe('payload')
+        ->and(Storage::disk('local')->exists($key1))->toBeTrue();
+
+    unset($stream);
+    expect(Storage::disk('local')->exists($key1))->toBeFalse();
+
+    $wire = new WireFixture;
+    try {
+        $gate = TransportFixtures::gate();
+        $gate->afterRecord = static function (): void {
+            throw new RuntimeException('Gate record failed after binary response staged');
+        };
+        $profile = TransportFixtures::profile(['response_kind' => 'binary', 'max_text_bytes' => null, 'charset_default' => null]);
+        $budget = new TransferBudget(5_000_000, 5_000_000);
+
+        expect(fn () => app(OutboundExecutor::class)->execute(
+            TransportFixtures::plan($wire->url('/document'), $profile),
+            TransportFixtures::context(),
+            $gate,
+            $wire->policy(),
+            $budget,
+        ))->toThrow(RuntimeException::class, 'Gate record failed after binary response staged')
+            ->and(Storage::disk('local')->allFiles('outbound-responses'))->toBe([]);
+    } finally {
+        $wire->stop();
+    }
 });

@@ -2,17 +2,21 @@
 
 declare(strict_types=1);
 
+use App\Dto\Platforms\Eis\EisListingCursor;
+use App\Dto\Platforms\Eis\EisListingPolicy;
 use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Acquisition\ListingTask;
 use App\Dto\Procurement\Platform\CursorEnvelope;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\SubjectKey;
+use App\Enums\Procurement\Platform\AssessmentReason;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Platforms\Eis\EisListingPartitioner;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -123,4 +127,35 @@ test('RefreshRepository::reconcile находит просроченный next_
         [(string) $procurement->id],
     );
     expect($existsDue->due)->toBeTrue();
+});
+
+test('EisListingPartitioner::split соблюдает граничные инварианты минимальной ширины интервала, лимита партиций и равенства границ полуинтервалов', function (): void {
+    $policy = new EisListingPolicy(minIntervalCents: 100, maxDepth: 5, maxPartitions: 16);
+    $partitioner = new EisListingPartitioner($policy);
+    $hash = LedgerFixtures::hash('eis-partition-boundary');
+
+    // Ширина ровно равна minIntervalCents (100) — деление запрещено (Overflow).
+    $atMinWidth = new EisListingCursor('2026-03-01', 'publish', 100, 200, $hash);
+    $resMin = $partitioner->split($atMinWidth->envelope(), 1);
+    expect($resMin->children)->toBe([])
+        ->and($resMin->incompleteReason)->toBe(AssessmentReason::Overflow);
+
+    // Ширина 101 > minIntervalCents (100), но allocatedPartitions + 2 > maxPartitions (15 + 2 > 16) — деление запрещено.
+    $splittable = new EisListingCursor('2026-03-01', 'publish', 100, 201, $hash);
+    $resMaxPart = $partitioner->split($splittable->envelope(), 15);
+    expect($resMaxPart->children)->toBe([])
+        ->and($resMaxPart->incompleteReason)->toBe(AssessmentReason::Overflow);
+
+    // При allocatedPartitions = 14 (14 + 2 <= 16) интервал делится пополам с совпадением границы left->highCents === right->lowCents.
+    $resOk = $partitioner->split($splittable->envelope(), 14);
+    expect($resOk->children)->toHaveCount(2)
+        ->and($resOk->incompleteReason)->toBeNull();
+
+    $left = EisListingCursor::decode($resOk->children[0]);
+    $right = EisListingCursor::decode($resOk->children[1]);
+    expect($left->lowCents)->toBe(100)
+        ->and($right->highCents)->toBe(201)
+        ->and($left->highCents)->toBe($right->lowCents)
+        ->and($left->depth)->toBe(1)
+        ->and($right->depth)->toBe(1);
 });

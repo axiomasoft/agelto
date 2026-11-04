@@ -25,7 +25,8 @@ for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY; do
     export "${secret_var}_FILE=$runtime_file"
 done
 
+export AGELTO_SECRETS_LOADED=1
+
 if [ "${AGELTO_ENTRYPOINT_PRELOAD:-}" = '1' ]; then
-    export AGELTO_SECRETS_LOADED=1
     exec /usr/local/bin/docker-php-serversideup-entrypoint "$@"
 fi

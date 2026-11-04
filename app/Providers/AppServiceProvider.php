@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
 use App\Pulse\Cards\ProcessPlatformHealthCard;
+use App\Services\Health\ApplicationReadiness;
 use App\Services\Llm\Contracts\PromptScopeRegistry;
 use App\Services\Llm\Contracts\UsageSource;
 use App\Services\Llm\Execution\ReceiptPolicies;
@@ -156,6 +157,14 @@ class AppServiceProvider extends ServiceProvider
         // в payload jobs, отправленных из команды.
         Event::listen(function (CommandStarting $event): void {
             Context::add('trace_id', 'cmd:'.$event->command.':'.(string) Str::uuid());
+
+            if ($event->command === 'schedule:work') {
+                try {
+                    ApplicationReadiness::recordSchedulerHeartbeat();
+                } catch (\Throwable) {
+                    // Best-effort initial heartbeat; readiness check will report unavailable if cache is down.
+                }
+            }
         });
     }
 }

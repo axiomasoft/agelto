@@ -8,6 +8,7 @@ use App\Dto\Procurement\Process\LockedSubject;
 use App\Dto\Procurement\Process\StageFailedItem;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Enums\Procurement\Process\CompletionStatus;
+use App\Enums\Procurement\Process\ControlMode;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Enums\Procurement\Process\ProviderRecoveryMode;
@@ -21,11 +22,14 @@ use App\Models\Procurement\Platform\Platform;
 use App\Models\User;
 use App\Repositories\Procurement\Process\AuthorityRepository;
 use App\Repositories\Procurement\Process\IntentRepository;
+use App\Repositories\Procurement\Process\RecoveryRepository;
 use App\Repositories\Procurement\Process\RunReadRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\RecoveryReconciler;
 use App\Services\Procurement\Process\SubjectLockResolver;
+use App\Services\Procurement\Process\WorkFeeder;
 use App\Services\Procurement\Process\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;
@@ -222,4 +226,75 @@ test('SubjectLockResolver::ownerSubject находит владельца при
 
     $correlation = app(RunReadRepository::class)->correlationFor($work);
     expect($correlation['cohort_key'] ?? null)->toBe('platform:eis-cohort-norm');
+});
+
+test('RecoveryRepository::controlPredicate строится по активным паузам без DISTINCT-скана prc_process_work, а курсоры RecoveryReconciler обходят застрявшую голову батча', function (): void {
+    FinalizeFixtures::authority([StageCode::Listing]);
+    $resolver = FixtureProviderRecoveryResolver::install();
+    $repo = app(RecoveryRepository::class);
+
+    $work = ExecutionFixtures::listingWork();
+    expect(app(WorkFeeder::class)->tick('acquisition'))->toBe(1);
+    ExecutionFixtures::setMode('system', ControlMode::Paused);
+
+    DB::enableQueryLog();
+    DB::flushQueryLog();
+    $admittedWhenPaused = $repo->admittedCandidates(50);
+    $queries = array_column(DB::getQueryLog(), 'query');
+    DB::disableQueryLog();
+
+    expect(array_map(static fn ($id): string => $id->value->value, $admittedWhenPaused))->toContain($work->value->value)
+        ->and(collect($queries)->contains(static fn (string $sql): bool => str_contains($sql, 'SELECT DISTINCT stage, cohort_key, platform_id FROM prc_process_work')))
+        ->toBeFalse();
+
+    ExecutionFixtures::setMode('system', ControlMode::Enabled);
+
+    // Создаём 51 заблокированную по paused запись: первые 50 с неподдерживаемой input_schema_version=2 (голова очереди), 51-я валидная.
+    $poisons = [];
+    for ($i = 0; $i < 50; $i++) {
+        $poison = ExecutionFixtures::listingWork();
+        $poisons[] = $poison->value->value;
+    }
+    $tail = ExecutionFixtures::listingWork();
+
+    DB::table('prc_process_work')->whereIn('id', $poisons)->update([
+        'state' => 'blocked',
+        'reason_code' => 'paused',
+        'input_schema_version' => 2,
+        'updated_at' => '2000-01-01 00:00:00+00',
+    ]);
+    DB::table('prc_process_work')->where('id', $tail->value->value)->update([
+        'state' => 'blocked',
+        'reason_code' => 'paused',
+        'updated_at' => '2000-01-01 00:01:00+00',
+    ]);
+
+    $reconciler = app(RecoveryReconciler::class);
+    expect($reconciler->releaseBlocked())->toBe(0)
+        ->and(ExecutionFixtures::work($tail)->state)->toBe('blocked');
+
+    // Второй вызов того же экземпляра продвигает курсор за первые 50 застрявших записей и освобождает 51-ю запись.
+    expect($reconciler->releaseBlocked())->toBe(1)
+        ->and(ExecutionFixtures::work($tail)->state)->toBe('ready');
+});
+
+test('RecoveryReconciler::sweepHandlerFaults изолирует сбойную запись в батче, фиксируя здоровые проверки и пробрасывая ошибку после батча', function (): void {
+    FinalizeFixtures::authority([StageCode::Listing, StageCode::Download]);
+    $finalizer = app(WorkFinalizer::class);
+
+    $listingFault = ExecutionFixtures::listingWork();
+    $finalizer->finishHandlerFault(FinalizeFixtures::running($listingFault), FinalizeFixtures::fault('bad-hold'));
+
+    $document = Document::factory()->create();
+    $downloadFault = LedgerFixtures::storeWork(LedgerFixtures::downloadInput($document->id, LedgerFixtures::uuid()));
+    $finalizer->finishHandlerFault(FinalizeFixtures::running($downloadFault), FinalizeFixtures::fault('good-hold'));
+
+    // Удаляем authority-строку для listing, чтобы первая проверка выбросила LogicException, но download должен пройти в своей транзакции.
+    DB::delete("DELETE FROM prc_process_handler_holds WHERE stage = 'listing'");
+
+    expect(fn () => app(RecoveryReconciler::class)->sweepHandlerFaults())->toThrow(LogicException::class)
+        ->and(DB::table('prc_process_attempts')->where('work_id', $downloadFault->value->value)->whereNotNull('fault_policy_checked_at')->count())
+        ->toBe(1)
+        ->and(DB::table('prc_process_attempts')->where('work_id', $listingFault->value->value)->whereNotNull('fault_policy_checked_at')->count())
+        ->toBe(0);
 });

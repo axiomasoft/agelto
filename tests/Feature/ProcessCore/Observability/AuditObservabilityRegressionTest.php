@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Platform\PlatformCode;
+use App\Enums\Health\ReadinessCheckCode;
 use App\Enums\Procurement\Process\OperatorCommandStatus;
 use App\Guards\Admin\Policies\EstimatePolicy;
 use App\Guards\Admin\Policies\FixturePolicy;
@@ -11,16 +12,22 @@ use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
 use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
+use App\Services\Health\ApplicationReadiness;
 use App\Services\Procurement\Process\MetricProjector;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Reference\ClassifierImporter;
 use App\Support\SecretRedactor;
 use App\Support\Telemetry\SentrySanitizer;
-use Sentry\Event;
+use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
+use Sentry\Event as SentryEvent;
 use Sentry\ExceptionDataBag;
 use Sentry\ExceptionMechanism;
 use Sentry\Frame;
 use Sentry\Stacktrace;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\NullOutput;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
 
@@ -57,7 +64,7 @@ test('SecretRedactor редактирует signature/sig/cursor, а SentrySanit
     expect($redacted)->not->toContain('secret123', 'abc999', 'opaqueToken42')
         ->and($redacted)->toContain('[redacted]');
 
-    $event = Event::createEvent();
+    $event = SentryEvent::createEvent();
     $frame = new Frame(
         functionName: 'connect',
         file: '/app/Service.php',
@@ -72,7 +79,7 @@ test('SecretRedactor редактирует signature/sig/cursor, а SentrySanit
     $event->setExceptions([$bag]);
 
     $sanitized = SentrySanitizer::beforeSend($event);
-    assert($sanitized instanceof Event);
+    assert($sanitized instanceof SentryEvent);
     $sanitizedBag = $sanitized->getExceptions()[0];
     $vars = $sanitizedBag->getStacktrace()?->getFrames()[0]->getVars() ?? [];
     $mechData = $sanitizedBag->getMechanism()?->getData() ?? [];
@@ -124,4 +131,23 @@ test('PlatformMetricsReadRepository::read учитывает свежие и с�
     $snapshot = app(PlatformMetricsReadRepository::class)->read(new PlatformCode('eis'));
     expect($snapshot->platform->value)->toBe('eis')
         ->and($snapshot->closedPartitions)->toBe(0);
+});
+
+test('ApplicationReadiness записывает стартовый heartbeat при старте schedule:work и поддерживает фильтрацию проверок через --only', function (): void {
+    Cache::forget(ApplicationReadiness::SchedulerHeartbeatKey);
+    expect(Cache::get(ApplicationReadiness::SchedulerHeartbeatKey))->toBeNull();
+
+    Event::dispatch(new CommandStarting('schedule:work', new ArrayInput([]), new NullOutput));
+    expect(Cache::get(ApplicationReadiness::SchedulerHeartbeatKey))->toBeString();
+
+    $onlyScheduler = app(ApplicationReadiness::class)->check([ReadinessCheckCode::Scheduler]);
+    expect($onlyScheduler)->toHaveCount(1)
+        ->and($onlyScheduler[0]->code)->toBe(ReadinessCheckCode::Scheduler)
+        ->and($onlyScheduler[0]->passed)->toBeTrue();
+
+    $this->artisan('app:readiness', ['--only' => 'scheduler', '--format' => 'json'])
+        ->assertExitCode(0);
+
+    $this->artisan('app:readiness', ['--only' => 'unknown_check'])
+        ->assertExitCode(2);
 });

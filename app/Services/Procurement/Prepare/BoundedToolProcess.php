@@ -20,7 +20,7 @@ final readonly class BoundedToolProcess
         $execution->tick();
         $seconds = $deadline - hrtime(true) / 1e9;
         if ($seconds <= 0) {
-            throw new ToolFailed('page_timeout');
+            throw new ToolFailed('page_timeout', reason: 'page_timeout');
         }
         $receipt = $directory.'/tool-'.bin2hex(random_bytes(8));
         file_put_contents($receipt.'.active', 'supervised');
@@ -58,12 +58,14 @@ final readonly class BoundedToolProcess
         if (($status['exit'] ?? null) === 127) {
             throw new ToolUnavailable('converter_unavailable');
         }
-        if (($status['exit'] ?? null) !== 0 || ($status['reason'] ?? null) !== null) {
-            throw new ToolFailed(($status['reason'] ?? null) === 'page_timeout' ? 'page_timeout' : 'page_ocr_error');
+        $reason = is_string($status['reason'] ?? null) ? $status['reason'] : null;
+        $exit = is_int($status['exit'] ?? null) ? $status['exit'] : null;
+        if ($exit !== 0 || $reason !== null) {
+            throw new ToolFailed($reason === 'page_timeout' ? 'page_timeout' : 'page_ocr_error', reason: $reason, exitCode: $exit);
         }
         $size = filesize($receipt.'.out');
         if ($size === false || $size + ($includeStderr ? (filesize($receipt.'.err') ?: 0) : 0) > 8388608) {
-            throw new ToolFailed('tool_output_limit');
+            throw new ToolFailed('tool_output_limit', reason: 'tool_output_limit', exitCode: 0);
         }
 
         return (string) file_get_contents($receipt.'.out').($includeStderr ? (string) file_get_contents($receipt.'.err') : '');

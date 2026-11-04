@@ -59,100 +59,117 @@ final readonly class RecoveryRepository
     /**
      * Expired running: lease истёк минимум 2 s назад; locked решение — lease_until <= now.
      *
+     * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
-    public function expiredRunning(int $limit): array
+    public function expiredRunning(int $limit, ?array &$cursor = null): array
     {
-        return self::ids(LedgerRow::all(
-            "SELECT id FROM prc_process_work WHERE state = 'running' AND lease_until < clock_timestamp() - interval '2 seconds'
-             ORDER BY lease_until, id LIMIT ?",
-            [$limit],
-        ));
+        return $this->selectWorkIds(
+            where: "state = 'running' AND lease_until < clock_timestamp() - interval '2 seconds'",
+            sortColumn: 'lease_until',
+            bindings: [],
+            limit: $limit,
+            cursor: $cursor,
+        );
     }
 
     /**
      * Admitted с истёкшей delivery либо под committed pause/held executing handler.
      *
+     * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
-    public function admittedCandidates(int $limit): array
+    public function admittedCandidates(int $limit, ?array &$cursor = null): array
     {
-        [$control, $bindings] = $this->controlPredicate(WorkState::Admitted);
+        [$control, $bindings] = $this->controlPredicate();
 
-        return self::ids(LedgerRow::all(
-            "SELECT id FROM prc_process_work
-             WHERE state = 'admitted' AND (dispatch_claim_until <= clock_timestamp() OR {$control})
-             ORDER BY dispatch_claim_until, id LIMIT ?",
-            [...$bindings, $limit],
-        ));
+        return $this->selectWorkIds(
+            where: "state = 'admitted' AND (dispatch_claim_until <= clock_timestamp() OR {$control})",
+            sortColumn: 'dispatch_claim_until',
+            bindings: $bindings,
+            limit: $limit,
+            cursor: $cursor,
+        );
     }
 
     /**
      * Blocked(paused|handler_hold), чьи scopes сейчас не paused и executing handler не held.
      * Pause/held-пары исключены в SQL, поэтому постоянно paused work не занимает batch.
      *
+     * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
-    public function releasableBlocked(int $limit): array
+    public function releasableBlocked(int $limit, ?array &$cursor = null): array
     {
-        [$control, $bindings] = $this->controlPredicate(WorkState::Blocked);
+        [$control, $bindings] = $this->controlPredicate();
 
-        return self::ids(LedgerRow::all(
-            "SELECT id FROM prc_process_work
-             WHERE state = 'blocked' AND reason_code IN ('paused', 'handler_hold') AND NOT ({$control})
-             ORDER BY updated_at, id LIMIT ?",
-            [...$bindings, $limit],
-        ));
+        return $this->selectWorkIds(
+            where: "state = 'blocked' AND reason_code IN ('paused', 'handler_hold') AND NOT ({$control})",
+            sortColumn: 'updated_at',
+            bindings: $bindings,
+            limit: $limit,
+            cursor: $cursor,
+        );
     }
 
     /**
      * Cancelled work с pinned provider plan. Due у cancelled запрещён схемой, поэтому очередь — по
      * updated_at: reschedule переставляет в конец.
      *
+     * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
-    public function cancelledProvider(int $limit): array
+    public function cancelledProvider(int $limit, ?array &$cursor = null): array
     {
-        return self::ids(LedgerRow::all(
-            "SELECT id FROM prc_process_work
-             WHERE state = 'cancelled' AND checkpoint->'provider_recovery_plan'->>'variant' = 'provider'
-             ORDER BY updated_at, id LIMIT ?",
-            [$limit],
-        ));
+        return $this->selectWorkIds(
+            where: "state = 'cancelled' AND checkpoint->'provider_recovery_plan'->>'variant' = 'provider'",
+            sortColumn: 'updated_at',
+            bindings: [],
+            limit: $limit,
+            cursor: $cursor,
+        );
     }
 
     /**
      * selector: provider_recovery_due_at, а не lease_until/due_at; earliest-due fairness.
      *
+     * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
-    public function blockedProvider(int $limit): array
+    public function blockedProvider(int $limit, ?array &$cursor = null): array
     {
-        return self::ids(LedgerRow::all(
-            "SELECT id FROM prc_process_work
-             WHERE state = 'blocked' AND reason_code = 'provider_result_unknown' AND provider_recovery_due_at <= clock_timestamp()
-             ORDER BY provider_recovery_due_at, id LIMIT ?",
-            [$limit],
-        ));
+        return $this->selectWorkIds(
+            where: "state = 'blocked' AND reason_code = 'provider_result_unknown' AND provider_recovery_due_at <= clock_timestamp()",
+            sortColumn: 'provider_recovery_due_at',
+            bindings: [],
+            limit: $limit,
+            cursor: $cursor,
+        );
     }
 
     /**
      * Durable unchecked fault evidence: окно отсчитывается от finished_at кандидата, а не от now.
      *
-     * @return list<array{attempt_id: string, handler_version: string, signature: string, finished_at: string, stage: StageCode}>
+     * @param  array{sort: string, id: string}|null  $cursor
+     * @return list<array{attempt_id: string, work_id: string, handler_version: string, signature: string, finished_at: string, stage: StageCode}>
      */
-    public function uncheckedFaults(int $limit): array
+    public function uncheckedFaults(int $limit, ?array &$cursor = null): array
     {
+        $rows = $this->selectCursorRows(
+            select: "SELECT a.id AS attempt_id, a.work_id::text AS work_id, a.handler_version, encode(a.fault_signature, 'hex') AS signature, a.finished_at::text AS finished_at, a.finished_at::text AS cursor_sort, w.stage
+                     FROM prc_process_attempts a JOIN prc_process_work w ON w.id = a.work_id",
+            where: 'a.fault_signature IS NOT NULL AND a.finished_at IS NOT NULL AND a.fault_policy_checked_at IS NULL',
+            sortColumn: 'a.finished_at',
+            idColumn: 'a.id',
+            bindings: [],
+            limit: $limit,
+            cursor: $cursor,
+        );
         $candidates = [];
-        foreach (LedgerRow::all(
-            "SELECT a.id AS attempt_id, a.handler_version, encode(a.fault_signature, 'hex') AS signature, a.finished_at::text AS finished_at, w.stage
-             FROM prc_process_attempts a JOIN prc_process_work w ON w.id = a.work_id
-             WHERE a.fault_signature IS NOT NULL AND a.finished_at IS NOT NULL AND a.fault_policy_checked_at IS NULL
-             ORDER BY a.finished_at, a.id LIMIT ?",
-            [$limit],
-        ) as $row) {
+        foreach ($rows as $row) {
             $candidates[] = [
                 'attempt_id' => $row->string('attempt_id'),
+                'work_id' => $row->string('work_id'),
                 'handler_version' => $row->string('handler_version'),
                 'signature' => $row->string('signature'),
                 'finished_at' => $row->string('finished_at'),
@@ -679,34 +696,54 @@ final readonly class RecoveryRepository
 
     /**
      * SQL-предикат work, чья control closure содержит paused scope либо чья executing handler
-     * version held; 'FALSE' — если таких нет. Выводится из policy scope keys, а не из N+1 запросов.
+     * version held; 'FALSE' — если таких нет. Выводится из policy scope keys без сканирования prc_process_work.
      *
      * @return array{string, list<string>}
      */
-    private function controlPredicate(WorkState $state): array
+    private function controlPredicate(): array
     {
         $paused = array_map(
             static fn (LedgerRow $row): string => $row->string('scope_key'),
             LedgerRow::all("SELECT scope_key FROM prc_control_scopes WHERE desired_mode = 'paused'"),
         );
-        $pairs = [];
-        if ($paused !== []) {
-            foreach (LedgerRow::all('SELECT DISTINCT stage, cohort_key FROM prc_process_work WHERE state = ?', [$state->value]) as $row) {
-                $code = StageCode::tryFrom($row->string('stage'));
-                if ($code === null) {
-                    continue;
-                }
-                $keys = array_map(static fn (ScopeDefinition $scope): string => $scope->key, $this->policy->workScopes($code, $row->string('cohort_key')));
-                if (array_intersect($keys, $paused) !== []) {
-                    $pairs[] = [$code->value, $row->string('cohort_key')];
-                }
-            }
+        if (in_array('system', $paused, true)) {
+            return ['TRUE', []];
         }
+        $pausedSet = array_fill_keys($paused, true);
         $held = [];
         foreach (LedgerRow::all("SELECT stage, handler_version FROM prc_process_handler_holds WHERE state = 'held'") as $row) {
             $code = StageCode::tryFrom($row->string('stage'));
             if ($code !== null && ($this->registry->handlerVersion($code) ?? $row->string('handler_version')) === $row->string('handler_version')) {
                 $held[$code->value] = true;
+            }
+        }
+        $cohorts = [];
+        foreach ($paused as $scopeKey) {
+            if (preg_match('/^(acquisition|documents):cohort:manual$/', $scopeKey) === 1) {
+                $cohorts[] = 'manual';
+            } elseif (preg_match('/^(acquisition|documents):platform:(.+)$/', $scopeKey, $matches) === 1) {
+                $cohorts[] = 'platform:'.$matches[2];
+            }
+        }
+        $cohorts = array_values(array_unique($cohorts));
+        $pairs = [];
+        foreach (StageCode::cases() as $code) {
+            foreach ($this->policy->stageScopes($code) as $scope) {
+                if (isset($pausedSet[$scope->key])) {
+                    $held[$code->value] = true;
+                    break;
+                }
+            }
+            if (isset($held[$code->value])) {
+                continue;
+            }
+            foreach ($cohorts as $cohort) {
+                foreach ($this->policy->workScopes($code, $cohort) as $scope) {
+                    if (isset($pausedSet[$scope->key])) {
+                        $pairs[] = [$code->value, $cohort];
+                        break;
+                    }
+                }
             }
         }
         $conditions = [];
@@ -724,6 +761,93 @@ final readonly class RecoveryRepository
         }
 
         return [$conditions === [] ? 'FALSE' : '('.implode(' OR ', $conditions).')', $bindings];
+    }
+
+    /**
+     * @param  list<string>  $bindings
+     * @param  array{sort: string, id: string}|null  $cursor
+     * @return list<WorkId>
+     */
+    private function selectWorkIds(string $where, string $sortColumn, array $bindings, int $limit, ?array &$cursor = null): array
+    {
+        return self::ids($this->selectCursorRows(
+            select: "SELECT id, {$sortColumn}::text AS cursor_sort FROM prc_process_work",
+            where: $where,
+            sortColumn: $sortColumn,
+            idColumn: 'id',
+            bindings: $bindings,
+            limit: $limit,
+            cursor: $cursor,
+        ));
+    }
+
+    /**
+     * Bounded выборка с курсором и wrap-around: если выборка после курсора вернула меньше $limit
+     * строк, в этом же вызове добирается начало очереди до $limit (без дублирования строк), чтобы
+     * ни неразрешимый префикс не блокировал хвост, ни короткий хвост не скрывал ошибки префикса.
+     *
+     * @param  list<string>  $bindings
+     * @param  array{sort: string, id: string}|null  $cursor
+     * @return list<LedgerRow>
+     */
+    private function selectCursorRows(
+        string $select,
+        string $where,
+        string $sortColumn,
+        string $idColumn,
+        array $bindings,
+        int $limit,
+        ?array &$cursor = null,
+    ): array {
+        $idKey = $idColumn === 'a.id' ? 'attempt_id' : 'id';
+        if ($cursor === null) {
+            $rows = LedgerRow::all(
+                "{$select} WHERE {$where} ORDER BY {$sortColumn}, {$idColumn} LIMIT ?",
+                [...$bindings, $limit],
+            );
+            if (count($rows) === $limit && $rows !== []) {
+                $last = $rows[array_key_last($rows)];
+                $cursor = ['sort' => $last->string('cursor_sort'), 'id' => $last->string($idKey)];
+            }
+
+            return $rows;
+        }
+
+        $tail = LedgerRow::all(
+            "{$select} WHERE {$where} AND ({$sortColumn}, {$idColumn}) > (?::timestamptz, ?::uuid) ORDER BY {$sortColumn}, {$idColumn} LIMIT ?",
+            [...$bindings, $cursor['sort'], $cursor['id'], $limit],
+        );
+        if (count($tail) === $limit && $tail !== []) {
+            $last = $tail[array_key_last($tail)];
+            $cursor = ['sort' => $last->string('cursor_sort'), 'id' => $last->string($idKey)];
+
+            return $tail;
+        }
+
+        $remaining = $limit - count($tail);
+        $head = $remaining > 0
+            ? LedgerRow::all(
+                "{$select} WHERE {$where} ORDER BY {$sortColumn}, {$idColumn} LIMIT ?",
+                [...$bindings, $remaining],
+            )
+            : [];
+        if (count($head) === $remaining && $head !== []) {
+            $last = $head[array_key_last($head)];
+            $cursor = ['sort' => $last->string('cursor_sort'), 'id' => $last->string($idKey)];
+        } else {
+            $cursor = null;
+        }
+        $seen = [];
+        $combined = [];
+        foreach ([...$tail, ...$head] as $row) {
+            $id = $row->string($idKey);
+            if (! isset($seen[$id])) {
+                $seen[$id] = true;
+                $combined[] = $row;
+            }
+        }
+
+        return $combined;
     }
 
     /**

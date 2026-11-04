@@ -194,95 +194,91 @@ final readonly class OutboundExecutor
                     $gate->record($authorized, $exit->result);
                     throw $exit->interruption;
                 }
+                $transferredOwnership = false;
                 try {
                     $quota = $gate->record($authorized, $result);
-                } catch (\Throwable $failure) {
-                    // A completed spool belongs to the caller only after its factual receipt
-                    // commits. Dependency/ownership exits cannot leave an unreachable binary.
-                    if ($result->response?->body instanceof BinaryBodyArtifact) {
-                        Storage::disk($result->response->body->artifact->disk)->delete($result->response->body->artifact->key);
+                    $finalResponse = $result->failure === null && $result->response !== null
+                        && $result->response->status >= 400 && $result->response->body instanceof DecodedTextBody
+                        ? new FinalHttpResponseEvidence($physical->physicalRequestId, $result->response->status, $result->response->body)
+                        : null;
+                    if ($quota !== null) {
+                        return $quota;
                     }
-                    throw $failure;
-                }
-                $finalResponse = $result->failure === null && $result->response !== null
-                    && $result->response->status >= 400 && $result->response->body instanceof DecodedTextBody
-                    ? new FinalHttpResponseEvidence($physical->physicalRequestId, $result->response->status, $result->response->body)
-                    : null;
-                if ($result->response?->body instanceof BinaryBodyArtifact
-                    && in_array($result->response->status, [301, 302, 303, 307, 308, 407, 429, 502, 503, 504], true)) {
-                    Storage::disk($result->response->body->artifact->disk)->delete($result->response->body->artifact->key);
-                }
-                if ($quota !== null) {
-                    return $quota;
-                }
-                if ($result->failure !== null) {
-                    if ($result->failure === TransportFailure::Storage) {
-                        return $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
+                    if ($result->failure !== null) {
+                        if ($result->failure === TransportFailure::Storage) {
+                            return $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
+                        }
+                        if ($result->failure === TransportFailure::Configuration) {
+                            return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
+                        }
+                        if ($result->failure === TransportFailure::ProxyAuth) {
+                            $preferUntried = true;
+                            break;
+                        }
+                        if (! $result->failure->retryable()) {
+                            return new TransportBlocked($result->failure === TransportFailure::Tls
+                                ? NetworkBlockedReason::ConfigurationHold : NetworkBlockedReason::PolicyReview);
+                        }
+                        $preferUntried = count($tried) < $plan->profile->distinctRoutes;
+                        break;
                     }
-                    if ($result->failure === TransportFailure::Configuration) {
-                        return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
-                    }
-                    if ($result->failure === TransportFailure::ProxyAuth) {
+                    $response = $result->response ?? throw new \LogicException('Missing physical response.');
+                    if ($response->status === 407) {
                         $preferUntried = true;
                         break;
                     }
-                    if (! $result->failure->retryable()) {
-                        return new TransportBlocked($result->failure === TransportFailure::Tls
-                            ? NetworkBlockedReason::ConfigurationHold : NetworkBlockedReason::PolicyReview);
+                    if (in_array($response->status, [502, 503, 504], true)) {
+                        $preferUntried = false;
+                        break;
                     }
-                    $preferUntried = count($tried) < $plan->profile->distinctRoutes;
-                    break;
-                }
-                $response = $result->response ?? throw new \LogicException('Missing physical response.');
-                if ($response->status === 407) {
-                    $preferUntried = true;
-                    break;
-                }
-                if (in_array($response->status, [502, 503, 504], true)) {
-                    $preferUntried = false;
-                    break;
-                }
-                if (in_array($response->status, [301, 302, 303, 307, 308], true)) {
-                    if ($hops >= $plan->profile->redirects || ! in_array($plan->method, ['GET', 'HEAD'], true)) {
-                        return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
-                    }
-                    $location = $response->header('location');
-                    if ($location === null) {
-                        return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
-                    }
-                    try {
-                        $next = new SafeUrl((string) UriResolver::resolve(new Uri($url->reveal()), new Uri($location)));
-                    } catch (\InvalidArgumentException) {
-                        return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
-                    }
-                    if ($url->origin->scheme === 'https' && $next->origin->scheme !== 'https') {
-                        return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
-                    }
-                    if (! $url->origin->equals($next->origin)) {
+                    if (in_array($response->status, [301, 302, 303, 307, 308], true)) {
+                        if ($hops >= $plan->profile->redirects || ! in_array($plan->method, ['GET', 'HEAD'], true)) {
+                            return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
+                        }
+                        $location = $response->header('location');
+                        if ($location === null) {
+                            return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
+                        }
                         try {
-                            $policy->resolve($next, $context, $plan->profile->connectSeconds);
-                        } catch (OutboundOwnershipLost|ExecutionInterrupted $exit) {
-                            throw $exit;
+                            $next = new SafeUrl((string) UriResolver::resolve(new Uri($url->reveal()), new Uri($location)));
                         } catch (\InvalidArgumentException) {
                             return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
-                        } catch (\RuntimeException) {
-                            return $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
                         }
-                        $redirectTarget = $gate->targetForRedirect($physical, $next);
-                        if ($redirectTarget instanceof TransportBlocked) {
-                            return $redirectTarget;
+                        if ($url->origin->scheme === 'https' && $next->origin->scheme !== 'https') {
+                            return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
                         }
-                        $targetId = $redirectTarget;
-                        $payload = $payload->acrossOrigin();
+                        if (! $url->origin->equals($next->origin)) {
+                            try {
+                                $policy->resolve($next, $context, $plan->profile->connectSeconds);
+                            } catch (OutboundOwnershipLost|ExecutionInterrupted $exit) {
+                                throw $exit;
+                            } catch (\InvalidArgumentException) {
+                                return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
+                            } catch (\RuntimeException) {
+                                return $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
+                            }
+                            $redirectTarget = $gate->targetForRedirect($physical, $next);
+                            if ($redirectTarget instanceof TransportBlocked) {
+                                return $redirectTarget;
+                            }
+                            $targetId = $redirectTarget;
+                            $payload = $payload->acrossOrigin();
+                        }
+                        $url = $next;
+                        $hops++;
+                        $preferUntried = false;
+
+                        continue;
                     }
-                    $url = $next;
-                    $hops++;
-                    $preferUntried = false;
+                    $transferredOwnership = true;
 
-                    continue;
+                    return new TransportSucceeded($response, $physical->physicalRequestId);
+                } finally {
+                    // A completed spool belongs to the caller only when returned via TransportSucceeded.
+                    if (! $transferredOwnership && $result->response?->body instanceof BinaryBodyArtifact) {
+                        Storage::disk($result->response->body->artifact->disk)->delete($result->response->body->artifact->key);
+                    }
                 }
-
-                return new TransportSucceeded($response, $physical->physicalRequestId);
             }
             if ($attempt < $maxAttempts && ! $preferUntried) {
                 $delay = random_int(0, $plan->profile->delaysMs[$attempt - 1]);

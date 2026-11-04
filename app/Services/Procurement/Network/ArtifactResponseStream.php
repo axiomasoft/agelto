@@ -8,6 +8,7 @@ use App\Dto\Procurement\Process\ArtifactRef;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use GuzzleHttp\Psr7\Stream;
 use GuzzleHttp\Psr7\StreamDecoratorTrait;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Psr\Http\Message\StreamInterface;
 
@@ -20,8 +21,16 @@ final class ArtifactResponseStream implements StreamInterface
 
     public function __construct(private readonly ArtifactRef $artifact)
     {
-        $resource = Storage::disk($artifact->disk)->readStream($artifact->key);
+        try {
+            $resource = Storage::disk($artifact->disk)->readStream($artifact->key);
+        } catch (\Throwable $failure) {
+            $this->closed = true;
+            $this->deleteArtifactSafely();
+            throw new DependencyUnavailable('outbound_spool_unavailable', $failure);
+        }
         if (! is_resource($resource)) {
+            $this->closed = true;
+            $this->deleteArtifactSafely();
             throw new DependencyUnavailable('outbound_spool_unavailable');
         }
         $this->stream = new Stream($resource);
@@ -34,9 +43,49 @@ final class ArtifactResponseStream implements StreamInterface
         }
         $this->closed = true;
         try {
-            $this->stream->close();
+            if (isset($this->stream)) {
+                $this->stream->close();
+            }
         } finally {
+            $this->deleteArtifactSafely();
+        }
+    }
+
+    public function detach()
+    {
+        if ($this->closed) {
+            return null;
+        }
+        $this->closed = true;
+        try {
+            return isset($this->stream) ? $this->stream->detach() : null;
+        } finally {
+            $this->deleteArtifactSafely();
+        }
+    }
+
+    public function __destruct()
+    {
+        if ($this->closed) {
+            return;
+        }
+        $this->closed = true;
+        try {
+            if (isset($this->stream)) {
+                $this->stream->close();
+            }
+        } catch (\Throwable) {
+        }
+        if (DB::transactionLevel() === 0) {
+            $this->deleteArtifactSafely();
+        }
+    }
+
+    private function deleteArtifactSafely(): void
+    {
+        try {
             Storage::disk($this->artifact->disk)->delete($this->artifact->key);
+        } catch (\Throwable) {
         }
     }
 }

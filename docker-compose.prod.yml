@@ -102,17 +102,11 @@ services:
     restart: unless-stopped
     # The FPM/Nginx base image uses SIGQUIT; Horizon listens for SIGTERM.
     stop_signal: SIGTERM
-    # Инвариант D26 (plans/EST-AI/plan.md; research/J §2): job timeout < supervisor timeout
-    # (config/horizon.php; самый длинный pipeline supervisor — doc_prepare=2640s, а OCR job
-    # ограничен 2580s; extraction checkpoints at 120s before its next 150s call)
-    # < queue.retry_after (config/queue.php, redis_prepare.retry_after=2700s) — И ОТДЕЛЬНО:
-    # stop_grace_period здесь ОБЯЗАН быть > самого длинного supervisor-таймаута, иначе Docker
-    # SIGKILL'ит контейнер раньше, чем horizon:terminate успевает дождаться текущих jobs
-    # (Docker default 10s убил бы 300+с job — research/J §2). 600s — канон research/J §2
-    # (диапазон 600–3600s); env-параметризуемо под будущую калибровку.
-    # P4.7 (D117): long archive lane держит одну job до 3600s; её logical Redis connection
-    # возвращает reserved job после 3900s. Grace обязан быть больше обоих, иначе Docker SIGKILL
-    # прервёт Horizon раньше контролируемого завершения. Изменение требует новой D-записи.
+    # Цепочка таймаутов Process Core (config/horizon.php, config/queue.php, ExecuteWorkJob):
+    # ExecuteWorkJob::$timeout = 320s < max supervisor timeout (supervisor-process-download = 340s)
+    # < stop_grace_period (370s) < queue.retry_after (390s для process-download).
+    # stop_grace_period обязан быть больше самого длинного supervisor-таймаута (340s),
+    # чтобы Docker не отправил SIGKILL раньше, чем horizon:terminate дождётся текущих jobs.
     stop_grace_period: ${HORIZON_STOP_GRACE_PERIOD:-370s}
     working_dir: /var/www/html
     # Решение P7.4 (F-11 называет это дремлющим дефектом — Postgres нуждается в shm, не
@@ -158,7 +152,7 @@ services:
       - redis_password
       - minio_root_password
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -af 'artisan schedule:work' >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f '[a]rtisan schedule:work' >/dev/null && php artisan app:readiness --only=scheduler >/dev/null || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

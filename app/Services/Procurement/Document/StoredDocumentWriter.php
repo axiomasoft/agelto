@@ -44,6 +44,8 @@ final readonly class StoredDocumentWriter
         if (! is_int($documentId) || ! is_string($filename) || ! is_string($mime)) {
             throw new \InvalidArgumentException('Typed document id, filename and MIME are required.');
         }
+        $inputDisk = is_string($attributes['disk'] ?? null) ? $attributes['disk'] : '';
+        $inputPath = is_string($attributes['storage_path'] ?? null) ? $attributes['storage_path'] : '';
         $verified = $this->verify($attributes);
         $blob = $verified->blob;
         $parent = $attributes['parent_version_id'] ?? null;
@@ -57,13 +59,16 @@ final readonly class StoredDocumentWriter
         }
         $metadata = new SourceDocumentMetadata($filename, $mime, parentVersionId: $parent,
             normalizedEntryPath: $path, childOrdinal: $ordinal);
-        $id = $this->transactions->run(function () use ($blob, $verified, $documentId, $metadata): int {
+        /** @var array{int,BlobReference} $committed */
+        $committed = $this->transactions->run(function () use ($blob, $verified, $documentId, $metadata): array {
             $this->capacity->lockDomains([$blob->domainId]);
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$documentId]);
             $stored = $this->acquire($verified);
 
-            return $this->versions->observeBlobLocked($this->versions->head($documentId), $stored, $metadata)->id;
+            return [$this->versions->observeBlobLocked($this->versions->head($documentId), $stored, $metadata)->id, $stored];
         });
+        [$id, $stored] = $committed;
+        $this->cleanupUnreferencedDuplicate($inputDisk, $inputPath, $stored);
 
         return DocumentVersion::query()->findOrFail($id);
     }
@@ -71,6 +76,8 @@ final readonly class StoredDocumentWriter
     /** @param array<string,mixed> $attributes */
     public function archiveEntry(Document $parent, DocumentVersion $parentVersion, string $entryPath, int $ordinal, array $attributes): DocumentVersion
     {
+        $inputDisk = is_string($attributes['disk'] ?? null) ? $attributes['disk'] : '';
+        $inputPath = is_string($attributes['storage_path'] ?? null) ? $attributes['storage_path'] : '';
         $verified = $this->verify($attributes);
         $filename = $attributes['filename'] ?? null;
         $mime = $attributes['mime'] ?? null;
@@ -78,7 +85,8 @@ final readonly class StoredDocumentWriter
             throw new \InvalidArgumentException('Archive parent/metadata mismatch.');
         }
         $metadata = new SourceDocumentMetadata($filename, $mime, parentVersionId: $parentVersion->id, normalizedEntryPath: $entryPath, childOrdinal: $ordinal);
-        $id = $this->transactions->run(function () use ($parent, $parentVersion, $entryPath, $verified, $metadata): int {
+        /** @var array{int,BlobReference} $committed */
+        $committed = $this->transactions->run(function () use ($parent, $parentVersion, $entryPath, $verified, $metadata): array {
             $this->capacity->lockDomains([$verified->blob->domainId]);
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$parent->id]);
             if (! DB::table('prc_document_versions')->where('id', $parentVersion->id)->where('document_id', $parent->id)->exists()) {
@@ -89,9 +97,12 @@ final readonly class StoredDocumentWriter
             ], ['platform_id' => $parent->platform_id, 'title' => basename($entryPath), 'status' => DocumentStatus::Downloaded]);
             // Parent lock serializes the identity even for NULL procurement_id; child+version commit together.
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$child->id]);
+            $stored = $this->acquire($verified);
 
-            return $this->versions->observeBlobLocked($this->versions->head($child->id), $this->acquire($verified), $metadata)->id;
+            return [$this->versions->observeBlobLocked($this->versions->head($child->id), $stored, $metadata)->id, $stored];
         });
+        [$id, $stored] = $committed;
+        $this->cleanupUnreferencedDuplicate($inputDisk, $inputPath, $stored);
 
         return DocumentVersion::query()->findOrFail($id);
     }
@@ -99,6 +110,8 @@ final readonly class StoredDocumentWriter
     /** @param array<string,mixed> $attributes */
     public function representation(DocumentVersion $version, RepresentationKind $kind, array $attributes): DocumentRepresentation
     {
+        $inputDisk = is_string($attributes['disk'] ?? null) ? $attributes['disk'] : '';
+        $inputPath = is_string($attributes['storage_path'] ?? null) ? $attributes['storage_path'] : '';
         $verified = $this->verify($attributes);
         $blob = $verified->blob;
         $meta = $attributes['meta'] ?? [];
@@ -112,7 +125,8 @@ final readonly class StoredDocumentWriter
             throw new \InvalidArgumentException('Typed tool metadata and page count required.');
         }
         $recipe = hash('sha256', json_encode([$tool, $toolVersion, $meta], JSON_THROW_ON_ERROR));
-        $id = $this->transactions->run(function () use ($version, $kind, $attributes, $blob, $verified, $recipe, $toolVersion, $pages): int {
+        /** @var array{int,BlobReference} $committed */
+        $committed = $this->transactions->run(function () use ($version, $kind, $attributes, $blob, $verified, $recipe, $toolVersion, $pages): array {
             $this->capacity->lockDomains([$blob->domainId]);
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$version->document_id]);
             DB::select('SELECT id FROM prc_document_versions WHERE id=? FOR UPDATE', [$version->id]);
@@ -124,7 +138,7 @@ final readonly class StoredDocumentWriter
                     throw new \LogicException('Immutable representation recipe returned different bytes.');
                 }
 
-                return $existing->int('id');
+                return [$existing->int('id'), $stored];
             }
             // Format output does not prove original-page coverage. Never label it automatic complete coverage.
             $units = max(1, $pages);
@@ -135,8 +149,10 @@ final readonly class StoredDocumentWriter
                 $stored->objectKey, $stored->disk, $stored->sizeBytes, $attributes['page_count'] ?? null, $attributes['token_estimate'] ?? null,
                 $attributes['mime'], json_encode($attributes['meta'] ?? [], JSON_THROW_ON_ERROR)]);
 
-            return $row?->int('id') ?? throw new \LogicException('Representation insert failed.');
+            return [$row?->int('id') ?? throw new \LogicException('Representation insert failed.'), $stored];
         });
+        [$id, $stored] = $committed;
+        $this->cleanupUnreferencedDuplicate($inputDisk, $inputPath, $stored);
 
         return DocumentRepresentation::query()->findOrFail($id);
     }
@@ -231,5 +247,23 @@ final readonly class StoredDocumentWriter
         DB::insert("INSERT INTO prc_document_blobs(id,storage_domain_id,content_hash,disk,object_key,size_bytes,verified_at) VALUES (?,?,decode(?,'hex'),?,?,?,clock_timestamp())", [$blob->id->value, $blob->domainId->value, $blob->hash->hex, $blob->disk, $blob->objectKey, $blob->sizeBytes]);
 
         return $blob;
+    }
+
+    private function cleanupUnreferencedDuplicate(string $inputDisk, string $inputPath, BlobReference $stored): void
+    {
+        if (DB::transactionLevel() !== 0 || $inputDisk === '' || $inputPath === '') {
+            return;
+        }
+        if ($inputDisk === $stored->disk && $inputPath === $stored->objectKey) {
+            return;
+        }
+        if (LedgerRow::one('SELECT 1 FROM prc_document_blobs WHERE disk=? AND object_key=?', [$inputDisk, $inputPath]) !== null) {
+            return;
+        }
+        try {
+            Storage::disk($inputDisk)->delete($inputPath);
+        } catch (\Throwable) {
+            // Best-effort cleanup of unreferenced duplicate object outside transaction.
+        }
     }
 }

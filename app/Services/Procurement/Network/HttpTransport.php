@@ -9,6 +9,7 @@ use App\Dto\Procurement\Network\BinaryBodyArtifact;
 use App\Dto\Procurement\Network\HttpAttemptResult;
 use App\Dto\Procurement\Network\HttpRequestPayload;
 use App\Dto\Procurement\Network\HttpResponseHead;
+use App\Dto\Procurement\Network\HttpRouteBinding;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\ReservedProviderNetwork;
 use App\Dto\Procurement\Network\ResolvedUrl;
@@ -72,36 +73,18 @@ final readonly class HttpTransport
             $encoding = ($version['features'] & CURL_VERSION_LIBZ) !== 0 ? 'gzip, deflate' : 'identity';
             $host = $plan->url->origin->host;
             $port = $plan->url->origin->port;
-            $connectHost = str_contains($host, ':') ? '['.$host.']' : $host;
-            $ip = str_contains($resolved->address, ':') ? '['.$resolved->address.']' : $resolved->address;
-            $curl = [
-                CURLOPT_LOW_SPEED_LIMIT => 1, CURLOPT_LOW_SPEED_TIME => $plan->profile->lowSpeedSeconds,
-                CURLOPT_FRESH_CONNECT => true, CURLOPT_FORBID_REUSE => true,
-                CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-                CURLOPT_CONNECT_TO => [$connectHost.':'.$port.':'.$ip.':'.$port],
-                CURLOPT_HTTPPROXYTUNNEL => $authorized->route->proxy() !== '',
-                // CONNECT status is proxy-phase evidence (on_stats), never an origin response head.
-                CURLOPT_SUPPRESS_CONNECT_HEADERS => true,
-            ];
-            if ($authorized->route->credentials() !== null) {
-                $curl[CURLOPT_PROXYUSERPWD] = $authorized->route->credentials();
-            }
+            $curl = self::pinnedCurlOptions($host, $port, $resolved->address, $plan->profile->lowSpeedSeconds, $authorized->route);
             // A fresh, private Laravel client; facade fakes/global middleware cannot replace this handler.
             try {
-                $trustOptions = $this->trust->optionsFor($host);
-                if (isset($trustOptions['verify']) && ! is_readable($trustOptions['verify'])) {
-                    throw new \LogicException('Configured TLS trust is unavailable.');
-                }
+                $trustOptions = $this->verifiedTlsOptions($host);
                 $handler = new PinnedCurlHandler;
             } catch (\LogicException) {
                 return new HttpAttemptResult(null, TransportFailure::Configuration, 0, 0);
             }
             $request = (new PendingRequest)->setClient(new Client(['handler' => $handler]));
             $options = [
-                'allow_redirects' => false, 'http_errors' => false, 'cookies' => false, 'stream' => false,
-                'proxy' => $authorized->route->proxy(), 'verify' => true,
-                'connect_timeout' => $plan->profile->connectSeconds, 'timeout' => $plan->profile->totalSeconds,
-                'decode_content' => $encoding, 'headers' => $payload->headers, 'sink' => $sink, 'curl' => $curl,
+                ...self::baseTransportOptions($authorized->route, $plan->profile->connectSeconds, $plan->profile->totalSeconds, $sink, $curl),
+                'decode_content' => $encoding, 'headers' => $payload->headers,
                 'progress' => function (int $total, int $downloaded) use ($context, $budget, &$wireBytes): void {
                     $context->tick();
                     $delta = max(0, $downloaded - $wireBytes);
@@ -122,11 +105,7 @@ final readonly class HttpTransport
                     if ($contentEncoding !== '' && $contentEncoding !== 'identity' && ! in_array($contentEncoding, explode(', ', $encoding), true)) {
                         throw new ResponseDecodeFailed('Unsupported Content-Encoding.');
                     }
-                    $length = 0;
-                    foreach ($response->getHeaders() as $name => $values) {
-                        $length += strlen($name) + array_sum(array_map(strlen(...), $values));
-                    }
-                    if ($length > 65_536) {
+                    if (self::headersByteLength($response) > 65_536) {
                         throw new ResponseLimitExceeded('Response header limit exceeded.');
                     }
                 },
@@ -239,34 +218,19 @@ final readonly class HttpTransport
         $budget = new TransferBudget($profile->maxEntityBytes, $profile->maxEntityBytes);
         $sink = new BoundedSink($profile->maxEntityBytes, fn () => $context->tick(), $budget);
         $downloaded = 0;
-        $curl = [CURLOPT_LOW_SPEED_LIMIT => 1, CURLOPT_LOW_SPEED_TIME => $profile->lowSpeedSeconds,
-            CURLOPT_FRESH_CONNECT => true, CURLOPT_FORBID_REUSE => true, CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_CONNECT_TO => [(str_contains($host, ':') ? '['.$host.']' : $host).':'.$port.':'.(str_contains($ip, ':') ? '['.$ip.']' : $ip).':'.$port],
-            CURLOPT_HTTPPROXYTUNNEL => $route->proxy() !== '', CURLOPT_SUPPRESS_CONNECT_HEADERS => true];
-        if ($route->credentials() !== null) {
-            $curl[CURLOPT_PROXYUSERPWD] = $route->credentials();
-        }
-        $trust = $this->trust->optionsFor($host);
-        if (isset($trust['verify']) && ! is_readable($trust['verify'])) {
-            throw new \LogicException('Configured TLS trust is unavailable.');
-        }
+        $curl = self::pinnedCurlOptions($host, $port, $ip, $profile->lowSpeedSeconds, $route);
+        $trust = $this->verifiedTlsOptions($host);
         $request = (new PendingRequest)->setClient(new Client(['handler' => new PinnedCurlHandler]))->withOptions([
-            'allow_redirects' => false, 'http_errors' => false, 'cookies' => false, 'stream' => false,
-            'proxy' => $route->proxy(), 'verify' => true, 'connect_timeout' => $profile->connectSeconds, 'timeout' => $profile->totalSeconds,
+            ...self::baseTransportOptions($route, $profile->connectSeconds, $profile->totalSeconds, $sink, $curl),
             'decode_content' => false, 'headers' => ['Content-Type' => 'application/json', 'Content-Length' => (string) strlen($wire->body),
                 'Expect' => '', 'Accept-Encoding' => 'identity', 'x-goog-api-key' => $apiKey],
-            'sink' => $sink, 'curl' => $curl,
             'progress' => function (int $total, int $received) use ($context, $budget, &$downloaded): void {
                 $context->tick();
                 $budget->wire(max(0, $received - $downloaded));
                 $downloaded = max($downloaded, $received);
             },
             'on_headers' => static function (ResponseInterface $response): void {
-                $size = 0;
-                foreach ($response->getHeaders() as $name => $values) {
-                    $size += strlen($name) + array_sum(array_map(strlen(...), $values));
-                }
-                if ($size > 65_536 || ! in_array(strtolower($response->getHeaderLine('Content-Encoding')), ['', 'identity'], true)) {
+                if (self::headersByteLength($response) > 65_536 || ! in_array(strtolower($response->getHeaderLine('Content-Encoding')), ['', 'identity'], true)) {
                     throw new \RuntimeException('Unsupported or oversized provider response headers.');
                 }
             }, ...$trust]);
@@ -276,5 +240,69 @@ final readonly class HttpTransport
 
             return $context->canStart(Duration::seconds($profile->totalSeconds));
         }, usesProxy: $route->proxy() !== '');
+    }
+
+    /** @return array<int, mixed> */
+    private static function pinnedCurlOptions(string $host, int $port, string $address, int $lowSpeedSeconds, HttpRouteBinding $route): array
+    {
+        $connectHost = str_contains($host, ':') ? '['.$host.']' : $host;
+        $ip = str_contains($address, ':') ? '['.$address.']' : $address;
+        $curl = [
+            CURLOPT_LOW_SPEED_LIMIT => 1,
+            CURLOPT_LOW_SPEED_TIME => $lowSpeedSeconds,
+            CURLOPT_FRESH_CONNECT => true,
+            CURLOPT_FORBID_REUSE => true,
+            CURLOPT_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
+            CURLOPT_CONNECT_TO => [$connectHost.':'.$port.':'.$ip.':'.$port],
+            CURLOPT_HTTPPROXYTUNNEL => $route->proxy() !== '',
+            // CONNECT status is proxy-phase evidence (on_stats), never an origin response head.
+            CURLOPT_SUPPRESS_CONNECT_HEADERS => true,
+        ];
+        if ($route->credentials() !== null) {
+            $curl[CURLOPT_PROXYUSERPWD] = $route->credentials();
+        }
+
+        return $curl;
+    }
+
+    /**
+     * @param  array<int, mixed>  $curl
+     * @return array<string, mixed>
+     */
+    private static function baseTransportOptions(HttpRouteBinding $route, int $connectSeconds, int $totalSeconds, BoundedSink $sink, array $curl): array
+    {
+        return [
+            'allow_redirects' => false,
+            'http_errors' => false,
+            'cookies' => false,
+            'stream' => false,
+            'proxy' => $route->proxy(),
+            'verify' => true,
+            'connect_timeout' => $connectSeconds,
+            'timeout' => $totalSeconds,
+            'sink' => $sink,
+            'curl' => $curl,
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function verifiedTlsOptions(string $host): array
+    {
+        $trustOptions = $this->trust->optionsFor($host);
+        if (isset($trustOptions['verify']) && ! is_readable($trustOptions['verify'])) {
+            throw new \LogicException('Configured TLS trust is unavailable.');
+        }
+
+        return $trustOptions;
+    }
+
+    private static function headersByteLength(ResponseInterface $response): int
+    {
+        $length = 0;
+        foreach ($response->getHeaders() as $name => $values) {
+            $length += strlen((string) $name) + array_sum(array_map(strlen(...), $values));
+        }
+
+        return $length;
     }
 }

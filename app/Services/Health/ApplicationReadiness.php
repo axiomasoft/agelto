@@ -30,19 +30,54 @@ final readonly class ApplicationReadiness
         private DaemonReadiness $daemons,
     ) {}
 
-    /** @return list<ReadinessCheckResult> */
-    public function check(): array
+    /**
+     * @param  list<ReadinessCheckCode>|null  $only
+     * @return list<ReadinessCheckResult>
+     */
+    public function check(?array $only = null): array
     {
-        return [
-            $this->database(),
-            $this->cache(),
-            $this->storage(),
-            $this->releaseState(),
-            $this->assets(),
-            $this->horizon(),
-            $this->scheduler(),
-            $this->processDaemons(),
+        $deadlineNs = hrtime(true) + (self::positiveIntConfig('readiness.timeout_seconds') * 1_000_000_000);
+        $all = [
+            ReadinessCheckCode::Database,
+            ReadinessCheckCode::Cache,
+            ReadinessCheckCode::Storage,
+            ReadinessCheckCode::ReleaseState,
+            ReadinessCheckCode::Assets,
+            ReadinessCheckCode::Horizon,
+            ReadinessCheckCode::Scheduler,
+            ReadinessCheckCode::ProcessDaemons,
         ];
+        $codes = $only === null
+            ? $all
+            : array_values(array_filter($all, static fn (ReadinessCheckCode $code): bool => in_array($code, $only, true)));
+
+        $results = [];
+        foreach ($codes as $code) {
+            if (hrtime(true) >= $deadlineNs) {
+                $results[] = new ReadinessCheckResult(code: $code, passed: false, message: 'unavailable');
+
+                continue;
+            }
+
+            $result = match ($code) {
+                ReadinessCheckCode::Database => $this->database(),
+                ReadinessCheckCode::Cache => $this->cache(),
+                ReadinessCheckCode::Storage => $this->storage(),
+                ReadinessCheckCode::ReleaseState => $this->releaseState(),
+                ReadinessCheckCode::Assets => $this->assets(),
+                ReadinessCheckCode::Horizon => $this->horizon(),
+                ReadinessCheckCode::Scheduler => $this->scheduler(),
+                ReadinessCheckCode::ProcessDaemons => $this->processDaemons(),
+            };
+
+            if ($result->passed && hrtime(true) > $deadlineNs) {
+                $result = new ReadinessCheckResult(code: $code, passed: false, message: 'unavailable');
+            }
+
+            $results[] = $result;
+        }
+
+        return $results;
     }
 
     public function isGreen(): bool
