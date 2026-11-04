@@ -33,4 +33,4 @@ test('конфликтующие defaults aliases одного origin откло
     ]))->toThrow(InvalidArgumentException::class, 'Conflicting origin');
 });
 
-pest()->group('p21-contracts', 'p21');
+pest()->group('network-contracts');

@@ -8,9 +8,8 @@ use App\Dto\Procurement\Details\ParsedProcurementDetails;
 use App\Dto\Procurement\Network\AdapterValidationReceipt;
 
 /**
- * Детальная карточка закупки (вкладки `common-info`/`documents`/`event-journal`/`supplier-results`,
- * `02-crawling.md` §5) — сырой HTML вкладок, снятый `SourceMethod::collectDetails()`. Парсинг
- * вкладок в доменные таблицы — вне этого DTO (tab-процессоры, план V2-CRAWL P3.3–P3.7).
+ * Сырой HTML вкладок `common-info`/`documents`/`event-journal`/`supplier-results`,
+ * полученный `SourceMethod::collectDetails()`. Разбор вкладок в доменные данные выполняют tab-процессоры.
  */
 final readonly class ProcurementDetails
 {

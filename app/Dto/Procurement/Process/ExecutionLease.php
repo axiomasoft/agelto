@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Process;
 use App\Enums\Procurement\Process\StageCode;
 
 /**
- * Decoded immutable ownership evidence claimed attempt (bp-sql-claim): work/generation/token/
+ * Decoded immutable ownership evidence claimed attempt: work/generation/token/
  * attempt, input fingerprint, executing handler version и decoded checkpoint envelope. Repository
  * fence-ит каждую запись по generation+token; это не mutable model reference.
  */

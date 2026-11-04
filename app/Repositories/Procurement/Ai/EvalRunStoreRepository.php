@@ -8,7 +8,7 @@ use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;
 
 /**
- * Запись `prc_ai_eval_runs`/`prc_ai_eval_results` (`root/service-layer-map.md` §6) — `estimate:eval:run`.
+ * Запись `prc_ai_eval_runs`/`prc_ai_eval_results` — `estimate:eval:run`.
  */
 final readonly class EvalRunStoreRepository
 {

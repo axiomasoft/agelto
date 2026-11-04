@@ -12,7 +12,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Тонкая точка входа пересборки карты «код ОКПД2 → id НСИ» (P2.5, D14): разбор опций, вызов
+ * Тонкая точка входа пересборки карты «код ОКПД2 → id НСИ»: разбор опций, вызов
  * синхронизатора, печать отчёта и код возврата. Обход и сверка живут в
  * `Okpd2NodeSynchronizer`, запись — в `Okpd2NodeStoreRepository`.
  */
@@ -69,7 +69,7 @@ final class SyncOkpd2Nodes extends Command
             $this->line("  ! сменился id узла {$node['code']}: {$node['stored_external_id']} → {$node['external_id']}");
         }
 
-        // Остаток обхода — не ошибка, а сознательное ограничение потолком (Scope Excluded P2.5):
+        // Остаток обхода — результат ограничения потолком запросов:
         // называется явно, потому что «узла нет» и «до узла не дошли» — разные вещи.
         if ($report['not_traversed'] !== []) {
             $this->warn(sprintf(

@@ -10,7 +10,7 @@ use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Str;
 
-/** AcknowledgeIncident (observability#s04): короткая tx, actor/reason в audit transition. */
+/** AcknowledgeIncident: короткая tx, actor/reason в audit transition. */
 final readonly class AcknowledgeIncident
 {
     public function __construct(private IncidentRepository $incidents, private ProcessTransaction $transaction) {}

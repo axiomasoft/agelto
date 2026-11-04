@@ -19,7 +19,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 /**
- * Outbox relay (bp-sql-relay): claim-ит ТОЛЬКО kind work_wake по token CAS в короткой tx, публикует
+ * Outbox relay: claim-ит ТОЛЬКО kind work_wake по token CAS в короткой tx, публикует
  * wake в Redis queue вне любой DB transaction и после успеха помечает сообщение published тем же
  * token. Падение до publish повторяет сообщение, падение после publish до mark даёт duplicate
  * delivery, безопасный по dispatch generation. Redis не authority: потеря опубликованного wake

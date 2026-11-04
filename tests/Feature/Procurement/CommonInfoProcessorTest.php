@@ -103,7 +103,7 @@ function snapshotParty(ProcurementPartyRole $role, string $inn): PartyData
     );
 }
 
-test('process создаёт eis_details/financing/items из разобранных данных вкладки (реальная вкладка common-info, P4.14)', function () {
+test('process создаёт eis_details/financing/items из разобранных данных вкладки (реальная вкладка common-info)', function () {
     $procurement = Procurement::factory()->create();
 
     app(CommonInfoProcessor::class)->process(procurement: $procurement, snapshot: commonInfoFixtureData());

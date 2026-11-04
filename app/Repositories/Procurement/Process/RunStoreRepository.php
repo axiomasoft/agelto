@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Writer prc_process_runs. Run начинается в discovery collecting (transition_seq 1) вместе со
  * своим transition и projection intent; closure complete/incomplete и CancelRun — отдельные
- * fenced lifecycle mutations следующих пунктов.
+ * fenced lifecycle mutations под lock строки run.
  */
 final readonly class RunStoreRepository
 {

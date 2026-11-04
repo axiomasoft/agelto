@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
 
 /**
- * Единственная точка персистентности `prc_ai_fixtures` (D6) — реестр эталонных ФАЙЛОВ.
+ * Единственная точка персистентности `prc_ai_fixtures` — реестр эталонных ФАЙЛОВ.
  */
 final readonly class FixtureStoreRepository
 {
@@ -51,7 +51,7 @@ final readonly class FixtureStoreRepository
 
     /**
      * Все эталоны в порядке кода, при непустом `$onlyCodes` — только перечисленные
-     * (`estimate:gold:build`/`estimate:gold:import`, `root/service-layer-map.md` §5).
+     * (`estimate:gold:build`/`estimate:gold:import`).
      *
      * @param  list<string>  $onlyCodes
      * @return Collection<int, Fixture>
@@ -68,7 +68,7 @@ final readonly class FixtureStoreRepository
     }
 
     /**
-     * Пул `gold_source=deterministic` для правила разбиения `tune`/`holdout` (D119,
+     * Пул `gold_source=deterministic` для правила разбиения `tune`/`holdout` (
      * `estimate:eval:run --write-splits`). Пять профильных полей живут в jsonb `type_profile` без
      * индексов (§6.4 document-type-axis.md) — предикат/сортировка/выборка идут через jsonb-путь.
      *
@@ -84,7 +84,7 @@ final readonly class FixtureStoreRepository
     }
 
     /**
-     * Эталоны по возрастанию `id`, начиная с `$fromId` — read-путь backfill'а дисков (P6.5,
+     * Эталоны по возрастанию `id`, начиная с `$fromId` — read-путь backfill'а дисков (
      * `research/07-storage-addressing.md` §6): Eloquent cursor, память не растёт с объёмом.
      *
      * @return LazyCollection<int, Fixture>
@@ -99,7 +99,7 @@ final readonly class FixtureStoreRepository
     }
 
     /**
-     * Точечная запись диска эталона по `id` — write-путь backfill'а (P6.5), когда объект под рукой
+     * Точечная запись диска эталона по `id` — write-путь backfill'а, когда объект под рукой
      * только как примитив (id/disk/path/hash), не гидратированная модель.
      */
     public function updateDisk(int $id, string $disk): void

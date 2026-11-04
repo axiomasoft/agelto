@@ -7,7 +7,7 @@ use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
 
 /**
- * P2.1 (D19) — read-репозиторий карты «код ОКПД2 → внутренний id НСИ».
+ * read-репозиторий карты «код ОКПД2 → внутренний id НСИ».
  */
 test('externalIds возвращает только запрошенные коды', function () {
     $platform = Platform::factory()->create();

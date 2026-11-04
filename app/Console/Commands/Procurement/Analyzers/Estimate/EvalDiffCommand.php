@@ -17,9 +17,9 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Диагностическая обёртка над {@see EstimateDiffReport} (P7.3, D62): по коду эталона резолвит
+ * Диагностическая обёртка над {@see EstimateDiffReport}: по коду эталона резолвит
  * gold-файл корпуса и АКТИВНЫЙ `Analysis(step=extraction)` рабочей копии эталона, либо берёт
- * анализ напрямую по `--analysis` — резолв вынесен в {@see FixtureCaseResolver} (P3.3, общий с
+ * анализ напрямую по `--analysis` — резолв вынесен в {@see FixtureCaseResolver} (общий с
  * `estimate:prompts:suggest`). НИ ОДНОГО LLM-вызова не делает — читает уже полученный
  * `analysis.result`, не запускает оркестратор (в отличие от `estimate:eval:run`).
  */

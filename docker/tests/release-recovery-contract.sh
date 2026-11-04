@@ -10,7 +10,7 @@ readonly rotation="$root/docker/scripts/rotate-production-secrets.sh"
 readonly expected_release=(preflight backup compatibility drain promote readiness canary)
 
 fail() {
-    printf '[FAIL] P12.5 %s\n' "$*" >&2
+    printf '[FAIL] %s\n' "$*" >&2
     exit 1
 }
 
@@ -113,7 +113,6 @@ expect_fail 'live rollback apply' "$rollback" apply
 expect_fail 'live restore apply' "$restore" apply
 ! rg -n -- 'git pull|docker build|down --volumes|eval|\|\| true|pg_restore[[:space:]]+--clean|migrate:fresh|rm[[:space:]]+-rf' \
     "$release" "$rollback" "$restore" "$rotation" >/dev/null
-grep -F 'TEMPLATE — NO RUNTIME EVIDENCE' "$root/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-release-recovery-evidence.md" >/dev/null
 grep -F 'backup before the first mutation' "$root/docs/operators/production/releases.md" >/dev/null
 grep -F 'reverse consumer order' "$root/docs/operators/production/secret-rotation.md" >/dev/null
 grep -F 'isolated `*_rehearsal`' "$root/docs/operators/production/rollback-restore.md" >/dev/null

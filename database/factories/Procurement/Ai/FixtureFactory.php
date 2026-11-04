@@ -94,7 +94,7 @@ final class FixtureFactory extends Factory
     }
 
     /**
-     * Историческая запись с материализованным диском (P6.2/P6.5) — по умолчанию `disk` пуст.
+     * Историческая запись с материализованным диском — по умолчанию `disk` пуст.
      */
     public function onDisk(string $disk): self
     {

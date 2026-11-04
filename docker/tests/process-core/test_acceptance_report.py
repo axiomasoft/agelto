@@ -17,7 +17,7 @@ class EvidenceFixture:
         self.folder.mkdir(parents=True)
         self.inputs = {"config/process.php": "original"}
         self.contract = {"rig_reuse": {}, "install_independent_test_inputs": [],
-                         "gate_cases": {}, "test_cases": {}, "scenarios": {},
+                         "gate_cases": {}, "test_cases": {}, "scenarios": {}, "scenario_group_names": {},
                          "permanent_role_tests": [], "requirements": {"R03": ["T08"]},
                          "accepted_contracts": {"D9": ["T09"]},
                          "normative_sources": {"execution": {"sha256": "supplied-contract-hash"}},
@@ -29,6 +29,7 @@ class EvidenceFixture:
             self.write_text(self.root / path, "<?php test('case', function () {})->group('" + scenario.lower() + "');")
             self.contract["scenarios"][scenario] = [{"file": path, "group": scenario.lower(),
                                                      "target": "core-test-regression"}]
+            self.contract["scenario_group_names"][scenario] = scenario.lower()
             case = {"class": "Tests.Feature.ProcessCore." + scenario + "Test", "file": path,
                     "name": "case", "status": "passed"}
             self.cases.append(case)
@@ -205,6 +206,12 @@ class AcceptanceReportTest(unittest.TestCase):
         self.f.save_contract()
         ids = {e["id"] for e in self.f.build()["errors"]}
         self.assertTrue({"T09", "T11", "V3"}.issubset(ids))
+
+    def test_incomplete_scenario_group_mapping_is_rejected(self):
+        del self.f.contract["scenario_group_names"]["T11"]
+        self.f.save_contract()
+        with self.assertRaisesRegex(ValueError, "incomplete scenario group mapping"):
+            self.f.build()
 
     def test_junit_and_machine_case_list_must_agree(self):
         self.f.write(self.f.reports / "V2/executed-scenarios.json", [])

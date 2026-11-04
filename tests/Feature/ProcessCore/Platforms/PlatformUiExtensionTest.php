@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Support\Platforms\JsonProcurement\JsonProcurementDefinition;
 
-pest()->group('t38', 'p22');
+pest()->group('platform-definition-boot');
 
-final class P212UiExtension implements PlatformUiExtension
+final class ExampleUiExtension implements PlatformUiExtension
 {
     public static int $constructed = 0;
 
@@ -37,12 +37,12 @@ final class P212UiExtension implements PlatformUiExtension
     }
 }
 
-final readonly class P212UiDefinition implements PlatformDefinitionProvider
+final readonly class ExampleUiDefinition implements PlatformDefinitionProvider
 {
     public function definition(): PlatformDefinition
     {
         return new PlatformDefinition(...array_replace(get_object_vars((new JsonProcurementDefinition)->definition()), [
-            'uiExtension' => P212UiExtension::class,
+            'uiExtension' => ExampleUiExtension::class,
         ]));
     }
 }
@@ -55,22 +55,22 @@ test('optional UI seam resolves only declared extensions and leaves JSON common 
     expect($extension)->toBeNull()->and([...$common, ...($extension?->profileFormSchema() ?? [])])->toBe($common);
     expect(fn () => $resolver->resolve(new PlatformCode('missing')))->toThrow(InvalidPlatformDefinition::class);
 
-    config()->set('platforms.definitions.json', P212UiDefinition::class);
-    P212UiExtension::$constructed = 0;
+    config()->set('platforms.definitions.json', ExampleUiDefinition::class);
+    ExampleUiExtension::$constructed = 0;
     new PlatformRegistry(config());
-    expect(P212UiExtension::$constructed)->toBe(0);
+    expect(ExampleUiExtension::$constructed)->toBe(0);
     $extension = app(PlatformUiResolver::class)->resolve(new PlatformCode('json'));
-    expect($extension)->toBeInstanceOf(P212UiExtension::class)
+    expect($extension)->toBeInstanceOf(ExampleUiExtension::class)
         ->and($extension->profileFormSchema()[0]->getHeading())->toBe('Fixture profile')
         ->and($extension->procurementInfolistSections(new Procurement)[0]->getHeading())->toBe('Fixture procurement');
-    app()->bind(P212UiExtension::class, fn () => new stdClass);
+    app()->bind(ExampleUiExtension::class, fn () => new stdClass);
     expect(fn () => app(PlatformUiResolver::class)->resolve(new PlatformCode('json')))
         ->toThrow(InvalidPlatformDefinition::class, 'incompatible container binding');
 });
 
 test('platform validate checks actual definitions and UI descriptors without database HTTP or component construction', function (): void {
-    config()->set('platforms.definitions.json', P212UiDefinition::class);
-    P212UiExtension::$constructed = 0;
+    config()->set('platforms.definitions.json', ExampleUiDefinition::class);
+    ExampleUiExtension::$constructed = 0;
     Http::preventStrayRequests();
     DB::enableQueryLog();
     DB::flushQueryLog();
@@ -79,7 +79,7 @@ test('platform validate checks actual definitions and UI descriptors without dat
     test()->artisan('platform:validate', ['code' => 'missing'])->assertFailed();
     config()->set('platforms.eis.block_size', 0);
     test()->artisan('platform:validate')->expectsOutputToContain('platforms.eis.block_size')->assertFailed();
-    expect(P212UiExtension::$constructed)->toBe(0)->and(DB::getQueryLog())->toBe([]);
+    expect(ExampleUiExtension::$constructed)->toBe(0)->and(DB::getQueryLog())->toBe([]);
     DB::disableQueryLog();
     Http::assertNothingSent();
 });

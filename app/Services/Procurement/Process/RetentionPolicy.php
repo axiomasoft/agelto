@@ -7,7 +7,7 @@ namespace App\Services\Procurement\Process;
 use Illuminate\Contracts\Config\Repository;
 
 /**
- * Boot-validated policy `process.retention` (observability#s07): сроки хранения ledger history.
+ * Boot-validated policy `process.retention`: сроки хранения ledger history.
  * Transitions и operator audit — минимум 365 дней; меньшие значения отвергаются с путём ключа,
  * а не заменяются default.
  */

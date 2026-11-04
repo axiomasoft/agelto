@@ -11,20 +11,13 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
- * Площадка ЕИС (`zakupki.gov.ru`) и реестр `fz44` с настройками детальной карточки
- * (`procedure_url_types`/`card_url_templates`, `EisCardUrlBuilder`) — до этого сидера площадки
- * ЕИС в проекте не было вовсе (`PlatformSeeder` заводит только служебную «Обучалку»), а
- * `prc_registries.settings` не заполнены нигде: без них детальная стадия падает
- * `CardUrlTemplateMissingException` на первом же запросе карточки.
+ * Площадка ЕИС (`zakupki.gov.ru`) и реестр `fz44` с настройками детальной карточки.
+ * `EisCardCatalog` задаёт соответствие сырых меток `methodOrderPurchaseCsv` сегментам URL
+ * и шаблоны вкладок по типу процедуры. Без этих настроек legacy builder не разрешает URL.
  *
- * Значения `settings` — живая разведка P4.1, СЫРЫЕ метки `methodOrderPurchaseCsv` → сегмент URL
- * (`artifacts/eis-registry-settings.json`, 261 сопоставление без конфликтов, 2026-08-04) — заведены
- * здесь буквально, второго носителя того же перечня в рантайме нет.
- *
- * Идемпотентен: `updateOrCreate` по `code` площадки (unique) и `(platform_id, code)` реестра
- * (unique-индекс миграции); повторный прогон обновляет `settings`/`name`, а не дублирует строки.
- * `uuid` площадки — явно: `DatabaseSeeder` несёт `WithoutModelEvents`, `creating`-хук `Platform`
- * здесь не срабатывает (тот же приём, что `PlatformSeeder`).
+ * Повторный запуск обновляет строку по уникальному `code` площадки и `(platform_id, code)`
+ * реестра, сохраняя существующие identities. UUID задаётся явно:
+ * `DatabaseSeeder` использует `WithoutModelEvents`, поэтому creating-hook не вызывается.
  */
 final class EisPlatformSeeder extends Seeder
 {
@@ -93,13 +86,4 @@ final class EisPlatformSeeder extends Seeder
             ...$attributes,
         ]);
     }
-
-    /**
-     * СЫРАЯ метка `methodOrderPurchaseCsv` → сегмент URL карточки (`ea20`/`zk20`/…) — НЕ значение
-     * `App\Enums\Platforms\Eis\EisProcedureType` (тот резолвится из этой же метки отдельно,
-     * `EisCsvRowMapper::mapProcedureType()`). `artifacts/eis-registry-settings.json`
-     * `procedure_url_types`, разведка 2026-08-04.
-     *
-     * @return array<string, string>
-     */
 }

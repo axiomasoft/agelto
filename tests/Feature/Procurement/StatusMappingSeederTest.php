@@ -10,7 +10,7 @@ use App\Services\Procurement\StatusMappingService;
 use Database\Seeders\StatusMappingSeeder;
 
 /**
- * DOMLANG P2.2 (D17) — стартовая матрица `prc_status_mappings` для реестра fz44.
+ * DOMLANG стартовая матрица `prc_status_mappings` для реестра fz44.
  */
 test('сид заводит ровно 5 маппингов для реестра fz44', function () {
     $registry = eisStatusMappingRegistry();

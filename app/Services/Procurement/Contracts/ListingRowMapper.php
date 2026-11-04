@@ -9,9 +9,8 @@ use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Models\Procurement\Crawler\Crawler;
 
 /**
- * Строка сырого блока листинга (`ListingBatch->rows`) → нормализованный снапшот закупки.
- * Площадко-специфичен (имена колонок, формат дат) — реализация в `Eis\EisCsvRowMapper`,
- * контракт сам площадки не знает (`CsvBlockIngestor` — агностик, P2.5 `02-crawling.md` §3.4).
+ * Строка сырого listing batch преобразуется в ProcurementSnapshotData. Площадочный
+ * адаптер знает колонки и форматы дат; общий контракт и CsvBlockIngestor от площадки не зависят.
  */
 interface ListingRowMapper
 {

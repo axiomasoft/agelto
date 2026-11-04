@@ -134,5 +134,5 @@ success и failure.
 
 - `../getting-started.md` — первый прогон тестов после клонирования.
 - `db-test-preflight` (skill) — Postgres-контейнер жив, `agelto_test` существует, миграции применены.
-- [`P12-command-matrix.md`](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
+- [текущий inventory команд](../../operators/production/commands.md#current-command-inventory)
   — канонические test/quality targets и их exit/evidence contract.

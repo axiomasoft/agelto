@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Platform;
 use App\Dto\Procurement\Process\ContentHash;
 
 /**
- * Canonical origin authority (platform-transport#s02): (scheme, IDNA ASCII host, effective port).
+ * Canonical origin authority: (scheme, IDNA ASCII host, effective port).
  * Origin budget принадлежит именно этой identity, поэтому aliases/capabilities одного origin и
  * любое число proxy делят одну квоту. Userinfo запрещён; путь, query и fragment не входят в origin.
  */

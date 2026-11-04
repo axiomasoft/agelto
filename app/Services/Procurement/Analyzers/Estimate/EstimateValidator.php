@@ -16,13 +16,13 @@ use App\Enums\Procurement\Estimate\TotalKind;
  * Детерминированная (без LLM) арифметическая/структурная валидация извлечённой сметы
  * (`docs/specs/v2/08-estimate-extraction.md` §4.1 п.6, §6 — валидационный промт v1 переносится
  * как проверка в коде, дешевле и надёжнее LLM-вызова, research/E §5 «арифметика — основной
- * сигнал качества»). Чистая функция над DTO (Implementation Rules P6.2) — работает на выходе
+ * сигнал качества»). Чистая функция над DTO — работает на выходе
  * `EstimateStitcher` (дедуплицированные, отсортированные строки), decimal-сравнение — bcmath
- * (Implementation Rules P6.2: конверсия во float запрещена во всём контракте P2.2).
+ * (конверсия во float запрещена во всём контракте).
  *
- * НЕ выбрасывает строки при аномалиях (Code Guidance P6.2: «validation_status=invalid не
+ * НЕ выбрасывает строки при аномалиях («validation_status=invalid не
  * выбрасывает строки — сохраняем всё, помечаем») — только классифицирует и перечисляет row_index
- * вовлечённых аномалий (кандидаты `RerunRangeAction`, P6.3).
+ * вовлечённых аномалий (кандидаты `RerunRangeAction`).
  */
 final readonly class EstimateValidator
 {
@@ -42,7 +42,7 @@ final readonly class EstimateValidator
     /**
      * Порог доли расхождения rows_expected/фактически извлечено, после которого неполнота
      * считается СЕРЬЁЗНОЙ (invalid), а не просто подозрительной — калибровка на реальных сметах
-     * отложена (P6.3/P7.4 Pending Work, тот же класс решений, что row_range_size/checkpoint_*).
+     * отложена вместе с параметрами row_range_size/checkpoint_*.
      */
     private const float SEVERE_COMPLETENESS_RATIO = 0.1;
 
@@ -83,7 +83,7 @@ final readonly class EstimateValidator
 
     /**
      * Пара `$rowReasons`/`$rowNotes` заполняется ОДНИМ вызовом на строке обнаружения — гарантирует
-     * позиционное соответствие 1:1 (P8.4, research/12-uncertainty-model.md §3.2) без последующего
+     * позиционное соответствие 1:1 (research/12-uncertainty-model.md §3.2) без последующего
      * сопоставления причины и текста заметки.
      *
      * @param  array<int, list<RowQualityReason>>  $rowReasons
@@ -139,7 +139,7 @@ final readonly class EstimateValidator
     {
         if ($rowsExpected <= 0) {
             // Оконный путь (§4а): rows_expected из паспорта части документа не гарантированно
-            // точен — не строгий гейт, проверка пропускается (Implementation Rules спеки 08 §4а).
+            // точен — не строгий гейт, проверка пропускается при отсутствии достоверного числа ожидаемых строк.
             return false;
         }
 
@@ -158,7 +158,7 @@ final readonly class EstimateValidator
 
     /**
      * Пустота обязательного поля — только построчная пометка: она не добавляет заметку сметы и
-     * не меняет её validation_status (P7.4).
+     * не меняет её validation_status.
      *
      * @param  list<EstimateRow>  $rows
      * @param  array<int, list<RowQualityReason>>  $rowReasons
@@ -252,7 +252,7 @@ final readonly class EstimateValidator
     /**
      * Best-effort сверка суммы ВСЕХ позиций с корневой итоговой строкой footer'а (поиск по
      * `kind`/`label`, содержащему «итого»/«всего» — точная таксономия `kind` не зафиксирована
-     * спекой на момент P6.2, Known Deviation: мягкий сигнал, не влияет на invalid-статус).
+     * спецификацией: мягкий сигнал, не влияет на invalid-статус).
      *
      * @param  list<EstimateRow>  $rows
      * @param  list<string>  $notes

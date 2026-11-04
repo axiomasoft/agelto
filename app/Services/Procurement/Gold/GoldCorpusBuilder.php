@@ -11,12 +11,9 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Сборка `estimates/gold/**` по реестру `prc_ai_fixtures` (P5.3, D45, вынесено из
- * `GoldBuildCommand`, `root/service-layer-map.md` §3/§4 «неоднозначность 1»): для каждого
- * эталона с `gold_source=deterministic` вызывает {@see GoldBuilder}, собирает сводный отчёт и
- * (под `--update-manifest`) манифест-факты. Живёт в `App\Services\Procurement\Gold\`, а НЕ в
- * каталоге анализатора: единственный исполнитель — `Gold\GoldBuilder`, каталоги сервисов
- * `Gold`/`Bench`/`Prepare` эта фаза сознательно не переклассифицирует (D31).
+ * Сборка estimates/gold/** по prc_ai_fixtures: deterministic эталоны обрабатывает
+ * GoldBuilder. Сервис собирает сводный отчёт и факты для обновления манифеста;
+ * console command отвечает за представление результата.
  */
 /**
  * @phpstan-type ManifestFact array{gold_path: string|null, expected_rows: int|null, expected_estimates: int|null, gold_source: string}
@@ -79,9 +76,9 @@ final readonly class GoldCorpusBuilder
     public function renderReport(array $rows): string
     {
         $lines = [];
-        $lines[] = '# 10 — Сводный отчёт корпуса gold (P5.3)';
+        $lines[] = '# Сводный отчёт корпуса gold';
         $lines[] = '';
-        $lines[] = 'Сгенерировано `estimate:gold:build` (D45) по реестру `prc_ai_fixtures`. Не редактируется руками —';
+        $lines[] = 'Сгенерировано `estimate:gold:build` по реестру `prc_ai_fixtures`. Не редактируется руками —';
         $lines[] = 'перегенерируется командой при следующем прогоне.';
         $lines[] = '';
         $lines[] = '| код | формат | источник gold | смет | строк | итог документа | доля арифм. сходимости | неотображённые элементы | вердикт |';
@@ -130,7 +127,7 @@ final readonly class GoldCorpusBuilder
 
             if ($row['status'] === 'downgraded') {
                 $downgrades[] = "- **{$row['code']}** — {$row['reason']}";
-                $hitl[] = "- **{$row['code']}** ждёт HITL-построения gold в P8 (D2).";
+                $hitl[] = "- **{$row['code']}** ожидает ручной подготовки gold.";
             }
         }
 

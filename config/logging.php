@@ -109,7 +109,7 @@ return [
 
         /*
         |----------------------------------------------------------------------
-        | JSON-каналы (P7.5, D25, research/J §1: "monolog-канал + JsonFormatter")
+        | JSON-каналы (Monolog + JsonFormatter)
         |----------------------------------------------------------------------
         |
         | 'json' — стек file+stderr в JSON (Context::add()-поля вроде trace_id едут в extra

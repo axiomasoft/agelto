@@ -11,7 +11,7 @@ use App\Services\Procurement\Process\Contracts\ReconcileCategory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/** bp-sql-recover#6: first tick and then once per 60 monotonic seconds, independent of delivery. */
+/** first tick and then once per 60 monotonic seconds, independent of delivery. */
 final class InvariantScan implements ReconcileCategory
 {
     public const int INTERVAL_SECONDS = 60;

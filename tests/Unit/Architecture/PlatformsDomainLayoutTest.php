@@ -22,7 +22,9 @@ function platformArchitectureSources(): array
     return $sources;
 }
 
-test('T33 Platforms layout совпадает с путями и явным fixture registry во всех слоях', function (): void {
+pest()->group('platform-dependency-boundary');
+
+test('Platforms layout совпадает с путями и явным fixture registry во всех слоях', function (): void {
     $codes = array_values(require base_path('tests/Fixtures/Platforms/registry.php'));
     $violations = [];
     $count = 0;
@@ -38,19 +40,19 @@ test('T33 Platforms layout совпадает с путями и явным fixt
         ->and($violations)->toBe([]);
 });
 
-test('T33 final dependency graph has no temporary baseline', function (): void {
+test('final dependency graph has no temporary baseline', function (): void {
     expect(is_file(__DIR__.'/platforms-dependency-baseline.php'))->toBeFalse()
         ->and(PlatformSourceRules::dependencyViolations(platformArchitectureSources()))->toBe([]);
 });
 
-test('T33 forbidden dependency reports exact file and import without a baseline bypass', function (): void {
+test('forbidden dependency reports exact file and import without a baseline bypass', function (): void {
     $path = 'app/Services/Platforms/JsonProcurement/Csv/Parser.php';
     $import = 'App\Services\Procurement\Proxy\ProxyResolver';
     expect(PlatformSourceRules::dependencyViolations([$path => '<?php use '.$import.';']))
         ->toBe(['forbidden dependency: '.$path.' -> '.$import]);
 });
 
-test('T33 scanner видит use absolute FQCN и оба варианта escaping class strings', function (): void {
+test('scanner видит use absolute FQCN и оба варианта escaping class strings', function (): void {
     $import = 'App\Services\Procurement\Proxy\ProxyResolver';
     $path = 'app/Services/Platforms/JsonProcurement/Csv/Parser.php';
     $expected = ['forbidden dependency: '.$path.' -> '.$import];
@@ -74,7 +76,7 @@ test('T33 scanner видит use absolute FQCN и оба варианта escapi
     expect(PlatformSourceRules::inspect($interpolation)['group_use'])->toBeFalse();
 });
 
-test('T33 cross-platform dependency запрещена без исключений', function (): void {
+test('cross-platform dependency запрещена без исключений', function (): void {
     $path = 'app/Services/Platforms/JsonProcurement/Csv/Parser.php';
     $import = 'App\Services\Platforms\Eis\Csv\EisCsvParser';
 
@@ -83,7 +85,7 @@ test('T33 cross-platform dependency запрещена без исключени
     ))->toContain('cross-platform dependency: '.$path.' -> '.$import);
 });
 
-test('T33 exact roles не разрешают модели и repositories другим parser или UI процессные writes', function (): void {
+test('exact roles не разрешают модели и repositories другим parser или UI процессные writes', function (): void {
     $model = 'App\Models\Procurement\Crawler\Crawler';
     $source = '<?php use '.$model.';';
     $ui = 'app/Filament/Platforms/Eis/EisCrawlerPlatformForm.php';
@@ -103,7 +105,7 @@ test('T33 exact roles не разрешают модели и repositories др�
         ->toBe(['forbidden dependency: '.$parser.' -> '.$repository]);
 });
 
-test('T33 layout отклоняет чужой code неправильный namespace и лишний service subdir', function (): void {
+test('layout отклоняет чужой code неправильный namespace и лишний service subdir', function (): void {
     $path = 'app/Services/Platforms/JsonProcurement/Csv/Parser.php';
     $source = '<?php namespace App\Services\Platforms\JsonProcurement\Csv;';
 
@@ -116,7 +118,7 @@ test('T33 layout отклоняет чужой code неправильный nam
         ))->not->toBe([]);
 });
 
-test('T33 старые FQCN и физические move paths отсутствуют а fixture bytes сохранены', function (): void {
+test('старые FQCN и физические move paths отсутствуют а fixture bytes сохранены', function (): void {
     $map = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/platforms-move-map.json')), associative: true, flags: JSON_THROW_ON_ERROR);
     $sources = platformArchitectureSources();
 
@@ -149,7 +151,7 @@ test('T33 старые FQCN и физические move paths отсутств�
     }
 });
 
-test('T33 каждый перенесённый class enum factory и seeder доступен через autoload', function (): void {
+test('каждый перенесённый class enum factory и seeder доступен через autoload', function (): void {
     $map = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/platforms-move-map.json')), associative: true, flags: JSON_THROW_ON_ERROR);
     $count = 0;
 
@@ -166,14 +168,14 @@ test('T33 каждый перенесённый class enum factory и seeder д�
     expect($count)->toBe(24);
 });
 
-test('T33 profile preparation role cannot acquire execution persistence dependencies', function (): void {
+test('profile preparation role cannot acquire execution persistence dependencies', function (): void {
     $violations = PlatformSourceRules::dependencyViolations([
         'app/Services/Platforms/Eis/Listing/EisProfilePreparer.php' => '<?php use App\\Repositories\\Procurement\\Process\\WorkStoreRepository;',
     ]);
     expect($violations)->toContain('forbidden dependency: app/Services/Platforms/Eis/Listing/EisProfilePreparer.php -> App\\Repositories\\Procurement\\Process\\WorkStoreRepository');
 });
 
-test('T33 diagnostic assessment cannot select routes or read acquisition models', function (): void {
+test('diagnostic assessment cannot select routes or read acquisition models', function (): void {
     $path = 'app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php';
     foreach (['App\\Models\\Procurement\\Crawler\\Crawler', 'App\\Services\\Procurement\\Proxy\\ProxyResolver'] as $dependency) {
         expect(PlatformSourceRules::dependencyViolations([$path => '<?php use '.$dependency.';']))

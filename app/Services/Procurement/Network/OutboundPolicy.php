@@ -8,7 +8,7 @@ use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use Illuminate\Contracts\Config\Repository;
 
 /**
- * Boot-validated outbound policy v1 из `config/outbound.php` (platform-transport#defaults). Чистое
+ * Boot-validated outbound policy v1 из `config/outbound.php`. Чистое
  * чтение config: никакого DB/network I/O, поэтому routine boot/DI его безопасно строит. Неполная
  * или противоречивая конфигурация отвергается с точным ключом, а не заменяется default.
  */
@@ -157,7 +157,7 @@ final readonly class OutboundPolicy
             && $budget->maxInflight >= $bounds['max_inflight']['min'] && $budget->maxInflight <= $bounds['max_inflight']['max'];
     }
 
-    /** Status cap = floor(configured hourly origin capacity · percent) (bp-rate-gcra п.4). */
+    /** Status cap = floor(configured hourly origin capacity · percent). */
     public function statusHourlyCap(OriginBudgetPolicy $origin): int
     {
         return intdiv($origin->ratePerMinute * 60 * $this->statusCapacityPercent, 100);

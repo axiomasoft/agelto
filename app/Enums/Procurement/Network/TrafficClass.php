@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Network;
 
 /**
- * Класс трафика physical request (platform-transport#s05): задаётся адаптером по endpoint И
+ * Класс трафика physical request: задаётся адаптером по endpoint И
  * намерению. Те же значения закрывает CHECK `prc_network_demands.traffic_class`; probe — отдельный
  * DemandPurpose, а не класс трафика.
  */

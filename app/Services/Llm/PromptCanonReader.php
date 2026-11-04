@@ -10,8 +10,7 @@ use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
- * Единственный владелец обхода канона промтов и разбора front-matter (D22, D32,
- * `root/service-layer-map.md` §7) — файлы под git являются каноном, БД её рантайм-копия (D5/D17).
+ * Единственный владелец обхода канона промтов и разбора front-matter — файлы под git являются каноном, БД её рантайм-копия.
  * Два корня: `resources/ai/prompts/**\/*.md` (кросс-документное ядро) и
  * `resources/<домен>/ai/prompts/**\/*.md` (тип-владелец, `document_type` из front-matter — источник
  * истины); соответствие «корень ↔ document_type» проверяется на каждом разборе.
@@ -19,7 +18,7 @@ use RuntimeException;
 final readonly class PromptCanonReader
 {
     /**
-     * Оба корня канона по D32: ключ — глоб-шаблон относительно `resources/`, значение — признак
+     * Оба корня канона по назначению: ключ — глоб-шаблон относительно `resources/`, значение — признак
      * доменного корня (`true`) против кросс-документного ядра (`false`).
      *
      * @var array<string, bool>
@@ -41,9 +40,9 @@ final readonly class PromptCanonReader
     }
 
     /**
-     * Путь к файлу канона с данным `key` в ОБЪЕДИНЁННОМ пространстве обоих корней (D32). `null` —
+     * Путь к файлу канона с данным `key` в ОБЪЕДИНЁННОМ пространстве обоих корней. `null` —
      * ключа нет ни в одном корне. Ключи обязаны быть уникальны в объединённом пространстве — находка
-     * ДВУХ файлов с одним `key` не решается «взять первый» (`root/service-layer-map.md` §7), это
+     * ДВУХ файлов с одним `key` не решается «взять первый», это
      * находка, требующая эскалации.
      */
     public function findPathByKey(string $key): ?string
@@ -113,24 +112,24 @@ final readonly class PromptCanonReader
             }
         }
 
-        // Fail fast на опечатку в document_type — AiDocumentType либо сентинел any (§1.2/§4.1
-        // root/document-type-axis.md).
+        // Fail fast на опечатку в document_type — AiDocumentType либо сентинел any.
+        // Допустимые значения проверяет реестр типов документов.
         $documentType = $this->registry->documentType($front['document_type']);
 
-        // Соответствие «корень ↔ document_type» (D32, Implementation Rule 6 P3.4): кросс-документный
+        // Соответствие «корень ↔ document_type»: кросс-документный
         // файл (document_type=any) обязан лежать в корне ядра, тип-владелец — в доменном корне.
         // Захардкоженной карты «тип → каталог» здесь нет: домен подтверждает СЕБЯ фактом попадания
         // в свой корень, а этот факт сверяется с front-matter — источником истины о владельце.
         if ($isDomainRoot && $documentType === DocumentTypeScope::Any) {
-            throw new RuntimeException("Файл кросс-документного назначения (document_type=any) лежит в доменном корне канона промтов — нарушает D32: {$path}");
+            throw new RuntimeException("Файл кросс-документного назначения (document_type=any) должен лежать в корне ядра канона промтов: {$path}");
         }
 
         if (! $isDomainRoot && $documentType !== DocumentTypeScope::Any) {
-            throw new RuntimeException("Файл с document_type «{$front['document_type']}» лежит в корне ядра канона промтов — нарушает D32 (типу-владельцу нужен доменный корень): {$path}");
+            throw new RuntimeException("Файл с document_type «{$front['document_type']}» должен лежать в доменном корне канона промтов: {$path}");
         }
 
         // Fail fast на опечатку в step — обязана совпадать с одним из значений реестра для
-        // ЭТОГО document_type (ядерные ∪ собственные значения его анализатора, P2.5 §7 контракта).
+        // ЭТОГО document_type (ядерные ∪ собственные значения его анализатора,  §7 контракта).
         $this->registry->promptStepFor($documentType, $front['step']);
 
         $content = trim($matches['content']);

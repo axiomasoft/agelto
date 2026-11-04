@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Liveness carrier каждого instance process daemon (bp-daemons); readiness считается отдельно.
+ * Liveness carrier каждого instance process daemon; readiness считается отдельно.
  *
  * @property string $instance_id
  * @property string $daemon

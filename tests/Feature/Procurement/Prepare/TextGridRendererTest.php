@@ -10,7 +10,7 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
- * Формат `text_grid` (P3.5, D3): строка = `<row_index>\t<ячейка>…`, лист = `## SHEET: <имя>`,
+ * Формат `text_grid`: строка = `<row_index>\t<ячейка>…`, лист = `## SHEET: <имя>`,
  * merge развёрнут в повтор, пустые строки/колонки опущены без сдвига `row_index`. Синтетические
  * книги собираются PhpSpreadsheet'ом в самом тесте (Code Guidance).
  */

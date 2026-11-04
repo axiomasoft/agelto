@@ -23,11 +23,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Единственный writer source catalog authority (platform-transport#s02/#s06, refactoring#rf-network):
+ * Единственный writer source catalog authority:
  * `prc_source_targets`, origin/probe/route-origin `prc_network_budgets` и начальные health rows.
  * Вызывается только явным catalog sync/override/retire, никогда routine boot.
  *
- * Lock order (bp-lock-modes, tier1 → tier7): `system` control FOR UPDATE (audit anchor и
+ * Lock order (tier1 → tier7): `system` control FOR UPDATE (audit anchor и
  * сериализация catalog mutations; эта tx его ранее не брала FOR SHARE) → targets FOR UPDATE в
  * byte-sorted target_key → budgets/health INSERT в sorted порядке ключей. Сеть не вызывается.
  *
@@ -396,8 +396,8 @@ final readonly class SourceCatalogRepository
 
     /**
      * Начальные health rows: target/route/route-target unknown, epoch 1. Существующие rows
-     * (их state/epoch/история) не меняются. Adapter health требует adapter/contract version
-     * Definition и создаётся P2.9–P2.12.
+     * (их state/epoch/история) не меняются. Adapter health создаётся отдельно по объявленной
+     * в Definition паре adapter/contract version.
      *
      * @param  array<string, string>  $targets  key → id
      * @param  list<string>  $routes

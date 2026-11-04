@@ -28,9 +28,9 @@ use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * `.gsfx` — контейнер ГрандСметы (P3.3, D2): ZIP с `Properties.txt` (паспорт) + `Data.xml`
+ * `.gsfx` — контейнер ГрандСметы: ZIP с `Properties.txt` (паспорт) + `Data.xml`
  * (позиции/ресурсы/разделы/начисления) в `windows-1251`. Производит ДВА представления —
- * `structured_xml` (вход детерминированного gold-парсера P5.1) и `text` (человекочитаемая
+ * `structured_xml` (вход детерминированного gold-парсера) и `text` (человекочитаемая
  * выжимка). Вложения контейнера (`Attachments/**`) используют общий bounded archive contract:
  * полный listing валидируется до фильтрации, а lineage/event/after-commit принадлежат Action.
  *

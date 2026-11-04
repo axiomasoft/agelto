@@ -7,17 +7,16 @@ namespace App\Dto\Procurement\Analyzers\Estimate\Diff;
 use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 
 /**
- * Детерминированный отчёт «gold vs предсказание» (`EstimateDiffReport::build()`, P7.3,
- * `docs/specs/v2/08-estimate-extraction.md` §8.6, D62). Состав ЗАКРЫТ списком (Implementation
- * Rules P7.3, дополнен P6.2/D54) — новый ключ сюда не добавляется без пересмотра ТЗ:
- * - summary: результат `EvalMetrics::compare()` как есть, без переупаковки.
- * - matches: таблица парного сопоставления смет (P6.2, D54) — слот → смета эталона, смета
- *   предсказания, сработавшее правило ({@see EvalMetrics::matchEstimates()});
+ * Детерминированный отчёт «gold vs предсказание» (`EstimateDiffReport::build`,
+ * `docs/specs/v2/08-estimate-extraction.md` §8.6). Состав контракта закрыт; новый ключ требует согласованного изменения потребителей:
+ * - summary: результат `EvalMetrics::compare` как есть, без переупаковки.
+ * - matches: таблица парного сопоставления смет — слот → смета эталона, смета
+ *   предсказания, сработавшее правило ({@see EvalMetrics::matchEstimates});
  *   без неё построчный diff многосметного документа нечитаем — человек не знает, что с чем сравнили.
  * - rows / passport / totals: списки `DiffEntry` трёх групп расхождений, адресованные НОМЕРОМ
  *   СЛОТА (`DiffEntry::$estimateIndex`), не позицией в исходном списке `estimates`.
  * - arithmetic: результат `EstimateValidator` ОТДЕЛЬНО по gold и по предсказанию, на слот —
- *   базисно-индексный расчёт законно не сходится и у эталона (D42), поэтому группы не смешиваются.
+ *   базисно-индексный расчёт законно не сходится и у эталона, поэтому группы не смешиваются.
  * - truncated: `shown`/`total` — усечение `rows` по `limitRows`, никогда не молчаливое.
  * - verdict: одна строка словами.
  */

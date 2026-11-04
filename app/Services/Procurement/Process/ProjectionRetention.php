@@ -11,8 +11,8 @@ use App\Repositories\Procurement\Process\ProjectionRepository;
 use App\Services\Procurement\Process\Contracts\ProjectionReducer;
 
 /**
- * Единственный writer, удаляющий ledger events, на которые ссылаются projection receipts
- * (observability#s08, retention). Перед удалением берёт FOR UPDATE ВСЕХ затронутых state rows в
+ * Единственный writer, удаляющий ledger events, на которые ссылаются projection receipts.
+ * Перед удалением берёт FOR UPDATE ВСЕХ затронутых state rows в
  * sorted projector_key (никакого SHARE→UPDATE upgrade): maintenance rebuild откладывает batch
  * целиком, а идущий rebuild не теряет source, потому что его snapshot удерживает тот же lock.
  * Событие удаляется только если receipts всех required consumers есть и projection fanout

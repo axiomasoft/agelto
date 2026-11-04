@@ -27,7 +27,7 @@ status: living
 | Повернуть ключи или секреты | [Deploy keys](credential-rotation.md), [Secrets](secret-rotation.md) |
 | Разобрать сбой | [Troubleshooting](troubleshooting.md) |
 
-Source-derived [матрица P12](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
+Source-derived [матрица команд](commands.md#current-command-inventory)
 остаётся историческим inventory. Актуальный source-derived inventory создаётся временно
 из текущих исходников с явными render/check командами из [commands](commands.md),
 без отдельного tracked файла в корне checkout.

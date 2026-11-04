@@ -25,7 +25,7 @@ function secretReferenceProxy(): Proxy
 }
 
 test('пароль прокси хранится в БД зашифрованным, а модель читает открытое значение', function (): void {
-    // P2.6 replacement is stricter: only a secret reference is persisted, never its value.
+    // replacement is stricter: only a secret reference is persisted, never its value.
     $proxy = secretReferenceProxy();
     expect(Schema::hasColumn('prc_proxies', 'password'))->toBeFalse()
         ->and(DB::table('prc_network_routes')->where('id', $proxy->route_id)->value('secret_ref'))->toBe('P26_PROXY_TEST_SECRET')

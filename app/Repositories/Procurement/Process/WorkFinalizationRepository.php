@@ -38,7 +38,7 @@ use App\Services\Procurement\Process\SubjectLockResolver;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Fenced finalize/defer/block/partial и handler fault (bp-sql-finalize, execution#s06, D9) внутри
+ * Fenced finalize/defer/block/partial и handler fault внутри
  * уже открытой ProcessTransaction. Полный prefix control SHARE → handler SHARE → capacity UPDATE →
  * subjects UPDATE → work UPDATE; control/handler rows здесь никогда не UPDATE-ятся (no SHARE
  * upgrade). До domain writes: generation+token+running текущего lease, immutable input, subject
@@ -50,7 +50,7 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class WorkFinalizationRepository
 {
-    /** Genuine item defect budget на work_key (execution#s02, DDL CHECK item_failures 0..3). */
+    /** Genuine item defect budget на work_key (DDL CHECK item_failures 0..3). */
     private const int ITEM_FAILURE_LIMIT = 3;
 
     /** Due первых двух item retry от DB clock: +30 s, затем +120 s. */
@@ -176,7 +176,7 @@ final readonly class WorkFinalizationRepository
         $this->works->releaseGroupLocked($group, count($prefix->members), $decision['terminal_kind']);
         $this->storeSuccessors($lease->workId, $work, $successors, $successorIds);
         $publication?->afterSuccessors($snapshot->input, $lease->workId, $ids['incident_event'], $ids['incident_projection']);
-        // execution#s10: terminal work продвигает очередь intents своего subject/stage. failed_item
+        // Terminal work продвигает очередь intents своего subject/stage. failed_item
         // завершает intent; успех — только если publication уже перевела intent в terminal.
         if (($intentId = $work->nullableString('intent_id')) !== null
             && in_array($decision['state'], [WorkState::Succeeded, WorkState::FailedItem], true)) {
@@ -213,7 +213,7 @@ final readonly class WorkFinalizationRepository
     }
 
     /**
-     * Выбор состояния по closed outcome (таблица bp-sql-finalize) и stage domain writes под locks.
+     * Выбор состояния по closed outcome и stage domain writes под locks.
      * null — недопустимый outcome (blocked_unknown без pinned linkage): ноль записей.
      *
      * @return array{state: WorkState, reason: string|null, due: array{string, list<mixed>}, provider_recovery: bool,

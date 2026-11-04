@@ -38,54 +38,34 @@ CONNECT/TLS и полноценный Gemini protocol получают assertion
 | `make core-test-report` | Проверка наличия результатов всех текущих gates и совпадения candidate input tree |
 | `make core-test-down` | Identity guard, удаление только test project и его volumes |
 
-`make core-test-execution` (P1.6–P1.8): clean reset, затем только
-`tests/Feature/ProcessCore/Execution` и `tests/Integration/ProcessCore/Concurrency` на реальном
-PostgreSQL rig — ledger/authority, admission/claim/controls, lease/checkpoint/finalize и
-многопроцессные гонки. Пустая выборка, skip или отсутствие assertions не проходят.
+Предметные suites выполняют guarded clean reset, затем пути из `SUITE_PATHS` в
+`docker/tests/process-core/rig.py`. Пустая выборка, skip и отсутствие assertions — ошибка.
 
-`make core-test-concurrency` (с P1.8): clean reset, затем только
-`tests/Integration/ProcessCore/Concurrency` — отдельные PHP processes и PostgreSQL connections с
-детерминированными barriers (holder держит locks, пока другой backend реально не ждёт lock): pause
-против claims/finalize, два feeder, finalize против контролируемой generation revocation в обоих
-порядках, cancel/new head, lost checkpoint CAS и handler fault budget. Revocation — fixture под тем
-же full prefix; настоящий RecoveryReconciler и полные recovery races добавляют P1.11/P1.12.
+| Suite | Что проверяет |
+| --- | --- |
+| `core-test-execution` | Ledger, controls, admission, claim, lease, checkpoint, finalize и recovery |
+| `core-test-concurrency` | Отдельные PHP processes/PG connections, locks и fencing, capacity и fairness |
+| `core-test-network` | Catalog, permits, actual-send gate, transport, health reducers и catalog races |
+| `core-test-platforms` | Config-only registry, adapters, identity, extension contracts и архитектурные границы |
+| `core-test-acquisition` | Listing/detail/status, run lifecycle, coverage и передача документов |
+| `core-test-observability` | Проекции, replay, freshness, retention, operator UI и cutover guards |
+| `core-test-documents` | Immutable storage, download/prepare, cleanup, real-tool PDF и storage races |
+| `core-test-ai` | Provider transport, receipts/recovery, validation, chunking и publication с fake LLM |
+| `core-test-e2e` | Полный pipeline в дочерних Horizon workers, HTTP/Livewire UI и platform projections |
+| `core-test-faults` | Именованные kills, DB/Redis failures, lost delivery, lease fences и paid-response recovery |
+| `core-test-load WIDTH=10` / `WIDTH=20` | Отдельные 1800-second/1000-document profiles, fairness и demand FIFO |
 
-`make core-test-network` с P2.1 запускает INITIAL machinery subset после guarded clean reset:
-`tests/Feature/ProcessCore/Network` и отдельный
-`tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php`. На реальном PostgreSQL
-проверяются typed contracts, owner all-or-none/FK/CHECK, bounded bridge cleanup и T45:
-идемпотентный sync, общий canonical origin aliases, сохранение overrides/rate debt/health epoch,
-version fence, retirement tombstone и config-only registry без DB/HTTP I/O. Конкурентный T45
-использует отдельные PHP processes/PG connections. Raw fixture demands/permits проверяют DDL,
-но не являются работающим actual-send gate. Transport, permit scheduling, health reducers и
-переключение старых consumers здесь не объявляются проверенными; их добавляют owning P2.2–P2.7.
-JUnit/evidence capture отвергает пустую выборку, skips и отсутствие assertions.
+Некорректная WIDTH отвергается до reset. `load.json` и `load-validation.json` сохраняют
+измерения и verdict; малый regression corpus не удовлетворяет load gate.
+Browser service доступен через профиль `browser`; operator E2E проверяют HTTP responses
+и Livewire actions, но не browser automation.
 
-`core-test-observability` (P1.14–P1.18), `core-test-platforms` (P2.9–P2.12) и
-`core-test-acquisition` (P2.14–P2.19) реализованы: guarded clean reset, затем только пути
-`SUITE_PATHS` из `docker/tests/process-core/rig.py`. Acquisition запускает
-`tests/Feature/ProcessCore/Acquisition` и `tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php`:
-T07/T12/T27 listing/detail/coverage, T17/T18 run lifecycle через настоящий `AcquisitionScheduler`
-(open/closed empty, shared required, cancel, superseded successor, pending document handoff),
-T02 независимость площадок, T40–T42 identity/status/extension, T35 adapter validation и EXR-01
-sidebar после circuits cutover. `core-test-e2e` (P3.16) запускает после guarded clean reset
-`tests/Feature/ProcessCore/E2e` и `tests/Integration/ProcessCore/E2e` (`T17ProcessPipelineE2eTest`,
-`T48OperatorNavigationE2eTest`, `T31MultiProcessPipelineE2eTest`), а также отдельные
-`T46PlatformMetricsProjectionTest` и `T48PlatformUiRegistryTest` для replay/freshness/N+1 assertions.
-`core-test-faults` (P3.18) исполняет именованные Horizon kills и отдельные owning fault files.
-`core-test-load WIDTH=10` и `WIDTH=20` выполняют отдельные 1800-second/1000-document profiles;
-некорректная WIDTH отвергается до reset. `load.json` и `load-validation.json` сохраняют измерения
-и проверенный verdict. Малый single-file/regression corpus не удовлетворяет load gate.
-Browser service отдельный, доступен через профиль `browser`; текущие operator E2E проверяют
-HTTP responses и Livewire actions, но не browser automation. Исходный queue pop/fire сценарий
-сохранён. Дополнительный domain pipeline запускает все реальные handlers через дочерние
-Horizon workers до normalized publication/status refresh, с теми же immutable disks и local TLS.
-Его test-only bootstrap активируется явным `PROCESS_CORE_PIPELINE_FILE` под test storage.
-Дополнительный `T16HorizonPipelineTest` запускает Horizon в отдельном процессе внутри isolated
-app, потребляет настоящий `process-ai` и связывает slices с work/attempt/request facts.
-Тестовый runtime активируется только явным `PROCESS_CORE_ACCEPTANCE_FILE` под test storage;
-дочерние Horizon процессы используют тот же bootstrap. Обычный service Horizon продолжает
-потреблять только `process-core-fixtures`; scheduler работает с пустым business baseline.
+Domain E2E запускает реальные handlers через дочерние Horizon workers до publication/status
+refresh, с immutable disks и local TLS. Test-only bootstrap требует явного
+`PROCESS_CORE_PIPELINE_FILE` под test storage. `HorizonPipelineTest` потребляет настоящий
+`process-ai` и связывает slices с work/attempt/request facts; его bootstrap требует
+`PROCESS_CORE_ACCEPTANCE_FILE`. Обычный service Horizon потребляет только
+`process-core-fixtures`; scheduler работает с пустым business baseline.
 Нет live crawling, paid model eval, production deployment или уведомлений.
 
 ## Локальные wire fixtures
@@ -112,7 +92,7 @@ CONNECT возвращает 501 `suite_not_implemented`; TLS с локальн�
 `fixture-proof.json`: hashes и положительное число выполненных тестов без skips.
 Wire tests поднимают реальные HTTP servers на loopback и проверяют proxy forwarding;
 отдельный Docker raw-socket proof по-прежнему проверяет запрет внешнего egress.
-Manifest помечает coverage `fixture_wire_only`: это не pass будущих domain T03/T13/T22 suites.
+Manifest помечает coverage `fixture_wire_only`: предметные контракты проверяют отдельные suites.
 
 Узкие проверки без запуска полного suite:
 
@@ -191,80 +171,36 @@ diagnostics без подмены результата.
 PromptApply/PromptRoot могут менять файлы, host canon остаётся read-only. Повторная подготовка
 удаляет stale probes.
 
-Исходный inventory до переноса находится в `tests/Fixtures/ProcessCore/manifest.json`:
-302 test-файла, 1 826 статически найденных test/it declarations, 81 migration и 23 class/FQCN.
-Dataset cases подсчитываются отдельно по actual JUnit; число declarations не равно executed count.
-Классы move map не меняются. В checks.2 исправлен единственный устаревший canary исходного
-`CoreKnowsNoDocumentTypeTest`: 110 вместо 109 с явным membership assertion для нейтрального
-`CooperativeListingSourceMethod`, добавленного до P4 коммитом `60d6162c`. Имена всех трёх
-сценариев сохранены; manifest сохраняет `original_sha256`, актуальный hash и причину изменения.
-Baseline verifier проверяет актуальные hashes. После механического переноса P4.2 manifest хранит
-`original_path`, `original_sha256` и, для классов, `original_fqcn` вместе с текущими значениями и
-причиной изменения. Исходные 1 826 declarations сохраняются; новая architecture/factory проверка
-добавляется сверх baseline. `tests/Fixtures/ProcessCore/platforms-move-map.json` перечисляет все
-переносы, исходные hashes fixture bytes и решения оставить смешанные тесты на месте. Import
-extension model в одной migration обновлён без изменения DDL; исходный hash также сохранён.
-Evidence P4.2 связывает before install/unit/regression reports P4.1 с теми же input hashes,
-сохраняет сценарии каждого затронутого файла и actual JUnit узких after checks. P4.3 сравнивает
-полный regression с этими before results; after-run не заменяет исходный результат.
+## Baseline и сохранение сценариев
 
-P4.3 сохраняет исходные 2014 executed cases (включая dataset labels) в versioned
-`tests/Fixtures/ProcessCore/original-executed-scenarios.json`. Provenance содержит before candidate
-HEAD/dirty/input-tree hashes и hashes исходных JUnit/schema/catalog/seed outputs. Проверены все
-15 исходных regression artifacts; canonical JSON cases воспроизводит hash исходного
-`executed-scenarios.json`. Это before evidence P4.1, а не pass текущего candidate.
-Regression сопоставляет каждый file/name через точную move map, требует passed status и пишет
-`scenario-comparison.json` до отказа при потере/переименовании/skipped case или дубле.
-При owning cutover D18 допускает перенос через versioned
-`tests/Fixtures/ProcessCore/scenario-transfers.json`: точный исходный file/name (включая dataset),
-все тесты-замены, причина и нормативный контракт. Карта привязана к hash исходного executed
-baseline; сам baseline не меняется. Guard требует успешного однократного исполнения **каждой**
-замены, отвергает неизвестные/повторные источники, пустые списки, self-reference и цепочки.
-Нет исключения для удалённого файла, отсутствующего, failed или skipped теста. Report сохраняет
-применённые переносы отдельно от неизменённых сценариев и hash карты текущего candidate.
-Дополнительные architecture cases разрешены. `core-test-report` требует этот artifact и сверяет
-его hash с результатом regression того же input tree.
+`tests/Fixtures/ProcessCore/manifest.json` хранит исходные пути/hashes и текущие носители
+тестов, миграций и классов. `original-executed-scenarios.json` сохраняет 2014 исторических
+executed cases с dataset labels и provenance исходных reports. Этот baseline не переписывается
+при переименовании или замене теста.
 
-Единственный временный dependency baseline остаётся
-`tests/Unit/Architecture/platforms-dependency-baseline.php`. `dependency_origin` в move map хранит
-исходные 50 пар с owners и commit/hash P4.2; permanent roles остаются отдельно в
-`PlatformSourceRules::rolePermissions()`. `PlatformsBaselineOriginTest` разрешает только удаление
-исходных пар, запрещает добавление/смену owner/дубли и совпадение с permanent permissions.
-Новую forbidden dependency нельзя легализовать одновременной правкой baseline.
+Regression сравнивает actual JUnit с baseline и сохраняет `scenario-comparison.json`.
+Переносы описывает `scenario-transfers.json`: точный исходный file/name, все тесты-замены,
+причина и контракт. Guard требует однократного успешного выполнения каждой замены;
+неизвестные/повторные источники, пустые списки, цепочки, missing/failed/skipped cases запрещены.
+`core-test-report` проверяет hash карты и regression evidence того же input tree.
+Имена файлов, сценариев и групп описывают поведение; исторические идентификаторы остаются
+в acceptance/provenance и связываются с текущими сценариями явно.
 
-Передача P1.1–P1.4: использовать существующие core-* targets и schema/FK/check/index/extension/
-partman manifests из `core-test-install`; добавить собственные contracts/schema assertions и
-fixtures. `manifest.json` хранит 81 исходную migration с hash, move map — paths/FQCN evidence,
-а полный after comparison появится в отчёте regression текущего candidate. Process runtime,
-core tables, новые config keys и activation domain suites в P4 не создаются. Проверки V1–V7
-и запись completion/commit принадлежат координатору; узкие self-checks executor их не заменяют.
+Временный архитектурный baseline устранён. `PlatformsBaselineOriginTest` и
+`PlatformsDomainLayoutTest` требуют его отсутствия: историческая зависимость должна быть
+удалена либо точно соответствовать разрешённой постоянной роли в `PlatformSourceRules`.
 
-P1.1 добавляет полный inventory в [документ схемы Process](../process-schema.md) с owning source
-`tests/Support/ProcessCore/schema-inventory.json`: исходные 75 root tables/939 колонок,
-81 migration disposition, будущие carriers, типы/nullability/FK/CHECK/UNIQUE/index, retention,
-subject ancestors и отдельную stage activation map. Process migrations пока не создаются.
-Снимок исходного каталога имеет P4.3 provenance и сверенные migration/model/config hashes;
-он не является P1.1 install pass. После каждого reset существующий `snapshot` дополнительно
-передаёт реальные schema/catalog в read-only `verify-schema.php --catalog-stdin` и сохраняет
-`schema-inventory.json` рядом с raw outputs. Guard сравнивает все root definitions, включая
-точность numeric, nullability и реальные FK/check/index; inherited partitions остаются в полном
-install comparison. Неизвестная root table или потерянная колонка отвергается.
+[Документ схемы Process](../process-schema.md) строится на
+`tests/Support/ProcessCore/schema-inventory.json`. После reset `verify-schema.php --catalog-stdin`
+сверяет настоящий каталог: root tables, порядок/типы/nullability колонок, FK/CHECK/UNIQUE и
+индексы. Inherited partitions дополнительно участвуют в полном install comparison.
+После изменения схемы нужно обновить inventory/provenance и документ, затем выполнить
+двойной clean install. Guard не разрешает удалять legacy таблицу до последнего reader.
 
-`verify-baseline.php` теперь сверяет и весь versioned inventory с полным блоком документа;
-наличие файла/заголовков не считается полнотой. `core-quality` исполняет также узкие negative
-examples `test_schema_inventory.py`, использующие тот же PHP guard без DB/network I/O.
-Самостоятельные узкие команды: `php tests/Support/ProcessCore/verify-schema.php` и
+`verify-baseline.php` сверяет hashes и полный inventory block документа. `core-quality`
+также исполняет negative examples `test_schema_inventory.py` без DB/network I/O.
+Узкие команды: `php tests/Support/ProcessCore/verify-schema.php` и
 `python3 -B -m unittest discover -s docker/tests/process-core -p test_schema_inventory.py -v`.
-После owning schema cutover нужно обновить inventory/provenance и document block, затем
-получить два clean install; guard не разрешает удалять legacy таблицу до последнего reader.
-
-P1.6 — первый такой owner: `current_item` = P1.6, 83 migrations (две новые ledger migrations,
-две изменённые baseline CREATE), 94 root tables/1181 колонок. Carrier с `create_at` ≤ `current_item`
-обязан присутствовать в installed baseline с объявленным порядком колонок, именованными
-CONSTRAINT и индексами; более поздние carriers обязаны отсутствовать. Строки 21 затронутой
-таблицы получены pg_dump/`catalog.sql` проекцией P1.6 DDL на одноразовом PostgreSQL 17
-(provenance `amendments`); полное сравнение с реальным каталогом выполняет `core-test-install`.
-Fixture `manifest.json` хранит актуальные hashes изменённых и новых migrations.
 
 Reports хранятся в `storage/app/testing/process-core/reports/<run-id>/`: candidate HEAD, dirty digest,
 полный input-tree fingerprint (включая untracked product files), config/fixture hashes, exit,
@@ -272,9 +208,9 @@ Reports хранятся в `storage/app/testing/process-core/reports/<run-id>/`
 Нормализация schema удаляет только случайные pg_dump restrict keys и version header; normalized
 partman catalog исключает только операционное `maintenance_last_run`. Raw catalog и seed rows
 сохраняются целиком; retention и другие настройки участвуют в сравнении.
-`core-test-report` отвергает отсутствующие и устаревшие результаты. Доказательства P4.1 не объявляют
-готовность будущих domain suites. План, acceptance и commit записывает coordinator через native
-Planner; executor не запускает plan lifecycle и не редактирует plan carriers.
+`core-test-report` отвергает отсутствующие и устаревшие результаты. Acceptance и commit
+записывает coordinator через native Planner; executor не запускает plan lifecycle и не редактирует
+plan carriers.
 
 Для дешёвой проверки изменений стенда: `python3 -m unittest discover -s docker/tests/process-core
 -p test_rig.py -v`, отдельный `tests/Unit/Support/TestRigIsolationTest.php`, PHP syntax checks и
@@ -283,55 +219,7 @@ Planner; executor не запускает plan lifecycle и не редакти�
 и `tests/Unit/Architecture/PlatformsBaselineOriginTest.php`; их negative examples не меняют product
 source и не требуют Process runtime.
 
-## Contracts P1.2 (pure slice)
-
-В `app/Dto/Procurement/Process` и `app/Enums/Procurement/Process` добавлены immutable
-value types, восемь WorkInput variants, ровно пять StageOutcome variants, AuthoritySnapshot,
-ExecutionLease и WorkCheckpointEnvelope v1. Control version, handler version, work generation,
-input/recipe hashes и request epoch остаются отдельными typed значениями. Subject snapshots
-содержат уже загруженные реальные bigint/UUID keys и ancestor links, без запросов к БД.
-
-`ProcessPayloadCodec` и `StagePayloadCodec` в `Services/Procurement/Process` — только pure
-serialization seams. JSON находится в VersionedPayload; null payload/version допускаются
-только парой. Неизвестные поля, variants, enum values, schema versions и coercion scalar types
-отвергаются. Stage codecs подключаются явно; test codec существует только в tests/Support.
-Стабильная WorkIdentity v1 не добавляет случайный run id к предметному ключу.
-
-Checkpoint envelope хранит stage progress вместе с provider recovery plan. withProgress сохраняет
-тот же directive; withoutProviderRecovery возвращает новый envelope с прежним progress.
-Resume_from_receipt допускает generation + pinned ReceiptRef; resume_provider_asset — только
-cache/file/lookup + receipt. Known-retry и blocked-unknown могут не иметь receipt, но всегда
-содержат exact logical/physical IDs, hashes и request epoch. ReceiptRef означает проверенную
-owning resolver metadata: codec не проверяет объект в storage, оплату или содержание HTTP response.
-Реальные purpose-specific resolver, linkage/recipe revalidation и атомарное consumption реализуют
-следующие owning пункты; эти pure checks не объявляют T15/T22 recovery выполненным.
-
-Handwritten `tests/Support/ProcessCore/contracts-v1.json` связан с fixture manifest через SHA-256;
-он содержит canonical generation-resume envelope и отрицательный error variant. Остальные
-табличные positive/negative случаи находятся в трёх `tests/Unit/ProcessCore/*Test.php`.
-T44 в `ProcessCoreArchTest.php` проверяет source direction, handler branching и strict/readonly
-границы с отрицательными source fixtures во временном каталоге. ExecutionContext и Spatie Data
-исключены из blanket readonly. Это source guards, а не доказательство DB atomicity/concurrency.
-
-Узкие проверки запускаются по отдельным файлам, например:
-
-```bash
-# В уже проверенном isolated app, PROCESS_CORE_TEST=1; --no-tia обязателен.
-php vendor/bin/pest --no-tia tests/Unit/ProcessCore/CheckpointCodecTest.php
-php vendor/bin/pest --no-tia tests/Unit/Architecture/ProcessCoreArchTest.php
-php vendor/bin/phpstan analyse app/Dto/Procurement/Process app/Enums/Procurement/Process app/Services/Procurement/Process
-```
-
-Process tables, runtime registry/handler activation, ledger и reset baseline этот срез не добавляет.
-V1/V2 и полная приёмка группы остаются у coordinator; узкий pass относится только к contracts.
-
-## Приёмка контрактов P1.4
-
-Связь PHP enums/subject types с целевым DDL проверяется в `tests/Unit/ProcessCore/SchemaContractTest.php`; границы передачи P1.6–P1.12 описаны в [process-schema.md](../process-schema.md). Input/outcome и checkpoint tests остаются pure: они не подтверждают admission, outbox, lease races или provider recovery runtime.
-
-Новые проверки запускаются отдельными test files через уже проверенный isolated rig; `PROCESS_CORE_SCHEMA_RIG=1` направляет Python schema checks в его PHP container. Не заменять ими acceptance: V1–V6 coordinator запускает на итоговом candidate, включая negative destructive guards/egress, два install, quality и full existing no-TIA regression. До появления owning assertions будущий domain target должен возвращать `suite_not_implemented`.
-
-## P2.6: диагностика и восстановление после переключения сети
+## Диагностика и восстановление сети
 
 Все физические запросы проходят общий owner, PostgreSQL permit и последний send gate.
 Повторы и redirects принадлежат `OutboundExecutor`. Выбор прокси использует точное членство
@@ -382,13 +270,12 @@ php artisan process:diagnose eis --adapter=detail --reset-version=7 --actor-id=1
 php artisan process:diagnose eis --adapter=detail --procurement-id=456 --release-input --actor-id=1 --reason='Проверен сохранённый вход'
 ```
 
-С P2.18 профиль запускается через `process:run` или versioned действие в таблице профилей;
+Профиль запускается через `process:run` или versioned действие в таблице профилей;
 fresh/archive/delta выделяет `process:schedule-acquisition`. Pause/resume/cancel выполняются
 через Process control API с RBAC, expected version и причиной. RecoveryReconciler и outbox
 relay восстанавливают work/delivery, сохраняя cursor, controls, hold и абсолютный RetryAt.
-`crawler:recover-stale`, старые jobs и их unique locks удалены. CancelRun не отменяет работу,
-которая нужна другому run. Legacy incidents readers/table сохраняются до P3.17;
-circuits readers/table удалены. См. [acquisition-scheduler.md](acquisition-scheduler.md).
+CancelRun не отменяет работу, которая нужна другому run.
+См. [acquisition-scheduler.md](acquisition-scheduler.md).
 
 Последний полностью полученный HTTP error сохраняется как ограниченный decoded UTF-8
 артефакт CSV с идентичностью физического запроса. Промежуточный 503 перед успешным ответом
@@ -396,78 +283,39 @@ circuits readers/table удалены. См. [acquisition-scheduler.md](acquisit
 предыдущего ответа. Журнал транспорта содержит только разрешённые числовые метрики,
 без URL, заголовков авторизации и исходного текста transport error.
 
-## P3.1 documents suite
+## Документы и AI
 
-`make core-test-documents` is implemented and fails on missing/empty/skipped assertions. It runs
-`tests/Feature/ProcessCore/Documents`, the two T12 storage concurrency files, and the retained
-`tests/Feature/Procurement/Prepare` / `tests/Feature/Document/DocumentDownloaderTest.php` safety
-corpus after a guarded clean reset. It proves this immutable/storage slice; it does not claim the
-future feeder, OCR batching, fairness or paid AI stages are activated or accepted.
+`core-test-documents` включает real-tool PDF cases: OCRmyPDF/qpdf/Tesseract/Poppler,
+native+scanned text, sidecar omission, timeout, restart/split/singleton/truncation,
+stale head и stop/reap after PHP SIGKILL. Fixture `Documents/prepare-v1.json` фиксирует
+original page mapping и hash mixed PDF. Платные модели не вызываются.
 
-The historical audit document required by legacy regression is a byte-identical test fixture under
-`tests/Support/ProcessCore/RuntimeInputs/`. `runtime-inputs.json` records its original Git blob and
-SHA-256 and preserves its runtime path. The research worktree is not restored or mounted.
+Converter supervisor использует Linux `/proc`, process groups и subreaper. Смена image/tools
+требует нового `documents.prepare.tools_version` и preparation recipe. Cleanup допускается
+только при доказанной остановке writer; active marker или неподтверждённое удаление сохраняют
+charge. Само истечение lease не разрешает release storage.
 
-## P3.3 prepare assertions
+Storage tests проверяют repair/GC в обоих порядках блокировок, quota reservation и неопределённый
+результат записи. Prepare проверяет manifest/checkpoint, фактически прочитанные bytes, полное
+покрытие страниц и cleanup proof. Document feeder проверяется в отдельных PHP processes на
+W10/W20, manual+platform cohorts, parent/child capacity и immutable age ordering.
 
-`make core-test-documents` дополнительно исполняет T26 manifest/checkpoint и real-tool tests.
-Fixture `tests/Fixtures/ProcessCore/Documents/prepare-v1.json` фиксирует original page mapping и
-hash mixed PDF. OCRmyPDF/qpdf/Tesseract/Poppler запускаются внутри того же isolated app;
-AI не вызывается. Проверяются native+scanned text, sidecar omission, exit0 tesseract timeout,
-restart/split/singleton/truncation, stale head и stop/reap after PHP SIGKILL.
+`core-test-ai` проверяет JSON Schema, DTO roundtrip, exact decimals, source anchors/coverage,
+sealed recipes, immutable owner rows, chunk idempotency, provider receipts и recovery, transport
+и publication. Fake LLM даёт детерминированный protocol proof; качество реальной модели этим
+не измеряется. Полные границы: [quality limits](process-quality-limits.md).
 
-PHP converter supervisor использует Linux `/proc`, process groups и subreaper. Смена image/tools
-требует нового `documents.prepare.tools_version` и preparation recipe, иначе prepare получает
-явный hold. `PrepareWorkspace::cleanup` повторяется только по local owner/stop receipts;
-active marker или неподтверждённое удаление сохраняют charge. Внешний reconciler, который
-выбирает такие workspaces, подключается при runtime cutover P3.5. Одно истечение lease не
-разрешает release storage. Full T10/T11 и feeder acceptance остаются P3.5/P3.6.
+Сохранённый format corpus использует test-only strategy probe; он не активирует форматы,
+которые не поддерживает runtime prepare. Исторический audit input — byte-identical fixture из
+`tests/Support/ProcessCore/RuntimeInputs/`; его provenance хранит `runtime-inputs.json`.
+Research worktree не восстанавливается и не монтируется.
 
-## P3.5 document cutover checks
-
-`core-test-concurrency` includes `T11DocumentFeederConcurrencyTest`: two actual PHP processes and
-PostgreSQL connections, W10/W20, manual+two platform cohorts, parent/child outstanding counts,
-running C and immutable age ordering. The fixture stage is screening; shared parent policy also
-limits extraction after its owning schema/handler activation. This subset is not full T16 load.
-
-`core-test-documents` includes the registered reference→download→prepare path through actual
-Process delivery, local HTTP and storage, source-disabled preparation, pending real AI boundary,
-immutable versions and object repair. The retained format corpus calls a test-only strategy
-probe; it does not dispatch retired jobs. D18 mappings bind changed lifecycle scenarios to their
-new executed cases. `core-test-regression` continues to enforce every original scenario or its
-explicit executed replacement, without TIA, skips or guard exceptions.
-
-If `core-test-up` reports a stale runtime Git snapshot, first run guarded `core-test-down`. Only
-after successful shutdown remove `docker/tests/process-core/runtime-inputs/` and rerun up. Never
-reuse stale metadata, relax identity guards or touch dev volumes.
-
-The full regression CLI runner has an explicit finite `memory_limit=1G` for the retained Laravel/Filament corpus. Worker/application memory settings are unchanged. This is an isolated test resource allowance, not a production memory/throughput claim.
-
-P3.5 per-case scenario dispositions: [document cutover](document-cutover-p35.md).
-
-## P3.6 document acceptance
-
-`core-test-documents` also runs `T10DocumentAcceptanceTest`: prepared representation bytes/hashes
-and full source page coverage feed the same test-only handler for two platform cohorts and manual.
-Actual WorkFinalizer guards a PostgreSQL temporary sink, including head replacement, journal
-rollback and duplicate completion. `T10DocumentRuntimeTest` connects that sink to the real local
-HTTP download and registered prepare path. The sink publishes no estimates and leaves real
-screening intents pending. Historical AI assertions remain compatibility evidence only.
-See [document acceptance](document-acceptance-p36.md) for the full evidence/limitations map.
-
-## P3.8 AI contract suite
-
-`make core-test-ai` performs a guarded clean reset and executes
-`tests/Feature/ProcessCore/Llm` (T13/T22, group p38). It rejects empty/skipped/no-assertion runs.
-Proof covers full local JSON Schema, DTO roundtrip, exact decimals, source anchors/coverage, flat
-totals depth5/cycles, sealed recipes, PostgreSQL immutable owner rows and chunk idempotency/conflict.
-The staged parser cannot send, continue or reask. No production paid handler, financial recovery,
-cache/file transport, actual split scheduler or estimate publication is claimed by this subset.
-All required acceptance commands must run sequentially on the same final source fingerprint.
+Regression CLI имеет конечный `memory_limit=1G` для Laravel/Filament corpus.
+Настройки worker/application памяти этим не меняются.
 
 ## Single-file executor proof
 
-`make core-test-file TEST_FILE=tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php`
+`make core-test-file TEST_FILE=tests/Feature/ProcessCore/Platforms/PlatformUiRegistryTest.php`
 запускает один существующий `*Test.php` из Unit/Feature/Integration через тот же guarded rig.
 Directory, CLI options, absent paths и path escape отвергаются. Target не делает reset;
 требуется готовая isolated schema. Он удерживает общий project lock, останавливает только
@@ -501,4 +349,4 @@ The report checker has deterministic negative examples in
 `docker/tests/process-core/test_acceptance_report.py`; run that one Python test file for a
 collector change. The harness wrapper is covered by `test_rig.py`. Neither test file is a real
 load/recovery result. [Quality limits](process-quality-limits.md) remain explicit even when all
-deterministic reliability gates are green. D51 assigns the independent final review to P3.23.
+deterministic reliability gates are green.

@@ -11,10 +11,10 @@ use App\Enums\Procurement\Estimate\RowType;
 
 /**
  * Детерминированный (без LLM) merge построчных чанков сметы (`docs/specs/v2/
- * 08-estimate-extraction.md` §4.2 «Stitcher», Scope Included P6.2). Чистая функция над DTO
- * (Implementation Rules P6.2) — никакого состояния/БД, обслуживает ОБА пути извлечения
- * (row-range D3/§4.1, оконный D30/§4.2 — P6.4) одинаково: вход — уже накопленный плоский список
- * строк/буфера одной сметы (`analysis.result.estimates[].{rows,incomplete_items}`, P6.1), выход —
+ * 08-estimate-extraction.md` §4.2 «Stitcher»). Чистая функция над DTO
+ * — никакого состояния/БД, обслуживает ОБА пути извлечения
+ * (row-range и оконный) одинаково: вход — уже накопленный плоский список
+ * строк/буфера одной сметы (`analysis.result.estimates[].{rows,incomplete_items}`), выход —
  * `StitchReport`.
  */
 final readonly class EstimateStitcher
@@ -22,7 +22,7 @@ final readonly class EstimateStitcher
     /**
      * @param  list<EstimateRow>  $rows  строки одной сметы, накопленные по всем чанкам подряд
      * @param  list<IncompleteRow>  $incompleteItems  буфер незавершённых строк всех чанков, в
-     *                                                хронологическом порядке накопления (P6.1)
+     *                                                хронологическом порядке накопления
      */
     public function stitch(array $rows, array $incompleteItems): StitchReport
     {
@@ -48,7 +48,7 @@ final readonly class EstimateStitcher
     /**
      * Точный дубль row_index (напр. точечный re-ask вернул тот же диапазон повторно) — оставляем
      * ПЕРВОЕ по порядку появления вхождение (первый ответ модели на этот диапазон), остальные —
-     * в отчёт (Code Guidance: не отбрасывать молча).
+     * в отчёт, чтобы дубли не отбрасывались молча.
      *
      * @param  list<EstimateRow>  $rows
      * @return array{0: list<EstimateRow>, 1: list<int>}
@@ -74,11 +74,11 @@ final readonly class EstimateStitcher
     }
 
     /**
-     * Восстанавливает иерархию раздел→подраздел (D10) стек-машиной по row_type: SectionHeader
+     * Восстанавливает иерархию раздел→подраздел стек-машиной по row_type: SectionHeader
      * открывает раздел, SubsectionHeader — подраздел внутри текущего раздела, Item/Subtotal
      * наследуют текущий путь. Кросс-проверка: если модель сама заявила `section_title` на строке
      * и он расходится с восстановленным путём — не фатально, попадает в sectionTitleMismatches
-     * (два раздела с одинаковым именем различаются позицией в стеке, не именем — Code Guidance).
+     * (два раздела с одинаковым именем различаются позицией в стеке, не именем).
      *
      * @param  list<EstimateRow>  $rows
      * @return array{0: array<int, list<string>>, 1: list<int>}
@@ -123,9 +123,8 @@ final readonly class EstimateStitcher
      * следующим по порядку orphan_numbers_at_page_start (голые цифры без кода, начало следующего
      * чанка/страницы) — §4б. Совпадение — по last_known_code (сильный сигнал) либо по
      * последовательным page_number (оконный путь, page_number обязателен). Без совпадения —
-     * НЕ склеиваем: обе половины остаются как аномалия (консервативная склейка, Implementation
-     * Rules P6.2). row_index для склеенной строки НЕ вычисляется здесь (IncompleteRow его не
-     * несёт) — точная позиция в последовательности строк отложена на P6.3 (Known Deviation).
+     * НЕ склеиваем: обе половины остаются как аномалия (консервативная склейка). row_index для склеенной строки НЕ вычисляется здесь (IncompleteRow его не
+     * несёт) — точная позиция требует отдельного сопоставления или операторского ревью.
      *
      * @param  list<IncompleteRow>  $incompleteItems  в хронологическом порядке накопления
      * @return array{0: list<array{code: ?string, name: string, reason: string}>, 1: list<IncompleteRow>}

@@ -6,11 +6,11 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * P1.15: durable состояние projectors (observability#s08). State — gate rebuild/retention и
- * активная generation totals; receipts — глобальный dedup `(projector_key, event_id)` независимо
- * от generation; totals — только counter-серии, current gauges читаются из authoritative rows.
- * Receipt.event_id RESTRICT: история удаляется лишь retention writer-ом под state locks.
- * Все CHECK именованы явно, чтобы имена catalog не зависели от автогенерации PostgreSQL.
+ * Durable состояние projectors. State управляет rebuild/retention и активной generation
+ * итогов; receipts дедуплицируют `(projector_key, event_id)` независимо от generation.
+ * Totals содержат counter-серии, current gauges читаются из authoritative rows.
+ * RESTRICT по event_id сохраняет историю до удаления retention writer под state locks.
+ * CHECK имеют явные имена, стабильные в каталоге PostgreSQL.
  */
 return new class extends Migration
 {

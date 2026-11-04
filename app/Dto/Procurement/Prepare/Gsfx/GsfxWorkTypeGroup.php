@@ -7,8 +7,8 @@ namespace App\Dto\Procurement\Prepare\Gsfx;
 use Spatie\LaravelData\Data;
 
 /**
- * Группа видов работ каталога `Data.xml` (P3.3, `<VidRab_Group>`).
- * - catalog_type: тип каталога-владельца (`Vids_Rab@Type`, P3.9, напр. «Виды работ 2001г») — по
+ * Группа видов работ каталога `Data.xml` (`<VidRab_Group>`).
+ * - catalog_type: тип каталога-владельца (`Vids_Rab@Type`, напр. «Виды работ 2001г») — по
  *   нему различается каталог, на который ссылается `Position@Vr2001` (`research/16-gsfx-reader-reopen.md`
  *   §1); блоков `VidRab_Catalog/Vids_Rab` может быть НЕСКОЛЬКО, обходятся ВСЕ.
  */

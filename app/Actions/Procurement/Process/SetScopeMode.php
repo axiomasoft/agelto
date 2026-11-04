@@ -12,7 +12,7 @@ use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Str;
 
 /**
- * PauseScope / ResumeScope (observability#s04): manual mode одной control scope с optimistic
+ * PauseScope / ResumeScope: manual mode одной control scope с optimistic
  * control_version. Resume снимает только manual pause этой row — health/handler holds и
  * blocked(handler_fault_limit) не трогает. Повтор уже применённого режима — Unchanged, не новая
  * версия. Actor/reason/before/after попадают в transition тем же commit.

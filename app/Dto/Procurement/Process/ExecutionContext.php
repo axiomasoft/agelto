@@ -14,7 +14,7 @@ use App\Services\Procurement\Process\Contracts\ProcessClock;
 use Closure;
 
 /**
- * Кооперативный контекст одного claimed attempt (D13, bp-heartbeat). PHP worker однопоточный:
+ * Кооперативный контекст одного claimed attempt. PHP worker однопоточный:
  * handler вызывает tick() между частями, в idle wait (progressCallback) и перед каждым effect.
  * tick продлевает DB lease CAS не чаще heartbeat interval по monotonic clock и прекращает работу
  * typed выходом: LeaseLost (CAS 0 rows, локальный safety deadline), SliceExhausted (monotonic
@@ -83,8 +83,10 @@ final class ExecutionContext
         $this->lease = $lease;
         $now = $clock->monotonicNs();
         $this->sliceDeadlineNs = $now + $slice->nanos();
-        // Claim только что установил DB lease: отсчёт heartbeat и safety deadline от него.
-        $this->lastRenewalNs = $now;
+        // A worker may have paused after claim. Map the remaining DB lease onto the monotonic
+        // clock conservatively, so opening a context cannot grant another full local lease.
+        $remaining = (new DbInstant($lease->leaseUntil))->since($clock->dbNow())->nanos();
+        $this->lastRenewalNs = $now - max(0, $leaseDuration->nanos() - $remaining);
     }
 
     /**

@@ -89,7 +89,7 @@ test('пустой эталон без строк даёт row_coverage=1.0 (н�
         ->and($metrics['overall']['recall'])->toBe(1.0);
 });
 
-test('расширенные поля строки P4 (source_position_number/unit_price_base/index_value) участвуют в per_field', function () {
+test('расширенные поля строки (source_position_number/unit_price_base/index_value) участвуют в per_field', function () {
     $gold = estimatesOf([goldRow(1, [
         'source_position_number' => '9.1',
         'unit_price_base' => '100.00',
@@ -169,7 +169,7 @@ test('итоги: chapter_number/rate участвуют в сравнении �
         ->and($metrics['totals']['rate']['f1'])->toBeLessThan(1.0);
 });
 
-test('P5.6/D46: три новых поля паспорта (regulatory_base/regulatory_amendments/index_letter) не заходят в PASSPORT_FIELD_MAP — ни один gold-маппер их не заполняет машинно', function () {
+test('три новых поля паспорта (regulatory_base/regulatory_amendments/index_letter) не заходят в PASSPORT_FIELD_MAP — ни один gold-маппер их не заполняет машинно', function () {
     expect(EvalMetrics::PASSPORT_FIELD_MAP)
         ->not->toContain('regulatory_base')
         ->not->toContain('passport.regulatory_amendments')
@@ -186,14 +186,14 @@ test('расширение EvalMetrics не ломает существующи�
         ->and($metrics['overall']['f1'])->toBe(1.0);
 });
 
-test('P8.6/D139: пометка неопределённости не заходит ни в FIELD_MAP, ни в ROW_NUMERIC_FIELDS — сторож против тихого включения в F1', function () {
+test('пометка неопределённости не заходит ни в FIELD_MAP, ни в ROW_NUMERIC_FIELDS — сторож против тихого включения в F1', function () {
     expect(EvalMetrics::FIELD_MAP)
         ->not->toHaveKey('quality')
         ->not->toContain('quality')
         ->and(EvalMetrics::ROW_NUMERIC_FIELDS)->not->toContain('quality');
 });
 
-test('P8.6: заполненность пометок модели считается по позициям предсказания с разбивкой по причинам', function () {
+test('заполненность пометок модели считается по позициям предсказания с разбивкой по причинам', function () {
     $gold = estimatesOf([goldRow(1), goldRow(2), goldRow(3), goldRow(4)]);
     $predicted = estimatesOf([
         goldRow(1, ['quantity' => null, 'quality' => ['reason' => 'unreadable', 'fields' => ['quantity']]]),
@@ -212,7 +212,7 @@ test('P8.6: заполненность пометок модели считае�
     ]);
 });
 
-test('P8.6/И-А: чистое предсказание без пометок даёт заполненность 0.0 — норма читаемого корпуса', function () {
+test('чистое предсказание без пометок даёт заполненность 0.0 — норма читаемого корпуса', function () {
     $estimates = estimatesOf([goldRow(1), goldRow(2)]);
 
     $metrics = (new EvalMetrics)->compare($estimates, $estimates);
@@ -222,7 +222,7 @@ test('P8.6/И-А: чистое предсказание без пометок д
         ->and($metrics['quality']['item_rows'])->toBe(2);
 });
 
-test('P8.6/D148: в разбивке нет ветки провенанса «валидатор» — validator-origin причина не считается пометкой модели', function () {
+test('в разбивке нет ветки провенанса «валидатор» — validator-origin причина не считается пометкой модели', function () {
     $gold = estimatesOf([goldRow(1)]);
     $predicted = estimatesOf([goldRow(1, ['quality' => ['reason' => 'arithmetic_mismatch', 'fields' => ['quantity']]])]);
 
@@ -232,7 +232,7 @@ test('P8.6/D148: в разбивке нет ветки провенанса «в
         ->and($metrics['quality']['marked_rows'])->toBe(0);
 });
 
-test('P8.6/Г-2: знаменатель заполненности — только строки row_type=item, заголовки и итоги в него не входят', function () {
+test('знаменатель заполненности — только строки row_type=item, заголовки и итоги в него не входят', function () {
     $rows = [
         goldRow(1, ['row_type' => 'section_header', 'name' => 'Раздел 1']),
         goldRow(2, ['quality' => ['reason' => 'unreadable', 'fields' => ['total_price_curr']]]),
@@ -245,7 +245,7 @@ test('P8.6/Г-2: знаменатель заполненности — толь�
         ->and($metrics['quality']['fill_rate'])->toBe(1.0);
 });
 
-test('P8.6: ключ заполненности детерминирован — повторный вызов даёт байт-идентичный результат', function () {
+test('ключ заполненности детерминирован — повторный вызов даёт байт-идентичный результат', function () {
     $gold = estimatesOf([goldRow(1), goldRow(2)]);
     $predicted = estimatesOf([
         goldRow(1, ['quality' => ['reason' => 'unreadable', 'fields' => ['quantity']]]),
@@ -259,7 +259,7 @@ test('P8.6: ключ заполненности детерминирован —
 });
 
 /**
- * Смета для многосметных тестов сопоставления (P6.2, D54) — `estimate_number`/`passport.address`
+ * Смета для многосметных тестов сопоставления — `estimate_number`/`passport.address`
  * настраиваемы, `rows` по умолчанию несёт одну уникальную строку.
  */
 function matchableEstimate(array $overrides = []): array

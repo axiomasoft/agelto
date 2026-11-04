@@ -93,7 +93,7 @@ final class WorkItemsTable
             ->defaultSort('updated_at', 'desc');
     }
 
-    /** Человекочитаемая причина вместо токенов lease (observability#s04). */
+    /** Человекочитаемая причина вместо токенов lease. */
     private static function why(WorkItem $record): string
     {
         $reason = $record->reason_code ?? '—';

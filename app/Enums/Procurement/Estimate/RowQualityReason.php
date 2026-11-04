@@ -7,13 +7,9 @@ namespace App\Enums\Procurement\Estimate;
 use App\Attributes\Ai\ExcludeFromProviderSchema;
 
 /**
- * Причина, по которой поля строки нельзя считать надёжными (research/12-uncertainty-model.md §2,
- * P8.3). Провенанс различает подмножества: `Unreadable` — единственная причина, которую МОДЕЛЬ
- * вправе вернуть сама (model-origin, EstimateRow::$quality, §3.1); `ArithmeticMismatch`/
- * `NumberingGap`/`RequiredFieldMissing` производит только `EstimateValidator`
- * (validator-origin, P8.4/P7.4) — модель их
- * произвести не вправе, `EstimateRow::validateAndCreate()` отклоняет причину вне model-origin
- * подмножества внутри `quality`.
+ * Причина недостоверности полей строки. Модель вправе вернуть только Unreadable.
+ * ArithmeticMismatch, NumberingGap и RequiredFieldMissing создаёт `EstimateValidator`.
+ * `EstimateRow::validateAndCreate()` отклоняет validator-origin причины в ответе модели.
  */
 enum RowQualityReason: string
 {
@@ -23,13 +19,13 @@ enum RowQualityReason: string
     #[ExcludeFromProviderSchema]
     case RequiredFieldMissing = 'required_field_missing';
 
-    /** Причины, которые модель вправе произвести сама (§3.1 research/12) — сегодня одно значение. */
+    /** Причины, которые модель вправе вернуть сама. */
     public function isModelOrigin(): bool
     {
         return $this === self::Unreadable;
     }
 
-    /** Человекочитаемая подпись для операторской витрины (P8.5) — единственный носитель перевода. */
+    /** Человекочитаемая подпись для операторской витрины — единственный носитель перевода. */
     public function label(): string
     {
         return match ($this) {

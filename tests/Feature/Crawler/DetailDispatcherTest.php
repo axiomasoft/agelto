@@ -14,7 +14,7 @@ beforeEach(function (): void {
     Queue::fake();
 });
 
-// D18: admission/outbox delivers work; this producer allocates durable periodic intents.
+// admission/outbox delivers work; this producer allocates durable periodic intents.
 test('Process detail producer выделяет не больше лимита за тик без прямого dispatch', function (): void {
     $registry = Registry::factory()->eis()->create();
     foreach (range(1, 3) as $n) {

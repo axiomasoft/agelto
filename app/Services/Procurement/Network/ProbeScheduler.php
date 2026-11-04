@@ -24,7 +24,7 @@ use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 
-/** Construction-only before P2.6: a bounded typed probe owner still uses ordinary FIFO budgets. */
+/** A bounded typed probe owner uses ordinary FIFO budgets and owns every claimed health scope. */
 final readonly class ProbeScheduler
 {
     public function __construct(private ProcessTransaction $transaction, private NetworkOwnerFence $owners,

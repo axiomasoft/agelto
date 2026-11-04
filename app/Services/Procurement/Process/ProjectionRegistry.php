@@ -8,7 +8,7 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Services\Procurement\Process\Contracts\ProjectionReducer;
 
 /**
- * Versioned registry зарегистрированных projectors (observability#s03/#s08). Boot-validated:
+ * Versioned registry зарегистрированных projectors. Boot-validated:
  * уникальные projector_key, каждая серия каталога принадлежит ровно одному reducer, kinds
  * принадлежат ledger. Отсутствие reducer для kind события — ошибка конфигурации, а не молчаливый
  * green skip: `forEntityKind` всегда возвращает хотя бы одного получателя для известного kind.
@@ -21,7 +21,7 @@ final readonly class ProjectionRegistry
     /** @var array<string, ProjectionReducer> */
     private array $reducers;
 
-    /** @param list<ProjectionReducer>|null $reducers null — стандартный набор P1.15 */
+    /** @param list<ProjectionReducer>|null $reducers null — стандартные work/run/governance reducers */
     public function __construct(?array $reducers = null)
     {
         $reducers ??= [new WorkMetricReducer, new RunMetricReducer, new GovernanceMetricReducer];

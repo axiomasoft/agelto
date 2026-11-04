@@ -88,7 +88,7 @@ test('полная canary проверка двух вкладок имеет о
     } finally {
         $wire->stop();
     }
-})->group('t05', 'p26');
+})->group('network-admission-probes');
 
 test('повторы одного input не закрывают адаптер а три разных input с общей сигнатурой требуют audited reset', function (): void {
     $wire = new WireFixture;
@@ -116,7 +116,7 @@ test('повторы одного input не закрывают адаптер �
     } finally {
         $wire->stop();
     }
-})->group('t05', 'p26');
+})->group('network-admission-probes');
 
 test('разрешённый redirect полной canary проходит отдельные permits без второго transport retry', function (): void {
     $wire = new WireFixture;
@@ -136,7 +136,7 @@ test('разрешённый redirect полной canary проходит от�
     } finally {
         $wire->stop();
     }
-})->group('t05', 'p26');
+})->group('network-admission-probes');
 
 test('partial input не подтверждает systemic failure или full canary success но сохраняет разрешённую provenance', function (): void {
     $wire = new WireFixture;
@@ -154,7 +154,7 @@ test('partial input не подтверждает systemic failure или full c
     } finally {
         $wire->stop();
     }
-})->group('t05', 'p26');
+})->group('network-admission-probes');
 
 test('late полный parser result остаётся stale фактом после commit и не повышает adapter health', function (): void {
     $wire = new WireFixture;
@@ -175,7 +175,7 @@ test('late полный parser result остаётся stale фактом пос
     } finally {
         $wire->stop();
     }
-})->group('t05', 'p26');
+})->group('network-admission-probes');
 
 test('semantic rejection отзывает старых owners до canary и восстанавливает ramp только с capacity два', function (AdapterVerdict $rejection): void {
     $wire = new WireFixture;
@@ -237,7 +237,7 @@ test('semantic rejection отзывает старых owners до canary и в�
     } finally {
         $wire->stop();
     }
-})->with([AdapterVerdict::ContractFailure, AdapterVerdict::HandlerFault])->group('t05', 't35', 'p26');
+})->with([AdapterVerdict::ContractFailure, AdapterVerdict::HandlerFault])->group('network-admission-probes', 'provider-send-fencing');
 
 test('явный reset начинает новую evidence generation а admission epoch её не стирает', function (): void {
     $fixture = new AdapterFixtures;
@@ -263,7 +263,7 @@ test('явный reset начинает новую evidence generation а admiss
     } finally {
         $fixture->close();
     }
-})->group('t05', 'p26');
+})->group('network-admission-probes');
 
 test('reaper мёртвого canary отзывает поздний owner но сохраняет уже применённые contract failures', function (): void {
     $wire = new WireFixture;
@@ -292,4 +292,4 @@ test('reaper мёртвого canary отзывает поздний owner но 
     } finally {
         $wire->stop();
     }
-})->group('t05', 'p26');
+})->group('network-admission-probes');

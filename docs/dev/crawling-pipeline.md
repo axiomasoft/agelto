@@ -550,4 +550,3 @@ Fallback retention также читает верхнюю границу, а н�
 `APP_ENV=testing`, `DB_DATABASE=agelto_test`, в отдельной Docker-сети с одноразовыми PostgreSQL
 и Redis. Он использует настоящий HTTP fixture server, Redis-очереди, несколько PHP-процессов,
 задержку локального storage и SIGKILL. `--faults-only` запускает аварийные сценарии отдельно.
-Результаты и пределы интерпретации: [отчёт исполнения](../../research/2026-10-08-audit-remediation.md).

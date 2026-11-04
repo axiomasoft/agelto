@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Одно владение work: unique(work_id, generation), никогда не перезаписывается другим attempt.
  * Сам token хранится только в work.owner_token; здесь sha256 fingerprint. Finished attempts с
- * fault_signature — authority per-work handler fault budget (execution#handler-fault-budget).
+ * fault_signature — authority per-work handler fault budget.
  *
  * @property string $id
  * @property string $work_id

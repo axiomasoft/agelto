@@ -18,10 +18,10 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
- * P5.5 — `estimate:gold:import` создаёт рабочие копии `Document`/`DocumentVersion` вне закупки (D19) и
+ * `estimate:gold:import` создаёт рабочие копии `Document`/`DocumentVersion` вне закупки и
  * записи `prc_ai_dataset_examples` со ссылкой `fixture_id` и `source=deterministic` из
  * `estimates/gold/<CODE>.{gold,screening}.json`. `--prepare` не покрывается здесь глубоко —
- * реальный прогон фабрики представлений по корпусу (P3) — предмет Completion Notes, не синтетики.
+ * реальный прогон фабрики представлений по корпусу — предмет Completion Notes, не синтетики.
  */
 beforeEach(fn () => Platform::query()->firstOrCreate(['code' => Platform::TRAINING_CODE], Platform::factory()->training()->raw()));
 

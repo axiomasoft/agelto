@@ -7,9 +7,8 @@ namespace App\Exceptions\Procurement;
 use RuntimeException;
 
 /**
- * Единая форма отказа «операция невозможна» сервисного слоя AI-контура (§1
- * `root/service-layer-map.md`, P3.1/P3.2/P3.3): ОДИН `catch (OperationFailed $e)` в `handle()`
- * команды — `$this->error($e->getMessage()); return self::FAILURE;`. `extends RuntimeException`,
- * чтобы существующий `catch (RuntimeException)` (`PromptsApplyCommand:64`) не перестал ловить.
+ * Отказ «операция невозможна» в сервисном слое AI-контура. Console caller показывает
+ * сообщение через `$this->error()` и завершает команду с `FAILURE`. Наследование RuntimeException
+ * сохраняет совместимость с существующими обработчиками отказов.
  */
 abstract class OperationFailed extends RuntimeException {}

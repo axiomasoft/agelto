@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Ai\Screening;
 use InvalidArgumentException;
 use Normalizer;
 
-/** Shared canonicalization for provider and stored screening evidence (D33). */
+/** Shared canonicalization for provider and stored screening evidence. */
 final class ScreeningValueNormalizer
 {
     public static function requiredText(mixed $value, int $maximumLength, string $field): string

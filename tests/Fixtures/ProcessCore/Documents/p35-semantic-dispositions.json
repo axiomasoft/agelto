@@ -82,7 +82,7 @@
       "targets": [
         {
           "file": "tests/Feature/Ai/FixtureRunTest.php",
-          "name": "оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)"
+          "name": "оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (единственность сейма)"
         }
       ],
       "note": "Original distinct assertions retained in the same named case; queue delivery replaced by durable ready work/manual run metadata. No inactive-handler equivalence."
@@ -99,7 +99,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -121,7 +121,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -143,7 +143,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -165,7 +165,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -187,7 +187,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -209,7 +209,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -231,7 +231,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -253,7 +253,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -275,7 +275,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -297,7 +297,7 @@
           "name": "acquisition pause оставляет independent document backlog и не возвращает crawler downstream switch"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "manual и две площадки получают одинаковый fixture анализ при paused acquisition"
         },
         {
@@ -315,11 +315,11 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
           "name": "download first same replaced bytes публикует файл immutable версии и ровно соответствующие события"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
         }
       ],
@@ -333,11 +333,11 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
           "name": "download first same replaced bytes публикует файл immutable версии и ровно соответствующие события"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
         }
       ],
@@ -387,11 +387,11 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
           "name": "download storage false write или exception не публикует версию событие и не удаляет previous canonical object with data set \"(false)\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
           "name": "download storage false write или exception не публикует версию событие и не удаляет previous canonical object with data set \"(true)\""
         }
       ],
@@ -405,11 +405,11 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
           "name": "download storage false write или exception не публикует версию событие и не удаляет previous canonical object with data set \"(false)\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
           "name": "download storage false write или exception не публикует версию событие и не удаляет previous canonical object with data set \"(true)\""
         }
       ],
@@ -423,11 +423,11 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php",
           "name": "два процесса current head CAS принимают ровно одну competing revision"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
           "name": "download first same replaced bytes публикует файл immutable версии и ровно соответствующие события"
         }
       ],
@@ -441,11 +441,11 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
           "name": "download first same replaced bytes публикует файл immutable версии и ровно соответствующие события"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
         }
       ],
@@ -459,15 +459,15 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "два connection failures и success дают три физических request и ноль item failures"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "truncated response и исчерпание retries откладывают work без версии и item failures with data set \"('/drop')\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "truncated response и исчерпание retries откладывают work без версии и item failures with data set \"('/truncated')\""
         }
       ],
@@ -481,7 +481,7 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10ProducerRecoveryCoverageTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/ProducerRecoveryCoverageTest.php",
           "name": "document без source reference и bytes не создаёт intents work или outbound effects"
         }
       ],
@@ -495,7 +495,7 @@
       "disposition": "changed_contract",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentRuntimeTest.php",
           "name": "missing document route profile даёт configuration hold без handler fault и HTTP"
         }
       ],
@@ -509,12 +509,12 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
-          "name": "T21 every private reserved mapped и multicast literal denied before connect"
+          "file": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php",
+          "name": "every private reserved mapped и multicast literal denied before connect"
         },
         {
-          "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
-          "name": "T21 redirects имеют отдельные identity и target а cross-origin secrets удалены"
+          "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+          "name": "redirects имеют отдельные identity и target а cross-origin secrets удалены"
         }
       ],
       "note": "The sole HTTP gate checks private/reserved literals before connect and revalidates each redirect with distinct authorization. Real transport tests retain this security boundary."
@@ -527,12 +527,12 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
-          "name": "T21 every private reserved mapped и multicast literal denied before connect"
+          "file": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php",
+          "name": "every private reserved mapped и multicast literal denied before connect"
         },
         {
-          "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
-          "name": "T21 redirects имеют отдельные identity и target а cross-origin secrets удалены"
+          "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+          "name": "redirects имеют отдельные identity и target а cross-origin secrets удалены"
         }
       ],
       "note": "The sole HTTP gate checks private/reserved literals before connect and revalidates each redirect with distinct authorization. Real transport tests retain this security boundary."
@@ -545,11 +545,11 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
-          "name": "T03 truncated body retries bounded а separate wire budget aborts streaming"
+          "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+          "name": "truncated body retries bounded а separate wire budget aborts streaming"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php",
           "name": "byte ceiling прерывает upload и temporary capacity освобождается только после verified cleanup"
         }
       ],
@@ -563,7 +563,7 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
+          "file": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php",
           "name": "executor использует реальный scheduled gate для retries и redirect без hidden sends"
         }
       ],
@@ -577,7 +577,7 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Network/T04RouteHealthTest.php",
+          "file": "tests/Feature/ProcessCore/Network/RouteHealthTest.php",
           "name": "429 не rotates и не изменяет proxy series а503 retry остаётся на текущем egress"
         }
       ],
@@ -591,23 +591,23 @@
       "disposition": "changed_contract",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
+          "file": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php",
           "name": "полный request timeout finalization не помещается и не расходует ticket TAT или transport"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('expiry')\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('head')\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('takeover')\""
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php",
           "name": "put-before-reference сохраняет reserve, uncertain writer и incomplete cleanup не освобождают bytes"
         }
       ],
@@ -621,12 +621,12 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Network/T03HttpTransportTest.php",
-          "name": "T21 redirects имеют отдельные identity и target а cross-origin secrets удалены"
+          "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+          "name": "redirects имеют отдельные identity и target а cross-origin secrets удалены"
         },
         {
-          "file": "tests/Feature/ProcessCore/Network/T04HttpPolicyTest.php",
-          "name": "T03 pause после первого response запрещает повторный send и binary redirect очищает промежуточный artifact"
+          "file": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php",
+          "name": "pause после первого response запрещает повторный send и binary redirect очищает промежуточный artifact"
         }
       ],
       "note": "Each redirect has its own request/permit and intermediate binary artifacts are cleaned; assertions inspect actual requests and artifacts."
@@ -639,23 +639,23 @@
       "disposition": "changed_contract",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
+          "file": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php",
           "name": "полный request timeout finalization не помещается и не расходует ticket TAT или transport"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('expiry')\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('head')\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('takeover')\""
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php",
           "name": "put-before-reference сохраняет reserve, uncertain writer и incomplete cleanup не освобождают bytes"
         }
       ],
@@ -673,15 +673,15 @@
           "name": "новая immutable версия при running prepare fence запрещает checkpoint и late publication старой версии"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('expiry')\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('head')\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('takeover')\""
         }
       ],
@@ -699,15 +699,15 @@
           "name": "новая immutable версия при running prepare fence запрещает checkpoint и late publication старой версии"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('expiry')\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('head')\""
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "смена head и takeover запрещают старую публикацию а unrecovered expiry разрешает DB commit with data set \"('takeover')\""
         }
       ],
@@ -725,7 +725,7 @@
           "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
         }
       ],
@@ -743,7 +743,7 @@
           "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
         }
       ],
@@ -761,7 +761,7 @@
           "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
         }
       ],
@@ -779,7 +779,7 @@
           "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
         }
       ],
@@ -797,7 +797,7 @@
           "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
         }
       ],
@@ -815,7 +815,7 @@
           "name": "independent revalidation выделяет due cycle и activate только один work без crawler callback"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T03DownloadRevalidationTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php",
           "name": "same bytes затем A B A сохраняют revisions blobs validators и новый due cycle"
         }
       ],
@@ -833,7 +833,7 @@
           "name": "повторная download delivery не запускает handler владельца второй раз"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentRuntimeTest.php",
           "name": "registered runtime проводит reference download prepare через sole Process job затем явно держит real AI"
         }
       ],
@@ -851,7 +851,7 @@
           "name": "повторная download delivery не запускает handler владельца второй раз"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentRuntimeTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentRuntimeTest.php",
           "name": "registered runtime проводит reference download prepare через sole Process job затем явно держит real AI"
         }
       ],
@@ -865,15 +865,15 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
-          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+          "file": "tests/Feature/ProcessCore/Execution/RecoveryReconcilerTest.php",
+          "name": "expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentFeederConcurrencyTest.php",
           "name": "два document producers атомарно activate один intent и создают один missing prepare"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
         }
       ],
@@ -887,15 +887,15 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
-          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+          "file": "tests/Feature/ProcessCore/Execution/RecoveryReconcilerTest.php",
+          "name": "expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentFeederConcurrencyTest.php",
           "name": "два document producers атомарно activate один intent и создают один missing prepare"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
         }
       ],
@@ -909,15 +909,15 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
-          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+          "file": "tests/Feature/ProcessCore/Execution/RecoveryReconcilerTest.php",
+          "name": "expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentFeederConcurrencyTest.php",
           "name": "два document producers атомарно activate один intent и создают один missing prepare"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
         }
       ],
@@ -931,11 +931,11 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10ProducerRecoveryCoverageTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/ProducerRecoveryCoverageTest.php",
           "name": "document producer LIMIT50 стоит на входной выборке и terminal history не заслоняет missing prepare"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentFeederConcurrencyTest.php",
           "name": "age900 сохраняет старый analysis перед новым ingress внутри выбранного cohort"
         }
       ],
@@ -949,7 +949,7 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "analysis defer освобождает parent child slots сохраняя immutable age и future due"
         }
       ],
@@ -963,7 +963,7 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "analysis defer освобождает parent child slots сохраняя immutable age и future due"
         }
       ],
@@ -977,15 +977,15 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
-          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+          "file": "tests/Feature/ProcessCore/Execution/RecoveryReconcilerTest.php",
+          "name": "expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentFeederConcurrencyTest.php",
           "name": "два document producers атомарно activate один intent и создают один missing prepare"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
         }
       ],
@@ -999,15 +999,15 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
-          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+          "file": "tests/Feature/ProcessCore/Execution/RecoveryReconcilerTest.php",
+          "name": "expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentFeederConcurrencyTest.php",
           "name": "два document producers атомарно activate один intent и создают один missing prepare"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
         }
       ],
@@ -1021,7 +1021,7 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "analysis defer освобождает parent child slots сохраняя immutable age и future due"
         }
       ],
@@ -1035,15 +1035,15 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
-          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+          "file": "tests/Feature/ProcessCore/Execution/RecoveryReconcilerTest.php",
+          "name": "expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentFeederConcurrencyTest.php",
           "name": "два document producers атомарно activate один intent и создают один missing prepare"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
         }
       ],
@@ -1057,7 +1057,7 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "analysis defer освобождает parent child slots сохраняя immutable age и future due"
         }
       ],
@@ -1071,11 +1071,11 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10ProducerRecoveryCoverageTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/ProducerRecoveryCoverageTest.php",
           "name": "document producer LIMIT50 стоит на входной выборке и terminal history не заслоняет missing prepare"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentFeederConcurrencyTest.php",
           "name": "age900 сохраняет старый analysis перед новым ingress внутри выбранного cohort"
         }
       ],
@@ -1089,7 +1089,7 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "standalone activation отделена от admission и повторного queue dispatch"
         }
       ],
@@ -1103,15 +1103,15 @@
       "disposition": "target_assertions",
       "targets": [
         {
-          "file": "tests/Feature/ProcessCore/Execution/T09RecoveryReconcilerTest.php",
-          "name": "T31 expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
+          "file": "tests/Feature/ProcessCore/Execution/RecoveryReconcilerTest.php",
+          "name": "expired admitted: потерянная delivery получает новый dispatch generation с той же group и обычным wake; старая доставка stale, новая claim-ится"
         },
         {
-          "file": "tests/Integration/ProcessCore/Concurrency/T11DocumentFeederConcurrencyTest.php",
+          "file": "tests/Integration/ProcessCore/Concurrency/DocumentFeederConcurrencyTest.php",
           "name": "два document producers атомарно activate один intent и создают один missing prepare"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T10DocumentFeederTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/DocumentFeederTest.php",
           "name": "standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history"
         }
       ],
@@ -1294,7 +1294,7 @@
       "targets": [
         {
           "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
-          "name": "format corpus: XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared (D26/P3.4)"
+          "name": "format corpus: XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared"
         }
       ],
       "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
@@ -1308,7 +1308,7 @@
       "targets": [
         {
           "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
-          "name": "format corpus: XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален (D26/P3.4)"
+          "name": "format corpus: XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален"
         }
       ],
       "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
@@ -1322,7 +1322,7 @@
       "targets": [
         {
           "file": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
-          "name": "format corpus: XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed) (P3.4)"
+          "name": "format corpus: XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed)"
         }
       ],
       "note": "Original format/content/hostile archive/lineage assertions remain in the mapped format corpus case. The probe performs no queue/lease/retry orchestration and does not certify a live format handler."
@@ -1451,7 +1451,7 @@
           "name": "format corpus: успешная подготовка диспатчит ScreeningJob за включённым гейтом config(ai.screening.enabled)"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T12StoredDocumentWriterTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/StoredDocumentWriterTest.php",
           "name": "prepare publication и pending analysis intent откатываются вместе при mandatory insert failure"
         }
       ],
@@ -1469,7 +1469,7 @@
           "name": "format corpus: unprocessable-исход не диспатчит ScreeningJob даже за включённым гейтом"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T12StoredDocumentWriterTest.php",
+          "file": "tests/Feature/ProcessCore/Documents/StoredDocumentWriterTest.php",
           "name": "prepare publication и pending analysis intent откатываются вместе при mandatory insert failure"
         }
       ],
@@ -1487,8 +1487,8 @@
           "name": "повторный storeOrUpdate идемпотентен по recipe kind range и отвергает изменение immutable bytes"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
-          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+          "file": "tests/Feature/ProcessCore/Documents/CanonicalSchemaTest.php",
+          "name": "требует canonical tuple и bytea hash без legacy partial indexes"
         }
       ],
       "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
@@ -1505,8 +1505,8 @@
           "name": "tuple version recipe kind range уникален на уровне схемы — повтор отбивается БД"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
-          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+          "file": "tests/Feature/ProcessCore/Documents/CanonicalSchemaTest.php",
+          "name": "требует canonical tuple и bytea hash без legacy partial indexes"
         }
       ],
       "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
@@ -1523,8 +1523,8 @@
           "name": "forDocumentVersion использует обязательный записанный диск canonical версии"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
-          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+          "file": "tests/Feature/ProcessCore/Documents/CanonicalSchemaTest.php",
+          "name": "требует canonical tuple и bytea hash без legacy partial indexes"
         }
       ],
       "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
@@ -1541,8 +1541,8 @@
           "name": "forRepresentation использует обязательный записанный диск canonical представления"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
-          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+          "file": "tests/Feature/ProcessCore/Documents/CanonicalSchemaTest.php",
+          "name": "требует canonical tuple и bytea hash без legacy partial indexes"
         }
       ],
       "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
@@ -1559,8 +1559,8 @@
           "name": "materialize-only оставляет обязательный canonical disk и не пишет ни одного объекта"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
-          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+          "file": "tests/Feature/ProcessCore/Documents/CanonicalSchemaTest.php",
+          "name": "требует canonical tuple и bytea hash без legacy partial indexes"
         }
       ],
       "note": "CHANGED CONTRACT P3.5: metadata is immutable and disk/recipe/range/blob/hash are mandatory. NULL fallback and in-place content replacement are forbidden; tests assert explicit location, immutable conflict, allowed new recipe and schema rejection rather than old mutable/nullable behavior."
@@ -1843,8 +1843,8 @@
           "name": "колонка диска версии документа пишется и читается"
         },
         {
-          "file": "tests/Feature/ProcessCore/Documents/T12CanonicalSchemaTest.php",
-          "name": "P3.5 требует canonical tuple и bytea hash без legacy partial indexes"
+          "file": "tests/Feature/ProcessCore/Documents/CanonicalSchemaTest.php",
+          "name": "требует canonical tuple и bytea hash без legacy partial indexes"
         }
       ],
       "note": "CHANGED CONTRACT: the factory materializes its explicit default disk and preserves custom disk roundtrip. Historical NULL-disk fallback is intentionally removed; strict schema cases assert mandatory metadata, rather than treating NULL behavior as equivalent."

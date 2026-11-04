@@ -10,10 +10,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Прокси профиля (research/02 §3.3, D80): `use_proxy` задаёт намеренный прямой режим, страна
- * ограничивает выбор узла; скоуп берётся от точки исхода. Политика остановки P3.3 хранит
- * продуктовый режим, execution lane P4.7/D117 — стабильный enum очереди, не секунды lease.
- * P7.5 F-02: связь с реестром сохраняет прежний `NO ACTION` явно.
+ * Профиль хранит typed listing filter, cron, acquisition kind и версию конфигурации.
+ * `route_profile_id` выбирает точный набор сетевых маршрутов; execution state и lease
+ * принадлежат Process. Связь с реестром сохраняет `NO ACTION`.
  */
 return new class extends Migration
 {

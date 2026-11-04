@@ -13,12 +13,9 @@ use Throwable;
 use ZipArchive;
 
 /**
- * Диспетчер сборки gold ОДНОГО эталона (P5.3, D45) по `source_format`: `.gsfx` →
- * {@see GsfxGoldMapper} (через {@see GsfxReader}, тот же приём извлечения контейнера, что
- * `GsfxStrategy` P3.3), `xlsx`/`xls` → {@see SheetGoldMapper} по профилю формы (P5.2, D117), тот же
- * алгоритм гейта/усреднения, что зонд P5.7 (`artifacts/P5.7-profile-run.php`) — команда и зонд
- * обязаны видеть один и тот же вердикт. Диспетчер — `match`, не реестр стратегий (Code Guidance
- * P5.3): мапперов ровно два. Без записи на диск — это работа `GoldBuildCommand`.
+ * Сборка gold одного эталона по source_format: gsfx через GsfxGoldMapper/GsfxReader,
+ * xlsx/xls через SheetGoldMapper и профиль формы. Мапперов два, выбор задаётся match.
+ * На диск результат пишет caller GoldBuildCommand.
  */
 /**
  * @phpstan-type GoldPayload array{estimates: list<array<string, mixed>>}

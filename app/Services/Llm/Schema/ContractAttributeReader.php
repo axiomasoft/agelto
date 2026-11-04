@@ -11,8 +11,8 @@ use ReflectionClass;
 use ReflectionEnum;
 
 /**
- * Ридер атрибутов `#[Description]`/`#[Alias]` контракта (D92) — узкий, только рефлексия по
- * ≤6 классам на вызов, без кэша (P2.3, `research/03-prompt-contract.md` §5.2). Не знает ни про
+ * Ридер атрибутов `#[Description]`/`#[Alias]` контракта — узкий, только рефлексия по
+ * ≤6 классам на вызов, без кэша (`research/03-prompt-contract.md` §5.2). Не знает ни про
  * JSON Schema, ни про промт: решение «эмитить ли `description`»/«печатать ли словарь» принимает
  * потребитель. Докблоки не парсит — ни как фолбэк, ни временно.
  */
@@ -42,7 +42,7 @@ final readonly class ContractAttributeReader
     /**
      * `#[Alias]` не допускает `TARGET_PARAMETER` (симметрия с уже существующим использованием на
      * `EstimateHeaderMap`/`ResourceType`) — читается через `ReflectionProperty`, не
-     * `ReflectionParameter`: `newInstance()` проверяет цель ПО РЕФЛЕКТОРУ, которым атрибут снят.
+     * `ReflectionParameter`: `newInstance` проверяет цель ПО РЕФЛЕКТОРУ, которым атрибут снят.
      *
      * @param  class-string  $class
      * @return array<string, list<string>> имя свойства → синонимы; свойство без атрибута — БЕЗ ключа

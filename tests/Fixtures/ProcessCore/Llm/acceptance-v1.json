@@ -1,7 +1,8 @@
 {
   "format": "structured-ai-acceptance/v1",
   "captured_at": "2026-11-03",
-  "provenance": "Synthetic orchestration contracts and existing legacy eval inventory; expectations hand-authored, hashes computed from versioned bytes; no paid model invocation or source-original verification.",
+  "contract_hashes_refreshed_at": "2026-11-04",
+  "provenance": "Synthetic orchestration contracts and existing legacy eval inventory; expectations hand-authored, hashes computed from versioned bytes; no paid model invocation or source-original verification. Current contract hashes refreshed after bounded receipt-envelope and recovery-batch fixes with their regression tests; original capture date and legacy eval inventory retained.",
   "quality": {
     "status": "not_measured",
     "paid_holdout_executed": false,
@@ -13,43 +14,45 @@
   },
   "scenario_tests": {
     "T13": [
-      "tests/Feature/ProcessCore/Llm/T13CanonicalContractTest.php",
-      "tests/Feature/ProcessCore/Llm/T13GenerationReceiptDecoderTest.php",
-      "tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php",
-      "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php",
-      "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php"
+      "tests/Feature/ProcessCore/Llm/CanonicalContractTest.php",
+      "tests/Feature/ProcessCore/Llm/GenerationReceiptDecoderTest.php",
+      "tests/Feature/ProcessCore/Llm/ReceiptProvenanceTest.php",
+      "tests/Feature/ProcessCore/Llm/ExtractionFinalizationTest.php",
+      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
     ],
     "T14": [
-      "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-      "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php"
+      "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
+      "tests/Feature/ProcessCore/Llm/AssetContinuationTest.php"
     ],
     "T15": [
-      "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
-      "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php",
-      "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
-      "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php"
+      "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php",
+      "tests/Feature/ProcessCore/Llm/ProviderRecoveryConcurrencyTest.php",
+      "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
+      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
     ],
     "T22": [
-      "tests/Feature/ProcessCore/Llm/T22AnalysisRecipeTest.php",
-      "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
-      "tests/Feature/ProcessCore/Llm/T22PageExtractionPublicationTest.php",
-      "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
-      "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php"
+      "tests/Feature/ProcessCore/Llm/AnalysisRecipeTest.php",
+      "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
+      "tests/Feature/ProcessCore/Llm/PageExtractionPublicationTest.php",
+      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
+      "tests/Feature/ProcessCore/Llm/AcceptanceManifestTest.php"
     ],
     "T30": [
-      "tests/Feature/ProcessCore/Llm/T30BudgetLedgerTest.php",
-      "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
-      "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php"
+      "tests/Feature/ProcessCore/Llm/BudgetLedgerTest.php",
+      "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
+      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
     ],
     "T35": [
-      "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
-      "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php"
+      "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
+      "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php"
     ]
   },
   "inputs": [
     {
       "path": "docker/compose.core-test.yml",
-      "sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111"
+      "sha256": "08428fb40e87961c2fcd0ecbcf5aa25f489b082bd8da186d116ebe0221afa709",
+      "original_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111",
+      "before_polish_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111"
     },
     {
       "path": "app/Dto/Llm/Requests/ProviderUsage.php",
@@ -177,11 +180,15 @@
     },
     {
       "path": "app/Dto/Procurement/Ai/Screening/ScreeningResult.php",
-      "sha256": "40798aea297fbf825e8be57e6ea950ff88793c8522d6b1403781c8d3f0ea348e"
+      "sha256": "cd1d3ebab3ad439f415039bcb63efcf62e41e170cf8e47f76ca9bab88bbcb37d",
+      "original_sha256": "40798aea297fbf825e8be57e6ea950ff88793c8522d6b1403781c8d3f0ea348e",
+      "before_polish_sha256": "40798aea297fbf825e8be57e6ea950ff88793c8522d6b1403781c8d3f0ea348e"
     },
     {
       "path": "app/Dto/Procurement/Ai/Screening/ScreeningValueNormalizer.php",
-      "sha256": "f21db0543fa90c6edde80877994abde164096f537bd45c8ac1e4967aa541bfcd"
+      "sha256": "5c8a43d2b7314da9ab1b761ba44a678fab8bf96ebf389b1e10c52230a706dcd3",
+      "original_sha256": "f21db0543fa90c6edde80877994abde164096f537bd45c8ac1e4967aa541bfcd",
+      "before_polish_sha256": "f21db0543fa90c6edde80877994abde164096f537bd45c8ac1e4967aa541bfcd"
     },
     {
       "path": "app/Dto/Procurement/Ai/Screening/StoredScreeningResult.php",
@@ -205,7 +212,9 @@
     },
     {
       "path": "app/Dto/Procurement/Ai/Tuning/PromptSuggestionResponse.php",
-      "sha256": "91de5e29b02ed23d40457054c7c4cb4b81bfb0344408858cbfd5601725d92713"
+      "sha256": "f8271b886c16c65ef94e5a24d422517b1b289924a1b34aad44c9734eeeef1db4",
+      "original_sha256": "91de5e29b02ed23d40457054c7c4cb4b81bfb0344408858cbfd5601725d92713",
+      "before_polish_sha256": "91de5e29b02ed23d40457054c7c4cb4b81bfb0344408858cbfd5601725d92713"
     },
     {
       "path": "app/Dto/Procurement/Ai/ValidatedChunk.php",
@@ -221,7 +230,7 @@
     },
     {
       "path": "app/Services/Llm/Execution/ReceiptStore.php",
-      "sha256": "bb20541b2c775cf33f507c2fa273e34d59b8452dbd64ef21cb4962c4b409fdad"
+      "sha256": "53537f489cb1113acd9393d62d55e497464027e44e618b4b10f709326fc899c2"
     },
     {
       "path": "app/Services/Llm/Execution/StructuredCallExecutor.php",
@@ -245,23 +254,33 @@
     },
     {
       "path": "app/Services/Llm/Schema/ContractAttributeReader.php",
-      "sha256": "47830a73688354e92ca63b0205c7b7c543635ad9320be38bf7219547ccacc0f9"
+      "sha256": "9cfcd423873bfa7eb2d2a2560b8d88d96954b93b746f12aaaff52e9f96684dfe",
+      "original_sha256": "47830a73688354e92ca63b0205c7b7c543635ad9320be38bf7219547ccacc0f9",
+      "before_polish_sha256": "47830a73688354e92ca63b0205c7b7c543635ad9320be38bf7219547ccacc0f9"
     },
     {
       "path": "app/Services/Llm/Schema/DataTypeGraph.php",
-      "sha256": "61e29070121a5a9521c687ab4f5d1abb473be82e7fdc4d6471334fabcc497336"
+      "sha256": "c8de00ce3a99798342fdc27ed54b9050a76482cac520c1e6fc3931e4d0b60aae",
+      "original_sha256": "61e29070121a5a9521c687ab4f5d1abb473be82e7fdc4d6471334fabcc497336",
+      "before_polish_sha256": "61e29070121a5a9521c687ab4f5d1abb473be82e7fdc4d6471334fabcc497336"
     },
     {
       "path": "app/Services/Llm/Schema/GeminiResponseSchemaAdapter.php",
-      "sha256": "122af6d83830f9186cad49d837ebdaf096710350d0758575e57472a015031542"
+      "sha256": "0e589e2a6ca7fbca6ee882dd176be061399cdff9cdcc3ea04efa6098734b5fc0",
+      "original_sha256": "122af6d83830f9186cad49d837ebdaf096710350d0758575e57472a015031542",
+      "before_polish_sha256": "122af6d83830f9186cad49d837ebdaf096710350d0758575e57472a015031542"
     },
     {
       "path": "app/Services/Llm/Schema/JsonSchemaGenerator.php",
-      "sha256": "d92e25e184f2a0cd56988ebe1348fca78cc8756a1e746db33eb48a7c07e6010e"
+      "sha256": "79688a837dc98dbc352b165173515cb5b07bd0c7219f18ba608f352a4370622a",
+      "original_sha256": "d92e25e184f2a0cd56988ebe1348fca78cc8756a1e746db33eb48a7c07e6010e",
+      "before_polish_sha256": "d92e25e184f2a0cd56988ebe1348fca78cc8756a1e746db33eb48a7c07e6010e"
     },
     {
       "path": "app/Services/Llm/Schema/PromptContextGenerator.php",
-      "sha256": "b3a5920ee4ec17a7b2642407a3066eb5c90296b3b4272b00fa4f7160224649ce"
+      "sha256": "36af0bf0658c3dc1ba28649d2044482aebc4ee0de834b146aa6298750b8c5773",
+      "original_sha256": "b3a5920ee4ec17a7b2642407a3066eb5c90296b3b4272b00fa4f7160224649ce",
+      "before_polish_sha256": "b3a5920ee4ec17a7b2642407a3066eb5c90296b3b4272b00fa4f7160224649ce"
     },
     {
       "path": "app/Services/Llm/Schema/ProviderSchemaCompiler.php",
@@ -293,7 +312,9 @@
     },
     {
       "path": "app/Services/Procurement/Process/RecoveryReconciler.php",
-      "sha256": "84babdc83c80a436a2f30df7c2e90a46bef7a242dc068976f01d5b3051d098f6"
+      "sha256": "4ec4992a72810481f44fbd7f436ce6a4e7d073aae8d32f4cebb076b5b43b4e2a",
+      "original_sha256": "76029ae424584a7051ca1135e49d2fb350069783e981fda17e75e3958100b47b",
+      "before_polish_sha256": "76029ae424584a7051ca1135e49d2fb350069783e981fda17e75e3958100b47b"
     },
     {
       "path": "composer.lock",
@@ -428,60 +449,102 @@
       "sha256": "90819a482081c9bc45240a4dab5ecfcc41ddc0987a91d923e50c66aaaf8ff3b4"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T13CanonicalContractTest.php",
-      "sha256": "e11f477df0c281fe77f25b3b27e20213b9120985b6195e92edad5dbd11d61063"
+      "path": "tests/Feature/ProcessCore/Llm/CanonicalContractTest.php",
+      "sha256": "34469f05634adb8b9758b42eba0ccbe1d5d86d6ae0d24ed015bf41976e88b12b",
+      "original_path": "tests/Feature/ProcessCore/Llm/T13CanonicalContractTest.php",
+      "original_sha256": "e11f477df0c281fe77f25b3b27e20213b9120985b6195e92edad5dbd11d61063",
+      "before_polish_sha256": "d6a687d5c084b0619a1f1464c39fa4ad37c9cce6c08e57a1af528d3cd84b8f5b"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T13GenerationReceiptDecoderTest.php",
-      "sha256": "597d55b8755b1808b04814c8db38239fe727ebb5ccdc5080600ecbd4f06a2452"
+      "path": "tests/Feature/ProcessCore/Llm/GenerationReceiptDecoderTest.php",
+      "sha256": "4b2b512809fdb4c5971fa826f6938d124bd728618dd96b018d0d515b85ea80c5",
+      "original_path": "tests/Feature/ProcessCore/Llm/T13GenerationReceiptDecoderTest.php",
+      "original_sha256": "597d55b8755b1808b04814c8db38239fe727ebb5ccdc5080600ecbd4f06a2452",
+      "before_polish_sha256": "940965e5e95650bd0b038e081b1d7910494c082ae890f4cbf4c00488bbc948ee"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php",
-      "sha256": "a002738d922141fde832c72302998afeff9adada320da6cad10dfd89ccd1736b"
+      "path": "tests/Feature/ProcessCore/Llm/ReceiptProvenanceTest.php",
+      "sha256": "e648106b7ed0229bc9671379c05b2372ca428b20c71cbc5c8294e026b2b60788",
+      "original_path": "tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php",
+      "original_sha256": "fc3295a4f8ea484f5887c6fbcbb51dc68a07cf1784e7afd05d2b00c4d67cc148",
+      "before_polish_sha256": "f0e10ff45f0be497720f3acb12df83cda6712fb814f3757bfc308fa300c49265"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
-      "sha256": "7f9f5020f71bca605ea572604ce50caefbfd91042ad09e204fbfdb7c01f62978"
+      "path": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
+      "sha256": "feb0fd339e66a8fc8f6d73dcc5e3afea1ab5425767ee72db40e54c834c7a58ce",
+      "original_path": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
+      "original_sha256": "7f9f5020f71bca605ea572604ce50caefbfd91042ad09e204fbfdb7c01f62978",
+      "before_polish_sha256": "b58dd27225daa2d481b3e7a077dfcd59387b70dd83c67f194551b5af08d5cb49"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
-      "sha256": "9b19257e0e9f1d4bb1ca9411654a90dad3861c663d35f260cdf9d7f8fc4e88bf"
+      "path": "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php",
+      "sha256": "548a8a68d398570274be2f5db7b1d10ec16fbcae99eed498fd06d9f17e19f59b",
+      "original_path": "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
+      "original_sha256": "9b19257e0e9f1d4bb1ca9411654a90dad3861c663d35f260cdf9d7f8fc4e88bf",
+      "before_polish_sha256": "c00e49adcc3aea8007cc8eb81eb06bb586183ef8637b0cf251c15bf9ecd5d9ba"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php",
-      "sha256": "63bac6381774f4f9400b40956d0bfbdc525e063e9daa717d7fa1b79dbcf899d0"
+      "path": "tests/Feature/ProcessCore/Llm/ProviderRecoveryConcurrencyTest.php",
+      "sha256": "eb24c81754fce30b59efcc9c3c423bd725c134f9246fee2966207f4bc80df6ab",
+      "original_path": "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php",
+      "original_sha256": "63bac6381774f4f9400b40956d0bfbdc525e063e9daa717d7fa1b79dbcf899d0",
+      "before_polish_sha256": "3a7f960542c50d236d510a5c82489dfb5beac257bde73dad3dd3a015096d1678"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
-      "sha256": "c73d20017806309288a6c887029b8d5bc45ed59bb120292e8a2f9f59e9af385a"
+      "path": "tests/Feature/ProcessCore/Llm/AcceptanceManifestTest.php",
+      "sha256": "0debe64d0ad48526f44baf4442c6e17e1460c0bd6144c85ea5074ad157887e12",
+      "original_path": "tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php",
+      "original_sha256": "c73d20017806309288a6c887029b8d5bc45ed59bb120292e8a2f9f59e9af385a",
+      "before_polish_sha256": "0c3bfc0ef550a21f2a52f5e14cf09ba4e24efc3a92e9cc9da4e2c8ed011e422e"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T22AnalysisRecipeTest.php",
-      "sha256": "e11353a2d0268cbfc644ea9a14786d2d38220a3f6c7774aa2d0bee27957d0708"
+      "path": "tests/Feature/ProcessCore/Llm/AnalysisRecipeTest.php",
+      "sha256": "b88f254a7fe04f37e0b2dbad3ae3917df70151d42d67b52bf29cc9ee62137f6d",
+      "original_path": "tests/Feature/ProcessCore/Llm/T22AnalysisRecipeTest.php",
+      "original_sha256": "e11353a2d0268cbfc644ea9a14786d2d38220a3f6c7774aa2d0bee27957d0708",
+      "before_polish_sha256": "5e6132042eb2134607c9878b4b1d29e65cea76362f187ba0cfc2467e197d1dbe"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
-      "sha256": "a7b6702ec1ab72ff04a787cf98aa651bea9227e9c50cebb1cdda755efcdb25a5"
+      "path": "tests/Feature/ProcessCore/Llm/AssetContinuationTest.php",
+      "sha256": "ed5c6659f0bfeb0f6793f0b24130d80c9b3a135a737dc1157837ab7a43d06847",
+      "original_path": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
+      "original_sha256": "a7b6702ec1ab72ff04a787cf98aa651bea9227e9c50cebb1cdda755efcdb25a5",
+      "before_polish_sha256": "f2503a152129a06628a3f7119d1dbc63e261a903fe5aa16258dc4be40576438e"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php",
-      "sha256": "7427c8ef9e0ac77dd474b693b800e52fce0e3531f142d071a60aed2a9c067069"
+      "path": "tests/Feature/ProcessCore/Llm/ExtractionFinalizationTest.php",
+      "sha256": "d957504f89436a08e62d1deaccdd0ab480950194479496c8d6e695d75bd6e541",
+      "original_path": "tests/Feature/ProcessCore/Llm/T22ExtractionFinalizationTest.php",
+      "original_sha256": "7427c8ef9e0ac77dd474b693b800e52fce0e3531f142d071a60aed2a9c067069",
+      "before_polish_sha256": "ea260fe6a8aeb088c82b26c85b0108d041af1d708fd1c3377e5b15ac9be8a142"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
-      "sha256": "dacf17d6d6bfae508bb965ec846bddc83c8fcac6d9c777be60bb0b0f2578a798"
+      "path": "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
+      "sha256": "e387319d87c8bd2cc28df793a5e9fe4f189c7ba534c2e80c4137d2e17414b64d",
+      "original_path": "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
+      "original_sha256": "dacf17d6d6bfae508bb965ec846bddc83c8fcac6d9c777be60bb0b0f2578a798",
+      "before_polish_sha256": "b078a4ecc36ce3a1fdea0064421b211d0bcd0a8ac4f9739c4c09fdcd3d602b71"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T22PageExtractionPublicationTest.php",
-      "sha256": "663eb8264b341550d087ad05c8cc38eeba333f9118a3f721a9fcdf7c79a1af72"
+      "path": "tests/Feature/ProcessCore/Llm/PageExtractionPublicationTest.php",
+      "sha256": "5619941b8060762066ec49ecd7aee629789d6fbd22ff42bb56daa285ba577133",
+      "original_path": "tests/Feature/ProcessCore/Llm/T22PageExtractionPublicationTest.php",
+      "original_sha256": "663eb8264b341550d087ad05c8cc38eeba333f9118a3f721a9fcdf7c79a1af72",
+      "before_polish_sha256": "36125e6a29ea22947578cfdf6d036538543c9ea06d584208be5f9b13b8b5bf2a"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
-      "sha256": "46e77f62c780d331ce490c88dbc34b8abadff23dfbfe0e924f387bd95f4a1be3"
+      "path": "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
+      "sha256": "e99194d7d4e007c53d95a18b2e99082b7a24e443178b65a3e82a56e66bad8bc0",
+      "original_path": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
+      "original_sha256": "46e77f62c780d331ce490c88dbc34b8abadff23dfbfe0e924f387bd95f4a1be3",
+      "before_polish_sha256": "ee495e95ec8cdc92f53f358a144838f536c02a96e48173bbac92382baea93961"
     },
     {
-      "path": "tests/Feature/ProcessCore/Llm/T30BudgetLedgerTest.php",
-      "sha256": "b3b4affc2a8ba0522edcaf9fca7879b4ba50b7f857726df29cbe2a148c536e70"
+      "path": "tests/Feature/ProcessCore/Llm/BudgetLedgerTest.php",
+      "sha256": "b1bc85f108c17deb185b53746bc0645721999267affc5aa1ba6a60f8024410c7",
+      "original_path": "tests/Feature/ProcessCore/Llm/T30BudgetLedgerTest.php",
+      "original_sha256": "b3b4affc2a8ba0522edcaf9fca7879b4ba50b7f857726df29cbe2a148c536e70",
+      "before_polish_sha256": "2d2ec41ef55abb0f4797a40d3cdef515433aaa38adf807657292bde661cdb2bc"
     },
     {
       "path": "tests/Fixtures/Llm/step-json-schemas.json",
@@ -500,8 +563,11 @@
       "sha256": "a104d519fdb5bdb69d760e00772e6133e72ac48df3d29c21ea2c525d11558bad"
     },
     {
-      "path": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
-      "sha256": "3985807e1d3087565345db46f99eb544882881b9866ea032a5d214bb41badba6"
+      "path": "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
+      "sha256": "638a3c6e01ba9a755ba54754f58445985fa00902259f487ac970512c021de89a",
+      "original_path": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
+      "original_sha256": "3985807e1d3087565345db46f99eb544882881b9866ea032a5d214bb41badba6",
+      "before_polish_sha256": "53bfc714887ab48433f91153340129e3a5c8ec975335491560f32a0252e319d7"
     },
     {
       "path": "tests/Support/ProcessCore/StructuredChainFixtures.php",

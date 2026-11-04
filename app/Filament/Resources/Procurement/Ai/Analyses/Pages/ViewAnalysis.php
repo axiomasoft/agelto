@@ -24,9 +24,8 @@ use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Операторский цикл (P9.2, Intent п.3): «Проверено», «Отклонить с коррекцией», «Перезапустить
- * разбор» — минимальные действия на карточке анализа (Scope Included — «полноценная витрина —
- * Фаза 7 роадмапа»).
+ * Операторские действия на карточке анализа: «Проверено», «Отклонить с коррекцией»,
+ * «Перезапустить разбор».
  */
 class ViewAnalysis extends ViewRecord
 {
@@ -43,8 +42,8 @@ class ViewAnalysis extends ViewRecord
     }
 
     /**
-     * Вход на витрину финального промта (P5.5, D46) из карточки анализа — второй, помимо строки
-     * прогона, вход, названный Scope Included P5.5.
+     * Вход на витрину финального промта из карточки анализа — второй, помимо строки
+     * прогона.
      */
     private function finalPromptAction(): Action
     {
@@ -57,11 +56,10 @@ class ViewAnalysis extends ViewRecord
     }
 
     /**
-     * «Проверено» — доступна только при `status=succeeded` (Code Guidance) И `review_status`
-     * ещё не `approved`: без второго условия кнопка остаётся видимой после одобрения (ревью
-     * P9.3, HIGH) и повторный клик/сабмит дублирует immutable gold-версию
+     * «Проверено» — доступна только при `status=succeeded` И `review_status`
+     * ещё не `approved`: без второго условия кнопка остаётся видимой после одобрения, и повторный клик/сабмит дублирует immutable gold-версию
      * (`GoldExampleRecorder`). `review_status !== Approved` в действии — тот же guard ещё раз,
-     * на случай устаревшего `$record` в момент клика (visible() рендерится раньше, чем
+     * на случай устаревшего `$record` в момент клика (visible рендерится раньше, чем
      * обрабатывается action) — идемпотентность без изменения схемы `prc_ai_dataset_examples`
      * (в ней нет `analysis_id`, docblock `GoldExampleRecorder`).
      */
@@ -87,7 +85,7 @@ class ViewAnalysis extends ViewRecord
                     'reviewed_at' => now(),
                 ]);
 
-                // P9.3: approve — единственная точка входа gold-петли (`GoldExampleRecorder`
+                // approve — единственная точка входа gold-петли (`GoldExampleRecorder`
                 // читает уже обновлённые `reviewed_by`/`reviewed_at` того же объекта `$record`).
                 app(GoldExampleRecorder::class)->record($record);
 
@@ -96,14 +94,14 @@ class ViewAnalysis extends ViewRecord
     }
 
     /**
-     * Форма фиксирует структурированную коррекцию (`prc_ai_corrections`, P9.1) — `field_path`
+     * Форма фиксирует структурированную коррекцию (`prc_ai_corrections`) — `field_path`
      * необязателен (весь документ, если не указан конкретный JSONPath); `hint` заполняется
      * позже (переформулировка для промта — вне этого action'а, `hint ?? content` на композиции).
      *
-     * `prc_ai_corrections.document_type` — `NOT NULL` (§3.2 root/document-type-axis.md), а
-     * `prc_ai_analyses.document_type` остаётся nullable (§3.1: скрининг ещё не отработал) —
+     * `prc_ai_corrections.document_type` — `NOT NULL`, а
+     * `prc_ai_analyses.document_type` остаётся nullable (скрининг ещё не отработал) —
      * коррекция над анализом без вердикта скрининга недоступна: молчаливая подстановка
-     * `unknown` соврала бы про вердикт (Implementation Rules P1.4 п. 12).
+     * `unknown` соврала бы про вердикт.
      */
     private function rejectWithCorrectionAction(): Action
     {

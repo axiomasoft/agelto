@@ -11,13 +11,10 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Единственная точка «по записи дай диск и путь» / «на какой диск класть НОВЫЙ объект»
- * (P6.3, `research/07-storage-addressing.md` §4.2). Read-половина фолбэкает `null` в колонке
- * диска на конфиг-ключ носителя (D51 — фолбэк снимает материализация P6.5, не код), а затем
- * пробует конфиг-цепочку предыдущих поколений на окно cutover, если объекта нет на диске записи
- * (P6.4, §5): фолбэк реагирует ТОЛЬКО на `exists() === false`, исключение драйвера пробрасывается.
- * Write-половина (`current*Disk()`) — единственный легальный читатель конфиг-ключей диска в
- * проекте (`tests/Feature/Storage/StorageAddressingGateTest.php`).
+ * Резолвит disk/path записи и текущий disk новых объектов. Null disk читается из
+ * конфигурации носителя до материализации. При отсутствии объекта проверяются предыдущие
+ * поколения disks; driver exception пробрасывается, fallback запускается только по exists=false.
+ * Write-методы current*Disk() централизуют чтение конфигурации адреса новых объектов.
  */
 final readonly class FileLocationResolver
 {
@@ -70,9 +67,8 @@ final readonly class FileLocationResolver
     }
 
     /**
-     * Автомат фолбэка (`research/07-storage-addressing.md` §5): диск записи → при отсутствии
-     * объекта — цепочка от новых поколений к старым, ровно один `exists()` на диск. Read-only:
-     * копирование, запись и обновление строки здесь не происходят (D52).
+     * Read-only поиск: disk записи, затем fallback disks от новых поколений к старым.
+     * На каждый disk приходится один exists(); копирование и обновление записи здесь не выполняются.
      *
      * @param  list<string>  $fallbackDisks
      */

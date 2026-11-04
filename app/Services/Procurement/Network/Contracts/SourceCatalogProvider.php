@@ -8,9 +8,9 @@ use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 
 /**
- * Source targets одной площадки для explicit catalog sync. Реализация собирает typed definitions
- * только из config: никакого DB/network I/O (boot и DI безопасны). P2.9–P2.12 подключает сюда
- * PlatformDefinition; до этого регистрируются только test fixtures.
+ * Typed source targets для explicit catalog sync. Реализация собирает definitions только
+ * из config, без DB/network I/O. Runtime registry принимает здесь provider catalogs;
+ * catalogs площадок поступают через PlatformDefinition.
  */
 interface SourceCatalogProvider
 {

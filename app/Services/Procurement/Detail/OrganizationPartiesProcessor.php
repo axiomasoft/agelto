@@ -12,11 +12,9 @@ use App\Services\Organization\OrganizationResolver;
 use Illuminate\Support\Facades\DB;
 
 /**
- * DTO → БД для ролей организаций вкладки `common-info`: резолв каждой организации через
- * {@see OrganizationResolver} (единая точка создания/поиска `org_organizations`), запись
- * `prc_procurement_parties` и денормализации `prc_procurements.customer_org_id` из роли
- * `customer` — через {@see ProcurementPartyStoreRepository} (`01-database.md` §2–§3, D15).
- * Победитель/участники (`winner`/`participant`) — вне этого процессора (P3.7).
+ * Записывает организации common-info через OrganizationResolver и ProcurementPartyStoreRepository.
+ * Роль customer обновляет prc_procurements.customer_org_id. Winner и participant
+ * обрабатываются процессором supplier-results.
  */
 final readonly class OrganizationPartiesProcessor
 {

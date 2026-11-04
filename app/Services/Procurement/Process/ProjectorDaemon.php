@@ -17,7 +17,7 @@ use App\Services\Procurement\Process\Contracts\ProcessDaemon;
 use Illuminate\Support\Str;
 
 /**
- * Projector daemon (bp-daemons, observability#s03/#s08): tick 1 s, claim-ит ТОЛЬКО kind projection по
+ * Projector daemon: tick 1 s, claim-ит ТОЛЬКО kind projection по
  * token CAS и применяет событие всем registered reducers. Сообщение подтверждается (published) лишь
  * после receipts всех обязательных получателей: частичный crash/replay безопасен, потому что дубликат
  * отсекает receipt. Maintenance откладывает сообщение без degraded; неподдерживаемая schema, неверный

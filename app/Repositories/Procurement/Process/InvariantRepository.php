@@ -27,8 +27,8 @@ final readonly class InvariantRepository
      * writers cannot move a healthy group midway through that snapshot. Heartbeat is work-only
      * and does not change any predicate here. No work/subject/incident writes in this transaction.
      *
-     * Current CapacityAuthority contains lanes only; storage-transfer ledgers are not installed
-     * by P1. No fabricated future storage tables, object I/O, or release of storage reservations.
+     * This scan checks admission lane capacity. It performs no object I/O and does not release
+     * storage reservations or mutate storage-transfer ledgers.
      *
      * @return list<InvariantViolation>
      */

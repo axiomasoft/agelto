@@ -136,7 +136,7 @@
           "target": "docs/dev/subagents-and-workflows.md",
           "kind": "template",
           "base_sha256": "e856da3893969df31b52ef1b71c6a10ca6d01a2953915f715c97aedd2fca53b7",
-          "local_modified": false,
+          "local_modified": true,
           "user_owned": false
         },
         {

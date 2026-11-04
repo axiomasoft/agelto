@@ -8,9 +8,9 @@ use App\Enums\Procurement\Estimate\IncompleteReason;
 use App\Enums\Procurement\Estimate\RowType;
 use App\Services\Procurement\Analyzers\Estimate\EstimateStitcher;
 
-// Юнит-тесты чистой функции (Scope Included P6.2) — без LLM/БД, входы строятся напрямую из
-// P2.2-контрактов (тот же стиль builder-функций, что ExtractionOrchestratorTest, прецедент
-// Known Deviations P6.1: JSON-фикстур tests/fixtures/extraction/*.json в кодовой базе нет ни у
+// Юнит-тесты чистой функции (Scope Included ) — без LLM/БД, входы строятся напрямую из
+// контрактов (тот же стиль builder-функций, что ExtractionOrchestratorTest, прецедент
+// Known Deviations JSON-фикстур tests/fixtures/extraction/*.json в кодовой базе нет ни у
 // одного закрытого LLM-item'а).
 
 function row(

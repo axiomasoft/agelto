@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Process;
 
 /**
- * Исход одной admit tx (bp-sql-admit). Admitted — единственный grant; Superseded — fenced
+ * Исход одной admit tx. Admitted — единственный grant; Superseded — fenced
  * invalidation stale input; остальные откатывают tx без записей.
  */
 enum AdmissionStatus: string

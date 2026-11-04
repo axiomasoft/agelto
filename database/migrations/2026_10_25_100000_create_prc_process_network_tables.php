@@ -6,18 +6,16 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * P2.1: baseline network authority (platform-transport#s06, implementation-blueprint#bp-ddl-network).
- * Имя файла сортируется сразу после Process ledger и до `..._100001_create_prc_request_observation_tables`:
- * request attempts объявляют FK на routes/targets в своём CREATE, поэтому эти таблицы создаются раньше.
+ * Network authority создаётся после Process ledger и до request observations,
+ * чтобы request attempts сразу ссылались FK на реальные routes и targets.
  *
- * Порядок FK: routes/profiles → source targets → health rows → outbound operation owner → budgets →
- * demands → permits → permit scopes. Новые identities uuid, platform_id остаётся bigint.
- * `prc_network_permit_scopes.permit_id` — единственное composition-child исключение CASCADE (D27);
- * все остальные FK NO ACTION. Demand owner — ровно один из (work+attempt+generation) или
- * (operation+generation): CHECK явно проверяет IS NOT NULL, SQL UNKNOWN не пропускает половину owner.
+ * Порядок FK: routes/profiles → source targets → health → outbound owners → budgets →
+ * demands → permits → permit scopes. Identities используют UUID, platform_id — bigint.
+ * CASCADE применяется только к permit scopes как составной части permit;
+ * остальные FK сохраняют NO ACTION. CHECK demand owner требует полностью заданный
+ * work/attempt/generation либо operation/generation и не допускает половинчатый owner.
  *
- * Активация (permits/health writers, cutover callers) — P2.2–P2.6; catalog rows создаёт только
- * явный `platform:sync-catalog`, не migration/seed и не boot.
+ * Каталожные строки устанавливает явный `platform:sync-catalog`, а не migration/seed/boot.
  */
 return new class extends Migration
 {
@@ -284,7 +282,7 @@ return new class extends Migration
             SQL,
             "CREATE INDEX prc_network_permits_active ON prc_network_permits(expires_at) WHERE state IN ('reserved','sent')",
             'CREATE INDEX prc_network_permits_authorized ON prc_network_permits(authorized_at) WHERE authorized_at IS NOT NULL',
-            // Composition child (D27): permit row владеет точным scope set; budgets — NO ACTION.
+            // Composition child: permit row владеет точным scope set; budgets — NO ACTION.
             <<<'SQL'
             CREATE TABLE prc_network_permit_scopes (
               permit_id uuid NOT NULL REFERENCES prc_network_permits(id) ON DELETE CASCADE,

@@ -16,7 +16,7 @@ use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/** Allocates durable due cycles only. Independent feeder activation belongs to P3.5. */
+/** Allocates durable due cycles only. DocumentFeeder owns activation. */
 final readonly class DocumentRevalidator
 {
     public function __construct(private ProcessTransaction $transactions, private WorkStoreRepository $works) {}

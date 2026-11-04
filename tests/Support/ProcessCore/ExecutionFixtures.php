@@ -25,10 +25,10 @@ use App\Services\Procurement\Process\StageRegistry;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Fixture handlers и реальные ledger rows для admission/claim (P1.7). Handler — только
+ * Fixture handlers и реальные ledger rows для admission/claim. Handler — только
  * зарегистрированная fixture version; реальные acquisition/AI handlers не активируются. Raw SQL
  * здесь лишь моделирует факты будущих владельцев (возраст work, истёкшая delivery, held handler
- * detector P1.11), а не обходит API исполнения.
+ * detector ), а не обходит API исполнения.
  */
 final class ExecutionFixtures
 {
@@ -145,7 +145,7 @@ final class ExecutionFixtures
         DB::update('UPDATE prc_process_work SET created_at = clock_timestamp() - make_interval(secs => ?) WHERE id = ?', [$seconds, $work->value->value]);
     }
 
-    /** Held handler version с incident: состояние, которое создаёт fault detector (P1.11). */
+    /** Held handler version с incident: состояние, которое создаёт fault detector. */
     public static function holdHandler(StageCode $stage): void
     {
         self::inTransaction(static function () use ($stage): void {

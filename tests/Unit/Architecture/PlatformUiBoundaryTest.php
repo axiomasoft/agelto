@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Finder\Finder;
 
-pest()->group('t48', 'p33');
+pest()->group('platform-ui-boundary');
 
 function platformUiImportsImplementation(string $source): bool
 {
@@ -15,13 +15,13 @@ function platformUiImportsImplementation(string $source): bool
         || preg_match('/^\s*use\s+[^;{]+\{/m', $source) === 1;
 }
 
-test('T48 generic procurement resources импортируют только optional UI seam', function (): void {
+test('generic procurement resources импортируют только optional UI seam', function (): void {
     foreach (Finder::create()->files()->name('*.php')->in(app_path('Filament/Resources/Procurement/Procurements')) as $file) {
         expect(platformUiImportsImplementation((string) file_get_contents($file->getPathname())), $file->getPathname())->toBeFalse();
     }
 });
 
-test('T48 UI guard обнаруживает forbidden import и fully qualified class string', function (): void {
+test('UI guard обнаруживает forbidden import и fully qualified class string', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'platform-ui-');
     if ($path === false) {
         throw new RuntimeException('Cannot create negative source fixture.');

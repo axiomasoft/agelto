@@ -32,7 +32,7 @@ test('гидрирует паспорт сметы из спеки 08 §1.1', fu
         ->and($passport->generator)->toBe('Гранд-Смета');
 });
 
-test('гидрирует паспортный блок нормативной базы из research/06 §2 (GAP-8, P5.5)', function (): void {
+test('гидрирует паспортный блок нормативной базы', function (): void {
     $response = PassportResponse::from([
         'passport' => [
             'reference' => 'проектная документация шифр 17-СМ-0042',

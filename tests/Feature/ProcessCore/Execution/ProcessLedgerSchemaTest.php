@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
-pest()->group('t01', 'p16');
+pest()->group('ledger-authority');
 
 /** @return array<string, string> constraint name → pg_get_constraintdef */
 function processLedgerConstraints(string $table): array
@@ -31,7 +31,7 @@ function processLedgerCheckValues(string $definition): array
     return $matches[1];
 }
 
-test('P1.6 baseline создаёт весь ledger в порядке FK и не создаёт prc_process_controls', function (): void {
+test('baseline создаёт весь ledger в порядке FK и не создаёт prc_process_controls', function (): void {
     $tables = collect(DB::select("SELECT tablename FROM pg_tables WHERE schemaname = 'public'"))->pluck('tablename');
 
     expect($tables)->toContain(
@@ -61,7 +61,7 @@ test('P1.6 baseline создаёт весь ledger в порядке FK и не 
     )->and(collect($foreignKeys)->filter(fn (string $fk): bool => str_ends_with($fk, ':c'))->values()->all())
         ->toBe(['prc_process_reservations→prc_admission_groups:c']);
 
-    // P3.8 installs real canonical analysis owner FKs; handler activation remains separate.
+    // installs real canonical analysis owner FKs; handler activation remains separate.
     expect(collect($foreignKeys)->filter(fn (string $fk): bool => str_contains($fk, 'version') || str_contains($fk, 'analysis'))->sort()->values()->all())->toBe(['prc_process_work→prc_analysis_runs:a', 'prc_process_work→prc_analysis_windows:a', 'prc_process_work→prc_document_versions:a']);
 });
 
@@ -109,7 +109,7 @@ test('owner tuple CHECK требует ровно один owner своей ст
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['crawl_block_id' => null, 'procurement_id' => $procurementId])))->toBe('23514')
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['stage' => 'detail', 'crawl_block_id' => null])))->toBe('23514')
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['stage' => 'detail', 'crawl_block_id' => null, 'procurement_id' => $procurementId])))->toBeNull()
-        // P3.1 prepare теперь schema-supported, но несуществующая version отвергается настоящим FK.
+        // prepare теперь schema-supported, но несуществующая version отвергается настоящим FK.
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['stage' => 'prepare', 'crawl_block_id' => null, 'document_version_id' => 7])))->toBe('23503')
         ->and(LedgerFixtures::sqlState(fn () => LedgerFixtures::insertRawWork($subject['block'], ['document_version_id' => 7])))->toBe('23514')
         // Нет fake owner rows: несуществующий crawl block/procurement отвергается FK.

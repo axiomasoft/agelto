@@ -9,8 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Process incident: один нерешённый на fingerprint (partial unique). Legacy prc_source_incidents
- * остаётся отдельной таблицей до P3.17.
+ * Process incident: один нерешённый на fingerprint (partial unique).
  *
  * @property string $id
  * @property mixed $fingerprint

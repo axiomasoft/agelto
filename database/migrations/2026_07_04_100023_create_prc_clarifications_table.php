@@ -28,7 +28,7 @@ return new class extends Migration
 
             $table->foreignId('document_version_id')
                 ->nullable()
-                ->index() // P7.5, F-01: индекс ведущей колонки FK.
+                ->index() // индекс ведущей колонки FK.
                 ->constrained(table: (new DocumentVersion)->getTable())
                 ->nullOnDelete();
 

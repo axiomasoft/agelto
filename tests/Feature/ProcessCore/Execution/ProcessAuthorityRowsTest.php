@@ -16,7 +16,7 @@ use Illuminate\Config\Repository;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
-pest()->group('t01', 'p16');
+pest()->group('ledger-authority');
 
 /** Policy из versioned config/process.php после явной мутации массива (lane keys содержат точки). */
 function processPolicyWith(Closure $mutate): ProcessPolicy
@@ -124,7 +124,7 @@ test('ensureBaseline материализует scopes и lanes только sch
         ->and($scopes['documents:stage:download']->parent_id)->toBe($scopes['documents']->id)
         // Default-enabled — состояние существующей authority row, а не отсутствие row.
         ->and($scopes->every(fn (ControlScope $scope): bool => $scope->desired_mode === ControlMode::Enabled && $scope->control_version === 1))->toBeTrue()
-        // P3.8 adds extraction/publication authorities without real AI handler activation.
+        // adds extraction/publication authorities without real AI handler activation.
         ->and($lanes->keys()->sort()->values()->all())->toBe(['acquisition', 'acquisition.detail', 'acquisition.listing', 'acquisition.status_refresh', 'analysis', 'analysis.extraction', 'analysis.screening', 'download', 'prepare', 'publication'])
         ->and($lanes['acquisition.listing']->parent_lane_id)->toBe($lanes['acquisition']->id)
         ->and([$lanes['acquisition.listing']->max_outstanding, $lanes['acquisition.listing']->max_running])->toBe([10, 2])
@@ -209,7 +209,7 @@ test('handler registration материализует healthy row, повтор 
         ->and($next->eligibility)->toBe(HandlerEligibility::Healthy)
         ->and($next->id)->not->toEqual($healthy->id)
         ->and(DB::table('prc_process_handler_holds')->where('handler_version', 'fixture-listing/1')->value('incident_id'))->toBe($incident)
-        // P3.8 schema support permits explicit fixture registration; no live handler is bound.
+        // schema support permits explicit fixture registration; no live handler is bound.
         ->and($sync->registerHandler(StageCode::Extraction, 'fixture-extraction/1')->eligibility)->toBe(HandlerEligibility::Healthy)
         ->and(DB::table('prc_process_handler_holds')->count())->toBe(3);
 });

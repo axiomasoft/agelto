@@ -22,10 +22,7 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
-/**
- * Девять гейтов контракта `root/document-contour.md` (§7, D91/D92/D93) — единый контур
- * «обучение ↔ боевой разбор»: ось площадки, связь документа с эталоном, прогон.
- */
+/** Проверяет границы связи обучения, эталонов и производственного разбора. */
 test('документ без platform_id не создаётся (NOT NULL)', function (): void {
     expect(fn () => Document::factory()->create(['platform_id' => null]))
         ->toThrow(QueryException::class);

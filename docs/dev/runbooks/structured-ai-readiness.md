@@ -14,7 +14,7 @@ P3.14 связывает finance → joint network claim → immutable receipt �
 `tests/Fixtures/ProcessCore/Llm/acceptance-v1.json` фиксирует SHA-256 контрактов, prompts,
 schema golden, model/HTTP fixtures, затронутой реализации и owning test files.
 Корневой `tests/Fixtures/ProcessCore/manifest.json` связывает этот manifest и generation envelope
-с provenance и T IDs. `T22AcceptanceManifestTest` проверяет актуальные bytes и legacy eval inventory.
+с provenance и T IDs. `AcceptanceManifestTest` проверяет актуальные bytes и legacy eval inventory.
 Это исходные входы проверки; executed results, candidate fingerprint и логи хранятся отдельно
 в `storage/app/testing/process-core/reports/<run-id>/`. Commit создаёт coordinator.
 
@@ -46,9 +46,9 @@ Interactions/Gemini 4 Argon и новее. Local wire не доказывает 
 Для узкой проверки в уже проверенном isolated app:
 
 ```bash
-php vendor/bin/pest --no-tia tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php
-php vendor/bin/pest --no-tia tests/Feature/ProcessCore/Llm/T13ReceiptProvenanceTest.php
-php vendor/bin/pest --no-tia tests/Feature/ProcessCore/Llm/T22AcceptanceManifestTest.php
+php vendor/bin/pest --no-tia tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php
+php vendor/bin/pest --no-tia tests/Feature/ProcessCore/Llm/ReceiptProvenanceTest.php
+php vendor/bin/pest --no-tia tests/Feature/ProcessCore/Llm/AcceptanceManifestTest.php
 ```
 
 Domain suites и полный no-TIA regression выполняет coordinator. Эти новые tests не заменяют

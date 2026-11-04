@@ -25,7 +25,7 @@ use App\Services\Procurement\Process\WorkFeeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Fixture finalize/lease (P1.8). До P1.11 нет настоящего RecoveryReconciler, до P1.17 — CancelWork:
+ * Fixture finalize/lease.
  * revoke() — контролируемая generation revocation под тем же полным prefix, а не fake recovery
  * evidence. Raw SQL лишь моделирует ход времени (истёкший lease, наступивший due). Barriers
  * упорядочивают реальные PostgreSQL connections без sleep: holder держит locks своей операции до

@@ -10,7 +10,7 @@ use App\Repositories\Procurement\Process\RunReadRepository;
 use Illuminate\Support\Facades\Context;
 
 /**
- * Correlation одного attempt (observability#s02): ID берутся из БД на claim, а Laravel Context
+ * Correlation одного attempt: ID берутся из БД на claim, а Laravel Context
  * существует только на время работы и восстанавливается в finally, поэтому следующий job не
  * наследует run/work/attempt/platform/URL/actor предыдущего. Недоступность БД не ломает delivery:
  * контекст теряет только run/platform.

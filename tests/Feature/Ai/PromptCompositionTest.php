@@ -56,7 +56,7 @@ test('синонимы словарей доезжают до боевой си�
 
     // Ровно то, что собирают боевые потребители шага (RowRangeChunkSource, WindowedChunkSource,
     // DatasetExporter): обёртка ответа + словари, объявленные ТИПОМ. Список словарей руками сюда
-    // не переписывается — иначе тест был бы зелен по построению, как до P6.1.
+    // не переписывается — иначе тест был бы зелен по построению, .
     $systemPart = app(PromptComposer::class)
         ->compose($step, [RowsChunkResponse::class, ...$dictionaries->forStep($step)])
         ->systemPart;
@@ -66,18 +66,18 @@ test('синонимы словарей доезжают до боевой си�
     }
 
     // Словарь ресурсов приезжает ЗАМЫКАНИЕМ (RowsChunkResponse → EstimateRow → RowResource),
-    // а не объявлением — обе половины D51 проверяются одним боевым составом.
+    // а не объявлением — обе половины проверяются одним боевым составом.
     foreach (['ОТ(ЗТ)', 'ОТм(ЗТм)', 'ФССЦ'] as $resourceSynonym) {
         expect($systemPart)->toContain($resourceSynonym);
     }
 
-    // Форма носителя — выбранная OQ-2 (вариант C, D101): типизированный рендер по атрибутам,
+    // Форма носителя — выбранная OQ-2 (вариант C): типизированный рендер по атрибутам,
     // а не PHP-исходник и не проза промта.
     expect($systemPart)->toContain('- row_index: «№ п/п»')
         ->and($systemPart)->toContain('- labor: «ЗП»');
 });
 
-test('системная часть ни одного шага не несёт исходника контракта ответа (D8 шаг 3)', function (): void {
+test('системная часть ни одного шага не несёт исходника контракта ответа (шаг 3)', function (): void {
     $composer = app(PromptComposer::class);
     $dictionaries = app(EstimateStepDictionaries::class);
 
@@ -94,8 +94,8 @@ test('системная часть ни одного шага не несёт �
         $systemPart = $composer->compose($step, [$root, ...$dictionaries->forStep($step)])->systemPart;
 
         // Структуру контракта несёт ИСХОДЯЩАЯ СХЕМА (`response_schema` + `#[Description]`,
-        // P2.3/P2.4). Маркер печати исходника v1 и его синтаксические следы в системной части
-        // означали бы возврат второго носителя той же структуры (D101).
+        // /). Маркер печати исходника v1 и его синтаксические следы в системной части
+        // означали бы возврат второго носителя той же структуры.
         foreach (['// --- Source:', 'final class', 'extends Data', 'public function __construct'] as $marker) {
             expect([$step->value, $marker, str_contains($systemPart, $marker)])->toBe([$step->value, $marker, false]);
         }

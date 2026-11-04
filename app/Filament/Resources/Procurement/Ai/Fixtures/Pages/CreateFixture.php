@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /**
- * Загрузка идёт через `FixtureUploader` (D133), НЕ через дефолтный `Model::create($data)`:
+ * Загрузка идёт через `FixtureUploader`, НЕ через дефолтный `Model::create($data)`:
  * код и путь эталона считает модель `Fixture`, дедуп по sha256 — сервис. Дубль отклоняется
  * `FixtureAlreadyUploaded` — показывается уведомлением, форма остаётся на странице (`Halt`).
  */

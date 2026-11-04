@@ -9,7 +9,7 @@ namespace App\Dto\Procurement\Crawler;
  * `blockFrom` — общий (fresh/archive); `day`/`priceStack`/`dateField` — только archive
  * (ценовое дробление, `02-crawling.md` §4.2): `dateField` — агностичная метка, КАКОЕ
  * date-окно дренируется (`publish`|`update`, зеркалит `WindowFilter->dateField`), площадко-
- * специфичное имя query-параметра резолвит `EisCsvUrlBuilder`, не курсор (D21); `reachedKnown`
+ * специфичное имя query-параметра резолвит `EisCsvUrlBuilder`, не курсор; `reachedKnown`
  * — fresh достиг известного/cap-блока.
  */
 final readonly class ListingCursor

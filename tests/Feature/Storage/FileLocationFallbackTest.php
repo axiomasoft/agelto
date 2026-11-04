@@ -8,12 +8,7 @@ use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
-/*
- * Автомат фолбэка на окно cutover (P6.4, `research/07-storage-addressing.md` §5): диск записи →
- * при отсутствии объекта — цепочка от новых поколений к старым, ровно один `exists()` на диск.
- * Read-only, никакого copy-on-read (D52).
- */
-
+/** Проверяет read-only fallback между поколениями адресов файлов. */
 beforeEach(function (): void {
     Storage::fake('documents_v2');
     Storage::fake('documents_v1');

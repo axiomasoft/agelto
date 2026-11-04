@@ -7,19 +7,12 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Выставляет `partman.part_config.retention`/`retention_keep_table` для эфемерных
- * лог-таблиц (`config('partitioning.retention')`, P7.7, D33) — партиции, зарегистрированные
- * миграцией `2026_07_04_100047_setup_pg_partman.php` БЕЗ retention (research/L finding 4),
- * теперь дропаются `partman.run_maintenance()` (уже вызывается `partitions:maintain`) по
- * истечении окна хранения. `prc_revisions` НЕ упомянута в `config('partitioning.retention')`
- * (D41 — история редакций закупок = доменный аудит, не эфемерный лог) — её
- * `part_config.retention` остаётся `NULL`, партиции не дропаются никогда.
+ * лог-таблиц из `partitioning.retention`. `partitions:maintain` вызывает
+ * `partman.run_maintenance()`, которая удаляет партиции за пределами окна хранения.
+ * `prc_revisions` сохраняет доменный аудит: её retention остаётся NULL.
  *
- * Raw-SQL с проверкой «уже выставлен» — тот же приём, что `create_parent` в 100047
- * (Code Guidance P7.7): `migrate:fresh` в dev пересоздаёт схему `public`, но НЕ дропает
- * `partman.part_config` (отдельная схема), поэтому повторный прогон не должен падать
- * на попытке выставить retention дважды — здесь это просто идемпотентный `UPDATE`
- * (в отличие от `create_parent`, повторный `UPDATE ... SET` тех же значений не ошибка,
- * проверка добавлена только чтобы не делать лишний SQL-вызов на каждый `migrate:fresh`).
+ * Идемпотентный UPDATE нужен и для повторной установки: пересоздание схемы public
+ * не удаляет отдельную схему partman и её конфигурацию.
  */
 return new class extends Migration
 {

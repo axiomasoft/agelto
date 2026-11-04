@@ -10,12 +10,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Снос мёртвой ветки ОКПД2 листинга (D16, P2.6): `okpd2_code`/`okpd2_codes` на боевых данных
- * всегда `null`; принадлежность подмножеству гарантирует серверный фильтр профиля. Второй
- * носитель того же факта не создаётся (`findings/P1-okpd2-probe.md` §4).
- *
- * История снятий принадлежит prc_detail_snapshots; execution state хранится в Process.
- * Q16 закрыт D130: новые колонки инвентаря не добавляются, значения остаются в `attributes`.
+ * Каталог закупок хранит source identity, текущий head и факты листинга.
+ * Принадлежность выборке ОКПД2 обеспечивает серверный фильтр профиля; отдельного
+ * дублирующего набора кодов листинга здесь нет. Дополнительные поля остаются в `attributes`.
+ * История снятий принадлежит `prc_detail_snapshots`, execution state хранится в Process.
  */
 return new class extends Migration
 {
@@ -75,8 +73,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            // P1.6: subject head и durable cycle allocation detail/status_refresh work
-            // (execution#subject-locks). Сериализуются FOR UPDATE этой row.
+            // Subject head и выделение detail/status_refresh cycles сериализуются FOR UPDATE этой row.
             $table->bigInteger('head_generation')->default(1);
             $table->bigInteger('detail_cycle_seq')->default(0);
             $table->bigInteger('status_cycle_seq')->default(0);
@@ -101,8 +98,8 @@ return new class extends Migration
             .'ON prc_procurements (succeeded_at) WHERE succeeded_at IS NOT NULL',
         );
 
-        // 100010 создаёт prc_procurement_parties раньше родителя. После появления родителя
-        // поглощаем 100048 без перенумерации create-файлов (D81).
+        // prc_procurement_parties создана миграцией 100010 раньше родителя;
+        // теперь можно добавить её FK на prc_procurements.
         DB::statement(
             'ALTER TABLE prc_procurement_parties ADD CONSTRAINT prc_procurement_parties_procurement_id_foreign '
             .'FOREIGN KEY (procurement_id) REFERENCES prc_procurements (id) ON DELETE CASCADE',

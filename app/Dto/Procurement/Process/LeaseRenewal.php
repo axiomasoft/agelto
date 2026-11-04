@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Process;
 
-/** Исход heartbeat CAS (execution#s03): Renewed(новый DB lease_until) либо Lost. */
+/** Исход heartbeat CAS: Renewed(новый DB lease_until) либо Lost. */
 final readonly class LeaseRenewal
 {
     private function __construct(public ?DbInstant $leaseUntil) {}

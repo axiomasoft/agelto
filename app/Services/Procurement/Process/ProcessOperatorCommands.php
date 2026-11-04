@@ -21,7 +21,7 @@ use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 
 /**
- * Единственная точка входа Filament/CLI в typed operator commands (observability#s04): RBAC по
+ * Единственная точка входа Filament/CLI в typed operator commands: RBAC по
  * ProcessControlPermission, обязательный reason, actor из User. Все записи идут через Actions
  * ledger-слоя с optimistic version; прямых UPDATE из UI нет (ProcessOperatorBoundaryTest).
  * Automatic scheduler эти методы не вызывает.
@@ -61,7 +61,7 @@ final readonly class ProcessOperatorCommands
         return self::fromWork($this->cancelRun->execute($runId, $reason, $expectedTransitionSeq, $actor->id));
     }
 
-    /** EXR-02: новый work со свежим budget; ResumeScope blocked(handler_fault_limit) не снимает. */
+    /** новый work со свежим budget; ResumeScope blocked(handler_fault_limit) не снимает. */
     public function retryHandlerFaultedWork(User $actor, WorkId $workId, int $expectedTransitionSeq, ProcessUuid $commandId, string $reason): OperatorCommandResult
     {
         $this->authorize($actor, ProcessControlPermission::RetryHandlerFault, $reason);

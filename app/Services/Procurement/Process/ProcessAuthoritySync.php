@@ -13,7 +13,7 @@ use App\Repositories\Procurement\Process\LaneRepository;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Идемпотентная boot/catalog материализация authority rows до первой работы (execution#s11):
+ * Идемпотентная boot/catalog материализация authority rows до первой работы:
  * control scopes и required lanes каждой schema-supported stage, handler-version rows при
  * registration. Каждая группа — отдельная короткая tx без admission, сети и work locks.
  * Чистый baseline install эти rows не создаёт: их создаёт вызов sync, не seed.

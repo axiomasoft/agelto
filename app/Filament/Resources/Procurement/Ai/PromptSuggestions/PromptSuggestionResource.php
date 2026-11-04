@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
 /**
- * Очередь предложений критика по текстам системных инструкций (P5.6, D47) — read-only реестр
+ * Очередь предложений критика по текстам системных инструкций — read-only реестр
  * (index + view): записи создаёт `estimate:prompts:suggest`, человек только РЕШАЕТ, а файл промта
  * пишет `ai:prompts:apply`. Create/edit-страниц нет намеренно — тот же канон, что
  * `AnalysisResource`: экран, умеющий править предложение, стал бы вторым редактором канона.

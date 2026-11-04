@@ -3,6 +3,16 @@
 set -euo pipefail
 
 readonly CREDENTIALS=(APP DB REDIS MINIO)
+readonly APP_CONSUMERS=(app horizon scheduler process-relay process-reconciler process-feeder process-projector doctor)
+
+consumers_for() {
+    consumers=("${APP_CONSUMERS[@]}")
+    case "$1" in
+        DB) consumers+=(postgres) ;;
+        REDIS) consumers+=(redis) ;;
+        MINIO) consumers+=(minio) ;;
+    esac
+}
 
 fail() {
     printf '[FAIL] ROTATION %s\n' "$*" >&2
@@ -11,7 +21,13 @@ fail() {
 
 mode=${1:-}
 case "$mode" in
-    check) [[ $# -eq 1 ]] || exit 2; printf '%s\n' 'APP:app,queue,scheduler,reverb' 'DB:app,queue,scheduler,backup' 'REDIS:app,queue,scheduler,reverb' 'MINIO:app,queue,scheduler'; exit 0 ;;
+    check)
+        [[ $# -eq 1 ]] || exit 2
+        for item in "${CREDENTIALS[@]}"; do
+            consumers_for "$item"
+            (IFS=,; printf '%s:%s\n' "$item" "${consumers[*]}")
+        done
+        exit 0 ;;
     fixture) shift ;;
     apply) fail 'apply requires the follow-up operator rehearsal authority' ;;
     *) exit 2 ;;
@@ -54,11 +70,7 @@ before_hash=$(sha256sum "$before_file" | cut -d' ' -f1)
 next_hash=$(sha256sum "$next_file" | cut -d' ' -f1)
 [[ $before_hash != "$next_hash" ]] || fail 'next credential must differ from the current credential'
 
-case "$credential" in
-    APP|REDIS) consumers=(app queue scheduler reverb) ;;
-    DB) consumers=(app queue scheduler backup) ;;
-    MINIO) consumers=(app queue scheduler) ;;
-esac
+consumers_for "$credential"
 
 mkdir -p "$(dirname "$state_file")" "$(dirname "$lock_file")"
 exec 9>"$lock_file"

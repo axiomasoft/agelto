@@ -6,7 +6,7 @@ use App\Enums\Llm\CorePromptStep;
 use App\Models\Llm\Prompt;
 
 /**
- * P3.2 — `ai:prompts:sync` бьёт через `artisan(...)` (Implementation Rule 7): разбор канона и
+ * `ai:prompts:sync` бьёт через `artisan(...)` (Implementation Rule 7): разбор канона и
  * запись уже покрыты `PromptSeederTest` (через `PromptCanonSynchronizer::sync()`), здесь
  * проверяется только команда — флаги, коды возврата, печать.
  */

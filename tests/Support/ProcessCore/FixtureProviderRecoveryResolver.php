@@ -16,10 +16,10 @@ use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
 use App\Services\Procurement\Process\RecoveryReconciler;
 
 /**
- * Fixture purpose resolver P1.11 (documents-ai#s08 на локальных фактах): findings задаёт тест,
+ * Fixture purpose resolver (documents-ai#s08 на локальных фактах): findings задаёт тест,
  * реальных provider send/reserve здесь нет. Считает settlement и отзывы send authorization, чтобы
  * tests утверждали «0 новых send/reserve» и «settlement ровно один». Никогда не регистрируется в
- * приложении; настоящий mapping на Llm ledger подключает P3.8–P3.14.
+ * приложении; настоящий mapping на Llm ledger подключает –.
  */
 final class FixtureProviderRecoveryResolver implements ProviderRecoveryResolver
 {

@@ -50,7 +50,7 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
-            // Стабильный operator-facing порядок из D82; ресурсы ссылаются только на эти группы.
+                // Стабильный порядок навигации; ресурсы используют только эти группы.
             ->navigationGroups([
                 NavigationGroup::make('Закупки'),
                 NavigationGroup::make('Площадки'),

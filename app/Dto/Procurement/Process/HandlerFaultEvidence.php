@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Process;
 
 /**
- * Sanitized evidence неожиданного programming Throwable handler (execution#handler-fault-budget):
+ * Sanitized evidence неожиданного programming Throwable handler:
  * signature = sha256(class + file + line) без message, payload и secrets. Executing handler version
  * берётся из attempt под work lock, а не от вызывающего.
  */

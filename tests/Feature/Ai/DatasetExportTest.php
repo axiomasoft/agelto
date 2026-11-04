@@ -12,7 +12,7 @@ use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Support\Facades\Storage;
 
-// P7.1/D56: экспорт gold-датасета в SFT/DPO JSONL с РЕАЛЬНЫМ текстом представления во входе,
+// /экспорт gold-датасета в SFT/DPO JSONL с РЕАЛЬНЫМ текстом представления во входе,
 // основанием доверия, DPO-парой по сохранённому analysis_id (не по активному анализу). `--path`
 // фиксирован в тестах ради детерминизма (по умолчанию команда подставляет timestamp).
 

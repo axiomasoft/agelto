@@ -7,7 +7,7 @@ namespace App\Services\Procurement\Process;
 use Illuminate\Contracts\Config\Repository;
 
 /**
- * Boot-validated policy process daemons из `process.daemons` (bp-daemons): intervals, batch и claim
+ * Boot-validated policy process daemons из `process.daemons`: intervals, batch и claim
  * bounds, backoff и liveness window. Закрытая схема ключей; неполная или противоречивая
  * конфигурация отвергается с ключом config, а не заменяется default.
  */

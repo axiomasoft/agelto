@@ -30,7 +30,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 /**
- * Единственная точка исполнения одной queue delivery (bp-jobs, execution#s02): envelope → claim →
+ * Единственная точка исполнения одной queue delivery: envelope → claim →
  * только Claimed вызывает DI handler → единственный WorkFinalizer. Runner не выбирает handler по
  * stage и не знает платформ: handler приходит из StageRegistry. Управляющие выходы различаются до
  * generic Throwable: LeaseLost прекращает работу без публикации, SliceExhausted сохраняет только
@@ -80,7 +80,7 @@ final readonly class WorkRunner
 
         $lease = $claim->lease;
 
-        // Context attempt живёт ровно на время работы и восстанавливается в finally (observability#s02).
+        // Context attempt живёт ровно на время работы и восстанавливается в finally.
         return $this->correlation->scope($lease, fn (): DeliveryOutcome => $this->execute($lease));
     }
 

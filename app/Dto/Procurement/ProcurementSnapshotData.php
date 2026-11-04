@@ -8,10 +8,9 @@ use App\Dto\Procurement\Platform\SourceIdentity;
 use Illuminate\Support\Carbon;
 
 /**
- * Нормализованный снапшот закупки — вход инжест-процессора.
- * Поля 1:1 диффуемым колонкам `prc_procurements` (без служебных: id/uuid/revision-мета/timestamps).
- * Нормализацию из сырого CSV/HTML источника выполняет вызывающий код (вне Scope P1.10).
- * `customer_org_id` — не поле листинга, владелец detail-слой (`setCustomerOrg()`).
+ * Нормализованный снапшот закупки для инжест-процессора. Поля соответствуют диффуемым
+ * колонкам `prc_procurements`, без id, uuid, revision metadata и timestamps.
+ * Нормализацию CSV/HTML выполняет caller; `customer_org_id` устанавливает detail-слой через `setCustomerOrg()`.
  */
 final readonly class ProcurementSnapshotData
 {

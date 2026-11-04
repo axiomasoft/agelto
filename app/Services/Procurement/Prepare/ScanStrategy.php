@@ -19,31 +19,31 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * OCR сканов (P3.7, D22 — Tesseract+OCRmyPDF): PDF без текстового слоя и изображения →
+ * OCR сканов ( Tesseract+OCRmyPDF): PDF без текстового слоя и изображения →
  * ДВА представления, `pdf_ocr` (PDF со встроенным текстовым слоем) и `text` (sidecar).
  * Ценность двойная — вход для будущей ЛОКАЛЬНОЙ модели, которая vision-качества провайдера не
- * даст (D7), и измеримый потолок движка (`research/04-ocr-ceiling.md`): структуру таблицы ни один
+ * даст, и измеримый потолок движка (`research/04-ocr-ceiling.md`): структуру таблицы ни один
  * локальный OCR бесплатно не отдаёт, поэтому здесь производится ТЕКСТ, а не таблица.
  *
- * Порог текстового слоя — канон P1.1 (`0 → none`, `<50 символов на страницу → sparse`, иначе
+ * Порог текстового слоя — правило классификации (`0 → none`, `<50 символов на страницу → sparse`, иначе
  * `full`): OCR запускается для `none`/`sparse`, PDF с текстом идёт своим путём (`false` —
- * цепочка продолжается, D28); файл, который зонд не смог прочитать как PDF, тоже уходит дальше
- * по цепочке — см. {@see ScanStrategy::needsOcr()}.
+ * цепочка продолжается); файл, который зонд не смог прочитать как PDF, тоже уходит дальше
+ * по цепочке — см. {@see ScanStrategy::needsOcr}.
  *
- * Асимметрия исходов при провале OCR — сознательная (D26, «лимит инструмента ≠ приговор
+ * Асимметрия исходов при провале OCR — сознательная («лимит инструмента ≠ приговор
  * документу»):
  * - PDF без текстового слоя: OCR — ЕДИНСТВЕННЫЙ способ получить из него текст, провал терминален
  *   (`unprocessable(ocr_failed)`), как у {@see WordStrategy};
  * - изображение: оригинал сам по себе валидный вход vision-ветки ({@see ImageStrategy}), поэтому
  *   провал OCR — обычный `false`, документ терминальным НЕ становится и уезжает в vision как
  *   раньше. Из-за этого стратегия стоит в реестре ПЕРЕД `ImageStrategy` (и, следовательно, перед
- *   `PassthroughStrategy`, D88).
+ *   `PassthroughStrategy`).
  */
 final readonly class ScanStrategy implements PreparationStrategy
 {
     /**
      * Символов текстового слоя на страницу, ниже которых слой считается отсутствующим или
-     * мусорным (`sparse`) и документ идёт в OCR — канон инвентаря корпуса P1.1
+     * мусорным (`sparse`), и документ идёт в OCR.
      * (`artifacts/corpus_inventory.py`, `TEXT_LAYER_SPARSE_MAX`).
      */
     private const float TEXT_LAYER_SPARSE_MAX_CHARS_PER_PAGE = 50.0;
@@ -74,7 +74,7 @@ final readonly class ScanStrategy implements PreparationStrategy
         try {
             // Скан-эталон корпуса весит 132 МБ (`EST-PDF-SCAN-001`) — оригинал и результат OCR
             // ходят между диском и временным файлом ПОТОКОМ, целиком в память не читаются
-            // (Code Guidance P3.7); в памяти живёт только sidecar-текст.
+            // В памяти живёт только sidecar-текст.
             $this->copyToLocal($disk, $version->storage_path, $localInput);
 
             if ($isPdf && ! $this->needsOcr(localPdf: $localInput, deadlineAt: $deadlineAt)) {
@@ -82,7 +82,7 @@ final readonly class ScanStrategy implements PreparationStrategy
             }
 
             // Ловится ТОЛЬКО провал самого OCR — доменный исход стратегии; сбой доступа к диску
-            // выше по методу пробрасывается в error-блок job'а и под «не подошла» не маскируется (D28).
+            // выше по методу пробрасывается в error-блок job'а и под «не подошла» не маскируется.
             try {
                 $startedAt = microtime(as_float: true);
                 $this->converter->run(
@@ -170,7 +170,7 @@ final readonly class ScanStrategy implements PreparationStrategy
             'storage_path' => $textPath,
             'disk' => $diskName,
             'size_bytes' => strlen($text),
-            // Та же эвристика оценки токенов, что у `text_grid` (P3.5): 4 символа на токен.
+            // Та же эвристика оценки токенов, что у `text_grid`: 4 символа на токен.
             'token_estimate' => (int) ceil(strlen($text) / 4),
             'mime' => 'text/plain',
             'meta' => $meta,
@@ -181,7 +181,7 @@ final readonly class ScanStrategy implements PreparationStrategy
     /**
      * OCR нужен только PDF с отсутствующим или мусорным текстовым слоем (`none`/`sparse`).
      * Зонд, не сумевший прочитать файл как PDF (`null` — битый xref, подменённое расширение),
-     * НЕ считается «текста нет»: такой документ идёт дальше по цепочке ровно как до P3.7
+     * НЕ считается «текста нет»: такой документ идёт дальше по цепочке
      * (`PassthroughStrategy` отдаёт оригинал), а не тратит минуты OCR на заведомый мусор.
      */
     private function needsOcr(string $localPdf, ?float $deadlineAt): bool

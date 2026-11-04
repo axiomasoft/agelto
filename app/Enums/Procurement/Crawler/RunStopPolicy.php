@@ -7,7 +7,7 @@ namespace App\Enums\Procurement\Crawler;
 use Filament\Support\Contracts\HasLabel;
 
 /**
- * Политика остановки fresh-прогона (P3.3, `research/04-p3-runs-design.md` §4): `Default` —
+ * Политика остановки fresh-прогона: `Default` —
  * только блок без изменений/повтор `dedupSignature`; `OnlyFresh` — дополнительно время старта
  * предыдущего завершённого прогона (с запасом из `crawler.fresh.only_fresh_margin_minutes`).
  * Легальна только при `Crawler::mode === CrawlerMode::Fresh` (гейт `Crawler::saving()`).

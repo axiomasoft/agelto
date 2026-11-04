@@ -6,7 +6,7 @@ namespace App\Enums\Procurement\Network;
 
 /**
  * Circuit state route/route-target/target health rows. Начальное unknown: обычный backlog не
- * получает permit до успешного owned probe (platform-transport#s06).
+ * получает permit до успешного owned probe.
  */
 enum CircuitState: string
 {

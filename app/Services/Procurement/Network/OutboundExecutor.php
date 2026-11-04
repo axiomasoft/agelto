@@ -187,7 +187,16 @@ final readonly class OutboundExecutor
                     $gate->record($authorized, $exit->result);
                     throw $exit->interruption;
                 }
-                $quota = $gate->record($authorized, $result);
+                try {
+                    $quota = $gate->record($authorized, $result);
+                } catch (\Throwable $failure) {
+                    // A completed spool belongs to the caller only after its factual receipt
+                    // commits. Dependency/ownership exits cannot leave an unreachable binary.
+                    if ($result->response?->body instanceof BinaryBodyArtifact) {
+                        Storage::disk($result->response->body->artifact->disk)->delete($result->response->body->artifact->key);
+                    }
+                    throw $failure;
+                }
                 $finalResponse = $result->failure === null && $result->response !== null
                     && $result->response->status >= 400 && $result->response->body instanceof DecodedTextBody
                     ? new FinalHttpResponseEvidence($physical->physicalRequestId, $result->response->status, $result->response->body)

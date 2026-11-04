@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Enums\Llm;
 
 /**
- * Кросс-документные шаги композиции (contract P2.1 §4.1) — не принадлежат ни одному типу
- * документа, `documentTypeScope()` всегда `DocumentTypeScope::Any`. Шаги извлечения объявляет
+ * Кросс-документные шаги композиции — не принадлежат ни одному типу
+ * документа, `documentTypeScope` всегда `DocumentTypeScope::Any`. Шаги извлечения объявляет
  * анализатор типа (`App\Enums\Procurement\Analyzers\<Type>\*PromptStep`).
  */
 enum CorePromptStep: string implements PromptStep

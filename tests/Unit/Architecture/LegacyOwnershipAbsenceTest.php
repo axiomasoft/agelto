@@ -5,9 +5,9 @@ declare(strict_types=1);
 use Symfony\Component\Finder\Finder;
 use Tests\Support\ProcessCore\LegacyOwnershipRules;
 
-pest()->group('t32', 'p317');
+pest()->group('legacy-ownership-cutover');
 
-test('T32 final production sources have no retired ownership readers tables or config gates', function (): void {
+test('final production sources have no retired ownership readers tables or config gates', function (): void {
     $errors = [];
     foreach (['app', 'routes', 'config', 'database/migrations'] as $root) {
         foreach (Finder::create()->files()->in(base_path($root))->name('*.php') as $file) {
@@ -19,7 +19,7 @@ test('T32 final production sources have no retired ownership readers tables or c
         ->and(is_file(base_path('tests/Unit/Architecture/platforms-dependency-baseline.php')))->toBeFalse();
 });
 
-test('T32 every retired ownership family has an executable negative fixture', function (): void {
+test('every retired ownership family has an executable negative fixture', function (): void {
     foreach (LegacyOwnershipRules::SYMBOLS as $symbol) {
         foreach (['<?php use '.$symbol.' as OldOwner;', '<?php $owner = '.var_export($symbol, true).';', '<?php new \\'.$symbol.';'] as $source) {
             expect(LegacyOwnershipRules::violations('fixture.php', $source))->toContain('fixture.php: legacy symbol '.$symbol);
@@ -42,7 +42,7 @@ test('T32 every retired ownership family has an executable negative fixture', fu
         '<?php use App\Services\Procurement\Network\LegacyBridge;'))->not->toBe([]);
 });
 
-test('T32 comments lawful health fields feature options and new platform helpers are not legacy ownership', function (): void {
+test('comments lawful health fields feature options and new platform helpers are not legacy ownership', function (): void {
     expect(LegacyOwnershipRules::violations('fixture.php', <<<'PHP'
         <?php
         // config('crawler.downstream_enabled'); prc_fetches

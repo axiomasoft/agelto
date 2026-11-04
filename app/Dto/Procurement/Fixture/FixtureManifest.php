@@ -8,7 +8,7 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
 
 /**
- * Контракт `estimates/manifest.json` — SSOT корпуса эталонов в git (D1/D20).
+ * Контракт `estimates/manifest.json` — SSOT корпуса эталонов в git.
  */
 final class FixtureManifest extends Data
 {

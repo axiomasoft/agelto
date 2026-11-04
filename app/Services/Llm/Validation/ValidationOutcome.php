@@ -7,12 +7,12 @@ namespace App\Services\Llm\Validation;
 use Spatie\LaravelData\Data;
 
 /**
- * Исход валидационного каскада `StructuredResponseValidator`/`ReaskPolicy` (P3.4, ТЗ 04 §2/§6):
+ * Исход валидационного каскада `StructuredResponseValidator`/`ReaskPolicy` (ТЗ 04 §2/§6):
  * sealed-подобный value object с тремя закрытыми состояниями через приватный конструктор +
  * фабричные методы (канон тестов проекта — без boolean-флагов).
  * - ok: гидратированный `Data`-класс прошёл финишную/JSON/схемную/структурную проверку.
  * - retryable: поправимо — синтаксис/семантика/MAX_TOKENS; `ReaskPolicy` решает re-ask или
- *   эскалацию маршрутом, MAX_TOKENS бабблится наверх без re-ask (оркестратору P6.1 — уменьшить окно).
+ *   эскалацию маршрутом, MAX_TOKENS бабблится наверх без re-ask (оркестратору — уменьшить окно).
  * - fatal: неопределённость (Safety/Other finishReason) — `ReaskPolicy` эскалирует маршрутом
  *   немедленно, без re-ask на том же маршруте.
  */

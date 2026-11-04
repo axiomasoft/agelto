@@ -11,22 +11,22 @@ use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
- * Критерий приёмки патча промта между двумя `EvalRun` (P7.5, D63 + правило отбора D119/D120):
+ * Критерий приёмки патча промта между двумя `EvalRun` (+ правило отбора):
  * подвыборки `tune`/`holdout` вычисляются из `estimates/eval-splits.json` по членству в `holdout`
  * (та же семантика, что `estimate:eval:run --split`) — сравниваемые прогоны предполагаются прогнанными
  * `--split=all`, иначе одна из подвыборок останется пустой и `compare()` откажется считать критерий.
  * Числа для порогов (а)–(г) — макро-усреднение per-example `f1`/`row_coverage` внутри подвыборки,
  * тот же приём, что `EvalRunCommand::aggregate()` для прогона целиком.
  *
- * Режим `no-regression` (P2.2, D24/D91) — та же проверка порогов ПАДЕНИЯ (б)–(г), но БЕЗ
- * требования прироста (а) `TUNE_F1_MIN_GAIN`: перенос семантики докблока в атрибут (P2 items)
+ * Режим `no-regression` — та же проверка порогов ПАДЕНИЯ (б)–(г), но БЕЗ
+ * требования прироста (а) `TUNE_F1_MIN_GAIN`: перенос семантики докблока в атрибут (items)
  * не обещает улучшения, только «не хуже», и штатный режим `patch` дал бы на нём ложный `reject`.
- * Величины порогов (б)–(г) не меняются ни в одном режиме (D24) — режим только выключает проверку
+ * Величины порогов (б)–(г) не меняются ни в одном режиме — режим только выключает проверку
  * (а), остальной `verdict()` общий для обоих режимов.
  *
- * Режим `noise-aware` (P2.13, D108/D109) — те же оси (б)–(г), но порог каждой оси ВЫЧИСЛЯЕТСЯ из
+ * Режим `noise-aware` — те же оси (б)–(г), но порог каждой оси ВЫЧИСЛЯЕТСЯ из
  * названной опцией `--noise-pair` нулевой пары прогонов (модуль дельты той же оси на паре без
- * изменения — `no-regression` на этом же корпусе отвергает даже нулевое изменение, D108) вместо
+ * изменения — `no-regression` на этом же корпусе отвергает даже нулевое изменение) вместо
  * констант `HOLDOUT_F1_MAX_DROP`/`ROW_COVERAGE_MAX_DROP`/`PER_FIXTURE_F1_MAX_DROP`. Добавляет
  * агрегат `overall` (все эталоны прогона, без деления на `tune`/`holdout`) в `subsamples` и
  * информационный (не влияющий на вердикт) профиль вызовов `llm_provider_calls` обоих сравниваемых прогонов.
@@ -64,27 +64,27 @@ final readonly class EvalRunComparator
      *                             значение приходит от вызывающего (CLI-опция) непроверенным,
      *                             инвариант держит runtime-guard ниже
      * @param  EvalRun|null  $noisePairBase  нулевая пара (`--noise-pair`), обязательна ⟺ `$criterion`
-     *                                       = `noise-aware` — тихого дефолта нет (P2.13 Implementation Rules)
+     *                                       = `noise-aware` — тихого дефолта нет
      * @return array{
-     *     base_run_id: int, candidate_run_id: int,
-     *     subsamples: array<string, array{
-     *         base: array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int},
-     *         candidate: array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int},
-     *         delta: array{f1: float, row_coverage: float, per_field: array<string, float>},
-     *     }>,
-     *     per_fixture: array<string, float>,
-     *     verdict: 'accept'|'reject',
-     *     reasons: list<string>,
-     *     noise_basis?: array{
-     *         pair_base_id: int, pair_candidate_id: int,
-     *         subsample_thresholds: array<string, array{f1: float, row_coverage: float}>,
-     *         per_fixture_threshold: float, per_fixture_worst_code: string,
-     *     },
-     *     profile?: array{
-     *         base: array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int},
-     *         candidate: array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int},
-     *         output_drop: int, output_drop_noise_threshold: int,
-     *     },
+     * base_run_id: int, candidate_run_id: int,
+     * subsamples: array<string, array{
+     * base: array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int},
+     * candidate: array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int},
+     * delta: array{f1: float, row_coverage: float, per_field: array<string, float>},
+     * }>,
+     * per_fixture: array<string, float>,
+     * verdict: 'accept'|'reject',
+     * reasons: list<string>,
+     * noise_basis?: array{
+     * pair_base_id: int, pair_candidate_id: int,
+     * subsample_thresholds: array<string, array{f1: float, row_coverage: float}>,
+     * per_fixture_threshold: float, per_fixture_worst_code: string,
+     * },
+     * profile?: array{
+     * base: array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int},
+     * candidate: array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int},
+     * output_drop: int, output_drop_noise_threshold: int,
+     * },
      * }
      */
     public function compare(
@@ -181,9 +181,8 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * Общая проверка пары прогонов (маршрут, версии промтов, состав эталонов) — используется и для
-     * сравниваемой пары, и для нулевой пары `--noise-pair` (P2.13 Implementation Rules: «пара,
-     * поданная нулевой, проверяется тем же `assertComparable()`, что и сравниваемые прогоны»).
+     * Проверяет сопоставимость прогонов по маршруту, версиям промтов и составу эталонов.
+     * Те же проверки применяются к сравниваемой паре и noise-pair.
      *
      * @return array{0: Collection<int, ResultRow>, 1: Collection<int, ResultRow>}
      */
@@ -366,13 +365,9 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * Пороги режима `noise-aware`: модуль дельты нулевой пары по каждой оси (P2.13 Implementation
-     * Rules). Модуль не зависит от того, какой прогон пары назван базой (|a−b| = |b−a|) — второе
-     * направление не даёт нового числа, поэтому считается один раз. Per-fixture — ОДНА общая ось
-     * (как и старый `PER_FIXTURE_F1_MAX_DROP`, единый для всех эталонов): порог — модуль ХУДШЕЙ
-     * (максимальной) дельты пары среди всех эталонов, а не дельта каждого эталона по отдельности
-     * (`findings/P2-eval-resolution-2026-08-02.md` §2 — «per-fixture (худший)=0.6131», §3 — все три
-     * причины `(г)` M5 сверены с ОДНИМ и тем же числом шума).
+     * Noise-aware пороги равны модулю дельт нулевой пары; перестановка базы и кандидата
+     * не меняет модуль. Общий per-fixture порог — максимальная абсолютная дельта среди
+     * эталонов, а не отдельный порог для каждого эталона.
      *
      * @param  Collection<int, ResultRow>  $noiseBaseResults
      * @param  Collection<int, ResultRow>  $noiseCandidateResults
@@ -416,9 +411,9 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * Профиль вызовов `llm_provider_calls` обоих сравниваемых прогонов (не нулевой пары) — П2.13 Scope
-     * Included; порог падения вывода вычислен из нулевой пары, но сам блок информационный и на
-     * `verdict()` не влияет (Validation #3 item'а: причины отказа — только оси f1/row_coverage).
+     * Профиль вызовов `llm_provider_calls` обоих сравниваемых прогонов. Порог падения вывода
+     * вычислен из нулевой пары, но блок информационный и не влияет на `verdict()`:
+     * причины отказа определяют только оси f1 и row_coverage.
      *
      * @return array{
      *     base: array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int},
@@ -509,9 +504,8 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * Вердикт `noise-aware` — те же оси (б)–(г), что и `verdict()`, но порог каждой оси берётся из
-     * `$noiseThresholds` (нулевая пара), а не из констант; граница включена (дельта = порогу → не
-     * причина отказа, P2.13 Implementation Rules).
+     * Noise-aware использует те же оси проверки, что verdict(), с порогами из нулевой
+     * пары. Граница включена: дельта, равная порогу, не считается регрессией.
      *
      * @param  Subsamples  $subsamples
      * @param  array<string, float>  $perFixture

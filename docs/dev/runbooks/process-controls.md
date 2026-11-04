@@ -116,7 +116,7 @@ CLI: `process:control {pause|resume|cancel-work|cancel-run|retry-fault|ack-incid
 (как в `WorkMutationRepository`); недопустимая причина возвращается в форму, а не исключением. Колонка «Состояние» в
 «Процессы: запуски» показывает состояние `RunProjector` (в т. ч. «Завершён с проблемами» для failed/cancelled/superseded
 required work и неполного discovery). Legacy sidebar-раздел источников и его badge
-остаются до P3.16–P3.19; `T17ProcessControlResourcesTest` проверяет полный sidebar на промежуточном baseline.
+остаются до P3.16–P3.19; `ProcessControlResourcesTest` проверяет полный sidebar на промежуточном baseline.
 
 ## Retention transition history (P1.18)
 

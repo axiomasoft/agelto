@@ -20,17 +20,16 @@ use RuntimeException;
 
 /**
  * Пересборка карты «код ОКПД2 → внутренний id НСИ» обходом `children.html` вширь и сверка
- * снятого с `prc_okpd2_nodes` (P2.5, D14).
+ * сохранённого в `prc_okpd2_nodes`.
  *
  * Почему пересборка И ЕСТЬ детект дрейфа: дешёвого способа спросить площадку «этот id всё ещё
  * код 43?» не существует — единственный ответ, где `code` и `key` приходят ПАРОЙ, это листинг
- * детей родителя (`findings/P1-okpd2-map.md` §6.2). Расхождение хотя бы одной пары —
- * не «поправить строку», а признак перенумерации всего диапазона (§1.1): профили, ссылающиеся
- * на КОДЫ, при этом не страдают, ради чего код и хранится вместо id (D9).
+ * детей родителя. Расхождение хотя бы одной пары — признак перенумерации диапазона:
+ * профили ссылаются на КОДЫ и сохраняют свой смысл при смене внутренних id площадки.
  *
  * Канал к площадке — те же три сейма, что у боевого `CsvSourceMethod`: лиза
  * `ProxyResolver` → canonical owner/permit/executor → TLS trust из `SourceTlsTrust`.
- * Второго канала не заводится (гэп G7, Implementation Rules P2.5 п. 1).
+ * Отдельного канала обхода этих проверок нет.
  */
 final readonly class Okpd2NodeSynchronizer
 {
@@ -137,7 +136,7 @@ final readonly class Okpd2NodeSynchronizer
 
     /**
      * Обход вширь от корня. Потолок запросов ЖЁСТКИЙ: достигнут — очередь не дообходится, а
-     * остаётся в `not_traversed` (Implementation Rules п. 3), и это единственный честный способ
+     * остаётся в `not_traversed`, чтобы
      * отличить «узла на площадке нет» от «мы до него не дошли».
      *
      * @return array{0: array<string, array{code: string, external_id: string, parent_code: string|null, level: int, name: string}>, 1: list<string|null>, 2: list<string>, 3: int}
@@ -148,7 +147,7 @@ final readonly class Okpd2NodeSynchronizer
         $lease = $this->proxyResolver->profile();
 
         // Корень поддерева в карту НЕ пишется: его `parent_code` неизвестен, а дети получают
-        // `parent_code = null` — ровно та форма, в которой карту снял и засидировал P1.2/P2.1.
+        // `parent_code = null`, как в исходной карте справочника.
         $queue = [['external_id' => $rootId, 'code' => null, 'level' => $rootLevel]];
 
         $crawled = [];
@@ -237,7 +236,7 @@ final readonly class Okpd2NodeSynchronizer
 
     /**
      * Ответ `children.html` — JSON-массив узлов с ОТДЕЛЬНЫМИ полями `code`/`key`/`name`/
-     * `hasChildren` (`findings/P1-okpd2-map.md` §1): разбирать `title` не требуется. Форма,
+     * `hasChildren`: разбирать `title` не требуется. Форма,
      * отличная от снятой, — не повод «догадаться», а отказ с parentId в тексте: тихая догадка
      * здесь молча испортит карту, от которой зависит вся выборка.
      *

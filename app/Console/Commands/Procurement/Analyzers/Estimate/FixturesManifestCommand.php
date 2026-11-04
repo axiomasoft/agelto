@@ -12,19 +12,19 @@ use Illuminate\Console\Command;
 use JsonException;
 
 /**
- * Генератор `estimates/manifest.json` из шорт-листа P1.3 (D1/D20, P2.4): `storage_path`
- * пересчитывается построителем `Fixture::storagePathFor()`, `sha256`/`size_bytes` берутся из
+ * Генератор `estimates/manifest.json` из шорт-листа эталонов: `storage_path`
+ * пересчитывается построителем `Fixture::storagePathFor`, `sha256`/`size_bytes` берутся из
  * шорт-листа и ПРОВЕРЯЮТСЯ пересчётом по файлу-источнику (расхождение — ошибка, запись не
- * добавляется), `mime` — из инвентаря P1.1 (при отсутствии — `finfo` по файлу), `gold_path` —
- * всегда `null` (D91: указатель на файл gold пишет его производитель — `estimate:gold:build
- * --update-manifest`, P5.3 — вместе с самим файлом; намерение несёт `gold_source`). Запись, чей
+ * добавляется), `mime` — из инвентаря  (при отсутствии — `finfo` по файлу), `gold_path` —
+ * всегда `null` (указатель на файл gold пишет его производитель — `estimate:gold:build
+ * --update-manifest`,  — вместе с самим файлом; намерение несёт `gold_source`). Запись, чей
  * `code` уже есть в манифесте, НЕ трогается без `--force` — манифест SSOT и может быть поправлен
- * руками (D20). Построение записей вынесено в {@see FixtureManifestBuilder} (P3.3).
+ * руками. Построение записей вынесено в {@see FixtureManifestBuilder}.
  */
-#[Description('Собрать estimates/manifest.json из шорт-листа эталонов (P1.3)')]
+#[Description('Собрать estimates/manifest.json из шорт-листа эталонов')]
 #[Signature('estimate:fixtures:manifest
         {--from-shortlist= : путь к fixture-shortlist.json}
-        {--inventory= : путь к P1-corpus-inventory.json для mime/размера}
+        {--inventory= : путь к JSON-инвентарю корпуса для mime/размера}
         {--manifest= : куда писать (дефолт config(ai.fixtures.manifest_path))}
         {--force : перезаписать существующие записи}')]
 final class FixturesManifestCommand extends Command

@@ -11,8 +11,9 @@ status: living
 | Сервис | Роль |
 |:--|:--|
 | `app` | PHP-FPM+Nginx (serversideup/php), HTTP + `/up` healthcheck |
-| `horizon` | Queue worker (`php artisan horizon`) — тяжёлые jobs пайплайна (`doc_prepare`/`ai_screening`/`ai_extraction`), в prod несёт `shm_size: 2gb` под будущий Chromium (browser automation — канон CLAUDE.md §Docker/Runtime: только worker-контейнер) |
-| `scheduler` | `php artisan schedule:work` — крон-задачи (`pipeline:*`, `ai:*` по расписанию) |
+| `horizon` | Queue worker (`php artisan horizon`) — `ExecuteWorkJob` в очередях `process-listing`, `process-acquisition`, `process-download`, `process-prepare`, `process-ai`, `process-publication`; отдельная default queue для остальных jobs. Browser automation выполняется в worker-контейнере |
+| `scheduler` | `php artisan schedule:work` — acquisition schedule, retention, health report, partition maintenance и scheduler heartbeat |
+| `process-relay`, `process-reconciler`, `process-feeder`, `process-projector` | Отдельные `process:daemon` для outbox delivery, recovery, admission и проекций; readiness проверяет их durable heartbeat |
 | `postgres` | `agelto_postgres:17-partman` — Postgres 17 + `pg_partman` (партиционирование `llm_calls`/`fetches`/`operation_logs`/`events`) |
 | `redis` | Cache/session/queue (`QUEUE_CONNECTION=redis`); prod — AOF durability (D34, см. `production.md`) |
 | `minio` | S3-совместимое хранилище (`FILESYSTEM_DISK=s3`) — документы, LLM-блобы |
@@ -42,5 +43,5 @@ ping`/MinIO `/minio/health/live`.
 - [`production.md`](production.md) — prebuilt image, Swarm secrets, деплой с живыми очередями.
 - [`troubleshooting.md`](troubleshooting.md) — типичные сбои контейнеров.
 - `../getting-started.md` — первый запуск.
-- [`P12-command-matrix.md`](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
+- [текущий inventory команд](../../operators/production/commands.md#current-command-inventory)
   — сгенерированный реестр всех публичных Make targets и P12 script modes.

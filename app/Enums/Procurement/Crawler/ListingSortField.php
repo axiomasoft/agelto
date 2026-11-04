@@ -8,8 +8,7 @@ use Filament\Support\Contracts\HasLabel;
 
 /**
  * Поле сортировки выдачи листинга ЕИС — доменный смысл, не имя параметра площадки:
- * маппинг на `sortBy` (`UPDATE_DATE`/`PUBLISH_DATE`) живёт в `EisCsvUrlBuilder`
- * (Code Guidance P3.1).
+ * маппинг на `sortBy` (`UPDATE_DATE`/`PUBLISH_DATE`) живёт в `EisCsvUrlBuilder`.
  */
 enum ListingSortField: string implements HasLabel
 {

@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 /**
- * P2.4 — генератор `estimates/manifest.json` из шорт-листа P1.3. Синтетический шорт-лист и
+ * генератор `estimates/manifest.json` из шорт-листа . Синтетический шорт-лист и
  * временный `source_dir`; реальный корпус в тестах не участвует.
  */
 function manifestTestDir(): string

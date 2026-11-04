@@ -24,7 +24,7 @@ use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 /**
- * `estimate:eval:run` (P7.4, ревью-фикс HIGH/MED): dry-run/пустой путь без единого LLM-вызова +
+ * `estimate:eval:run` (ревью-фикс HIGH/MED): dry-run/пустой путь без единого LLM-вызова +
  * реальный прогон через `FakeLlmProvider` (та же подмена, что `ExtractionOrchestratorTest`, —
  * Intent «FakeLlm недопустим» про боевой прогон ВЛАДЕЛЬЦЕМ, не про тесты самой команды).
  * Ключевой сценарий — регрессия HIGH: повторный `estimate:eval:run` на ТОМ ЖЕ датасете обязан сделать
@@ -168,7 +168,7 @@ function queueEvalRunSequence(FakeLlmProvider $fake, ?array $outcomes = null): F
 
 /**
  * Заводит эталон (реестр `prc_ai_fixtures`) + пример датасета extraction, привязанный к нему через
- * `fixture_id` (P7.5, D119/D120 — фильтр `--split` резолвит подвыборку по коду ЭТОГО эталона).
+ * `fixture_id` ( — фильтр `--split` резолвит подвыборку по коду ЭТОГО эталона).
  */
 function evalRunSeedFixtureExample(string $code, string $form = 'KS2', string $sourceFormat = 'xlsx', GoldSource $goldSource = GoldSource::Deterministic): DatasetExample
 {
@@ -197,7 +197,7 @@ function evalRunSeedFixtureExample(string $code, string $form = 'KS2', string $s
 
 /**
  * Файл разбиения `estimates/eval-splits.json` в ИЗОЛИРОВАННОМ временном пути (config-override,
- * D119/D120) — тесты не трогают committed-файл корпуса.
+ * ) — тесты не трогают committed-файл корпуса.
  *
  * @param  list<string>  $holdout
  * @param  list<string>  $tune
@@ -268,7 +268,7 @@ test('--dry-run пропускает реальные LLM-вызовы даже 
         ->and(EvalResult::query()->count())->toBe(0);
 });
 
-test('--split=tune берёт коды датасета, которых НЕТ в holdout, включая код, отсутствующий в ключе tune файла (D120)', function () {
+test('--split=tune берёт коды датасета, которых НЕТ в holdout, включая код, отсутствующий в ключе tune файла', function () {
     Storage::fake('s3');
 
     $fake = newEvalRunFake();
@@ -277,7 +277,7 @@ test('--split=tune берёт коды датасета, которых НЕТ �
 
     // Ключ `tune` файла называет только один код — второй tune-код появился в датасете уже ПОСЛЕ
     // генерации файла и в ключе `tune` не значится, но обязан попасть в `--split=tune` по семантике
-    // дополнения (D120), а не по буквальному списку.
+    // дополнения, а не по буквальному списку.
     evalRunWriteSplitsFile(holdout: ['EST-XLSX-HOLD-002'], tune: ['EST-XLSX-TUNE-002']);
 
     evalRunSeedFixtureExample('EST-XLSX-HOLD-002');
@@ -291,7 +291,7 @@ test('--split=tune берёт коды датасета, которых НЕТ �
 
 });
 
-test('--write-splits: единственный носитель формата уходит в tune, следующий кандидат — в holdout (инвариант source_format, D119)', function () {
+test('--write-splits: единственный носитель формата уходит в tune, следующий кандидат — в holdout (инвариант source_format)', function () {
     evalRunWriteSplitsFile(holdout: [], tune: []); // задаёт временный splits_path для этого теста
 
     Fixture::factory()->create([

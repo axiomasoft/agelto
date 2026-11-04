@@ -7,7 +7,7 @@ readonly script="$root/docker/scripts/deploy-repositories.sh"
 readonly example="$root/docker/host/production-profile.example"
 
 fail() {
-    printf '[FAIL] P12.2 %s\n' "$*" >&2
+    printf '[FAIL] %s\n' "$*" >&2
     exit 1
 }
 
@@ -120,9 +120,6 @@ expect_fail 'incomplete key pair' "$script" fixture --profile "$profile" --fixtu
 
 expect_fail 'sync without enrollment confirmation' "$script" sync --profile "$profile"
 ! rg -n 'https?://|ssh://|git@github' "$REPOSITORY_LOG" >/dev/null
-grep -F 'TEMPLATE — NO RUNTIME EVIDENCE' "$root/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-repository-evidence.md" >/dev/null
 grep -F 'multiple repositories require separate' "$root/docs/operators/production/repositories.md" >/dev/null
-grep -F 'https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys' \
-    "$root/plans/archive/2026.08.09-RELEASE-READINESS/findings/P12-local-preparation-rag-2026-08-15.md" >/dev/null
 
 printf 'Deploy repositories contract passed\n'

@@ -8,10 +8,9 @@ use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Exceptions\Procurement\OperationFailed;
 
 /**
- * Пустая политика запретов для скоупа `llm` — неверная конфигурация, а не «запретов нет»
- * (research/02 §8, D84): без гейта страны запрос к Gemini мог бы уйти через необгейченный
- * env-фолбэк. НЕ наследует форму, которую ловит `PoolOutboundProxy` (`NoProxyAvailableException`) —
- * иначе предохранитель сам стал бы тем тихим обходом, ради закрытия которого он заводится.
+ * Пустая политика запрещённых стран для `llm` — ошибка конфигурации. Отдельный тип
+ * исключения не перехватывается как `NoProxyAvailableException`, чтобы отказ политики
+ * не разрешил env fallback без проверки страны.
  */
 final class ProxyPolicyMisconfiguredException extends OperationFailed
 {

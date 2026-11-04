@@ -10,7 +10,7 @@ use App\Support\Telemetry\TelemetrySanitizer;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Fanout optional technical sinks после фактического commit внешней транзакции (observability#s03).
+ * Fanout optional technical sinks после фактического commit внешней транзакции.
  * ProcessTransaction внутри уже открытой tx только отпускает savepoint и не коммитит внешнюю tx; DB::afterCommit
  * держит публикацию до этого commit и отбрасывает её при rollback. На уровне 0 callback исполняется сразу.
  * Сбой построения envelope или любого sink остаётся внутри callback: не откатывает commit и не повторяет handler.

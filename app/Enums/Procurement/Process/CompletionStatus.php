@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Process;
 
 /**
- * Закрытый набор исходов WorkFinalizer::finish (execution#s03): Applied(WorkState),
+ * Закрытый набор исходов WorkFinalizer::finish: Applied(WorkState),
  * LostOwnership (ноль domain writes) либо InvariantViolation (rollback, incident).
  */
 enum CompletionStatus: string

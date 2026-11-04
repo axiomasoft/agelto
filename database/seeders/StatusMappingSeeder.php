@@ -10,21 +10,16 @@ use App\Models\Procurement\Platform\StatusMapping;
 use Illuminate\Database\Seeder;
 
 /**
- * Стартовая матрица `prc_status_mappings` для реестра `fz44` (DOMLANG D17,
- * `findings/P2-eis-stages.md` §1) — 5 доказанных пар «этап ЕИС → канонический статус».
+ * Стартовая матрица `prc_status_mappings` для реестра `fz44` площадки `eis`:
+ * пять пар «этап ЕИС → канонический статус». Метки сохраняются дословно:
+ * натуральный ключ матрицы сравнивается без нормализации.
  *
- * Пара «Определение поставщика отменено» → `cancelled` снята 2026-08-07 в P1.4:
- * `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-stages.json` (`stages[3]`). Строка копируется
- * дословно: натуральный ключ матрицы сравнивается без нормализации.
+ * Матрица открыта: `StatusMappingService::resolve()` создаёт `unknown` для незнакомой пары.
+ * Начальные значения нужны и в production, поэтому входят в базовый набор сидов до
+ * local/testing-гейта демонстрационных данных.
  *
- * НЕ закрытый codelist: `StatusMappingService::resolve()` на незнакомой паре по-прежнему
- * заводит `unknown` через `firstOrCreate` (V2-CORE D5) — сид делает эту тропу редкой, а не
- * отменяет её. Инфраструктурные данные нужны и в prod, поэтому вызывается в `DatabaseSeeder`
- * ДО local/testing-гейта, как `AiRoutingSeeder`/`PromptSeeder`.
- *
- * Идемпотентен: `updateOrCreate` по натуральному ключу `(registry_id, source_stage)` — тот же
- * `unique`-индекс, что в миграции `2026_07_04_100002`. Реестров `fz44` нет → no-op + `warn`,
- * не исключение (площадка может быть заведена позже — Q7, `open-questions.md`).
+ * Идемпотентен: `updateOrCreate` по `(registry_id, source_stage)`. Если реестр ещё
+ * не установлен, выводит предупреждение; сид можно повторить после установки реестра.
  */
 final class StatusMappingSeeder extends Seeder
 {

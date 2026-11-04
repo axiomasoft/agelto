@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * P2.3 — контракт манифеста (`FixtureManifestEntry`) и `estimate:fixtures:import`, идемпотентный по
+ * контракт манифеста (`FixtureManifestEntry`) и `estimate:fixtures:import`, идемпотентный по
  * sha256. Синтетические манифесты и `Storage::fake(config('ai.fixtures.disk'))`; реальный корпус
  * в тестах не участвует.
  */

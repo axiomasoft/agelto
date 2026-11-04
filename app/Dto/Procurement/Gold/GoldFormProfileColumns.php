@@ -7,12 +7,11 @@ namespace App\Dto\Procurement\Gold;
 use Spatie\LaravelData\Data;
 
 /**
- * Соответствие полей §8.2 буквам колонок листа (P5.2, D117) — `estimates/gold/<CODE>.
- * profile.json` §`estimates[].columns`. Значение — буква колонки (напр. «I») либо `null` (поле
- * этой формой не печатается); `name` — единственное обязательное поле, остальные опциональны
- * (`SheetGoldMapper` переносит значение ИЗ СВОЕЙ ЯЧЕЙКИ дословно, ничего не агрегируя).
- * `FIELDS` — единственный источник истины для допустимых ключей объекта `columns`, используется
- * `FormProfileReader` для отказа на неизвестном ключе (канон `RowAttributes::ALLOWED_KEYS`, P4.5).
+ * Соответствие полей gold буквам колонок в `estimates/gold/<CODE>.profile.json`,
+ * объект `estimates[].columns`. Значение — буква колонки либо `null`, если поле не печатается.
+ * `name` обязателен; остальные поля опциональны. `SheetGoldMapper` переносит значения
+ * из указанных ячеек дословно, без агрегации. `FIELDS` задаёт допустимые ключи;
+ * `FormProfileReader` отклоняет неизвестные, согласуя их с `RowAttributes::ALLOWED_KEYS`.
  */
 final class GoldFormProfileColumns extends Data
 {

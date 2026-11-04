@@ -23,7 +23,7 @@ use Symfony\Component\DomCrawler\Crawler;
  * `section.blockInfo__section` и `table.tableBlock`. У `ea615`/`po615` вкладки нет по природе.
  *
  * ЕИС публикует идентификатор заявки, ранг победителя и цену раньше реквизитов организации,
- * поэтому подтверждённый award может иметь nullable winner (D128). Только HTML → DTO, без
+ * поэтому подтверждённый award может иметь nullable winner. Только HTML → DTO, без
  * записи в БД; пустой/неопознанный HTML даёт пустой результат, не исключение.
  */
 final readonly class SupplierResultsParser

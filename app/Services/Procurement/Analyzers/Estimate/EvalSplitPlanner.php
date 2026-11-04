@@ -10,12 +10,11 @@ use App\Repositories\Procurement\Ai\FixtureStoreRepository;
 use RuntimeException;
 
 /**
- * Пересобирает `estimates/eval-splits.json` по правилу отбора D119 (детерминированное,
+ * Пересобирает `estimates/eval-splits.json` по правилу отбора (детерминированное,
  * `research/18-holdout-split-rule.md` §6): пул — `gold_source=deterministic`, группировка по
  * `form` (возрастание), группа из одного эталона остаётся в `tune` целиком, в группе ≥2 берётся
  * ПЕРВЫЙ по возрастанию кода кандидат, чей уход в `holdout` не оставляет `tune` без единого
- * эталона его `source_format`. `tune` в файле — снимок дополнения пула на момент генерации
- * (D120), не определение фильтра. Вынесено из `EvalRunCommand::writeSplits()` (P3.3).
+ * эталона его `source_format`. `tune` в файле — снимок дополнения пула на момент генерации, не определение фильтра. Вынесено из `EvalRunCommand::writeSplits`.
  */
 final readonly class EvalSplitPlanner
 {

@@ -11,7 +11,7 @@ final readonly class Okpd2NodeReadRepository
 {
     /**
      * Карта «код → external_id» только для запрошенных кодов; ненайденные коды в результате
-     * отсутствуют — отказ на нерезолвящийся код формирует вызывающий (D21).
+     * отсутствуют — отказ на нерезолвящийся код формирует вызывающий.
      *
      * @param  array<int, string>  $codes
      * @return array<string, string>
@@ -30,7 +30,7 @@ final readonly class Okpd2NodeReadRepository
     }
 
     /**
-     * Все узлы площадки, упорядоченные по коду — источник опций формы (P2.4).
+     * Все узлы площадки, упорядоченные по коду — источник опций формы.
      *
      * @return Collection<int, Okpd2Node>
      */

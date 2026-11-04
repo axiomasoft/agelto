@@ -12,7 +12,7 @@ final readonly class EstimateStoreRepository
 {
     /**
      * Сметы с вынесенным сырым результатом (`raw_result_ref IS NOT NULL`) по возрастанию `id`,
-     * начиная с `$fromId` — read-путь backfill'а дисков (P6.5, `research/07-storage-addressing.md`
+     * начиная с `$fromId` — read-путь backfill'а дисков (`research/07-storage-addressing.md`
      * §6): строки с inline `raw_result` не носят файла и backfill'у не подлежат.
      *
      * @return LazyCollection<int, Estimate>
@@ -28,8 +28,8 @@ final readonly class EstimateStoreRepository
     }
 
     /**
-     * Точечная запись диска сырого результата — write-путь backfill'а (P6.5), симметрично
-     * писателю `EstimatePersister::rawResultAttributes()`.
+     * Точечная запись диска сырого результата — write-путь backfill'а, симметрично
+     * писателю `EstimatePersister::rawResultAttributes`.
      */
     public function updateRawResultDisk(int $id, string $disk): void
     {

@@ -274,16 +274,18 @@ make -f docker/Makefile prod:workers:up \
 ```
 
 Перед включением document pipeline проверьте effective timeout contract внутри именно этого
-Compose-проекта: `prepare` обязан быть на `redis_prepare` с 2580 < 2640 < 2700 s; screening —
-240 < 300 < 420 s; extraction — checkpoint 120 s и 300 < 360 < 420 s. Horizon получает
-`SIGTERM`, а `HORIZON_STOP_GRACE_PERIOD` не должен быть меньше 4200 s (он покрывает также
-длинную archive lane). Не увеличивайте отдельный timeout без одновременного изменения всей
-цепочки job → supervisor → retry_after → lease → graceful shutdown и зелёного
-`pipeline-worker-recovery-contract.sh` на изолированном test-проекте.
+Compose-проекта. `StageQueueMap` сверяет `config/process.php`, `config/horizon.php` и
+`config/queue.php`: slice < job timeout < Horizon timeout < retry_after < lease.
+Для prepare это 240 < 260 < 280 < 330 < 360 s; для screening/extraction —
+270 < 290 < 310 < 360 < 390 s; для download — 300 < 320 < 340 < 390 < 420 s.
+Horizon получает `SIGTERM`; стандартный `HORIZON_STOP_GRACE_PERIOD=370s` покрывает самый
+длинный supervisor timeout (340 s) с запасом. Изменение таймаутов требует согласования всей
+цепочки и повторных `make core-test-e2e` / `make core-test-faults` в
+[изолированном Process rig](../../dev/runbooks/process-test-rig.md).
 
 `prod:app:up` запускает и ждёт healthcheck web-приложения. `prod:storage:init` создаёт основной и
 estimates buckets в MinIO через credentials из file-secret; повторный запуск безопасен. Только затем
-`prod:workers:up` поднимает Horizon и `schedule:work` и ждёт их healthcheck.
+`prod:workers:up` поднимает Horizon, `schedule:work` и Process daemons и ждёт их healthcheck.
 
 ### Шаг 7. Дождаться scheduler heartbeat и проверить runtime
 

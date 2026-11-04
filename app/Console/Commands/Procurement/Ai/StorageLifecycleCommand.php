@@ -10,9 +10,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Идемпотентно применяет MinIO ILM-правила из `config('partitioning.minio_lifecycle')` (P7.7,
- * D33) на бакет S3-диска — логика ушла в `MinioLifecycleManager`
- * (`root/service-layer-map.md` §3).
+ * Идемпотентно применяет MinIO ILM-правила из `config('partitioning.minio_lifecycle')`  на бакет S3-диска — логика ушла в `MinioLifecycleManager`.
  */
 #[Description('Идемпотентно применяет MinIO ILM-правила (config(partitioning.minio_lifecycle)) на бакет s3-диска')]
 #[Signature('ai:storage:lifecycle')]

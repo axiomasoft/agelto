@@ -9,7 +9,7 @@ use App\Enums\Procurement\Process\DiscoveryOutcome;
 use App\Enums\Procurement\Process\ProcessRunState;
 
 /**
- * Точный reducer состояния конечного run (observability#s04). Чистая функция authoritative фактов:
+ * Точный reducer состояния конечного run. Чистая функция authoritative фактов:
  * не читает события, поэтому порядок и дубликаты доставки не влияют на результат, а позднее
  * событие не возвращает статус назад. Пока discovery открыт (collecting), ноль required work не
  * означает completed. Explicit cancel терминален: поздний receipt или чужой shared work его не меняет.

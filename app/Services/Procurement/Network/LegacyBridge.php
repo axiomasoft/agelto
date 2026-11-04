@@ -16,11 +16,11 @@ use Closure;
 use Illuminate\Support\Str;
 
 /**
- * Bounded legacy_bridge owner (bp-ddl-network): ровно одна outbound operation на logical call
+ * Bounded legacy_bridge owner: ровно одна outbound operation на logical call
  * текущего caller без ProcessAttempt. Открывается непосредственно перед call, закрывается в
  * finally; crash оставляет open row, которую reaper CAS-ит в expired. Это не второй workflow:
  * нет retries, очередей, domain state или авто-оживления — business scheduler/leases остаются у
- * существующего owner до P2.14–P2.19/P3.1–P3.6. Callers подключает atomic cutover P2.6.
+ * существующего caller.
  */
 final readonly class LegacyBridge
 {
@@ -80,7 +80,7 @@ final readonly class LegacyBridge
         return $this->transaction->run(fn (): ?OutboundOperationHandle => $this->operations->renew($handle, $this->policy->bridgeLeaseSeconds));
     }
 
-    /** Bounded crash cleanup batch; вызывает reconcile daemon после activation P2.6. */
+    /** Bounded crash cleanup batch для reconcile daemon. */
     public function expireStale(int $limit = 100): int
     {
         return $this->transaction->run(fn (): int => $this->operations->expireStale($limit));

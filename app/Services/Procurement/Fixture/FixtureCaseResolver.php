@@ -14,10 +14,9 @@ use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use JsonException;
 
 /**
- * ОДИН владелец резолва «код эталона ↔ активный `Analysis(step=extraction)`» + загрузки gold-файла
- * (§4/§5 `root/service-layer-map.md`) — устраняет 39-строчный побайтовый дубль между
- * `estimate:eval:diff` и `estimate:prompts:suggest` (findings §2). БРОСАЕТ ВСЕГДА (§1 инвариант 4): разная
- * реакция двух вызывающих на один отказ достигается на стороне вызывающего, не двумя формами.
+ * Связывает код эталона с активным `Analysis(step=extraction)` и загружает gold-файл.
+ * Ошибки передаются исключением; команды `estimate:eval:diff` и `estimate:prompts:suggest`
+ * определяют свою реакцию на отказ.
  */
 final readonly class FixtureCaseResolver
 {

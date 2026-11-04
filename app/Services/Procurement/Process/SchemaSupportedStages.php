@@ -8,7 +8,7 @@ use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
 
 /**
- * Stage/owner tuples текущего baseline (execution#schema-staging). Обязан совпадать со stage CHECK
+ * Поддерживаемые stage/owner tuples. Набор обязан совпадать со stage CHECK
  * work/intents/reservations/handler_holds и owner tuple CHECK. Это не HandlerActivation: наличие
  * tuple не активирует handler. Unsupported stage отвергается до INSERT, а не хранится с NULL owner.
  */

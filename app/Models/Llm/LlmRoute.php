@@ -20,7 +20,7 @@ use Illuminate\Support\Collection;
  *
  * `document_type`/`purpose` — СТРОКИ (без каста): типизированное чтение носителя `purpose`,
  * когда понадобится, идёт через `DocumentAnalyzerRegistry::purposeFor($route->document_type,
- * $route->purpose)` — тип берётся из ТОЙ ЖЕ строки, а не угадывается (P2.5, D101).
+ * $route->purpose)` — тип берётся из ТОЙ ЖЕ строки, а не угадывается.
  *
  * @property string $model
  * @property Collection<string, mixed>|null $options

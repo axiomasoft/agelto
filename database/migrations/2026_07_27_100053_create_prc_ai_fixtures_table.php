@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Адресация исходного файла эталона (D11/D50/D114, P6.2: research/07-storage-addressing.md
- * §2/§3) живёт дольше поколения диска; fallback — `ai.fixtures.disk`, без default, чтобы не
- * маскировать пропуск писателя. P7.5 F-01: `verified_by` индексирован.
+ * Адрес исходного файла эталона сохраняет выбранный диск независимо от последующих
+ * изменений конфигурации. Legacy fallback — `ai.fixtures.disk`; default отсутствует,
+ * чтобы пропуск записи диска оставался заметным. `verified_by` индексирован.
  */
 return new class extends Migration
 {
@@ -42,7 +42,7 @@ return new class extends Migration
             $table->jsonb('type_profile')->default('{}')->comment('поля профиля анализатора типа — class/form/expected_estimates/expected_rows/gold_source (§6.2 document-type-axis.md), без индексов (§6.4)');
             $table->boolean('is_verified')->default(false);
 
-            // Прямая связь «эталон ↔ рабочая копия» (§2 root/document-contour.md): один эталон →
+            // Прямая связь «эталон ↔ рабочая копия»: один эталон →
             // не более одной рабочей копии-документа. Удаление документа — эталон переживает
             // копию (ON DELETE SET NULL); удаление эталона документ НЕ трогает (FK смотрит сюда).
             $table->foreignId('document_id')

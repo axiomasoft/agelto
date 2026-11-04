@@ -7,7 +7,7 @@ namespace App\Repositories\Procurement\Ai;
 use App\Models\Procurement\Ai\DatasetExample;
 
 /**
- * Запись `prc_ai_dataset_examples` (`root/service-layer-map.md` §5/§6) — `estimate:dataset:import`,
+ * Запись `prc_ai_dataset_examples` — `estimate:dataset:import`,
  * `estimate:gold:import`. Ключ апсерта общий, payload — параметр.
  */
 final readonly class DatasetExampleStoreRepository

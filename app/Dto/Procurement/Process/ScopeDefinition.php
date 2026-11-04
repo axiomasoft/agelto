@@ -8,7 +8,7 @@ use App\Enums\Procurement\Process\ScopeKind;
 
 /**
  * Immutable topology of one control authority row: purpose-qualified key and parent key.
- * Только system — корень; parent/key после создания не меняются (execution#s08).
+ * Только system — корень; parent/key после создания не меняются.
  */
 final readonly class ScopeDefinition
 {

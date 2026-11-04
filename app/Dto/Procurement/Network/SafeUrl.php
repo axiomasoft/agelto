@@ -10,7 +10,7 @@ use App\Dto\Procurement\Process\ContentHash;
 /**
  * Абсолютный http(s) URL без userinfo/fragment. Полный URL (включая signed query) остаётся только
  * внутри объекта для transport; в логи/evidence идут template() без query и hash(). Host/DNS/
- * redirect policy каждого hop проверяет executor (P2.3), не этот value type.
+ * redirect policy каждого hop проверяет executor, не этот value type.
  */
 final readonly class SafeUrl
 {

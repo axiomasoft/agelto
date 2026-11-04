@@ -20,7 +20,7 @@ beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
  * `doc/docx/rtf/odt`→PDF (`WordStrategy`) и fidelity `xls(x)`→PDF через LibreOffice-фолбэк
- * (`SpreadsheetStrategy`, вторая ветка) — P3.4, D7. Реальный `soffice` в юнит-тестах не вызывается
+ * (`SpreadsheetStrategy`, вторая ветка) — . Реальный `soffice` в юнит-тестах не вызывается
  * (Code Guidance): фейковый обработчик распознаёт вызов конверсии по `--convert-to` и сам
  * подкладывает PDF-файл по конвенции именования LibreOffice; вызов `--version` отвечает отдельно.
  */

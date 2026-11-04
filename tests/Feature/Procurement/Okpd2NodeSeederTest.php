@@ -20,7 +20,7 @@ function eisPlatformForOkpd2NodeSeeder(): Platform
 }
 
 /**
- * P2.1 (D19) — сид карты «код ОКПД2 → внутренний id НСИ» из промоушен-датафайла P1.2.
+ * сид карты «код ОКПД2 → внутренний id НСИ» из промоушен-датафайла .
  */
 test('сид наполняет карту узлов площадки eis из датафайла', function () {
     eisPlatformForOkpd2NodeSeeder();

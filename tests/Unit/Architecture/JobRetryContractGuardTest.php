@@ -2,24 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Symfony\Component\Finder\Finder;
 
-/*
- * Сторож Д-2/Д-3 (P7.7, research/10 §3, D39): ретрай сознательно вынесен ИЗ очереди
- * (`tries: 1` во всех supervisor'ах Horizon) в доменный контур — `HasErrorBlock`
- * (`attempts`/`next_retry_at`/`failed_permanently`) + расписанный `pipeline:retry-failed`.
- * Решение нигде не было записано как решение (Д-2) — следующий разработчик читал `tries: 1`
- * как недосмотр и «чинил» бы его свойствами ретрая параллельно существующему контуру. Это
- * D-запись + два сторожа: свойства очередного ретрая на job'ах Procurement появляться не
- * должны (иначе стадия ретраится ДВАЖДЫ — очередью и `pipeline:retry-failed`), а
- * `EstimateExtractionJob` не должен потерять `ShouldBeUniqueUntilProcessing` — под простым
- * `ShouldBeUnique` self-dispatch продолжения (checkpoint-requeue) тихо дедуплицируется, пока
- * текущий запуск ещё держит lock, и документ навсегда зависает в extraction (D39).
- */
+/** Проверяет единственный Process delivery и отсутствие прежних очередных механизмов. */
 
 /** @return list<string> */
 function procurementJobFiles(): array
@@ -33,7 +21,7 @@ function procurementJobFiles(): array
     return $files;
 }
 
-test('ни один job Procurement не объявляет свойства очередного ретрая — контур единственный, в HasErrorBlock (D2/D39)', function (): void {
+test('ни один job Procurement не объявляет свойства очередного ретрая — контур единственный, в HasErrorBlock', function (): void {
     $violations = [];
 
     foreach (procurementJobFiles() as $path) {

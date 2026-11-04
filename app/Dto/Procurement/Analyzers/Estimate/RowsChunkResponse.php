@@ -14,7 +14,7 @@ use Spatie\LaravelData\Data;
  * сметы (оконный путь, §4.2) — контракт один и тот же, различается только семантика границ
  * incomplete_items (§4б).
  *
- * Реализует `StructurallyValidatable` (§6.4 контракта P2.1, D107) — монотонность/уникальность
+ * Реализует `StructurallyValidatable`  — монотонность/уникальность
  * `row_index` внутри чанка проверяет сам DTO, а не ядерный `StructuredResponseValidator`.
  */
 final class RowsChunkResponse extends Data implements StructurallyValidatable

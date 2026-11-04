@@ -18,9 +18,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Витрина смет с пометками неопределённости позиции (P8.5, D137) — read-only реестр (index +
- * view): оператор смотрит, КАКАЯ позиция под сомнением и ПОЧЕМУ, не редактирует (D137, OQ-10).
- * Create/edit/delete-страниц нет — тот же канон, что `ProcurementResource`/`AnalysisResource`.
+ * Read-only витрина смет с причинами неопределённости позиций. Доступны index и view;
+ * create, edit и delete отсутствуют.
  */
 class EstimateResource extends Resource
 {
@@ -49,7 +48,7 @@ class EstimateResource extends Resource
     }
 
     // Счётчик "помечено N из M" — агрегатом в основном запросе (withCount), не выборкой позиций
-    // в цикле (Implementation Rules P8.5 п.2): список открывается константным числом запросов
+    // в цикле: список открывается константным числом запросов
     // независимо от числа позиций в смете.
     public static function getEloquentQuery(): Builder
     {

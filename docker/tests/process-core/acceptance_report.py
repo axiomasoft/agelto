@@ -183,12 +183,14 @@ def build(root, reports, folder, validate_load, candidate):
 
     trace = {}
     need(set(contract["scenarios"]) == {f"T{n:02}" for n in range(1, 49)}, "incomplete T01-T48 contract")
+    need(set(contract["scenario_group_names"]) == set(contract["scenarios"]), "incomplete scenario group mapping")
     for scenario, bindings in contract["scenarios"].items():
         trace[scenario] = []
         for binding in bindings:
             try:
                 path, group, target = binding["file"], binding["group"], binding["target"]
                 need(target == "core-test-regression", "scenario evidence target mismatch")
+                need(group == contract["scenario_group_names"][scenario], "scenario group mapping mismatch")
                 source = (root / path).read_text()
                 grouped = re.search(r"->group\([^;]*['\"]" + re.escape(group) + r"['\"]", source)
                 if binding.get("group_mode") == "case_prefix":

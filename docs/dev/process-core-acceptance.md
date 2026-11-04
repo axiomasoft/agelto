@@ -95,17 +95,17 @@ Reuse на новом кандидате всё равно требует маш
 результатом load/regression. Каждый target сохраняет собственный candidate hash и JUnit.
 Полные V1–V6 выполняет coordinator; targeted evidence ниже не заменяет их.
 
-`T16HorizonPipelineTest` использует настоящий Horizon master/supervisor/workers, Redis
+`HorizonPipelineTest` использует настоящий Horizon master/supervisor/workers, Redis
 `ExecuteWorkJob`, PostgreSQL admission/finalization и GCRA/FIFO с actual local HTTP.
 Corpus создаёт реальные immutable document/version/representation/analysis subjects двух
 площадок; тестовый screening возвращает три bounded slices. Он доказывает механизм исполнения,
 но не качество AI и не нормализацию сметы. Полный domain workflow остаётся отдельным
-`T17ProcessPipelineE2eTest` с настоящими handlers, OCR и fake Gemini. Его исходный inline
+`ProcessPipelineE2eTest` с настоящими handlers, OCR и fake Gemini. Его исходный inline
 сценарий сохранён; дополнительный сценарий передаёт ту же конфигурацию/immutable disks в
 реальные Horizon children и проверяет исполнение всех восьми стадий их PID до normalized
 publication и status refresh. Test bootstrap не активируется вне isolated rig.
 
-`T15HorizonCrashTest` связывает named barrier, worker PID и тот же work ID после SIGKILL:
+`HorizonCrashTest` связывает named barrier, worker PID и тот же work ID после SIGKILL:
 before-claim, after-lease, before-send, sent-intent-before-wire, after-bytes,
 finalize-before-commit, mid-range-checkpoint, commit-before-ack. Отдельный SIGTERM case
 сохраняет уже полученный результат. Recovery ждёт настоящий PostgreSQL срок, без UPDATE lease
@@ -118,11 +118,11 @@ Redis loss, stale-owner, journal/sink/projection/retention и network fence/reco
 Paid unknown не принимается за бесплатный retry. Внешние reads могут повторяться;
 единственная accepted business finalization проверяется отдельно.
 
-`T08RelayKillTest` убивает настоящий daemon после committed claim и после Redis publish до
+`RelayKillTest` убивает настоящий daemon после committed claim и после Redis publish до
 mark; новый relay ждёт реальный короткий claim expiry и завершает ту же работу один раз.
-`T18DatabaseDisconnectTest` адресно завершает backend только текущего `agelto_test` внутри
+`DatabaseDisconnectTest` адресно завершает backend только текущего `agelto_test` внутри
 finalization transaction, проверяя rollback journal/result и последующее recovery.
-`T22PaidResponseKillTest` убивает реальный extraction runner после provisional authorization
+`PaidResponseKillTest` убивает реальный extraction runner после provisional authorization
 либо после получения HTTP response до durable raw. Первый случай отзывает старый token и
 разрешает known-not-sent retry того же logical request; второй сохраняет reserve и blocked
 unknown без нового send. Это отдельные assertions от durable-raw/output recovery upstream.
@@ -175,9 +175,9 @@ acknowledge проверяются с реальным SQL, operator audit и an
 | --- | --- |
 | `LegacyOwnershipAbsenceTest` | Production symbol/config/table scan, negative fixtures каждого forbidden семейства, lawful new health/feature options |
 | `PlatformsDomainLayoutTest`, `PlatformsBaselineOriginTest` | Baseline отсутствует; historical pairs закрыты; exact permanent role permissions не расширены |
-| `T32FinalCutoverTest` | Final schema, полный admin sidebar/badges, incident filter/action/audit, canonical journal, zero SQL к deleted tables, runtime schedule/list whitelist |
+| `FinalCutoverTest` | Final schema, полный admin sidebar/badges, incident filter/action/audit, canonical journal, zero SQL к deleted tables, runtime schedule/list whitelist |
 | `LegacyOutboundClientTest` | Ordinary work без owning context не создаёт operation/demand/request, даже при unknown health; bounded diagnostic/reference owner сохраняется |
-| `T32RawRetentionConcurrencyTest` | Отдельные PG sessions, адресный gate, concurrent raw publish/prune, bounded deletion и сохранение canonical raw evidence |
+| `RawRetentionConcurrencyTest` | Отдельные PG sessions, адресный gate, concurrent raw publish/prune, bounded deletion и сохранение canonical raw evidence |
 | `OperationLogResourceTest`, `SourceControlResourceTest`, `AdminRouteInventoryTest` | Существующие URL/RBAC/escaping, отсутствие deleted route, canonical action owner |
 | `PartitionCoverageTest`, `PartitionRetentionTest`, `QueueTimeoutInvariantTest` | Сохранённая domain history/partman policy; только Process/default consumers; shutdown grace |
 
@@ -199,6 +199,8 @@ throughput remain later acceptance boundaries.
 
 ## P3.16 — platform UI и operational metrics
 
+Историческое состояние P3.16: последующие срезы P3.17–P3.19 описаны выше.
+
 Этот срез добавляет CLI/Pulse consumers существующих coverage facts и replayable counters.
 Новые schema, projector, timeseries engine, speculative UI hooks и external alerts не создаются.
 Механизмы следующего среза P3.17–P3.19 остаются отдельными работами; legacy incidents/schema,
@@ -206,11 +208,11 @@ switches и dependency baseline здесь не удаляются.
 
 | Test / group | Actual assertions | Owning target |
 | --- | --- | --- |
-| `T46PlatformMetricsProjectionTest`, t46/p33 | Реальный producer complete-empty, contiguous gap, archive isolation, несколько streams, closed denominator/incomplete, Unknown/no-data/day precision, replay/duplicate/labels, числовой platform cohort → platform code, CLI/Pulse, current counts, due/pause, maintenance/lag | `core-test-observability` |
-| `T48PlatformUiRegistryTest`, t48/p33 | Настоящий JSON detail без extension и EIS SQL, EIS fields/escaping, Livewire list 1→20 rows с постоянным query count и без unused extension queries | `core-test-platforms` |
+| `PlatformMetricsProjectionTest`, t46/p33 | Реальный producer complete-empty, contiguous gap, archive isolation, несколько streams, closed denominator/incomplete, Unknown/no-data/day precision, replay/duplicate/labels, числовой platform cohort → platform code, CLI/Pulse, current counts, due/pause, maintenance/lag | `core-test-observability` |
+| `PlatformUiRegistryTest`, t48/p33 | Настоящий JSON detail без extension и EIS SQL, EIS fields/escaping, Livewire list 1→20 rows с постоянным query count и без unused extension queries | `core-test-platforms` |
 | `PlatformUiBoundaryTest`, t48/p33 | Generic resources без implementation imports; negative source fixtures для import/FQCN/class strings | `core-quality` |
-| `T46ProjectionConcurrencyTest`, t46/t20/t18 | Сохранённый корпус реальных PostgreSQL connections/barriers после изменения active-snapshot reader | `core-test-observability` |
-| `T17ProcessPipelineE2eTest`, `T48OperatorNavigationE2eTest`, `T31MultiProcessPipelineE2eTest`, p316/e2e | Полный E2E конвейер (listing → detail → download → prepare OCR → screening/extraction/publication → status_refresh → metrics/CLI/Pulse), recovery reconcile, EXR-01/EXR-02 операторская навигация/RBAC/команды и многопроцессное взаимодействие daemons/workers на PostgreSQL и Redis | `core-test-e2e` |
+| `ProjectionConcurrencyTest`, t46/t20/t18 | Сохранённый корпус реальных PostgreSQL connections/barriers после изменения active-snapshot reader | `core-test-observability` |
+| `ProcessPipelineE2eTest`, `OperatorNavigationE2eTest`, `MultiProcessPipelineE2eTest`, p316/e2e | Полный E2E конвейер (listing → detail → download → prepare OCR → screening/extraction/publication → status_refresh → metrics/CLI/Pulse), recovery reconcile, EXR-01/EXR-02 операторская навигация/RBAC/команды и многопроцессное взаимодействие daemons/workers на PostgreSQL и Redis | `core-test-e2e` |
 
 Executor запускает только отдельные test files через `make core-test-file TEST_FILE=...`.
 Этот target использует те же identity/readiness guards, общий project lock, останавливает

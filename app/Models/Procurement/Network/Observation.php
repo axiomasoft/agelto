@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Факт результата запроса/контракта/парсинга, включая stale; health projection применяет его
- * один раз через ObservationApplication. Writer — P2.1–P2.6.
+ * один раз через ObservationApplication.
  *
  * @property string $observation_id
  * @property string|null $request_id

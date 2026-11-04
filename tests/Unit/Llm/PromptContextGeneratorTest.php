@@ -9,13 +9,13 @@ use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
 use App\Dto\Procurement\Analyzers\Estimate\TotalsResponse;
 use App\Services\Llm\Schema\PromptContextGenerator;
 
-test('блок не несёт исходника контрактов — структура уехала в исходящую схему (D8 шаг 3)', function (): void {
+test('блок не несёт исходника контрактов — структура уехала в исходящую схему (шаг 3)', function (): void {
     $generator = new PromptContextGenerator;
 
     $block = $generator->generate([RowsChunkResponse::class, EstimateHeaderMap::class]);
 
     // Маркер печати исходника v1 и его синтаксические следы: ни одного из них в системной части
-    // больше нет — второй носитель структуры снят (P2.5, D101).
+    // больше нет — второй носитель структуры снят.
     foreach (['// --- Source:', 'final class', 'public function __construct', 'extends Data', '#[Description', '#[Alias'] as $marker) {
         expect($block)->not->toContain($marker);
     }
@@ -26,7 +26,7 @@ test('синонимы #[Alias] замыкания доезжают до бло�
 
     $block = $generator->generate([RowsChunkResponse::class, EstimateHeaderMap::class]);
 
-    // Словарь, объявленный ТИПОМ (обход от обёртки до него не достаёт, D51).
+    // Словарь, объявленный ТИПОМ (обход от обёртки до него не достаёт).
     expect($block)->toContain('EstimateHeaderMap:')
         ->and($block)->toContain('- row_index: «№ п/п», «№», «поз», «Номер», «по порядку», «Номер п/п», «№№ п/п»');
 
@@ -46,7 +46,7 @@ test('контракт без единого #[Alias] даёт пустой бл
         ->and($generator->generate([]))->toBe('');
 });
 
-test('классы идут по короткому имени, свойства — в порядке конструктора (единый порядок D89)', function (): void {
+test('классы идут по короткому имени, свойства — в порядке конструктора (единый порядок)', function (): void {
     $generator = new PromptContextGenerator;
 
     $block = $generator->generate([PassportResponse::class, EstimateHeaderMap::class]);

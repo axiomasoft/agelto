@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Process;
 
 /**
- * Fairness cohort work (execution#s04): `platform:<code>` для работы площадки либо `manual`.
+ * Fairness cohort work: `platform:<code>` для работы площадки либо `manual`.
  * Платформа не определяет поведение Process: код используется только как ключ cohort/scope.
  */
 final readonly class CohortKey

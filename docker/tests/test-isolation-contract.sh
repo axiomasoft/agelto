@@ -3,13 +3,10 @@
 set -euo pipefail
 
 root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd -P)
-plan_dir="$root_dir/plans/archive/2026.08.09-RELEASE-READINESS"
 temp_dir=$(mktemp -d)
 trap 'rm -rf "$temp_dir"' EXIT
 
 cd "$root_dir"
-
-grep -Fx '**Status:** 🟢 Done' "$plan_dir/phases/P11/P11.2.state.md" >/dev/null
 rg -F '<server name="DB_DATABASE" value="agelto_test"/>' phpunit.xml >/dev/null
 rg -F '<env name="DB_DATABASE" value="agelto_test"/>' phpunit.xml >/dev/null
 rg -F "'DB_DATABASE' => 'agelto_test'" tests/bootstrap.php >/dev/null
@@ -35,7 +32,7 @@ fi
 
 compose=(docker compose --project-directory "$root_dir" --project-name agelto_dev --env-file "$root_dir/.env" -f "$root_dir/docker-compose.yml")
 testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app)
-agent_testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres -e CODEX_THREAD_ID=p11-isolation-contract app)
+agent_testing_app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres -e CODEX_THREAD_ID=test-isolation-contract app)
 focused_filter='TestEnvironmentGuardTest|TestFilesystemIsolationTest|PaoContractTest'
 
 "${testing_app[@]}" php artisan test --no-tia --compact --filter="$focused_filter"
@@ -64,7 +61,7 @@ PY
 "${agent_testing_app[@]}" php artisan test --no-tia --filter=PaoContractTest >"$temp_dir/pest-success.json"
 expect_agent_json passed "$temp_dir/pest-success.json"
 
-if "${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres -e CODEX_THREAD_ID=p11-isolation-contract -e P11_PAO_SABOTAGE=1 app php artisan test --no-tia --filter=PaoContractTest >"$temp_dir/pest-failure.json"; then
+if "${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres -e CODEX_THREAD_ID=test-isolation-contract -e P11_PAO_SABOTAGE=1 app php artisan test --no-tia --filter=PaoContractTest >"$temp_dir/pest-failure.json"; then
     echo 'PAO sabotage unexpectedly passed' >&2
     exit 1
 fi
@@ -100,12 +97,5 @@ fi
 
 make quality
 make documentation:check
-python3 "$root_dir/plans/verify-citations.py" "$root_dir/plans/archive/2026.08.09-RELEASE-READINESS" --strict
 
-marketplace_root=/home/vostrikov/projects/packages/swissknifeman
-python3 "$marketplace_root/packages/task/scripts/plan-lint.py" "$plan_dir"
-python3 "$marketplace_root/packages/task/scripts/plan-views.py" state --all --plan-dir "$plan_dir" --check
-python3 "$marketplace_root/packages/task/scripts/plan-views.py" decisions --plan-dir "$plan_dir" --check
-python3 "$marketplace_root/packages/task/scripts/plan-views.py" status --plan-dir "$plan_dir" --check
-
-echo 'P11 test isolation contract passed'
+echo 'test isolation contract passed'

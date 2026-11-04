@@ -13,7 +13,7 @@ use App\Services\Procurement\Process\Contracts\ProcessDaemon;
 use Closure;
 
 /**
- * Цикл долгоживущего daemon (bp-daemons): tick → heartbeat → пауза. Heartbeat каждые
+ * Цикл долгоживущего daemon: tick → heartbeat → пауза. Heartbeat каждые
  * heartbeat_seconds (DB clock в repository) и сразу при смене кода ошибки, в том числе во время
  * длинной паузы backoff. Неожиданное исключение tick не убивает loop и не выдаётся за успех:
  * sanitized лог, degraded код в heartbeat и экспоненциальный backoff 1→30 s. Loop завершается
@@ -121,7 +121,11 @@ final class DaemonLoop
     private function beat(ProcessDaemon $daemon, ProcessUuid $instance, ?string $errorCode): void
     {
         try {
-            $this->heartbeats->beat($instance, $errorCode);
+            if (! $this->heartbeats->beat($instance, $errorCode)) {
+                // Startup may have raced a DB outage, or retention may have removed a stale row.
+                // Restore this live instance and retain the current processing error.
+                $this->heartbeats->register($instance, $daemon->kind(), $errorCode);
+            }
         } catch (\Throwable $failure) {
             ProcessLog::daemonError($daemon->kind()->value, 'heartbeat_failed', $failure);
         }

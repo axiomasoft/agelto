@@ -202,11 +202,8 @@ return [
     |
     */
 
-    // `tries: 1` во ВСЕХ supervisor'ах ниже — не недосмотр (D135, P7.7): ретрай стадий Procurement
-    // сознательно вынесен из очереди в доменный контур `HasErrorBlock` (attempts/next_retry_at/
-    // failed_permanently на самой модели) + расписанный `pipeline:retry-failed`. Свойств
-    // очередного ретрая (`$tries`/`$backoff`/`retryUntil()`) у job'ов Procurement быть не должно —
-    // сторож `tests/Unit/Architecture/JobRetryContractGuardTest.php`.
+    // Procurement retries belong to the durable Process ledger and recovery scanners.
+    // Horizon delivers each wake once; JobRetryContractGuardTest protects this ownership.
     'defaults' => [
         'supervisor-1' => [
             'connection' => 'redis',
@@ -222,7 +219,7 @@ return [
             'nice' => 0,
         ],
 
-        // Process delivery supervisors (bp-jobs): ExecuteWorkJob — единственная queue delivery.
+        // Process delivery supervisors: ExecuteWorkJob — единственная queue delivery.
         // `tries: 1`: бизнес-retry принадлежит durable ledger, не Horizon. `timeout` — fallback
         // bound, а не второй таймер поверх public job timeout: job < timeout < retry_after
         // connection < lease (`StageQueueMap` сверяет цепочку с process.queues). maxProcesses = C+1,

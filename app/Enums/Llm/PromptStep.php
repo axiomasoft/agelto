@@ -9,7 +9,7 @@ use App\Enums\Procurement\Ai\AiDocumentType;
 /**
  * Носитель шага композиции системной инструкции (`llm_prompts.step`), реализуемый ядерным
  * `CorePromptStep` (кросс-документные шаги) и типовыми enum'ами анализаторов
- * (`App\Enums\Procurement\Analyzers\<Type>\*PromptStep`, contract P2.1 §4.1). Значение,
+ * (`App\Enums\Procurement\Analyzers\<Type>\*PromptStep`). Значение,
  * которое несёт шаг, без типа документа неоднозначно ПО КОНТРАКТУ (§5.4 п.3) — резолв
  * «строка → носитель» идёт только через `DocumentAnalyzerRegistry`, не через этот интерфейс.
  */

@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Prepare\Gsfx;
 use Spatie\LaravelData\Data;
 
 /**
- * Паспорт сметы из `Properties.txt` контейнера ГрандСметы (P3.3, ключи cp1251 key=value).
+ * Паспорт сметы из `Properties.txt` контейнера ГрандСметы (ключи cp1251 key=value).
  * - doc_type: тип документа программы (`DocType`, напр. `sdtSmeta`).
  * - loc_num: номер сметы (`Attribs.LocNum`).
  * - object_name: наименование объекта (`Attribs.ObjName`).
@@ -16,7 +16,7 @@ use Spatie\LaravelData\Data;
  * - normative_base: нормативная база (`RegionInfo.RegionName`, напр. «ФСНБ-2022»).
  * - program_version: версия ГрандСметы, сформировавшей файл (`GSmetaVersion`).
  * - modified_at: дата последнего изменения, raw-строка формата `d.m.Y H:i:s` (`ModifyDate`) —
- *   не парсится в Carbon здесь, разбор формата — забота потребителя (P5.1).
+ *   не парсится в Carbon здесь, разбор формата — забота потребителя.
  */
 final class GsfxPassport extends Data
 {

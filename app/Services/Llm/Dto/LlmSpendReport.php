@@ -7,10 +7,10 @@ namespace App\Services\Llm\Dto;
 use Illuminate\Support\Collection;
 
 /**
- * Итог `LlmSpendReporter::report()` — строки + суммы за окно; форматирование валют и печать
- * таблицы остаются в команде (`root/service-layer-map.md` §3). Дневная серия и подпись источника
+ * Итог `LlmSpendReporter::report` — строки + суммы за окно; форматирование валют и печать
+ * таблицы остаются в команде. Дневная серия и подпись источника
  * приезжают из `UsageSource` и в отчёте только переносятся: дневной разрез ДОБАВЛЯЕТСЯ к старой
- * таблице, а не заменяет её (D124/D38, контракт `root/usage-source-contract.md` §6).
+ * таблице, а не заменяет её.
  */
 final readonly class LlmSpendReport
 {

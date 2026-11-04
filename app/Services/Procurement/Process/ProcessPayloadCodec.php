@@ -268,7 +268,7 @@ final class ProcessPayloadCodec
         return new FairnessCursor($reader->isNull('last_cohort') ? null : $reader->string('last_cohort'), $stages);
     }
 
-    /** Typed work_wake payload (bp-sql-admit): только scalar IDs, без моделей и credentials. */
+    /** Typed work_wake payload: только scalar IDs, без моделей и credentials. */
     public function encodeWorkWake(WorkId $workId, DeliveryGeneration $dispatchGeneration, ProcessUuid $messageId, StageCode $stage): VersionedPayload
     {
         return $this->payload([

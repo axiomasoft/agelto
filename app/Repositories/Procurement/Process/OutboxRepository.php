@@ -42,7 +42,7 @@ final readonly class OutboxRepository
     }
 
     /**
-     * Coalesced feeder wake lane (bp-sql-finalize): dedup `feed:<lane_key>:<epoch_second/5>` по DB
+     * Coalesced feeder wake lane: dedup `feed:<lane_key>:<epoch_second/5>` по DB
      * clock, ON CONFLICT DO NOTHING — 0 вставленных строк означает успешное coalescing, даже если
      * существующий wake уже опубликован; periodic feed tick остаётся safety net.
      */
@@ -59,7 +59,7 @@ final readonly class OutboxRepository
     }
 
     /**
-     * Token claim только СВОЕГО kind (bp-sql-relay): один statement, `FOR UPDATE SKIP LOCKED` на
+     * Token claim только СВОЕГО kind: один statement, `FOR UPDATE SKIP LOCKED` на
      * bounded batch, expired claim забирается заново. Side effects consumer выполняет после commit
      * claim; чужой kind не затрагивается никогда. Сообщения возвращаются в порядке available_at.
      *

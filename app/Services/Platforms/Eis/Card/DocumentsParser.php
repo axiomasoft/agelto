@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
- * Разбор вкладки `documents` карточки закупки ЕИС (`findings/P4-card-layout.md` §2, живая проба
- * P4.13) в {@see DocumentsSnapshot}. Только HTML → DTO, без записи в БД (это `DocumentIndexer`)
+ * Разбор вкладки `documents` карточки закупки ЕИС в {@see DocumentsSnapshot}.
+ * Только HTML → DTO, без записи в БД (это `DocumentIndexer`)
  * и без скачивания файла (это `DocumentDownloader`). Ссылка на файл — АБСОЛЮТНАЯ
  * (`https://zakupki.gov.ru/44fz/filestore/...`), резолвится как есть. Строка без файла-ссылки
  * (брак вёрстки/ещё не опубликован) — пропускается, без неё нет `external_id` для дедупа. Вкладка

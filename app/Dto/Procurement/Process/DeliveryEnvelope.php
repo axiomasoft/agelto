@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Process;
 
 /**
- * Queue envelope одной delivery (bp-jobs): только scalar identity — work, dispatch generation,
+ * Queue envelope одной delivery: только scalar identity — work, dispatch generation,
  * message и версия схемы. Ни моделей, ни credentials, ни payload. Неподдерживаемая версия схемы не
  * исполняется: runner открывает видимый incident, а работу восстанавливают durable scanners.
  */

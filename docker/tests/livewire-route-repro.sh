@@ -3,8 +3,6 @@
 set -euo pipefail
 
 root_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
-plan_dir="$root_dir/plans/archive/2026.08.09-RELEASE-READINESS"
-evidence_file="$plan_dir/findings/P3.1-livewire-runtime-evidence.md"
 mode=${1:-}
 
 usage() {
@@ -17,16 +15,7 @@ case "$mode" in
     *) usage ;;
 esac
 
-for state_file in \
-    "$plan_dir/phases/P0/P0.4.state.md" \
-    "$plan_dir/phases/P0/P0.6.state.md" \
-    "$plan_dir/phases/P1/P1.5.state.md" \
-    "$plan_dir/phases/P2/P2.6.state.md"; do
-    rg -F '**Status:** 🟢 Done' "$state_file" >/dev/null || {
-        echo "Required upstream item is not terminal: ${state_file#$root_dir/}" >&2
-        exit 1
-    }
-done
+evidence_file=${LIVEWIRE_EVIDENCE_FILE:-$(mktemp "${TMPDIR:-/tmp}/agelto-livewire-evidence.XXXXXX.md")}
 
 for command in docker curl rg sha256sum sed; do
     command -v "$command" >/dev/null || {
@@ -129,7 +118,7 @@ if [[ "$mode" == --expect-success ]]; then
 fi
 
 {
-    echo '# P3.1 Livewire runtime evidence'
+    echo '# Livewire runtime evidence'
     echo
     echo "- Captured at: $(date --iso-8601=seconds)"
     echo "- Git revision: $(git rev-parse HEAD)"
@@ -181,11 +170,11 @@ fi
     echo '## Interpretation'
     echo
     if [[ "$mode" == --expect-current-failure && "$expected_chain" == true ]]; then
-        echo 'The admin HTML emits the dynamic Livewire URL, Laravel registers the route and vendor contains its distribution, but Nginx selects the static extension location without a fallback and returns 404. P3.2 may add only the Nginx fallthrough repair required for this location.'
+        echo 'The admin HTML emits the dynamic Livewire URL and Laravel registers the route, but the Nginx static location has no fallback and returns 404.'
     elif [[ "$mode" == --expect-success && "$verdict" == PROVED ]]; then
-        echo 'The Livewire route is reachable through the repaired HTTP path. This mode is reserved for P3.2 and later.'
+        echo 'The Livewire route is reachable through the configured HTTP path.'
     else
-        echo 'The observed chain differs from the declared hypothesis. Do not normalize the discrepancy; P3.2 requires plan-design escalation with this evidence.'
+        echo 'Inspect the captured HTTP, route and Nginx evidence before changing the route: the expected chain was not observed.'
     fi
 } >"$evidence_file"
 

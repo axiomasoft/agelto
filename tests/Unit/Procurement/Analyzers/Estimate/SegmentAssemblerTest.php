@@ -6,7 +6,7 @@ use App\Dto\Procurement\Analyzers\Estimate\DiscoveryMarkerLine;
 use App\Enums\Procurement\Estimate\DiscoveryMarker;
 use App\Services\Procurement\Analyzers\Estimate\SegmentAssembler;
 
-// Юнит-тесты SegmentAssembler (Scope Included P6.4, сценарии (а)-(г) из phases/P6.md): чистая
+// Проверяет детерминированную сборку сегментов без внешних вызовов.
 // детерминированная функция БЕЗ LLM, вход — плоский список маркеров В ПОРЯДКЕ ПРИХОДА ОКОН.
 
 function marker(int $page, DiscoveryMarker $marker, ?string $title = null): DiscoveryMarkerLine

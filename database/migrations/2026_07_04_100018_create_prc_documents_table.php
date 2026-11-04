@@ -11,9 +11,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * P7.5, F-02/D133: документы запрещают удаление закупки (`RESTRICT`), а связь с площадкой
- * сохраняет прежний `NO ACTION` явно. Lease-колонки `locked_by`/`locked_until` поглощены из
- * 100049. Категория документа уже хранится в `kind`; D130 не добавляет второй носитель.
+ * Документы запрещают удаление закупки (`RESTRICT`); связь с площадкой сохраняет `NO ACTION`.
+ * Категория документа хранится в `kind`, execution ownership принадлежит Process.
+ * Source identity и acquisition cycles позволяют повторно проверять документ без
+ * дублирования его каталожной строки.
  */
 return new class extends Migration
 {
@@ -36,7 +37,7 @@ return new class extends Migration
 
             // uid вложения в filestore ЕИС.
             $table->text('external_id')->nullable();
-            // Acquisition catalog. Legacy document/manual writers remain until their P3 cutover.
+            // Source identity and access metadata for document acquisition.
             $table->text('source_document_key')->nullable()->collation('C');
             $table->integer('source_key_version')->nullable();
             $table->jsonb('access_descriptor')->nullable();
@@ -64,8 +65,7 @@ return new class extends Migration
 
             $table->timestamps();
 
-            // P1.6: subject head и durable acquisition/revalidation cycle download work
-            // (execution#subject-locks). Сериализуются FOR UPDATE этой row.
+            // Subject head и выделение download/revalidation cycles сериализуются FOR UPDATE этой row.
             $table->bigInteger('head_generation')->default(1);
             $table->bigInteger('acquisition_cycle_seq')->default(0);
             $table->timestampTz('next_revalidation_due_at', precision: 6)->nullable();

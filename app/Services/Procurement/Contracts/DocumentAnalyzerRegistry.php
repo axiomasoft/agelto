@@ -16,23 +16,12 @@ use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
 
 /**
- * Реестр «тип документа → анализатор» (§5 контракта P2.1) — ЧИСТЫЙ поиск, решений не принимает.
- *
- * Носитель регистрации — одна строка `config('ai.analyzers')` вида `тип => ::class` (D14):
- * значения ИМЕНА КЛАССОВ строками, замыканий нет, поэтому массив переживает `config:cache`.
- * Инстанс резолвит контейнер, конструкторная инъекция анализатора работает как у любого сервиса.
- *
- * Реестр собирается один раз (синглтон, первый резолв) и на сборке проверяет инварианты §5.4:
- * ключ — значение `AiDocumentType` и это НЕ `unknown`; класс реализует `DocumentAnalyzer`;
- * значения `step`/`purpose`, объявленные анализатором, НЕ пересекаются с ядерными
- * (`CorePromptStep`/`CoreLlmPurpose`) — без этой проверки анализатор со значением `'global'`
- * молча затенил бы ядерный промт (`groupBy('key')`, `PromptReadRepository::activeForSteps()`).
- * Собственные значения анализатора реестр получает ЧЕРЕЗ `$analyzer->promptSteps()`/`purposes()`
- * (интерфейс), не импортируя типовой enum — иначе ядро начало бы знать про смету (P2.6).
- *
- * `AiDocumentType::Unknown` зарегистрировать НЕЛЬЗЯ: «анализатор неизвестного типа» вернул бы
- * ветвление по типу в ядро через чёрный ход. Решение «неизвестный тип → `ignored`» остаётся
- * в ядре (`ScreeningOutcomeHandler`) — это факт ветвления скрининга, а не факт реестра.
+ * Реестр type → analyzer из config('ai.analyzers'). Значения — имена классов,
+ * совместимые с config:cache; экземпляры создаёт контейнер с обычной DI.
+ * На первом resolve проверяет AiDocumentType кроме Unknown, реализацию DocumentAnalyzer
+ * и отсутствие пересечений prompt steps/purposes с CorePromptStep/CoreLlmPurpose.
+ * Значения steps/purposes получает через интерфейс, без импорта enum конкретного анализатора.
+ * Решение по неизвестному типу остаётся в screening, а не в registry.
  */
 final readonly class DocumentAnalyzerRegistry implements PromptScopeRegistry
 {
@@ -105,7 +94,7 @@ final readonly class DocumentAnalyzerRegistry implements PromptScopeRegistry
 
     /**
      * Допустимые шаги композиции для типа: ядерные ∪ собственные (для `DocumentTypeScope::Any`
-     * или типа без анализатора — только ядерные, §5.2 контракта).
+     * или типа без анализатора — только ядерные).
      *
      * @return list<PromptStep>
      */
@@ -124,7 +113,7 @@ final readonly class DocumentAnalyzerRegistry implements PromptScopeRegistry
 
     /**
      * Резолв «строка → носитель шага» для типа — единственное МЕСТО, где значение `step`
-     * проверяется на границе записи (§7 контракта). Бросает на значении вне множества типа —
+     * проверяется на границе записи. Бросает на значении вне множества типа —
      * fail-fast, та же семантика, что была у `PromptStep::from()` до расщепления.
      */
     public function documentType(string $value): DocumentScope
@@ -167,7 +156,7 @@ final readonly class DocumentAnalyzerRegistry implements PromptScopeRegistry
     }
 
     /**
-     * Резолв «строка → носитель назначения» для типа (§7 контракта) — та же fail-fast
+     * Резолв «строка → носитель назначения» для типа — та же fail-fast
      * семантика, что `promptStepFor()`.
      */
     public function purposeFor(AiDocumentType|DocumentTypeScope $documentType, string $value): LlmPurpose

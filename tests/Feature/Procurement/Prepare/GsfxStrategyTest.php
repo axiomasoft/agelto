@@ -22,9 +22,9 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
- * `.gsfx` → структурная модель и текст (P3.3, D2). Синтетический контейнер собирается в тесте
- * из `tests/Fixtures/gsfx/{Properties.txt,Data.xml}` (реальный 6.2-МБ эталон в git не коммитится,
- * D1) — те же файлы, перекодированные в cp1251, что и настоящий контейнер ГрандСметы.
+ * `.gsfx` → структурная модель и текст. Синтетический контейнер собирается в тесте
+ * из `tests/Fixtures/gsfx/{Properties.txt,Data.xml}` (реальный 6.2-МБ эталон в git не коммитится) —
+ * те же файлы, перекодированные в cp1251, что и настоящий контейнер ГрандСметы.
  */
 function buildGsfxZip(array $extraEntries = []): string
 {

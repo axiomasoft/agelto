@@ -17,7 +17,7 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
- * Контракт представлений (P3.1, D25–D28): носитель, идемпотентность записи, дефолтная политика
+ * Контракт представлений: носитель, идемпотентность записи, дефолтная политика
  * резолвера и цепочка стратегий подготовки.
  */
 test('повторный storeOrUpdate идемпотентен по recipe kind range и отвергает изменение immutable bytes', function () {
@@ -100,7 +100,7 @@ test('резолвер с представлением pdf отдаёт его �
     ]);
 });
 
-test('резолвер отдаёт диск представления, если тот записан явно (производные эталонов P6)', function () {
+test('резолвер отдаёт диск представления, если тот записан явно (производные эталонов)', function () {
     $version = DocumentVersion::factory()->create();
 
     DocumentRepresentation::factory()->create([

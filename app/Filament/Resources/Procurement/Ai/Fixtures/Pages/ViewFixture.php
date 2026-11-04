@@ -29,11 +29,11 @@ class ViewFixture extends ViewRecord
     }
 
     /**
-     * Право — `AnalysisPermission::Create` (D44), проверенное СТРОКОЙ ability через
-     * `hasPermission()` (`Gate::before` AzGuard резолвит её без модели): `->authorize('create')`
-     * резолвился бы на модель ресурса эталонов и дал бы `fixture.create` (Implementation Rule 8).
+     * Право — `AnalysisPermission::Create`, проверенное СТРОКОЙ ability через
+     * `hasPermission` (`Gate::before` AzGuard резолвит её без модели): `->authorize('create')`
+     * резолвился бы на модель ресурса эталонов и дал бы `fixture.create` .
      * Guard активного прогона стоит И здесь (устаревшая карточка не показывает кликабельную
-     * кнопку), И внутри `RunFixtureAnalysisAction::run()` (Implementation Rule 7).
+     * кнопку), И внутри `RunFixtureAnalysisAction::run` .
      */
     private function runAction(): Action
     {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Network;
 
 /**
- * Подтверждённая доступность функции target (platform-transport#s06) отдельно от circuit state:
+ * Подтверждённая доступность функции target отдельно от circuit state:
  * suspect не равен outage и не запрещает следующую разрешённую попытку.
  */
 enum TargetAvailability: string

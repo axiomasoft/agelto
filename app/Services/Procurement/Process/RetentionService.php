@@ -11,7 +11,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * Политика выбора устаревших transition events (observability#s07); удаляет только
+ * Политика выбора устаревших transition events; удаляет только
  * ProjectionRetention, который сам проверяет receipts и fanout. Событие кандидат, если оно старше
  * срока и сущность не нуждается в истории: активные/нерешённые incidents, нетерминальные work,
  * runs с незакрытым discovery или нетерминальным required work, а также ПОСЛЕДНЕЕ transition

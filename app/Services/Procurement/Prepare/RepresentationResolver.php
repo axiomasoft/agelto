@@ -10,11 +10,11 @@ use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Storage\FileLocationResolver;
 
 /**
- * Какой файл версии уходит в LLM (D25). Политика по расширению исходника читается из
- * `config('ai.representations')` (P6.3, D3/D52, ADR `adr-input-representation.md`) — правило
+ * Какой файл версии уходит в LLM. Политика по расширению исходника читается из
+ * `config('ai.representations')` (ADR `adr-input-representation.md`) — правило
  * живёт как ДАННЫЕ, ветка выбора легальна только здесь. Источник диска — {@see FileLocationResolver}
- * (P6.3, D115): внешняя форма `array{storagePath, disk, extension, mime}` не меняется, диск внутри
- * больше не читается из `config(...)` напрямую.
+ *: внешняя форма `array{storagePath, disk, extension, mime}` не меняется, диск внутри
+ * больше не читается из `config(..)` напрямую.
  */
 final readonly class RepresentationResolver
 {
@@ -24,9 +24,9 @@ final readonly class RepresentationResolver
     ) {}
 
     /**
-     * `$forceKind` — сейм принуждения представления (P6.1, D50): бенчмарк обязан подать в
+     * `$forceKind` — сейм принуждения представления: бенчмарк обязан подать в
      * пайплайн ИМЕННО измеряемый вариант, а не тот, что выбрала бы дефолтная политика. Приоритет
-     * (P6.3, D52): `$forceKind` > политика > оригинал версии. При переданном kind отдаём РОВНО
+     *: `$forceKind` > политика > оригинал версии. При переданном kind отдаём РОВНО
      * его — нет такого представления, значит ячейка бенчмарка `not_applicable`, не оригинал.
      * Дефолт `null` сохраняет сегодняшнее поведение байт-в-байт (всегда non-null).
      *

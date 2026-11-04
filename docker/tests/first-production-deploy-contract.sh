@@ -7,7 +7,7 @@ readonly script="$root/docker/scripts/first-production-deploy.sh"
 readonly stages=(preflight data migration seed-base initial-admin workers assets readiness doctor browser)
 
 fail() {
-    printf '[FAIL] P12.4 %s\n' "$*" >&2
+    printf '[FAIL] %s\n' "$*" >&2
     exit 1
 }
 
@@ -22,6 +22,7 @@ expect_fail() {
 bash -n "$script"
 mapfile -t described < <("$script" check | cut -d'|' -f1)
 [[ ${described[*]} == "${stages[*]}" ]] || fail 'check mode does not expose the closed stage order'
+"$script" check | grep -Fx 'workers|mutation|horizon,scheduler,process-relay,process-reconciler,process-feeder,process-projector health|resume at workers' >/dev/null || fail 'worker health matrix differs from production services'
 
 fixture_root=$(mktemp -d)
 trap 'find "$fixture_root" -depth -delete' EXIT
@@ -81,8 +82,7 @@ expect_fail 'unknown mode' "$script" unknown
 
 ! rg -n -- 'docker build|migrate:fresh|seed-demo|down --volumes|eval|\|\| true|password|secret.*(argv|echo)' "$script" >/dev/null
 ! rg -n -- 'SENTINEL' "$state" "$fixture_root/calls" >/dev/null
-grep -F 'TEMPLATE — NO RUNTIME EVIDENCE' "$root/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-first-deploy-evidence.md" >/dev/null
-grep -F 'follow-up operator rehearsal' "$root/docs/operators/production/first-deploy.md" >/dev/null
+grep -F 'он не запускает production' "$root/docs/operators/production/first-deploy.md" >/dev/null
 grep -F 'failure state and resume' "$root/docs/operators/production/troubleshooting.md" >/dev/null
 
 printf 'First deploy contract passed\n'

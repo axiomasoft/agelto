@@ -8,6 +8,7 @@
 
 ## Working discipline
 
+- При оркестрации непрерывно отслеживать conductor до результата: самостоятельно устранять технические остановки, поручать исправления исполнителям и принимать их по evidence. Не завершать работу лишь потому, что запуск оставлен в фоне.
 - Start with one or two relevant files. Expand context only for an unresolved term, a cross-layer change, or a conflict between rules.
 - Before editing, check whether the target is Git-ignored. Preserve unrelated dirty worktree changes.
 - Native Planner owns plan source and execution state. The coordinator records completion facts and commits; an executor follows its execution-input authority and returns evidence in its stage-report.

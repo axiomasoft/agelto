@@ -8,8 +8,8 @@ use App\Models\Procurement\Ai\PromptSuggestion;
 use App\Models\User;
 
 /**
- * P7.4 — `ai:prompts:apply`: работает ТОЛЬКО со `status=approved` (D8). Тесты, пишущие в реальные
- * файлы-канон (не фейковый диск — README «файл под git — канон») в ОБОИХ корнях D32 (ядро
+ * `ai:prompts:apply`: работает ТОЛЬКО со `status=approved`. Тесты, пишущие в реальные
+ * файлы-канон (не фейковый диск — README «файл под git — канон») в ОБОИХ корнях (ядро
  * `resources/ai/prompts/**`, домен `resources/estimates/ai/prompts/**`), ОБЯЗАНЫ восстановить
  * исходное содержимое в `finally`, иначе рабочее дерево репозитория останется грязным после
  * прогона тестов.
@@ -21,8 +21,8 @@ function promptApplyTargetPath(): string
 
 /**
  * Ключ `global` живёт в корне ЯДРА (не доменном) — сценарий доказывает, что `PromptPatchApplier`
- * находит файл по `key` в ОБОИХ корнях объединённого пространства (D32), а не только в доменном,
- * где живёт `extraction-totals` выше (Validation 6 P3.4).
+ * находит файл по `key` в ОБОИХ корнях объединённого пространства, а не только в доменном,
+ * где живёт `extraction-totals` выше (Validation 6 ).
  */
 function promptApplyCoreTargetPath(): string
 {

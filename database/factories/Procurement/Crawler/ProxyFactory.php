@@ -52,7 +52,7 @@ final class ProxyFactory extends Factory
     }
 
     /**
-     * Узел с открытым глобальным breaker'ом (research/02 §7).
+     * Узел с открытым глобальным circuit, отдельно от здоровья конкретного target.
      */
     public function open(): static
     {

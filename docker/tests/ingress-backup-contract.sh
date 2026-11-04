@@ -9,12 +9,12 @@ readonly watchdog="$root/docker/scripts/backup-watchdog.sh"
 readonly alert="$root/docker/scripts/backup-alert.sh"
 
 fail() {
-    printf '[FAIL] P12.3 %s\n' "$*" >&2
+    printf '[FAIL] %s\n' "$*" >&2
     exit 1
 }
 
 pass() {
-    printf '[PASS] P12.3 %s\n' "$*"
+    printf '[PASS] %s\n' "$*"
 }
 
 expect_fail() {
@@ -192,9 +192,7 @@ pass 'watchdog freshness/failure and secret-file alert redaction fixtures'
     "$root/docker/scripts/backup-alert.sh" \
     "$root/docker/host/nginx" \
     "$root/docker/host/systemd" >/dev/null
-rg -q 'https://nginx.org/en/docs/http/ngx_http_proxy_module.html' "$root/plans/archive/2026.08.09-RELEASE-READINESS/findings/P12-local-preparation-rag-2026-08-15.md"
-grep -F 'TEMPLATE — NO RUNTIME EVIDENCE' "$root/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-backup-evidence.md" >/dev/null
 grep -F 'current-state copying' "$root/docs/operators/production/backups.md" >/dev/null
-pass 'forbidden patterns, docs, blank evidence schema and official-source carrier'
+pass 'forbidden patterns and operator backup documentation'
 
 printf 'Ingress and backup contract passed\n'

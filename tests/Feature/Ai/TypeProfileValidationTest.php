@@ -79,7 +79,7 @@ test('анализатор без реализации интерфейса не
             'document_type' => AiDocumentType::Estimate->value,
             'owner_document_type' => AiDocumentType::Estimate->value,
             // `class`/`form` остаются структурным требованием ЯДРА (`Fixture::nextCodeFor()`,
-            // код эталона — D13, не предмет type-profile-валидации); `unexpected_key` — поле,
+            // код эталона не относится к type-profile-валидации); `unexpected_key` — поле,
             // которое `EstimateAnalyzer::validateTypeProfile()` отклонил бы как неизвестное
             // (`clas`-кейс выше), но анализатор подменён и профиль сохраняется как есть.
             'type_profile' => [

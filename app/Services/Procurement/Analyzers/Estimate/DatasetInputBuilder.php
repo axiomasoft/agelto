@@ -15,11 +15,11 @@ use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Единый строитель входа `estimate:dataset:export` (P7.1, D56) — ОДИН носитель для SFT и DPO:
+ * Единый строитель входа `estimate:dataset:export` — ОДИН носитель для SFT и DPO:
  * вторая копия сборки `user`-турна разъехалась бы с первой при первой правке (`plan-protocol` §3).
- * `composePrompt()` вызывается ВЫЗЫВАЮЩИМ (`DatasetExporter`) РОВНО один раз на прогон — системная
+ * `composePrompt` вызывается ВЫЗЫВАЮЩИМ (`DatasetExporter`) РОВНО один раз на прогон — системная
  * часть детерминирована и не зависит от строки, `ComposedPrompt` пересчитывать на каждую запись
- * незачем (implicit-cache префикс, `PromptComposer` докблок). `resolveInput()` кладёт в `user`-
+ * незачем (implicit-cache префикс, `PromptComposer` докблок). `resolveInput` кладёт в `user`-
  * содержимое ФАКТИЧЕСКИЙ текст представления (`prc_document_representations`), а не ссылку на
  * документ.
  */

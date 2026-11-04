@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
 // Reader fixtures model committed adapter evidence. Transport bytes/row assessments are
-// covered by T17AcquisitionRuntimeTest; this check counts distinct validated inputs.
+// covered by AcquisitionRuntimeTest; this check counts distinct validated inputs.
 function listingAssessment(Platform $platform, string $verdict, ?string $input = null, bool $stale = false): void
 {
     DB::table('prc_observations')->insert([

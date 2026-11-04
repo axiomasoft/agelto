@@ -10,8 +10,8 @@ use App\Models\Procurement\Estimate\Section;
 use App\Models\Procurement\Estimate\Total;
 use App\Services\Procurement\Analyzers\Estimate\EstimateToContractMapper;
 
-// Обратный маппер P9.3 (ревью K п.23) — реконструирует DTO-контракт P2.2 из НОРМАЛИЗОВАННЫХ
-// `prc_estimate_*` (P6.3). `row_index` заголовков разделов НЕ персистируется нигде (D10) —
+// Обратный маппер (ревью K п.23) — реконструирует DTO-контракт из НОРМАЛИЗОВАННЫХ
+// `prc_estimate_*`. `row_index` заголовков разделов НЕ персистируется нигде —
 // реконструкция переприсваивает его последовательно заново; тест фиксирует это как канон, а не
 // как побочный эффект (докблок маппера).
 

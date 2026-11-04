@@ -109,7 +109,7 @@ test('resolve() не принимает произвольную строку �
     llmRouteResolver()->resolve('not-a-real-type', CoreLlmPurpose::Screening);
 })->throws(TypeError::class);
 
-// D99 (P2.9): бюджет маршрута (`llm_routes.options.max_tokens`) сверх ИЗВЕСТНОГО потолка вывода
+// бюджет маршрута (`llm_routes.options.max_tokens`) сверх ИЗВЕСТНОГО потолка вывода
 // модели (`config('ai.capabilities.<model>.max_output_tokens')`) — fail fast, не молчаливый кламп
 // (тихо урезанный бюджет — операторская опечатка, живущая годами).
 test('resolve() бросает исключение, когда бюджет маршрута выше известного потолка вывода модели', function (): void {
@@ -144,7 +144,7 @@ test('resolve() не бросает исключение, если потоло�
     expect($resolved->options->maxTokens)->toBe(999999);
 });
 
-// D98/D99 (P2.9): `LlmOptions::$thinkingLevel` ← `llm_routes.options.thinking_level` — только
+// `LlmOptions::$thinkingLevel` ← `llm_routes.options.thinking_level` — только
 // `thinkingLevel`, `thinkingBudget` не эмитится (рычаг линейки 2.5, несовместим в одном запросе
 // Gemini 3 с `thinkingLevel`).
 test('resolve() прокидывает thinking_level из options маршрута в LlmOptions::$thinkingLevel', function (): void {

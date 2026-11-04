@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Bounded maintenance rebuild counters одного projector (observability#s08, единственный v1).
+ * Bounded maintenance rebuild counters одного projector.
  * A) короткая tx: state FOR UPDATE → mode=maintenance + token (ждёт ранее начатые live apply, новые
  * не стартуют). B–E) одна REPEATABLE READ tx: state FOR UPDATE, ровно один MVCC snapshot, никаких
  * locks work/lane/control/provider и сети; новая generation и receipts пишутся в ней же, flip —
@@ -199,7 +199,7 @@ final readonly class ProjectionRebuilder
     }
 
     /**
-     * Общий deadline команды (observability#s08, C): просроченный rebuild откатывается Timeout, а каждый
+     * Общий deadline команды: просроченный rebuild откатывается Timeout, а каждый
      * следующий statement ограничен остатком времени, чтобы много быстрых statements не растянули команду.
      */
     private function boundByDeadline(int $deadlineNs): void

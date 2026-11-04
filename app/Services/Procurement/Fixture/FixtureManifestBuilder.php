@@ -10,7 +10,7 @@ use App\Support\Files\MimeDetector;
 use JsonException;
 
 /**
- * Построение записей `estimates/manifest.json` из шорт-листа P1.3 (`estimate:fixtures:manifest`, D1/D20):
+ * Построение записей `estimates/manifest.json` из шорт-листа (`estimate:fixtures:manifest`):
  * `storage_path` пересчитывается построителем `Fixture::storagePathFor()`, `sha256`/`size_bytes`
  * из шорт-листа ПРОВЕРЯЮТСЯ пересчётом по файлу-источнику. Запись, чей `code` уже есть в манифесте,
  * НЕ трогается без `$force`.
@@ -79,7 +79,7 @@ final readonly class FixtureManifestBuilder
             }
 
             $goldSource = $this->stringValue($row['gold_source'] ?? 'none', "{$code}.gold_source");
-            // Ось типа документа (D16/D17, §6.1 document-type-axis.md): шорт-лист несёт её ключом
+            // Тип документа шорт-лист несёт ключом
             // document_type; «владелец корпуса» без явного значения в строке равен фактическому
             // типу (запись без document_type отклоняется валидацией FixtureManifestEntry).
             $documentType = $this->stringValue($row['document_type'] ?? '', "{$code}.document_type");

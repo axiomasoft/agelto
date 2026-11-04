@@ -99,22 +99,13 @@ class AppServiceProvider extends ServiceProvider
                 $daemon->register(app(NetworkReconcileCategory::class));
                 $daemon->register(app(NetworkProbeReconcileCategory::class));
             });
-        // Единственная реализация листинг-маппера в проекте (только ЕИС, `01-database.md`/`02-crawling.md`
-        // не заводят второй источник в этом плане) — прямой bind без config-driven реестра (YAGNI).
-
-        // Источник расхода LLM (P4.2, контракт `root/usage-source-contract.md`, D34): реализация
-        // одна — «наш трекинг» поверх `llm_provider_calls`; второй (биллинг провайдера) нет и класса-заглушки
-        // под неё не заводится, место второй реализации описано в контракте ТЕКСТОМ.
+        // Источник расхода LLM читает внутренний tracking из llm_provider_calls.
         $this->app->bind(UsageSource::class, TrackingUsageSource::class);
 
-        // Реестр анализаторов типов документа (P2.3, §5.2 контракта): собирается из
-        // `config('ai.analyzers')` при ПЕРВОМ резолве и дальше неизменен — отсюда singleton,
-        // а не bind (иначе инварианты сборки проверялись бы на каждом резолве).
+        // Registry собирается из ai.analyzers и проверяет инварианты один раз при первом resolve.
         $this->app->singleton(DocumentAnalyzerRegistry::class);
         $this->app->bind(PromptScopeRegistry::class, fn () => $this->app->make(DocumentAnalyzerRegistry::class));
 
-        // Правила реакции краулера на отказы: типизированный разбор `Process controls and network policy`
-        // один раз на процесс; резолвится в `boot()`, чтобы ошибка конфига валила старт.
     }
 
     /**
@@ -150,24 +141,19 @@ class AppServiceProvider extends ServiceProvider
                 ApplicationReadinessIsGreen::class,
             ]);
         }
-        // Кастомные Pulse-карточки (P7.5, D25) — классы вне `App\Livewire\*` (Files-список
-        // item'а несёт `app/Pulse/**`), поэтому регистрация explicit, не Livewire-конвенцией.
+        // Pulse-карточки находятся вне App\Livewire и требуют явной регистрации компонентов.
         Livewire::component('pulse.pipeline-stages', PipelineStagesCard::class);
         Livewire::component('pulse.llm-spend', LlmSpendCard::class);
         Livewire::component('pulse.process-platform-health', ProcessPlatformHealthCard::class);
 
-        // Pulse — отдельная страница за auth (Implementation Rules P7.5): ТОТ ЖЕ предикат, что
+        // Pulse — отдельная страница за auth: ТОТ ЖЕ предикат, что
         // `User::canAccessPanel()` (super-admin или есть роль), а не «любой аутентифицированный» —
         // Pulse отдаёт SQL-текст медленных запросов, стектрейсы исключений и LLM-расход/стоимость,
-        // это не менее чувствительно, чем сама Filament-панель (P7 phase-review, MED: предыдущая
-        // версия открывала эти данные ЛЮБОМУ пользователю с аккаунтом, не только персоналу).
+        // поэтому страница требует тех же прав персонала, что Filament-панель.
         Gate::define('viewPulse', fn (?User $user = null): bool => $user !== null && ($user->isSuperAdmin() || $user->getRoleNames()->isNotEmpty()));
 
-        // Сквозной trace_id для КАЖДОЙ artisan-команды (P7.5, D25, Code Guidance: `cmd:<name>:
-        // <uuid>`) — единый `CommandStarting`-листенер вместо правки каждой Procurement-команды
-        // по отдельности (Required Reads item'а указывает на них лишь как на «точки старта»,
-        // не как на цель редактирования; Files-список item'а их не несёт). `Context::add` здесь
-        // же дегидрируется в payload любого job'а, диспатченного из команды.
+        // Каждая artisan-команда получает cmd:<name>:<uuid>; Laravel Context переносит trace_id
+        // в payload jobs, отправленных из команды.
         Event::listen(function (CommandStarting $event): void {
             Context::add('trace_id', 'cmd:'.$event->command.':'.(string) Str::uuid());
         });

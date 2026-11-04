@@ -18,7 +18,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * AI-анализы (screening/extraction) — read-only реестр (index + view), P9.2. Продукт пайплайна:
+ * AI-анализы (screening/extraction) — read-only реестр (index + view),. Продукт пайплайна:
  * оператор ревизует (проверено/коррекция/re-run через action'ы `ViewAnalysis`), не редактирует
  * поля напрямую — create/edit-страниц нет (тот же канон, что `ProcurementResource`/`RunResource`).
  */

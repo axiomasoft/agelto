@@ -24,12 +24,11 @@ use Illuminate\Support\Facades\DB;
  * "низкая contention" `run_maintenance_proc` не даёт выигрыша, который окупал бы это
  * ограничение.
  *
- * Retention (P7.7, D33): на пути pg_partman DROP старых партиций — встроенная часть
+ * Retention: на пути pg_partman DROP старых партиций — встроенная часть
  * `run_maintenance()`, ничего не делаем сами — она читает `partman.part_config.retention`,
  * выставленный миграцией `2026_07_09_100050_set_pg_partman_retention.php` только для
- * `config('partitioning.retention')`-таблиц. Fallback-путь (нет pg_partman) сам НЕ дропает
- * партиции по расписанию — эту логику дублирует `dropExpiredFallback()` по тому же конфигу,
- * иначе managed-Postgres окружения без pg_partman копили бы партиции вечно (research/L finding 4).
+ * `config('partitioning.retention')`-таблиц. Без pg_partman удаление устаревших партиций
+ * выполняет `dropExpiredFallback()` по тому же конфигу.
  */
 #[Description('Premake партиций на 3 месяца вперёд для партиционированных таблиц (pg_partman либо fallback)')]
 #[Signature('partitions:maintain')]
@@ -74,8 +73,8 @@ final class MaintainPartitions extends Command
     /**
      * Fallback-эквивалент pg_partman retention: дропает партиции `$table`, чей верхний
      * рубеж диапазона старше `config('partitioning.retention')[$table]['months']`.
-     * `keep_table=true` (зарезервировано, P7.7) — партиции не дропаем; таблиц вне
-     * `partitioning.retention` (в т.ч. `prc_revisions`, D41) эта функция не касается.
+     * `keep_table=true` (зарезервировано) — партиции не дропаем; таблиц вне
+     * `partitioning.retention` (в т.ч. `prc_revisions`) эта функция не касается.
      */
     private function dropExpiredFallback(string $table): void
     {

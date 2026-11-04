@@ -7,10 +7,10 @@ namespace App\Dto\Procurement\Prepare\Gsfx;
 use Spatie\LaravelData\Data;
 
 /**
- * Ресурс позиции сметы из `Data.xml` (P3.3, `<Resources>`).
+ * Ресурс позиции сметы из `Data.xml` (`<Resources>`).
  * - resource_type: имя XML-тега ресурса как есть (`Mat`|`Mch`|`Work`|`Tzr`|`Tzm`, разведка §3) —
  *   не PHP backed-enum: реальный корпус может нести не все пять на конкретной позиции, а маппинг
- *   в схему смет `prc_estimate_resources.resource_type` — решение P4/P5, не этого item'а.
+ *   в схему смет `prc_estimate_resources.resource_type` — задача маппера.
  * - name: наименование ресурса (`Caption`).
  * - code: шифр ресурса (`Code`), если есть.
  * - unit: единица измерения (`Units`).
@@ -19,9 +19,9 @@ use Spatie\LaravelData\Data;
  * - price_curr: текущая цена (`PriceCurr/@Value`), decimal-строка.
  * - index_code: код индекса пересчёта (`IndexCode`), ссылка на глобальный каталог `<Indexes>`
  *   документа (в модель самого каталога не переносится — см. `GsfxDocument::$unmapped`).
- * - tzm2022: трудозатраты машинистов по методике 2022 г. (`<Tzm2022>`, P3.9) — встречается на
+ * - tzm2022: трудозатраты машинистов по методике 2022 г. (`<Tzm2022>`) — встречается на
  *   ЛЮБОМ известном ресурсном теге (на эталоне — только внутри `Mch`, 81 из 95); толкование против
- *   прямого `Tzm` — работа маппера P5.1 (`research/16-gsfx-reader-reopen.md` §2 п.1).
+ *   прямого `Tzm` — работа маппера (`research/16-gsfx-reader-reopen.md` §2 п.1).
  */
 final class GsfxResource extends Data
 {

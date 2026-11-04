@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Writer capacity lane rows `prc_process_lanes` по versioned policy (execution#lane-defaults).
+ * Writer capacity lane rows `prc_process_lanes` по versioned policy.
  * Существующие lanes запроса FOR UPDATE в capacity-tier порядке id, затем INSERT недостающих
  * parent перед child. Sync меняет только W/C/low/refill и policy_version; parent topology
- * immutable, fairness cursor и reservations не сбрасываются. Admission counts — следующие пункты.
+ * immutable, fairness cursor и reservations не сбрасываются. Admission counts читаются из reservations.
  */
 final readonly class LaneRepository
 {

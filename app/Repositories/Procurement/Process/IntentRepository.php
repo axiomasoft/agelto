@@ -9,7 +9,7 @@ use App\Enums\Procurement\Process\SubjectKind;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Последовательный lifecycle acquisition intents одного (stage, subject) (execution#s10).
+ * Последовательный lifecycle acquisition intents одного (stage, subject).
  * Partial unique index допускает один active; остальные ждут в pending. Когда active intent
  * завершается (успех, failed_item, cancel), следующий pending без pending_reason активируется
  * с expected_head_generation текущего subject head. Вызывается только под уже взятым subject

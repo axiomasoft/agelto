@@ -33,7 +33,7 @@ use Illuminate\Support\Collection;
  * @property string|null $index_value
  * @property string|null $source_position_number
  * @property int|null $work_type_id
- * @property Collection<int, mixed>|null $quality провенанс-ключ верхнего уровня model/validator (research/12-uncertainty-model.md §3.2); null — чистая позиция
+ * @property Collection<int, mixed>|null $quality провенанс-ключ верхнего уровня model/validator; null — чистая позиция
  */
 #[UseFactory(ItemFactory::class)]
 #[Fillable([
@@ -78,8 +78,8 @@ final class Item extends Model
             // Примитивный `'collection'`, НЕ `AsCollection::class`: класс-каст (`Castable`)
             // безусловно JSON-кодирует значение на записи (`Json::encode(null)` → строка `"null"`,
             // НЕ SQL NULL) — ломает инвариант «колонка NULL — ни один писатель ничего не сказал»
-            // (research/12-uncertainty-model.md §3.2) и партиционирующий индекс `WHERE quality IS
-            // NOT NULL` (P8.5). Примитивный тип пропускает кодирование при `null` до JSON (Laravel
+            // и партиционирующий индекс `WHERE quality IS
+            // NOT NULL`. Примитивный тип пропускает кодирование при `null` до JSON (Laravel
             // `HasAttributes::setAttribute()`), сохраняя SQL NULL.
             'quality' => 'collection',
         ];

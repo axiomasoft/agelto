@@ -9,9 +9,9 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Носитель представлений версии документа (D25, P3.1): одна версия — много представлений,
+ * Носитель представлений версии документа: одна версия — много представлений,
  * каждое со своим `kind`, путём и ИЗМЕРИМЫМИ признаками годности (`size_bytes`/`page_count`/
- * `token_estimate`). Пороги потребителя живут в capability-матрице модели, не в схеме (D26),
+ * `token_estimate`). Пороги потребителя живут в capability-матрице модели, не в схеме,
  * поэтому колонок-порогов здесь нет.
  */
 return new class extends Migration
@@ -26,10 +26,10 @@ return new class extends Migration
                 ->constrained(table: (new DocumentVersion)->getTable())
                 ->cascadeOnDelete();
 
-            // Текстом, не PG-enum: новый вид представления не должен требовать миграции (D25).
+            // Текстом, не PG-enum: новый вид представления не должен требовать миграции.
             $table->text('kind')->comment('значение App\Enums\Procurement\Document\RepresentationKind');
 
-            // P3.5: canonical recipe/range/blob metadata is mandatory.
+            // canonical recipe/range/blob metadata is mandatory.
             $table->uuid('blob_id');
             $table->binary('preparation_recipe_hash');
             $table->binary('content_hash');

@@ -9,7 +9,7 @@ use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\WorkInput;
 
 /**
- * Stage handler (execution#s03): typed input и ExecutionContext → один из пяти StageOutcome.
+ * Stage handler: typed input и ExecutionContext → один из пяти StageOutcome.
  * Expected dependency/control/provider исходы не выбрасываются как generic exception; handler не
  * пишет ledger и не публикует результат сам — это делает fenced WorkFinalizer.
  */

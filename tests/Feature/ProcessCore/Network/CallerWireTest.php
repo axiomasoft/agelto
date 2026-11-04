@@ -64,7 +64,7 @@ test('CSV caller декодирует реальный win1251 экспорт и
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('transport-and-work-budget');
 
 test('синхронизатор ОКПД2 использует общий транспорт и сохраняет ограничение обхода', function (): void {
     $wire = new WireFixture;
@@ -77,7 +77,7 @@ test('синхронизатор ОКПД2 использует общий тр�
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('transport-and-work-budget');
 
 test('загрузчик документа читает настоящий bounded поток через Process permit без ordinary bridge', function (): void {
     ExecutionFixtures::truncateLedger();
@@ -98,7 +98,7 @@ test('загрузчик документа читает настоящий boun
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p35');
+})->group('transport-and-work-budget');
 
 test('OpenAI caller without a durable financial owner refuses before any ordinary bridge or HTTP', function (): void {
     $wire = new WireFixture;
@@ -118,4 +118,4 @@ test('OpenAI caller without a durable financial owner refuses before any ordinar
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('transport-and-work-budget');

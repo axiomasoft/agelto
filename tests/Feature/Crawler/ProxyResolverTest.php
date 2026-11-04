@@ -18,7 +18,7 @@ use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\Proxy\HealthFixtures as F;
 
-// P2.6 keeps historical scenario identities. Explicit profiles supersede implicit geo/score
+// keeps historical scenario identities. Explicit profiles supersede implicit geo/score
 // filtering; real authorization order supersedes weighted randomness. Outcome accounting belongs
 // exclusively to the permit repository, and health eligibility is separate from configuration.
 beforeEach(function (): void {

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Process\Contracts;
 
 /**
- * Одна bounded категория ReconcileDaemon (bp-sql-recover): expired running, expired admitted,
+ * Одна bounded категория ReconcileDaemon: expired running, expired admitted,
  * blocked scans, invariant scan, handler fault sweep. Категория сама берёт полный lock prefix и
  * повторяет locked predicates; daemon лишь вызывает её на каждом tick и изолирует её сбой от
- * соседних категорий. Реальные категории регистрирует P1.11, не P1.10.
+ * соседних категорий. Состав категорий определяет composition root.
  */
 interface ReconcileCategory
 {

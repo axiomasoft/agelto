@@ -11,9 +11,8 @@ use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Exceptions\CannotCreateData;
 
 /**
- * Импорт ОДНОЙ записи манифеста в хранилище и реестр `prc_ai_fixtures` (`estimate:fixtures:import`,
- * D1/D20/P2.3): идемпотентность — по sha256, битая запись отклоняется индивидуально, не роняя
- * остальные партии.
+ * Импорт одной записи манифеста в storage и prc_ai_fixtures. Идемпотентность по sha256;
+ * отказ записи не прерывает обработку остальных элементов партии.
  */
 final readonly class FixtureRegistrar
 {

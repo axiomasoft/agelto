@@ -14,7 +14,7 @@ use Illuminate\Contracts\Config\Repository;
 
 /**
  * Boot-validated process policy v1 из `config/process.php`. Конечные typed таблицы
- * required_lanes(stage) и control scope stage (execution#s11): parent/child lanes действуют
+ * required_lanes(stage) и control scope stage: parent/child lanes действуют
  * одновременно; acquisition и documents controls раздельны. Неполная или противоречивая
  * конфигурация отвергается с ключом config, а не заменяется default.
  */
@@ -241,7 +241,7 @@ final readonly class ProcessPolicy
     }
 
     /**
-     * Lease обязан пережить slice и кооперативный heartbeat с safety запасом (bp-heartbeat).
+     * Lease обязан пережить slice и кооперативный heartbeat с safety запасом.
      *
      * @return array<string, array{claim_visibility: int, slice: int, lease: int}>
      */

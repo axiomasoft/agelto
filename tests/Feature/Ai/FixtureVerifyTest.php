@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * P2.4 — `estimate:fixtures:verify` сверяет манифест ↔ файл на диске ↔ запись реестра. Синтетический
+ * `estimate:fixtures:verify` сверяет манифест ↔ файл на диске ↔ запись реестра. Синтетический
  * манифест и `Storage::fake(config('ai.fixtures.disk'))`; реальный корпус не участвует.
  */
 function verifyTestDir(): string

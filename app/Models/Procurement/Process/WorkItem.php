@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Одна логическая работа над immutable input revision одной стадии (execution#s01/#s04).
+ * Одна логическая работа над immutable input revision одной стадии.
  * Ровно один concrete subject FK своей стадии (owner CHECK); durable независимо от Redis.
  * Read model: guarded mutation только через Process repositories с fencing.
  *

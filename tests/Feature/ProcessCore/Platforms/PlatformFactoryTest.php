@@ -7,7 +7,7 @@ use App\Models\Procurement\Platform\Platform;
 use Faker\Factory;
 use Faker\Generator;
 
-pest()->group('t38', 'p22');
+pest()->group('platform-definition-boot');
 
 test('platform factory codes always satisfy the source catalog grammar and length bound', function (): void {
     $original = fake();

@@ -10,9 +10,8 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * `--materialize-only` проставляет `null` → фактическое имя диска и ОБЯЗАНА запускаться ДО флипа
- * конфиг-ключа диска носителя (D51); `--to=<disk>` переносит объекты между дисками с верификацией
- * sha256/размера, resumable через `--from-id` (P6.5, `research/07-storage-addressing.md` §6).
+ * `--materialize-only` заменяет null disk фактическим именем до переключения конфигурации.
+ * `--to=<disk>` переносит объекты с проверкой sha256 и размера; `--from-id` возобновляет обход.
  */
 #[Description('Backfill дисков: --materialize-only проставляет фактическое имя диска и ОБЯЗАНА запускаться ДО флипа конфига; --to=<disk> переносит объекты между дисками с верификацией sha256/размера')]
 #[Signature('storage:disk-backfill

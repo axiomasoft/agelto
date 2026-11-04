@@ -12,16 +12,10 @@ use App\Models\Procurement\PurchaseItem;
 use Illuminate\Support\Str;
 
 /**
- * Запись детального слоя карточки закупки (`prc_financing`/`prc_items`/
- * `prc_protocols`/`prc_bids`/`prc_awards`) для tab-процессоров P3.3/P3.4/P3.6/P3.7. Ни один
- * из процессоров не мутирует эти таблицы напрямую через Eloquent — только через этот
- * репозиторий.
- *
- * `prc_financing` и `prc_items` НЕ имеют уникальных индексов на естественные ключи
- * (`(procurement_id, fiscal_year, kind)` / `(procurement_id, position_number)` —
- * `01-database.md` §3, миграции `2026_07_04_100016`/`2026_07_04_100015`), поэтому:
- * - финансирование — replace-set (delete всех строк закупки + insert актуальных);
- * - позиции — `updateOrCreate` по составному естественному ключу (без `ON CONFLICT`).
+ * Запись detail-таблиц закупки (`prc_financing`, `prc_items`, `prc_protocols`,
+ * `prc_bids`, `prc_awards`) для tab-процессоров. Процессоры пишут через этот repository.
+ * У финансирования и позиций нет unique по естественному ключу: финансирование заменяется
+ * целиком, позиции используют updateOrCreate по составному ключу без ON CONFLICT.
  */
 final readonly class ProcurementDetailStoreRepository
 {
@@ -66,8 +60,8 @@ final readonly class ProcurementDetailStoreRepository
     }
 
     /**
-     * Upsert по естественному ключу `(procurement_id, source_number)` (`01-database.md` §4,
-     * §5.2). `source_number` может быть `null` (протокол без явного номера в источнике) —
+     * Upsert по естественному ключу `(procurement_id, source_number)`.
+     * `source_number` может быть `null` (протокол без явного номера в источнике) —
      * тогда естественный ключ вырождается в «единственный протокол закупки без номера».
      *
      * @param  array<string, mixed>  $attributes
@@ -85,7 +79,7 @@ final readonly class ProcurementDetailStoreRepository
 
     /**
      * Upsert по `(procurement_id, protocol_id, organization_id)` — участник встречается
-     * ровно один раз в рамках одного протокола закупки (`01-database.md` §4).
+     * ровно один раз в рамках одного протокола закупки.
      *
      * `organizationId === null` — участник без надёжного идентификатора (ИНН/ОГРН),
      * `SupplierResultsParser` намеренно не резолвит его через `OrganizationResolver`
@@ -118,7 +112,7 @@ final readonly class ProcurementDetailStoreRepository
 
     /**
      * Upsert по `(procurement_id, lot_id)` — один итог на лот (44-ФЗ виртуальный лот
-     * `null`, `01-database.md` §4, §5.2).
+     * `null`).
      *
      * @param  array<string, mixed>  $attributes
      */

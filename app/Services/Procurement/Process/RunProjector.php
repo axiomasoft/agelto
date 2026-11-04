@@ -13,7 +13,7 @@ use App\Enums\Procurement\Process\DiscoveryOutcome;
 use App\Repositories\Procurement\Process\RunReadRepository;
 
 /**
- * Read-side прогресс run (observability#s04/#s08): current gauge читается из authoritative run и
+ * Read-side прогресс run: current gauge читается из authoritative run и
  * work rows, а не накапливается событиями. Поэтому старый или переставленный event не возвращает
  * статус назад (late lower-seq event безопасен), а lag projector показывается отдельно. Один work
  * может быть required в нескольких runs: он считается в КАЖДОМ, executed_count — только по

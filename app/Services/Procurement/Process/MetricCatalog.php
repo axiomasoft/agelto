@@ -12,7 +12,7 @@ use App\Enums\Procurement\Process\WorkState;
 use App\Exceptions\Procurement\Process\ProjectionSchemaError;
 
 /**
- * Закрытый каталог counter-серий и их измерений (observability#s08). Dimension — закрытые
+ * Закрытый каталог counter-серий и их измерений. Dimension — закрытые
  * перечисления либо ограниченный platform code; IDs, URL, hashes и произвольный текст отвергаются,
  * поэтому число серий ограничено каталогом. Ключ измерения — канонический versioned tuple
  * `v1;name=value;…` в порядке каталога, не JSON.
@@ -21,7 +21,7 @@ final class MetricCatalog
 {
     private const string VERSION = 'v1';
 
-    /** platform: зарегистрированный код площадки либо manual; PlatformRegistry вводит P2, поэтому форма. */
+    /** platform: канонический код площадки либо manual; формат проверяется перед созданием dimension. */
     private const string PLATFORM_PATTERN = '/^[a-z][a-z0-9_]{0,31}$/D';
 
     /** @var list<string> */

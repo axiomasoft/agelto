@@ -23,7 +23,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/** Real P1.6 ledger rows through the owning writers; raw rows only for DB CHECK/FK negatives. */
+/** Real ledger rows through the owning writers; raw rows only for DB CHECK/FK negatives. */
 final class LedgerFixtures
 {
     public static function uuid(): ProcessUuid

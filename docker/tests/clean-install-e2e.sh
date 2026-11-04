@@ -148,7 +148,7 @@ compose=(docker compose --project-directory "$candidate" --project-name "$projec
 "${compose[@]}" run --rm --no-deps app php artisan db:seed --class=Database\\Seeders\\BaseSeeder --force
 "${compose[@]}" run --rm --no-deps -v "$password_file:/run/secrets/initial_admin_password:ro" app php artisan admin:create-initial --email="$admin_email" --password-file=/run/secrets/initial_admin_password
 "${compose[@]}" run --rm --no-deps -v "$password_file:/run/secrets/e2e_password:ro" app php artisan tinker --execute='use App\Guards\Admin\Roles\AnalystRole; use App\Guards\Admin\Roles\OperatorRole; use App\Models\User; use Illuminate\Support\Facades\Hash; $password = trim(file_get_contents("/run/secrets/e2e_password")); foreach ([["operator@agelto.e2e.test", OperatorRole::class], ["analyst@agelto.e2e.test", AnalystRole::class]] as [$email, $role]) { $user = User::query()->firstOrCreate(["email" => $email], ["name" => $email, "password" => Hash::make($password), "email_verified_at" => now()]); $user->assignRole($role); }'
-"${compose[@]}" up -d --wait app horizon scheduler
+"${compose[@]}" up -d --wait app horizon scheduler process-relay process-reconciler process-feeder process-projector
 
 readiness_green=false
 for _ in $(seq 1 45); do

@@ -17,7 +17,7 @@ use App\Repositories\Procurement\Process\HandlerAuthorityRepository;
 use App\Repositories\Procurement\Process\LaneRepository;
 
 /**
- * Feeder tick одной parent lane (bp-sql-admit): единый protocol для всех parents — durable RR
+ * Feeder tick одной parent lane: единый protocol для всех parents — durable RR
  * между continuously eligible cohorts, затем RR sibling stages внутри выбранного cohort, затем
  * bounded выборка work (age900 первыми). При >=2 eligible cohorts новый admission cohort требует
  * active(parent, cohort) < ceil(W/2); уже выданные slots не отзываются. Refill только при

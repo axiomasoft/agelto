@@ -7,17 +7,17 @@ namespace App\Dto\Procurement\Prepare\Gsfx;
 use Spatie\LaravelData\Data;
 
 /**
- * Вид работ из каталога `Data.xml` (P3.3, `<VidRab_Catalog><VidRab_Group><Vid_Rab>`) — носитель
- * нормативов НР/СП по виду работ (Phase Context P3, «основной вид работ, у них есть подэлементы»).
+ * Вид работ из каталога `Data.xml` (`<VidRab_Catalog><VidRab_Group><Vid_Rab>`) — носитель
+ * нормативов НР/СП по виду работ («основной вид работ, у них есть подэлементы»).
  * - caption: название вида работ.
  * - id: внутренний ID программы (`ID`).
  * - category: категория (`Category`, напр. `Construction`).
  * - nr_code / sp_code: ссылки на приказы, которыми утверждены нормативы НР/СП (`NrCode`/`SpCode`)
  *   — переносятся как есть.
  * - nacl / nacl_curr / plan / plan_curr: ставки НР/СП, базисный и текущий уровень (`@Nacl`/
- *   `@NaclCurr`/`@Plan`/`@PlanCurr`, P3.9) — носитель `EstimateWorkType::$overhead_rate`/
+ *   `@NaclCurr`/`@Plan`/`@PlanCurr`) — носитель `EstimateWorkType::$overhead_rate`/
  *   `$overhead_rate_curr`/`$profit_rate`/`$profit_rate_curr` (SR-08). Маски (`NaclMask`/`PlanMask`)
- *   и шифры КФС (`NrKfsCode`/`NKB`/`PNB`/…) носителя в `EstimateWorkType` не имеют (D33) — остаются
+ *   и шифры КФС (`NrKfsCode`/`NKB`/`PNB`/…) носителя в `EstimateWorkType` не имеют — остаются
  *   видимы атрибутным тальём `unmapped`, «про запас» не заводятся.
  */
 final class GsfxWorkType extends Data

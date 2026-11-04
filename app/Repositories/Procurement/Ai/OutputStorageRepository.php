@@ -21,6 +21,7 @@ use App\Repositories\Procurement\Process\AuthorityRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Repositories\Procurement\Process\LockedPrefix;
 use App\Services\Procurement\Document\PreparePolicy;
+use App\Services\Procurement\Document\PrepareWorkspace;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\SubjectLockResolver;
 use Illuminate\Support\Str;
@@ -28,9 +29,6 @@ use Illuminate\Support\Str;
 /** Validating model output prepares an artifact, using the existing bounded prepare storage domains. */
 final readonly class OutputStorageRepository
 {
-    /** Bounded owner.json, php-finished and cleanup proof, in addition to the spool bytes. */
-    private const int SPOOL_PROOF_BYTES = 1024;
-
     public function __construct(private AuthorityRepository $authority, private StorageCapacityRepository $capacity,
         private ArtifactRepository $artifacts, private ProcessTransaction $transactions, private SubjectLockResolver $subjects,
         private PreparePolicy $policy) {}
@@ -46,7 +44,7 @@ final readonly class OutputStorageRepository
         $output = new StorageReservationRequest(new ProcessUuid((string) Str::uuid()), $durable, $lease->token, $lease->generation,
             $bytes, StoragePhase::Prepare, $this->policy->disk, $lease->workId->value, $lease->attemptId);
         $spool = new StorageReservationRequest(new ProcessUuid((string) Str::uuid()), $temporary, $lease->token, $lease->generation,
-            $bytes + self::SPOOL_PROOF_BYTES, StoragePhase::Prepare, $this->policy->temporaryDisk, $lease->workId->value, $lease->attemptId);
+            $bytes + PrepareWorkspace::SPOOL_PROOF_BYTES, StoragePhase::Prepare, $this->policy->temporaryDisk, $lease->workId->value, $lease->attemptId);
         try {
             for ($reload = 0; $reload < 3; $reload++) {
                 $snapshot = $this->snapshot($lease);

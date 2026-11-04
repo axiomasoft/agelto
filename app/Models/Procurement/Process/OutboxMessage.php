@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Durable намерение доставки: dedup_key unique, отдельные consumers по kind (work_wake/
- * feeder_wake/projection) с token CAS claim. Сеть никогда не под outbox lock (bp-sql-relay).
+ * feeder_wake/projection) с token CAS claim. Сеть никогда не под outbox lock.
  *
  * @property string $message_id
  * @property string $dedup_key

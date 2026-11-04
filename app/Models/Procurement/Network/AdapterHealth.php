@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Health (platform, capability, adapter_version, contract_version). Transport success не снимает
- * adapter hold; rows создаёт Definition sync P2.9–P2.12.
+ * adapter hold; rows создаёт Definition sync.
  *
  * @property string $id
  * @property int $platform_id

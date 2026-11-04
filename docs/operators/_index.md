@@ -55,6 +55,6 @@ production-сервера. Выберите их в левом меню; каж�
 
 Устройство системы — не здесь: см. `dev/`. Этот раздел — только действия и решения оператора.
 
-Source-derived [матрица P12](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md)
+Source-derived [inventory команд](production/commands.md#current-command-inventory)
 нужна как точный контракт inputs/mutation/resume/evidence, но основной путь человека начинается с
 [руководства по production](production/deployment.md), а не с матрицы.

@@ -11,11 +11,11 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Экспорт `prc_ai_dataset_examples` (gold, P9.3/D15/D16, реальный вход и `analysis_id` — P7.1/D56)
+ * Экспорт `prc_ai_dataset_examples` (gold с реальным входом и `analysis_id`)
  * в обучающий датасет: `--format=sft` — JSONL chat-format, `--format=dpo` — preference-пары.
  * Манифест (счётчики/версии/sha/пропуски) пишется рядом с выходным файлом тем же именем с
- * суффиксом `.manifest.json` — воспроизводимость training-run (D15). Логика вынесена в
- * {@see DatasetExporter} (P3.3/P7.1).
+ * суффиксом `.manifest.json` — воспроизводимость training-run. Логика вынесена в
+ * {@see DatasetExporter}.
  */
 #[Description('Экспорт gold-датасета (prc_ai_dataset_examples) в SFT/DPO JSONL для дообучения локальной LLM')]
 #[Signature('estimate:dataset:export

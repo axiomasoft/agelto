@@ -7,8 +7,8 @@ namespace App\Services\Llm\Dto;
 use App\Enums\Llm\FinishReason;
 
 /**
- * Ответ `LlmProvider::complete()` — нетипизированный текстовый вызов (ТЗ 04 §2). `raw` — сырой
- * текст ответа провайдера (запись в object storage — забота `LlmCallRecorder`, P3.2, не этого DTO).
+ * Ответ `LlmProvider::complete` — нетипизированный текстовый вызов (ТЗ 04 §2). `raw` — сырой
+ * текст ответа провайдера (запись в object storage — забота `LlmCallRecorder`, не этого DTO).
  */
 final readonly class LlmResponse
 {

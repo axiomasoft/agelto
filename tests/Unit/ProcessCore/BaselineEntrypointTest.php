@@ -79,9 +79,9 @@ test('baseline entrypoint проверяет изменение и потерю 
     } finally {
         $this->app->make('files')->deleteDirectory($root);
     }
-})->group('p11');
+});
 
-test('четыре принятых P4.1 pin сохраняют исходную provenance и точные accepted hashes', function (string $path, string $originalHash, string $acceptedHash): void {
+test('четыре принятых baseline pin сохраняют исходную provenance и точные accepted hashes', function (string $path, string $originalHash, string $acceptedHash): void {
     $manifest = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/manifest.json')), true, flags: JSON_THROW_ON_ERROR);
     $entry = array_column($manifest['files'], null, 'path')[$path];
 
@@ -96,4 +96,4 @@ test('четыре принятых P4.1 pin сохраняют исходную
     'tests/Pest.php' => ['tests/Pest.php', '1e8cec593278050dd4e39e9383e6f22ef24c1c63f1353f91243d9d1fcce819d5', '3ffa7e188a445c6ad72641da2ec3fe4dea21d00de03f1ae1c6e3eb7677bacc9d'],
     'tests/Support/TestEnvironmentGuard.php' => ['tests/Support/TestEnvironmentGuard.php', '20a3f3e574c86ecc7740d1a1ef5f05efef30dfe43ce451ee3826cd5ec62ca7d9', 'cb94186c787ede953c39c2b64ed36c435ad8242ef49bcfa053bdbbeb0dfb2de6'],
     'tests/Support/TestFilesystemIsolation.php' => ['tests/Support/TestFilesystemIsolation.php', '415bb19282113a43ec88935ace300b5fefcd859d7a06b54fdac2cf6853b64748', 'd390cdd896ac3d48b55e4a634837e4fd40bc559c7f9be7c080b0b7897cd0a7ff'],
-])->group('p11');
+]);

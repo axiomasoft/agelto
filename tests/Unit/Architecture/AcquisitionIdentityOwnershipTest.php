@@ -5,15 +5,15 @@ declare(strict_types=1);
 use Symfony\Component\Finder\Finder;
 use Tests\Support\ProcessCore\AcquisitionWriteRules;
 
-test('T42 known canonical creators and extension writes have one owner', function (): void {
+test('known canonical creators and extension writes have one owner', function (): void {
     $violations = [];
     foreach (Finder::create()->files()->in(base_path('app'))->name('*.php') as $file) {
         array_push($violations, ...AcquisitionWriteRules::violations('app/'.$file->getRelativePathname(), $file->getContents()));
     }
     expect($violations)->toBe([]);
-})->group('t42', 'p23');
+})->group('platform-extension-ownership');
 
-test('T42 writer guard rejects forbidden model and table-qualified persistence', function (string $source): void {
+test('writer guard rejects forbidden model and table-qualified persistence', function (string $source): void {
     $fixture = tempnam(sys_get_temp_dir(), 'acquisition-writer-');
     try {
         file_put_contents($fixture, '<?php '.$source);
@@ -28,9 +28,9 @@ test('T42 writer guard rejects forbidden model and table-qualified persistence',
     'canonical model' => 'Procurement::query()->create($values);',
     'canonical table' => 'DB::table("prc_procurements")->insert($values);',
     'raw procurement attributes' => 'Procurement::query()->where("attributes->ikz", $value)->first();',
-])->group('t42', 'p23');
+])->group('platform-extension-ownership');
 
-test('T42 writer guard permits extension reads', function (): void {
+test('writer guard permits extension reads', function (): void {
     expect(AcquisitionWriteRules::violations('app/Filament/Platforms/Eis/EisUiExtension.php', 'EisDetails::query()->find($id);'))->toBe([]);
     expect(AcquisitionWriteRules::violations('app/Services/Other.php', 'DB::table("prc_ai_analyses")->whereJsonContains("attributes->tags", $value);'))->toBe([]);
-})->group('t42', 'p23');
+})->group('platform-extension-ownership');

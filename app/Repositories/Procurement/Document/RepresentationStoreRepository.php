@@ -11,7 +11,7 @@ use App\Services\Procurement\Document\StoredDocumentWriter;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * Единственная точка персистентности `prc_document_representations` (D25) — стратегии подготовки
+ * Единственная точка персистентности `prc_document_representations` — стратегии подготовки
  * пишут представления только через неё.
  */
 final readonly class RepresentationStoreRepository

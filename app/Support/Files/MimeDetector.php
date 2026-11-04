@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Files;
 
 /**
- * Технический слой, доменов не знает (скилл `laravel-structure`, ось Technical axis) — общий
- * `mimeOf()` (§5 `root/service-layer-map.md`).
+ * Определение MIME по содержимому без доменных зависимостей.
  */
 final class MimeDetector
 {

@@ -15,10 +15,10 @@ use App\Services\Organization\OrganizationResolver;
  * `organization === null` — участник БЕЗ надёжного идентификатора (ИНН/ОГРН): строка
  * таблицы результатов не содержит реквизитов, а `OrganizationResolver::find()`
  * без ИНН/ОГРН не отличает одно юрлицо от другого — резолв по голому имени склеил бы
- * разных участников в одну `org_organizations` (обнаружено ревью P3.7). Для такой
+ * разных участников в одну `org_organizations` (обнаружено ревью). Для такой
  * заявки `prc_bids.organization_id` остаётся `null`.
  * `bidNumber` — анонимный идентификатор участника из отдельной колонки ЕИС; он не равен
- * `participantOrdinal`, полученному по результатам рассмотрения заявок (D128).
+ * `participantOrdinal`, полученному по результатам рассмотрения заявок.
  */
 final readonly class BidData
 {

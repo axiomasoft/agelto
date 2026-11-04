@@ -8,7 +8,7 @@ use App\Enums\Procurement\Process\EventCode;
 use App\Enums\Procurement\Process\StageCode;
 
 /**
- * Typed envelope accepted transition (observability#s02), единственная форма, в которой событие
+ * Typed envelope accepted transition, единственная форма, в которой событие
  * покидает DB transaction. Только IDs, закрытые коды и время: ни URL, ни payload, ни текст ошибки,
  * ни owner token. reason — bounded namespaced snake_case код зарегистрированной schema.
  */

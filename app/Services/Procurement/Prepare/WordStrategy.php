@@ -17,11 +17,9 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * `doc`/`docx`/`rtf`/`odt` → PDF через LibreOffice (P3.4, D7). До этого item'а такие версии
- * падали в `PassthroughStrategy` и уходили в LLM как оригинал (RAG:—,
- * `findings/corpus-recon-2026-07-26.md` §1–§2). Конверсия здесь — единственный путь: упавшая
- * конверсия терминальна САМА ПО СЕБЕ (`unprocessable(conversion_failed)`), цепочка на этом
- * заканчивается — оригинал в LLM больше не уходит.
+ * `doc`/`docx`/`rtf`/`odt` → PDF через LibreOffice. Конверсия — единственный путь:
+ * её отказ терминален (`unprocessable(conversion_failed)`), цепочка на этом заканчивается.
+ * Исходный офисный документ в LLM не отправляется.
  */
 final readonly class WordStrategy implements PreparationStrategy
 {

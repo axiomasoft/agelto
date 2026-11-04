@@ -9,14 +9,12 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
 /**
- * Служебная площадка «Обучалка» (§1.3 root/document-contour.md, D91) — единственный способ,
- * которым площадка появляется в чистой БД (Implementation Rule 3, P1.6): заводить её миграцией
- * запрещено — отменило бы свойство §1.1 («заведение площадки — чистые данные»). Инфраструктурные
- * данные нужны и в prod (обучающий импорт — `estimate:gold:import`/`estimate:dataset:import` — пишет
- * `platform_id` этой строки), поэтому вызывается в `DatabaseSeeder` ДО local/testing-гейта, как
- * `AiRoutingSeeder`/`PromptSeeder`/`StatusMappingSeeder`.
+ * Создаёт служебную площадку «Обучалка» для `estimate:gold:import`/`estimate:dataset:import`.
+ * Площадка — данные каталога, поэтому создаётся сидером, а не миграцией схемы.
+ * Нужна и в production: импорт сохраняет её `platform_id`. Входит в базовый набор сидов,
+ * который `DatabaseSeeder` запускает до local/testing-гейта демонстрационных данных.
  *
- * Идемпотентен: `updateOrCreate` по `code` (unique).
+ * Повторный запуск обновляет существующую строку по уникальному `code`.
  */
 final class PlatformSeeder extends Seeder
 {

@@ -26,6 +26,7 @@ final class DocumentStorageReconciler implements ReconcileCategory
     {
         $rows = LedgerRow::all("SELECT s.* FROM prc_storage_reservations s JOIN prc_process_work w ON w.id=s.work_id
             WHERE s.status IN ('reserved','writing','staged','cleaning')
+            AND NOT EXISTS (SELECT 1 FROM prc_document_blobs b WHERE b.disk=s.disk AND b.object_key=s.object_key)
             AND (w.state<>'running' OR w.generation<>s.generation OR w.owner_token IS DISTINCT FROM s.owner_token)
             AND (?::uuid IS NULL OR s.id>?::uuid) ORDER BY s.id LIMIT 50", [$this->cursor, $this->cursor]);
         if ($rows === []) {

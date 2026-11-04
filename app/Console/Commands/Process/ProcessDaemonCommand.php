@@ -23,9 +23,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
 /**
- * Долгоживущий Process daemon (bp-daemons): `process:daemon relay|reconcile|feed|project`, свой
+ * Долгоживущий Process daemon: `process:daemon relay|reconcile|feed|project`, свой
  * instance UUID на каждый start; docker перезапускает процесс после SIGTERM/max runtime/memory limit.
- * Project (P1.15) активирован вместе с registry reducers, receipts и totals: он claim-ит только
+ * Project активирован вместе с registry reducers, receipts и totals: он claim-ит только
  * kind projection. `--health` печатает readiness daemon по тому же правилу, что ApplicationReadiness
  * (liveness: свежий heartbeat, readiness: нет текущей ошибки) и завершается кодом 0 только при
  * Healthy — это healthcheck compose-сервиса.
@@ -55,7 +55,7 @@ final class ProcessDaemonCommand extends Command
         app(StageQueueMap::class);
         $daemon = $this->daemon($kind);
         if ($kind === DaemonKind::Feed || $kind === DaemonKind::Reconcile) {
-            // Control scopes и lanes существуют до первого admission (execution#s11); recovery и
+            // Control scopes и lanes существуют до первого admission; recovery и
             // fault detector берут тот же prefix и не создают отсутствующие authority rows молча.
             app(ProcessAuthoritySync::class)->ensureBaseline();
         }
@@ -79,8 +79,8 @@ final class ProcessDaemonCommand extends Command
     }
 
     /**
-     * Категории RecoveryReconciler (P1.11): expired running/admitted, release blocked, независимая
-     * blocked-provider категория EXR-03 и historical handler-fault sweep. Без регистрации daemon
+     * Категории RecoveryReconciler: expired running/admitted, release blocked, независимая
+     * blocked-provider категория и historical handler-fault sweep. Без регистрации daemon
      * ничего бы не восстанавливал, поэтому она часть запуска, а не опция.
      */
     private function reconcileDaemon(): ReconcileDaemon

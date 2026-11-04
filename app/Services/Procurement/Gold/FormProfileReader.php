@@ -17,17 +17,17 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use RuntimeException;
 
 /**
- * Чтение `estimates/gold/<CODE>.profile.json` (version 2, P5.2, D117) в типизированное дерево
+ * Чтение `estimates/gold/<CODE>.profile.json` (version 2) в типизированное дерево
  * {@see GoldFormProfile}. Отклоняет разметку, которая недоказана СТРУКТУРНО (без обращения к
  * листу книги — это работа {@see GridRecognitionGate} условие (а)): неизвестный ключ на любом
  * уровне; версия ≠ 2; `header_cells` отсутствует у объявленной колонки; адрес цитаты лежит вне
  * `header_rows`; ни одна часть цитаты не лежит в САМОЙ колонке поля; `data_row_start` ≤
  * последней строке `header_rows`; `ordinal` не образует 1..N без дыр; `resource_type` вне enum
  * `ResourceType`; `role` вне enum. Отказ — исключение с адресом дефекта (какой эталон, какая
- * смета/поле), а не молчаливый пропуск (Implementation Rules P5.2).
+ * смета/поле), а не молчаливый пропуск.
  *
  * Лишний ключ отклоняется ЭТИМ чтением на каждом уровне вложенности (канон `EstimateRow::
- * validateAndCreate()`, P4.5): явная проверка `array_diff` ПЕРЕД делегированием типовой валидации
+ * validateAndCreate()`): явная проверка `array_diff` ПЕРЕД делегированием типовой валидации
  * `Data::validateAndCreate()` листовым DTO (`GoldFormProfileColumns`) — сама спека
  * `spatie/laravel-data` лишние ключи молча игнорирует.
  */

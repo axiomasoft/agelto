@@ -11,18 +11,18 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Импорт папки эталонных смет (P7.4, ТЗ 04 §5): пары `<name>.<ext>` (исходный файл — pdf/xlsx/
+ * Импорт папки эталонных смет (ТЗ 04 §5): пары `<name>.<ext>` (исходный файл — pdf/xlsx/
  * скан) + `<name>.gold.json` (эталонный разбор, формат — `docs/specs/v2/08-estimate-extraction.md`
- * §8). Каждый эталон валидируется контрактом P2.2 (`PassportResponse`/`EstimateRow`) ДО записи —
+ * §8). Каждый эталон валидируется контрактом  (`PassportResponse`/`EstimateRow`) ДО записи —
  * битый JSON отклоняется с перечнем ошибок, остальные пары импорта не затрагивает. Валидация и
- * запись пары вынесены в {@see DatasetImporter} (P3.3).
+ * запись пары вынесены в {@see DatasetImporter}.
  */
-#[Description('Импорт папки эталонных смет в prc_ai_dataset_examples (gold, P2.2-контракт)')]
+#[Description('Импорт папки эталонных смет в prc_ai_dataset_examples с валидацией gold')]
 #[Signature('estimate:dataset:import
         {path : путь к папке с парами <name>.<ext> + <name>.gold.json}
         {--task=extraction : значение prc_ai_dataset_examples.task}
         {--source=manual : значение prc_ai_dataset_examples.source}
-        {--document-type=estimate : значение prc_ai_dataset_examples.document_type (AiDocumentType, D16/D17) — папка вне реестра prc_ai_fixtures не несёт собственного носителя оси}
+        {--document-type=estimate : тип документа из AiDocumentType для эталонов вне реестра prc_ai_fixtures}
         {--gold-version=1 : версия эталона (upsert-ключ вместе с document_version_id+task; `--version` зарезервирован Symfony Console)}')]
 final class DatasetImportCommand extends Command
 {
@@ -74,7 +74,7 @@ final class DatasetImportCommand extends Command
             $validation = $this->importer->validateGold((string) file_get_contents($goldPath));
 
             if ($validation['errors'] !== []) {
-                $this->error("{$baseName}: gold-эталон не прошёл валидацию контракта P2.2:");
+                $this->error("{$baseName}: gold-эталон не прошёл валидацию контракта:");
                 foreach ($validation['errors'] as $error) {
                     $this->line("  - {$error}");
                 }

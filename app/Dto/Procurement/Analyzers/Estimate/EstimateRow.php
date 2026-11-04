@@ -15,10 +15,10 @@ use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Data;
 
 /**
- * Плоская строка построчного извлечения (docs/specs/v2/08-estimate-extraction.md §3.2, D10).
+ * Плоская строка построчного извлечения (docs/specs/v2/08-estimate-extraction.md §3.2).
  * Вложенное дерево section→subsection→item модель НЕ формирует — иерархия prc_estimate_sections
  * собирается на бэкенде из row_type + section_title. row_type=section_header/subtotal/summary_row
- * — тоже строки, участвуют в сквозной нумерации row_index (§4а, счёт ведётся ПО СМЕТЕ — P4.3).
+ * — тоже строки, участвуют в сквозной нумерации row_index (§4а, счёт ведётся ПО СМЕТЕ).
  */
 final class EstimateRow extends Data
 {
@@ -94,10 +94,10 @@ final class EstimateRow extends Data
     ) {}
 
     /**
-     * Гейт фиксированной схемы `attributes` (Implementation Rules P4.5): неизвестный ключ внутри
+     * Гейт фиксированной схемы `attributes`: неизвестный ключ внутри
      * `attributes` обязан приводить к отказу валидации — иначе «фиксированная схема» (`RowAttributes`)
-     * существовала бы только на бумаге, а D32 не был бы выполнен. Спека `spatie/laravel-data` сама
-     * не отклоняет незнакомые ключи (лишние ключи `from()`/`validateAndCreate()` тихо игнорирует) —
+     * существовала бы только на бумаге, а контракт не соблюдался бы. Спека `spatie/laravel-data` сама
+     * не отклоняет незнакомые ключи (лишние ключи `from`/`validateAndCreate` тихо игнорирует) —
      * проверка добавлена явно ДО делегирования остальной валидации родителю.
      */
     /**

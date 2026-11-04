@@ -48,7 +48,7 @@ function committedAdminRouteInventory(): array
 }
 
 /**
- * Маршруты, добавленные после неизменяемого снимка матрицы (authentic61, D24): исторический fixture
+ * Маршруты, добавленные после неизменяемого снимка матрицы (authentic61): исторический fixture
  * не переписывается, расширения объявляются здесь явно и поштучно.
  *
  * @return list<array{method: string, uri: string, name: string, action: string}>
@@ -79,7 +79,7 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
         'filament.admin.resources.procurement.crawler.runs.view',
     ];
     expect(array_column($historical, 'name'))->toContain(...$retired);
-    // Explicit P2.6/P2.18 delta; the frozen historical matrix remains byte-identical.
+    // Explicit /delta; the frozen historical matrix remains byte-identical.
     $current = array_values(array_filter($historical, static fn (array $route): bool => ! in_array($route['name'], $retired, true)));
     foreach ($current as &$route) {
         if ($route['name'] === 'filament.admin.pages.crawler-proxy-settings') {

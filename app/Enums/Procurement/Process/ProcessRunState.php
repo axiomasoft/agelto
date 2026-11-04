@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Process;
 
 /**
- * Derived состояние конечного run (observability#s04). Не второй source execution state: хранится
+ * Derived состояние конечного run. Не второй source execution state: хранится
  * только authoritative work/run rows, это значение вычисляет `RunStateReducer`.
  */
 enum ProcessRunState: string

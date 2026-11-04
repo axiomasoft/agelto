@@ -20,7 +20,7 @@ return new class extends Migration
                 ->constrained(table: (new Estimate)->getTable())
                 ->cascadeOnDelete();
 
-            // Дерево разделов (без ltree на этом шаге, см. 01-database.md §6b «опц. позже»).
+            // Дерево разделов задаётся self-reference parent_id.
             $table->foreignId('parent_id')
                 ->nullable()
                 ->index()
@@ -30,8 +30,7 @@ return new class extends Migration
             $table->integer('position');
             $table->text('title');
 
-            // `section_number` — УДАЛЕНА (D100): боевой путь всегда писал null, ни одно SR-NN
-            // на неё не ссылается, контракт ответа её не отдаёт.
+            // Номер раздела не хранится отдельно: контракт ответа его не передаёт.
 
             $table->timestamps();
         });

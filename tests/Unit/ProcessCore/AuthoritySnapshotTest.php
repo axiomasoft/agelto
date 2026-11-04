@@ -36,8 +36,6 @@ test('отсутствующий предок обнаруживается до 
     }
 });
 
-pest()->group('p11');
-
 function fixtureAuthority(?SubjectLockSnapshot $subjects = null, ?AdmissionGroupSnapshot $group = null): AuthoritySnapshot
 {
     return new AuthoritySnapshot(

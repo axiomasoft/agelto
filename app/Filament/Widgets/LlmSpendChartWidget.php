@@ -14,11 +14,9 @@ use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Collection;
 
 /**
- * Первый виджет проекта (P4.3, бриф §3): расход по дням в разрезе провайдера и модели, поверх
- * сейма источника (`root/usage-source-contract.md`). Данные — ТОЛЬКО через `UsageSource::usage()`,
- * прямого обращения к таблице вызовов здесь нет (Implementation Rule 1). Подпись источника/лага/
- * горизонта — обязательный элемент (Rule 2), не отдельный запрос: репорт кэшируется в `report()` и
- * переиспользуется `getData()`/`getDescription()`, чтобы обе точки читали ОДИН ответ источника.
+ * Дневной расход по провайдеру и модели через `UsageSource::usage()`. Подпись источника,
+ * lag и горизонт берутся из того же report, что данные графика. `report()` кэширует ответ
+ * для согласованного чтения в `getData()` и `getDescription()`.
  */
 final class LlmSpendChartWidget extends ChartWidget
 {

@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
 /**
- * Реальные ledger rows для projection tests (P1.15): run/work создают настоящие writers с
+ * Реальные ledger rows для projection tests: run/work создают настоящие writers с
  * transition + projection outbox; дополнительные work transitions пишет TransitionRepository
  * с монотонным entity_seq. Прямые INSERT — только для DB-negative событий вне каталога.
  */

@@ -21,21 +21,13 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use RuntimeException;
 
 /**
- * Книга + профиль формы → gold §8.2 (P5.2, D2/D117). Дословность и ничего кроме (Code Guidance):
- * строки идут в порядке появления, `row_index` — сквозной по СМЕТЕ с 1 и включает
- * `section_header`/`subtotal`/`summary_row` (ресурсы и `ignored`-номера строк не занимают,
- * §4а/P4.3); `source_position_number` — дословный текст `item_number_column`
- * (`research/07-multi-estimate-anchoring.md` §5.1), НЕ `row_index`; ресурсы кладутся в
- * `resources[]` ПОСЛЕДНЕЙ строки роли `item`. Маппер НЕ агрегирует: стоимость строки «Всего по
- * позиции» остаётся у её собственной строки `subtotal`, пустая стоимость позиции остаётся
- * пустой. Разрезы КС-3 заполняются ТОЛЬКО у строк роли `summary_row` и только если профиль
- * объявил соответствующие колонки. Паспортные поля книжного gold НЕ утверждаются (`passport`
- * все `null`, `currency=RUB`, `totals.footer=[]`, `work_types=[]`) — профиль описывает ТАБЛИЦУ, не
- * титульный блок (входное требование к P7.3, `research/09-gold-grid-criterion.md`).
- *
- * Роль каждой строки берёт {@see GridRecognitionGate::classifyRows()} — тот же классификатор,
- * которым гейт считает условие (б)/(в): маппер и гейт обязаны видеть ОДНУ роль строки, иначе
- * «гейт посчитал строку покрытой» и «маппер её пропустил» разошлись бы молчаливо.
+ * Книга и профиль формы преобразуются в gold дословно. Row_index идёт с 1 внутри
+ * каждой сметы, включает заголовки и итоги; ресурсы и ignored не занимают номера.
+ * Source_position_number берётся из item_number_column. Ресурсы относятся к последнему item.
+ * Стоимость subtotal остаётся у своей строки, пустые значения не выводятся из агрегатов.
+ * КС-3 заполняется только у summary_row с объявленными колонками. Профиль описывает таблицу,
+ * поэтому passport пуст, currency=RUB, totals.footer и work_types пусты.
+ * Роли определяет общий с gate GridRecognitionGate::classifyRows().
  */
 /**
  * @phpstan-type MappedRow array{row_index: int, row_type: RowType, name: string, section_title: string|null, code: string|null, unit: string|null, quantity: string|null, unit_price_base: string|null, unit_price_curr: string|null, total_price_base: string|null, total_price_curr: string|null, index_value: string|null, source_position_number: string|null, resources: list<RowResource>, attributes: RowAttributes|null}
@@ -221,7 +213,7 @@ final readonly class SheetGoldMapper
     /**
      * КС-3 — разрезы `amount_since_start`/`amount_since_year_start`/`amount_reporting_period`
      * ТОЛЬКО у `summary_row` и только если хотя бы один из трёх столбцов объявлен профилем
-     * (Implementation Rules P5.2) — иначе `null` (строка не несёт ни коэффициентов, ни разрезов).
+     * — иначе `null` (строка не несёт ни коэффициентов, ни разрезов).
      *
      * @param  array<string,int>  $columns
      */

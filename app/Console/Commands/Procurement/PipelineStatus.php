@@ -16,12 +16,9 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Перенос v1-наблюдаемости (`Old/app/Console/Commands/PipelineStatusCommand.php`) на v2-модель:
- * сводка документов по стадиям (`prc_documents.status`) и AI-анализов по (шаг, статус)
- * (`prc_ai_analyses`), плюс два v2-специфичных счётчика — разбивка `unprocessable` по причине
- * (D32/D38) и borderline-скринингов, ожидающих операторского ревью (D36,
- * backend reason `borderline_confidence`). Read-only снимок текущего состояния — без
- * временных окон, в отличие от `pipeline:stuck-check` (P7.3).
+ * Read-only снимок документов по стадиям и AI work по шагу и состоянию. Дополнительно
+ * показывает причины unprocessable и borderline screening, ожидающий операторского решения.
+ * Временные окна не применяются; возраст зависших работ проверяет `process:diagnostics`.
  */
 #[Description('Показывает текущее состояние пайплайна документов и AI-анализа по всем стадиям')]
 #[Signature('pipeline:status')]
@@ -113,7 +110,7 @@ final class PipelineStatus extends Command
     /**
      * `last_error` хранит `"unprocessable:{reason}: {detail}"` (единый формат ВСЕХ 4 сайтов
      * записи — `ArchiveStrategy`/`SpreadsheetStrategy`/`ScreeningProcessor`/
-     * `ExtractionOrchestrator`, D32/D38); `split_part` вытаскивает токен причины без detail
+     * `ExtractionOrchestrator`); `split_part` вытаскивает токен причины без detail
      * (Postgres допускает `GROUP BY` по алиасу выходной колонки).
      */
     private function printUnprocessableBreakdown(): void

@@ -174,9 +174,8 @@ final class Procurement extends Model
     }
 
     /**
-     * Единственный носитель правила показа (§4 root/document-contour.md, D91) — вырезает закупки
-     * служебных площадок (`is_public=false`) из публичной витрины. Registry/platform composite
-     * FK гарантирует совпадение canonical platform_id с путём registry.platform.
+     * Исключает закупки служебных площадок (`is_public=false`) из публичной витрины.
+     * Composite FK registry/platform согласует canonical platform_id с путём registry.platform.
      *
      * @param  Builder<Procurement>  $query
      * @return Builder<Procurement>

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Process;
 
 /**
- * Закрытый набор исходов WorkStore::claim (execution#s03). Только Claimed разрешает handler;
+ * Закрытый набор исходов WorkStore::claim. Только Claimed разрешает handler;
  * остальные — ACK доставки без handler/send.
  */
 enum ClaimStatus: string

@@ -7,7 +7,7 @@ namespace App\Repositories\Procurement\Ai;
 use App\Models\Procurement\Ai\EvalRun;
 
 /**
- * Чтение `prc_ai_eval_runs` (`root/service-layer-map.md` §6) — `estimate:eval:compare`.
+ * Чтение `prc_ai_eval_runs` — `estimate:eval:compare`.
  */
 final readonly class EvalRunReadRepository
 {

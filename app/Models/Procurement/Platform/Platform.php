@@ -17,7 +17,7 @@ use Illuminate\Support\Str;
 
 /**
  * Площадка-источник закупок (ЕИС и т.п.) либо служебный контур обучения (`code=training`,
- * `is_public=false`, D91) — оба различаются РОВНО этой строкой, без второй оси на документе.
+ * `is_public=false`) — оба различаются РОВНО этой строкой, без второй оси на документе.
  *
  * @property PlatformThrottleSettings|null $throttle
  * @property string $uuid
@@ -39,7 +39,7 @@ final class Platform extends Model
     use HasFactory;
 
     /**
-     * Код служебной площадки обучающего контура (§1.3 root/document-contour.md) — единственный
+     * Код служебной площадки обучающего контура — единственный
      * носитель литерала, чтобы GoldImportCommand/DatasetImportCommand не дублировали строку.
      */
     public const string TRAINING_CODE = 'training';
@@ -53,8 +53,8 @@ final class Platform extends Model
     }
 
     /**
-     * Служебная площадка «Обучалка» (D91) — заводится сидером, единственный писатель
-     * `platform_id` документов обучающего контура (§1.4).
+     * Служебная площадка обучения создаётся сидером и определяет `platform_id` документов
+     * обучающего контура.
      */
     public static function training(): self
     {

@@ -84,5 +84,5 @@ status: living
 
 Полный source-derived Make/script inventory с audience, environment, mutation, inputs, exit/resume
 и evidence contract генерируется в
-[`P12-command-matrix.md`](https://github.com/axiomasoft/agelto/blob/main/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md).
+[текущий inventory команд](../operators/production/commands.md#current-command-inventory).
 Этот документ объясняет отдельные команды, но не определяет второй command contract.

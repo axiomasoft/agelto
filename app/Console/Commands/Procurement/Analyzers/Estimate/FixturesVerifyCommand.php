@@ -12,10 +12,10 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Сверка трёх носителей корпуса (P2.4, гейт целостности D1): манифест (git) ↔ файлы на диске ↔
+ * Сверка трёх носителей корпуса (гейт целостности): манифест (git) ↔ файлы на диске ↔
  * записи реестра `prc_ai_fixtures`. Verify — диагност, а не ремонтник: расхождение только
  * сообщается, ничего не правится. Чтение манифеста и сверка вынесены в
- * {@see FixtureManifestReader}/{@see FixtureVerifier} (P3.3).
+ * {@see FixtureManifestReader}/{@see FixtureVerifier}.
  */
 #[Description('Сверить manifest.json ↔ хранилище ↔ реестр prc_ai_fixtures')]
 #[Signature('estimate:fixtures:verify

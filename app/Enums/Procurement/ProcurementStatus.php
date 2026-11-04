@@ -7,23 +7,10 @@ namespace App\Enums\Procurement;
 use Filament\Support\Contracts\HasLabel;
 
 /**
- * Канонический статус закупки (закрытый codelist, по мотивам OCDS tenderStatus).
- *
- * Матрица достижимости (DOMLANG P2, источник — findings/P2-eis-stages.md §5):
- *
- * | Кейс           | Продюсер                                           | Достижим          |
- * |:---------------|:---------------------------------------------------|:------------------|
- * | Bidding        | этап ЕИС «Подача заявок»                            | да                |
- * | Evaluation     | этап ЕИС «Работа комиссии»                          | да                |
- * | Completed      | этап ЕИС «Закупка завершена»                        | да                |
- * | Cancelled      | этап ЕИС «Закупка отменена»                         | да                |
- * | Unknown        | StatusMappingService::resolve() на незнакомой паре | да                |
- * | Awarded        | P6.2: detail-слой / протоколы (prc_protocols)      | forward-provision |
- * | Unsuccessful   | detail-слой / результаты определения поставщика    | forward-provision |
- *
- * forward-provision — кейс с названным будущим продюсером и таблицей-носителем, ещё не
- * подключённым парсером (критерий D5/D13). Кейс «до подачи заявок» удалён (DOMLANG D16): ЕИС не
- * выделяет такой этап — публикация извещения сразу даёт «Подача заявок», продюсера нет и не будет.
+ * Канонический закрытый набор статусов закупки. Bidding/Evaluation/Completed/Cancelled
+ * соответствуют этапам источника; Unknown сохраняет незнакомое отображение.
+ * Awarded и Unsuccessful представляют результаты определения поставщика и могут
+ * заполняться detail-слоем, когда источник содержит достаточные факты.
  */
 enum ProcurementStatus: string implements HasLabel
 {

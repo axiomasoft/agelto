@@ -36,10 +36,11 @@ journalctl -u agelto-backup-local.service -u agelto-backup-local-watchdog.servic
 `BACKUP_ENABLED=true` по [runbook](manual-backups.md). Verified local receipt не означает
 автоматический off-host backup. Для собственной отправки почты — [SMTP/DNS](server-mail.md).
 
+## Current command inventory
+
 Текущий source-derived inventory генерируется из root Make delegation,
-`docker/Makefile` `.PHONY` targets и declared P12 script modes. Отдельный tracked файл
+`docker/Makefile` `.PHONY` targets и declared production script modes. Отдельный tracked файл
 матрицы в корне checkout не нужен: создавайте временный артефакт из текущих исходников.
-Архивный P12 snapshot остаётся provenance, не обновляется при каждом изменении runtime scripts.
 
 Перед копированием команд сгенерируйте и проверьте текущую матрицу:
 
@@ -51,7 +52,6 @@ less "$command_matrix_path"
 ```
 
 Ожидается exit 0 у render/check; `less` закрывается клавишей q. Временный файл не содержит
-секретов и не добавляется в Git. Указывайте `--output` явно: default исторический P12 snapshot
-может быть stale, его нельзя перезаписывать ради успешной проверки текущего runtime.
+секретов и не добавляется в Git. Для render/check обязателен явный `--output`: проверяется текущий артефакт из исходников.
 A stale/missing/duplicate/wrong-environment or unguarded destructive row fails closed. Local fixture
 output is never runtime evidence; external/mutating rows remain blank until the follow-up rehearsal.

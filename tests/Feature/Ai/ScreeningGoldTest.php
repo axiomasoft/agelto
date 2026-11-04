@@ -9,13 +9,13 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 /**
- * P5.4 — ветка `estimate:gold:build --screening` строит `gold/<CODE>.screening.json` по реестру
- * (§8.5): вердикт — `Fixture.document_type` для ЛЮБОГО класса (§6.1 document-type-axis.md, D90 —
- * колонка `NOT NULL`, заполнена и для позитивов); classification note — только у негативов. Реестр —
+ * ветка `estimate:gold:build --screening` строит `gold/<CODE>.screening.json` по реестру
+ * вердикт — `Fixture.document_type` для ЛЮБОГО класса: колонка `NOT NULL` заполнена и для позитивов;
+ * classification note — только у негативов. Реестр —
  * единственный источник вердикта, команда его не толкует (Code Guidance) — фабрика заменяет
  * реальный корпус, реальный прогон — предмет Completion Notes.
  *
- * Тест «негатив без определённого типа → отклонение» (P5.4) снят P1.4: ось стала `NOT NULL`
+ * Тест «негатив без определённого типа → отклонение» снят ось стала `NOT NULL`
  * (§6.1), сценарий структурно недостижим — БД отклоняет саму запись реестра до появления
  * скрининг-gold'а (покрыто негативным тестом check-constraint'а, Validation 5 item'а).
  */

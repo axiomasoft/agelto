@@ -5,7 +5,12 @@ declare(strict_types=1);
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-/** Additive canonical carriers. Legacy analysis/cache consumers switch atomically in P3.13. */
+/**
+ * Canonical provider assets: file identity scoped by provider/account/API surface,
+ * and context-cache identity scoped additionally by model and ordered content hashes.
+ * Creation token and lease are stored together; active assets require a provider address
+ * and expiration timestamp.
+ */
 return new class extends Migration
 {
     public function up(): void

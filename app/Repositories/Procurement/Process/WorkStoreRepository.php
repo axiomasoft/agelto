@@ -51,11 +51,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Writer intents, новых ready work, admitted→running claim (P1.6/P1.7) и ownership живого attempt
- * (P1.8). Work ссылается на реальный subject одной owner column своей стадии; work_key =
+ * Writer intents, новых ready work, admitted→running claim и ownership живого attempt.
+ * Work ссылается на реальный subject одной owner column своей стадии; work_key =
  * WorkIdentity, input immutable (новое input — новый intent/work). Claim берёт полный prefix без
- * SKIP LOCKED (bp-sql-claim); heartbeat — единственный CAS work row без других locks; checkpoint —
- * subject set FOR UPDATE, затем work CAS до domain progress (bp-sql-heartbeat). Finalize —
+ * SKIP LOCKED; heartbeat — единственный CAS work row без других locks; checkpoint —
+ * subject set FOR UPDATE, затем work CAS до domain progress. Finalize —
  * WorkFinalizationRepository под тем же полным prefix.
  */
 final readonly class WorkStoreRepository implements LeaseKeeper
@@ -112,7 +112,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
     ) {}
 
     /**
-     * Autocommit heartbeat CAS (bp-sql-heartbeat): только id+generation+token+running и живой DB
+     * Autocommit heartbeat CAS: только id+generation+token+running и живой DB
      * lease; ни SELECT, ни других locks. 0 rows — Lost: истёкший или отозванный lease не оживляется.
      * Attempt last_heartbeat_at — диагностика после успешного CAS, не authority.
      */
@@ -137,7 +137,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
     }
 
     /**
-     * Guarded progress живого owner (bp-sql-heartbeat): subject set FOR UPDATE → work под lock,
+     * Guarded progress живого owner: subject set FOR UPDATE → work под lock,
      * merged envelope (новый stage progress + текущий locked provider recovery plan), CAS с
      * expected checkpoint_seq и живым lease ДО domain progress. Любой guard failure откатывает все
      * записи; checkpoint не меняет admission group и не освобождает storage.
@@ -165,7 +165,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
     }
 
     /**
-     * admitted → running для конкретной delivery (bp-sql-claim): generation+1, случайный token,
+     * admitted → running для конкретной delivery: generation+1, случайный token,
      * immutable attempt с executing handler version и DB lease. Stale/duplicate/expired delivery,
      * pause, handler hold и CapacityWait — ACK без handler; invariant mismatch откатывается и
      * открывает incident отдельной tx без молчаливого repair.
@@ -202,7 +202,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
     }
 
     /**
-     * Fenced supersede stale input под уже взятым полным prefix (execution#s08): generation+1,
+     * Fenced supersede stale input под уже взятым полным prefix: generation+1,
      * token/lease/claim/due/checkpoint очищены, вся admission group освобождена, transition.
      * Running owner (finalize при сменившемся input) закрывает свой attempt superseded: старый
      * result не публикуется.
@@ -241,9 +241,9 @@ final readonly class WorkStoreRepository implements LeaseKeeper
     }
 
     /**
-     * Superseded required link атомарно заменяется successor (observability#s04): detail input,
+     * Superseded required link атомарно заменяется successor: detail input,
      * устаревшая только из-за нового subject head, пере-pin-ится на текущий head под тем же intent
-     * (execution#s10: expected head пересчитывается). Пока intent active, successor создаётся;
+     * (expected head пересчитывается). Пока intent active, successor создаётся;
      * если intent уже terminal, successor — существующая work того же intent на текущем head.
      * Required links всех нуждающихся runs переходят на successor, прежние становятся observes.
      */

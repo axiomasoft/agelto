@@ -7,7 +7,7 @@ namespace App\Services\Procurement\Process;
 use Illuminate\Contracts\Config\Repository;
 
 /**
- * Boot-validated policy projection из `process.projection` (observability#s08): bounded rebuild
+ * Boot-validated policy projection из `process.projection`: bounded rebuild
  * (max events, общий deadline, размер страницы) и отсрочки сообщений outbox. Закрытая схема;
  * противоречивая конфигурация отвергается с путём ключа, а не заменяется default.
  */

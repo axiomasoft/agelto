@@ -12,9 +12,9 @@ use RuntimeException;
 
 /**
  * Сидирует карту «код ОКПД2 → внутренний id НСИ» площадки `eis` из промоушен-датафайла
- * `database/data/eis-okpd2-nodes.json` (снятого P1.2, D15). Идемпотентен: `updateOrCreate` по
+ * `database/data/eis-okpd2-nodes.json`. Идемпотентен: `updateOrCreate` по
  * `(platform_id, code)`. `synced_at` НЕ трогает — он означает «подтверждено обходом площадки»,
- * а сид данные с площадки не сверяет (заполняет только команда пересборки, P2.5).
+ * а сид данные с площадки не сверяет (заполняет только команда пересборки).
  */
 final class Okpd2NodeSeeder extends Seeder
 {

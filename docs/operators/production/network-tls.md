@@ -32,4 +32,4 @@ The operator rehearsal owns every external action in this order:
 Do not use `--no-check-certificate`, a public container upstream, an unvalidated reload, or a
 certificate issued before DNS ownership is confirmed. DNS, issuance, reload and public probes are
 deliberately not executed by the current local preparation plan. Canonical commands and required
-evidence fields are listed in `plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md`.
+evidence fields are listed in текущий inventory команд в `commands.md`.

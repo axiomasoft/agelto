@@ -193,7 +193,11 @@ final readonly class PrepareHandler implements StageHandler
                 if (strlen($text) + $a->sizeBytes > $this->policy->artifactBytes) {
                     return new StageBlocked(BlockedReason::DocumentQuality);
                 }
-                $text .= Storage::disk($a->reservation->disk)->get($a->reservation->objectKey());
+                $bytes = Storage::disk($a->reservation->disk)->get($a->reservation->objectKey());
+                if (! is_string($bytes) || strlen($bytes) !== $a->sizeBytes || hash('sha256', $bytes) !== $a->hash->hex) {
+                    throw new ArtifactUnavailable('Prepared batch changed or became unavailable during assembly.');
+                }
+                $text .= $bytes;
             }
             $artifact = $this->persist($text, $r, $execution, $deadline);
             $keepOutput = true;

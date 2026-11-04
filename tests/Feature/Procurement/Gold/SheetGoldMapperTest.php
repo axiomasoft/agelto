@@ -9,13 +9,13 @@ use App\Services\Procurement\Gold\SheetGoldMapper;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 
 /**
- * Книга + профиль → gold §8.2 (P5.2, D2/D117). Дословность и ничего кроме (Code Guidance):
+ * Книга + профиль → gold §8.2. Дословность и ничего кроме (Code Guidance):
  * маркер группы ресурсов не попадает в gold и переключает `resource_type` последующих строк;
  * «Всего по позиции» — своя строка `subtotal` со своей стоимостью, стоимость позиции остаётся
  * пустой; `row_index` сквозной по смете с 1 и включает заголовки разделов/итоги; многосметная
  * книга даёт несколько элементов `estimates[]` в порядке `ordinal`; профиль КС-3 кладёт три
  * разреза в `attributes.amount_*` строки `summary_row`. Синтетические книги собираются
- * PhpSpreadsheet'ом В ТЕСТЕ — реальные эталоны корпуса здесь не используются (предмет P5.7).
+ * PhpSpreadsheet'ом В ТЕСТЕ — реальные эталоны корпуса здесь не используются (предмет ).
  */
 function mapperFixtureWorkbook(): Spreadsheet
 {

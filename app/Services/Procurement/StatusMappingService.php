@@ -15,7 +15,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 /**
  * Резолв сырого статуса источника в канонический (`prc_status_mappings` — данные, не код).
  * Незнакомая пара (registry_id, source_stage) АВТОМАТИЧЕСКИ заводит строку с `canonical_status='unknown'`
- * (см. `plans/V2-CORE/plan.md` Decision Log D5) — оператор видит и правит её в админке, не роется в логах.
+ * — оператор видит неизвестное отображение и исправляет его в админке.
  */
 final readonly class StatusMappingService
 {

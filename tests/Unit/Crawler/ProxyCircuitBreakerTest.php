@@ -14,7 +14,7 @@ use App\Enums\Procurement\Network\TransportFailure as F;
 use App\Services\Procurement\Network\HealthReducer;
 use App\Services\Procurement\Network\RequestClassifier;
 
-// Historical scenario identities retained for the immutable regression inventory. P2.6 replaces
+// Historical scenario identities retained for the immutable regression inventory. replaces
 // the old proxy breaker with phase attribution and the canonical reducer. TLS, 403 and 429 never
 // punish route health; credential failures hold until operator action; success preserves debt.
 function oldBreakerSnapshot(int $consecutive = 0, int $openings = 0): HealthSnapshot

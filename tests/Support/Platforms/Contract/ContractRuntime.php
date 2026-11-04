@@ -6,6 +6,7 @@ namespace Tests\Support\Platforms\Contract;
 
 use App\Dto\Procurement\Network\DecodedTextBody;
 use App\Dto\Procurement\Network\ResponseEnvelope;
+use App\Dto\Procurement\Process\DbInstant;
 use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ExecutionLease;
@@ -29,6 +30,7 @@ final readonly class ContractRuntime
         $clock->shouldReceive('monotonicNs')->andReturn(1000000000);
         $lease = new ExecutionLease(new WorkId(ContractFixtures::id()), ContractFixtures::id(2), 1, ContractFixtures::id(3),
             new \DateTimeImmutable('+360 seconds'), 1, ContractFixtures::hash(), 0, null, StageCode::Listing, 'fixture/1');
+        $clock->shouldReceive('dbNow')->andReturn(new DbInstant($lease->leaseUntil->modify('-360 seconds')));
 
         return new ExecutionContext($lease, \Mockery::mock(LeaseKeeper::class), $clock, Duration::seconds(240),
             Duration::seconds(360), Duration::seconds(15), Duration::seconds(15), Duration::seconds(30));

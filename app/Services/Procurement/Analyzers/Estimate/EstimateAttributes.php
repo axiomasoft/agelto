@@ -14,10 +14,9 @@ final readonly class EstimateAttributes
 {
     /**
      * Единственный носитель набора полей позиции (`prc_estimate_items`), читаемого ОБОИМИ
-     * writer-путями (`self`/`RerunRangeAction`, P5.2 Implementation Rules п.2) — две независимые
-     * копии этого набора и есть причина, по которой полный persist и точечный re-run расходились
-     * (D40). `work_type_id` сюда не входит: резолв `work_type_name` → FK читает состояние БД
-     * (`EstimateStoreRepository::findOrCreateWorkType()`, P5.3, B-5) — `itemAttributes()` остаётся
+     * writer-путями (`self`/`RerunRangeAction`) — две независимые
+     * копии этого набора и есть причина, по которой полный persist и точечный re-run расходились. `work_type_id` сюда не входит: резолв `work_type_name` → FK читает состояние БД
+     * (`EstimateStoreRepository::findOrCreateWorkType`, B-5) — `itemAttributes` остаётся
      * чистой функцией строки, вызывающая сторона мёржит `work_type_id` отдельным ключом.
      *
      * @return array<string, mixed>
@@ -47,8 +46,8 @@ final readonly class EstimateAttributes
 
     /**
      * Слияние ДВУХ независимых утверждений о строке под провенанс-ключом верхнего уровня
-     * (research/12-uncertainty-model.md §3.2/§3.3): `model` — контрактная форма модели (P8.3),
-     * как есть; `validator` — построчная карта причин `ValidationReport` (P8.4). Оба входа пусты →
+     * (research/12-uncertainty-model.md §3.2/§3.3): `model` — контрактная форма модели,
+     * как есть; `validator` — построчная карта причин `ValidationReport`. Оба входа пусты →
      * `null` (чистая позиция, И-А §6.1). `quality` возвращается ВСЕГДА (в т.ч. `null`) — атрибут,
      * который писатель молча пропускает, оставляет пометку прошлого прогона (Ф-10). Точечный
      * re-run (`RerunRangeAction`) вызывает этот метод без `$report` (нет `ValidationReport` без
@@ -82,8 +81,7 @@ final readonly class EstimateAttributes
     }
 
     /**
-     * Собирается по `RowAttributes::ALLOWED_KEYS` (единственный источник истины допустимых ключей,
-     * P5.2 Implementation Rules п.3), а не перечислением ключей руками — пустое значение не
+     * Собирается по `RowAttributes::ALLOWED_KEYS` (единственный источник истины допустимых ключей), а не перечислением ключей руками — пустое значение не
      * превращается в `null`-ключ.
      *
      * @return array<string, mixed>|null

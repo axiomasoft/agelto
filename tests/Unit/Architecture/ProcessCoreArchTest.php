@@ -8,9 +8,9 @@ use App\Services\Procurement\Process\SubjectLockResolver;
 use Symfony\Component\Finder\Finder;
 use Tests\Support\ProcessCore\ProcessSourceRules;
 
-pest()->group('t44', 'p11');
+pest()->group('domain-dependency-boundary');
 
-test('T44 Process contracts и механика сохраняют direction strict types и выбранные readonly value types', function (): void {
+test('Process contracts и механика сохраняют direction strict types и выбранные readonly value types', function (): void {
     $violations = [];
     $count = 0;
     foreach (['Dto', 'Enums', 'Services', 'Repositories', 'Models', 'Jobs', 'Actions'] as $layer) {
@@ -27,7 +27,7 @@ test('T44 Process contracts и механика сохраняют direction str
     expect($count)->toBeGreaterThan(0)->and($violations)->toBe([]);
 });
 
-test('T44 StageOutcome имеет ровно пять final readonly вариантов без cancelled и superseded', function (): void {
+test('StageOutcome имеет ровно пять final readonly вариантов без cancelled и superseded', function (): void {
     $variants = [];
     foreach (Finder::create()->files()->in(app_path('Dto/Procurement/Process'))->name('*.php') as $file) {
         $class = 'App\Dto\Procurement\Process\\'.$file->getBasename('.php');
@@ -41,7 +41,7 @@ test('T44 StageOutcome имеет ровно пять final readonly вариа�
     expect($variants)->toBe(['StageBlocked', 'StageDeferred', 'StageFailedItem', 'StagePartial', 'StageSucceeded']);
 });
 
-test('T44 negative source fixtures обнаруживают imports FQCN strings branching strict и mutable values', function (): void {
+test('negative source fixtures обнаруживают imports FQCN strings branching strict и mutable values', function (): void {
     $path = 'app/Services/Procurement/Process/WorkRunner.php';
     $header = "<?php\ndeclare(strict_types=1);\n";
     $dependency = 'App\Services\Platforms\Eis\Card\EisDetailParser';
@@ -71,7 +71,7 @@ test('T44 negative source fixtures обнаруживают imports FQCN strings
     }
 });
 
-test('T44 application seams и mutable ExecutionContext или Spatie Data не попадают под blanket readonly', function (): void {
+test('application seams и mutable ExecutionContext или Spatie Data не попадают под blanket readonly', function (): void {
     $header = "<?php\ndeclare(strict_types=1);\n";
     foreach ([
         ['app/Dto/Procurement/Process/ExecutionContext.php', $header.'final class ExecutionContext {}'],

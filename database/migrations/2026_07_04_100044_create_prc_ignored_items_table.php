@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('registry_id')
                 ->index()
                 ->constrained(table: (new Registry)->getTable())
-                ->onDelete('NO ACTION'); // P7.5, F-02: прежнее поведение объявлено явно.
+                ->onDelete('NO ACTION'); // прежнее поведение объявлено явно.
 
             $table->text('registry_number');
             $table->text('reason_category')->index();

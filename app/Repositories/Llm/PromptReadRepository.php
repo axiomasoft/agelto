@@ -49,7 +49,7 @@ final readonly class PromptReadRepository
 
     /**
      * Точное совпадение `(document_type, key, version)` — сверка канона файлов с БД
-     * (`PromptCanonSynchronizer::drift()`, `root/service-layer-map.md` §6).
+     * (`PromptCanonSynchronizer::drift()`).
      */
     public function findVersion(string $documentType, string $key, int $version): ?Prompt
     {

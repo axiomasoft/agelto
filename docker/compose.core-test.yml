@@ -67,9 +67,6 @@ x-runtime: &runtime
     - ../estimates/manifest.json:/var/www/html/estimates/manifest.json:ro
     - ../estimates/eval-splits.json:/var/www/html/estimates/eval-splits.json:ro
     - ../estimates/files/Администрация культуры и спорта 3.gsfx:/var/www/html/estimates/files/Администрация культуры и спорта 3.gsfx:ro
-    - ../tests/Support/ProcessCore/RuntimeInputs/audit-remediation-2026-10-08.md:/var/www/html/research/2026-10-08-audit-remediation.md:ro
-    - ../tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.md:/var/www/html/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md:ro
-    - ../tests/Fixtures/ProcessCore/historical/P7.4-fields-audit.json:/var/www/html/plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json:ro
     - ./tests/process-core/runtime-inputs/candidate.git:/var/www/html/.git:ro
     - ./tests/process-core/runtime-inputs/azguard:/var/www/html/local/vendors/azguard:ro
     - ./tests/process-core/runtime-inputs/metadata.json:/process-core-inputs/metadata.json:ro

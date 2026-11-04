@@ -30,15 +30,14 @@ return new class extends Migration
             $table->integer('position');
             $table->text('label');
 
-            // text + PHP backed enum TotalKind (D101), не Postgres native enum. Доопределение по
-            // label этим планом не строится (долг, §7) — пусто при молчании модели.
+            // Text + PHP backed enum TotalKind; без значения модели поле остаётся пустым.
             $table->text('kind')->nullable()->comment('overhead/profit/vat/total/additional/other');
 
-            // Nullable (D101): начисление-процент может не иметь суммы вовсе — признак «задано
+            // Nullable: начисление-процент может не иметь суммы вовсе — признак «задано
             // процентом» это rate IS NOT NULL, фиктивный ноль не пишется.
             $table->decimal('amount', total: 18, places: 2)->nullable();
 
-            // SR-11 (D101): глава сводного расчёта и ставка начисления, заданного процентом.
+            // глава сводного расчёта и ставка начисления, заданного процентом.
             $table->smallInteger('chapter_number')->nullable();
             $table->decimal('rate', total: 18, places: 6)->nullable();
 

@@ -7,27 +7,24 @@ namespace App\Services\Procurement\Analyzers\Estimate;
 use App\Enums\Procurement\Estimate\RowQualityReason;
 
 /**
- * Метрики офлайн-оценки качества извлечения (P7.4, ТЗ 04 §5): field-level precision/recall/F1
+ * Метрики офлайн-оценки качества извлечения (ТЗ 04 §5): field-level precision/recall/F1
  * на паре (row_index, field) + row coverage. Чистая функция над УЖЕ нормализованными массивами
  * `{"estimates": [{..PassportResponse-поля.., "rows": [EstimateRow-массивы]}]}` — та же форма,
  * что gold (`docs/specs/v2/08-estimate-extraction.md` §8) и `analysis.result.estimates[]`
- * (`ExtractionOrchestrator`, P6.1/P6.4), поэтому сравнение не требует отдельного маппера.
+ * (`ExtractionOrchestrator`), поэтому сравнение не требует отдельного маппера.
  *
- * Единственный владелец метрики (P7.3, D38/D62/D84): P4 её сознательно не трогает, `P6.1`/`P7.5`
- * только читают. Расширена P7.3 картой следствий `research/08-schema-change-impact.md` §4 —
- * `passport`/`totals` добавлены ОТДЕЛЬНЫМИ ключами, `per_field`/`overall`/`row_coverage` сохраняют
- * форму (их читают `estimate:eval:run` и бенчмарк P6.1). Тем же приёмом P8.6 добавил ключ
- * `quality` — заполненность пометок неопределённости, поставленных МОДЕЛЬЮ
- * ({@see self::qualityCoverage()}); в `FIELD_MAP` пометка НЕ входит (D139). `EstimateDiffReport` (P7.3) переиспользует
- * `flattenRows()`/`flattenPassport()`/`flattenTotals()`/`fieldsMatch()` как ОДИН носитель правил
- * сопоставления и сравнения значений — второй такой носитель разъехался бы с этим при первой же
- * правке (`plan-protocol` §3).
+ * Правила метрик и парного сопоставления принадлежат этому классу.
+ * `passport`/`totals` — отдельные ключи; `per_field`/`overall`/`row_coverage` сохраняют
+ * форму для `estimate:eval:run` и бенчмарка. `quality` измеряет заполненность пометок
+ * неопределённости модели ({@see self::qualityCoverage}) и не входит в `FIELD_MAP` или F1.
+ * `EstimateDiffReport` переиспользует `flattenRows`/`flattenPassport`/`flattenTotals`/
+ * `fieldsMatch`, чтобы диагностика и агрегированные метрики следовали одним правилам.
  *
- * Сметы сопоставляются ЯВНЫМ ПАРНЫМ ПРОХОДОМ (P6.2, D54, единственный носитель правила —
- * {@see self::matchEstimates()}): порядок правил `estimate_number` → `passport.address` →
+ * Сметы сопоставляются ЯВНЫМ ПАРНЫМ ПРОХОДОМ (единственный носитель правила —
+ * {@see self::matchEstimates}): порядок правил `estimate_number` → `passport.address` →
  * позиция среди оставшихся несопоставленными, каждое детерминированно и перечислимо. Строки
- * внутри сметы сопоставляются по `row_index` (уникален в рамках сметы, D10/§4а); строки
- * итогов — по `(нормализованный label, kind)` (P7.3, `docs/specs/v2/08-estimate-extraction.md` §8.6).
+ * внутри сметы сопоставляются по `row_index` (уникален в рамках сметы); строки
+ * итогов — по `(нормализованный label, kind)` (`docs/specs/v2/08-estimate-extraction.md` §8.6).
  */
 final readonly class EvalMetrics
 {
@@ -36,9 +33,9 @@ final readonly class EvalMetrics
     private const int SCALE = 4;
 
     /**
-     * Метрический ключ → поле строки (`EstimateRow::toArray()`); "price" — доменное имя v1
+     * Метрический ключ → поле строки (`EstimateRow::toArray`); "price" — доменное имя v1
      * (Alias «Стоимость всего»/«Итого руб», §1.4) для `total_price_curr` (переименовано из
-     * `total_price` D93, research/08-schema-change-impact.md §4). Новые поля P4 (`unit_price_base`/
+     * `total_price`, research/08-schema-change-impact.md §4). Новые поля  (`unit_price_base`/
      * `total_price_base`/`index_code`/`index_value`/`source_position_number`/`work_type_name`)
      * добавлены той же строкой — метрический ключ совпадает с именем поля DTO.
      *
@@ -68,10 +65,10 @@ final readonly class EvalMetrics
     public const array ROW_NUMERIC_FIELDS = ['quantity', 'price', 'unit_price_base', 'total_price_base', 'index_value'];
 
     /**
-     * Паспорт-уровень сравнения (P7.3, `research/08-schema-change-impact.md` §4): скалярные поля
+     * Паспорт-уровень сравнения (`research/08-schema-change-impact.md` §4): скалярные поля
      * `PassportResponse` напрямую + вложенные поля `EstimatePassport` через `passport.`-путь.
      * `work_types` не сравнивается — боевой LLM-ответ всегда несёт пустой список по построению
-     * (исключение из D33, докблок `PassportResponse::$work_types`), а `totals` сравнивается
+     * (исключение из общего правила, докблок `PassportResponse::$work_types`), а `totals` сравнивается
      * отдельно (`TOTALS_FIELD_MAP`).
      *
      * @var list<string>
@@ -103,8 +100,7 @@ final readonly class EvalMetrics
     public const array PASSPORT_NUMERIC_FIELDS = ['labor_hours_workers', 'labor_hours_machinists'];
 
     /**
-     * Поля одной строки `TotalLine` (footer сметы, рекурсивно — `chapter_number`/`rate` дополнены
-     * P4.5), сравниваемые ПОСЛЕ сопоставления строк по `(нормализованный label, kind)`.
+     * Поля одной строки `TotalLine` (footer сметы, включая `chapter_number`/`rate` рекурсивных итогов), сравниваемые ПОСЛЕ сопоставления строк по `(нормализованный label, kind)`.
      *
      * @var list<string>
      */
@@ -117,9 +113,9 @@ final readonly class EvalMetrics
 
     /**
      * Строка, на которой пометка неопределённости вообще имеет носителя: только `item`
-     * материализуется в `prc_estimate_items` (решение владельца P5.3 §5), поэтому знаменатель
+     * материализуется в `prc_estimate_items`, поэтому знаменатель
      * заполненности считается по позициям — тем же множеством, на котором сформулированы
-     * инварианты И-А/И-Б (`plans/2026.07.31-SYS-INTEGRITY/research/12-uncertainty-model.md` §6.1).
+     * инварианты заполненности пометок модели.
      */
     private const string QUALITY_ROW_TYPE = 'item';
 
@@ -211,19 +207,19 @@ final readonly class EvalMetrics
     }
 
     /**
-     * Заполненность пометок неопределённости, поставленных МОДЕЛЬЮ (P8.6, `research/12-uncertainty-
+     * Заполненность пометок неопределённости, поставленных МОДЕЛЬЮ (`research/12-uncertainty-
      * model.md` §9): доля позиций предсказания с непустой `quality` + разбивка по причинам.
-     * НЕ участвует в {@see self::FIELD_MAP} и в F1 (D139): у деградированного эталона extraction-gold
+     * НЕ участвует в {@see self::FIELD_MAP} и в F1: у деградированного эталона extraction-gold
      * нет, сравнивать пометку не с чем — метрика на всегда-пустом поле дала бы `f1 = 1.0` на пустом
-     * месте (тот же вердикт, что D46/P5.6).
+     * месте .
      *
-     * **Провенанса в разбивке нет и он не заводится (D148).** Eval сравнивает
+     * **Провенанса в разбивке нет и он не заводится.** Eval сравнивает
      * `analysis->result['estimates']` с gold, а в `result` попадает ТОЛЬКО вывод модели после сшивки
      * ({@see ExtractionOrchestrator}); вердикт {@see EstimateValidator} живёт в `ValidationReport` и
      * уходит в БД внутри персистера. Ветка «валидатор» печатала бы структурный ноль на КАЖДОМ
      * реальном прогоне независимо от того, работает валидатор или нет. Поэтому `by_reason`
-     * перечисляет РОВНО model-origin причины ({@see RowQualityReason::isModelOrigin()}), а строка с
-     * причиной вне этого подмножества (контракт её отклоняет — `EstimateRow::validateAndCreate()`)
+     * перечисляет РОВНО model-origin причины ({@see RowQualityReason::isModelOrigin}), а строка с
+     * причиной вне этого подмножества (контракт её отклоняет — `EstimateRow::validateAndCreate`)
      * не считается пометкой модели вовсе: `marked_rows` = сумма `by_reason` всегда.
      *
      * @param  array<string, array<string, mixed>>  $predictedRows  результат {@see self::flattenRows()}
@@ -270,13 +266,13 @@ final readonly class EvalMetrics
     }
 
     /**
-     * Явный парный проход «gold ↔ предсказание» (D54) — единственный носитель правила
+     * Явный парный проход «gold ↔ предсказание» — единственный носитель правила
      * сопоставления смет, цитируется {@see EstimateDiffReport} через флэттен-методы ниже, не
      * пересчитывается им заново. Порядок правил, КАЖДОЕ детерминированно и перечислимо:
      * 1) точное совпадение нормализованного непустого `estimate_number`;
      * 2) точное совпадение нормализованного непустого `passport.address`;
      * 3) позиция среди оставшихся несопоставленными (относительный порядок сохраняется).
-     * Нормализация — {@see self::normalizeText()} (trim + схлопывание пробелов + регистронезависимо),
+     * Нормализация — {@see self::normalizeText} (trim + схлопывание пробелов + регистронезависимо),
      * новая не изобретается. Дубль нормализованного значения на ОДНОЙ стороне делает его
      * неинформативным для ВСЕХ носителей на этой стороне (молчаливый выбор первого совпадения
      * дал бы разное сопоставление при разном порядке входа) — такие сметы остаются
@@ -368,7 +364,7 @@ final readonly class EvalMetrics
     /**
      * Один проход правила «точное совпадение нормализованного непустого ключа» — дубль значения
      * на ОДНОЙ стороне исключает его из этого прохода для ВСЕХ носителей на этой стороне
-     * (см. докблок {@see self::matchEstimates()}).
+     * (см. докблок {@see self::matchEstimates}).
      *
      * @param  list<int>  $unpairedGold
      * @param  list<int>  $unpairedPredicted
@@ -477,7 +473,7 @@ final readonly class EvalMetrics
     /**
      * @param  list<array<string, mixed>>  $estimates
      * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
-     *                                                                                                   {@see self::matchEstimates()}
+     *                                                                                                   {@see self::matchEstimates}
      * @return array<string, array<string, mixed>> ключ "{слот}:{row_index}"
      */
     public function flattenRows(array $estimates, array $matches, bool $forGold): array
@@ -520,7 +516,7 @@ final readonly class EvalMetrics
     /**
      * @param  list<array<string, mixed>>  $estimates
      * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
-     *                                                                                                   {@see self::matchEstimates()}
+     *                                                                                                   {@see self::matchEstimates}
      * @return array<int, array<string, mixed>> ключ — номер слота; значение — плоская карта
      *                                          `PASSPORT_FIELD_MAP`
      */
@@ -573,9 +569,9 @@ final readonly class EvalMetrics
      *
      * @param  list<array<string, mixed>>  $estimates
      * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
-     *                                                                                                   {@see self::matchEstimates()}
+     *                                                                                                   {@see self::matchEstimates}
      * @return array<string, array{estimate_index: int, label: string, value: mixed, kind: mixed, chapter_number: mixed, rate: mixed}>
-     *                                                                                                                                 `estimate_index` — номер слота, не индекс списка `estimates` (D54)
+     *                                                                                                                                 `estimate_index` — номер слота, не индекс списка `estimates`
      */
     public function flattenTotals(array $estimates, array $matches, bool $forGold): array
     {
@@ -655,7 +651,7 @@ final readonly class EvalMetrics
     }
 
     /**
-     * Тот же tp/fp/fn-подсчёт, что построчный блок `compare()`, но над произвольной плоской картой
+     * Тот же tp/fp/fn-подсчёт, что построчный блок `compare`, но над произвольной плоской картой
      * «ключ сопоставления → поля» (паспорт/итоги) — единый носитель агрегации вместо копии цикла.
      *
      * @param  array<string|int, array<string, mixed>>  $goldFlat

@@ -10,8 +10,8 @@ use Illuminate\Support\Carbon;
 
 /**
  * Один блок листинга, как его вернул `SourceMethod::collectListing()` — сырые строки
- * (ассоциативы по заголовку CSV) + метаданные забора для `prc_fetches` и cap-детекта
- * (`02-crawling.md` §3.3–§3.4). Нормализация в снапшот закупки — вне DTO (`ListingRowMapper`, P2.5).
+ * (ассоциативы по заголовку CSV) + метаданные забора для `prc_fetches` и cap-детекта.
+ * Нормализация в снапшот закупки — вне DTO (`ListingRowMapper`).
  */
 final readonly class ListingBatch
 {

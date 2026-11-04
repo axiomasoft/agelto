@@ -21,14 +21,14 @@ use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Str;
 
 /**
- * Единственный recovery owner (bp-sql-recover, execution#s06): expired running и expired/paused
- * admitted, release blocked(paused|handler_hold), независимая категория EXR-03 blocked
+ * Единственный recovery owner: expired running и expired/paused
+ * admitted, release blocked(paused|handler_hold), независимая категория blocked
  * provider_result_unknown и historical handler-fault sweep. Каждая категория — bounded batch (<=50),
  * для каждого work отдельная ProcessTransaction под полным prefix с повтором locked predicates;
  * изменившийся snapshot — rollback и новый pre-read (не более трёх раз), мёртвая delivery/Redis
  * здесь не участвуют. Pre-read provider facts (object I/O) выполняется вне DB locks, под locks
- * resolver только пишет settlement. Пока provider stages не активны, resolver — NoProviderOperations;
- * P3.8–P3.14 подключает настоящий через bindProviderResolver.
+ * resolver только пишет settlement. Resolver provider operations composition root подключает
+ * через bindProviderResolver до admission соответствующей stage.
  */
 #[Singleton]
 final class RecoveryReconciler
@@ -39,6 +39,9 @@ final class RecoveryReconciler
     private const int MAX_RELOADS = 3;
 
     private ProviderRecoveryResolver $provider;
+
+    /** First isolated failure of the current daemon category, released after its callback. */
+    private ?\Throwable $workFailure = null;
 
     public function __construct(
         private readonly RecoveryRepository $recovery,
@@ -70,13 +73,31 @@ final class RecoveryReconciler
     public function categories(): array
     {
         return [
-            new RecoveryCategory('expired_running', $this->recoverExpiredRunning(...)),
-            new RecoveryCategory('admitted', $this->recoverAdmitted(...)),
-            new RecoveryCategory('blocked_release', $this->releaseBlocked(...)),
-            new RecoveryCategory('blocked_provider', $this->recoverBlockedProvider(...)),
-            new RecoveryCategory('handler_fault_sweep', $this->sweepHandlerFaults(...)),
+            $this->category('expired_running', $this->recoverExpiredRunning(...)),
+            $this->category('admitted', $this->recoverAdmitted(...)),
+            $this->category('blocked_release', $this->releaseBlocked(...)),
+            $this->category('blocked_provider', $this->recoverBlockedProvider(...)),
+            $this->category('handler_fault_sweep', $this->sweepHandlerFaults(...)),
             $this->invariantScan,
         ];
+    }
+
+    /** @param \Closure(): int $step */
+    private function category(string $name, \Closure $step): RecoveryCategory
+    {
+        return new RecoveryCategory($name, function () use ($step): int {
+            $this->workFailure = null;
+            try {
+                $processed = $step();
+                if ($this->workFailure !== null) {
+                    throw $this->workFailure;
+                }
+
+                return $processed;
+            } finally {
+                $this->workFailure = null;
+            }
+        });
     }
 
     /** @return int число recovered work */
@@ -110,6 +131,7 @@ final class RecoveryReconciler
     /**
      * Один poison work не останавливает категорию: его исключение видимо в логе, остальные кандидаты
      * этого tick обрабатываются. Каждый work — своя транзакция, поэтому откат затрагивает только его.
+     * Daemon callback сообщает первую ошибку после batch, сохраняя degraded readiness.
      *
      * @param  \Closure(): int  $step
      */
@@ -118,6 +140,7 @@ final class RecoveryReconciler
         try {
             return $step();
         } catch (\Throwable $failure) {
+            $this->workFailure ??= $failure;
             ProcessLog::daemonError('reconcile', $category.'_work_failed', $failure, ['work_id' => $workId->value->value]);
 
             return 0;
@@ -128,7 +151,7 @@ final class RecoveryReconciler
     {
         $recovered = 0;
         foreach ($this->recovery->admittedCandidates(self::BATCH) as $workId) {
-            $recovered += $this->each($workId, false, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->recoverAdmitted($snapshot, $ids));
+            $recovered += $this->isolated('recover_admitted', $workId, fn (): int => $this->each($workId, false, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->recoverAdmitted($snapshot, $ids)));
         }
 
         return $recovered;
@@ -138,13 +161,13 @@ final class RecoveryReconciler
     {
         $recovered = 0;
         foreach ($this->recovery->releasableBlocked(self::BATCH) as $workId) {
-            $recovered += $this->each($workId, false, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->releaseBlocked($snapshot, $ids));
+            $recovered += $this->isolated('release_blocked', $workId, fn (): int => $this->each($workId, false, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->releaseBlocked($snapshot, $ids)));
         }
 
         return $recovered;
     }
 
-    /** EXR-03: selector provider_recovery_due_at, receipt verify вне locks, затем guarded transition. */
+    /** selector provider_recovery_due_at, receipt verify вне locks, затем guarded transition. */
     public function recoverBlockedProvider(): int
     {
         $recovered = 0;

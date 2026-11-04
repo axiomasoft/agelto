@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Crawler\Contracts;
 use Carbon\CarbonImmutable;
 
 /**
- * Узкий шов для `StartCrawlerRunAction` (P3.8, D113): фильтр профиля, несущий окно
+ * Узкий шов для `StartCrawlerRunAction`: фильтр профиля, несущий окно
  * archive-прогона, отдаёт его границы — без `instanceof <площадка>SearchFilter` внутри Action.
  * Один реализующий класс сегодня (`EisSearchFilter`) — гипотетический шов, поэтому интерфейс
  * узкий, без задела.

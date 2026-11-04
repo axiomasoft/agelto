@@ -45,5 +45,6 @@ fi
 
 # Every invalidation class consumes an already promoted immutable image. Production hosts never
 # build application images: the class selects operator intent/preflight, not a host-side build path.
-"${compose[@]}" pull app horizon scheduler
-"${compose[@]}" up -d --no-build --remove-orphans app horizon scheduler
+services=(app horizon scheduler process-relay process-reconciler process-feeder process-projector)
+"${compose[@]}" pull "${services[@]}"
+"${compose[@]}" up -d --no-build --remove-orphans "${services[@]}"

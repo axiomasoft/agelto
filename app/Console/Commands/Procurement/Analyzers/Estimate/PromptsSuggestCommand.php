@@ -12,12 +12,11 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Дешёвый LLM-критик промтов по эталону (P7.4, D8/D59/D61/D108): по каждому `--code`/`--analysis`
+ * Дешёвый LLM-критик промтов по эталону: по каждому `--code`/`--analysis`
  * строит diff-отчёт и для каждого `--step` предлагает патч/hint. Создаёт ТОЛЬКО записи `pending` —
- * ни одного изменения в `resources/ai/prompts/**` (это делает `ai:prompts:apply` после апрува,
- * D8). Команда признана СМЕТНОЙ решением владельца (D108): вход — свидетельство критика
+ * ни одного изменения в `resources/ai/prompts/**` (это делает `ai:prompts:apply` после апрува). Команда признана сметной: вход — свидетельство критика
  * (`EstimateDiffReport`), без которого у неё нет предмета; цикл вынесен в
- * {@see PromptSuggestionRunner} (P3.3).
+ * {@see PromptSuggestionRunner}.
  */
 #[Description('LLM-критик промтов по diff-отчёту эталона — кладёт предложения pending в очередь')]
 #[Signature('estimate:prompts:suggest

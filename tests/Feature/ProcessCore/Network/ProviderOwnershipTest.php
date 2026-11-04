@@ -32,7 +32,7 @@ test('provider identity rejects invalid keys and foreign target ownership', func
     }
     expect(fn () => new ProviderTargetDefinitions(new ProviderKey('a'), array_values(providerOwnershipCatalog('b')->targets)))
         ->toThrow(InvalidArgumentException::class);
-})->group('t04', 'p26');
+})->group('network-route-policy');
 
 test('provider sync shares platform origin debt and preserves isolated owner catalogs', function (): void {
     NetworkFixtures::platform();
@@ -54,7 +54,7 @@ test('provider sync shares platform origin debt and preserves isolated owner cat
     expect(DB::table('prc_source_targets')->where('provider_key', 'fixture')->whereNotNull('retired_at')->count())->toBe(1)
         ->and(DB::table('prc_source_targets')->where('provider_key', 'other')->whereNull('retired_at')->count())->toBe(1)
         ->and(DB::table('prc_source_targets')->whereNotNull('platform_id')->whereNull('retired_at')->count())->toBe(2);
-})->group('t04', 'p26');
+})->group('network-route-policy');
 
 test('cross-owner conflicting origin defaults are rejected in both sync directions', function (): void {
     NetworkFixtures::platform();
@@ -62,7 +62,7 @@ test('cross-owner conflicting origin defaults are rejected in both sync directio
     $sync->syncProvider(providerOwnershipCatalog('fixture', 14));
     expect(fn () => $sync->sync(NetworkFixtures::catalog()))->toThrow(InvalidArgumentException::class, 'Conflicting origin');
     expect(DB::table('prc_source_targets')->whereNotNull('platform_id')->count())->toBe(0);
-})->group('t04', 'p26');
+})->group('network-route-policy');
 
 test('provider target database constraints reject half ownership, bad keys and duplicates', function (string $invalid): void {
     $platform = NetworkFixtures::platform();
@@ -87,7 +87,7 @@ test('provider target database constraints reject half ownership, bad keys and d
         expect($failure->getCode())->toBe($invalid === 'duplicate' ? '23505' : '23514');
     }
     expect(DB::table('prc_source_targets')->where('provider_key', 'fixture')->whereNull('platform_id')->count())->toBe(2);
-})->with(['both', 'neither', 'grammar', 'duplicate'])->group('t04', 'p26');
+})->with(['both', 'neither', 'grammar', 'duplicate'])->group('network-route-policy');
 
 test('provider scope uses canonical operator controls and audit without a procurement platform', function (): void {
     $platformsBefore = DB::table('prc_platforms')->count();
@@ -110,4 +110,4 @@ test('provider scope uses canonical operator controls and audit without a procur
     expect(DB::table('prc_process_transitions')->where('actor_id', $user->id)->count())->toBe(2)
         ->and(DB::table('prc_target_health')->orderBy('id')->get()->all())->toEqual($healthBefore)
         ->and(DB::table('prc_platforms')->count())->toBe($platformsBefore);
-})->group('t04', 'p26');
+})->group('network-route-policy');

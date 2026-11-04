@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Узел карты «код ОКПД2 → внутренний id справочника НСИ» конкретной площадки (D19): свой
+ * Узел карты «код ОКПД2 → внутренний id справочника НСИ» конкретной площадки: свой
  * носитель площадочного `external_id`, отдельный от общего классификатора `ref_okpd2`.
  *
  * @property string $code

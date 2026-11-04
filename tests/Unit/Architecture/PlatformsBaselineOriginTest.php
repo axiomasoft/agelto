@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 use Tests\Support\Architecture\PlatformSourceRules;
 
-test('T33 historical baseline pairs are either removed or allowed by permanent exact roles', function (): void {
+pest()->group('platform-dependency-boundary');
+
+test('historical baseline pairs are either removed or allowed by permanent exact roles', function (): void {
     $map = json_decode(file_get_contents(base_path('tests/Fixtures/ProcessCore/platforms-move-map.json')), true, flags: JSON_THROW_ON_ERROR);
     expect($map['dependency_origin']['commit'])->toBe('02f41f9dbcc5e50237abcf4ee54b953d052de068');
     foreach ($map['dependency_origin']['pairs'] as $pair) {
@@ -17,7 +19,7 @@ test('T33 historical baseline pairs are either removed or allowed by permanent e
     expect(is_file(__DIR__.'/platforms-dependency-baseline.php'))->toBeFalse();
 });
 
-test('T33 permanent role permissions do not grant the same import to a neighboring file', function (): void {
+test('permanent role permissions do not grant the same import to a neighboring file', function (): void {
     foreach (PlatformSourceRules::rolePermissions() as $path => $imports) {
         foreach ($imports as $import) {
             expect(PlatformSourceRules::forbiddenDependencies($path, '<?php use '.$import.';'))->toBe([]);

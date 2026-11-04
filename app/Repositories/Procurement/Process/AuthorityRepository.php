@@ -38,7 +38,7 @@ use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\SubjectLockResolver;
 
 /**
- * Authority pre-read и полный lock prefix (execution#s05–s07, bp-lock-modes). Pre-read без locks
+ * Authority pre-read и полный lock prefix. Pre-read без locks
  * собирает AuthoritySnapshot: control closure, executing handler authority, все required lanes,
  * subject rows и active admission group. lockPrefix берёт tiers строго по порядку: control scopes
  * FOR SHARE (sorted scope_key) → handler authority FOR SHARE → весь capacity set FOR UPDATE
@@ -339,7 +339,7 @@ final readonly class AuthorityRepository
     }
 
     /**
-     * Subject tier отдельно (checkpoint — subset prefix без controls/lanes, bp-lock-modes): полный
+     * Subject tier отдельно (checkpoint — subset prefix без controls/lanes): полный
      * subject set FOR UPDATE в порядке снимка, heads сверяются; mutable subject не берётся SHARE.
      *
      * @return array<string, LockedSubject>|PrefixFailure keyed by SubjectKey::key()

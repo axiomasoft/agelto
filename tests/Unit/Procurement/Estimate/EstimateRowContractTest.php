@@ -8,8 +8,8 @@ use App\Enums\Procurement\Estimate\CalcMethod;
 use App\Enums\Procurement\Estimate\RowType;
 use Illuminate\Validation\ValidationException;
 
-// Контракты расширенные P4.5 по утверждённому распределению величин
-// (research/06-schema-decision.md §8) — четыре обязательных кейса из Code Guidance P4.5.
+// Контракты расширенные по утверждённому распределению величин
+// Проверяет обязательные варианты строк сметы.
 
 test('новое поле утверждённого списка валидируется (work_type_name, index_code, source_position_number)', function (): void {
     $row = EstimateRow::validateAndCreate([

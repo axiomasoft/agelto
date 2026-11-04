@@ -11,11 +11,11 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
 /**
- * Бенчмарк форматов входа (P6.1, D3/D48–D52): матрица `(эталон × вариант представления)` по
+ * Бенчмарк форматов входа: матрица `(эталон × вариант представления)` по
  * корпусу эталонов с ДЕТЕРМИНИРОВАННЫМ gold. `--dry-run` — сухой обход БЕЗ единого LLM-вызова
  * (объём и предсказанная цена детерминированы, `research/11-format-bench-method.md`); без флага —
- * боевой прогон через `ExtractionOrchestrator` (гейт OQ-3, P6.2, реальный провайдер владельца —
- * запускается ВРУЧНУЮ, в тестах — только `FakeLlmProvider`, `Implementation Rules`).
+ * боевой прогон через `ExtractionOrchestrator` (реальный провайдер —
+ * запускается ВРУЧНУЮ, в тестах — только `FakeLlmProvider`).
  */
 #[Description('Матрица (эталон × вариант представления): объём/цена/качество/поведение по ячейке')]
 #[Signature('estimate:bench:formats
@@ -47,10 +47,10 @@ final class BenchFormatsCommand extends Command
         $date = now()->format('Y-m-d');
         $outOption = $this->option('out');
 
-        // Дефолт — НОВЫЙ корень `config('ai.fixtures.reports_dir')` (D111): раньше хардкодился
-        // путь в каталог ЧУЖОГО замороженного плана, который уедет в архив (D2/D9).
+        // Каталог отчётов задаётся в `config('ai.fixtures.reports_dir')`.
+        // Результаты бенчмарка не зависят от расположения рабочих документов.
         // `config('ai.fixtures.reports_dir')` уже АБСОЛЮТНЫЙ (дефолт `base_path('estimates/reports')`),
-        // поэтому дефолтная ветка НЕ оборачивается `base_path()` второй раз — только явный
+        // поэтому дефолтная ветка НЕ оборачивается `base_path` второй раз — только явный
         // операторский `--out` остаётся репо-относительным, как раньше.
         $path = $outOption !== null
             ? base_path($outOption)
@@ -58,7 +58,7 @@ final class BenchFormatsCommand extends Command
 
         $json = json_encode($artifact, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)."\n";
 
-        // Каталог отчётов создаётся при записи (Implementation Rule 10 P3.3):
+        // Каталог отчётов создаётся при записи:
         // `estimates/reports/` в репозитории не существует.
         File::ensureDirectoryExists(dirname($path));
         file_put_contents($path, $json);

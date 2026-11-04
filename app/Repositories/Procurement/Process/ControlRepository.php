@@ -15,11 +15,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Writer control authority rows `prc_control_scopes` (execution#s11, bp-lock-modes ensureScopes).
+ * Writer control authority rows `prc_control_scopes`.
  * Scope существует до первой работы: default-enabled и manual override живут в одной row, поэтому
  * pause/admission всегда lock-ят существующую строку. ensureScopes — отдельная tx без admission:
  * существующие scopes запроса FOR SHARE в sorted scope_key, затем INSERT недостающих по unique key.
- * Parent/key immutable. setMode — manual pause/resume той же row (P1.7); scope_key сортируется
+ * Parent/key immutable. setMode — manual pause/resume той же row; scope_key сортируется
  * byte order (COLLATE "C") во всех lockers.
  */
 final readonly class ControlRepository
@@ -81,7 +81,7 @@ final readonly class ControlRepository
     }
 
     /**
-     * Manual pause/resume одной scope (execution#s08, bp-lock-modes): ancestors FOR SHARE и
+     * Manual pause/resume одной scope: ancestors FOR SHARE и
      * изменяемая row FOR UPDATE в общем byte-sorted scope_key порядке, без SHARE→UPDATE upgrade.
      * Сериализуется с admission/claim, которые держат ту же closure FOR SHARE: после commit pause
      * новые grants запрещены. Resume снимает только manual mode этой row и увеличивает

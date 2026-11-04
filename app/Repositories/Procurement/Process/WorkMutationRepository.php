@@ -24,11 +24,11 @@ use App\Services\Procurement\Process\SubjectLockResolver;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Управляющие мутации ledger под полным prefix (execution#s08, handler-fault-budget): CancelWork —
+ * Управляющие мутации ledger под полным prefix: CancelWork —
  * hard cancel конкретного nonterminal work, CancelRun — отмена намерения run без слепой отмены
  * shared work, RetryHandlerFaultedWork — новый explicit manual intent/work key вместо исчерпанного
  * blocked(handler_fault_limit). Все методы выполняются в ProcessTransaction вызывающего Action;
- * RBAC и UI принадлежат P1.17, bypass state через adapters запрещён. Generation+1 отзывает владельца,
+ * RBAC проверяет caller, bypass state через adapters запрещён. Generation+1 отзывает владельца,
  * поздняя публикация невозможна; история (attempts, transitions, run links) не удаляется.
  */
 final readonly class WorkMutationRepository

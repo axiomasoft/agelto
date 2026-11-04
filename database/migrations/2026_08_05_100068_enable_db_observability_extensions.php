@@ -6,9 +6,9 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * P7.4 (F-12) — pg_stat_statements требует `shared_preload_libraries` (задан в
- * docker-compose*.yml `command:`, рестарт кластера — вне этой миграции); pgstattuple —
- * обычное расширение, рестарт не нужен.
+ * pg_stat_statements требует `shared_preload_libraries`, заданный в конфигурации
+ * PostgreSQL; перезапуск кластера выполняется вне миграции. Для pgstattuple
+ * достаточно установки расширения без перезапуска.
  */
 return new class extends Migration
 {

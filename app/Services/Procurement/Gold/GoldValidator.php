@@ -11,13 +11,9 @@ use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Exceptions\CannotCreateData;
 
 /**
- * Единственная в фазе P5 точка валидации формы gold §8.2 (Code Guidance P5.1: «форма §8.2
- * проверяется ТОЛЬКО GoldValidator, второй приём валидации в фазе запрещён»). Приём — ДОСЛОВНО
- * `DatasetImportCommand::validateGold()` (`app/Console/Commands/Ai/DatasetImportCommand.php:110-
- * 174`, P2.2-контракт): `PassportResponse::validateAndCreate(Arr::except($estimate, ['rows']))` +
- * `EstimateRow::validateAndCreate()` на каждую строку — совпадение с приёмом импорта намеренно
- * (эталон и предсказание сравниваются без отдельного маппера, docs/specs/v2/
- * 08-estimate-extraction.md §8.2), унификация чужой команды — вне скоупа этого item'а.
+ * Проверка формы gold через PassportResponse::validateAndCreate() для паспорта
+ * и EstimateRow::validateAndCreate() для каждой строки. Gold и результат извлечения
+ * проходят одну типизированную форму без дополнительного маппера сравнения.
  */
 final readonly class GoldValidator
 {

@@ -29,11 +29,11 @@ return new class extends Migration
             $table->decimal('unit_multiplier', total: 18, places: 6)->nullable();
             $table->decimal('quantity', total: 18, places: 6)->nullable();
 
-            // SR-02 (D93): унаследованный price переименован в price_curr, price_base — новая.
+            // унаследованный price переименован в price_curr, price_base — новая.
             $table->decimal('price_base', total: 18, places: 2)->nullable();
             $table->decimal('price_curr', total: 18, places: 2)->nullable();
 
-            // SR-03 (D94): индекс пересчёта — скаляр на ресурсе.
+            // индекс пересчёта — скаляр на ресурсе.
             $table->text('index_code')->nullable();
             $table->decimal('index_value', total: 18, places: 6)->nullable();
 

@@ -26,11 +26,10 @@ use Illuminate\Support\Collection;
 use RuntimeException;
 
 /**
- * Реестр эталонного ФАЙЛА (D6) — справочник корпуса EST-TRAIN с метаданными и квирками, отдельный
+ * Реестр эталонного ФАЙЛА — справочник корпуса EST-TRAIN с метаданными и квирками, отдельный
  * от версий эталонных ОТВЕТОВ `DatasetExample`. Поля профиля анализатора типа (`class`/`form`/
- * `expected_estimates`/`expected_rows`/`gold_source`, §6.2 root/document-type-axis.md) живут в
- * `type_profile` — читаются типизированными `profile*()` (не top-level property), без индексов
- * (§6.4 контракта).
+ * `expected_estimates`/`expected_rows`/`gold_source`) живут в
+ * `type_profile` — читаются типизированными `profile*` (не top-level property), без индексов.
  *
  * @property string $code
  * @property string $source_format
@@ -86,7 +85,7 @@ final class Fixture extends Model
     use HasFactory;
 
     /**
-     * Единственный носитель контракта кода эталона (D13): `<CLASS>-<FORMAT>-<FORM>-<NNN>`.
+     * Единственный носитель контракта кода эталона: `<CLASS>-<FORMAT>-<FORM>-<NNN>`.
      */
     public const CODE_PATTERN = '/^(EST|NEG)-(XLSX|XLS|PDF|GSFX|DOCX|JPG)-[A-Z0-9]{2,10}-[0-9]{3}$/';
 
@@ -104,7 +103,7 @@ final class Fixture extends Model
     }
 
     /**
-     * Класс эталона (позитив/негатив) — `type_profile->>'class'` (§6.2 контракта).
+     * Класс эталона (позитив/негатив) — `type_profile->>'class'`.
      */
     public function profileClass(): FixtureClass
     {
@@ -112,7 +111,7 @@ final class Fixture extends Model
     }
 
     /**
-     * Форма документа (KS2, …) — `type_profile->>'form'` (§6.2 контракта).
+     * Форма документа (KS2, …) — `type_profile->>'form'`.
      */
     public function profileForm(): string
     {
@@ -120,7 +119,7 @@ final class Fixture extends Model
     }
 
     /**
-     * Источник gold-эталона — `type_profile->>'gold_source'` (§6.2 контракта).
+     * Источник gold-эталона — `type_profile->>'gold_source'`.
      */
     public function profileGoldSource(): GoldSource
     {
@@ -139,7 +138,7 @@ final class Fixture extends Model
 
     /**
      * Единственный построитель пути исходного файла эталона на текущем диске эталонов
-     * ({@see FileLocationResolver::currentFixturesDisk()}).
+     * ({@see FileLocationResolver::currentFixturesDisk}).
      */
     public static function storagePathFor(string $code, string $extension): string
     {
@@ -147,10 +146,10 @@ final class Fixture extends Model
     }
 
     /**
-     * Следующий свободный номер в тройке «класс/формат/форма» (§6.4 контракта P1.2, D18):
-     * пишется на выражениях `type_profile->class`/`type_profile->form` без индексов — размер
-     * отношения (десятки строк) делает seq scan дешевле индекса, а индекс P5.1 заводить не
-     * вправе (схему закрыл P1). Возвращённый код обязан матчить `CODE_PATTERN`.
+     * Следующий свободный номер в тройке «класс/формат/форма».
+     * Запрос использует `type_profile->class`/`type_profile->form`; для небольшого справочника
+     * последовательное сканирование дешевле дополнительного индекса.
+     * Возвращённый код обязан соответствовать `CODE_PATTERN`.
      */
     public static function nextCodeFor(FixtureClass $class, string $sourceFormat, string $form): string
     {
@@ -182,7 +181,7 @@ final class Fixture extends Model
     }
 
     /**
-     * Единственный построитель пути производного представления (P3/P6) эталона.
+     * Единственный построитель пути производного представления эталона.
      */
     public static function derivedPathFor(string $code, string $name): string
     {
@@ -202,8 +201,8 @@ final class Fixture extends Model
     }
 
     /**
-     * Прямая связь «эталон ↔ рабочая копия» (§2 root/document-contour.md) — единственный
-     * писатель: `resolveWorkingCopy()` (`GoldImportCommand`).
+     * Прямая связь «эталон ↔ рабочая копия» — единственный
+     * писатель: `resolveWorkingCopy` (`GoldImportCommand`).
      */
     /** @return BelongsTo<Document, $this> */
     public function document(): BelongsTo
@@ -212,9 +211,9 @@ final class Fixture extends Model
     }
 
     /**
-     * Прогоны всех версий рабочей копии (P5.3, `RunsRelationManager`) — read-путь для витрины:
+     * Прогоны всех версий рабочей копии (`RunsRelationManager`) — read-путь для витрины:
      * `document_id` эталона сопоставляется с `document_id` версии напрямую, минуя промежуточный
-     * `documents.id` (у `Document` нет relation-метода `versions()` — раскладка репозиторием).
+     * `documents.id` (у `Document` нет relation-метода `versions` — раскладка репозиторием).
      */
     /** @return HasManyThrough<AnalysisRun, DocumentVersion, $this> */
     public function runs(): HasManyThrough

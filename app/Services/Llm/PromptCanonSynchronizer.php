@@ -10,9 +10,8 @@ use App\Repositories\Llm\PromptStoreRepository;
 use Illuminate\Support\Collection;
 
 /**
- * Апсерт канона промтов в `llm_prompts` + деактивация протухших версий (`sync()`) и сверка
- * файлы↔БД без записи (`drift()`) — владелец решения, ЧТО делать с прочитанными записями
- * (`root/service-layer-map.md` §7); сам разбор файлов не знает — за ним к `PromptCanonReader`.
+ * Апсерт канона промтов в `llm_prompts` + деактивация протухших версий (`sync`) и сверка
+ * файлы↔БД без записи (`drift`) — владелец решения, ЧТО делать с прочитанными записями; сам разбор файлов не знает — за ним к `PromptCanonReader`.
  */
 final readonly class PromptCanonSynchronizer
 {
@@ -35,7 +34,7 @@ final readonly class PromptCanonSynchronizer
 
     /**
      * Дрейф файлы↔БД без записи (`ai:prompts:sync --check`) — строки готовы к печати командой,
-     * сервис сам ничего не выводит (Implementation Rule 3 P3.2).
+     * сервис сам ничего не выводит.
      *
      * @return list<string>
      */

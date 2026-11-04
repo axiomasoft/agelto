@@ -29,40 +29,36 @@ use App\Enums\Procurement\Estimate\RowType;
 use App\Enums\Procurement\Estimate\TotalKind;
 
 /**
- * `GsfxDocument` (P3.3/P3.8/P3.9) → форма gold §8.2 (P5.1, D2/D94/D112/D113). Единственный метод
- * {@see self::toGold()} — БЕЗ записи на диск (P5.3). Соответствие Data.xml → §8.2 построчно:
+ * `GsfxDocument` → gold без записи на диск. Соответствие Data.xml полям результата:
  *
- * - `estimate_number` ← `Properties.txt: Attribs.LocNum`.
- * - `passport.address` ← `Attribs.ObjName`; `passport.target` НЕ заполняется — ObjName несёт
- *   свободный текст объекта, а не классификатор `EstimateTarget`, и словаря текст→enum ни один
- *   Input не даёт (гадать по подстроке значило бы завести словарь «от себя»).
- * - `passport.generator` ← литерал `ГрандСмета` + `GSmetaVersion` (`Document@Generator` ридер не
- *   читает — P3.3 Scope, D111 тальит его в `unmapped`; единственный источник версии — паспорт).
- * - `base_year` ← первое 4-значное число в `RegionInfo.RegionName` («ФСНБ-2022» → 2022);
- *   `price_level` ← та же строка целиком (единственная цитата уровня цен, которую несёт паспорт).
- * - `rows_expected` = число `<Position>` по всем главам (не разделов).
- * - `calc_method` ← `TotalCalcMethod` (`Res` → `resource`, иначе → `base_index`, D105 — других
- *   значений форма не предусматривает).
- * - `labor_hours_workers`/`labor_hours_machinists` — сумма `quantity` ресурсов `Tzr`/`Tzm`
- *   соответственно по всему документу (bcmath, без float); `Tzm2022` в сумму НЕ входит —
- *   `@Quantity ≡ 1` там ставка, а не часы (research/16 §2 п.1), иначе двойной счёт.
- * - `document_number`/`document_date`/`period_start`/`period_end`/`passport.contract_*` —
- *   реквизиты акта (SR-12), `.gsfx` их не несёт — остаются `null`.
- * - `work_types` — дерево `GsfxWorkTypeGroup[]` → `EstimateWorkType[]` (группа без нормативов,
- *   дети — `GsfxWorkType` с НР/СП); `EstimateRow::$work_type_name` резолвится по
- *   `GsfxPosition::$work_type_id` через плоский индекс `id → GsfxWorkType` по ВСЕМ группам всех
- *   каталогов сразу — на реальном эталоне единственный непустой каталог один («Виды работ
- *   2001г»), коллизии `id` между каталогами этот индекс не различает (нет свидетеля, нет и
- *   правила разрешения где-либо во входах).
- * - `totals.footer` — по главе `AddZatrGlava/@Glava` (главы без `<AddZatr>` пропускаются) плюс
- *   финальная строка `kind=total` из `Properties.txt: Total`; `kind` начислений НЕ доопределяется
- *   по `@Caption` — детерминированное доопределение по label спекой обещано, кодом не
- *   реализовано и назван долгом (`research/06-schema-decision.md` §7) — этот маппер его не
- *   закрывает молча.
- * - Многосметность (`research/07-multi-estimate-anchoring.md`): `.gsfx`-контейнер — ВСЕГДА один
- *   элемент `estimates[]` (единственный подтверждённый структурный эталон корпуса односметный,
- *   §1) — `row_index` считается СКВОЗНЫМ по этому единственному контейнеру, начиная с заголовка
- *   первой главы.
+ * `estimate_number` ← `Properties.txt: Attribs.LocNum`.
+ * `passport.address` ← `Attribs.ObjName`; `passport.target` НЕ заполняется — ObjName несёт
+ * свободный текст объекта, а не классификатор `EstimateTarget`, и словаря текст→enum ни один
+ * Input не даёт (гадать по подстроке значило бы завести словарь «от себя»).
+ * `passport.generator` ← литерал `ГрандСмета` + `GSmetaVersion` (`Document@Generator` ридер не
+ * читает, учитывает его в `unmapped`; единственный источник версии — паспорт).
+ * `base_year` ← первое 4-значное число в `RegionInfo.RegionName` («ФСНБ-2022» → 2022);
+ * `price_level` ← та же строка целиком (единственная цитата уровня цен, которую несёт паспорт).
+ * `rows_expected` = число `<Position>` по всем главам (не разделов).
+ * `calc_method` ← `TotalCalcMethod` (`Res` → `resource`, иначе → `base_index`, — других
+ * значений форма не предусматривает).
+ * `labor_hours_workers`/`labor_hours_machinists` — сумма `quantity` ресурсов `Tzr`/`Tzm`
+ * соответственно по всему документу (bcmath, без float); `Tzm2022` в сумму НЕ входит —
+ * `@Quantity ≡ 1` там ставка, а не часы, иначе возник бы двойной счёт.
+ * `document_number`/`document_date`/`period_start`/`period_end`/`passport.contract_*` —
+ * реквизиты акта, `.gsfx` их не несёт — остаются `null`.
+ * `work_types` — дерево `GsfxWorkTypeGroup[]` → `EstimateWorkType[]` (группа без нормативов,
+ * дети — `GsfxWorkType` с НР/СП); `EstimateRow::$work_type_name` резолвится по
+ * `GsfxPosition::$work_type_id` через плоский индекс `id → GsfxWorkType` по ВСЕМ группам всех
+ * каталогов сразу — на реальном эталоне единственный непустой каталог один («Виды работ
+ * 2001г»), коллизии `id` между каталогами этот индекс не различает (нет свидетеля, нет и
+ * правила разрешения где-либо во входах).
+ * `totals.footer` — по главе `AddZatrGlava/@Glava` (главы без `<AddZatr>` пропускаются) плюс
+ * финальная строка `kind=total` из `Properties.txt: Total`; `kind` начислений НЕ доопределяется
+ * по `@Caption`: маппер сохраняет только явно представленные значения.
+ * `.gsfx`-контейнер даёт один элемент `estimates[]`; `row_index` считается
+ * сквозным по этому контейнеру, начиная с заголовка
+ * первой главы.
  */
 final readonly class GsfxGoldMapper
 {
@@ -72,7 +68,7 @@ final readonly class GsfxGoldMapper
 
     /**
      * Промежуточный масштаб `bcmul` перед финальным округлением до {@see self::MONEY_SCALE} —
-     * не теряет точность на умножении количества на цену (Code Guidance: float — никогда).
+     * не теряет точность на умножении количества на цену без преобразования во float.
      */
     private const int INTERMEDIATE_SCALE = 10;
 
@@ -110,12 +106,8 @@ final readonly class GsfxGoldMapper
     }
 
     /**
-     * Список неотображённых элементов/атрибутов `Data.xml` с частотой (Scope Included) —
-     * `toGold()` их судьбу не решает, эта карта — вход сводного отчёта `estimate:gold:build` (P5.3).
-     * `has_carrier` сегодня всегда `false`: после реопена P3.8/P3.9 в `unmapped` остаётся ровно
-     * то, для чего утверждённое распределение носителя НЕ назвало (`research/16-gsfx-reader-
-     * reopen.md` §4, `research/06-schema-decision.md` §6) — поле зарезервировано на случай
-     * будущего расхождения (реопен добавит носитель, а этот маппер не обновят).
+     * Частоты неотображённых элементов и атрибутов Data.xml для отчёта estimate:gold:build.
+     * has_carrier=false означает, что маппер не назначил этим данным поле результата.
      *
      * @return array<string, array{count: int, has_carrier: bool}>
      */
@@ -124,9 +116,8 @@ final readonly class GsfxGoldMapper
         $entries = $document->unmapped;
 
         if ($document->coefficients !== []) {
-            // Document/Koefficients/K — глобальный список без ссылки на позицию (GsfxDocument
-            // Scope: «по позициям не раскладывается»); носителя для него нет ни в одной таблице
-            // research/06 §3 — не хранится, но не молчим об этом (Code Guidance).
+            // Document/Koefficients/K не привязан к позиции и не имеет поля результата;
+            // учитываем глобальные коэффициенты в unmapped.
             $entries['Document.coefficients'] = count($document->coefficients);
         }
 
@@ -228,13 +219,9 @@ final readonly class GsfxGoldMapper
     }
 
     /**
-     * Цена позиции. 64 из 110 позиций эталона несут `PriceBase`/`PriceCurr` НАПРЯМУЮ («расценка
-     * целиком по прямой цене каталога», D113 снятие эскалации) — это ИТОГ по строке, переносится
-     * как есть. Остальные 46 раскладываются в `<Resources>` (ресурсный метод, `calc_method=
-     * resource`, SR-17): `*_base` законно пуст (research/06 §5.1), `*_curr` считается прямым
-     * счётом ресурсов — `Σ(quantity × price_curr)` по всем ресурсам позиции, кроме `Work`
-     * (технологические строки без количества/цены, CalcMethod::Resource docblock: «цена
-     * считается прямым счётом ресурсов текущего уровня»).
+     * Прямые PriceBase/PriceCurr — итог позиции, переносятся без агрегации.
+     * У ресурсной позиции base остаётся пустым, current вычисляется как сумма quantity × price_curr
+     * по ресурсам, кроме технологических Work без количества и цены.
      *
      * @return array{0: ?string, 1: ?string}
      */
@@ -279,7 +266,7 @@ final readonly class GsfxGoldMapper
 
         $entry = $document->index_catalog->positions[$position->index_code] ?? null;
 
-        // Позиция разыменовывается составляющей `@MT` (материалы) — D94: «выбор составляющей
+        // Позиция разыменовывается составляющей `@MT` (материалы): «выбор составляющей
         // однозначно определяется типом ресурса», позиция без `<Resources>` ценится как материал.
         return $entry?->mt !== null ? $this->normalizeDecimal($entry->mt) : null;
     }
@@ -311,7 +298,7 @@ final readonly class GsfxGoldMapper
             return null;
         }
 
-        // D94: материал → `@MT`, машина → `@EM` (единственные два тега, реально несущие
+        // материал → `@MT`, машина → `@EM` (единственные два тега, реально несущие
         // IndexCode на эталоне — findings, проверено grep'ом по корпусу).
         $value = $resource->resource_type === 'Mat' ? $entry->mt : $entry->em;
 
@@ -332,15 +319,9 @@ final readonly class GsfxGoldMapper
     }
 
     /**
-     * `Tzm2022` (P3.9) вложен ВНУТРЬ ресурсного тега (на эталоне — только `Mch`) и не имеет
-     * собственного носителя строкой контракта — research/16 §1 таблица прямо называет носитель
-     * `RowResource` с `resource_type=labor`: синтетическая строка-ресурс со значениями ставки
-     * `Tzm2022`, ИМЯ берётся у родительского ресурса (то же оборудование/родительская запись,
-     * не изобретается заново) — `unit` не переносится: у `Tzm2022` в `Data.xml` нет атрибута
-     * единицы измерения (только `WorkClass`/`Quantity`/`Price`), а `unit` контракта — ЦИТАТА
-     * документа; придумывать цитату, которой нет, запрещено. `Quantity ≡ 1` (ставка, не часы) —
-     * в сводные `labor_hours_*` эта строка НЕ входит (см. {@see self::sumResourceQuantity()} —
-     * считает только сиблинг-ресурсы `Tzr`/`Tzm`, `Tzm2022` не является `resource_type`).
+     * Вложенный Tzm2022 становится синтетическим RowResource с resource_type=labor
+     * и именем родительского ресурса. Unit остаётся null: у исходного Tzm2022 нет единицы.
+     * Quantity=1 означает ставку, а не часы; такая строка не входит в labor_hours_*.
      */
     private function mapTzm2022Resource(GsfxResource $parent, GsfxTzm2022 $tzm2022): RowResource
     {
@@ -488,10 +469,9 @@ final readonly class GsfxGoldMapper
     }
 
     /**
-     * `AddZatr@Options` несёт `Percent`, когда `@Value` — ставка в процентах (SR-11): ставка идёт
-     * в `rate`, `value` (сумма) остаётся `null` — и наоборот для прямой суммы. `@Formula` не
-     * хранится (research/06 §6 п.6) — начисление без `@Value` (формула без прямого значения)
-     * даёт ОБА поля `null`, не `"0"`.
+     * AddZatr с Options=Percent переносит Value в rate, оставляя value=null.
+     * Для прямой суммы заполняется value. Formula отдельно не хранится: без Value
+     * оба поля остаются null, не нулём.
      */
     private function mapAddZatr(GsfxAddZatr $addZatr, ?int $chapterNumber): TotalLine
     {
@@ -510,7 +490,7 @@ final readonly class GsfxGoldMapper
     /**
      * Нормализация decimal-строки `.gsfx` (запятая-разделитель, разрядные пробелы, научная
      * нотация — напр. `Quantity="2E-5"` у малых расходуемых материалов) БЕЗ конверсии во float
-     * (Code Guidance, research/06 §5.9 конфликт 5г) — пустая строка/`null` → `null`, не `"0"`.
+     * — пустая строка/`null` → `null`, не `"0"`.
      */
     /** @return numeric-string|null */
     private function normalizeDecimal(?string $raw): ?string

@@ -12,9 +12,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Immutable subject snapshot listing-обхода одного ProcessRun (execution#s04). Execution
+ * Immutable subject snapshot listing-обхода одного ProcessRun. Execution
  * state/lease/attempt counters здесь нет: исполнение принадлежит только prc_process_work.
- * Legacy prc_crawler_runs (Run) — отдельный старый owner до P2.18.
+ * Legacy prc_crawler_runs (Run) хранит историю прежнего owner.
  *
  * @property string $id
  * @property string $process_run_id

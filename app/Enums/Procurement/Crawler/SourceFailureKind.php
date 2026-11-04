@@ -14,8 +14,7 @@ use Filament\Support\Contracts\HasLabel;
  * формату (заголовок с обязательными колонками, разбираемые записи). Для HTML-карточки:
  * базовые селекторы эталона есть на каждой странице; нет — страница не обрабатывается.
  *
- * Вид — это факт, а не поведение: что делать с каждым видом на каждом этапе, задаёт
- * `historical source-control fixture policy` (`SourceFailureReaction`).
+ * Вид описывает факт отказа, а не предписывает реакцию на него.
  */
 enum SourceFailureKind: string implements HasLabel
 {

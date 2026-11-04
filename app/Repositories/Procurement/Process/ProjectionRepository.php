@@ -14,7 +14,7 @@ use App\Enums\Procurement\Process\ProjectionMode;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Единственный writer `prc_process_projection_states/receipts/metric_totals` (observability#s08).
+ * Единственный writer `prc_process_projection_states/receipts/metric_totals`.
  * Порядок блокировок задаёт вызывающий: state FOR SHARE (live apply) либо FOR UPDATE (rebuild,
  * retention, resume) берётся ДО receipt и aggregate rows, без SHARE→UPDATE upgrade. Mutation
  * методы требуют транзакцию вызывающего; сети и object-store здесь нет.

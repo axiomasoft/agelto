@@ -7,8 +7,8 @@ namespace App\Enums\Procurement\Analyzers\Estimate;
 use App\Enums\Llm\LlmPurpose;
 
 /**
- * Собственные назначения вызова анализатора сметы (contract P2.1 §4.1) — принадлежат
- * `AiDocumentType::Estimate`, ядро о них не знает (D14/D7).
+ * Собственные назначения вызова анализатора сметы — принадлежат
+ * `AiDocumentType::Estimate`, ядро о них не знает.
  */
 enum EstimateLlmPurpose: string implements LlmPurpose
 {

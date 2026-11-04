@@ -4,13 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Schema;
 
-/**
- * Схема `prc_estimate*` по утверждённому списку P4.2+P4.3 (`plans/2026.07.26-EST-TRAIN/
- * research/06-schema-decision.md` §3.2, §8, §11) — 30 новых колонок, 3 переименования, 3 смены
- * типа, 2 удаления, новая таблица `prc_estimate_work_types` (13 колонок). Проверяет наличие
- * колонок, ключевые `nullable`-инварианты, индексы/уникальности и каскады FK; не проверяет
- * контракты ответа LLM/DTO (P4.5, Scope Excluded этого item'а).
- */
+/** Проверяет колонки, nullability, индексы, уникальность и каскады схемы смет. */
 function columnsOf(string $table): array
 {
     return collect(Schema::getColumns($table))->keyBy('name')->all();
@@ -26,7 +20,7 @@ function foreignKeysOf(string $table): array
     return collect(Schema::getForeignKeys($table))->keyBy('name')->all();
 }
 
-test('prc_estimates несёт утверждённый список колонок P4.2+P4.3, title удалена', function () {
+test('prc_estimates несёт утверждённый список колонок, title удалена', function () {
     $columns = columnsOf('prc_estimates');
 
     expect($columns)->not->toHaveKey('title');
@@ -60,7 +54,7 @@ test('prc_estimates: unique(analysis_id, ordinal) сохранён, verified_by 
         ->and($foreignKeys['prc_estimates_procurement_id_foreign']['foreign_table'])->toBe('prc_procurements');
 });
 
-test('prc_estimate_sections теряет section_number (мёртвый носитель, D100)', function () {
+test('prc_estimate_sections теряет section_number (мёртвый носитель)', function () {
     $columns = columnsOf('prc_estimate_sections');
 
     expect($columns)->not->toHaveKey('section_number')
@@ -101,7 +95,7 @@ test('prc_estimate_items: unique(estimate_id, row_index) сохранён (SR-01
         ->and($indexes['prc_estimate_items_estimate_id_row_index_unique']['unique'])->toBeTrue();
 });
 
-test('prc_estimate_items.work_type_id — nullable FK на prc_estimate_work_types, set null (D97)', function () {
+test('prc_estimate_items.work_type_id — nullable FK на prc_estimate_work_types, set null', function () {
     $foreignKeys = foreignKeysOf('prc_estimate_items');
 
     expect($foreignKeys)->toHaveKey('prc_estimate_items_work_type_id_foreign')
@@ -127,7 +121,7 @@ test('prc_estimate_resources: price переименован в price_curr, пя
     expect($foreignKeys['prc_estimate_resources_item_id_foreign']['on_delete'])->toBe('cascade');
 });
 
-test('prc_estimate_totals: amount стал nullable, kind сохранён, chapter_number/rate новые (D101)', function () {
+test('prc_estimate_totals: amount стал nullable, kind сохранён, chapter_number/rate новые', function () {
     $columns = columnsOf('prc_estimate_totals');
 
     expect($columns['amount']['nullable'])->toBeTrue('D101: amount становится nullable')
@@ -139,7 +133,7 @@ test('prc_estimate_totals: amount стал nullable, kind сохранён, chap
         ->and($columns['rate']['type'])->toBe('numeric');
 });
 
-test('prc_estimate_work_types — новая таблица с 13 колонками, per-estimate область и self-FK cascade (D34/D90)', function () {
+test('prc_estimate_work_types — новая таблица с 13 колонками, per-estimate область и self-FK cascade', function () {
     expect(Schema::hasTable('prc_estimate_work_types'))->toBeTrue();
 
     $columns = columnsOf('prc_estimate_work_types');

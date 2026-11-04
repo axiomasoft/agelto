@@ -14,16 +14,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
 use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
-/**
- * P2.5 — команда `crawler:okpd2-sync`: пересборка карты «код ОКПД2 → id НСИ» и детект дрейфа.
- *
- * Ни один тест файла не ходит в сеть: `Http::fake()` обязателен, тела ответов берутся из
- * фикстуры `tests/Fixtures/Platforms/Eis/Filters/okpd2-children.json`. Фикстура СИНТЕТИЧЕСКАЯ —
- * реконструирована из `plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/eis-okpd2-map.json` (живой замер
- * P1.2 от 2026-08-07): коды, id и наименования снятые, имена полей ответа — из
- * `findings/P1-okpd2-map.md` §1, но сырое тело ответа разведкой не сохранялось. Поддерево
- * усечено до подклассов, чтобы обход завершался за три запроса.
- */
+/** Проверяет синхронизацию ОКПД2 на синтетических HTTP fixtures без сети. */
 
 /**
  * Площадка `eis` — синхронизатор ищет её по коду (карта живёт по площадкам).
@@ -82,7 +73,7 @@ test('обход собирает узлы поддерева и пишет их
     $node = Okpd2Node::query()->where('code', '41.1')->first();
 
     // Корень поддерева (раздел `F`) в карту не пишется — классы получают `parent_code = null`
-    // и уровень 2, как в датафайле P1.2.
+    // и уровень 2, как в датафайле .
     expect($node->external_id)->toBe('8874099')
         ->and($node->parent_code)->toBe('41')
         ->and($node->level)->toBe(3)

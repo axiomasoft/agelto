@@ -13,12 +13,12 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Импорт `estimates/manifest.json` (D1/D20, P2.3): читает манифест, валидирует КАЖДУЮ запись
+ * Импорт `estimates/manifest.json`: читает манифест, валидирует КАЖДУЮ запись
  * контрактом `FixtureManifestEntry`, кладёт файл эталона на текущий диск эталонов
- * ({@see FileLocationResolver::currentFixturesDisk()}), апсертит запись реестра `prc_ai_fixtures`.
+ * ({@see FileLocationResolver::currentFixturesDisk}), апсертит запись реестра `prc_ai_fixtures`.
  * Идемпотентность — по sha256: повтор не перезаливает файл и не плодит записи; битая запись
  * отклоняется индивидуально, не роняя остальные. Чтение манифеста и импорт записи вынесены в
- * {@see FixtureManifestReader}/{@see FixtureRegistrar} (P3.3).
+ * {@see FixtureManifestReader}/{@see FixtureRegistrar}.
  */
 #[Description('Импорт эталонного корпуса из manifest.json в хранилище и реестр prc_ai_fixtures')]
 #[Signature('estimate:fixtures:import

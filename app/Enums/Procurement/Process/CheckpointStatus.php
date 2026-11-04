@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums\Procurement\Process;
 
-/** Закрытый набор исходов WorkStore::checkpoint (execution#s03); только Saved сохранил progress. */
+/** Закрытый набор исходов WorkStore::checkpoint; только Saved сохранил progress. */
 enum CheckpointStatus: string
 {
     case Saved = 'saved';

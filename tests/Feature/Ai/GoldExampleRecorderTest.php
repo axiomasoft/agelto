@@ -13,7 +13,7 @@ use App\Models\Procurement\Estimate\Item;
 use App\Models\User;
 use App\Services\Procurement\Analyzers\Estimate\GoldExampleRecorder;
 
-// Единственный потребитель `review_status=approved` (P9.2 → P9.3, D15) — снимает immutable gold-
+// Единственный потребитель `review_status=approved` (→ ) — снимает immutable gold-
 // снапшот из НОРМАЛИЗОВАННЫХ смет анализа.
 
 test('approve обычного анализа без коррекций создаёт gold версии 1 с source=llm', function (): void {
@@ -86,7 +86,7 @@ test('approve после re-run с применённой коррекцией �
     ]);
 
     // Партиция «активный анализ на (версия, шаг)» — `RerunAnalysisAction` метит старый
-    // `superseded_at` ДО создания нового (canon P9.2); зеркалим порядок, иначе partial unique
+    // `superseded_at` ДО создания нового (canon ); зеркалим порядок, иначе partial unique
     // `prc_ai_analyses_active_version_step_unique` не даст создать вторую активную запись.
     $parent->update(['superseded_at' => now()]);
 

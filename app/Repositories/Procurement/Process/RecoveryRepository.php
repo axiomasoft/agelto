@@ -28,8 +28,7 @@ use App\Services\Procurement\Process\SubjectLockResolver;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Candidate selectors и locked recovery transitions RecoveryReconciler (bp-sql-recover, execution#s06,
- * D9). Selection всегда unlocked и bounded; каждая locked операция — отдельная ProcessTransaction
+ * Candidate selectors и locked recovery transitions RecoveryReconciler. Selection всегда unlocked и bounded; каждая locked операция — отдельная ProcessTransaction
  * одного work под полным prefix control SHARE → handler SHARE → capacity UPDATE → subjects UPDATE →
  * work UPDATE SKIP LOCKED, после чего все predicates (state, deadline, input/head, membership,
  * controls) повторяются: изменившийся lock set — Reload, а не поздний lock. Recovery только
@@ -58,7 +57,7 @@ final readonly class RecoveryRepository
     ) {}
 
     /**
-     * Expired running (bp-sql-recover п.1): lease истёк минимум 2 s назад; locked решение — lease_until <= now.
+     * Expired running: lease истёк минимум 2 s назад; locked решение — lease_until <= now.
      *
      * @return list<WorkId>
      */
@@ -72,7 +71,7 @@ final readonly class RecoveryRepository
     }
 
     /**
-     * Admitted с истёкшей delivery либо под committed pause/held executing handler (п.2/п.4).
+     * Admitted с истёкшей delivery либо под committed pause/held executing handler.
      *
      * @return list<WorkId>
      */
@@ -89,7 +88,7 @@ final readonly class RecoveryRepository
     }
 
     /**
-     * Blocked(paused|handler_hold), чьи scopes сейчас не paused и executing handler не held (п.3).
+     * Blocked(paused|handler_hold), чьи scopes сейчас не paused и executing handler не held.
      * Pause/held-пары исключены в SQL, поэтому постоянно paused work не занимает batch.
      *
      * @return list<WorkId>
@@ -123,7 +122,7 @@ final readonly class RecoveryRepository
     }
 
     /**
-     * EXR-03 selector: provider_recovery_due_at, а не lease_until/due_at; earliest-due fairness.
+     * selector: provider_recovery_due_at, а не lease_until/due_at; earliest-due fairness.
      *
      * @return list<WorkId>
      */
@@ -422,7 +421,7 @@ final readonly class RecoveryRepository
     }
 
     /**
-     * EXR-03: late receipt для уже blocked(provider_result_unknown). Verified outcome → тот же work
+     * late receipt для уже blocked(provider_result_unknown). Verified outcome → тот же work
      * ready/resume (либо blocked paused/held с сохранённым plan), settlement original reservation,
      * state+checkpoint_seq+transition+projection атомарны. Нет verified outcome → unknown и reserve
      * сохранены, меняется только provider_recovery_due_at. Cancelled/superseded после pre-read:
@@ -551,7 +550,7 @@ final readonly class RecoveryRepository
     }
 
     /**
-     * Historical handler-fault detector (bp-sql-recover п.7): отдельная tx после finished attempt, не
+     * Historical handler-fault detector: отдельная tx после finished attempt, не
      * из logger/finalize. Controls FOR SHARE → handler authority FOR UPDATE; кандидат помечается
      * checked в той же tx, что hold/incident, поэтому crash между finish и detector не теряет hold,
      * а повтор идемпотентен. Уже held версия не перезаписывается. true — кандидат обработан этим backend.
@@ -619,7 +618,7 @@ final readonly class RecoveryRepository
         return true;
     }
 
-    /** Scheduling-only: без business transition, attempt и item/semantic budget (documents-ai#blocked-provider-recovery). */
+    /** Scheduling-only: без business transition, attempt и item/semantic budget. */
     private function rescheduleProvider(WorkId $workId): void
     {
         CallerTransaction::require('Provider recovery reschedule');

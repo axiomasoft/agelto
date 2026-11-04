@@ -10,8 +10,7 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Services\Procurement\Tuning\EvalRunComparator;
 
 /**
- * `estimate:eval:compare` / `EvalRunComparator` (P7.5, критерий D63 + правило отбора D119/D120;
- * режим `noise-aware` — P2.13, D108/D109): тестируется целиком на СИНТЕТИЧЕСКИХ прогонах (Scope
+ * `estimate:eval:compare` / `EvalRunComparator` и режим `noise-aware` проверяются на синтетических прогонах (Scope
  * Excluded — ни одного реального LLM-вызова); `EvalRun`/`EvalResult`/`Fixture`/`DatasetExample`
  * строятся фабриками, разбиение `tune`/`holdout` подкладывается временным файлом (config-override
  * `ai.fixtures.splits_path`). `EvalRunFactory` по умолчанию несёт `started_at`/`finished_at`
@@ -411,7 +410,7 @@ test('noise-aware: несравнимый состав эталонов нуле
     ))->toThrow(RuntimeException::class);
 });
 
-test('no-regression на тех же данных, что noise-aware тесты, даёт прежний вердикт (защита D24 от регрессии)', function () {
+test('no-regression на тех же данных, что noise-aware тесты, даёт прежний вердикт (защита от регрессии)', function () {
     $tune = evalCompareSeedExample('EST-XLSX-TUNE-M-001');
     $holdout = evalCompareSeedExample('EST-XLSX-HOLD-M-001');
 

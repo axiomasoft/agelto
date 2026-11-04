@@ -10,7 +10,7 @@ use App\Dto\Procurement\Network\SelectedNetworkRoute;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
 
-/** P2.4 routing supplies explicit membership; P2.6 activates the sole runtime binding. */
+/** Selects only explicit route-profile members; the send gate revalidates their authority. */
 interface OutboundRouteSelector
 {
     public function select(OutboundRequestPlan $plan, RetryRoutePreference $preference): SelectedNetworkRoute|TransportDeferred|TransportBlocked;

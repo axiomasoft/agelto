@@ -22,7 +22,7 @@ use Illuminate\Support\Carbon;
  * Контент-адресованная версия файла документа (дедуп по sha256 в рамках документа).
  *
  * Подготовленные представления версии живут в `prc_document_representations`
- * ({@see DocumentRepresentation}, D25) — отдельной колонки под подготовленный путь у версии нет.
+ * ({@see DocumentRepresentation}) — отдельной колонки под подготовленный путь у версии нет.
  *
  * @property int $document_id
  * @property string $content_hash
@@ -67,7 +67,7 @@ final class DocumentVersion extends Model
     }
 
     /**
-     * Родительский документ (P9.2, `AnalysesTable` — колонка «Документ»); read-путь, репозитории
+     * Родительский документ (`AnalysesTable` — колонка «Документ»); read-путь, репозитории
      * этой связью не пользуются (прямые запросы по `document_id`).
      */
     /** @return BelongsTo<Document, $this> */

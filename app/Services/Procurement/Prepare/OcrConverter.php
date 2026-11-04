@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Process;
 use RuntimeException;
 
 /**
- * Обёртка над `ocrmypdf` (Tesseract, D22) и над зондами `pdftotext`/`pdfinfo` (P3.7) —
+ * Обёртка над `ocrmypdf` (Tesseract) и над зондами `pdftotext`/`pdfinfo` —
  * единственный вызывающий OCR-бинари в фабрике представлений; о `Document` и представлениях
  * не знает, домен живёт в {@see ScanStrategy} (тот же приём, что у {@see LibreOfficeConverter},
  * переиспользуется замером потолка `research/04-ocr-ceiling.md`).
@@ -21,7 +21,7 @@ final readonly class OcrConverter
 {
     /**
      * Сколько страниц PDF зондируется на текстовый слой — тот же канон, что в инвентаре корпуса
-     * (P1.1, `artifacts/corpus_inventory.py::inspect_pdf`): первые три страницы.
+     * (`artifacts/corpus_inventory.py::inspect_pdf`): первые три страницы.
      */
     public const int TEXT_LAYER_SAMPLE_PAGES = 3;
 
@@ -56,7 +56,7 @@ final readonly class OcrConverter
 
     /**
      * Символов текстового слоя на страницу по первым {@see TEXT_LAYER_SAMPLE_PAGES} страницам —
-     * пробелы не считаются (канон P1.1). `null` — зонд НЕ СМОГ классифицировать файл (битый
+     * пробелы не считаются . `null` — зонд НЕ СМОГ классифицировать файл (битый
      * xref, вообще не PDF): это не «текста нет», а «неизвестно», и инвентарь корпуса в такой
      * ситуации оставлял `text_layer` пустым, а не писал `none`.
      */

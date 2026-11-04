@@ -8,7 +8,7 @@ use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\PromptSuggestion;
 
 /**
- * Единственная точка персистентности `prc_ai_prompt_suggestions` (D59) — `PromptCritic` решает,
+ * Единственная точка персистентности `prc_ai_prompt_suggestions` — `PromptCritic` решает,
  * какие атрибуты писать при создании, `PromptSuggestionDecider` — при решении человека,
  * `PromptPatchApplier` — при применении.
  */
@@ -25,7 +25,7 @@ final readonly class PromptSuggestionStoreRepository
     /**
      * Решение человека: статус + аудит (кто, когда, почему) пишутся ОДНОЙ операцией — разнести их
      * значит допустить запись со статусом без автора. Файла промта не касается: патч применяет
-     * `ai:prompts:apply` (D47).
+     * `ai:prompts:apply`.
      */
     public function markDecided(
         PromptSuggestion $suggestion,

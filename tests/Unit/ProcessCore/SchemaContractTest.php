@@ -19,7 +19,7 @@ test('состояния PHP совпадают с CHECK inventory и не вк�
     foreach (['partial', 'recovered', 'stale', 'duplicate_delivery'] as $event) {
         expect(fn () => WorkState::from($event))->toThrow(ValueError::class);
     }
-})->group('t01', 'p11');
+})->group('ledger-authority');
 
 test('полный enum стадий не активирует будущую схему или handlers', function () {
     $inventory = json_decode(file_get_contents(base_path('tests/Support/ProcessCore/schema-inventory.json')), true, flags: JSON_THROW_ON_ERROR);
@@ -39,13 +39,13 @@ test('полный enum стадий не активирует будущую с
         expect($matches[1])->toBe(array_column($inventory['staging'], null, 'at')['P3.13']['supported']);
     }
 
-    // P3.13 activates the complete AI stage set on its canonical carriers; P3.17 completes the final legacy cutover.
+    // activates the complete AI stage set on its canonical carriers; completes the final legacy cutover.
     expect($inventory['current_item'])->toBe('P3.17')
         ->and(array_column($inventory['staging'], null, 'at')['P3.13']['active'])->toBe(array_column(StageCode::cases(), 'value'));
     foreach ($inventory['carriers'] as $table => $carrier) {
         expect(array_key_exists($table, $inventory['baseline']['tables']))->toBe(in_array($carrier['create_at'], ['P1.6', 'P1.15', 'P2.1', 'P2.16', 'P2.18', 'P3.1', 'P3.8', 'P3.9', 'P3.12'], true), $table);
     }
-})->group('t01', 'p11');
+})->group('ledger-authority');
 
 test('typed subject сохраняет реальную таблицу, тип PK и момент добавления FK', function (StageCode $stage, SubjectKind $kind, string $column, string $fkAt) {
     $inventory = json_decode(file_get_contents(base_path('tests/Support/ProcessCore/schema-inventory.json')), true, flags: JSON_THROW_ON_ERROR);
@@ -71,4 +71,4 @@ test('typed subject сохраняет реальную таблицу, тип P
     'screening' => [StageCode::Screening, SubjectKind::DocumentVersion, 'document_version_id', 'P3.1'],
     'extraction' => [StageCode::Extraction, SubjectKind::AnalysisWindow, 'analysis_window_id', 'P3.8'],
     'publication' => [StageCode::Publication, SubjectKind::AnalysisRun, 'analysis_run_id', 'P3.8'],
-])->group('t01', 'p11');
+])->group('ledger-authority');

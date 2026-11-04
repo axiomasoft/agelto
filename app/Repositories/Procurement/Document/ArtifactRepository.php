@@ -66,6 +66,50 @@ final readonly class ArtifactRepository
         }
     }
 
+    /** Durable repair ownership survives connection loss; an uncertain writer never loses its pin. */
+    public function beginRepair(BlobReference $blob): bool
+    {
+        return $this->transactions->run(function () use ($blob): bool {
+            $this->capacity->lockDomains([$blob->domainId]);
+            $reservation = LedgerRow::one('SELECT * FROM prc_storage_reservations WHERE id=? FOR UPDATE', [$blob->id->value]);
+            $row = LedgerRow::one("SELECT *,encode(content_hash,'hex') AS hash FROM prc_document_blobs WHERE id=? FOR UPDATE", [$blob->id->value]);
+            if ($row === null) {
+                return false;
+            }
+            if (self::reference($row) != $blob || $row->nullableString('deletion_marked_at') !== null
+                || $reservation === null || $reservation->string('status') !== 'transferred'
+                || $reservation->string('domain_id') !== $blob->domainId->value
+                || $reservation->string('disk') !== $blob->disk || $reservation->string('object_key') !== $blob->objectKey) {
+                throw new ArtifactUnavailable('Canonical repair requires an unclaimed durable reservation.');
+            }
+            $domain = LedgerRow::one('SELECT * FROM prc_storage_domains WHERE id=?', [$blob->domainId->value]);
+            $reserved = LedgerRow::one("SELECT COALESCE(SUM(byte_upper_bound),0)::bigint AS bytes FROM prc_storage_reservations
+                WHERE domain_id=? AND status IN ('reserved','writing','staged','cleaning')", [$blob->domainId->value])?->int('bytes') ?? 0;
+            if ($domain === null || $reservation->int('byte_upper_bound') > $domain->int('capacity_bytes') - $domain->int('accounted_durable_bytes') - $reserved) {
+                throw new ArtifactUnavailable('Canonical repair storage capacity unavailable.');
+            }
+            DB::update("UPDATE prc_storage_reservations SET status='writing' WHERE id=?", [$blob->id->value]);
+
+            return true;
+        });
+    }
+
+    /** A confirmed completed write can release its extra charge even if read-back is unavailable. */
+    public function finishRepair(BlobReference $blob): void
+    {
+        $this->transactions->run(function () use ($blob): void {
+            $this->capacity->lockDomains([$blob->domainId]);
+            $reservation = LedgerRow::one('SELECT * FROM prc_storage_reservations WHERE id=? FOR UPDATE', [$blob->id->value]);
+            $row = LedgerRow::one("SELECT *,encode(content_hash,'hex') AS hash FROM prc_document_blobs WHERE id=? FOR UPDATE", [$blob->id->value]);
+            if ($reservation === null || $row === null || self::reference($row) != $blob || $row->nullableString('deletion_marked_at') !== null
+                || $reservation->string('status') !== 'writing' || $reservation->string('domain_id') !== $blob->domainId->value
+                || $reservation->string('disk') !== $blob->disk || $reservation->string('object_key') !== $blob->objectKey) {
+                throw new ArtifactUnavailable('Canonical repair ownership changed.');
+            }
+            DB::update("UPDATE prc_storage_reservations SET status='transferred' WHERE id=?", [$blob->id->value]);
+        });
+    }
+
     public function markDeletion(BlobReference $blob, int $graceSeconds): ?BlobDeletion
     {
         if ($graceSeconds < 900) {
@@ -169,10 +213,12 @@ final readonly class ArtifactRepository
 
     private function referenced(BlobReference $blob): bool
     {
-        return DB::table('prc_storage_reservations as r')
-            ->join('prc_process_work as w', 'w.id', '=', 'r.work_id')
-            ->where('r.disk', $blob->disk)->where('r.object_key', $blob->objectKey)
-            ->whereNotIn('w.state', ['succeeded', 'failed_item', 'cancelled', 'superseded'])->exists()
+        return DB::table('prc_storage_reservations')->where('disk', $blob->disk)->where('object_key', $blob->objectKey)
+            ->where('status', 'writing')->exists()
+            || DB::table('prc_storage_reservations as r')
+                ->join('prc_process_work as w', 'w.id', '=', 'r.work_id')
+                ->where('r.disk', $blob->disk)->where('r.object_key', $blob->objectKey)
+                ->whereNotIn('w.state', ['succeeded', 'failed_item', 'cancelled', 'superseded'])->exists()
             || DB::table('prc_storage_reservations as r')
                 ->join('prc_outbound_operations as o', 'o.id', '=', 'r.operation_id')
                 ->where('r.disk', $blob->disk)->where('r.object_key', $blob->objectKey)

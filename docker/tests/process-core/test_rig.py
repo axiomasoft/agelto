@@ -19,7 +19,7 @@ spec.loader.exec_module(rig)
 
 class RigGuardsTest(unittest.TestCase):
     def test_single_file_selection_rejects_directories_options_and_path_escape(self):
-        valid = "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php"
+        valid = "tests/Feature/ProcessCore/Platforms/PlatformUiRegistryTest.php"
         with patch.dict(os.environ, {"TEST_FILE": valid}):
             self.assertEqual(rig.single_test_path(), valid)
         for value in ["", "tests/Feature", "--testsuite=Feature", "tests/../artisan", "tests/Feature/AbsentTest.php"]:
@@ -203,6 +203,19 @@ class RigGuardsTest(unittest.TestCase):
             with self.assertRaisesRegex(rig.GuardError, "required runtime input"):
                 rig.verify_fixture_inputs()
 
+    def test_historical_fixtures_use_readonly_test_mount_without_plan_aliases(self):
+        manifest = rig.verify_fixture_inputs()
+        entries = {entry["source"]: entry for entry in manifest["files"]}
+        fixture = "tests/Fixtures/ProcessCore/historical/gold-fields-audit.json"
+        self.assertEqual(entries[fixture]["runtime"], fixture)
+        self.assertEqual(entries[fixture]["sha256"],
+                         "221b395d513c9612de02e016b1ce42c283957103dc279d6678eec8d783e4f5b0")
+        mounts = self.config["services"]["app"]["volumes"]
+        self.assertTrue(any(m["type"] == "bind" and m["target"] == "/var/www/html/tests"
+                            and m["read_only"] for m in mounts))
+        self.assertFalse(any(m["target"].startswith(("/var/www/html/plans/", "/var/www/html/research/"))
+                             for m in mounts))
+
     def test_container_label_and_mount_substitution_are_rejected(self):
         service = self.config["services"]["app"]
         container = {
@@ -305,8 +318,8 @@ class RigGuardsTest(unittest.TestCase):
         self.assertNotIn("documents", rig.FUTURE)
         self.assertEqual(rig.SUITE_PATHS["documents"], [
             "tests/Feature/ProcessCore/Documents",
-            "tests/Integration/ProcessCore/Concurrency/T12StorageCapacityTest.php",
-            "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php",
+            "tests/Integration/ProcessCore/Concurrency/StorageCapacityTest.php",
+            "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php",
             "tests/Feature/Procurement/Prepare",
             "tests/Feature/Document/DocumentDownloaderTest.php",
         ])
@@ -326,7 +339,7 @@ class RigGuardsTest(unittest.TestCase):
         self.assertEqual(rig.FUTURE, set())
         self.assertEqual(rig.SUITE_PATHS["network"], [
             "tests/Feature/ProcessCore/Network",
-            "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php",
+            "tests/Integration/ProcessCore/Concurrency/CatalogConcurrencyTest.php",
         ])
         calls = []
         with tempfile.TemporaryDirectory() as temp, \
@@ -379,9 +392,9 @@ class RigGuardsTest(unittest.TestCase):
         self.assertEqual(rig.SUITE_PATHS["e2e"], [
             "tests/Feature/ProcessCore/E2e",
             "tests/Integration/ProcessCore/E2e",
-            "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php",
-                       "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
-            "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php",
+            "tests/Feature/ProcessCore/Observability/FinalCutoverTest.php",
+                       "tests/Feature/ProcessCore/Observability/PlatformMetricsProjectionTest.php",
+            "tests/Feature/ProcessCore/Platforms/PlatformUiRegistryTest.php",
         ])
         calls = []
         with tempfile.TemporaryDirectory() as temp, \

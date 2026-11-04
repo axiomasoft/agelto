@@ -11,7 +11,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Bounded maintenance rebuild counters одного projector из ledger (observability#s08). Не запускает
+ * Bounded maintenance rebuild counters одного projector из ledger. Не запускает
  * work, producers и внешние эффекты. Отказ (busy, неполная история, превышение размера/deadline,
  * неизвестный факт) оставляет прежнюю generation и receipts нетронутыми и завершается кодом 1.
  */

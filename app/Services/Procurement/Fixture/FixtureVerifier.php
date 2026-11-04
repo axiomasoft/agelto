@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\LaravelData\Exceptions\CannotCreateData;
 
 /**
- * Сверка трёх носителей корпуса (`estimate:fixtures:verify`, D1, P2.4): манифест (git) ↔ файлы на диске
+ * Сверка трёх носителей корпуса (`estimate:fixtures:verify`): манифест (git) ↔ файлы на диске
  * ↔ записи реестра `prc_ai_fixtures`. Диагност, а не ремонтник — расхождение только сообщается.
  */
 final readonly class FixtureVerifier

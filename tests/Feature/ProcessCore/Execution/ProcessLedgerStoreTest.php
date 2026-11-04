@@ -24,7 +24,7 @@ use App\Services\Procurement\Process\SchemaSupportedStages;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
-pest()->group('t01', 'p16');
+pest()->group('ledger-authority');
 
 const PROCESS_LEDGER_TABLES = [
     'prc_control_scopes', 'prc_process_lanes', 'prc_process_runs', 'prc_process_incidents', 'prc_process_handler_holds',

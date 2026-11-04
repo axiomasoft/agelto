@@ -12,9 +12,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * P7.5, F-03: `quantity` расширена с numeric(15,3) до numeric(18,6), как у сметных позиций;
- * это расширение точности без потери данных (D58, правило 4). F-01: ведущие колонки FK
- * `okpd2_ref_id` и `ktru_ref_id` индексируются явно.
+ * `quantity` использует numeric(18,6), как у сметных позиций.
+ * Ведущие колонки FK `okpd2_ref_id` и `ktru_ref_id` индексируются явно.
  */
 return new class extends Migration
 {

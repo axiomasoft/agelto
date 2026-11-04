@@ -11,7 +11,7 @@ test('скачивание и ревалидация имеют Horizon consumer
         ->and($route->retryAfter)->toBeGreaterThan($route->horizonTimeout)->and($route->leaseSeconds)->toBeGreaterThan($route->retryAfter);
 });
 
-test('таймаут каждого horizon-супервизора строго меньше retry_after его connection (инварианты D26 и D117)', function (): void {
+test('таймаут каждого horizon-супервизора строго меньше retry_after его connection', function (): void {
     foreach ((array) config('horizon.defaults') as $name => $supervisor) {
         $connection = $supervisor['connection'];
         $retryAfter = (int) config("queue.connections.{$connection}.retry_after");

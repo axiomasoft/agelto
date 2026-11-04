@@ -17,8 +17,8 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\RetryAt;
 
 /**
- * P2.3/P2.4 implement reserve/wait/full fenced claimSend and factual receipt/release here.
- * No production implementation is bound before P2.6. A grant is not an authorization.
+ * Reserves capacity, waits, claims the fully fenced send and records factual receipt/release.
+ * A grant is not an authorization; claimSend revalidates the complete current authority.
  * Each call obtains a NEW permit and request intent; all I/O occurs after its tx commits.
  */
 interface OutboundAttemptGate

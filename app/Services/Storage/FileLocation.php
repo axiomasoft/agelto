@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Storage;
 
 /**
- * Диск + путь файла-носителя (P6.3, `research/07-storage-addressing.md` §4.1) — неизменяемый
- * объект-значение. `exists()`/`get()`/`url()` здесь не заводятся: VO с файловыми операциями
- * превращается в фасад Flysystem.
+ * Неизменяемая пара disk/path файла. Файловые операции остаются у consumers,
+ * чтобы объект-значение не зависел от Flysystem.
  */
 final readonly class FileLocation
 {

@@ -12,7 +12,7 @@ function commonInfoFixtureHtml(): string
     return file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/common-info.html'));
 }
 
-test('parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info, P4.14)', function () {
+test('parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info)', function () {
     $data = app(CommonInfoParser::class)->parse(commonInfoFixtureHtml())->commonInfo;
 
     expect($data)->toBeInstanceOf(CommonInfoData::class)
@@ -73,7 +73,7 @@ test('parse разбирает позицию объекта закупки из
 test('parse распознаёт КТРУ по дефис-суффиксу, ОКПД2 — префиксом до дефиса', function () {
     // На снятой карточке единственная позиция несёт голый код ОКПД2 (без дефиса) — дефис-формат
     // КТРУ (`##.##.##.###-#####`, database/factories/Reference/KtruFactory.php) в артефактах
-    // P4.13 не встретился ни разу; точечная порча кода в реальной фикстуре — единственный способ
+    // не встретился ни разу; точечная порча кода в реальной фикстуре — единственный способ
     // проверить ветку без выдумывания отдельной вкладки.
     $html = str_replace('18.11.10.000', '18.11.10.000-00000001', commonInfoFixtureHtml());
 
@@ -86,7 +86,7 @@ test('parse распознаёт КТРУ по дефис-суффиксу, ОК
     expect($item->classifierCodeOkpd2)->toBe('18.11.10.000')
         ->and($item->classifierCodeKtru)->toBe('18.11.10.000-00000001');
     // classifierScheme() отдаёт приоритет ОКПД2-ветке всегда, когда он не null (до этого item'а
-    // не тронуто — вне Scope P4.14, «приведение к вёрстке», а не правка приоритета схемы).
+    // не тронуто — вне Scope , «приведение к вёрстке», а не правка приоритета схемы).
 });
 
 test('parse проставляет детерминированные fallback-номера позициям вне зависимости от содержимого первой ячейки', function () {

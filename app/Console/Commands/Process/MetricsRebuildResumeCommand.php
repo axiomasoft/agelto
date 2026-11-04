@@ -12,7 +12,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Idempotent recovery зависшего maintenance gate после падения rebuild (observability#s08, G): снимает
+ * Idempotent recovery зависшего maintenance gate после падения rebuild: снимает
  * gate только владельцу token под state FOR UPDATE, не меняя totals/receipts и не запуская work.
  * Автоматического снятия по TTL нет: чужой или устаревший token ничего не меняет.
  */

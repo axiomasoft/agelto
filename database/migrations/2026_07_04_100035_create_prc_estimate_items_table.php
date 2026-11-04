@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * P8.4, research/12-uncertainty-model.md §3.2, D136: nullable `quality` — носитель
- * неопределённости позиции, без backfill. Частичный индекс сохраняет точное условие
- * `WHERE quality IS NOT NULL` для фильтра/счётчика помеченных строк витрины P8.5 (D74).
+ * Nullable `quality` хранит неопределённость позиции без принудительного backfill.
+ * Частичный индекс сохраняет точное условие `WHERE quality IS NOT NULL`
+ * для фильтра и счётчика помеченных строк витрины.
  */
 return new class extends Migration
 {
@@ -41,21 +41,21 @@ return new class extends Migration
             $table->decimal('unit_multiplier', total: 18, places: 6)->nullable();
             $table->decimal('quantity', total: 18, places: 6)->nullable();
 
-            // SR-01 (D93): унаследованные unit_price/total_price переименованы в *_curr (текущий
+            // унаследованные unit_price/total_price переименованы в *_curr (текущий
             // уровень), *_base — новые (базисный уровень).
             $table->decimal('unit_price_base', total: 18, places: 2)->nullable();
             $table->decimal('unit_price_curr', total: 18, places: 2)->nullable();
             $table->decimal('total_price_base', total: 18, places: 2)->nullable();
             $table->decimal('total_price_curr', total: 18, places: 2)->nullable();
 
-            // SR-03 (D94): индекс пересчёта — скаляр на позиции, каталог <Indexes> не хранится.
+            // индекс пересчёта — скаляр на позиции, каталог <Indexes> не хранится.
             $table->text('index_code')->nullable();
             $table->decimal('index_value', total: 18, places: 6)->nullable();
 
-            // SR-13/дополнение P4.3: номер позиции по ЛЮБОЙ сметной форме (не только акту), дробный.
+            // Номер позиции по любой сметной форме; допускает дробное значение.
             $table->text('source_position_number')->nullable();
 
-            // SR-08/SR-09 (D97/D90): точка ссылки на вид работ — позиция. Без constrained() —
+            // точка ссылки на вид работ — позиция. Без constrained() —
             // prc_estimate_work_types создаётся отдельной (более поздней по номеру) миграцией;
             // FK добавляется там через Schema::table(...)->foreign(...).
             $table->unsignedBigInteger('work_type_id')->nullable()->index();

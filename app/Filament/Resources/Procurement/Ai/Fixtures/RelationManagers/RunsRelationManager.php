@@ -116,10 +116,10 @@ class RunsRelationManager extends RelationManager
     }
 
     /**
-     * Модалка результата прогона (P5.4, D27/D48): содержимое собирает `RunResultSchema` — вердикт
+     * Модалка результата прогона: содержимое собирает `RunResultSchema` — вердикт
      * первичного анализа, сводка ОТ АНАЛИЗАТОРА типа и эталон рядом. Клик по строке открывает её
      * же (`recordAction('result')`). Форма — показ: submit-действия у модалки нет (эталон из
-     * админки не правится, D48).
+     * админки не правится).
      */
     private function resultAction(): Action
     {
@@ -136,8 +136,8 @@ class RunsRelationManager extends RelationManager
     }
 
     /**
-     * `getOwnerRecord()` типизирован базовым `Model` (владелец relation manager'а — любая модель
-     * Filament-ресурса); здесь владелец всегда `Fixture` — сужение нужно ТОЛЬКО ради `runs()`.
+     * `getOwnerRecord` типизирован базовым `Model` (владелец relation manager'а — любая модель
+     * Filament-ресурса); здесь владелец всегда `Fixture` — сужение нужно ТОЛЬКО ради `runs`.
      */
     private function ownerFixture(): Fixture
     {

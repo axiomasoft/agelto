@@ -2,15 +2,24 @@
   "format": "process-core-acceptance-corpus/v1",
   "purpose": "Hand-authored execution assertions; this manifest is not a passing-run report.",
   "domain_horizon": {
-    "test": "tests/Feature/ProcessCore/E2e/T17ProcessPipelineE2eTest.php",
-    "stages": ["listing", "detail", "download", "prepare", "screening", "extraction", "publication", "status_refresh"],
+    "test": "tests/Feature/ProcessCore/E2e/ProcessPipelineE2eTest.php",
+    "stages": [
+      "listing",
+      "detail",
+      "download",
+      "prepare",
+      "screening",
+      "extraction",
+      "publication",
+      "status_refresh"
+    ],
     "normalized_estimates": 1,
     "physical_generation_requests": 3,
     "prepared_source_pages": 2,
     "worker_pid_is_test_driver": false
   },
   "horizon": {
-    "test": "tests/Integration/ProcessCore/E2e/T16HorizonPipelineTest.php",
+    "test": "tests/Integration/ProcessCore/E2e/HorizonPipelineTest.php",
     "documents": 4,
     "platforms": 2,
     "slices_per_work": 3,
@@ -20,29 +29,48 @@
     "pending_outbox_after_drain": 0
   },
   "crash_tests": {
-    "tests/Integration/ProcessCore/Faults/T15HorizonCrashTest.php": [
-      "before-claim", "after-lease", "before-send", "sent-intent-before-wire",
-      "after-bytes", "finalize-before-commit", "mid-range-checkpoint", "commit-before-ack", "SIGTERM"
+    "tests/Integration/ProcessCore/Faults/HorizonCrashTest.php": [
+      "before-claim",
+      "after-lease",
+      "before-send",
+      "sent-intent-before-wire",
+      "after-bytes",
+      "finalize-before-commit",
+      "mid-range-checkpoint",
+      "commit-before-ack",
+      "SIGTERM"
     ],
-    "tests/Integration/ProcessCore/Faults/T08RelayKillTest.php": [
-      "relay-claim-before-publish", "publish-before-mark"
+    "tests/Integration/ProcessCore/Faults/RelayKillTest.php": [
+      "relay-claim-before-publish",
+      "publish-before-mark"
     ],
-    "tests/Integration/ProcessCore/Faults/T18DatabaseDisconnectTest.php": [
+    "tests/Integration/ProcessCore/Faults/DatabaseDisconnectTest.php": [
       "PostgreSQL backend termination inside finalization before commit"
     ],
-    "tests/Integration/ProcessCore/Faults/T22PaidResponseKillTest.php": [
-      "authorization-before-send-claim", "response-before-durable-raw"
+    "tests/Integration/ProcessCore/Faults/PaidResponseKillTest.php": [
+      "authorization-before-send-claim",
+      "response-before-durable-raw"
     ],
-    "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php": [
-      "durable raw before chunk", "output put before ref and spool cleanup"
+    "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php": [
+      "durable raw before chunk",
+      "output put before ref and spool cleanup"
     ],
-    "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php": [
+    "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php": [
       "joint claim before wire"
     ]
   },
   "load": {
-    "test": "tests/Integration/ProcessCore/Load/T16LoadTest.php",
-    "profiles": [{"width": 10, "running_cap": 10}, {"width": 20, "running_cap": 10}],
+    "test": "tests/Integration/ProcessCore/Load/LoadTest.php",
+    "profiles": [
+      {
+        "width": 10,
+        "running_cap": 10
+      },
+      {
+        "width": 20,
+        "running_cap": 10
+      }
+    ],
     "minimum_documents_per_profile": 1000,
     "minimum_platforms": 2,
     "minimum_seconds_per_profile": 1800,
@@ -50,7 +78,11 @@
     "old_work_age_seconds": 1000,
     "new_ingress": "higher-priority fresh work in the same platform cohorts",
     "concurrency": "two independent PHP/PostgreSQL feeder contenders and actual Horizon workers",
-    "repeated_faults": ["after-lease SIGKILL", "Redis FLUSHDB", "Horizon restart"],
+    "repeated_faults": [
+      "after-lease SIGKILL",
+      "Redis FLUSHDB",
+      "Horizon restart"
+    ],
     "maximum_pending_outbox_age_seconds": 60,
     "maximum_network_demands_per_origin": 64,
     "rss_cap_kib_per_worker_and_controller": 262144,

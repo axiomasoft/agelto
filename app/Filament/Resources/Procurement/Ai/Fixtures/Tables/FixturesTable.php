@@ -21,9 +21,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Бейдж «в манифесте» читает манифест ОДИН раз на рендер таблицы (`manifestState()` вызывается
- * `configure()`, не колонкой построчно) — та же дисциплина N+1, что у остальных ресурсов проекта
- * (Implementation Rule 8, P5.1).
+ * Бейдж «в манифесте» читает манифест ОДИН раз на рендер таблицы (`manifestState` вызывается
+ * `configure`, не колонкой построчно) — та же дисциплина N+1, что у остальных ресурсов проекта.
  */
 class FixturesTable
 {
@@ -100,10 +99,10 @@ class FixturesTable
                 SelectFilter::make('owner_document_type')
                     ->label('Владелец профиля')
                     ->options(LlmPresentation::documentTypeOptions()),
-                // Витрина НЕ знает имён и множеств значений полей профиля (D43) — фильтр по
+                // Витрина НЕ знает имён и множеств значений полей профиля — фильтр по
                 // `type_profile` целиком генерический: оператор вводит ИМЯ произвольного поля
                 // профиля и искомое значение, экран строит выражение по этому ключу сам не зная,
-                // что это за поле (Implementation Rule 5, СТОРОЖ Validation 8, P5.1).
+                // что это за поле .
                 Filter::make('profile_field')
                     ->label('Поле профиля')
                     ->schema([

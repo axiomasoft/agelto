@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Network;
 
 /**
- * Текст после transport decompression и проверенного charset decoding (R15). sourceCharset —
+ * Текст после transport decompression и проверенного charset decoding. sourceCharset —
  * выбранная кодировка (BOM/header/meta/default); replacement characters не маскируют ошибку.
  */
 final readonly class DecodedTextBody implements ResponseBody

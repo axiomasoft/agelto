@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement;
 
-use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -13,12 +12,9 @@ use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf as MpdfWriter;
 
 /**
- * Конвертация Excel→PDF в ИЗОЛИРОВАННОМ процессе (D35, research/L finding 5): PhpSpreadsheet
- * грузит ~126 МБ RAM на 10k строк только на `load()` — запуск отдельным `php`-процессом
- * с явным `memory_limit` не даёт OOM убить соседние jobs воркера
- * ({@see SpreadsheetStrategy}). Landscape + fitToWidth(1)/
- * fitToHeight(0) — v1-урок (`Old/.../Strategies/ExcelStrategy.php`), иначе смета режется
- * по столбцам вместо переноса на следующую страницу.
+ * Excel→PDF выполняется отдельным PHP-процессом с memory_limit: загрузка большой книги
+ * PhpSpreadsheet не должна исчерпать память соседних jobs. Landscape с fitToWidth(1)
+ * и fitToHeight(0) сохраняет колонки на одной ширине, перенося строки между страницами.
  */
 #[Description('Конвертирует Excel-файл в PDF (landscape, fitToWidth) для стадии подготовки документа')]
 #[Signature('procurement:convert-xlsx-to-pdf {input} {output}')]

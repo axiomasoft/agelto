@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\Support\Files;
 
 /**
- * Технический слой, доменов не знает (скилл `laravel-structure`, ось Technical axis) — общая
- * формула sha-шардинга пути блоба (§5 `root/service-layer-map.md`).
+ * Общая формула SHA-шардинга пути блоба без доменных зависимостей.
  */
 final class ShardedBlobPath
 {

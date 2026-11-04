@@ -10,9 +10,9 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Виды работ и их иерархия (D34/D90, SR-08/SR-09) — per-estimate область, носитель нормативов
- * НР/СП. Заполняющая сторона: `title` — контракт LLM + маппер `.gsfx`; нормативы и `parent_id` —
- * ТОЛЬКО маппер `.gsfx` (исключение из D33, `research/06-schema-decision.md` §6 п.3).
+ * Виды работ и их иерархия принадлежат отдельной смете и хранят нормативы НР/СП.
+ * `title` заполняют LLM-контракт и GSFX mapper; нормативы и `parent_id` заполняет
+ * только GSFX mapper.
  */
 return new class extends Migration
 {
@@ -47,7 +47,7 @@ return new class extends Migration
         });
 
         // work_type_id объявлен в исходной миграции 100035 без constrained() — таблица видов
-        // работ создаётся позже по номеру (Implementation Rules P4.4): FK добавляется здесь.
+        // работ создаётся позже по номеру: FK добавляется здесь.
         Schema::table((new Item)->getTable(), function (Blueprint $table): void {
             $table->foreign('work_type_id')
                 ->references('id')

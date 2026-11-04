@@ -47,7 +47,7 @@ final class EstimateFactory extends Factory
             'rows_expected' => null,
             'rows_extracted' => null,
             'validation_status' => 'pending',
-            // Ось «оператор проверил боевой разбор» (D89) — пусто по умолчанию, это факт человека,
+            // Ось «оператор проверил боевой разбор» — пусто по умолчанию, это факт человека,
             // а не разбора; проверенная смета — state verified() ниже.
             'verified_at' => null,
             'verified_by' => null,
@@ -60,8 +60,7 @@ final class EstimateFactory extends Factory
     }
 
     /**
-     * Смета, проверенную оператором (ось `verified_at`/`verified_by`, D89) — единственное
-     * состояние, где эта пара непуста; писателя оси план не заводит.
+     * Смета, проверенная оператором: `verified_at`/`verified_by` заполнены вместе.
      */
     public function verified(): static
     {
@@ -72,7 +71,7 @@ final class EstimateFactory extends Factory
     }
 
     /**
-     * Историческая запись с материализованным диском сырого результата (P6.2/P6.5) — по
+     * Историческая запись с материализованным диском сырого результата — по
      * умолчанию `raw_result_disk` пуст.
      */
     public function onDisk(string $disk): static

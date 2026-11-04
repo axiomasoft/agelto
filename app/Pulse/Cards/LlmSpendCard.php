@@ -14,11 +14,9 @@ use Laravel\Pulse\Livewire\Card;
 use Livewire\Attributes\Lazy;
 
 /**
- * Кастомная Pulse-карточка «LLM-расход» (D25, P7.5 Intent п.2, phases/P7.md): токены/стоимость
- * за фиксированное окно 24ч, группировка по `purpose` — оперативный срез рядом с дневной кривой
- * админки (D35). Цифры берутся у источника расхода (`root/usage-source-contract.md`) и несут его
- * подпись; курс ₽ — тот же `config('ai.cost_report.rub_per_usd')`, что и у
- * `App\Services\Llm\LlmSpendReporter` (деньги-производные считает потребитель, D124).
+ * Pulse-карточка токенов и стоимости за последние 24 часа с группировкой по `purpose`.
+ * Читает {@see UsageSource} и показывает подпись источника. Пересчёт в рубли использует
+ * `config('ai.cost_report.rub_per_usd')`, как и `LlmSpendReporter`.
  */
 #[Lazy]
 final class LlmSpendCard extends Card

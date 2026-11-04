@@ -11,16 +11,15 @@ use App\Repositories\Procurement\Ai\DatasetExampleReadRepository;
 use RuntimeException;
 
 /**
- * Экспорт `prc_ai_dataset_examples` (gold) в обучающий датасет (`estimate:dataset:export`, P7.1,
- * D56):
+ * Экспорт `prc_ai_dataset_examples` (gold) в обучающий датасет (`estimate:dataset:export`):
  * - `sft` — JSONL chat-format. `system`/`user` строятся {@see DatasetInputBuilder} (ЕДИНЫЙ
  *   строитель входа для обоих форматов) — `user` несёт ФАКТИЧЕСКИЙ текст представления документа
  *   (`prc_document_representations`), а не ссылку. `assistant` — `{rows, incomplete_items}`
  *   контракта шага строк (§3.2 спеки).
  * - `dpo` — preference-пары `chosen`(gold-снапшот)/`rejected`(`Analysis.result` предшественника):
- *   предшественник резолвится через СОХРАНЁННЫЙ `analysis_id` записи (D56) — резолв через активный
+ *   предшественник резолвится через СОХРАНЁННЫЙ `analysis_id` записи — резолв через активный
  *   анализ версии документа резолвил бы ОДИН И ТОТ ЖЕ предшественник для каждой gold-версии,
- *   чинимый этим item'ом дефект.
+ *   поэтому такой резолв недопустим.
  *
  * Основание доверия (запись экспортируема ⟺ `source=deterministic` ИЛИ непустой `verified_at`) и
  * счётчики пропусков — {@see DatasetExampleReadRepository}. Пропуск ВСЕГДА считается и печатается
@@ -271,7 +270,7 @@ final readonly class DatasetExporter
 
     /**
      * `estimates/eval-splits.json` отсутствует → `split=none` у ВСЕХ строк + предупреждение в
-     * сводке (Implementation Rules P7.1) — не СТОП: экспорт легален и без файла разбиения.
+     * сводке — не СТОП: экспорт легален и без файла разбиения.
      *
      * @return array{0: list<string>, 1: list<string>}
      */

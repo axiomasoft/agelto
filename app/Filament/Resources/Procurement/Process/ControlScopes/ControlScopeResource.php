@@ -14,7 +14,7 @@ use Filament\Tables\Table;
 
 /**
  * Control authority Process-ядра: что приостановлено оператором и кем. Только чтение; Pause/Resume
- * идут через ProcessOperatorCommands с версией строки и audit (observability#s04).
+ * идут через ProcessOperatorCommands с версией строки и audit.
  */
 final class ControlScopeResource extends Resource
 {

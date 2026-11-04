@@ -17,11 +17,11 @@ use Illuminate\Support\Str;
 
 /**
  * RetryHandlerFaultedWork(workId, expectedTransitionSeq, commandId, reason) — ручной выход из
- * blocked(handler_fault_limit) (execution#handler-fault-budget): исчерпанный work → superseded,
+ * blocked(handler_fault_limit): исчерпанный work → superseded,
  * новый explicit manual intent/work key со свежим budget, history и evidence сохранены. Повтор
  * той же команды (commandId) — Duplicate без второго intent; конкурирующая команда со старым
  * expectedTransitionSeq — VersionConflict. Generic ResumeScope/ValidateHandler/смена версии этот
- * work не освобождают, автоматический scheduler эту мутацию не вызывает. RBAC добавляет P1.17.
+ * work не освобождают, автоматический scheduler эту мутацию не вызывает. RBAC проверяет caller.
  */
 final readonly class RetryHandlerFaultedWork
 {

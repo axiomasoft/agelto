@@ -14,7 +14,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Live apply ledger events registered reducers (observability#s08). Один reducer — одна короткая
+ * Live apply ledger events registered reducers. Один reducer — одна короткая
  * READ COMMITTED tx: state FOR SHARE (до receipt и aggregate rows, без upgrade) → immutable source
  * event → INSERT receipt → UPSERT counters. Receipt и counters коммитятся вместе, поэтому дубликат
  * или повтор после crash ровно +1; порядок доставки значения не имеет, потому что скаляр last-seq

@@ -14,7 +14,7 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
 /**
  * §8 `docs/dev/ai/estimate-extraction.md` — формат папки эталонов (`<name>.<ext>` +
- * `<name>.gold.json`), валидация контрактом P2.2, персистентность вне закупки (D22).
+ * `<name>.gold.json`), валидация контрактом , персистентность вне закупки.
  */
 beforeEach(function (): void {
     StoredDocumentFixtures::reset();
@@ -128,10 +128,7 @@ test('битый gold-эталон (строка без обязательног
     File::deleteDirectory($folder);
 });
 
-/**
- * Эталон с пометкой неопределённости позиции (P8.6): форма — КОНТРАКТНАЯ
- * (`research/12-uncertainty-model.md` §3.1), эталон это ответ модели, а не строка БД.
- */
+/** Эталон с пометкой неопределённости описывает ответ модели, а не строку БД. */
 function goldJsonWithQuality(array $quality): string
 {
     $decoded = json_decode(validGoldJson(), associative: true, flags: JSON_THROW_ON_ERROR);
@@ -140,7 +137,7 @@ function goldJsonWithQuality(array $quality): string
     return json_encode($decoded, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 }
 
-test('P8.6: эталон с пометкой неопределённости импортируется и пометка доезжает в gold как есть', function () {
+test('эталон с пометкой неопределённости импортируется и пометка доезжает в gold как есть', function () {
     Storage::fake('s3');
     $folder = datasetFixtureFolder();
     file_put_contents("{$folder}/marked.pdf", 'PDF-DUMMY-CONTENT');
@@ -161,7 +158,7 @@ test('P8.6: эталон с пометкой неопределённости и
     File::deleteDirectory($folder);
 });
 
-test('P8.6: эталон БЕЗ пометки остаётся валидным — quality необязателен', function () {
+test('эталон БЕЗ пометки остаётся валидным — quality необязателен', function () {
     Storage::fake('s3');
     $folder = datasetFixtureFolder();
     file_put_contents("{$folder}/clean.pdf", 'PDF-DUMMY-CONTENT');
@@ -177,7 +174,7 @@ test('P8.6: эталон БЕЗ пометки остаётся валидным
     File::deleteDirectory($folder);
 });
 
-test('P8.6: битая пометка отклоняется поимённо — неизвестный ключ, неизвестная причина, причина не model-origin, пустой перечень полей', function (array $quality, string $expectedField) {
+test('битая пометка отклоняется поимённо — неизвестный ключ, неизвестная причина, причина не model-origin, пустой перечень полей', function (array $quality, string $expectedField) {
     Storage::fake('s3');
     $folder = datasetFixtureFolder();
     file_put_contents("{$folder}/broken-quality.pdf", 'PDF-DUMMY-CONTENT');

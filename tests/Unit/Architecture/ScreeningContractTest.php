@@ -13,7 +13,7 @@ use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Validation\StructuredResponseValidator;
 use Tests\Support\Documents\DocumentFormatContract;
 
-test('P7 contract has a vector for every taxonomy and P6 format family', function (): void {
+test('contract has a vector for every taxonomy and format family', function (): void {
     $formats = DocumentFormatContract::cases();
 
     expect(array_keys($formats))->toEqualCanonicalizing(array_map(
@@ -25,7 +25,7 @@ test('P7 contract has a vector for every taxonomy and P6 format family', functio
         ->and(AiDocumentType::values())->toEqualCanonicalizing(['estimate', 'tech_spec', 'contract_draft', 'protocol', 'unknown']);
 });
 
-test('P7 rejects cardinality combinations that would lie about visible estimate evidence', function (string $type, string $cardinality): void {
+test('rejects cardinality combinations that would lie about visible estimate evidence', function (string $type, string $cardinality): void {
     $raw = json_encode([
         'document_type' => $type,
         'confidence' => 0.9,

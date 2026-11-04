@@ -113,7 +113,7 @@ final readonly class AssetFixtures implements AssetRecoveryPolicy
         });
     }
 
-    /** Fixture stage handoff only. Real handler checkpoint consumption belongs to P3.13. */
+    /** Fixture stage handoff only. Real handler checkpoint consumption belongs to . */
     public static function advance(ProviderSendFixtures $fixture, ProviderOperationPlan $plan, ProviderWireRequest $wire): void
     {
         DB::transaction(fn () => app(AnalysisRequestRepository::class)->consumeLocked($fixture->work, $fixture->operation->physicalCallId));

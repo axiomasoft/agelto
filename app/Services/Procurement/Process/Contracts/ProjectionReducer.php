@@ -9,7 +9,7 @@ use App\Dto\Procurement\Process\ProjectedEvent;
 use App\Exceptions\Procurement\Process\ProjectionSchemaError;
 
 /**
- * Registered consumer ledger events (observability#s08). Reducer чистый и детерминированный:
+ * Registered consumer ledger events. Reducer чистый и детерминированный:
  * по одному immutable event возвращает приращения СВОИХ counter-серий и ничего не читает кроме
  * него, поэтому live apply и rebuild дают одинаковый итог. Одна серия принадлежит ровно одному
  * reducer; `key()` и каталог метрик входят в catalog_hash его state row.

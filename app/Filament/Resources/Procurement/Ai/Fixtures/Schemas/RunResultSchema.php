@@ -21,16 +21,14 @@ use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\Route;
 
 /**
- * Содержимое модалки результата прогона (P5.4, D27/D48/D49): вердикт первичного анализа, сводка
+ * Содержимое модалки результата прогона: вердикт первичного анализа, сводка
  * разбора, полученная ОТ АНАЛИЗАТОРА типа через реестр, и эталон рядом.
  *
  * Витрина спрашивает анализатор, а не предметные таблицы: единственный источник содержимого
- * разбора — `DocumentAnalyzer::summarize()`, отдающий плоский `AnalysisSummary` (§3 контракта
- * `root/document-analyzer-contract.md`). Разметку делает этот класс и его blade — данные приходят
+ * разбора — `DocumentAnalyzer::summarize`, отдающий плоский `AnalysisSummary`. Разметку делает этот класс и его blade — данные приходят
  * DTO, HTML анализатор не отдаёт.
  *
- * Токенов и цены здесь НЕТ намеренно (решение владельца, Implementation Rule 6): расход живёт
- * В СТРОКЕ прогона (`RunsRelationManager`, P5.3).
+ * Токены и цена отображаются в строке прогона (`RunsRelationManager`).
  *
  * Данные резолвятся ОДИН раз на сборке схемы (`$run`/`$fixture` известны в момент монтирования
  * действия), а не замыканием в каждом entry: иначе один показ модалки давал бы столько запросов,
@@ -39,7 +37,7 @@ use Illuminate\Support\Facades\Route;
 final class RunResultSchema
 {
     /**
-     * Потолок показа строк сводки (Implementation Rule 7): большой результат не рендерится целиком,
+     * Потолок показа строк сводки: большой результат не рендерится целиком,
      * факт обрезания печатается явно.
      */
     private const int MAX_METRICS = 20;
@@ -58,7 +56,7 @@ final class RunResultSchema
 
     private static function screeningSection(?Analysis $screening): Section
     {
-        // Форма `?? null` — не украшение (тот же приём, что `EstimateAnalyzer::summarize()`): вне
+        // Форма `?? null` — не украшение (тот же приём, что `EstimateAnalyzer::summarize`): вне
         // `??`-контекста Larastan не резолвит тип свойства модели и заводит `property.notFound`.
         $error = null; // Execution failures are exposed by the authoritative process workflow, not result rows.
 
@@ -153,7 +151,7 @@ final class RunResultSchema
 
     /**
      * Состояние блока разбора: либо сводка от анализатора, либо ЧЕСТНОЕ сообщение о том, чего
-     * не хватает и чем это заводится (Implementation Rule 5) — пустой блок не показывается
+     * не хватает и чем это заводится — пустой блок не показывается
      * никогда.
      *
      * @return array<string, mixed>
@@ -213,7 +211,7 @@ final class RunResultSchema
     }
 
     /**
-     * Ссылка на предметный экран типа: анализатор отдаёт ИМЯ маршрута и параметры (§3 контракта),
+     * Ссылка на предметный экран типа: анализатор отдаёт ИМЯ маршрута и параметры,
      * URL строит презентационный слой. Незарегистрированный маршрут — не ошибка показа: ссылки
      * просто нет.
      */
@@ -246,8 +244,8 @@ final class RunResultSchema
     }
 
     /**
-     * Тело эталона — показ, не правка (D48): JSON как есть, обрезанный по числу строк с явным
-     * указанием факта обрезания (Implementation Rule 7).
+     * Тело эталона — показ, не правка: JSON как есть, обрезанный по числу строк с явным
+     * указанием факта обрезания.
      */
     private static function goldBody(?DatasetExample $gold): ?string
     {

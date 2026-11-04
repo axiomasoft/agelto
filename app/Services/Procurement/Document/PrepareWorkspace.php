@@ -14,6 +14,9 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 /** Local stop evidence, not lease expiry, controls release of converter tmp capacity. */
 final readonly class PrepareWorkspace
 {
+    /** Bounded owner.json, php-finished and cleanup proof in addition to spool bytes. */
+    public const int SPOOL_PROOF_BYTES = 1024;
+
     public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc) {}
 
     public function open(StorageReservationRequest $reservation): string
@@ -55,9 +58,13 @@ final readonly class PrepareWorkspace
         }
         $dir = $disk->path($reservation->objectKey());
         $cleanupProof = $dir.'.cleanup';
-        if (! is_dir($dir) && is_file($cleanupProof) && trim((string) file_get_contents($cleanupProof)) === $reservation->id->value) {
-            $this->capacity->finishStoppedWrite($reservation);
+        if (! is_dir($dir)) {
+            if (is_file($cleanupProof) && trim((string) file_get_contents($cleanupProof)) === $reservation->id->value) {
+                $this->capacity->finishStoppedWrite($reservation);
+            }
 
+            // A missing proof cannot stop a writing reservation. A previously acknowledged stop
+            // may finish cleanup after a crash, or replay after its proof has been deleted.
             return $this->gc->cleanup($reservation);
         }
         if (! is_file($dir.'/owner.json')) {

@@ -18,13 +18,13 @@ use RuntimeException;
 /**
  * Резолвер матрицы роутинга `llm_routes` (ТЗ 04 §3.1): `(document_type, purpose)` → активная
  * строка с МИНИМАЛЬНЫМ `priority` (основной маршрут) + инстанс `LlmProvider` из `llm_providers`.
- * `candidatesFor()` отдаёт весь упорядоченный список — следующие по `priority` строки нужны
- * `ReaskPolicy` (P3.4) для эскалации при недоступности провайдера/провале валидации.
+ * `candidatesFor` отдаёт весь упорядоченный список — следующие по `priority` строки нужны
+ * `ReaskPolicy` для эскалации при недоступности провайдера/провале валидации.
  */
 final readonly class LlmRouteResolver
 {
     // 8192 достаточно 2.5-линейке (нет/низкий `thinking`-бюджет); `gemini-3.x` тратит на reasoning
-    // ДО ответа 5900-7900+ токенов сверх этого (боевой прогон P6.2 2026-07-28, модель сама называет
+    // ДО ответа 5900-7900+ токенов сверх этого (боевой прогон 2026-07-28, модель сама называет
     // требуемый порог 12-14k/комфортный запас 23-26k — research/12-format-benchmark.md §5).
     private const int DEFAULT_MAX_TOKENS = 32768;
 
@@ -61,7 +61,7 @@ final readonly class LlmRouteResolver
     }
 
     /**
-     * Теневой маршрут (`shadow=true`, P9.4, ТЗ 04 §5) для (document_type, purpose) — первый по
+     * Теневой маршрут (`shadow=true`, ТЗ 04 §5) для (document_type, purpose) — первый по
      * `priority`, если активный теневой маршрут вообще заведён; `null` — shadow-режим для этой
      * пары выключен (обычное состояние, пока владелец не поднимет локальную LLM).
      */
@@ -82,8 +82,8 @@ final readonly class LlmRouteResolver
 
         // `(array) $route->options` НЕ работает на заполненной Collection (`AsCollection`-каст):
         // PHP-каст объекта в массив отдаёт его protected-свойства мангл-именами (`" * items"`),
-        // а не данные `toArray()`/`all()` — до P2.9 не проявлялось, потому что `options` у ВСЕХ
-        // строк сидера был `null` ((array) null === []); `AiRoutingSeeder` (D98/D99) впервые
+        // а не данные `toArray`/`all` — до заполнения `options` не проявлялось, потому что `options` у ВСЕХ
+        // строк сидера был `null` ((array) null === []); `AiRoutingSeeder` впервые
         // заполняет его для extraction-маршрутов, и старый каст молча терял `max_tokens`/
         // `thinking_level`.
         $options = $this->options($route->options?->all() ?? [], 'route');
@@ -108,10 +108,10 @@ final readonly class LlmRouteResolver
     }
 
     /**
-     * Fail fast (D99): бюджет маршрута сверх ИЗВЕСТНОГО потолка вывода модели — операторская
+     * Fail fast: бюджет маршрута сверх ИЗВЕСТНОГО потолка вывода модели — операторская
      * опечатка, а не повод молча урезать (`config('ai.capabilities.<model>.max_output_tokens')`).
      * Потолок не подтверждён RAG для модели → ключа нет → проверка не выполняется (осознанная
-     * граница D99, не пробел). Индекс по модели БЕЗ dot-notation (`LlmCallRecorder::costMicros()`,
+     * граница). Индекс по модели БЕЗ dot-notation (`LlmCallRecorder::costMicros`,
      * `ExtractionPreflight` — тот же приём): имена моделей Gemini содержат точки
      * (`gemini-3.5-flash`), `config("ai.capabilities.{$model}...")` трактовал бы их как разделители
      * вложенности и НЕ нашёл бы запись.

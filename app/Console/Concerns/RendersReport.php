@@ -7,8 +7,8 @@ namespace App\Console\Concerns;
 use App\Exceptions\Procurement\UnknownReportFormat;
 
 /**
- * Общие куски команд с `--format=json|md` и хвостом `--out` (§5 `root/service-layer-map.md`,
- * P3.1): гвард формата, рендер JSON, запись артефакта по репо-относительному пути.
+ * Общие операции console reports: проверка `--format=json|md`, JSON rendering
+ * и запись `--out` по пути относительно репозитория.
  */
 trait RendersReport
 {

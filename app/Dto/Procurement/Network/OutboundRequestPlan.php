@@ -11,7 +11,7 @@ use App\Enums\Procurement\Network\IdempotencyClass;
 use App\Enums\Procurement\Network\TrafficClass;
 
 /**
- * Typed outbound request (platform-transport#s05): target, method, safe URL, endpoint profile,
+ * Typed outbound request: target, method, safe URL, endpoint profile,
  * traffic class и idempotency. physicalRequestId создаётся ДО DB retry и равен demand
  * physical_request_id; каждый retry/redirect hop получает новый id. Secrets не входят в план —
  * transport разрешает их поздно по secret ref route.

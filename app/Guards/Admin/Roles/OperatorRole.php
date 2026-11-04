@@ -54,30 +54,30 @@ final class OperatorRole extends BaseRole
             // Прогоны: наблюдение + управление (возобновить/сброс), без create/delete.
             OperationLogPermission::ViewAny,
             OperationLogPermission::View,
-            // AI-анализы (P9.2): операторский цикл (проверено/коррекция/re-run) — наблюдение +
+            // AI-анализы: операторский цикл (проверено/коррекция/re-run) — наблюдение +
             // Update (действия карточки авторизуются через `update`, ResourceGate-конвенция),
-            // без delete (пайплайн не удаляет анализы сам). Create (P5.2, D44) — право ЗАПУСКА
+            // без delete (пайплайн не удаляет анализы сам). Create — право ЗАПУСКА
             // прогона с карточки эталона, проверяется строкой ability, не абилкой ресурса анализов.
             AnalysisPermission::ViewAny,
             AnalysisPermission::View,
             AnalysisPermission::Create,
             AnalysisPermission::Update,
-            // Реестр эталонов обучающего контура (P5.1, D132/D133): загрузка и правка карточки,
+            // Реестр эталонов обучающего контура: загрузка и правка карточки,
             // без Delete (эталон удаляется вместе с записью манифеста — консольная операция).
             FixturePermission::ViewAny,
             FixturePermission::View,
             FixturePermission::Create,
             FixturePermission::Update,
-            // Очередь предложений по промтам (P5.6, D47): только ЧТЕНИЕ. Update — это апрув
+            // Очередь предложений по промтам: только ЧТЕНИЕ. Update — это апрув
             // патча, меняющего поведение модели на всех документах; решение о тексте системной
             // инструкции остаётся владельческим (суперадмин), оператору не выдаётся.
             PromptSuggestionPermission::ViewAny,
             PromptSuggestionPermission::View,
-            // Витрина смет с пометками неопределённости (P8.5, D137): read-only ресурс,
+            // Витрина смет с пометками неопределённости: read-only ресурс,
             // create/edit/delete-страниц у него нет — грант ограничен просмотром.
             EstimatePermission::ViewAny,
             EstimatePermission::View,
-            // История healthcheck (P5.6): только чтение — витрина не меняет ни ожидания, ни факт.
+            // История healthcheck: только чтение — витрина не меняет ни ожидания, ни факт.
             PlatformCheckPermission::ViewAny,
             PlatformCheckPermission::View,
             ProcessControlPermission::ValidateAdapter,

@@ -131,7 +131,7 @@ test('схема RowsChunkResponse раскладывает вложенные D
         ->and($schema['$defs']['EstimateRow']['properties']['resources']['items'])->toBe(['$ref' => '#/$defs/RowResource']);
 });
 
-test('схема RowsChunkResponse несёт EstimateRow.quality как необязательное поле с description и RowQuality в $defs (P8.3)', function (): void {
+test('схема RowsChunkResponse несёт EstimateRow.quality как необязательное поле с description и RowQuality в $defs', function (): void {
     $generator = new JsonSchemaGenerator;
 
     $schema = $generator->generate(RowsChunkResponse::class);
@@ -141,13 +141,13 @@ test('схема RowsChunkResponse несёт EstimateRow.quality как нео�
             'description' => 'носитель неопределённости строки — причина, по которой перечисленные в нём поля этой строки нельзя считать надёжными; отсутствует/null на строке, прочитанной полностью.',
             'anyOf' => [['$ref' => '#/$defs/RowQuality'], ['type' => 'null']],
         ])
-        // P7 remediation сохраняет замороженный provider-contract: новая backend-only причина
+        // remediation сохраняет замороженный provider-contract: новая backend-only причина
         // RequiredFieldMissing исключена из схемы, а исторические значения остаются byte-for-byte.
         ->and($schema['$defs']['RowQuality']['properties']['reason']['enum'])->toBe(['unreadable', 'arithmetic_mismatch', 'numbering_gap'])
         ->and($schema['$defs']['RowQuality']['required'])->toBe(['reason', 'fields']);
 });
 
-test('схема PassportResponse несёт regulatory_base и вложенные regulatory_amendments/index_letter EstimatePassport (P5.5)', function (): void {
+test('схема PassportResponse несёт regulatory_base и вложенные regulatory_amendments/index_letter EstimatePassport', function (): void {
     $generator = new JsonSchemaGenerator;
 
     $schema = $generator->generate(PassportResponse::class);
@@ -199,7 +199,7 @@ test('схемы Response-классов всех шагов извлечени�
     );
 
     // Схема — контракт structured output провайдера: её молчаливое изменение ломает разбор
-    // ответа, а не тест (P6.1 Implementation Rule 2). Фикстура пересобрана в P2.4 (эмиссия
-    // description + порядок конструктора, D89) — байты снова снимаются здесь до следующего шага.
+    // ответа, а не тест (Implementation Rule 2). Фикстура пересобрана в (эмиссия
+    // description + порядок конструктора) — байты снова снимаются здесь до следующего шага.
     expect($actual)->toBe($golden);
 });

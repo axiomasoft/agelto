@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
+use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Dto\Procurement\Document\VerifiedArtifact;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Document\StoragePhase;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
+use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -21,7 +24,7 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 final readonly class BlobStore
 {
     public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc,
-        private PrepareWorkspace $workspace) {}
+        private PrepareWorkspace $workspace, private ArtifactRepository $artifacts) {}
 
     /** @param resource $source */
     public function put(StorageReservationRequest $reservation, $source, StorageReservationRequest $temporary, ?ExecutionContext $execution = null, bool $cleanupTemporary = true): VerifiedArtifact
@@ -137,7 +140,7 @@ final readonly class BlobStore
     public function verifyExisting(VerifiedArtifact $artifact, ?ExecutionContext $execution = null): void
     {
         $this->outsideTransaction();
-        $row = LedgerRow::one("SELECT disk,object_key,size_bytes FROM prc_document_blobs
+        $row = LedgerRow::one("SELECT id,disk,object_key,size_bytes FROM prc_document_blobs
             WHERE storage_domain_id=? AND content_hash=decode(?,'hex') AND deletion_marked_at IS NULL",
             [$artifact->reservation->domainId->value, $artifact->hash->hex]);
         if ($row === null) {
@@ -148,18 +151,29 @@ final readonly class BlobStore
         if ($this->matches($disk, $key, $artifact, $execution)) {
             return;
         }
-        // Recovery writes the exact same immutable content, never another revision under this key.
         $source = Storage::disk($artifact->reservation->disk)->readStream($artifact->reservation->objectKey());
         if (! is_resource($source)) {
             throw new ArtifactUnavailable('Verified repair source unavailable.');
         }
+        $blob = new BlobReference(new ProcessUuid($row->string('id')), $artifact->reservation->domainId,
+            $artifact->hash, $row->string('disk'), $key, $row->int('size_bytes'));
+        $confirmed = false;
         try {
             $execution?->tick();
-            if (! $disk->put($key, $source) || ! $this->matches($disk, $key, $artifact, $execution)) {
+            // Re-read and pin under the capacity authority before touching the older immutable key.
+            // A completed GC means the caller will acquire its own fresh staging object instead.
+            if (! $this->artifacts->beginRepair($blob)) {
+                return;
+            }
+            $confirmed = $disk->put($key, $source);
+            if (! $confirmed || ! $this->matches($disk, $key, $artifact, $execution)) {
                 throw new ArtifactUnavailable('Immutable duplicate repair unconfirmed.');
             }
         } finally {
             fclose($source);
+            if ($confirmed) {
+                $this->artifacts->finishRepair($blob);
+            }
         }
     }
 

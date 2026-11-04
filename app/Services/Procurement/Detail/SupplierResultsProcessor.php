@@ -22,19 +22,11 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * DTO → БД для итогов завершённой закупки, вкладка `supplier-results`: `prc_protocols`
- * (по `source_number`), `prc_bids` построчно, `prc_awards` (итог; идентифицируемый победитель
- * через {@see OrganizationResolver} + роль `winner` в `prc_procurement_parties`). ЕИС может
- * подтвердить ранг победителя раньше его реквизитов: такой award сохраняется с null
- * `winner_org_id`, а повторный анонимный разбор не стирает позднее обогащение (D128).
- * Персистентность —
- * только через {@see ProcurementDetailStoreRepository}/{@see ProcurementPartyStoreRepository}
- * (аналог P3.3/P3.4/P3.5). Пустая вкладка (незавершённая закупка) → no-op (`01-database.md` §4).
- *
- * Известное ограничение этого слайса: `prc_protocols.document_version_id` (связь с `prc_document_versions`,
- * P3.5) и таблицы `prc_clarifications`/`prc_cancellations` в этом слайсе не заполняются —
- * вкладка `supplier-results` в разведке не содержит ни ссылки на файл-источник протокола,
- * ни данных о разъяснениях/отменах; открытый вопрос для последующего слайса (см. отчёт).
+ * Записывает supplier-results через ProcurementDetailStoreRepository и ProcurementPartyStoreRepository:
+ * protocols по source_number, bids построчно, awards с ролью winner для известной организации.
+ * Анонимный award сохраняет ранг; повторный разбор не стирает позднее обогащение winner_org_id.
+ * Пустая вкладка даёт no-op. Document_version_id протокола, clarifications и cancellations
+ * не заполняются: вкладка не содержит необходимых ссылок и фактов.
  */
 final readonly class SupplierResultsProcessor
 {

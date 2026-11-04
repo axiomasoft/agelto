@@ -6,7 +6,7 @@ namespace App\Enums\Llm;
 
 /**
  * Причина остановки генерации LLM (research/E §2,§6). Обязательное поле `LlmResponse`/
- * `LlmStructuredResponse` — валидационный каскад (P3.4) гейтит `MaxTokens` ДО json_decode,
+ * `LlmStructuredResponse` — валидационный каскад гейтит `MaxTokens` ДО json_decode,
  * т.к. structured output не гарантирует валидность JSON при обрезании вывода.
  */
 enum FinishReason: string

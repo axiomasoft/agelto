@@ -13,9 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * P7.5 F-01/F-02: ведущие FK `estimate_id`/`created_by` индексированы; оператор правки
- * сохраняет исходное `NO ACTION` явно. Таблицы контура были < 1 МБ при ревизии, поэтому
- * обычные индексы допустимы без `CONCURRENTLY`.
+ * Ведущие FK `estimate_id`/`created_by` индексированы; аудируемые связи сохраняют
+ * `NO ACTION`. При создании схемы используются обычные индексы без `CONCURRENTLY`.
  */
 return new class extends Migration
 {

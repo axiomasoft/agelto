@@ -12,7 +12,7 @@ use App\Services\Llm\Dto\LlmStructuredResponse;
 
 /**
  * Контракт транспорта LLM (ТЗ 04 §2). Домен зависит только от этого интерфейса, не от Prism/
- * laravel/ai напрямую (D8, D14) — конкретный пакет остаётся сменяемым адаптером за
+ * laravel/ai напрямую — конкретный пакет остаётся сменяемым адаптером за
  * `app/Services/Llm/Providers/*`.
  */
 interface LlmProvider

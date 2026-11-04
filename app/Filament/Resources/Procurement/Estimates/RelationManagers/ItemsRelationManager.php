@@ -16,14 +16,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
- * Таблица позиций сметы с колонкой пометки неопределённости и фильтром «только помеченные»
- * (P8.5, Scope Included п.2). Заведён вместо секции инфолиста `EstimateInfolist` — фильтр
- * («только помеченные») требует table-фильтров, которых у секции инфолиста нет по конструкции
- * Filament (`RepeatableEntry` не несёт `->filters()`), а `AnalysisInfolist::estimates` показывает
- * плоский список без интерактивности — здесь она обязательна по Scope, поэтому образец
- * `Procurements/` (Resource + Pages/ + Schemas/ + Tables/ без relation manager) не покрывает
- * задачу и заводится `RelationManagers/`, как уже сделано для `Ai/Analyses`
- * (`CorrectionsRelationManager`) на том же ресурсе-доноре читаемости.
+ * Таблица позиций сметы с пометками неопределённости и фильтром «только помеченные».
+ * Relation manager даёт table filters, которых нет у RepeatableEntry инфолиста.
  */
 class ItemsRelationManager extends RelationManager
 {
@@ -107,8 +101,8 @@ class ItemsRelationManager extends RelationManager
     }
 
     /**
-     * Провенанс различим оператору двумя подписями (Implementation Rules п.3 item P8.5) —
-     * «не прочитано моделью» / «нашла проверка сметы», ровно формулировки §4 research/12.
+     * Оператор различает происхождение пометки по подписям «не прочитано моделью»
+     * и «нашла проверка сметы».
      *
      * @return list<string>
      */

@@ -20,7 +20,7 @@ use Tests\Support\ProcessCore\Http\WireFixture;
 beforeEach(fn () => F::clean());
 afterEach(fn () => F::clean());
 
-test('T32 ordinary work cannot allocate a legacy bridge even when health requires a probe', function (): void {
+test('ordinary work cannot allocate a legacy bridge even when health requires a probe', function (): void {
     $f = new F;
     $target = DB::table('prc_source_targets')->where('id', $f->target->value)->sole();
     foreach (['closed', 'unknown'] as $state) {
@@ -34,7 +34,7 @@ test('T32 ordinary work cannot allocate a legacy bridge even when health require
             ->and(DB::table('prc_network_demands')->count())->toBe(0)
             ->and(DB::table('prc_request_attempts')->count())->toBe(0);
     }
-})->group('t32', 'p317');
+})->group('legacy-ownership-cutover');
 
 test('malformed catalog profile is a configuration hold before any operation or request', function (mixed $profiles): void {
     $f = new F;
@@ -49,7 +49,7 @@ test('malformed catalog profile is a configuration hold before any operation or 
         ->and(DB::table('prc_outbound_operations')->count())->toBe(0)
         ->and(DB::table('prc_network_demands')->count())->toBe(0)
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
-})->with(['noncollection' => [false], 'nonprofile' => [[7]], 'invalidprofile' => [[['code' => 'broken']]]])->group('t04', 'p26');
+})->with(['noncollection' => [false], 'nonprofile' => [[7]], 'invalidprofile' => [[['code' => 'broken']]]])->group('network-route-policy');
 
 test('bounded reference maintenance uses a diagnostic owner and sole physical retries', function (): void {
     $wire = new WireFixture;
@@ -72,7 +72,7 @@ test('bounded reference maintenance uses a diagnostic owner and sole physical re
     } finally {
         $wire->stop();
     }
-})->group('t04', 'p26');
+})->group('network-route-policy');
 
 test('суженный лимит caller запрещает второй physical send после обрыва', function (): void {
     $wire = new WireFixture;
@@ -91,7 +91,7 @@ test('суженный лимит caller запрещает второй physica
     } finally {
         $wire->stop();
     }
-})->group('t04', 'p26');
+})->group('network-route-policy');
 
 test('первый реальный read-only caller получает составную probe вместо допуска backlog', function (): void {
     $wire = new WireFixture;
@@ -116,7 +116,7 @@ test('первый реальный read-only caller получает соста
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('transport-and-work-budget');
 
 test('сбой DB на границе caller откладывает зависимость и не создаёт физическую попытку', function (string $boundary, string $sqlstate): void {
     $f = new F;
@@ -151,4 +151,4 @@ test('сбой DB на границе caller откладывает зависи
     }
     expect(DB::table('prc_outbound_operations')->count())->toBe(0)
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
-})->with([['profile', '08006'], ['catalog', '08006'], ['profile', '23514'], ['catalog', '23514']])->group('t04', 'p26');
+})->with([['profile', '08006'], ['catalog', '08006'], ['profile', '23514'], ['catalog', '23514']])->group('network-route-policy');

@@ -15,18 +15,11 @@ use Laravel\Pulse\Livewire\Card;
 use Livewire\Attributes\Lazy;
 
 /**
- * Кастомная Pulse-карточка «Стадии за 24ч» (D25, P7.5 Intent п.2, phases/P7.md): счётчики
- * завершений/неуспехов по стадиям пайплайна за фиксированное окно 24ч — прямой SQL-агрегат по
- * `prc_documents`/`prc_ai_analyses` (Code Guidance: карточки строятся SQL-агрегатами, данные НЕ
- * дублируются в pulse-таблицы через `Pulse::record()`).
- *
- * `prepare` не имеет собственного статус-поля анализа (ТЗ 03: документ либо остаётся в
- * `downloaded` при провале подготовки, либо переходит дальше по `prc_documents.status`) —
- * best-effort приближение (тот же класс допущений, что `EstimateValidator`/`ScreeningProcessor`
- * footer-эвристики, P6.2/P6.3): succeeded = документы, покинувшие `discovered`/`downloaded`
- * (реально прошедшие prepare, не только обнаруженные краулингом) за окно, failed = документы с
- * `failed_permanently=true`, обновлённые за окно. `screening`/`extraction` читаются точно из
- * AI stages count immutable terminal work transitions; accepted projections do not contain execution failures.
+ * Pulse-карточка стадий за последние 24 часа, без дублирования фактов в Pulse tables.
+ * `screening` и `extraction` считают terminal work transitions `succeeded`/`failed_item`.
+ * `prepare` показывает приближение по документам: успех — документ вышел из discovered/downloaded
+ * и обновлён в окне; ошибка — `failed_permanently=true` с обновлением в том же окне.
+ * Эти document gauges не являются точной историей переходов prepare.
  */
 #[Lazy]
 final class PipelineStagesCard extends Card

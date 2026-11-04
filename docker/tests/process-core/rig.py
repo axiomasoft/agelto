@@ -27,42 +27,37 @@ VOLUMES = {"core-postgres", "core-redis", "core-objects", "core-storage", "core-
 RUNTIME_INPUTS = ROOT / "docker/tests/process-core/runtime-inputs"
 FUTURE = set()
 IMPLEMENTED = {"faults", "load", "file", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
-# Domain suites run only the files their owning package filled with real assertions. execution:
-# P1.6 ledger/authority + P1.7 admission/claim/controls + P1.8 lease/checkpoint/finalize on real PG.
-# concurrency: only separate PHP processes/PG connections with deterministic barriers (P1.7 pause/
-# feeder races, P1.8 finalize fence vs controlled revocation, fault budget); real reconciler — P1.11.
-# network: P2.1 INITIAL contracts/catalog/owner DDL only, plus real PG catalog races.
-# Transport, actual-send permits and health reducers are supplied by their later owning points.
-# platforms: P2.9 config-only Definition/identity/policy assertions; adapter cases follow in P2.10–P2.12.
-SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Feature/ProcessCore/Documents", "tests/Integration/ProcessCore/Concurrency/T12StorageCapacityTest.php", "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php", "tests/Feature/Procurement/Prepare", "tests/Feature/Document/DocumentDownloaderTest.php"], "acquisition": ["tests/Feature/ProcessCore/Acquisition", "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php"], "execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
+# Domain suites execute their owning assertions; concurrency tests use separate processes and
+# database connections. Transport, platform adapters and reconciliation have their own suites.
+SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Feature/ProcessCore/Documents", "tests/Integration/ProcessCore/Concurrency/StorageCapacityTest.php", "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php", "tests/Feature/Procurement/Prepare", "tests/Feature/Document/DocumentDownloaderTest.php"], "acquisition": ["tests/Feature/ProcessCore/Acquisition", "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php"], "execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
                "concurrency": ["tests/Integration/ProcessCore/Concurrency"],
                "observability": ["tests/Feature/ProcessCore/Observability"],
                "network": ["tests/Feature/ProcessCore/Network",
-                            "tests/Integration/ProcessCore/Concurrency/T45CatalogConcurrencyTest.php"],
+                            "tests/Integration/ProcessCore/Concurrency/CatalogConcurrencyTest.php"],
                "platforms": ["tests/Feature/ProcessCore/Platforms",
                              "tests/Unit/Architecture/PlatformsDomainLayoutTest.php",
                              "tests/Unit/Architecture/PlatformExtensionContractTest.php"],
                "e2e": ["tests/Feature/ProcessCore/E2e",
                        "tests/Integration/ProcessCore/E2e",
-                       "tests/Feature/ProcessCore/Observability/T32FinalCutoverTest.php",
-                       "tests/Feature/ProcessCore/Observability/T46PlatformMetricsProjectionTest.php",
-                       "tests/Feature/ProcessCore/Platforms/T48PlatformUiRegistryTest.php"],
-               "load": ["tests/Integration/ProcessCore/Load/T16LoadTest.php",
-                        "tests/Integration/ProcessCore/Concurrency/T11AdmissionFairnessConcurrencyTest.php",
-                        "tests/Feature/ProcessCore/Network/T34BoundedFifoDemandTest.php"],
+                       "tests/Feature/ProcessCore/Observability/FinalCutoverTest.php",
+                       "tests/Feature/ProcessCore/Observability/PlatformMetricsProjectionTest.php",
+                       "tests/Feature/ProcessCore/Platforms/PlatformUiRegistryTest.php"],
+               "load": ["tests/Integration/ProcessCore/Load/LoadTest.php",
+                        "tests/Integration/ProcessCore/Concurrency/AdmissionFairnessConcurrencyTest.php",
+                        "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"],
                "faults": ["tests/Integration/ProcessCore/Faults",
-                          "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
-                          "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
-                          "tests/Integration/ProcessCore/Concurrency/T31DaemonRedisLossAcceptanceTest.php",
-                          "tests/Integration/ProcessCore/Concurrency/T09FinalizeFenceConcurrencyTest.php",
-                          "tests/Feature/ProcessCore/Execution/T22BlockedProviderRecoveryTest.php",
-                          "tests/Feature/ProcessCore/Llm/T15ProviderRecoveryConcurrencyTest.php",
-                          "tests/Feature/ProcessCore/Network/T35ClaimSendFenceTest.php",
-                          "tests/Feature/ProcessCore/Network/T37NetworkDemandRecoveryTest.php",
-                          "tests/Feature/ProcessCore/Documents/T10DownloadPublicationFaultTest.php",
-                          "tests/Feature/ProcessCore/Observability/T18PostCommitSinksTest.php",
-                          "tests/Feature/ProcessCore/Observability/T20ProjectionRetentionTest.php",
-                          "tests/Integration/ProcessCore/Concurrency/T12DocumentStorageTest.php"]}
+                          "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php",
+                          "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
+                          "tests/Integration/ProcessCore/Concurrency/DaemonRedisLossAcceptanceTest.php",
+                          "tests/Integration/ProcessCore/Concurrency/FinalizeFenceConcurrencyTest.php",
+                          "tests/Feature/ProcessCore/Execution/BlockedProviderRecoveryTest.php",
+                          "tests/Feature/ProcessCore/Llm/ProviderRecoveryConcurrencyTest.php",
+                          "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php",
+                          "tests/Feature/ProcessCore/Network/NetworkDemandRecoveryTest.php",
+                          "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
+                          "tests/Feature/ProcessCore/Observability/PostCommitSinksTest.php",
+                          "tests/Feature/ProcessCore/Observability/ProjectionRetentionTest.php",
+                          "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php"]}
 
 
 class GuardError(RuntimeError):
@@ -647,7 +642,7 @@ def suite(folder, name):
         "./vendor/bin/pest", "--no-tia", "--compact", "--log-junit=" + junit]
     command += selected if selected is not None else (["--testsuite=Unit"] if name == "unit" else SUITE_PATHS.get(name, []))
     options = []
-    small_load = name == "file" and selected == ["tests/Integration/ProcessCore/Load/T16LoadTest.php"]
+    small_load = name == "file" and selected == ["tests/Integration/ProcessCore/Load/LoadTest.php"]
     if name == "load":
         options = ["-e", "PROCESS_CORE_LOAD_WIDTH=" + str(load_width()),
                    "-e", "PROCESS_CORE_LOAD_SECONDS=1800", "-e",

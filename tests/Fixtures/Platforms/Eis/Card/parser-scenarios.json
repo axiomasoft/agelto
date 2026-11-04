@@ -87,7 +87,7 @@
     },
     {
       "path": "tests/Feature/Crawler/EisCardUrlBuilderTest.php",
-      "sha256": "8ae99aaed6fe32bc257942e9565bbdcfcb6b6906143deabaf4a692a79d1cf091",
+      "sha256": "a86e393784ddc94308bee04374034caaf69f3629784227fa4dd790303152022f",
       "scenarios": [
         "resolveProcedureUrlType резолвит СЫРУЮ метку способа закупки в сегмент URL по settings.procedure_url_types (П-8)",
         "resolveProcedureUrlType бросает исключение при отсутствии маппинга типа процедуры",
@@ -109,7 +109,8 @@
         "buildUrl различает маркер null и отсутствующий ключ — отсутствие ключа остаётся ошибкой конфигурации (D121)"
       ],
       "accepted_change_item": "P2.18",
-      "change_reason": "Acquisition caller cutover; original scenarios and dataset obligations retained. Row mapper uses typed SummaryParser/ListingFacts; exact renamed cases are in scenario-transfers.json."
+      "change_reason": "Acquisition caller cutover; original scenarios and dataset obligations retained. Row mapper uses typed SummaryParser/ListingFacts; exact renamed cases are in scenario-transfers.json.",
+      "before_polish_sha256": "8ae99aaed6fe32bc257942e9565bbdcfcb6b6906143deabaf4a692a79d1cf091"
     },
     {
       "path": "tests/Feature/Crawler/EisCsvUrlBuilderTest.php",
@@ -207,7 +208,7 @@
     },
     {
       "path": "tests/Unit/Crawler/EisCsvRowMapperTest.php",
-      "sha256": "2581788feb76cddec71505b2a2a5e233a66c223541bbdca7e4348c7ea01f4398",
+      "sha256": "e3c6726ab94216a8f8ea2a18858e06d1407b12b1cec4a5169147da5cf72959fe",
       "original_sha256": "2469a164aa9288b17ebe6d0061d10076513fcc9bf894cfb4aed06669114eb210",
       "accepted_change_item": "P2.18",
       "change_reason": "Acquisition caller cutover; original scenarios and dataset obligations retained. Row mapper uses typed SummaryParser/ListingFacts; exact renamed cases are in scenario-transfers.json.",
@@ -244,11 +245,12 @@
         "префикс «№» перед реестровым номером снимается (живая проба P4.9 — 500/500 строк блока несут его)",
         "/\\r\\n|\\r|\\n/",
         "реальная фикстура: initial_price/customer_name/procedure_type_raw непусты, registry_number без префикса «№»"
-      ]
+      ],
+      "before_polish_sha256": "2581788feb76cddec71505b2a2a5e233a66c223541bbdca7e4348c7ea01f4398"
     },
     {
       "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
-      "sha256": "4423c5a5c5f1cbdc73ada1c1e77f17a75d7387482b7e4740784af8d6478b8d69",
+      "sha256": "623d97b8926e77ae46266bb6a5cef2c4908effeee717b39ed3aee142b7e220da",
       "original_sha256": "4d2b73018d6c8571a9d903b7953098408c46a69447ac117cf54d65f919dc0265",
       "accepted_change_item": "P2.14",
       "change_reason": "Assertions read typed EIS extension fields; original scenarios and expected values preserved.",
@@ -269,7 +271,8 @@
         "заявленный источником итог не позволяет принять пропущенную позицию за полный snapshot",
         "повреждённая строка позиции не становится допустимой служебной строкой"
       ],
-      "disposition": "preserved in place; original datasets and assertions retained"
+      "disposition": "preserved in place; original datasets and assertions retained",
+      "before_polish_sha256": "4423c5a5c5f1cbdc73ada1c1e77f17a75d7387482b7e4740784af8d6478b8d69"
     },
     {
       "path": "tests/Unit/Platforms/Eis/Card/DocumentsParserTest.php",
@@ -286,13 +289,14 @@
     },
     {
       "path": "tests/Unit/Platforms/Eis/Card/EventJournalParserTest.php",
-      "sha256": "3c979636241af97824f34860d7098ac2f56f15b39132ce668f8415eb6c571df9",
+      "sha256": "0ac86824f1a712222604a563c19b84fe694be85750d6aefdb8abe33bd223e98b",
       "scenarios": [
         "parse разбирает строки журнала событий с датой и текстом (реальная вкладка event-journal, P4.14)",
         "parse возвращает пустой список при отсутствии таблицы #event",
         "parse пропускает строку с нераспознаваемой датой без падения"
       ],
-      "disposition": "preserved in place; original datasets and assertions retained"
+      "disposition": "preserved in place; original datasets and assertions retained",
+      "before_polish_sha256": "3c979636241af97824f34860d7098ac2f56f15b39132ce668f8415eb6c571df9"
     },
     {
       "path": "tests/Unit/Platforms/Eis/Card/PartiesParserTest.php",

@@ -7,20 +7,20 @@ namespace App\Dto\Procurement\Gold;
 use Spatie\LaravelData\Data;
 
 /**
- * Замкнутый набор видов правил распознавания роли строки (P5.2, D117) — `estimates/gold/<CODE>.
+ * Замкнутый набор видов правил распознавания роли строки — `estimates/gold/<CODE>.
  * profile.json` §`estimates[].row_rules`. Профиль — ДАННЫЕ: правила параметризуют дословными
  * цитатами документа единственный порядок проверки, зашитый в `GridRecognitionGate`/
- * `SheetGoldMapper` (Code Guidance P5.2) — ни одного «умного» распознавания сверх перечисленных
+ * `SheetGoldMapper` — ни одного «умного» распознавания сверх перечисленных
  * здесь видов.
- * - item_number_column: буква колонки, непустая ячейка которой маркирует строку-позицию (правило
- *   7 роли строки) — используется ТОЛЬКО для распознавания роли, значение поля
- *   `source_position_number` берёт `SheetGoldMapper` из `GoldFormProfileColumns::$source_position_number`.
- * - section_prefixes/subsection_prefixes: префиксы текста ПЕРВОЙ непустой ячейки строки в
- *   пределах объявленных колонок — заголовок раздела печатается в объединении от левого края, а
- *   не в колонке `name`.
- * - subtotal_prefixes/summary_prefixes/ignored_prefixes: префиксы текста колонки `name`.
- * - resource_groups: маркеры групп ресурсов (точное совпадение текста колонки `name`).
- * - explicit_rows: точечные роли по номеру строки.
+ * item_number_column: буква колонки, непустая ячейка которой маркирует строку-позицию (правило
+ * 7 роли строки) — используется ТОЛЬКО для распознавания роли, значение поля
+ * `source_position_number` берёт `SheetGoldMapper` из `GoldFormProfileColumns::$source_position_number`.
+ * section_prefixes/subsection_prefixes: префиксы текста ПЕРВОЙ непустой ячейки строки в
+ * пределах объявленных колонок — заголовок раздела печатается в объединении от левого края, а
+ * не в колонке `name`.
+ * subtotal_prefixes/summary_prefixes/ignored_prefixes: префиксы текста колонки `name`.
+ * resource_groups: маркеры групп ресурсов (точное совпадение текста колонки `name`).
+ * explicit_rows: точечные роли по номеру строки.
  */
 final class GoldRowRules extends Data
 {

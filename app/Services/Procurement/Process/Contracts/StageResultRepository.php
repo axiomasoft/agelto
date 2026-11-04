@@ -9,7 +9,7 @@ use App\Dto\Procurement\Process\ValidatedStageResult;
 use App\Dto\Procurement\Process\WorkInput;
 
 /**
- * Stage-specific finalization repository, привязанный через StageRegistry (execution#s03). Обе
+ * Stage-specific finalization repository, привязанный через StageRegistry. Обе
  * операции вызываются только внутри уже fenced Process transaction после ownership/input guards,
  * под полным prefix: explicit SQL на уже locked subject rows, без HTTP, sleep, Eloquent lazy-load
  * и без собственной транзакции. Ошибка записи откатывает весь checkpoint/finalize.

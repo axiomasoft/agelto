@@ -104,7 +104,7 @@ test('настоящая карточка проходит все вкладки
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('transport-and-work-budget');
 
 test('усечённый исторический supplier-results не превращает transport success в accepted snapshot', function (): void {
     $wire = new WireFixture;
@@ -147,7 +147,7 @@ test('process diagnose исполняет полный canary при acquisition
         DB::table('prc_control_scopes')->where('scope_key', 'acquisition')->update(['desired_mode' => 'enabled']);
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('transport-and-work-budget');
 
 test('частично битый CSV сохраняет mapped output и partial receipt без ложного adapter hold', function (): void {
     $wire = new WireFixture;
@@ -156,7 +156,7 @@ test('частично битый CSV сохраняет mapped output и partia
         $body = rtrim(file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Csv/neutral-valid.csv')), "\r\n")."\nonly-one-cell\n";
         $wire->respond('/csv', $body, headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
         $batch = $fixture->fetch($fixture->listingRequest());
-        // P2.18 publishes a block atomically: malformed records retain factual cardinality,
+        // publishes a block atomically: malformed records retain factual cardinality,
         // but the page cannot advance its cursor or expose a partially mapped canonical block.
         expect($batch->value)->toBeInstanceOf(ListingFetched::class)
             ->and($batch->value->page->rowsTotal)->toBe(2)
@@ -175,7 +175,7 @@ test('частично битый CSV сохраняет mapped output и partia
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('transport-and-work-budget');
 
 test('CSV без подтверждённого контракта остаётся adapter failure без публикации блока', function (string $failure): void {
     $wire = new WireFixture;
@@ -203,4 +203,4 @@ test('CSV без подтверждённого контракта остаёт�
     } finally {
         $wire->stop();
     }
-})->with(['header', 'all_rows'])->group('t03', 'p26');
+})->with(['header', 'all_rows'])->group('transport-and-work-budget');

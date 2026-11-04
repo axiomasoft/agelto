@@ -9,8 +9,8 @@ use App\Enums\Llm\PromptStep;
 use App\Enums\Procurement\Ai\AiDocumentType;
 
 /**
- * Собственные шаги композиции анализатора сметы (contract P2.1 §4.1) — принадлежат
- * `AiDocumentType::Estimate`, ядро о них не знает (D14/D7).
+ * Собственные шаги композиции анализатора сметы — принадлежат
+ * `AiDocumentType::Estimate`, ядро о них не знает.
  */
 enum EstimatePromptStep: string implements PromptStep
 {

@@ -20,10 +20,9 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
 /**
- * Форма из девяти полей (P5.1, D133): файл, `title`, обе оси типа, `type_profile`
- * (generic-редактор, D43), `notes`, `quirks`, `generator`, `cluster_id`. Экран НЕ знает полей
- * сметы — форму профиля проверяет анализатор типа через `SupportsTypeProfileValidation`
- * (Implementation Rule 5, D132), витрина только показывает готовые сообщения.
+ * Форма из девяти полей: файл, `title`, обе оси типа, `type_profile`
+ * (generic-редактор), `notes`, `quirks`, `generator`, `cluster_id`. Экран НЕ знает полей
+ * сметы — форму профиля проверяет анализатор типа через `SupportsTypeProfileValidation`, витрина только показывает готовые сообщения.
  */
 class FixtureForm
 {

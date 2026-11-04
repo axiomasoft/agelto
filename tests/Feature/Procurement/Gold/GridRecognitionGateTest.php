@@ -9,12 +9,7 @@ use App\Services\Procurement\Gold\GridRecognitionGate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-/**
- * Гейт «форма описана» (D117, P5.2) — четыре условия с порогами `100 %`/`0.98`/`0.95`/`3`,
- * зафиксированными `research/09-gold-grid-criterion.md`. Синтетические книги собираются
- * PhpSpreadsheet'ом В ТЕСТЕ (Code Guidance) — реальные эталоны корпуса здесь не используются
- * (предмет P5.7).
- */
+/** Проверяет пороги распознавания на синтетических книгах PhpSpreadsheet. */
 function scenarioAWorkbook(): Spreadsheet
 {
     $spreadsheet = new Spreadsheet;

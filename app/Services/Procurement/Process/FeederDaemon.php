@@ -17,7 +17,7 @@ use App\Services\Procurement\Process\Contracts\ReconcileCategory;
 use Illuminate\Support\Str;
 
 /**
- * Feeder daemon (bp-daemons, bp-sql-admit): periodic tick 2 s ±20% по всем parent lanes плюс
+ * Feeder daemon: periodic tick 2 s ±20% по всем parent lanes плюс
  * собственные feeder_wake, которые ускоряют tick. Claim-ит ТОЛЬКО kind feeder_wake и не трогает
  * work_wake/projection. Feeder wake — ускоритель, не authority: coalesced wake мог быть уже
  * опубликован, поэтому periodic tick остаётся страховкой. Сообщение помечается consumed только

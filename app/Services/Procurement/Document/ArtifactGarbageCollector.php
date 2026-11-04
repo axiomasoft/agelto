@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Document;
 use App\Dto\Procurement\Document\BlobDeletion;
 use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Enums\Procurement\Document\ArtifactDeletionState;
+use App\Enums\Procurement\Document\StoragePhase;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -42,6 +43,12 @@ final readonly class ArtifactGarbageCollector
         $disk = Storage::disk($reservation->disk);
         if (! $disk->delete($reservation->objectKey()) || $disk->exists($reservation->objectKey())) {
             return false;
+        }
+        if ($reservation->phase === StoragePhase::Prepare) {
+            $proof = $reservation->objectKey().'.cleanup';
+            if (! $disk->delete($proof) || $disk->exists($proof)) {
+                return false;
+            }
         }
         $this->artifacts->finishCleanup($reservation);
 

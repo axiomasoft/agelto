@@ -8,13 +8,12 @@ use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
 
 /**
- * Результат `EstimateStitcher::stitch()` (`docs/specs/v2/08-estimate-extraction.md` §4.2 «Stitcher»,
- * Code Guidance P6.2: «не чинить данные молча — каждый нетривиальный шаг в StitchReport»).
- * Чистый value-объект — никакой персистентности (P6.3 читает это как источник для записи).
+ * Результат `EstimateStitcher::stitch` (`docs/specs/v2/08-estimate-extraction.md` §4.2 «Stitcher»). Каждый нетривиальный шаг фиксируется в отчёте.
+ * Чистый value-объект — никакой персистентности.
  *
  * - rows: финальный дедуплицированный, отсортированный по row_index список строк.
  * - sectionPaths: восстановленная иерархия — row_index => breadcrumb названий разделов/подразделов
- *   (D10: собрана на бэкенде из row_type+section_title, LLM дерево не формирует).
+ *   (собрана на бэкенде из row_type+section_title, LLM дерево не формирует).
  * - droppedDuplicateRowIndexes: row_index строк, отброшенных как точный дубль (тот же row_index
  *   встретился повторно — оставлена первая по порядку появления).
  * - droppedDuplicateComposites: legacy-поле, всегда пусто. Разные row_index сохраняются:
@@ -23,8 +22,8 @@ use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
  *   иерархией, восстановленной по `row_type`-стеку — не фатально, сигнал для операторского ревью.
  * - mergedIncompleteItems: пары incomplete_items (split_by_page_end + orphan_numbers_at_page_start),
  *   успешно сопоставленные по last_known_code/page_number (§4б) — БЕЗ вычисленного row_index
- *   (IncompleteRow не несёт row_index — Known Deviation, точное позиционирование в
- *   последовательности строк отложено на P6.3/операторское ревью).
+ *   (IncompleteRow не несёт row_index; точное позиционирование в
+ *   последовательности строк отложено на операторское ревью).
  * - unmatchedIncompleteItems: incomplete_items, для которых пара не найдена — аномалия сама по
  *   себе (обрыв без продолжения в соседнем чанке/окне).
  */

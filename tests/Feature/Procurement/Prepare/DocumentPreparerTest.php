@@ -86,7 +86,7 @@ test('format corpus: подготовка XLSX — конвертация в PDF
     Storage::disk('s3')->assertExists($representation->storage_path);
 })->skip(fn () => ! extension_loaded('gd'), 'требует gd (Mpdf) — см. docker/php/Dockerfile');
 
-test('format corpus: XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared (D26/P3.4)', function () {
+test('format corpus: XLSX сверх лимита строк — ветка LibreOffice производит представление, документ prepared', function () {
     config(['ai.prepare.xlsx_max_rows' => 1]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
@@ -94,7 +94,7 @@ test('format corpus: XLSX сверх лимита строк — ветка Libr
 
     (new PreparationStrategyProbe($document->id))->handle();
 
-    // Лимит ИНСТРУМЕНТА подготовки ≠ приговор документу (D26/D28): с P3.4 xlsx сверх лимита
+    // Лимит ИНСТРУМЕНТА подготовки ≠ приговор документу: с xlsx сверх лимита
     // идёт через LibreOffice-фолбэк `SpreadsheetStrategy`, а не оригиналом через Passthrough.
     $representation = app(RepresentationStoreRepository::class)->find($version, RepresentationKind::Pdf);
 
@@ -103,7 +103,7 @@ test('format corpus: XLSX сверх лимита строк — ветка Libr
         ->and($representation->meta['tool'])->toBe('libreoffice');
 });
 
-test('format corpus: XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален (D26/P3.4)', function () {
+test('format corpus: XLSX сверх лимита размера — ветка LibreOffice производит представление, документ не терминален', function () {
     config(['ai.prepare.xlsx_max_mb' => 0]);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
@@ -118,7 +118,7 @@ test('format corpus: XLSX сверх лимита размера — ветка 
         ->and($representation->meta['tool'])->toBe('libreoffice');
 });
 
-test('format corpus: XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed) (P3.4)', function () {
+test('format corpus: XLSX — обе ветки SpreadsheetStrategy упали — unprocessable(conversion_failed)', function () {
     config([
         'ai.prepare.xlsx_max_mb' => 0,
         'ai.prepare.strategies' => [SpreadsheetStrategy::class],
@@ -234,7 +234,7 @@ test('format corpus: identity archive entry принадлежит паре pare
 });
 
 test('format corpus: осиротевший дочерний документ архива (child без Version) — ретрай дописывает версию, а не пропускает индексацию', function () {
-    // Регрессия ревью-находки P4 HIGH: до фикса `indexChild()` без DB::transaction мог
+    // Регрессия ревью-находки HIGH: до фикса `indexChild()` без DB::transaction мог
     // закоммитить child Document раньше DocumentVersion (например, при транзиентном сбое
     // S3-put), а гард идемпотентности по findByExternalId(Document) находил осиротевший
     // child при ретрае и делал return раньше создания версии — версия не создавалась

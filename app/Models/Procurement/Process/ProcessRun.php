@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * Намерение запуска (execution#s01): immutable settings snapshot и конечный discovery
+ * Намерение запуска: immutable settings snapshot и конечный discovery
  * collecting → complete|incomplete. Не вечный parent downstream; writer — RunStoreRepository.
  *
  * @property string $id

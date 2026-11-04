@@ -1,5 +1,7 @@
 """Fail closed on missing/short load evidence; never infer a soak from a unit pass."""
 
+import math
+
 
 def validate(report, width):
     def need(condition, message):
@@ -29,6 +31,9 @@ def validate(report, width):
          "missing repeated named faults/restarts")
     samples = report.get("samples", [])
     need(len(samples) >= 1000, "missing time series")
+    times = [sample["at_seconds"] for sample in samples]
+    need(all(type(t) in (int, float) and math.isfinite(t) and t >= 0 for t in times)
+         and all(a < b for a, b in zip(times, times[1:])), "invalid sample timestamps")
     need(samples[-1]["at_seconds"] - samples[0]["at_seconds"] >= 1790, "missing sustained sampling")
     for sample in samples:
         need(0 <= sample["running"] <= report["running_cap"] <= 10

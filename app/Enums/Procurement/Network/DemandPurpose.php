@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums\Procurement\Network;
 
-/** Назначение network demand; probe проходит тот же FIFO без priority bypass (bp-rate-gcra). */
+/** Назначение network demand; probe проходит тот же FIFO без priority bypass. */
 enum DemandPurpose: string
 {
     case Ordinary = 'ordinary';

@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Всегда существующая control authority row (D9): default и manual override в одной строке,
+ * Всегда существующая control authority row: default и manual override в одной строке,
  * отдельной prc_process_controls нет. Parent/key immutable; только system — корень.
  *
  * @property string $id

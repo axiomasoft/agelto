@@ -10,7 +10,7 @@ use App\Models\Procurement\ProcurementParty;
 
 /**
  * Персистентность роли организации в закупке (`prc_procurement_parties`) и денормализации
- * `prc_procurements.customer_org_id` для процессора вкладки `common-info` (P3.4, D15).
+ * `prc_procurements.customer_org_id` для процессора вкладки `common-info`.
  */
 final readonly class ProcurementPartyStoreRepository
 {

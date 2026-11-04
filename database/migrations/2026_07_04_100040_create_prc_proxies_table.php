@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Прокси как слой маршрутизации (research/02 §3.1, D4, D7): типизированные scopes вместо
- * `targets`, страна и глобальное здоровье/breaker. D41: глобальный breaker может отключить узел,
- * оператор возвращает его явным действием с полным сбросом состояния.
+ * Конфигурация proxy node: адрес, credentials metadata, страна и типизированные scopes.
+ * Health и административное enabled-состояние маршрута принадлежат network authority,
+ * а scopes описывают назначение запросов, для которых узел разрешён.
  */
 return new class extends Migration
 {

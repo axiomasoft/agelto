@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Platforms\Eis\EisProcedureType;
 
-/**
- * Девять сырых меток `methodOrderPurchaseCsv`, наблюдённых живой разведкой P4.1
- * (`plans/2026.07.31-SYS-INTEGRITY/artifacts/eis-registry-settings.json` → `procedure_url_types`) —
- * П-7: до P4.9 карта покрывала 3 из 9.
- */
+/** Проверяет наблюдавшиеся сырые метки methodOrderPurchaseCsv. */
 test('все девять наблюдённых сырых меток способа закупки резолвятся в case', function (string $raw, EisProcedureType $expected) {
     expect(EisProcedureType::fromRawLabel(raw: $raw))->toBe($expected);
 })->with([

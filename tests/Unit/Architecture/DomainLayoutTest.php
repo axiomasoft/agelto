@@ -4,19 +4,7 @@ declare(strict_types=1);
 
 use Symfony\Component\Finder\Finder;
 
-/*
- * Приёмочное свойство P3.4 (`research/04-domain-layout.md` §2.2/§6): правило §2.1 закреплено
- * машинным гейтом на слоях, ВЫРОВНЕННЫХ этой фазой (P3.2 — `app/Enums/Procurement`; P3.3 —
- * утверждённые D113 слои `app/Exceptions/Procurement`, `app/Dto/Procurement`,
- * `app/Repositories/Procurement`). Слои, фазой не выравнивавшиеся (`app/Enums/Llm`,
- * `app/Exceptions/Llm` — оба легальны плоскими по §2.4, домен-пересекающие адреса D113/П3.2–П3.3),
- * гейтом не судятся (D65).
- *
- * Форма — Finder по файловой системе, НЕ `pest-plugin-arch`: предмет проверки — путь и строка
- * `namespace`, а не граф `uses` (`core-arch-gate-2026-07-30.md` §9.6/§2). Реестры root-legal
- * классов и утверждённых подобластей — рукописные константы (разрешённое, не проверяемое —
- * research/04 §2.2 I3), периметр файлов и подкаталогов собирается ДИНАМИЧЕСКИ.
- */
+/** Проверяет пути, namespaces и допустимые подобласти доменов по текущему дереву. */
 
 /**
  * @return array<string, array{root: list<string>, subareas: list<string>}>
@@ -24,42 +12,42 @@ use Symfony\Component\Finder\Finder;
 function alignedDomainLayoutLayers(): array
 {
     return [
-        // P3.2, Completion Notes: 7 корневых (6 ядро + `OperationLogLevel` кросс), Completion Notes P3.2.
+        // , Completion Notes: 7 корневых (6 ядро + `OperationLogLevel` кросс), Completion Notes .
         'App\Enums\Procurement' => [
             'root' => [
                 'AwardStatus', 'BidStatus', 'ProcurementEventType',
                 'ProcurementStatus', 'ProtocolType', 'OperationLogLevel', 'StatusMappingApplicability',
                 'DetailSnapshotStatus',
             ],
-            // P2.1: подобласть `Network` — typed network authority/transport enums (structure#s01).
-            // P2.10: Platform — neutral adapter assessment/completeness enums (structure#s01).
+            // подобласть `Network` — typed network authority/transport enums (structure#s01).
+            // Platform — neutral adapter assessment/completeness enums (structure#s01).
             'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Estimate', 'Health', 'Network', 'Platform', 'Process', 'Proxy'],
         ],
-        // P3.3, Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
+        // , Completion Notes: `OperationFailed` (базовый, кросс) + `UnknownReportFormat` (кросс).
         // `InvalidEvalDiffPayload` обслуживает корневой estimate CLI-контур, а не отдельную подобласть.
-        // P3.4: подобласть `Crawler` заведена первым файлом (`CrawlerRunAlreadyActive`).
+        // подобласть `Crawler` заведена первым файлом (`CrawlerRunAlreadyActive`).
         // Prepare: OperationBudgetExceeded зеркалит существующие Services/Dto\Procurement\Prepare.
-        // P1.8: Process — typed control exits handler (LeaseLost/SliceExhausted/DependencyUnavailable).
+        // Process — typed control exits handler (LeaseLost/SliceExhausted/DependencyUnavailable).
         'App\Exceptions\Procurement' => [
             'root' => ['OperationFailed', 'UnknownReportFormat', 'InvalidEvalDiffPayload'],
-            // P2.1: Network — typed outbound control exits, без переключения legacy callers.
-            // P3.1: Document — typed head/storage dependency failures.
+            // Network — typed outbound control exits, без переключения legacy callers.
+            // Document — typed head/storage dependency failures.
             'subareas' => ['Ai', 'Crawler', 'Document', 'Health', 'Network', 'Platform', 'Prepare', 'Process', 'Proxy'],
         ],
-        // P3.3, Completion Notes: три файла ядра закупки остаются в корне.
+        // , Completion Notes: три файла ядра закупки остаются в корне.
         'App\Dto\Procurement' => [
             'root' => ['ProcurementDetails', 'ProcurementSnapshotData', 'StatusResolution'],
-            // P2.1: `Network` — outbound plan/result/owner DTO; `Platform` — нейтральные части Definition
+            // `Network` — outbound plan/result/owner DTO; `Platform` — нейтральные части Definition
             // (RequestProfile, CanonicalOrigin, SourceTargetDefinitions) без кода конкретной площадки.
-            // P2.10: Acquisition — neutral fetch results; Document — immutable references (structure#s01).
+            // Acquisition — neutral fetch results; Document — immutable references (structure#s01).
             'subareas' => ['Acquisition', 'Ai', 'Analyzers', 'Bench', 'Crawler', 'Details', 'Document', 'Fixture', 'Gold', 'Health', 'History', 'Network', 'Platform', 'Prepare', 'Process', 'Proxy'],
         ],
-        // P3.3, Completion Notes: три ядровых репозитория закупки остаются в корне.
-        // P2.1 (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
+        // , Completion Notes: три ядровых репозитория закупки остаются в корне.
+        // (2026.08.06-CRAWL-HARDEN): подобласть `Platform` заведена первым файлом
         // (`Okpd2NodeReadRepository`) — зеркалит уже существующую подобласть `App\Models\Procurement\Platform`.
         // Crawler: RunStoreRepository зеркалит существующую Models\Procurement\Crawler.
-        // P1.6: подобласть `Process` — writers Process ledger (structure#s01).
-        // P2.1: подобласть `Network` — единственный writer network authority rows.
+        // подобласть `Process` — writers Process ledger (structure#s01).
+        // подобласть `Network` — единственный writer network authority rows.
         'App\Repositories\Procurement' => [
             'root' => ['ProcurementDetailStoreRepository', 'ProcurementReadRepository', 'ProcurementStoreRepository'],
             'subareas' => ['Ai', 'Analyzers', 'Crawler', 'Document', 'Health', 'History', 'Network', 'Platform', 'Process', 'Proxy'],

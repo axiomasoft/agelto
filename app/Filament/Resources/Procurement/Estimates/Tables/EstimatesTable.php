@@ -47,8 +47,7 @@ class EstimatesTable
                     ->label('Статус валидации')
                     ->badge()
                     ->sortable(),
-                // Агрегат из getEloquentQuery() (withCount) — не выборка позиций в цикле
-                // (Implementation Rules P8.5 п.2).
+                // Агрегат withCount из getEloquentQuery() сохраняет постоянное число запросов списка.
                 TextColumn::make('marked_items_count')
                     ->label('Помечено')
                     ->state(fn (Estimate $record): string => "{$record->marked_items_count} из {$record->items_count}")

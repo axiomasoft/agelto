@@ -10,7 +10,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
-DEFAULT_OUTPUT = Path("plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md")
 SCRIPT_MODES = {
     "docker/scripts/deploy-repositories.sh": ("prepare", "sync", "fixture"),
     "docker/scripts/production-profile-check.sh": ("check",),
@@ -49,8 +48,8 @@ def unescape_target(value: str) -> str:
     return value.replace("\\:", ":")
 
 
-def parse_makefile(path: Path) -> tuple[list[str], dict[str, list[str]]]:
-    text = path.read_text(encoding="utf-8")
+def parse_makefile(path: Path, text: str | None = None) -> tuple[list[str], dict[str, list[str]]]:
+    text = path.read_text(encoding="utf-8") if text is None else text
     phony: list[str] = []
     definitions: dict[str, list[str]] = {}
     current: str | None = None
@@ -87,9 +86,17 @@ def parse_makefile(path: Path) -> tuple[list[str], dict[str, list[str]]]:
     return phony, definitions
 
 
-def validate_root_makefile(path: Path) -> None:
+def validate_root_makefile(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
-    _, definitions = parse_makefile(path)
+    # The isolated rig has an explicit root entrypoint; all other targets delegate.
+    core = re.search(r"^CORE_TARGETS := (?P<names>core-[a-z0-9-]+(?: core-[a-z0-9-]+)*)\n"
+                     r"\.PHONY: \$\(CORE_TARGETS\)\n\$\(CORE_TARGETS\):\n"
+                     r"\t@python3 docker/tests/process-core/rig\.py \$@\n", text, re.MULTILINE)
+    core_targets = core.group("names").split() if core else []
+    if len(core_targets) != len(set(core_targets)):
+        raise SystemExit("duplicate isolated rig targets")
+    delegated = text[:core.start()] + text[core.end():] if core else text
+    _, definitions = parse_makefile(path, delegated)
     if set(definitions) != {"help", "%", "FORCE"}:
         raise SystemExit("root Makefile must contain only help, catch-all delegation and FORCE")
     if "$(MAKE) -f docker/Makefile" not in text:
@@ -97,6 +104,7 @@ def validate_root_makefile(path: Path) -> None:
     normal_targets = [match.group(1) for line in text.splitlines() if (match := TARGET_RE.match(line)) and not line.startswith(".")]
     if not normal_targets or normal_targets[0] != "help":
         raise SystemExit("help must be the first normal root target")
+    return core_targets
 
 
 def validate_recipes(definitions: dict[str, list[str]]) -> None:
@@ -161,7 +169,7 @@ def classify_target(name: str, recipe: str) -> CommandRow:
     else:
         output = "declared runtime mutation"
 
-    evidence = "blank P12 evidence template" if "future rehearsal" in prerequisites else "command output / CI artifact"
+    evidence = "blank runtime evidence template" if "future rehearsal" in prerequisites else "command output / CI artifact"
     return CommandRow(
         command=f"make {name}",
         audience=audience,
@@ -198,7 +206,7 @@ def validate_script_modes(root: Path) -> list[CommandRow]:
                     output="redacted state/check result",
                     exit_contract="0=green; 1=contract failure; 2=usage/authority stop",
                     resume="preserve identity/state, repair, and rerun the same mode",
-                    evidence="blank P12 evidence template" if external else "local contract output only",
+                    evidence="blank runtime evidence template" if external else "local contract output only",
                 )
             )
     return rows
@@ -207,10 +215,20 @@ def validate_script_modes(root: Path) -> list[CommandRow]:
 def inventory(root: Path) -> tuple[list[CommandRow], dict[str, str]]:
     root_makefile = root / "Makefile"
     docker_makefile = root / "docker/Makefile"
-    validate_root_makefile(root_makefile)
+    core_targets = validate_root_makefile(root_makefile)
     phony, definitions = parse_makefile(docker_makefile)
     validate_recipes(definitions)
     rows = [classify_target(name, "\n".join(definitions[name])) for name in sorted(phony)]
+    rows.extend(CommandRow(
+        command=f"make {name}", audience="developer/agent", environment="isolated test rig",
+        prerequisites="exact Compose/database identity guards and local fixture inputs",
+        mutation=("report-only" if name == "core-test-report" else "isolated checks"
+                  if name in {"core-test-env", "core-quality"} else "isolated runtime mutation"),
+        inputs="core rig configuration; TEST_FILE for a targeted test; WIDTH=10|20 for load",
+        output="test evidence / rig result", exit_contract="0=green; nonzero=stop",
+        resume="repair the failing rig stage and rerun the same command",
+        evidence="local contract output only",
+    ) for name in core_targets)
     rows.extend(validate_script_modes(root))
     commands = [row.command for row in rows]
     if len(commands) != len(set(commands)):
@@ -223,9 +241,9 @@ def inventory(root: Path) -> tuple[list[CommandRow], dict[str, str]]:
 def render(rows: list[CommandRow], sources: dict[str, str]) -> str:
     source_fingerprint = hashlib.sha256(json.dumps(sources, sort_keys=True).encode()).hexdigest()
     lines = [
-        "# P12 source-derived command matrix",
+        "# Source-derived command matrix",
         "",
-        "> Generated from the root delegation, `docker/Makefile` `.PHONY` registry and declared P12 script modes.",
+        "> Generated from the root delegation, `docker/Makefile` `.PHONY` registry and declared production script modes.",
         f"> Source fingerprint: `{source_fingerprint}`. External/mutating rows are not executed by generation.",
         "",
         "| Command | Audience | Environment | Prerequisites | Mutation | Inputs | Output | Exit | Resume | Evidence |",
@@ -246,7 +264,9 @@ def main() -> int:
     args = parser.parse_args()
 
     root = args.root.resolve()
-    output = args.output.resolve() if args.output else root / DEFAULT_OUTPUT
+    if args.mode != "agent-json" and args.output is None:
+        parser.error("--output is required for render/check; use a current temporary artifact")
+    output = args.output.resolve() if args.output else None
     rows, sources = inventory(root)
     content = render(rows, sources)
     if args.mode == "render":

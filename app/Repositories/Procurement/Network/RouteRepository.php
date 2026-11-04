@@ -22,8 +22,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Writer `prc_network_routes`. P2.1 материализует только configured direct egress identity;
- * proxy routes (unique FK из `prc_proxies`) и route profiles переключает P2.6. Наличие route row
+ * Writer `prc_network_routes`: configured direct egress identity, proxy routes
+ * (unique FK из `prc_proxies`) и route profiles. Наличие route row
  * не даёт права слать: разрешение задаёт route profile membership. Существующую row (её
  * administrative enabled/disabled) ensure не меняет.
  */

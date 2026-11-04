@@ -8,7 +8,7 @@ use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Models\Procurement\Ai\Analysis;
 
 /**
- * Чтение `prc_ai_analyses` (`root/service-layer-map.md` §6), рядом с `AnalysisStoreRepository`.
+ * Чтение `prc_ai_analyses`, рядом с `AnalysisStoreRepository`.
  */
 final readonly class AnalysisReadRepository
 {

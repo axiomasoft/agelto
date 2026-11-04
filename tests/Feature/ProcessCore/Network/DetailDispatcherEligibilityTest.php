@@ -51,4 +51,4 @@ test('canonical detail exclusion preserves due work and lets another platform us
         ->and(AcquisitionProfileFixtures::workSnapshot($blocked->value->value))->toBe($before)
         ->and(ExecutionFixtures::work($blocked)->state)->toBe('ready')
         ->and(DB::table('prc_process_attempts')->count())->toBe(0);
-})->with(['paused', 'target_open', 'retired'])->group('t04', 'p26');
+})->with(['paused', 'target_open', 'retired'])->group('network-route-policy');

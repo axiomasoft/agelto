@@ -30,7 +30,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Admission ready/due work в admitted (bp-sql-admit, execution#s05/#s11). Одна короткая
+ * Admission ready/due work в admitted. Одна короткая
  * ProcessTransaction на work: полный prefix с SKIP LOCKED только на work, authoritative COUNT
  * active reservation rows после всех capacity locks, cohort cap и fairness cursor parent lane
  * повторно сверяются под теми же locks. Grant атомарно вставляет group + точный набор members,
@@ -168,7 +168,7 @@ final readonly class AdmissionRepository
             return AdmissionResult::refused(AdmissionStatus::InvariantViolation);
         }
         if ($prefix->intentPending) {
-            // Pending intent ждёт завершения active intent того же subject (execution#s10); не supersede.
+            // Pending intent ждёт завершения active intent того же subject; не supersede.
             return AdmissionResult::refused(AdmissionStatus::NotEligible);
         }
         if (! $prefix->intentActive || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {

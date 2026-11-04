@@ -16,9 +16,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * P7.5 F-01: четыре ведущих nullable FK (`analysis_id`, `fixture_id`, `eval_run_id`,
- * `decided_by`) индексированы в финальной форме. На момент ревизии таблица была < 1 МБ,
- * поэтому обычные индексы допустимы без `CONCURRENTLY`.
+ * Ведущие nullable FK `analysis_id`, `fixture_id`, `eval_run_id`, `decided_by`
+ * индексированы для обратных связей. При создании схемы используются обычные индексы
+ * без `CONCURRENTLY`.
  */
 return new class extends Migration
 {

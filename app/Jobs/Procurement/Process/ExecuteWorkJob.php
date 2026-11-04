@@ -17,7 +17,7 @@ use PDOException;
 use Throwable;
 
 /**
- * Единственная queue delivery Process (bp-jobs, D16): тонкий конверт work_id, dispatch_generation,
+ * Единственная queue delivery Process: тонкий конверт work_id, dispatch_generation,
  * message_id и queue_schema_version. Ни моделей, ни credentials, ни payload. Job — только доставка:
  * бизнес-retry, ожидание и восстановление принадлежат durable ledger (Redis не authority), поэтому
  * одна попытка, без release/backoff/delay, ShouldBeUnique, WithoutOverlapping, RateLimited и

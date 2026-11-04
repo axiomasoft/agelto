@@ -27,7 +27,7 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
-// Harness бенчмарка форматов (Scope Included P6.1, D48–D50): сухой обход БЕЗ LLM-вызова + сейм
+// Harness бенчмарка форматов (Scope Included ): сухой обход БЕЗ LLM-вызова + сейм
 // принуждения представления. `FakeLlmProvider` — единственный допустимый провайдер в тестах
 // (реальный вызов — блокирующее замечание, `.claude/rules/agelto-reviewer-overrides.md`).
 
@@ -58,9 +58,9 @@ function benchDocumentAndVersion(?int $procurementId = null, string $extension =
 
 function benchDatasetExample(Fixture $fixture, DocumentVersion $version): DatasetExample
 {
-    // Связь «эталон ↔ рабочая копия» (§2 root/document-contour.md) — в проде её пишет
+    // Проверяет связь эталона с рабочей копией.
     // GoldImportCommand::resolveWorkingCopy(), здесь эквивалент для синтетики теста: гвард
-    // FormatBenchRunner (Implementation Rule 1 P1.6) требует $fixture->document_id === $document->id.
+    // FormatBenchRunner (Implementation Rule 1 ) требует $fixture->document_id === $document->id.
     $fixture->update(['document_id' => $version->document_id]);
 
     return DatasetExample::factory()->create([
@@ -223,7 +223,7 @@ test('forceKind = null даёт сегодняшнее поведение рез
 });
 
 test('документ — НЕ рабочая копия этого эталона (fixture->document_id не совпадает) — отказ, прогон не падает', function (): void {
-    // Implementation Rule 1 P1.6 (root/document-contour.md §5): гвард переведён со структурного
+    // Проверяет связь эталона с рабочей копией.
     // procurement_id на прямую связь с эталоном — отказ теперь по несовпадению
     // $fixture->document_id/$version->document_id, а не по наличию закупки у документа.
     $fixture = benchFixture();
@@ -289,7 +289,7 @@ test('повторный сухой прогон даёт тот же артеф
     expect($second)->toBe($first);
 });
 
-test('artisan(estimate:bench:formats) без --out пишет артефакт под config(ai.fixtures.reports_dir) (D111)', function (): void {
+test('artisan(estimate:bench:formats) без --out пишет артефакт под config(ai.fixtures.reports_dir)', function (): void {
     $reportsDir = sys_get_temp_dir().'/bench-formats-reports-'.Str::uuid();
     config(['ai.fixtures.reports_dir' => $reportsDir]);
 

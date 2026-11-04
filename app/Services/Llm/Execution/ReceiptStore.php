@@ -18,6 +18,10 @@ final readonly class ReceiptStore
 {
     public const int MAX_BYTES = 16_777_216;
 
+    // JSON can expand each body byte to a six-byte escape (for example, \u0000).
+    // Keep the accepted response bound unchanged while allowing its complete v1 envelope.
+    private const int MAX_ENVELOPE_BYTES = self::MAX_BYTES * 6;
+
     public function __construct(private ReceiptPolicies $policies) {}
 
     public function put(ProviderCall $call, int $status, string $body): VerifiedReceipt
@@ -87,7 +91,7 @@ final readonly class ReceiptStore
 
                 return null;
             }
-            if ($disk->size($call->receiptUploadKey) > self::MAX_BYTES) {
+            if ($disk->size($call->receiptUploadKey) > self::MAX_ENVELOPE_BYTES) {
                 throw new ReceiptUnavailable('Receipt exceeds bounded codec.');
             }
             $bytes = $disk->get($call->receiptUploadKey);
@@ -107,7 +111,8 @@ final readonly class ReceiptStore
                 || ($value['request_epoch'] ?? null) !== $call->authorization->requestEpoch
                 || ($value['send_authorization_token'] ?? null) !== $call->authorization->sendAuthorizationToken
                 || ($value['purpose'] ?? null) !== $call->purpose->value || ! is_int($value['status'] ?? null) || ! is_string($value['body'] ?? null)
-                || count($value) !== 8 || $value['status'] < 100 || $value['status'] > 599 || ! $call->claimed) {
+                || count($value) !== 8 || $value['status'] < 100 || $value['status'] > 599
+                || strlen($value['body']) > self::MAX_BYTES - 4096 || ! $call->claimed) {
                 throw new ReceiptUnavailable('Receipt identity/codec mismatch.');
             }
             $hash = hash('sha256', $bytes);

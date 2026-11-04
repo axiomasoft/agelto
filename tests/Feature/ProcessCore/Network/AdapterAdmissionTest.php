@@ -57,7 +57,7 @@ test('validating adapter допускает ровно одного owner все
         ->and(DB::table('prc_outbound_operations')->whereNotNull('adapter_health_id')->count())->toBe(1)
         ->and(DB::table('prc_request_attempts')->count())->toBe(0)
         ->and(fn () => $first->bindAdapter($claim))->toThrow(LogicException::class);
-})->group('t05', 'p26');
+})->group('network-admission-probes');
 
 test('ordinary owner не обходит initial validation claim и catalog version binding', function (): void {
     [$f, $ref] = adapterAdmissionFixture();
@@ -70,4 +70,4 @@ test('ordinary owner не обходит initial validation claim и catalog ver
     expect(app(ProcessTransaction::class)->run(fn () => $repository->admit($foreignVersion, $probe)))->toBeInstanceOf(TransportBlocked::class)
         ->and(DB::table('prc_adapter_health')->sole()->probe_token)->toBeNull()
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
-})->group('t05', 'p26');
+})->group('network-admission-probes');

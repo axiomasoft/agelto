@@ -9,7 +9,7 @@ function eventJournalFixtureHtml(): string
     return file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/event-journal.html'));
 }
 
-test('parse разбирает строки журнала событий с датой и текстом (реальная вкладка event-journal, P4.14)', function () {
+test('parse разбирает строки журнала событий с датой и текстом (реальная вкладка event-journal)', function () {
     // Вкладка отдаёт «(МСК+9)» (Камчатка): время переводится в UTC = локальное − 12 ч.
     $entries = app(EventJournalParser::class)->parse(eventJournalFixtureHtml());
 

@@ -9,7 +9,7 @@ use App\Enums\Procurement\Ai\PromptSuggestionStatus;
 use App\Models\Procurement\Ai\PromptSuggestion;
 
 /**
- * Чтение очереди `prc_ai_prompt_suggestions` (D59).
+ * Чтение очереди `prc_ai_prompt_suggestions`.
  */
 final readonly class PromptSuggestionReadRepository
 {
@@ -20,8 +20,8 @@ final readonly class PromptSuggestionReadRepository
 
     /**
      * Уже существующее `pending`/`rejected`-предложение того же вида на тот же `prompt_key`
-     * с нормализованным (`PromptSuggestion::normalizeText()`) текстом, совпадающим с `$normalizedContent`
-     * (Implementation Rules P7.4 — очередь не плодит дубли одного и того же предложения).
+     * с нормализованным (`PromptSuggestion::normalizeText`) текстом, совпадающим с `$normalizedContent`
+     * (очередь не плодит дубли одного и того же предложения).
      */
     public function hasDuplicate(PromptSuggestionKind $kind, ?string $promptKey, string $normalizedContent): bool
     {

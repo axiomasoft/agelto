@@ -12,7 +12,7 @@ test('отказывает readiness при неполном release state', fun
         ->assertExitCode(Command::FAILURE);
 });
 
-test('выводит P2 readiness diagnostics в agent формате для seeded release state', function () {
+test('выводит readiness diagnostics в agent формате для seeded release state', function () {
     $this->seed(BaseSeeder::class);
     config(['cms.admin_email' => 'admin@example.test']);
 

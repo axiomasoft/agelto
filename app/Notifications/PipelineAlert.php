@@ -9,19 +9,12 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Единая точка отправки алертов пайплайна (`pipeline:stuck-check`, P7.3) — Telegram-транспорт,
- * аналогичный v1 (`Old/app/Notifications/{PipelineAlert,PipelineAlertNotification,
- * Channels/TelegramChannel}.php`), консолидированный в ОДИН файл (Files-список item'а несёт
- * ровно этот путь): Bot API напрямую через `Http`, без Laravel Notification/Channel-индирекции
- * — единственный канал, единственный тип сообщения, вторая абстракция не оправдана (YAGNI).
- * Канал/бот — `config('services.telegram.*')`; конфиг не задан → алерт уходит только в лог
- * (Implementation Rules: команда read-only, но находка не теряется бесследно).
+ * Алерты пайплайна отправляются одним агрегированным Telegram-сообщением через Bot API.
+ * Канал и бот задаются в `config('services.telegram.*')`; без конфигурации находка остаётся в логе.
  *
- * Антиспам — per-finding кэш-ключ (Code Guidance: «не чаще раза в час по одинаковой находке»):
- * `notify()` принимает `array<string, string>` (ключ находки → человекочитаемое сообщение),
- * пропускает через `Cache::add()` только находки, ещё не отмеченные в текущем окне
- * (`config('process.diagnostic_thresholds.alert_antispam_minutes')`), и отправляет ОДНО агрегированное сообщение
- * по оставшимся — если все находки тика уже были отмечены раньше, тишина (не дублируем алерт).
+ * `notify()` принимает ключ находки и сообщение. `Cache::add()` пропускает только находки,
+ * которые ещё не отмечены в окне `process.diagnostic_thresholds.alert_antispam_minutes`.
+ * Если все находки уже отмечены, повторное сообщение не отправляется.
  */
 final readonly class PipelineAlert
 {

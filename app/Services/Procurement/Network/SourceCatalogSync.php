@@ -26,7 +26,7 @@ use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Str;
 
 /**
- * Explicit idempotent `platform:sync-catalog` (platform-transport#s02): запускается ПОСЛЕ migrations
+ * Explicit idempotent `platform:sync-catalog`: запускается ПОСЛЕ migrations
  * и ДО worker activation, никогда routine boot. Отдельные короткие tx без сети: control authority
  * (ensureScopes) → configured direct route → source catalog площадки. Override/retire —
  * audited operator mutations тех же authority rows с теми же lock tiers.
@@ -156,7 +156,7 @@ final readonly class SourceCatalogSync
     }
 
     /**
-     * Control authority площадки до первой работы: обе purpose ветви (execution#s11).
+     * Control authority площадки до первой работы: acquisition и documents purpose ветви.
      *
      * @return list<ScopeDefinition>
      */
@@ -172,7 +172,7 @@ final readonly class SourceCatalogSync
         ];
     }
 
-    /** Event/message IDs создаются ДО транзакции и стабильны при её retry (bp-pitfalls 7). */
+    /** Event/message IDs создаются ДО транзакции и стабильны при её retry. */
     private static function uuid(): ProcessUuid
     {
         return new ProcessUuid(Str::lower((string) Str::uuid()));

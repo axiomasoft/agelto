@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Подтверждённая доступность функции target. Не выводится из отсутствия пригодных proxy;
- * unknown independence даёт suspect, а не open (platform-transport#s06).
+ * unknown independence даёт suspect, а не open.
  *
  * @property string $id
  * @property string $target_id

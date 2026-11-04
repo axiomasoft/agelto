@@ -15,7 +15,7 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
- * `ArchiveStrategy` расширена с ZIP до трёх форматов (P3.6, D24) — `7z`/`rar` через реальные
+ * `ArchiveStrategy` расширена с ZIP до трёх форматов — `7z`/`rar` через реальные
  * `7z`/`unar` (не мокаются, Code Guidance). Свободного RAR-энкодера в образе нет, поэтому RAR
  * happy path не фабрикуется: тест подтверждает реальный runtime adapter и его fail-closed путь.
  */

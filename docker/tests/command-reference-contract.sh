@@ -4,10 +4,12 @@ set -euo pipefail
 
 readonly root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 readonly script="$root/docker/scripts/check-command-reference.py"
-readonly matrix="$root/plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P12-command-matrix.md"
+readonly matrix_root="$(mktemp -d)"
+readonly matrix="$matrix_root/command-matrix.md"
+trap 'find "$matrix_root" -depth -delete' EXIT
 
 fail() {
-    printf '[FAIL] P12.6 %s\n' "$*" >&2
+    printf '[FAIL] %s\n' "$*" >&2
     exit 1
 }
 
@@ -24,11 +26,11 @@ import pathlib
 import sys
 compile(pathlib.Path(sys.argv[1]).read_text(), sys.argv[1], "exec")
 PY
-python3 "$script" render
+python3 "$script" render --output "$matrix"
 first_hash=$(sha256sum "$matrix" | cut -d' ' -f1)
-python3 "$script" render
+python3 "$script" render --output "$matrix"
 [[ $(sha256sum "$matrix" | cut -d' ' -f1) == "$first_hash" ]] || fail 'render is not byte-idempotent'
-python3 "$script" check
+python3 "$script" check --output "$matrix"
 python3 "$script" agent-json > /tmp/agelto-command-reference-agent.json
 python3 - "$root" /tmp/agelto-command-reference-agent.json <<'PY'
 import json
@@ -54,7 +56,7 @@ bash "$root/docker/scripts/rollback-production.sh" check >/dev/null
 bash "$root/docker/scripts/rotate-production-secrets.sh" check >/dev/null
 
 fixture_root=$(mktemp -d)
-trap 'find "$fixture_root" -depth -delete; rm -f /tmp/agelto-command-reference-agent.json' EXIT
+trap 'find "$fixture_root" "$matrix_root" -depth -delete; rm -f /tmp/agelto-command-reference-agent.json' EXIT
 base="$fixture_root/base"
 mkdir -p "$base/docker/scripts"
 cat > "$base/Makefile" <<'EOF'
@@ -149,10 +151,10 @@ for document in \
     docs/operators/production/commands.md \
     docs/operators/production/troubleshooting.md \
     docs/operators/_index.md; do
-    rg -q 'P12-command-matrix\.md' "$root/$document" || fail "$document does not link to the canonical matrix"
+    rg -q 'commands\.md#current-command-inventory|check-command-reference\.py' "$root/$document" || fail "$document does not link to current inventory generation"
 done
 rg -q 'Local fixture' "$root/docs/operators/production/commands.md"
 rg -q 'runtime evidence' "$root/docs/operators/production/commands.md"
-git diff --check -- "$script" "$matrix" "$root/docker/tests/command-reference-contract.sh"
+git diff --check -- "$script" "$root/docker/tests/command-reference-contract.sh"
 
 printf 'Command reference contract passed\n'

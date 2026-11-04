@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Process;
 use App\Enums\Procurement\Process\StageCode;
 
 /**
- * Корреляция одного attempt (observability#s02): IDs восстанавливаются из БД при claim, не из
+ * Корреляция одного attempt: IDs восстанавливаются из БД при claim, не из
  * Redis. trace_id — диагностический (32 lowercase hex), новый на каждый attempt; не idempotency key.
  */
 final readonly class ExecutionLogContext

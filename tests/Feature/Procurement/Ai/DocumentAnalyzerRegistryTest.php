@@ -18,7 +18,7 @@ use Tests\Support\Doubles\ExtractionlessAnalyzer;
 use Tests\Support\Doubles\GlobalStepAnalyzer;
 
 /*
- * Реестр «тип документа → анализатор» (P2.3, §5 контракта document-analyzer-contract): одна
+ * Реестр «тип документа → анализатор» (§5 контракта document-analyzer-contract): одна
  * строка конфига как единственный носитель регистрации, инварианты сборки и поведение на типе
  * без анализатора.
  */

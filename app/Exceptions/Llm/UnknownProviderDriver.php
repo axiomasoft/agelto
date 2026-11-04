@@ -9,7 +9,7 @@ use App\Services\Llm\LlmProviderFactory;
 
 /**
  * Строка `llm_providers.driver` не резолвится ни одним провайдером —
- * {@see LlmProviderFactory::forDriver()} (D110).
+ * {@see LlmProviderFactory::forDriver}.
  */
 final class UnknownProviderDriver extends OperationFailed
 {

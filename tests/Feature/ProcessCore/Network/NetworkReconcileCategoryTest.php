@@ -28,4 +28,4 @@ test('reconcile daemon expires abandoned outbound owner and reserved permit with
     $daemon->tick();
     expect(DB::table('prc_outbound_operations')->count())->toBe(1)
         ->and(DB::table('prc_network_demands')->count())->toBe(1);
-})->group('t37', 'p26');
+})->group('network-demand-recovery');

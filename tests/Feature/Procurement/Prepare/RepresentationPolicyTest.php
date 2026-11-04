@@ -11,7 +11,7 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
- * Правило выбора представления как данные (P6.3, D3/D52, ADR `adr-input-representation.md`):
+ * Правило выбора представления как данные (ADR `adr-input-representation.md`):
  * `RepresentationResolver::forLlm()` читает `config('ai.representations')` вместо константы.
  */
 test('политика по формату выбрана из конфига — подменённый config() меняет результат резолвера', function () {

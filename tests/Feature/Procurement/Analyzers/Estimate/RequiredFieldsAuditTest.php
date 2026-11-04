@@ -108,8 +108,8 @@ test('ревизия отклоняет неизвестный источник'
         ->assertExitCode(1);
 });
 
-test('gold-корпус не опускается ниже зафиксированного замера P7.4 от 2026-08-08', function (): void {
-    $artifact = json_decode((string) file_get_contents(base_path('plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json')), associative: true, flags: JSON_THROW_ON_ERROR);
+test('gold-корпус не опускается ниже зафиксированного замера от 2026-08-08', function (): void {
+    $artifact = json_decode((string) file_get_contents(base_path('tests/Fixtures/ProcessCore/historical/gold-fields-audit.json')), associative: true, flags: JSON_THROW_ON_ERROR);
     $actualTree = requiredFieldsGoldTree();
 
     expect($artifact['command'])->toBe('docker compose exec app php artisan estimate:fields:audit --source=gold --json')

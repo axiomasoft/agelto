@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Process;
 /**
  * `mc ilm rule add` сам по себе НЕ идемпотентен (повтор с теми же параметрами создаёт
  * ВТОРОЕ правило) — идемпотентность держит сама команда (`StorageLifecycleCommand`).
- * Тест использует явный `Process::fake()`-эмулятор `mc`: глобальный P11.3 guard не
+ * Тест использует явный `Process::fake()`-эмулятор `mc`: глобальный guard не
  * допускает, чтобы feature-test неявно получил реальный S3/MinIO adapter.
  */
 function storageLifecycleDisk(): array

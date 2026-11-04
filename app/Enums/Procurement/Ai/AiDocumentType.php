@@ -24,7 +24,7 @@ enum AiDocumentType: string implements DocumentScope
 
     /**
      * Единственный носитель списка значений для check-constraint'ов оси типа документа
-     * (§1.3 правило 1, root/document-type-axis.md) — миграции складывают IN(...) отсюда,
+     * — миграции складывают IN(...) отсюда,
      * не восемью копиями литералов.
      *
      * @return list<string>

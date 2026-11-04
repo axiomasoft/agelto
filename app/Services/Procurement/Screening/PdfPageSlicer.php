@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\Process;
 use RuntimeException;
 
 /**
- * Резка первых N страниц PDF через `qpdf` CLI (D28, `docs/specs/v2/08-estimate-extraction.md`
+ * Резка первых N страниц PDF через `qpdf` CLI (`docs/specs/v2/08-estimate-extraction.md`
  * §4в) — НЕ `setasign/fpdi`: бесплатная версия не читает PDF ≥1.5 с compressed cross-reference/
  * object streams (массовый формат вывода Гранд-Сметы/принтеров ЕИС/MS Office), `qpdf` их
  * нативно поддерживает. Документ с числом страниц ≤ N возвращается КАК ЕСТЬ, без реза
- * (Implementation Rules P5.1) — вызывающий код отличает срез от оригинала по совпадению путей
+ * — вызывающий код отличает срез от оригинала по совпадению путей
  * и не удаляет оригинал в `finally`.
  */
 final readonly class PdfPageSlicer
@@ -23,7 +23,7 @@ final readonly class PdfPageSlicer
      * Первые `$pages` страниц `$inputPath` во временный файл; документ короче/равен `$pages` —
      * возвращает `$inputPath` без изменений. Бросает `RuntimeException` с сырым stderr `qpdf`
      * на нечитаемом/зашифрованном PDF — классификация unreadable_format/password_protected
-     * (D32) — ответственность вызывающего кода (`ScreeningProcessor`), не этого класса.
+     * — ответственность вызывающего кода (`ScreeningProcessor`), не этого класса.
      */
     public function slice(string $inputPath, int $pages, ?float $deadlineAt = null): string
     {
@@ -46,7 +46,7 @@ final readonly class PdfPageSlicer
 
     /**
      * Число страниц документа (`qpdf --show-npages`) — preflight скрининга (нужно N страниц ли
-     * резать) и общий preflight транспортных лимитов (D29, P6.1).
+     * резать) и общий preflight транспортных лимитов.
      */
     public function pageCount(string $path, ?float $deadlineAt = null): int
     {
@@ -61,11 +61,11 @@ final readonly class PdfPageSlicer
 
     /**
      * Произвольный диапазон страниц `[$pageStart, $pageEnd]` (1-based, включительно) `$inputPath`
-     * во ВСЕГДА НОВЫЙ временный файл (D30, оконный путь §4.2 — в отличие от `slice()`, здесь нет
+     * во ВСЕГДА НОВЫЙ временный файл (оконный путь §4.2 — в отличие от `slice`, здесь нет
      * короткого пути «документ короче диапазона» — вызывающий код, `WindowedChunkSource`, сам
      * отвечает за удаление среза сразу после использования, `finally`). Страницы среза
      * нумеруются заново с 1 — глобальную нумерацию исходного документа несёт вызывающий код
-     * через offset-инструкцию в промте (Implementation Rules P6.4), не этот метод.
+     * через offset-инструкцию в промте, не этот метод.
      */
     public function sliceRange(string $inputPath, int $pageStart, int $pageEnd, ?float $deadlineAt = null): string
     {

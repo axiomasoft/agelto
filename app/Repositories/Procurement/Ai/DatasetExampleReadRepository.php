@@ -10,7 +10,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\LazyCollection;
 
 /**
- * Чтение `prc_ai_dataset_examples` (`root/service-layer-map.md` §6) — `estimate:eval:run`, `estimate:dataset:export`.
+ * Чтение `prc_ai_dataset_examples` — `estimate:eval:run`, `estimate:dataset:export`.
  */
 final readonly class DatasetExampleReadRepository
 {
@@ -38,7 +38,7 @@ final readonly class DatasetExampleReadRepository
     }
 
     /**
-     * SFT-кандидаты (P7.1, D56): «экспортируемые» (основание доверия — `source=deterministic` ИЛИ
+     * SFT-кандидаты: «экспортируемые» (основание доверия — `source=deterministic` ИЛИ
      * непустой `verified_at`) записи, ПОСЛЕДНЯЯ по `version` на пару (`document_version_id`,
      * `task`) — `DISTINCT ON` (Postgres) при сортировке `document_version_id ASC, version DESC`
      * даёт ровно эту запись без буферизации в PHP. `--source` СУЖАЕТ отбор, основание доверия не
@@ -65,9 +65,8 @@ final readonly class DatasetExampleReadRepository
     }
 
     /**
-     * Записи, отсеянные основанием доверия из пула SFT-кандидатов (для счётчика `not_trusted`,
-     * D56) — считается ОТДЕЛЬНЫМ агрегатом, а не молча вычитается из `exportableSft()`
-     * (`plan-protocol` §2 «пропуск всегда считается»).
+     * Записи, отсеянные основанием доверия из пула SFT-кандидатов (для счётчика `not_trusted`) — считается ОТДЕЛЬНЫМ агрегатом, а не молча вычитается из `exportableSft`
+     * (каждый пропуск должен попадать в отчёт).
      *
      * @param  list<string>  $sources
      */
@@ -86,10 +85,9 @@ final readonly class DatasetExampleReadRepository
     }
 
     /**
-     * DPO-кандидаты (P7.1, D56): экспортируемая запись `source=corrected` с непустым
+     * DPO-кандидаты: экспортируемая запись `source=corrected` с непустым
      * `analysis_id` — предшественник резолвится вызывающим через
-     * `AnalysisReadRepository::parentOf()` (тот же приём, что дефект D56 чинит: раньше через
-     * `activeForVersion()`, теперь — через сохранённый `analysis_id` записи).
+     * `AnalysisReadRepository::parentOf` (по сохранённому `analysis_id` записи, а не через `activeForVersion`).
      *
      * @param  list<string>  $sources
      * @return LazyCollection<int, DatasetExample>
@@ -112,7 +110,7 @@ final readonly class DatasetExampleReadRepository
 
     /**
      * `source=corrected`-записи без сохранённого `analysis_id` (счётчик `no_analysis_id`) —
-     * миграция D56 не бэкафиллит существующие строки, только НОВЫЕ пишет `GoldExampleRecorder`.
+     * миграция не бэкафиллит существующие строки, только НОВЫЕ пишет `GoldExampleRecorder`.
      *
      * @param  list<string>  $sources
      */

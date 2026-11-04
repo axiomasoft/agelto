@@ -12,7 +12,7 @@ use App\Repositories\Procurement\Process\WorkStoreRepository;
 use Illuminate\Container\Attributes\Bind;
 
 /**
- * DB-порт ownership исполняющего attempt (D13, bp-heartbeat): heartbeat — единственный CAS work
+ * DB-порт ownership исполняющего attempt: heartbeat — единственный CAS work
  * row; checkpoint — guarded progress под subject locks. Оба требуют живой DB lease; истёкший lease
  * не оживляется. DB unavailable — typed DependencyUnavailable, не Lost. Tests подменяют этот порт,
  * а не наследуют final ExecutionContext.

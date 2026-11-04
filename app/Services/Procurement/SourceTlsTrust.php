@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement;
 
 /**
- * Узкое доверие TLS по хосту (`outbound.tls trust policy`, P4.12, D125): единственный
+ * Узкое доверие TLS по хосту (`outbound.tls trust policy`): единственный
  * носитель правила «какой хост каким бандлом» — читать конфиг напрямую из call-site'а запрещено.
  * Отсутствие хоста в карте = системный трест (пустой результат), не отказ.
  */

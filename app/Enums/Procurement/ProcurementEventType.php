@@ -37,9 +37,8 @@ enum ProcurementEventType: string
     case DocumentScreened = 'document_screened';
 
     /**
-     * Смета персистирована в `prc_estimate_*` (P6.3, ТЗ 03 §3.5 п.5): `entityRef` содержит
-     * `document_id`+`estimate_id`, `newValue` — `validation_status`, `payload` — `ordinal`/
-     * `rows_extracted`.
+     * Смета записана в `prc_estimate_*`: `entityRef` содержит document_id и estimate_id,
+     * `newValue` — validation_status, `payload` — ordinal и rows_extracted.
      */
     case EstimateExtracted = 'estimate_extracted';
 }

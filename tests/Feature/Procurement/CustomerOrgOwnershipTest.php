@@ -9,7 +9,7 @@ use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use Tests\Support\Procurement\SnapshotFactory;
 
 /**
- * D24/D28: detail-слой ставит заказчика, листинг не обязан его затирать на новой ревизии.
+ * detail-слой ставит заказчика, листинг не обязан его затирать на новой ревизии.
  */
 test('заказчик, проставленный detail-слоем, переживает новую ревизию листинга', function () {
     $registry = Registry::factory()->eis()->create();

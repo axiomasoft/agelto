@@ -67,6 +67,6 @@ final class AcquisitionPlatformOutbound implements PlatformOutbound
 
         return new FetchItemRejected($rejection->reason,
             new ResponseAssessment($assessment->completeness, $assessment->reason,
-                $assessment->bodyHash, $assessment->confidence, $artifact));
+                $assessment->bodyHash, $assessment->confidence, $artifact, $assessment->failureScope));
     }
 }

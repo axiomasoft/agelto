@@ -13,7 +13,7 @@ use App\Services\Procurement\Gold\GoldValidator;
 use Throwable;
 
 /**
- * Ветвление screening/extraction при импорте ОДНОГО эталонного примера (`estimate:gold:import`, P5.5).
+ * Ветвление screening/extraction при импорте ОДНОГО эталонного примера (`estimate:gold:import`).
  */
 final readonly class GoldExampleImporter
 {

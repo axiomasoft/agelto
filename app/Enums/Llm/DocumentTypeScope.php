@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Llm;
 
 /**
- * Носитель кросс-документного назначения маршрута/промта (D16, §1.2 root/document-type-axis.md):
+ * Носитель кросс-документного назначения маршрута/промта:
  * сентинел "годится для ЛЮБОГО типа документа" — именованная замена голого литерала `'any'`.
  */
 enum DocumentTypeScope: string implements DocumentScope

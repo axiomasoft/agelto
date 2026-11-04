@@ -14,11 +14,9 @@ use App\Services\Llm\PromptCanonReader;
 use RuntimeException;
 
 /**
- * Применение УЖЕ одобренного предложения (D8 — апрув остаётся ЕДИНСТВЕННЫМ путём к файлу): для
- * `prompt_patch` пишет файл канона (оба корня D32, поиск — `PromptCanonReader`) с поднятой версией
- * (D59), для `correction_hint` создаёт `prc_ai_corrections(is_reusable=true)` существующим
- * носителем (D60). Ни одна ветка не применяет предложение без `status=approved` — D8 не про
- * удобство, а про то, что носитель качества всего разбора не меняет машина.
+ * Применяет только предложение со status=approved. Prompt_patch обновляет канонический
+ * файл через PromptCanonReader с повышением версии; correction_hint создаёт reusable
+ * prc_ai_corrections. Одобрение остаётся обязательной отдельной операцией человека.
  */
 final readonly class PromptPatchApplier
 {
@@ -85,7 +83,7 @@ final readonly class PromptPatchApplier
     private function findFileByKey(string $promptKey): string
     {
         return $this->canon->findPathByKey($promptKey)
-            ?? throw new RuntimeException("Файл промта с key={$promptKey} не найден в объединённом пространстве корней канона (D32).");
+            ?? throw new RuntimeException("Файл промта с key={$promptKey} не найден в объединённом пространстве корней канона.");
     }
 
     private function currentVersion(string $path): int
@@ -98,7 +96,7 @@ final readonly class PromptPatchApplier
     /**
      * Поднимает `version` во front-matter на 1 и заменяет тело файла, СОХРАНЯЯ остальные поля
      * front-matter (`document_type`/`key`/`step`/`priority`/`is_active`) — формат, который читает `PromptSeeder`
-     * (Code Guidance P7.4: не изобретать формат файла промта).
+     * (не изобретать формат файла промта).
      */
     private function rewriteFile(string $path, string $newContent, int $newVersion): void
     {

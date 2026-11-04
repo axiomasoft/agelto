@@ -11,16 +11,16 @@ use Spatie\LaravelData\Data;
 
 /**
  * Фиксированная схема `prc_estimate_items.attributes` (jsonb). Ключ, не перечисленный ниже, в
- * `attributes` не пишется вовсе — `EstimateRow::validateAndCreate()` отклоняет неизвестный ключ
- * явно (Implementation Rules P4.5: «фиксированная схема выражается ОТДЕЛЬНЫМ Data-классом, а не
+ * `attributes` не пишется вовсе — `EstimateRow::validateAndCreate` отклоняет неизвестный ключ
+ * явно («фиксированная схема выражается ОТДЕЛЬНЫМ Data-классом, а не
  * свободным array»).
  */
 final class RowAttributes extends Data
 {
     /**
      * Единственный источник истины для допустимых ключей `attributes` — используется
-     * `EstimateRow::validateAndCreate()` для отказа на неизвестном ключе (иначе фиксированная
-     * схема существовала бы только на бумаге, D32).
+     * `EstimateRow::validateAndCreate` для отказа на неизвестном ключе (иначе фиксированная
+     * схема существовала бы только на бумаге).
      *
      * @var list<string>
      */

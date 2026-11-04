@@ -14,14 +14,11 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Сквозной `trace_id` (D25, ТЗ research/J §1): `Context::add()` дегидрируется в payload
- * КАЖДОГО job'а, диспатченного в рамках запроса, и гидрируется обратно в воркере — те же
- * значения едут в логи job'а без ручной прокидки (канон Laravel Context, laravel.com/docs
- * context). Консольный эквивалент — `cmd:<name>:<uuid>` (Code Guidance, точки старта команд
- * пайплайна вне HTTP — `app/Console/Commands/Procurement/*`).
+ * HTTP trace_id сохраняется в Laravel Context, дегидрируется в payload отправленных
+ * jobs и восстанавливается в worker. Console commands используют `cmd:<name>:<uuid>`.
  *
- * Middleware висит в global stack до роутера, поэтому route resolver ещё не установлен. Имя и шаблон
- * пути пишутся на RouteMatched — после match и до handler, — а не из $request->route() в этом месте.
+ * Middleware работает до роутера. Имя и шаблон route записываются на RouteMatched,
+ * после сопоставления запроса и до вызова handler.
  */
 final class AssignTraceId
 {

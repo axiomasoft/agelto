@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\File;
 use Tests\Support\Architecture\PlatformSourceRules;
 
-pest()->group('t22', 't44', 'p313');
+pest()->group('analysis-execution', 'domain-dependency-boundary');
 
 function aiBoundaryViolations(string $source): array
 {

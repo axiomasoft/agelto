@@ -14,12 +14,9 @@ use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 /**
- * Загрузка НОВОГО эталона из формы витрины (`FixtureResource`, P5.1, D133) — единственный сервис
- * этого шага, ЕДИНСТВЕННЫЙ построитель кода и пути остаётся модель `Fixture`
- * (Implementation Rule 2). Порядок обязателен: сначала диск, потом запись (Implementation Rule 3)
- * — запись без файла делает реестр лжецом, файл без записи виден `estimate:fixtures:verify` как
- * orphan. Файл читается и пишется ПОТОКОМ (`hash_file`/`readStream`): реальный эталон корпуса — до
- * сотен мегабайт, `file_get_contents` убивает воркер.
+ * Загрузка эталона из FixtureResource. Модель Fixture задаёт код и путь.
+ * Сначала записывается файл, затем реестр; файл без записи выявляется как orphan
+ * командой estimate:fixtures:verify. Большие файлы читаются и пишутся потоком.
  */
 final readonly class FixtureUploader
 {

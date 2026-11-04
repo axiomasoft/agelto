@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * P7.5 F-02/D133: маршрут сохраняет исходный `NO ACTION` к провайдеру явно.
+ * Маршрут сохраняет `NO ACTION` к провайдеру: используемого провайдера нельзя
+ * удалить, оставив маршрут без связанной конфигурации.
  */
 return new class extends Migration
 {

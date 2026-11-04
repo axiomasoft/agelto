@@ -23,11 +23,8 @@ use Illuminate\Support\Facades\DB;
 use LogicException;
 
 /**
- * Перенос v1-наблюдаемости (`Old/app/Console/Commands/PipelineStuckCheckCommand.php`) на
- * v2-модель (документы/AI-анализы/сметы вместо ссылок/DocumentAnalysis, ТЗ 03 §5): каждая
- * проверка — маленький read-only метод (Implementation Rules — команда не чинит состояние,
- * только сигналит; починка зависших стадий — `pipeline:retry-failed`, P4.3). Инфра-проверки
- * v1 (Redis/queue-depth//dev/shm) — Scope Excluded, принадлежат краулинг-стеку (carry-over).
+ * Read-only диагностика документов, AI-анализов и смет: проверки собирают признаки зависших
+ * стадий, массовых ошибок и backlog, не меняя состояние ledger.
  *
  * Находки агрегируются в ОДНО Telegram-сообщение через `PipelineAlert::notify()`
  * (Code Guidance) с антиспамом по ключу находки (не чаще раза в час на одинаковую находку).
@@ -73,7 +70,7 @@ final class ProcessDiagnosticsCommand extends Command
     }
 
     /**
-     * Анализы в `running` дольше порога при истёкшем лизе (D31): extraction получает СВОЙ,
+     * Анализы в `running` дольше порога при истёкшем лизе: extraction получает СВОЙ,
      * обычно больший порог (`checkpoint_stuck_minutes`) — self-requeue-цепочка легитимно
      * проходит через паузы между checkpoint-прогонами дольше, чем single-shot screening
      * (`analysis_stuck_minutes`); разные конфиг-ключи/finding-ключи не дают двум сигналам
@@ -117,9 +114,7 @@ final class ProcessDiagnosticsCommand extends Command
     /**
      * Документы, застрявшие в discovered/downloaded/prepared/screened сверх порога — разрыв
      * моста между стадиями (screened-затор возможен при выключенном `ai.extraction.enabled` или
-     * перманентных фейлах extraction, ревью K п.20). `discovered` — Д-5 (P7.7, research/10 §3):
-     * провал СКАЧИВАНИЯ раньше не попадал ни в одну проверку — единственный канал, который сам
-     * приходит к человеку (`PipelineAlert`), был слеп к этой стадии. `failed_permanently`
+     * перманентных фейлах extraction). `discovered` включает зависшее скачивание. `failed_permanently`
      * исключены — dead-letter не подбирается ни этой проверкой, ни `pipeline:retry-failed`.
      *
      * @return array<string, string>
@@ -175,7 +170,7 @@ final class ProcessDiagnosticsCommand extends Command
     }
 
     /**
-     * Всплеск терминального `unprocessable` (D32) за окно — вводная владельца «упёрлись в
+     * Всплеск терминального `unprocessable` за окно — вводная владельца «упёрлись в
      * лимит провайдера → сразу видно в системе».
      *
      * @return array<string, string>
@@ -199,7 +194,7 @@ final class ProcessDiagnosticsCommand extends Command
 
     /**
      * Расхождение rows_expected/extracted (ТЗ 03 §5) — сметы, детерминированно помеченные
-     * `EstimateValidator` (P6.2) как suspicious/invalid, за окно.
+     * `EstimateValidator` как suspicious/invalid, за окно.
      *
      * @return array<string, string>
      */
@@ -222,7 +217,7 @@ final class ProcessDiagnosticsCommand extends Command
 
     /**
      * Модель активного маршрута ближе `config('ai.model_eol_warn_days', 30)` дней к `eol_date`
-     * (D27) — защита от «модель молча умерла»; отрицательное число дней — модель УЖЕ прошла
+     * — защита от «модель молча умерла»; отрицательное число дней — модель УЖЕ прошла
      * `eol_date` (условие `<=` покрывает и этот случай).
      *
      * @return array<string, string>
@@ -269,7 +264,7 @@ final class ProcessDiagnosticsCommand extends Command
     }
 
     /**
-     * Backlog (P7.5, D25 Intent п.5) — документов одновременно в downloaded/prepared/screened
+     * Backlog — документов одновременно в downloaded/prepared/screened
      * (ждут следующей стадии) БЕЗ временного порога, в отличие от `stuckDocuments()` (там —
      * возраст конкретных документов); здесь — суммарный объём очереди.
      *
@@ -292,7 +287,7 @@ final class ProcessDiagnosticsCommand extends Command
     }
 
     /**
-     * Доля failed среди завершённых анализов (оба шага) за короткое окно (P7.5, D25 Intent п.5)
+     * Доля failed среди завершённых анализов (оба шага) за короткое окно
      * — быстрый сигнал массового провала (например, протухший API-ключ), в отличие от
      * `spike_window_hours`-счётчиков (сутки).
      *
@@ -327,7 +322,7 @@ final class ProcessDiagnosticsCommand extends Command
     }
 
     /**
-     * «Нет завершений стадии N минут» (P7.5, D25 Intent п.5) — ни одного succeeded-анализа за
+     * «Нет завершений стадии N минут» — ни одного succeeded-анализа за
      * окно ПРИ НЕПУСТОМ backlog (иначе «нечего обрабатывать» ложно читалось бы как «встал»).
      *
      * @return array<string, string>

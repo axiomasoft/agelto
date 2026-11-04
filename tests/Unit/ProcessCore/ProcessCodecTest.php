@@ -32,8 +32,6 @@ use Tests\Support\ProcessCore\ContractFixtures as F;
 use Tests\Support\ProcessCore\FixtureStageCheckpoint;
 use Tests\Support\ProcessCore\FixtureStageResult;
 
-pest()->group('p11');
-
 test('codec сохраняет восемь closed inputs и canonical identity независимо от порядка JSON полей', function (): void {
     $id = F::id();
     $hash = F::hash();

@@ -132,11 +132,11 @@ class SchemaInventoryTest(unittest.TestCase):
                 self.assertRejected(error, actual=actual)
 
     def test_complete_inventory_and_full_document_pass(self):
-        # P3.13 activates canonical AI and removes both legacy run/call tables.
+        # Canonical AI removes both legacy run/call tables.
         self.assertEqual(self.inventory["current_item"], "P3.17")
         self.assertEqual(len(self.inventory["migrations"]), 77)
         self.assertEqual(len(self.inventory["baseline"]["tables"]), 120)
-        # P3.13 adds sealed coverage/publication metadata and normalized estimate provenance.
+        # Sealed coverage/publication metadata and normalized estimate provenance are required.
         self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1429)
         adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
                            for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]

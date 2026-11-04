@@ -3,19 +3,15 @@
 declare(strict_types=1);
 
 /*
- * Versioned outbound policy v1 (platform-transport#defaults, implementation-blueprint#bp-rate-gcra,
- * #bp-throughput). Стартовые инженерные defaults, не measured SLA и не опубликованная квота
+ * Versioned outbound policy v1. Стартовые инженерные defaults, не measured SLA и не опубликованная квота
  * источника. Boot-валидируется `OutboundPolicy` без DB/network I/O; неполная конфигурация
  * отвергается с ключом config. Budget default применяется при создании authority row явным
  * `platform:sync-catalog`; последующее изменение — только audited override (sync не затирает).
- *
- * P2.1 вводит только carriers и catalog; старые `crawler.budget.*`/`crawler.proxy.*` остаются
- * у текущих callers до atomic cutover P2.6.
  */
 return [
     'policy_version' => 1,
 
-    // Physical origin: 15/min независимо от числа proxy; burst1/inflight2 (D10).
+    // Physical origin: 15/min независимо от числа proxy; burst1/inflight2.
     'origin_budget' => ['rate_per_minute' => 15, 'burst' => 1, 'max_inflight' => 2],
 
     // Route-origin внутри того же origin limit: 15/min, burst1, inflight1.

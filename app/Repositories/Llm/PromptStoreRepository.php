@@ -6,11 +6,7 @@ namespace App\Repositories\Llm;
 
 use App\Models\Llm\Prompt;
 
-/**
- * Запись `llm_prompts` — единственная точка персистентности для канона промтов (D5/D17,
- * `root/service-layer-map.md` §7); введение отнесено к P3 (сервисный слой) замороженным
- * контрактом P2.1 §7.
- */
+/** Единственная точка записи runtime-копии канона промтов в `llm_prompts`. */
 final readonly class PromptStoreRepository
 {
     /**

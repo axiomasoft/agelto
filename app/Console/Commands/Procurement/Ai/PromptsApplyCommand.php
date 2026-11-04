@@ -14,10 +14,10 @@ use Illuminate\Console\Command;
 use RuntimeException;
 
 /**
- * Применение УЖЕ одобренного предложения из очереди (P7.4, D8): работает ТОЛЬКО со
+ * Применение УЖЕ одобренного предложения из очереди: работает ТОЛЬКО со
  * `status=approved` — {@see PromptPatchApplier} отказывает на любом другом статусе, ничего не
  * трогая (ни файл, ни БД). Команда САМА не пишет `llm_prompts` — файл коммитит и
- * `ai:prompts:sync` гоняет человек (D59).
+ * `ai:prompts:sync` гоняет человек.
  */
 #[Description('Применить одобренное предложение из очереди prc_ai_prompt_suggestions')]
 #[Signature('ai:prompts:apply

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 /**
- * P3.3 — команда `estimate:eval:diff` (Implementation Rule 8): непокрытая на `--filter=EvalDiff`
+ * команда `estimate:eval:diff` (Implementation Rule 8): непокрытая на `--filter=EvalDiff`
  * до этого item'а (`EstimateDiffReportTest` бьёт по сервису, не по команде). Резолв через
  * {@see FixtureCaseResolver}, без единого LLM-вызова.
  */

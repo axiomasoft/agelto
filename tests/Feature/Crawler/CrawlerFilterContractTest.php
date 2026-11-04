@@ -54,7 +54,7 @@ test('неизвестный ключ фильтра отклоняется на
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     // Строка-нарушитель заведомо чужая: `okpd2Codes` теперь ВАЛИДЕН, и ключ, отличающийся от него
-    // одним суффиксом, сделал бы тест хрупким (research/03-p2-okpd2-design.md §2.4).
+    // Суффикс сделал бы тест хрупким.
     expect(fn () => EisCrawlerFactory::new()->for($registry)->create(
         ['filter' => ['stageUnknown' => true, 'okpd2Codes' => ['43']]]
     ))
@@ -175,7 +175,7 @@ test('реестр без записи в карте фильтров даёт �
         ->toThrow(InvalidPlatformDefinition::class, 'fz223');
 });
 
-test('EisSearchFilter отдаёт окно archive-прогона через контракт HasArchiveWindow (P3.8, D113)', function () {
+test('EisSearchFilter отдаёт окно archive-прогона через контракт HasArchiveWindow', function () {
     $filter = new EisSearchFilter(
         okpd2Codes: ['43'],
         publishedFrom: CarbonImmutable::parse('2025-01-01'),
@@ -194,7 +194,7 @@ test('без заполненных дат archiveWindowFrom/To отдают nul
         ->and($filter->archiveWindowTo())->toBeNull();
 });
 
-test('publishedTo раньше publishedFrom отклоняется валидацией на сохранении профиля (P3.8, D113)', function () {
+test('publishedTo раньше publishedFrom отклоняется валидацией на сохранении профиля', function () {
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
     expect(fn () => EisCrawlerFactory::new()->for($registry)->create([

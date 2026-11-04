@@ -24,15 +24,15 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Тестовый двойник `LlmProvider` (P3.1, ТЗ 04 §2): очередь заготовленных исходов
+ * Тестовый двойник `LlmProvider` (ТЗ 04 §2): очередь заготовленных исходов
  * (успех/обрезание/исключение) + запись полученных промтов для ассертов. Состояния выдаются
  * через фабричные методы `succeeding()`/`truncated()`/`throwing()` (канон тестов проекта —
- * без boolean-флагов); `andThen()` докладывает следующий исход для сценариев re-ask (P3.4).
- * Реализует `SupportsFileUpload` (P5.1 — orchestrator-тесты грузят файл перед классификацией)
+ * без boolean-флагов); `andThen()` докладывает следующий исход для сценариев re-ask.
+ * Реализует `SupportsFileUpload` (orchestrator-тесты грузят файл перед классификацией)
  * заглушкой без реального I/O — `uploadFile()` только фиксирует запрошенные пути/MIME.
- * Реализует `SupportsContextCaching` (P7.1 — `LlmCacheManagerTest`) той же заглушечной схемой:
+ * Реализует `SupportsContextCaching` (`LlmCacheManagerTest`) той же заглушечной схемой:
  * `cacheFailing()` переключает `createCache()`/`refreshCache()`/`deleteCache()` в режим исключения
- * для сценариев «ошибка провайдера → путь без кэша» (Implementation Rules P7.1).
+ * для сценариев «ошибка провайдера → путь без кэша» .
  */
 final class FakeLlmProvider implements LlmProvider, SupportsContextCaching, SupportsFileUpload
 {
@@ -174,7 +174,7 @@ final class FakeLlmProvider implements LlmProvider, SupportsContextCaching, Supp
 
     /**
      * Переключает `createCache()`/`refreshCache()`/`deleteCache()` в режим исключения
-     * (сценарий «ошибка провайдера → путь без кэша», Implementation Rules P7.1).
+     * (сценарий «ошибка провайдера → путь без кэша»).
      */
     public function cacheFailing(): self
     {

@@ -6,10 +6,10 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * P1.6: durable факты фактических внешних запросов attempt и их observations
- * (execution#s04). P2.1 добавил FK target/route на реальные `prc_source_targets`/`prc_network_routes`
- * (их создаёт предыдущая по порядку network migration); writer/readers активирует P2.2–P2.6.
- * `prc_observation_applications` — dedup записи reducer в одной tx с projection.
+ * Durable факты физических запросов и их observations. FK target/route ссылаются
+ * на `prc_source_targets`/`prc_network_routes`, созданные предыдущей network migration.
+ * `prc_observation_applications` дедуплицирует применение reducer в одной транзакции
+ * с обновлением projection.
  */
 return new class extends Migration
 {

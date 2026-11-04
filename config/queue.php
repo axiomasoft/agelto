@@ -72,23 +72,13 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            // Standard pipeline lane. The versioned matrix in documents.format_probe_budgets
-            // binds every job to `job < supervisor < retry_after`; its longest standard
-            // supervisor is extraction (360s), hence the 420s visibility lease.
+            // Default connection for jobs outside Process; Process stages use the connections below.
             'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 420),
             'block_for' => null,
             'after_commit' => false,
         ],
 
-        // OCR is the only bounded-but-minute-scale pipeline call. Keeping it off the standard
-        // Redis visibility lease prevents an OCR-compatible timeout from silently widening every
-        // other queue. PrepareDocumentJob is explicitly routed here.
-
-        // Длинный lease ТОЛЬКО для profile-driven archive lane (P4.7, D117). Это отдельная
-        // logical connection на тот же Redis, иначе standard `redis.retry_after=420` вернёт ещё
-        // работающую часовую job второму воркеру. Остальные очереди не получают новый lease.
-
-        // Process delivery connections (bp-jobs, execution#lane-defaults): общий Redis, но
+        // Process delivery connections: общий Redis, но
         // retry_after каждой connection покрывает самый долгий job своих lanes и остаётся выше
         // Horizon timeout supervisor'ов. `StageQueueMap` сверяет эти числа с process.queues и lease;
         // after_commit не нужен: wake публикует relay из durable outbox, а не job из транзакции.

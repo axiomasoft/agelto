@@ -33,7 +33,7 @@ use InvalidArgumentException;
 /**
  * Accepted screening/extraction result and operator review projection. Work owns execution.
  *
- * Preference-пары для DPO (P9.3) НЕ хранятся отдельной таблицей: chosen выводится из
+ * Preference-пары для DPO НЕ хранятся отдельной таблицей: chosen выводится из
  * `prc_ai_dataset_examples` (gold), rejected — из `result`/`raw_result` анализа, который
  * этот gold заменил (`parent_analysis_id`) — пара собирается запросом на экспорте.
  *
@@ -138,8 +138,8 @@ final class Analysis extends Model
     }
 
     /**
-     * Сметы, персистированные из результата ИМЕННО этого прогона (`EstimatePersister`, P6.3) —
-     * read-путь для Filament (P9.2, «просмотр result/validation_status»).
+     * Сметы, персистированные из результата ИМЕННО этого прогона (`EstimatePersister`) —
+     * read-путь для Filament («просмотр result/validation_status»).
      */
     /** @return HasMany<Estimate, $this> */
     public function estimates(): HasMany
@@ -156,7 +156,7 @@ final class Analysis extends Model
     }
 
     /**
-     * Активные (боевые) анализы: не заменённые перепрогоном и не теневые (P9.1, D24) —
+     * Активные (боевые) анализы: не заменённые перепрогоном и не теневые —
      * то же множество, что покрывает partial unique `(document_version_id, step)`.
      *
      * @param  Builder<Analysis>  $query
@@ -228,7 +228,7 @@ final class Analysis extends Model
 
     /**
      * Полнотекстовый поиск остаётся только по активным v2-screening: выражение в точности
-     * соответствует partial GIN-index из P7.5, а точный tag-якорь использует GIN из P7.2.
+     * соответствует partial GIN-index; точный tag-якорь использует отдельный GIN-index.
      *
      * @param  Builder<Analysis>  $query
      * @return Builder<Analysis>

@@ -162,11 +162,11 @@ delivery generation и attempt linkage (у admitted group attempt отсутст
 проверяют этот guard до supersede/release при изменении input/head. Повреждённая group остаётся
 неизменной, открывается `admission_membership_mismatch`; input invalidation не ремонтирует members.
 
-Проверки: `tests/Feature/ProcessCore/Execution/T11AdmissionFairnessTest.php` (parent+child W,
+Проверки: `tests/Feature/ProcessCore/Execution/AdmissionFairnessTest.php` (parent+child W,
 refill, cohort→stage RR, age/priority/manual FIFO, cap и dynamic cohort, deferred/blocked,
-pause/handler hold, supersede), `T09ClaimDeliveryTest.php` (claim, duplicate/stale/expired/
+pause/handler hold, supersede), `ClaimDeliveryTest.php` (claim, duplicate/stale/expired/
 terminal delivery, parent+child C CapacityWait, pause/hold, membership incident, порядок lock
-tiers, setMode) и многопроцессный `tests/Integration/ProcessCore/Concurrency/T24PauseClaimConcurrencyTest.php`
+tiers, setMode) и многопроцессный `tests/Integration/ProcessCore/Concurrency/PauseClaimConcurrencyTest.php`
 (pause против 10 параллельных claims без deadlock и без grant после commit pause; два feeder ≤ W).
 `make core-test-execution` выполняет эти каталоги после clean reset. Recovery (T09 полностью),
 queue/daemons и document/load T11/T16 — следующие пункты.
@@ -226,19 +226,19 @@ budget не трогается. Global distinct-input detector и снятие h
 
 `StageRegistry::bindFinalization(stage, codec, repository)` — composition seam stage codec
 checkpoint/result и finalization repository; в production пуст, tests привязывают fixtures.
-Проверки: `tests/Feature/ProcessCore/Execution/T09FinalizeFenceTest.php` (атомарный success и
+Проверки: `tests/Feature/ProcessCore/Execution/FinalizeFenceTest.php` (атомарный success и
 successors, D9 late finalize, revocation/cancel → ноль записей, new head → superseded, checkpoint,
-outcome table, item budget, lock tiers без SHARE upgrade), `T25ExecutionContextTest.php` (fake
+outcome table, item budget, lock tiers без SHARE upgrade), `ExecutionContextTest.php` (fake
 LeaseKeeper/clock) и многопроцессный
-`tests/Integration/ProcessCore/Concurrency/T09FinalizeFenceConcurrencyTest.php` (оба порядка
+`tests/Integration/ProcessCore/Concurrency/FinalizeFenceConcurrencyTest.php` (оба порядка
 finalize/revocation, cancel/new head, lost checkpoint CAS, pause против 10 finalize, fault budget
 и journal rollback); `make core-test-concurrency`. Revocation в них — контролируемая fixture под
 тем же full prefix, не RecoveryReconciler (P1.11).
 
-Отрицательные регрессии P19-C1: `P19CorrectionRegressionTest.php` проверяет чужие work/stage
+Отрицательные регрессии P19-C1: `WorkMembershipAndAdmissionGuardsTest.php` проверяет чужие work/stage
 members при claim/finalize, corruption вместе с head drift, missing/extra members и чужой attempt,
 stale eligibility count при ready/due/resume и реальный нулевой checkpoint CAS после expiry.
-`T11AdmissionFairnessConcurrencyTest.php` использует отдельные PG процессы и lock-wait barrier:
+`AdmissionFairnessConcurrencyTest.php` использует отдельные PG процессы и lock-wait barrier:
 ready/resume коммитится между selection и grant без изменения parent cursor. Это тесты текущего
 correction scope; фактический результат их запуска фиксирует coordinator в V1/V3.
 
@@ -319,14 +319,14 @@ heartbeat, backoff 1→30 s. Heartbeat (DB clock) каждые 10 s, в том �
 Feed-daemon при старте вызывает `ProcessAuthoritySync::ensureBaseline`. Scheduler остаётся
 maintenance/schedule producers и не доставляет wake.
 
-Проверки: `T08QueueEnvelopeTest.php` (таблица `StageQueueMap` и отрицательные конфигурации, payload
+Проверки: `QueueEnvelopeTest.php` (таблица `StageQueueMap` и отрицательные конфигурации, payload
 по реальному `createPayload` каждой connection, publisher на connection+queue, publish-before-mark
 duplicate, Redis failure, quarantine, feeder coalescing pending/published, feed daemon),
-`T08WorkRunnerDeliveryTest.php` (job/runner исходы на fixture handlers и реальном ledger),
-`T08DaemonReadinessTest.php` (heartbeat/readiness, loop backoff/recycle, command exit codes) и
-многопроцессный `tests/Integration/ProcessCore/Concurrency/T08OutboxClaimConcurrencyTest.php` (два
+`WorkRunnerDeliveryTest.php` (job/runner исходы на fixture handlers и реальном ledger),
+`DaemonReadinessTest.php` (heartbeat/readiness, loop backoff/recycle, command exit codes) и
+многопроцессный `tests/Integration/ProcessCore/Concurrency/OutboxClaimConcurrencyTest.php` (два
 relay claim-ят непересекающиеся сообщения, чужой kind не затронут). Схема не менялась. Реальная
-публикация в Redis и redelivery после потери Redis проверяет P1.11 (`T31RecoveryReconcileConcurrencyTest`).
+публикация в Redis и redelivery после потери Redis проверяет P1.11 (`RecoveryReconcileConcurrencyTest`).
 
 ## Recovery и управление исполнением (P1.11)
 
@@ -386,13 +386,13 @@ audit, новые required links после cancel запрещены под run
 `observes` до `required`, когда появляется required producer, и не понижает эту роль обратно.
 RBAC, UI-версионирование и ValidateHandler/Pause/Resume actions — P1.17.
 
-Проверки: `T09RecoveryReconcilerTest` (expired running после простоя > 5 мин, admitted redelivery,
-pause/hold, input drift, heartbeat/checkpoint старого владельца), `T22BlockedProviderRecoveryTest`
+Проверки: `RecoveryReconcilerTest` (expired running после простоя > 5 мин, admitted redelivery,
+pause/hold, input drift, heartbeat/checkpoint старого владельца), `BlockedProviderRecoveryTest`
 (EXR-03: late receipt без queue delivery, все исходы, cancel/drift после pre-read, pause, storage
-down, > 50 кандидатов), `T17HandlerFaultRecoveryTest` (historical detector, fault limit, manual retry
-dedup), `T06WorkControlTest` (CancelWork/CancelRun/shared links), многопроцессные
-`T09FinalizeFenceConcurrencyTest` (оба порядка finalize/recovery и cancel на настоящих
-`RecoveryReconciler`/`CancelWork`) и `T31RecoveryReconcileConcurrencyTest` (два reconcile daemon,
+down, > 50 кандидатов), `HandlerFaultRecoveryTest` (historical detector, fault limit, manual retry
+dedup), `WorkControlTest` (CancelWork/CancelRun/shared links), многопроцессные
+`FinalizeFenceConcurrencyTest` (оба порядка finalize/recovery и cancel на настоящих
+`RecoveryReconciler`/`CancelWork`) и `RecoveryReconcileConcurrencyTest` (два reconcile daemon,
 реальный Redis FLUSHALL на изолированном rig, redelivery, одна accepted финализация).
 Readiness/Compose дополнены P1.10 D45 ниже; projector принадлежит P1.14–P1.18.
 
@@ -426,9 +426,9 @@ evidence описывает обнаруженный согласованный 
 вложенный вызов не берёт read locks и не продвигает cadence: scan остаётся due до standalone tick,
 чтобы caller не сохранил SHARE locks за границей read phase и не сделал поздний upgrade.
 
-`T09InvariantScanTest` содержит healthy, cadence60/independent5s, negative fixtures каждого
+`InvariantScanTest` содержит healthy, cadence60/independent5s, negative fixtures каждого
 predicate, >50/restart/progress, manual pause/resume и rollback incident journal. Настоящие PG
-barriers `T09InvariantScanConcurrencyTest` ставят competitor control SHARE и capacity UPDATE между
+barriers `InvariantScanConcurrencyTest` ставят competitor control SHARE и capacity UPDATE между
 read и mutation: capacity освобождена, пока scanner ждёт отдельный control UPDATE. Второй barrier
 перекрывает read snapshots двух scanners и проверяет одну durable пару incident/hold и restart
 no-op. Оба файла входят в текущий execution/concurrency selection; runtime pass доказывают native
@@ -461,8 +461,8 @@ Restart — `unless-stopped`, SIGTERM и grace 60 s позволяют заве�
 application handlers. Isolated Compose/rig не добавляет фоновых daemons: тесты создают собственные
 настоящие heartbeat rows, поэтому существующие двухпроцессные race suites сохраняют контроль
 над своими workers. `ApplicationReadinessTest` проверяет все три роли missing/stale/degraded,
-общий CLI, redaction и прежние семь checks; `T08DaemonReadinessTest` — health CLI каждой роли;
-`T08SupplementalDaemonWiringTest` — разрешённые YAML aliases и image/project fixture values,
+общий CLI, redaction и прежние семь checks; `DaemonReadinessTest` — health CLI каждой роли;
+`SupplementalDaemonWiringTest` — разрешённые YAML aliases и image/project fixture values,
 команды, образ, mounts, restart, health/grace и отсутствие projector в dev/prod declarations.
 Эти tests входят в existing execution/full regression suites. Дополнение закрывает прежнее
 ограничение ApplicationReadiness/Compose; invariant scan и projector здесь не реализуются.
@@ -547,17 +547,17 @@ rollback и новый pre-read, а не поздний lock.
 
 | Сценарий | Проверки |
 | --- | --- |
-| T03 item budget, transport deferral, четвёртая delivery | `Execution/T03WorkBudgetDeliveryTest.php` через `WorkRunner`; `T09FinalizeFenceTest.php` |
-| T06 cancel/new input fence | `T06WorkControlTest.php`, `Concurrency/T09FinalizeFenceConcurrencyTest.php` |
-| T08 commit→publish и publish→mark kill, duplicate, Redis loss | `Concurrency/T31DaemonRedisLossAcceptanceTest.php`, `T08QueueEnvelopeTest.php`, `T08WorkRunnerDeliveryTest.php`, `Concurrency/T08OutboxClaimConcurrencyTest.php` |
-| T09 heartbeat/recovery/finalize barriers, stale owner | `T09*Test.php`, `P19CorrectionRegressionTest.php`, `Concurrency/T09FinalizeFenceConcurrencyTest.php` |
-| T24 pause против параллельных claim/finalize | `Concurrency/T24PauseClaimConcurrencyTest.php`, `Concurrency/T09FinalizeFenceConcurrencyTest.php` |
-| T25 lease keeper/slice/DB loss | `T25ExecutionContextTest.php` |
-| T31 два relay + два reconcile + FLUSHALL + гибель worker | `Concurrency/T31DaemonRedisLossAcceptanceTest.php`, `Concurrency/T31RecoveryReconcileConcurrencyTest.php` |
-| EXR-02 single input → `handler_fault_limit`, journal rollback | `T03WorkBudgetDeliveryTest.php`, `T17HandlerFaultRecoveryTest.php`, `Concurrency/T09FinalizeFenceConcurrencyTest.php` |
-| EXR-03 running → blocked_unknown → late receipt periodic scan | `T22BlockedProviderRecoveryTest.php`, `Concurrency/T31RecoveryReconcileConcurrencyTest.php` |
+| T03 item budget, transport deferral, четвёртая delivery | `Execution/WorkBudgetDeliveryTest.php` через `WorkRunner`; `FinalizeFenceTest.php` |
+| T06 cancel/new input fence | `WorkControlTest.php`, `Concurrency/FinalizeFenceConcurrencyTest.php` |
+| T08 commit→publish и publish→mark kill, duplicate, Redis loss | `Concurrency/DaemonRedisLossAcceptanceTest.php`, `QueueEnvelopeTest.php`, `WorkRunnerDeliveryTest.php`, `Concurrency/OutboxClaimConcurrencyTest.php` |
+| T09 heartbeat/recovery/finalize barriers, stale owner | `T09*Test.php`, `WorkMembershipAndAdmissionGuardsTest.php`, `Concurrency/FinalizeFenceConcurrencyTest.php` |
+| T24 pause против параллельных claim/finalize | `Concurrency/PauseClaimConcurrencyTest.php`, `Concurrency/FinalizeFenceConcurrencyTest.php` |
+| T25 lease keeper/slice/DB loss | `ExecutionContextTest.php` |
+| T31 два relay + два reconcile + FLUSHALL + гибель worker | `Concurrency/DaemonRedisLossAcceptanceTest.php`, `Concurrency/RecoveryReconcileConcurrencyTest.php` |
+| EXR-02 single input → `handler_fault_limit`, journal rollback | `WorkBudgetDeliveryTest.php`, `HandlerFaultRecoveryTest.php`, `Concurrency/FinalizeFenceConcurrencyTest.php` |
+| EXR-03 running → blocked_unknown → late receipt periodic scan | `BlockedProviderRecoveryTest.php`, `Concurrency/RecoveryReconcileConcurrencyTest.php` |
 
-`T31DaemonRedisLossAcceptanceTest` исполняет настоящие сериализованные `ExecuteWorkJob` из Redis:
+`DaemonRedisLossAcceptanceTest` исполняет настоящие сериализованные `ExecuteWorkJob` из Redis:
 каждый relay/reconcile instance — отдельный PHP процесс; worker, погибший после claim, оставляет
 durable running; lease, истёкший меньше чем на 2 s, recovery не трогает, на 3 s — восстанавливает
 за один tick (граница lease + margin + tick). Delivery, зарезервированная до FLUSHALL, приходит
@@ -602,8 +602,8 @@ failed spools are removed. The document owner will supply durable storage accoun
 `wireBytes` is cURL's encoded transfer-body counter, excluding headers/TLS; this does not promise
 a retained wire artifact. Artifact hashes describe transport-decompressed bytes.
 
-Transport-only assertions live in `T03HttpTransportTest`, `T04HttpPolicyTest`, and
-`T47ResponseDecoderTest` (groups p22 plus t03/t04/t05/t21/t25/t28/t47). The server owns fault
+Transport-only assertions live in `HttpTransportTest`, `HttpPolicyTest`, and
+`ResponseDecoderTest` (groups p22 plus t03/t04/t05/t21/t25/t28/t47). The server owns fault
 sequences and receipts; the fixture gate explicitly does not prove future DB permits or health.
 Real loopback HTTP/CONNECT/TLS, stall/headers-late/45s progress, cancellation, full timeout fit,
 strict encoding, gzip/byte limits, memory ceiling and cleanup are exercised in the isolated rig.
@@ -648,9 +648,9 @@ the complete core prefix plus financial rows in the SAME transaction and roll ba
 on any denial. Only its committed successful claim may create a single-use prepared transport;
 no separate financial gate or provider retry is activated here.
 
-Current proof files (groups `p23`, mapped to `core-test-network`) are `T23GcraConcurrencyTest`,
-`T34BoundedFifoDemandTest`, `T35ClaimSendFenceTest`, `T36StatusCapacityQuotaTest`, and
-`T37NetworkDemandRecoveryTest`. They use real PostgreSQL locks and local HTTP receipts, including
+Current proof files (groups `p23`, mapped to `core-test-network`) are `GcraConcurrencyTest`,
+`BoundedFifoDemandTest`, `ClaimSendFenceTest`, `StatusCapacityQuotaTest`, and
+`NetworkDemandRecoveryTest`. They use real PostgreSQL locks and local HTTP receipts, including
 8 separate backend PIDs, duplicate claim, reserve→pause/hold/retire/429, all-or-none scope grant,
 64-ticket ordering, quota accounting, stale head/bridge cleanup, and late coverage while HTTP
 is still active. Fixture rate 600/min accelerates timing; defaults stay 15/min. A DB fixture models
@@ -705,8 +705,8 @@ FIFO/GCRA and origin/probe capacity budgets through `ScheduledAttemptGate`. The 
 the exact token footprint again. Expired tokens cannot reclaim themselves; the next operation
 gets a fresh token. Cancellation releases the complete probe set without failure penalties.
 
-Scoped proof files (group `p24`, existing `core-test-network` mapping): `T04RouteHealthTest`,
-`T05ProbeOwnershipTest`, `T29HealthReducerTest`. They inspect real PostgreSQL facts, actual local
+Scoped proof files (group `p24`, existing `core-test-network` mapping): `RouteHealthTest`,
+`ProbeOwnershipTest`, `HealthReducerTest`. They inspect real PostgreSQL facts, actual local
 HTTP/CONNECT receipts,20 independent backend contenders for one actual probe, duplicate outcome
 races, stale owner fencing, observation-insert rollback, deterministic thresholds and600s decay.
 Synthetic typed outcomes test reducer policy; they do not substitute for the real wire/concurrency
@@ -732,13 +732,13 @@ returns the durable rate-limit decision; request outcome and observation retain 
 body failure. Observation details store HTTP status, bounded printable Retry-After plus its hash,
 and the quota decision/RetryAt. Quota responses do not increase proxy failure counters.
 
-P25-01 regression: `T35ClaimSendFenceTest` kills a real PHP/PostgreSQL worker immediately before
+P25-01 regression: `ClaimSendFenceTest` kills a real PHP/PostgreSQL worker immediately before
 receipt commit and immediately after `record` returns. It checks rollback/all-or-none state,
 idempotent retry, unchanged RetryAt and zero additional local-server receipts from reserved or
 fresh callers. Its pre-commit replay uses a test-owned copy of the received response; a production
 crash before factual commit can still leave an unknown request.
 
-P25-02 regressions in `T04HttpPolicyTest` and `T35ClaimSendFenceTest` combine HTTP 429/Retry-After
+P25-02 regressions in `HttpPolicyTest` and `ClaimSendFenceTest` combine HTTP 429/Retry-After
 with invalid UTF-8, invalid gzip, unsupported encoding, gzip expansion and plain entity overflow.
 They assert both HTTP/body facts and the durable origin fence. The tests retain sanitized SQL and
 local-server evidence under test storage `app/testing/process-core/quota-evidence/<process>/`.
@@ -802,7 +802,7 @@ are under `.swissknifeman/orch-artifacts/p26-cutover-20261029/`. Formal independ
 owned by P2.8. This records repository acceptance; production deployment is a separate operation.
 
 Diagnostic and operator recovery commands are documented in
-[the process rig runbook](runbooks/process-test-rig.md#p26-диагностика-и-восстановление-после-переключения-сети).
+[the process rig runbook](runbooks/process-test-rig.md#диагностика-и-восстановление-сети).
 
 ## P2.14: canonical identity и extension persistence
 
@@ -848,9 +848,9 @@ locks до work lock и discovery closure после создания successors
 
 | Assertions | Файл | Group / owning target |
 |---|---|---|
-| T07: real EIS parser, partial rejection, full codec/publication | `T07ListingHandlerTest.php` | t07,p23 / core-test-acquisition |
-| T27: inclusive/decimal, deletion-before-offset, content stability, outage, split/debt, closing reconciliation, interrupted passes, rollback | `T27ListingCoverageTest.php` | t27,p23 / core-test-acquisition |
-| T09/T27: two actual PG owners, one accepted publication and successor graph | `T27ListingConcurrencyTest.php` | t09,t27,p23 / core-test-acquisition |
+| T07: real EIS parser, partial rejection, full codec/publication | `ListingHandlerTest.php` | t07,p23 / core-test-acquisition |
+| T27: inclusive/decimal, deletion-before-offset, content stability, outage, split/debt, closing reconciliation, interrupted passes, rollback | `ListingCoverageTest.php` | t27,p23 / core-test-acquisition |
+| T09/T27: two actual PG owners, one accepted publication and successor graph | `ListingConcurrencyTest.php` | t09,t27,p23 / core-test-acquisition |
 
 Файлы находятся в `tests/Feature/ProcessCore/Acquisition/`. Адресные логи и hashes
 текущего candidate: `storage/app/testing/process-core/reports/p215-executor/`.
@@ -863,7 +863,7 @@ watermarks rebuildable из durable page receipts. Исторический об
 
 P2.19 сверяет producer cutover P2.18 с contracts `observability#s04` и `execution#s10`
 на настоящих `AcquisitionScheduler`, `ListingFinalizer` и `DetailFinalizer`.
-Сценарии находятся в `tests/Feature/ProcessCore/Acquisition/T18RunLifecycleProducerTest.php`
+Сценарии находятся в `tests/Feature/ProcessCore/Acquisition/RunLifecycleProducerTest.php`
 (groups t17,t18,t02,p23; target `core-test-acquisition`):
 
 | Сценарий | Что доказывает |
@@ -988,7 +988,7 @@ assembly, но runtime registration, pending intent activation, prepare successo
 jobs/dispatcher принадлежат P3.3/P3.5. Existing consumers остаются на прежнем пути до cutover.
 Никакой real AI stage здесь не активирован.
 
-Assertions P3.2 находятся в `T03DownloadRevalidationTest` (groups t03/t10/t12/p32): реальные
+Assertions P3.2 находятся в `DownloadRevalidationTest` (groups t03/t10/t12/p32): реальные
 PostgreSQL + cURL HTTP/proxy, bounded failures, no direct fallback, corrupt/oversized/truncated
 bytes, signed refresh, source outage после bytes, stale head/takeover/expiry, journal rollback,
 A→B→A и два процесса due allocator. Prepare/analysis independence проверяется следующими

@@ -13,11 +13,11 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * GAP-8/P5.3: `regulatory_base` хранит цитату редакции нормативов формы 421/пр; дополнения и
- * письмо индексов остаются в passport. D114/P6.2: `raw_result_disk` адресует сырой ответ LLM
- * вне ILM-префикса и образует пару с `raw_result_ref`, без default. P8.4/D136/D155/D74:
- * `validation_notes` хранит ValidationReport::$notes сметы. P7.5 F-01/F-02: `verified_by`
- * индексирован; аудируемые FK сохраняют явные `NO ACTION`/`RESTRICT`.
+ * `regulatory_base` хранит цитату редакции нормативов формы 421/пр;
+ * дополнения и письмо индексов остаются в passport. `raw_result_disk` и `raw_result_ref`
+ * адресуют сырой ответ LLM явно, без default диска. `validation_notes` хранит
+ * ValidationReport::$notes; `verified_by` индексирован. Аудируемые FK сохраняют
+ * `NO ACTION`/`RESTRICT`.
  */
 return new class extends Migration
 {
@@ -37,17 +37,14 @@ return new class extends Migration
                 ->constrained(table: (new DocumentVersion)->getTable())
                 ->onDelete('NO ACTION');
 
-            // Nullable (D98): обучающий контур работает с документами вне закупки (D19) — guard,
-            // пропускавший такие документы, снят в EstimatePersister.
+            // Nullable: обучающий контур работает и с документами без связанной закупки.
             $table->foreignId('procurement_id')
                 ->nullable()
                 ->index()
                 ->constrained(table: (new Procurement)->getTable())
                 ->onDelete('RESTRICT');
 
-            // Денормализация с документа прогона (§4.2 root/document-contour.md, D91, тот же
-            // приём, что procurement_id выше, D98) — ответ на вопрос «с какой площадки эта смета»
-            // без джойна через закупку и единственный носитель правила показа (§4).
+            // Площадка денормализована с документа прогона: смета доступна и без связанной закупки.
             $table->foreignId('platform_id')
                 ->index()
                 ->constrained(table: (new Platform)->getTable())
@@ -56,7 +53,7 @@ return new class extends Migration
             // Порядковый номер сметы внутри одного анализа (в файле может быть несколько смет).
             $table->smallInteger('ordinal')->default(1);
 
-            // `title` — УДАЛЕНА (D100): производное значение, синтезируется аксессором Estimate::title().
+            // `title` — УДАЛЕНА: производное значение, синтезируется аксессором Estimate::title().
             $table->text('estimate_number')->nullable();
             $table->decimal('total_amount', total: 18, places: 2)->nullable();
             $table->char('currency', length: 3)->nullable();
@@ -66,14 +63,14 @@ return new class extends Migration
                 ->nullable()
                 ->comment('редакция сметных нормативов — цитата документа; заполняет контракт LLM (PassportResponse)');
 
-            // text + PHP backed enum CalcMethod (D105), не Postgres native enum.
+            // text + PHP backed enum CalcMethod, не Postgres native enum.
             $table->text('calc_method')->nullable();
 
-            // Сводные трудозатраты (SR-07); строчный уровень — prc_estimate_resources.resource_type='labor'.
+            // Сводные трудозатраты; строчный уровень — prc_estimate_resources.resource_type='labor'.
             $table->decimal('labor_hours_workers', total: 18, places: 6)->nullable();
             $table->decimal('labor_hours_machinists', total: 18, places: 6)->nullable();
 
-            // Реквизиты акта (SR-12, D102); договор подряда — ключи passport.contract_number/contract_date.
+            // Реквизиты акта; договор подряда — ключи passport.contract_number/contract_date.
             $table->text('document_number')->nullable();
             $table->date('document_date')->nullable();
             $table->date('period_start')->nullable();
@@ -94,7 +91,7 @@ return new class extends Migration
             $table->jsonb('validation_notes')->nullable()
                 ->comment('ValidationReport::$notes сметы целиком — research/12-uncertainty-model.md §5');
 
-            // Ось «оператор проверил боевой разбор» (D89/D99) — без писателя внутри плана.
+            // Проверка оператором — отдельный факт с автором и временем.
             $table->timestampTz('verified_at')->nullable();
             $table->foreignId('verified_by')
                 ->nullable()
@@ -102,7 +99,7 @@ return new class extends Migration
                 ->constrained(table: (new User)->getTable())
                 ->nullOnDelete();
 
-            // Адрес сметы в многосметном документе (D106, дополнение P4.3) — заполняет БЭКЕНД;
+            // Адрес сметы в многосметном документе (дополнение) — заполняет БЭКЕНД;
             // система координат колонкой не хранится, вычисляется аксессором Estimate::sourceKind().
             $table->text('source_sheet_name')->nullable();
             $table->smallInteger('source_row_start')->nullable();

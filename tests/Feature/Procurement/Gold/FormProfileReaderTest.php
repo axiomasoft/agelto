@@ -6,7 +6,7 @@ use App\Dto\Procurement\Gold\GoldFormProfile;
 use App\Services\Procurement\Gold\FormProfileReader;
 
 /**
- * Контракт `estimates/gold/<CODE>.profile.json` (version 2, P5.2, D117) — чтение отклоняет
+ * Контракт `estimates/gold/<CODE>.profile.json` (version 2) — чтение отклоняет
  * разметку, недоказанную СТРУКТУРНО (без книги): неизвестный ключ на любом уровне; версия ≠ 2;
  * `header_cells` отсутствует у объявленной колонки; адрес цитаты вне `header_rows`; ни одна часть
  * цитаты не лежит в своей колонке; `data_row_start` ≤ последней строке `header_rows`; `ordinal`

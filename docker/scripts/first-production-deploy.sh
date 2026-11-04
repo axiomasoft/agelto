@@ -50,7 +50,7 @@ data|mutation|postgres,redis,minio healthy|resume at data
 migration|mutation|schema migration receipt|resume at migration
 seed-base|mutation|idempotent base-seed receipt|resume at seed-base
 initial-admin|mutation|create-only admin receipt|resume at initial-admin
-workers|mutation|queue,scheduler,reverb health|resume at workers
+workers|mutation|horizon,scheduler,process-relay,process-reconciler,process-feeder,process-projector health|resume at workers
 assets|mutation|assets and private-doc manifest|resume at assets
 readiness|check|application readiness JSON|repair service and rerun
 doctor|check|Doctor agent JSON|repair finding and rerun

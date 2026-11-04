@@ -26,5 +26,5 @@ preflight/backup/compatibility prefix.
 
 Current P12 never invokes live apply. The follow-up rehearsal owns registry authentication, queue
 measurements, image promotion, migrations, HTTPS readiness/canary and the release approval. Use only
-the canonical rows in `P12-command-matrix.md`; no host build, floating tag, implicit retry or blind
+the canonical rows in текущий inventory команд; no host build, floating tag, implicit retry or blind
 Compose shutdown is permitted.

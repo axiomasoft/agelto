@@ -10,7 +10,7 @@ use App\Enums\Procurement\Process\DaemonKind;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Writer/reader prc_process_daemon_heartbeats (bp-daemons). Heartbeat — liveness loop: время всегда
+ * Writer/reader prc_process_daemon_heartbeats. Heartbeat — liveness loop: время всегда
  * DB clock, не PHP. Readiness отдельно: last_error_code хранит текущую dependency/processing ошибку
  * и сбрасывается первым чистым tick. Authority над work это не даёт: таблица только для health.
  */
@@ -19,7 +19,7 @@ final readonly class DaemonHeartbeatRepository
     /** Instance, молчащий дольше этого срока, — след прошлого рестарта, а не живой daemon. */
     private const int STALE_RETENTION_SECONDS = 86_400;
 
-    public function register(ProcessUuid $instance, DaemonKind $kind): void
+    public function register(ProcessUuid $instance, DaemonKind $kind, ?string $errorCode = null): void
     {
         DB::delete(
             'DELETE FROM prc_process_daemon_heartbeats WHERE last_tick_at < clock_timestamp() - make_interval(secs => ?)',
@@ -27,13 +27,13 @@ final readonly class DaemonHeartbeatRepository
         );
         DB::insert(
             'INSERT INTO prc_process_daemon_heartbeats (instance_id, daemon, host, pid, started_at, last_tick_at, last_error_code)
-             VALUES (?, ?, ?, ?, clock_timestamp(), clock_timestamp(), NULL)
-             ON CONFLICT (instance_id) DO UPDATE SET last_tick_at = clock_timestamp(), last_error_code = NULL',
-            [$instance->value, $kind->value, gethostname() ?: 'unknown', getmypid() ?: 0],
+             VALUES (?, ?, ?, ?, clock_timestamp(), clock_timestamp(), ?)
+             ON CONFLICT (instance_id) DO UPDATE SET last_tick_at = clock_timestamp(), last_error_code = EXCLUDED.last_error_code',
+            [$instance->value, $kind->value, gethostname() ?: 'unknown', getmypid() ?: 0, $errorCode],
         );
     }
 
-    /** false — строки нет (удалена retention): loop продолжает работать, readiness покажет Down. */
+    /** false — строки нет: loop повторит регистрацию живого instance перед следующим heartbeat. */
     public function beat(ProcessUuid $instance, ?string $errorCode): bool
     {
         return DB::update(

@@ -15,7 +15,7 @@ use Spatie\LaravelData\Support\Validation\ValidationContext;
 /**
  * Ответ LLM на шаге screening (первичный анализ, docs/specs/v2/03-document-pipeline.md §3.4;
  * docs/specs/v2/08-estimate-extraction.md §3.5). Модель получает только первые N страниц
- * документа (D6) — это дешёвая классификация, не извлечение данных.
+ * документа — это дешёвая классификация, не извлечение данных.
  */
 final class ScreeningResult extends Data implements StructurallyValidatable
 {

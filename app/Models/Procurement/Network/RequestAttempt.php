@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Один фактический внешний send внутри work attempt (execution#s01). Route/target FK на реальные
- * network rows установлены P2.1; writer активирует P2.2–P2.6, до этого carrier без writer.
+ * Один фактический внешний send внутри work attempt. Route/target FK ссылаются на реальные
+ * network rows; send authorization и factual completion сохраняются раздельно.
  *
  * @property string $request_id
  * @property string|null $attempt_id

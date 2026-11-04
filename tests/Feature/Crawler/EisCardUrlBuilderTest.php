@@ -31,12 +31,12 @@ test('buildUrl бросает исключение при отсутствии �
     (new EisCardUrlBuilder(new EisCardRoutes([])))->buildUrl('fz44', 'ea20', 'common-info', '0173200001234000001');
 })->throws(CardUrlTemplateMissingException::class);
 
-test('buildUrl возвращает null для явного маркера «вкладки нет по природе» (D121), а не бросает исключение', function () {
+test('buildUrl возвращает null для явного маркера «вкладки нет по природе», а не бросает исключение', function () {
     $url = (new EisCardUrlBuilder((new EisCardCatalog)->routes()))->buildUrl('fz44', 'ea615', 'supplier-results', '0173200001234000001');
     expect($url)->toBeNull();
 });
 
-test('buildUrl различает маркер null и отсутствующий ключ — отсутствие ключа остаётся ошибкой конфигурации (D121)', function () {
+test('buildUrl различает маркер null и отсутствующий ключ — отсутствие ключа остаётся ошибкой конфигурации', function () {
     $templates = (new EisCardCatalog)->cardUrlTemplates();
     unset($templates['ea615']['supplier-results']);
 

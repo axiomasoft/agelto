@@ -17,9 +17,9 @@ use App\Services\Procurement\Tuning\PromptCritic;
 use InvalidArgumentException;
 
 /**
- * Цикл «кейсы × шаги» с `--limit` (`estimate:prompts:suggest`, D108, вынесено из
- * `PromptsSuggestCommand`, P3.3): резолв кейса и gold — {@see FixtureCaseResolver}, ОБЩИЙ с
- * `estimate:eval:diff` (Implementation Rule 3 P3.3) — резолвер БРОСАЕТ всегда, здесь ловится
+ * Цикл «кейсы × шаги» с `--limit` (`estimate:prompts:suggest`, вынесено из
+ * `PromptsSuggestCommand`): резолв кейса и gold — {@see FixtureCaseResolver}, ОБЩИЙ с
+ * `estimate:eval:diff` — резолвер БРОСАЕТ всегда, здесь ловится
  * ПОКЕЙСНО и записывается `ItemOutcome(rejected)` (цикл продолжается, как раньше).
  */
 final readonly class PromptSuggestionRunner
@@ -66,7 +66,7 @@ final readonly class PromptSuggestionRunner
             $diff = $this->diffReport->build($goldEstimates, $predictedEstimates)->toArray();
             $fixtureId = $this->fixtures->findByCode($code)?->id;
 
-            // Порядок инвертирован (D101 п. г): предмет (Analysis несёт document_type) резолвится
+            // Порядок инвертирован: предмет (Analysis несёт document_type) резолвится
             // раньше шагов — значение `step` без типа документа неоднозначно по контракту (§5.4 п.3).
             $documentType = $analysis->document_type !== null
                 ? (AiDocumentType::tryFrom($analysis->document_type) ?? DocumentTypeScope::Any)

@@ -8,9 +8,9 @@ use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Procurement\Ai\AiDocumentType;
 
 /**
- * Классификационная метрика скрининга (P5.6, D5/D44) — независима от `App\Services\Procurement\
+ * Классификационная метрика скрининга — независима от `App\Services\Procurement\
  * Extraction\EvalMetrics` (field-level F1, §8.4): скрининг сравнивает ОДНО поле, `document_type`
- * (§8.5). Ключевое число — `false_positive_rate` (D5: ложное срабатывание «не смета → смета»
+ * (§8.5). Ключевое число — `false_positive_rate` (ложное срабатывание «не смета → смета»
  * дороже пропуска, документ уходит в дорогое извлечение впустую), не средняя `accuracy` — при
  * малом числе негативов accuracy маскирует именно этот класс ошибок.
  */

@@ -63,8 +63,8 @@ Definition к catalog sync, CLI validation и optional UI resolver. По уто�
 JSON теперь разбирает собственный JSON layout, opaque identity/cursor и один detail endpoint.
 
 Адресные assertions находятся в
-`tests/Feature/ProcessCore/Platforms/T38PlatformBootValidationTest.php` и `T43EisPolicyTest.php`.
-P2.10 добавляет `T39AdapterResultsTest.php` (groups t02/t27/t39/p22). Он не доказывает
+`tests/Feature/ProcessCore/Platforms/PlatformBootValidationTest.php` и `EisPolicyTest.php`.
+P2.10 добавляет `AdapterResultsTest.php` (groups t02/t27/t39/p22). Он не доказывает
 durable acquisition/finalizer, T41/T42/T45 или полноту следующего среза.
 
 ## Neutral results и планы запросов (P2.10)
@@ -166,7 +166,7 @@ Handler должен сохранить bytes и прикрепить ArtifactRe
 item rejection. Partial принимает durable checkpoint вызывающего handler и перечисляет missing
 required parts. Complete result требует собственного validated publication; bridge его не создаёт.
 
-`T39FetchOutcomeBridgeTest` проводит EIS/JSON fetch через настоящий WorkRunner/PG finalizer:
+`FetchOutcomeBridgeTest` проводит EIS/JSON fetch через настоящий WorkRunner/PG finalizer:
 no-route, exhausted, rate, held, truncated listing, required detail/schema и три genuine rejects.
 Проверяются state/reason/due, отдельные counters, отсутствие canonical publication и четвёртого
 fetch после exhaustion. Outbound здесь deterministic recording port: эти тесты не заявляют новых
@@ -200,7 +200,7 @@ EisDefinition сохраняет действующие target keys `csv`, `card
 Полная интеграция EIS sections в Resources и T48 остаются в P3.16–P3.19; сейчас EIS/JSON не
 объявляют UI extension. Никакого table extras API или hardcoded relation не добавлено.
 
-`T45SourceCatalogSyncTest` в Platforms проверяет actual EIS/JSON definitions, repeat sync,
+`SourceCatalogSyncTest` в Platforms проверяет actual EIS/JSON definitions, repeat sync,
 overrides, retirement до claimSend и отказ нового permit. Существующий Network/T45 сохраняет
 machinery cases. `PlatformUiExtensionTest` проверяет optional seam и CLI без I/O.
 
@@ -239,8 +239,8 @@ make core-test-report
 ```
 
 Контракты команд и evidence описаны в [runbook стенда](runbooks/process-test-rig.md).
-Исторический `docker/tests/platform-extension-contract.sh` привязан к старому окружению и plan views;
-он не является интерфейсом текущей приёмки. Не используйте `|| true` или `--fix`:
+`docker/tests/platform-extension-contract.sh` содержит дополнительные legacy integration checks;
+текущая приёмка выполняется через isolated `core-test-platforms`. Не используйте `|| true` или `--fix`:
 любой exit code остаётся красным. `core-test-platforms` с P2.9 запускает текущие T38/T43
 из `tests/Feature/ProcessCore/Platforms` и platform architecture checks через isolated harness
 после guarded clean reset. Empty/skipped selection остаётся ошибкой. Адаптерные assertions

@@ -9,13 +9,7 @@ use App\Services\Storage\DiskBackfillRunner;
 use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\Storage;
 
-/*
- * `storage:disk-backfill` (P6.5, `research/07-storage-addressing.md` §6): материализация `null` →
- * фактическое имя диска (`--materialize-only`) и перенос с верификацией sha256/размера
- * (`--to=<disk>`) — обновление записи ТОЛЬКО после совпадения на приёмнике, resumable через
- * `--from-id`, идемпотентно.
- */
-
+/** Проверяет материализацию и перенос объектов с проверкой размера и хеша. */
 beforeEach(function (): void {
     Storage::fake('documents_v1');
     Storage::fake('documents_v2');

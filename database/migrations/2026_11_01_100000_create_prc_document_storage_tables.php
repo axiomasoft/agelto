@@ -8,7 +8,7 @@ use App\Models\Procurement\Document\StorageReservation;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-/** Real storage ownership, staged until the document runtime cutover. */
+/** Storage capacity, immutable blobs and reference/deletion gates share durable ownership. */
 return new class extends Migration
 {
     public function up(): void

@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Durable намерение операции над subject (execution#s10): intent_key unique, один active на
+ * Durable намерение операции над subject: intent_key unique, один active на
  * (stage, subject). Создаётся до work, work ссылается на intent FK.
  *
  * @property string $id

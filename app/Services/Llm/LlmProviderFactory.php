@@ -14,8 +14,8 @@ use Illuminate\Contracts\Container\Container;
 
 /**
  * Единственный `match` по строке драйвера `llm_providers.driver` в проекте
- * (`root/service-layer-map.md` §8) — до этого класса `LlmRouteResolver::providerFor()` и
- * `CachesCommand::providerForDriver()` держали ДВЕ независимые копии одного и того же
+ * — до этого класса `LlmRouteResolver::providerFor` и
+ * `CachesCommand::providerForDriver` держали ДВЕ независимые копии одного и того же
  * ветвления; появление второго провайдера теперь меняется в ОДНОМ месте.
  */
 final readonly class LlmProviderFactory
@@ -41,7 +41,7 @@ final readonly class LlmProviderFactory
     {
         return match ($driver) {
             'gemini' => $this->container->make(UnsupportedProvider::class),
-            // OpenAI-совместимый транспорт (vLLM/Ollama, P9.4, ТЗ 04 §7) — stateless: base_url/
+            // OpenAI-совместимый транспорт (vLLM/Ollama, ТЗ 04 §7) — stateless: base_url/
             // api_key приходят через `LlmOptions`, не через конструктор.
             'openai_compatible' => $this->container->make(OpenAiCompatibleProvider::class),
             default => throw new UnknownProviderDriver($driver),

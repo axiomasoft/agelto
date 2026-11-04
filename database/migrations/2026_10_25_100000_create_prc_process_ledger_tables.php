@@ -6,18 +6,18 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * P1.6: PostgreSQL ledger исполнения (D2/D9, implementation-blueprint#bp-ddl-core). Порядок —
- * зависимости FK: control authority и lanes → runs → incidents до handler-version authority и
- * transitions → реальные crawl subjects → intents до work → attempts → admission groups/members →
- * run links/journal/outbox → daemon heartbeat. `prc_process_controls` нет: manual mode и default
- * живут в `prc_control_scopes`.
+ * PostgreSQL ledger исполнения. Порядок CREATE следует зависимостям FK:
+ * control scopes и lanes → runs/incidents → handler authority и transitions →
+ * crawl subjects/intents → work/attempts → admission groups/reservations →
+ * run links/journal/outbox → daemon heartbeat.
  *
- * Stage CHECK = SchemaSupportedStages текущего baseline (listing/detail/status_refresh/download);
- * owners prepare/screening/extraction/publication и их FK добавляют P3.1/P3.8 в этот же файл.
- * Время только `timestamptz`; lease/due решения принимаются по `clock_timestamp()`. Nullable
- * JSON/version pairs и положительные schema_version закрыты CHECK (общее правило inventory).
- * P2.1: `prc_attempt_work_pair` — цель составного FK network demand (attempt_id, work_id),
- * поэтому demand не может сослаться на attempt чужой work.
+ * CHECK стадий покрывает listing, detail, status_refresh, download, prepare, screening,
+ * extraction и publication. Каждая work имеет ровно один concrete subject своей стадии.
+ * Lease/due решения используют `clock_timestamp()` и timestamptz; JSON/version pairs
+ * и положительные schema_version защищены CHECK.
+ *
+ * Составной FK network demand `(attempt_id, work_id)` ссылается на
+ * `prc_attempt_work_pair` и запрещает привязать demand к attempt чужой work.
  */
 return new class extends Migration
 {
@@ -193,7 +193,7 @@ return new class extends Migration
             )
             SQL,
             "CREATE UNIQUE INDEX prc_operation_intents_one_active_unique ON prc_operation_intents (stage, subject_kind, subject_id) WHERE state = 'active'",
-            // Owner tuple: ровно один непустой concrete subject FK своей стадии; P3.1/P3.8 расширяют CHECK и FK.
+            // Owner tuple: ровно один непустой concrete subject FK, соответствующий стадии.
             <<<'SQL'
             CREATE TABLE prc_process_work (
               id uuid PRIMARY KEY,
@@ -269,7 +269,7 @@ return new class extends Migration
             "CREATE INDEX prc_process_work_claim_idx ON prc_process_work (dispatch_claim_until, id) WHERE state = 'admitted'",
             "CREATE INDEX prc_process_work_fairness_idx ON prc_process_work (stage, cohort_key, created_at, id) WHERE state IN ('ready','deferred')",
             'CREATE INDEX prc_process_work_run_idx ON prc_process_work (origin_run_id, stage, state)',
-            // EXR-03: отдельный DB-clock reconciliation schedule blocked(provider_result_unknown), не business due.
+            // Отдельный DB-clock reconciliation schedule для blocked(provider_result_unknown), вне business due.
             "CREATE INDEX prc_process_work_provider_recovery_due_idx ON prc_process_work (provider_recovery_due_at, id) WHERE state = 'blocked' AND reason_code = 'provider_result_unknown'",
             <<<'SQL'
             CREATE TABLE prc_process_attempts (
@@ -292,7 +292,7 @@ return new class extends Migration
             )
             SQL,
             'CREATE INDEX prc_process_attempts_fault_idx ON prc_process_attempts (handler_version, fault_signature, finished_at) WHERE fault_signature IS NOT NULL',
-            // EXR-02 handler_fault_budget: authority — finished faulted attempts exact(work_id,handler_version), без counter.
+            // handler_fault_budget: authority — finished faulted attempts exact(work_id,handler_version), без counter.
             'CREATE INDEX prc_process_attempts_work_fault_idx ON prc_process_attempts (work_id, handler_version) WHERE fault_signature IS NOT NULL AND finished_at IS NOT NULL',
             'CREATE INDEX prc_process_attempts_fault_policy_pending_idx ON prc_process_attempts (finished_at, id) WHERE fault_signature IS NOT NULL AND fault_policy_checked_at IS NULL',
             <<<'SQL'
@@ -310,7 +310,7 @@ return new class extends Migration
             )
             SQL,
             "CREATE UNIQUE INDEX prc_admission_groups_active_work_unique ON prc_admission_groups (work_id) WHERE state <> 'released'",
-            // Release = DELETE членов + group released в одной tx; CASCADE — composition-child исключение D27.
+            // Release удаляет reservations и переводит group в released одной транзакцией; CASCADE ограничен составными reservations.
             <<<'SQL'
             CREATE TABLE prc_process_reservations (
               admission_group_id uuid NOT NULL REFERENCES prc_admission_groups(id) ON DELETE CASCADE,

@@ -36,7 +36,7 @@ use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Str;
 
 /**
- * Единственная точка guarded завершения attempt (execution#s03, bp-sql-finalize). finish
+ * Единственная точка guarded завершения attempt. finish
  * исчерпывающе dispatch-ит пять closed StageOutcome: success в complete, остальные четыре в
  * settle; неизвестный вариант — LogicException, не success. finishHandlerFault — entrypoint того же
  * full-prefix finalizer для unexpected programming Throwable: без новой StageOutcome variant,
@@ -92,7 +92,7 @@ final readonly class WorkFinalizer
     }
 
     /**
-     * Locked per-work/version budget (execution#handler-fault-budget): prior finished faults этой
+     * Locked per-work/version budget: prior finished faults этой
      * work и executing handler version + текущий; ниже limit — deferred(handler_fault, +60 s), на
      * limit — blocked(handler_fault_limit) с exhaustion incident. Item budget не тратится; rollback
      * не расходует budget. Global distinct-input detector работает отдельно после commit.
@@ -146,7 +146,7 @@ final readonly class WorkFinalizer
     }
 
     /**
-     * Optional sinks строго после внешнего commit (observability#s03). Envelope берётся из принятого
+     * Optional sinks строго после внешнего commit. Envelope берётся из принятого
      * решения finishLocked (state/reason/due_at/item_increment), а не из исходного outcome:
      * первые StageFailedItem становятся deferred(item_retry) с расходом budget, а StageDeferred(ItemRetry) — нет.
      * Сбой envelope/sink остаётся в PostCommitSinks и не меняет CompletionResult.

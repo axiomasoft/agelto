@@ -35,7 +35,7 @@ test('последний полный 503 остаётся evidence при ис�
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('transport-and-work-budget');
 
 test('сетевой отказ следующей попытки не наследует тело предыдущего 503', function (): void {
     $wire = new WireFixture;
@@ -52,4 +52,4 @@ test('сетевой отказ следующей попытки не насл�
     } finally {
         $wire->stop();
     }
-})->group('t03', 'p26');
+})->group('transport-and-work-budget');

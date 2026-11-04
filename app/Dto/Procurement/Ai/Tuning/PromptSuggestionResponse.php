@@ -8,9 +8,9 @@ use App\Enums\Procurement\Ai\PromptSuggestionKind;
 use Spatie\LaravelData\Data;
 
 /**
- * Ответ LLM-критика промтов (`CorePromptStep::PromptCritic`, D8/D61, `docs/specs/v2/
- * 08-estimate-extraction.md` §6.1) — критик читает diff-отчёт (P7.3) и текущую композицию промта
- * шага и решает ОДИН из двух исходов (D60):
+ * Ответ LLM-критика промтов (`CorePromptStep::PromptCritic`, `docs/specs/v2/
+ * 08-estimate-extraction.md` §6.1) — критик читает diff-отчёт и текущую композицию промта
+ * шага и решает ОДИН из двух исходов:
  * - kind: `prompt_patch` — правка версионируемого текста промта, `correction_hint` —
  *   переиспользуемая подсказка для существующего носителя `prc_ai_corrections`.
  * - rationale: чем критик обосновал предложение (обязательно для обоих видов).

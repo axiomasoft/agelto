@@ -12,10 +12,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * P7.5 F-01/F-02/F-08: FK-индексы обратной связи поглощены в финальную форму; связи с версией
- * документа и прогоном сохраняют `NO ACTION` явно. Выражения по `result.branch_reason` и
- * `result.needs_review` обслуживают `pipeline:stuck-check` и `PipelineStatus` без seq scan с
- * распаковкой TOAST (research/08-db-review.md, D132).
+ * Связи анализа с версией документа и прогоном сохраняют `NO ACTION`.
+ * Выражения по `result.branch_reason` и `result.needs_review` индексированы для
+ * `pipeline:stuck-check` и `PipelineStatus`, чтобы не распаковывать TOAST всех строк.
  */
 return new class extends Migration
 {
@@ -41,7 +40,7 @@ return new class extends Migration
             $table->text('provider')->nullable();
             $table->text('model')->nullable();
 
-            // Слепок расхода вызова — заполняется P4, здесь только схема (D20).
+            // Слепок расхода вызова — заполняется, здесь только схема.
             $table->integer('prompt_tokens')->nullable();
             $table->integer('completion_tokens')->nullable();
             $table->integer('cached_tokens')->nullable();
@@ -51,7 +50,7 @@ return new class extends Migration
             $table->timestampTz('started_at')->nullable();
             $table->timestampTz('finished_at')->nullable();
 
-            // Обратная связь оператора — P9.1 (D15, аудит F ось 6).
+            // Обратная связь оператора сохраняется отдельно от результата анализа.
             $table->text('review_status')->default('unreviewed')->comment('unreviewed/approved/rejected');
             $table->foreignId('reviewed_by')
                 ->nullable()
@@ -73,7 +72,7 @@ return new class extends Migration
         });
 
         // Partial unique: один АКТИВНЫЙ боевой анализ на версию+шаг — история перепрогонов
-        // (superseded_at) и теневые прогоны (is_shadow) вне ограничения (P9.1, D15/D24).
+        // (superseded_at) и теневые прогоны (is_shadow) вне ограничения.
         DB::statement(
             'CREATE UNIQUE INDEX prc_ai_analyses_active_version_step_unique '
             .'ON prc_ai_analyses (document_version_id, step) '
@@ -89,8 +88,7 @@ return new class extends Migration
             ."ON {$this->table()} (((result->>'needs_review')::boolean))",
         );
 
-        // Ось типа документа (D16/D17, §1.3 root/document-type-axis.md): единственный носитель
-        // списка значений — AiDocumentType::values(), колонка остаётся nullable (§3.1 контракта).
+        // Допустимые типы документа задаёт AiDocumentType::values(); колонка остаётся nullable.
         DB::statement(
             'ALTER TABLE prc_ai_analyses '
             .'ADD CONSTRAINT prc_ai_analyses_document_type_check '

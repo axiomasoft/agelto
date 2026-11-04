@@ -7,12 +7,10 @@ namespace App\Dto\Procurement\Gold;
 use Spatie\LaravelData\Data;
 
 /**
- * Профиль формы печати табличной книги (P5.2, D117) — верхний уровень контракта
- * `estimates/gold/<CODE>.profile.json` (version 2). Заменяет `headermap.json` первой редакции
- * (D42, снято D117): описывает не шесть колонок, а форму — роли строк, ресурсы, пары
- * базис/текущий — из которой `SheetGoldMapper` строит полный gold §8.2 дословно.
- * `FIELDS` — единственный источник истины для допустимых ключей верхнего уровня, используется
- * `FormProfileReader` для отказа на неизвестном ключе.
+ * Профиль формы табличной книги `estimates/gold/<CODE>.profile.json`, version 2.
+ * Описывает колонки, роли строк, ресурсы и пары базисных/текущих значений, из которых
+ * `SheetGoldMapper` дословно строит gold. `FIELDS` задаёт допустимые ключи верхнего уровня;
+ * `FormProfileReader` отклоняет неизвестные ключи.
  */
 final class GoldFormProfile extends Data
 {

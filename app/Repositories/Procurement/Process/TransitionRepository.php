@@ -9,7 +9,7 @@ use App\Enums\Procurement\Process\ActorKind;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Журнал transitions: каждое событие атомарно получает projection outbox (bp-ddl-core). Entity
+ * Журнал transitions: каждое событие атомарно получает projection outbox. Entity
  * sequence authority — transition_seq самой work/run row; event/message ID стабильны при retry.
  */
 final readonly class TransitionRepository

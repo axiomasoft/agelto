@@ -8,20 +8,12 @@ use Illuminate\Support\Facades\Process;
 use RuntimeException;
 
 /**
- * Идемпотентно применяет MinIO ILM (Object Lifecycle Management) правила из
- * `config('partitioning.minio_lifecycle')` (P7.7, D33) на бакет S3-диска —
- * expire по возрасту для `request_ref`/`response_ref`-блобов КАЖДОГО LLM-вызова
- * (`LlmCallRecorder::storeRaw()`, префикс `ai/llm-calls/`), которые иначе копятся
- * в MinIO без политики (research/L finding 4).
+ * Применяет MinIO lifecycle rules из `partitioning.minio_lifecycle` для S3 disk.
+ * Префикс ai/llm-calls/ содержит request/response blobs вызовов LLM и истекает по возрасту.
  *
- * Через `mc` CLI (Process-обвязка, тот же приём, что `PdfPageSlicer`/qpdf, P5.1),
- * а не S3 SDK: `aws-sdk-php`/`league/flysystem-aws-s3-v3` в проекте не установлены.
- *
- * `mc ilm rule add` САМ по себе НЕ идемпотентен — повторный вызов с теми же `--prefix`/
- * `--expire-days` создаёт ВТОРОЕ правило с новым ID (проверено эмпирически против
- * реального MinIO). Идемпотентность — на уровне этого сервиса: перед добавлением
- * правила читаем текущие (`mc ilm rule ls --json`) и пропускаем те, чей `prefix` уже
- * зарегистрирован.
+ * Использует mc CLI. Перед mc ilm rule add читает существующие правила через
+ * mc ilm rule ls --json и пропускает уже зарегистрированный prefix, поскольку само add
+ * при повторе создаёт отдельное правило.
  */
 final readonly class MinioLifecycleManager
 {

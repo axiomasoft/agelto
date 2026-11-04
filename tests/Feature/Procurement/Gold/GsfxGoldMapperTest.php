@@ -33,7 +33,7 @@ function gsfxIndexCatalogEntry(string $code, string $caption, ?string $mt, ?stri
 }
 
 /**
- * `GsfxDocument` → gold §8.2 (P5.1, D2). Синтетический документ ниже собирает один раздел с двумя
+ * `GsfxDocument` → gold §8.2. Синтетический документ ниже собирает один раздел с двумя
  * позициями (ресурсный метод + прямая цена каталога) — тот же профиль, что реальный эталон
  * `EST-GSFX-LSR-001`, но без 155 МБ корпуса.
  */
@@ -357,7 +357,7 @@ test('начисления по главам: процентная ставка 
         ])
         ->and($footer[1])->toMatchArray([
             // формула есть, Value нет — строка остаётся (label виден), но value/rate оба null:
-            // формула (@Formula) не хранится (research/06 §6 п.6), а не выдумывается из неё.
+            // Формула не хранится и не выдумывается из значения.
             'label' => 'Компенсация НДС при УСН',
             'value' => null,
             'chapter_number' => 15,
@@ -410,6 +410,6 @@ test('на реальном эталоне EST-GSFX-LSR-001 маппер про�
         }
     }
 
-    // 110 <Position> в Data.xml (`grep -c '<Position' Data.xml`, snapshot корпуса D175edac..52708b).
+    // 110 <Position> в Data.xml (`grep -c '<Position' Data.xml`, snapshot корпуса edac..52708b).
     expect($positionCount)->toBe(110);
 });

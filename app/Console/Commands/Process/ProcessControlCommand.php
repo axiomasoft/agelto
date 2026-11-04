@@ -16,7 +16,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
 /**
- * CLI тех же typed operator commands, что и UI (observability#s04): действие идёт от имени
+ * CLI тех же typed operator commands, что и UI: действие идёт от имени
  * существующего пользователя, поэтому RBAC и audit actor не обходятся. Код 0 — команда settled
  * (applied/unchanged/duplicate), 1 — отказ без записей, 2 — неверные аргументы/нет прав.
  */

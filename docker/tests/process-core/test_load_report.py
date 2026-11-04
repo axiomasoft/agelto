@@ -48,3 +48,10 @@ class LoadEvidenceTest(unittest.TestCase):
         report["worker_observations"][-1]["rss_kib"] = 60000
         with self.assertRaisesRegex(ValueError, "growth"):
             validate(report, 10)
+
+    def test_sample_timestamps_must_form_a_real_time_series(self):
+        for value in (0, -1, float("nan")):
+            report = self.corpus()
+            report["samples"][1]["at_seconds"] = value
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, "timestamps"):
+                validate(report, 10)

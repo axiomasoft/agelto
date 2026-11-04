@@ -18,15 +18,13 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Validation\ValidationContext;
 
 /**
- * Типизированный контракт фильтра профиля обхода ЕИС (`prc_crawlers.filter`, jsonb —
- * схема не меняется, D34: типизация живёт на границе). Состав полей —
- * `research/05-change-tracking.md` раздел 4: ТОЛЬКО параметры со статусом «подтверждено»
- * в `artifacts/eis-filter-params.json`; параметр, чьё фильтрующее действие не наблюдалось,
- * в контракт не входит — иначе предположение закрепляется кодом.
+ * Типизированный контракт фильтра профиля обхода ЕИС (`prc_crawlers.filter`, jsonb):
+ * типизация живёт на границе. Контракт принимает только параметры с подтверждённым
+ * фильтрующим действием площадки.
  *
  * Класс несёт СМЫСЛ поля, а не представление ЕИС: имена query-параметров (`af`, `pc`,
  * `priceFromGeneral`, …) и формат даты `d.m.Y` остаются в `EisCsvUrlBuilder` — единственном
- * носителе ЕИС-специфики (Code Guidance P4.3).
+ * носителе ЕИС-специфики.
  */
 final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRange, RequiresScope
 {
@@ -34,7 +32,7 @@ final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRa
      * Единственный источник истины по допустимым ключам `prc_crawlers.filter` — используется
      * `validateAndCreate()` для отказа на неизвестном ключе (канон `RowAttributes::ALLOWED_KEYS`).
      * Отказ обязателен, а не желателен: ЕИС на неизвестный параметр не отвечает ошибкой и не
-     * сужает выдачу (`findings/P4-eis-recon.md` §6), то есть опечатка молча РАСШИРЯЕТ выборку.
+     * сужает выдачу, то есть опечатка молча РАСШИРЯЕТ выборку.
      *
      * @var list<string>
      */
@@ -68,11 +66,11 @@ final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRa
         /**
          * Верхняя граница НМЦК, включительно (`priceToGeneral`); `null` → дефолт
          * `platform listing price bound` в сканере. Ноль запрещён валидацией:
-         * `priceToGeneral=0` обнуляет выдачу (`findings/P4-eis-recon.md` §5.2, Р-4).
+         * `priceToGeneral=0` обнуляет выдачу.
          */
         public ?int $priceTo = null,
         /**
-         * Дата размещения «с» (`publishDateFrom`) имеет ТРИ роли (D113/D115): у fresh это обычный
+         * Дата размещения «с» (`publishDateFrom`) имеет ТРИ роли: у fresh это обычный
          * фильтр выдачи; у archive-профиля БЕЗ явного `--from`/`--to` — ОКНО ПРОГОНА, которое
          * `StartCrawlerRunAction` читает через `HasArchiveWindow`; у delta-scan и backlog-rescan
          * профильное окно публикации в запрос не уходит — их курсор дренирует день обновления.
@@ -90,24 +88,23 @@ final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRa
         /** Морфология поиска (`morphology`); имеет смысл только вместе с `searchString`. */
         public bool $morphology = false,
         /**
-         * Предметный скоуп профиля — КОДЫ ОКПД2 (не внутренние id площадки, D9): в запрос они
+         * Предметный скоуп профиля — КОДЫ ОКПД2 (не внутренние id площадки): в запрос они
          * приведут к `okpd2Ids` + `okpd2IdsWithNested=on` после резолва по карте
-         * `prc_okpd2_nodes` (P2.3), сам резолв здесь не живёт — DTO остаётся конструируемым без
-         * БД. Пустым быть не может (D18): профиль без скоупа расширяет выборку на весь реестр.
+         * `prc_okpd2_nodes`, сам резолв здесь не живёт — DTO остаётся конструируемым без
+         * БД. Пустым быть не может: профиль без скоупа расширяет выборку на весь реестр.
          *
          * @var list<string>
          */
         public array $okpd2Codes = [],
         /**
          * Поле сортировки выдачи (`sortBy`); `null` → билдер эмитит прежний дефолт
-         * (`UPDATE_DATE`) — item обязан быть поведенчески нейтральным для уже лежащих в БД
-         * профилей (Implementation Rules п. 4).
+         * (`UPDATE_DATE`), сохраняя поведение уже лежащих в БД профилей.
          */
         public ?ListingSortField $sortField = null,
         /**
          * Направление сортировки — ПОЛОЖИТЕЛЬНОЕ утверждение («по возрастанию»), а НЕ строка
          * площадки: перевод в инвертированный `sortDirection` (`true`/`false`) выполняет
-         * билдер и только он (Implementation Rules п. 2). Дефолт `false` воспроизводит
+         * билдер и только он. Дефолт `false` воспроизводит
          * сегодняшнее поведение (`sortDirection='false'`, убывание).
          */
         public bool $sortAscending = false,
@@ -116,7 +113,7 @@ final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRa
     /**
      * Гейт фиксированной схемы фильтра: `spatie/laravel-data` лишние ключи `from()`/
      * `validateAndCreate()` тихо игнорирует, поэтому неизвестный ключ отклоняется явно ДО
-     * делегирования родителю — с именем ключа и списком допустимых (Implementation Rules P4.3 п. 3).
+     * делегирования родителю — с именем ключа и списком допустимых.
      */
     /**
      * @param  Arrayable<array-key, mixed>|array<string, mixed>  $payload
@@ -146,30 +143,29 @@ final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRa
     {
         return [
             // Ноль здесь не «пустое значение», а боевой отказ: `priceToGeneral=0` возвращает
-            // пустую выгрузку (Р-4). Нет верхней границы — поле остаётся `null`.
+            // пустую выгрузку. Нет верхней границы — поле остаётся `null`.
             'priceTo' => ['nullable', 'integer', 'min:1'],
             'priceFrom' => ['nullable', 'integer', 'min:0'],
-            // Обязательность — решение владельца (D18), а не удобство: см. докблок поля.
+            // Пустой скоуп расширяет выборку на весь реестр.
             'okpd2Codes' => ['required', 'array', 'min:1'],
             // Только форма кода и только как защита от мусора: проверка «код есть в карте»
             // здесь ЗАПРЕЩЕНА — членство обеспечивают форма (предлагает коды карты) и билдер
-            // (отказ при нерезолве, D21), а `Data`-класс обязан строиться без БД.
+            // (отказ при нерезолве), а `Data`-класс обязан строиться без БД.
             'okpd2Codes.*' => ['string', 'regex:/^([A-Z]|\d{2}(\.\d+)*)$/'],
-            // ЕИС молча игнорирует неизвестное значение sortBy, отвечая 200
-            // (findings/P1-okpd2-probe.md §2) — опечатка без гейта по enum доживёт до боевого
-            // запроса (Implementation Rules п. 5).
+            // ЕИС молча игнорирует неизвестное значение sortBy, отвечая 200,
+            // поэтому опечатки отклоняются до боевого запроса.
             'sortField' => ['nullable', 'string', Rule::enum(ListingSortField::class)],
             'sortAscending' => ['boolean'],
             'publishedFrom' => ['nullable', 'date'],
-            // Окно archive-профиля (D113): конец раньше начала молча развернул бы прогон на
+            // Окно archive-профиля: конец раньше начала молча развернул бы прогон на
             // отрицательный период — гейт ловит это на сохранении формы, а не на боевом запросе.
             'publishedTo' => ['nullable', 'date', 'after_or_equal:publishedFrom'],
         ];
     }
 
     /**
-     * Стартовый ценовой стек `ArchiveWindowScanner` (P4.6, П-9): владелец 2026-08-05 п. 1 —
-     * «потолок обязан быть полем профиля и правиться из Filament, а не жить константой конфига».
+     * Стартовый ценовой стек `ArchiveWindowScanner`: потолок задаётся профилем
+     * и редактируется из Filament.
      * Незаполненная верхняя граница отдаёт `null` — сканер падает на `config`-дефолт.
      */
     public function startingPriceInterval(): ?string

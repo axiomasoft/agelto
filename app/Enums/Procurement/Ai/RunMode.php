@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Ai;
 
 /**
- * Режим запуска прогона (`AnalysisRun`, §3.2 root/document-contour.md): `auto` — боевой
+ * Режим запуска прогона (`AnalysisRun`): `auto` — боевой
  * конвейер от краулера; `manual` — оператор/harness (ретрай, бенчмарк, eval, кнопка «Прогнать»).
  */
 enum RunMode: string

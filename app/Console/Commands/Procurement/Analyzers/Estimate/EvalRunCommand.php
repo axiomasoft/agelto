@@ -18,11 +18,11 @@ use Illuminate\Console\Command;
 use UnexpectedValueException;
 
 /**
- * Прогон ТЕКУЩЕГО extraction-пайплайна (`ExtractionOrchestrator`, P6.1/P6.4) по golden-датасету
- * (P7.4, ТЗ 04 §5): реальный маршрут/провайдер (FakeLlm недопустим, Implementation Rules) —
+ * Прогон ТЕКУЩЕГО extraction-пайплайна (`ExtractionOrchestrator`) по golden-датасету
+ * (ТЗ 04 §5): реальный маршрут/провайдер (FakeLlm недопустим) —
  * запускается ВРУЧНУЮ владельцем. В CI — только `--dry-run` (или пустой датасет, тот же исход):
  * пишет EvalRun-заглушку без единого LLM-вызова. Логика цикла оркестратора вынесена в
- * {@see ExtractionEvalRunner}/{@see ScreeningEvalRunner} (P3.3, `root/service-layer-map.md` §3).
+ * {@see ExtractionEvalRunner}/{@see ScreeningEvalRunner}.
  *
  * @phpstan-type ExtractionMetrics array{overall: array{precision: float, recall: float, f1: float}, row_coverage: float}|array{error: string}
  * @phpstan-type ExtractionRow array{example: DatasetExample, metrics: ExtractionMetrics}
@@ -37,8 +37,8 @@ use UnexpectedValueException;
         {--dataset-version= : метка версии датасета для EvalRun (default — config(ai.eval.dataset_version))}
         {--limit= : ограничить число эталонов}
         {--dry-run : не делать реальных LLM-вызовов — только зафиксировать пустой прогон}
-        {--split=all : подвыборка датасета tune|holdout|all — членство в holdout авторитетно (D120)}
-        {--write-splits : пересобрать estimates/eval-splits.json по правилу отбора (D119) и выйти, без прогона}')]
+        {--split=all : подвыборка датасета tune|holdout|all — членство в holdout авторитетно}
+        {--write-splits : пересобрать estimates/eval-splits.json по правилу отбора и выйти, без прогона}')]
 final class EvalRunCommand extends Command
 {
     public function __construct(

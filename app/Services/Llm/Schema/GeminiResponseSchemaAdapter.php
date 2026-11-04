@@ -13,20 +13,19 @@ use RuntimeException;
  * Handlers/Structured.php:131`: Prism v0.100.1 шлёт схему именно в это поле, а не в
  * `responseJsonSchema`). `response_schema` не понимает `$ref`/`$defs` (нужна плоская inline-
  * структура) и `type`-массивы для nullable (нужен скалярный `type` + отдельный `nullable:true` —
- * та же семантика, что `SchemaMap::toArray()` Prism применяет для DSL-схем,
+ * та же семантика, что `SchemaMap::toArray` Prism применяет для DSL-схем,
  * `vendor/.../Gemini/Maps/SchemaMap.php:71-73`); `additionalProperties` отбрасывается на ВСЕХ
- * уровнях, не только верхнем (P3 Known Deviations (1) ошибочно предполагал, что нижние уровни
- * не мешают — P3 phase-review, HIGH). `description` — ровно противоположная политика: канал
- * `response_schema` его поддерживает (`findings/P2-vendor-structured-output.md` §2), поэтому он
+ * уровнях, включая вложенные объекты. `description` — ровно противоположная политика: канал
+ * `response_schema` его поддерживает, поэтому он
  * ПРОНОСИТСЯ насквозь на всех уровнях (объект, узел массива, ветка `anyOf`), а не отбрасывается
- * вместе с прочими непонятыми ключами (P2.4).
+ * вместе с прочими непонятыми ключами.
  *
- * `$ref`-циклы (самоссылка `TotalLine.children`, P2.3) Gemini `response_schema` принципиально не
+ * `$ref`-циклы (самоссылка `TotalLine.children`) Gemini `response_schema` принципиально не
  * может выразить — разворачиваются инлайном на глубину {@see self::MAX_SELF_DEPTH} вложений
  * одного и того же `$defs`-имени, глубже — свойство, замыкающее цикл, отбрасывается целиком
  * (модель просто не сможет вернуть более глубокую вложенность итогового блока). Глубина подобрана
  * без замера реальной вложенности итогов в боевых сметах — открытый риск, пересмотреть при первом
- * боевом расхождении (Escalation, P3 phase-review).
+ * расхождении схемы с поддерживаемым подмножеством.
  */
 final readonly class GeminiResponseSchemaAdapter
 {
@@ -69,7 +68,7 @@ final readonly class GeminiResponseSchemaAdapter
 
     /**
      * @param  array<string, mixed>  $node  узел БЕЗ `description` — снят и восстановлен вызывающим
-     *                                      {@see resolveNode()} над результатом ЛЮБОЙ из веток ниже
+     *                                      {@see resolveNode} над результатом ЛЮБОЙ из веток ниже
      * @param  array<string, array<string, mixed>>  $defs
      * @param  list<string>  $expandStack
      * @return array<string, mixed>|null

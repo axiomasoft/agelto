@@ -6,7 +6,7 @@ namespace App\Enums\Procurement\Crawler;
 
 /**
  * Конечный lease одной job профиля: значение описывает только класс исполнения, а не секунды
- * инфраструктуры. Значения timeout/retry_after принадлежат route-map и конфигурации (D117).
+ * инфраструктуры. Значения timeout/retry_after принадлежат route-map и конфигурации.
  */
 enum CrawlerExecutionLane: string
 {

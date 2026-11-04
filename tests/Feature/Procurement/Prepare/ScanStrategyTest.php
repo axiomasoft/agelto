@@ -19,12 +19,7 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
-/**
- * OCR сканов (P3.7, D22). Реальный `ocrmypdf` в тестах не вызывается (Code Guidance): фейковый
- * обработчик отвечает за `pdftotext` (текстовый слой), `pdfinfo` (страницы), `tesseract --version`
- * и сам подкладывает результат OCR — PDF по пути из аргументов и sidecar по `--sidecar`.
- * Потолок движка меряется ОТДЕЛЬНО, ручным прогоном на реальных сканах — `research/04-ocr-ceiling.md`.
- */
+/** OCR-инструменты подменены: тест проверяет аргументы и обработку результатов без реального OCR. */
 function makeScanVersion(string $extension = 'pdf', string $content = '%PDF-скан'): array
 {
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);

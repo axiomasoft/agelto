@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Platform;
 use App\Enums\Procurement\Network\ResponseKind;
 
 /**
- * Endpoint request profile (implementation-blueprint#bp-request-profiles). total — timeout ОДНОЙ
+ * Endpoint request profile. total — timeout ОДНОЙ
  * physical attempt; он никогда не урезается под остаток slice и не умножается attempts.
  * `min_total` отсутствует намеренно. Text profile ограничивает и entity, и UTF-8 expansion;
  * binary profile не имеет text limit/charset и не проходит text decoder.

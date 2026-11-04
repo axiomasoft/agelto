@@ -13,12 +13,7 @@ use App\Models\Procurement\Ai\Fixture;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
-/**
- * P1.4 — check-constraint'ы оси типа документа (D16/D17, §1.3 root/document-type-axis.md):
- * КАЖДАЯ колонка `document_type`/`task` отвергает битое значение отказом БД, а не только
- * принимает валидное (Implementation Rules п. 5). Плюс дубль кросс-документного маршрута
- * (составной ключ `(document_type, purpose, priority, shadow)`, п. 6).
- */
+/** Проверяет ограничения допустимых типов документа и маршрутов назначения в БД. */
 test('битый document_type отвергается БД на prc_ai_analyses', function (): void {
     expect(fn () => Analysis::factory()->create(['document_type' => 'not-a-real-type']))
         ->toThrow(QueryException::class);
@@ -30,7 +25,7 @@ test('битый document_type отвергается БД на prc_ai_correctio
 });
 
 /**
- * Implementation Rules P1.4 п. 12: коррекция над анализом без вердикта скрининга не создаётся —
+ * Implementation Rules п. 12: коррекция над анализом без вердикта скрининга не создаётся —
  * `prc_ai_corrections.document_type` `NOT NULL` (§3.2 контракта) отражает это на границе схемы;
  * `ViewAnalysis::rejectWithCorrectionAction()` реализует ту же гарантию на границе UI (форма
  * недоступна/отклоняется с сообщением, без Livewire-инфраструктуры теста — прецедента

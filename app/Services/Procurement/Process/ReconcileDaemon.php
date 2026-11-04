@@ -10,11 +10,10 @@ use App\Services\Procurement\Process\Contracts\ProcessDaemon;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
 
 /**
- * Reconcile daemon skeleton (bp-daemons): tick 5 s ±20%, bounded категории recovery одна за другой.
- * Скелет P1.10 даёт цикл, расписание, изоляцию сбоя категории и heartbeat/readiness; сами категории
+ * Reconcile daemon: tick 5 s ±20%, bounded категории recovery одна за другой. Категории
  * (expired running/admitted recovery, blocked scans, invariant scan, handler fault sweep,
- * blocked-provider recovery) регистрирует P1.11 через register(). Без зарегистрированных
- * категорий daemon честно ничего не восстанавливает — это не заявляется как готовый recovery.
+ * blocked-provider recovery) composition root подключает через register(). Без зарегистрированных
+ * категорий tick не меняет состояние work.
  * Сбой одной категории не останавливает остальные: tick возвращает bounded код ошибки (degraded),
  * неожиданный Throwable категории логируется sanitized и не маскируется под успех.
  */

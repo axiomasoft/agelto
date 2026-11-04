@@ -100,7 +100,7 @@ grep -F 'vendor:check' "$root_dir/docker/Makefile" >/dev/null
 
 bash "$root_dir/docker/scripts/vendor-sync.sh" --composer-check
 
-image='agelto/p2.1-vendor-contract:validation'
+image='agelto/vendor-contract:validation'
 docker build --target application -t "$image" -f "$root_dir/docker/php/Dockerfile" "$root_dir"
 ! docker history --no-trunc "$image" | grep -E '(token@|password=|secret=)'
 docker run --rm --entrypoint sh "$image" -c '

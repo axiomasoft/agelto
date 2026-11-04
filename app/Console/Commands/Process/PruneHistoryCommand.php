@@ -13,7 +13,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Один bounded batch retention transition history (observability#s07). --dry-run только считает
+ * Один bounded batch retention transition history. --dry-run только считает
  * кандидатов. Maintenance rebuild откладывает batch (код 0, ничего не удалено); повтор безопасен.
  * Каждый вывод сообщает полноту истории projectors: после prune rebuild недоступен (history_unavailable),
  * поэтому архив не выдаёт себя за полный.

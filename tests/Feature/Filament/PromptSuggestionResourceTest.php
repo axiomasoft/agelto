@@ -35,7 +35,7 @@ function promptSuggestionOwner(): User
 }
 
 /**
- * Снимок «путь → sha1» обоих корней канона промтов (D32) — доказательство, что экран файлов не
+ * Снимок «путь → sha1» обоих корней канона промтов — доказательство, что экран файлов не
  * пишет, не зависит от git-состояния рабочей копии.
  *
  * @return array<string, string>
@@ -130,7 +130,7 @@ test('одобрение не трогает ни одного файла кан
         ->callAction('approve', ['decision_note' => null]);
 
     // Первое ожидание — что действие ВООБЩЕ отработало: «файлы не тронуты» при отсутствующем
-    // апруве зеленело бы, ничего не проверяя (Code Guidance P5.6).
+    // апруве зеленело бы, ничего не проверяя (Code Guidance ).
     expect($suggestion->refresh()->status)->toBe(PromptSuggestionStatus::Approved)
         ->and(promptCanonSnapshot())->toBe($before)
         ->and($before)->not->toBeEmpty();

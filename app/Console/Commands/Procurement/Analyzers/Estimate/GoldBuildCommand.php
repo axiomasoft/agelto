@@ -16,13 +16,12 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
 /**
- * Сборка `estimates/gold/**` по реестру `prc_ai_fixtures` (P5.3, D45): для каждого эталона с
- * `gold_source=deterministic` вызывает {@see GoldCorpusBuilder} (маппер `.gsfx` — P5.1, книга —
- * P5.2), пишет `<CODE>.gold.json`, собирает сводный отчёт и, под `--update-manifest`, дописывает в
+ * Сборка `estimates/gold/**` по реестру `prc_ai_fixtures`: для каждого эталона с
+ * `gold_source=deterministic` вызывает {@see GoldCorpusBuilder} для `.gsfx` или книги, пишет `<CODE>.gold.json`, собирает сводный отчёт и, под `--update-manifest`, дописывает в
  * `estimates/manifest.json` РОВНО четыре gold-производных поля. Команда — сборщик, а не редактор
- * истины (Code Guidance): манифест остаётся SSOT корпуса (D20).
+ * истины: манифест остаётся SSOT корпуса.
  *
- * Ветка `--screening` (P5.4, D5, §8.5) — ОТДЕЛЬНЫЙ проход по ВСЕМ эталонам корпуса (не только
+ * Ветка `--screening` (§8.5) — ОТДЕЛЬНЫЙ проход по ВСЕМ эталонам корпуса (не только
  * `gold_source=deterministic`) через {@see ScreeningGoldBuilder}: пишет `<CODE>.screening.json`
  * РЯДОМ с extraction-gold, манифест НЕ трогает (screening-gold в манифест не заводится, §8.5).
  */
@@ -49,7 +48,7 @@ final class GoldBuildCommand extends Command
     public function handle(): int
     {
         // Книги реального корпуса (десятки листов, MERGE_HEAVY) исчерпывают дефолтный лимит
-        // PHP-CLI на PhpSpreadsheet::load() — тот же приём, что `SpreadsheetStrategy` (D28)
+        // PHP-CLI на PhpSpreadsheet::load — тот же приём, что `SpreadsheetStrategy`
         // применяет к дочернему процессу конвертации.
         ini_set('memory_limit', $this->configString('ai.prepare.xlsx_convert_memory_limit', default: '512M'));
 
@@ -82,7 +81,7 @@ final class GoldBuildCommand extends Command
         }
 
         if (! $dryRun) {
-            // Каталог отчётов создаётся при записи (D111, Implementation Rule 10 P3.3):
+            // Каталог отчётов создаётся при записи:
             // `estimates/reports/` в репозитории не существует.
             $reportPath = $this->configString('ai.fixtures.reports_dir').'/gold-corpus-report.md';
             File::ensureDirectoryExists(dirname($reportPath));
@@ -122,7 +121,7 @@ final class GoldBuildCommand extends Command
                     "{$goldDir}/{$fixture->code}.screening.json",
                     // `JSON_PRESERVE_ZERO_FRACTION` — `confidence` эталона всегда `1.0` (float,
                     // §8.5), без флага PHP печатает целое `1` и `ScreeningResult::
-                    // validateAndCreate()` на повторном чтении расходится по типу.
+                    // validateAndCreate` на повторном чтении расходится по типу.
                     json_encode($result['screening'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION)."\n",
                 );
             }

@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Process;
 use App\Enums\Procurement\Process\StageCode;
 
 /**
- * Durable fairness cursor v1 parent lane (bp-sql-admit): последний cohort и последняя stage
+ * Durable fairness cursor v1 parent lane: последний cohort и последняя stage
  * внутри каждого cohort. Меняется только committed admission под lock parent lane; payload
  * ограничен числом зарегистрированных cohorts.
  */

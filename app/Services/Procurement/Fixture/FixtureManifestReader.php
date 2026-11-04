@@ -8,7 +8,7 @@ use App\Exceptions\Procurement\Ai\ManifestUnreadable;
 use JsonException;
 
 /**
- * Единственный владелец чтения `estimates/manifest.json` (§4/§5 `root/service-layer-map.md`):
+ * Единственный владелец чтения `estimates/manifest.json`:
  * `estimate:fixtures:import`, `estimate:fixtures:verify`, `estimate:gold:build` читали манифест побайтово одинаково
  * (findings §3) — гвард формы вынесен сюда, а не скопирован трижды.
  */

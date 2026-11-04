@@ -7,9 +7,9 @@ namespace App\Dto\Procurement\Fixture;
 use App\Services\Procurement\Contracts\ProgressReporter;
 
 /**
- * Типизированный исход ОДНОГО элемента партии (§1 `root/service-layer-map.md`, P3.1): партия
- * продолжается даже когда отдельный элемент отклонён — сервис собирает исходы, команда их печатает
- * (через {@see ProgressReporter}) и выводит код возврата.
+ * Типизированный исход одного элемента партии. Отклонение элемента не останавливает
+ * партию: сервис собирает исходы, а команда показывает их через {@see ProgressReporter}
+ * и выбирает код завершения.
  */
 final readonly class ItemOutcome
 {

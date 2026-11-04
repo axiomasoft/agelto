@@ -102,7 +102,7 @@ final class Document extends Model
     }
 
     /**
-     * Единственный носитель правила показа (§4 root/document-contour.md, D91) — вырезает
+     * Единственный носитель правила показа — вырезает
      * документы служебных площадок (`is_public=false`, «Обучалка») из публичной витрины.
      *
      * @param  Builder<Document>  $query

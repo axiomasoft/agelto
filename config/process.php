@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /*
- * Versioned process policy v1 (execution#lane-defaults, #handler-fault-budget). Стартовая
+ * Versioned process policy v1. Стартовая
  * конфигурация, а не measured SLA; boot-валидируется `ProcessPolicy`. Набор lanes каждой stage
  * (required_lanes) — конечная typed таблица `ProcessPolicy`, здесь только числа. Число worker
  * processes authority не является: W/C считает ledger по active reservation rows.
@@ -20,8 +20,7 @@ return [
         'alert_antispam_minutes' => (int) env('AI_PIPELINE_ALERT_ANTISPAM_MINUTES', 60),
 
         /*
-        | SQL-алерты стадий (P7.5, D25 Intent п.5) — подключены к тому же `PipelineAlert`
-        | (P7.3), НЕ второй транспорт. `backlog_threshold` — документов в
+        | SQL-алерты стадий подключены к `PipelineAlert`. `backlog_threshold` — документов в
         | downloaded/prepared/screened одновременно (очередь, не возраст — тот класс сигнала,
         | что уже даёт `stuckDocuments()`, но по количеству, не по времени). `failure_rate_*` —
         | доля failed среди succeeded+failed анализов (оба шага) за окно. `no_completions_minutes`
@@ -58,7 +57,7 @@ return [
         'publication' => ['parent' => null, 'max_outstanding' => 10, 'max_running' => 2, 'low_watermark' => 5, 'refill_max' => 5],
     ],
 
-    // Admission (bp-sql-admit): age900 — порог aged work (по immutable created_at); candidate_limit —
+    // Admission: age900 — порог aged work (по immutable created_at); candidate_limit —
     // bounded выборка внутри уже выбранных cohort/stage; CapacityWait claim откладывает wake на 5–10 s.
     'admission' => [
         'age_seconds' => 900,
@@ -68,8 +67,8 @@ return [
     ],
 
     // Delivery deadline admitted work (claim visibility, transport, не lease), monotonic slice
-    // исполнения и DB lease claimed attempt в секундах (execution#lane-defaults, bp-jobs).
-    // StageQueueMap (P1.10) берёт те же bounds для job/Horizon timeout и retry_after.
+    // исполнения и DB lease claimed attempt в секундах.
+    // StageQueueMap берёт те же bounds для job/Horizon timeout и retry_after.
     'stages' => [
         'listing' => ['claim_visibility' => 300, 'slice' => 240, 'lease' => 360],
         'detail' => ['claim_visibility' => 120, 'slice' => 90, 'lease' => 180],
@@ -81,7 +80,7 @@ return [
         'publication' => ['claim_visibility' => 120, 'slice' => 90, 'lease' => 180],
     ],
 
-    // StageQueueMap (bp-jobs): connection, queue и job timeout каждой stage. Horizon timeout и
+    // StageQueueMap: connection, queue и job timeout каждой stage. Horizon timeout и
     // retry_after берутся из фактических config/horizon.php и config/queue.php, `StageQueueMap`
     // проверяет slice < job timeout < Horizon timeout < retry_after < lease. Redis default
     // connection и supervisor-1 остаются для не-Process jobs (notifications/mail).
@@ -96,7 +95,7 @@ return [
         'publication' => ['connection' => 'process_short', 'queue' => 'process-publication', 'job_timeout' => 110],
     ],
 
-    // Process daemons (bp-daemons): отдельные relay/reconcile/feed процессы, не scheduler. Liveness —
+    // Process daemons: отдельные relay/reconcile/feed процессы, не scheduler. Liveness —
     // heartbeat каждые heartbeat_seconds; instance жив, пока last_tick_at свежее live_seconds.
     // Relay claim-ит только work_wake, feed — только feeder_wake; reconcile tick 5 s ±20%.
     'daemons' => [
@@ -109,11 +108,11 @@ return [
         'relay' => ['batch' => 100, 'claim_seconds' => 30, 'idle_min_ms' => 250, 'idle_max_ms' => 500],
         'reconcile' => ['tick_seconds' => 5, 'jitter_percent' => 20],
         'feed' => ['tick_seconds' => 2, 'jitter_percent' => 20, 'poll_ms' => 500, 'wake_batch' => 100, 'claim_seconds' => 30],
-        // Projector claim-ит только kind projection; tick 1 s (bp-daemons), batch ограничивает claim.
+        // Projector claim-ит только kind projection; tick 1 s, batch ограничивает claim.
         'project' => ['tick_seconds' => 1, 'batch' => 100, 'claim_seconds' => 30],
     ],
 
-    // Projection (observability#s08): bounded maintenance rebuild — не SLA для большого архива.
+    // Projection: bounded maintenance rebuild — не SLA для большого архива.
     // rebuild_max_events/deadline ограничивают одну REPEATABLE READ транзакцию; превышение — отказ
     // без смены generation. Quarantined/maintenance сообщения откладываются, а не теряются.
     'projection' => [
@@ -125,7 +124,7 @@ return [
         'prune_batch' => 500,
     ],
 
-    // Retention history (observability#s07): начальные проектные defaults, не нормативные сроки.
+    // Retention history: начальные проектные defaults, не нормативные сроки.
     // Transitions и operator audit хранятся минимум 365 дней (boot отвергает меньше); активные
     // incidents, нетерминальные work/runs и последнее состояние каждой сущности не удаляются.
     'retention' => [
@@ -133,7 +132,7 @@ return [
         'audit_days' => 365,
     ],
 
-    // Кооперативный heartbeat (bp-heartbeat): CAS не чаще heartbeat_seconds по monotonic clock;
+    // Кооперативный heartbeat: CAS не чаще heartbeat_seconds по monotonic clock;
     // finalization reserve входит в каждый canStart; локальный safety deadline = последний
     // успешный renewal + lease − lease_safety. Boot требует lease > slice и lease > 2·heartbeat + safety.
     'execution' => [
@@ -142,6 +141,6 @@ return [
         'lease_safety_seconds' => 30,
     ],
 
-    // EXR-02: конечный budget unexpected handler faults на (work, handler_version); fault 3 → blocked(handler_fault_limit).
+    // Конечный budget unexpected handler faults на (work, handler_version); fault 3 → blocked(handler_fault_limit).
     'max_handler_faults_per_work_version' => 3,
 ];

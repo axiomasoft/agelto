@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Process;
 
 /**
- * Transient DB failures (bp-jobs, bp-lock-modes): connection (08*), resources (53*), admin
+ * Transient DB failures: connection (08*), resources (53*), admin
  * shutdown/statement timeout (57P01–57P03, 57014). Constraint/schema/programming SQL errors не
  * маскируются под outage и пробрасываются видимо.
  */

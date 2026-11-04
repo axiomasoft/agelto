@@ -95,7 +95,7 @@ test('PromptResource вне enum-RBAC каталога, остальные ре�
 
     // Коарс-право на Prompt по-прежнему каталогизировано и грантуется —
     // exclude снимает только per-record enum-RBAC короткое замыкание,
-    // не убирает PromptPermission из OperatorRole (D44).
+    // не убирает PromptPermission из OperatorRole.
     expect($operator->can('admin.prompt.update'))->toBeTrue()
         // Остальные enum-RBAC ресурсы (не исключённые) работают как раньше.
         ->and($operator->can('admin.platform.create'))->toBeTrue()

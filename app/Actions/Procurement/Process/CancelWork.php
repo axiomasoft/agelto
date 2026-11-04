@@ -17,10 +17,10 @@ use App\Services\Procurement\Process\RecoveryReconciler;
 use Illuminate\Support\Str;
 
 /**
- * Hard cancel одного nonterminal work (execution#s08): короткая full-prefix tx с optimistic
+ * Hard cancel одного nonterminal work: короткая full-prefix tx с optimistic
  * transition_seq. Увеличивает generation, поэтому поздняя публикация владельца невозможна, и
  * освобождает всю admission group. Отмена run (CancelRun) shared work других runs не затрагивает.
- * RBAC и UI-версионирование добавляет P1.17; здесь только ledger-контракт.
+ * Caller проверяет RBAC и передаёт ожидаемую transition_seq для защиты от устаревшей команды.
  */
 final readonly class CancelWork
 {

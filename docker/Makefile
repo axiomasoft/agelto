@@ -211,7 +211,10 @@ rotation\:check:
 	bash $(ROOT_DIR)/docker/scripts/rotate-production-secrets.sh check
 
 commands\:check:
-	python3 $(ROOT_DIR)/docker/scripts/check-command-reference.py check
+	@command_matrix_path=$$(mktemp /tmp/agelto-command-matrix.XXXXXX.md); \
+	trap 'unlink "$$command_matrix_path"' EXIT; \
+	python3 $(ROOT_DIR)/docker/scripts/check-command-reference.py render --output "$$command_matrix_path" && \
+	python3 $(ROOT_DIR)/docker/scripts/check-command-reference.py check --output "$$command_matrix_path"
 
 preparation\:check:
 	bash $(ROOT_DIR)/docker/tests/production-preparation-contract.sh
@@ -268,7 +271,7 @@ prod\:storage\:init:
 	$(COMPOSE_PROD) exec -T app sh -ec 'mc alias set agelto-bootstrap "$$AWS_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$(cat "$$AWS_SECRET_ACCESS_KEY_FILE")" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$$AWS_BUCKET" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$$AWS_ESTIMATES_BUCKET" >/dev/null'
 
 prod\:workers\:up:
-	$(COMPOSE_PROD) up -d --no-build --wait horizon scheduler
+	$(COMPOSE_PROD) up -d --no-build --wait horizon scheduler process-relay process-reconciler process-feeder process-projector
 
 image\:build:
 	@test -n "$(IMAGE_TAG)" || (echo "IMAGE_TAG is required" >&2; exit 2)

@@ -35,9 +35,7 @@ final class AnalysisRunFactory extends Factory
     }
 
     /**
-     * Завершённый прогон (`finished_at` заполнен) — нужен тестам partial unique
-     * (§3.2 root/document-contour.md): второй прогон над той же версией легален, только пока
-     * первый не финиширован.
+     * Успешно завершённый прогон с заполненным `finished_at`.
      */
     public function succeeded(): static
     {

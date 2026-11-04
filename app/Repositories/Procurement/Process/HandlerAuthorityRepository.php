@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Registration handler-version authority `prc_process_handler_holds` (execution#s11). Stage
+ * Registration handler-version authority `prc_process_handler_holds`. Stage
  * registration материализует healthy row unique(stage, handler_version) до первого admission:
  * отсутствие row не означает enabled. Повторная регистрация не снимает held и не стирает
  * incident; новая версия получает собственную row. Hold/validate mutations — detector/ValidateHandler.

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Fixture;
 
 /**
- * Запись файла манифеста (§4 `root/service-layer-map.md`) — `estimate:gold:build --update-manifest`,
- * `estimate:fixtures:manifest`. Манифест остаётся SSOT корпуса (D20): сервис только пишет то, что решил
- * вызывающий, форму не навязывает.
+ * Записывает estimates/manifest.json для estimate:gold:build --update-manifest
+ * и estimate:fixtures:manifest. Манифест остаётся источником корпуса; содержимое
+ * определяет caller, writer только сохраняет файл.
  */
 final readonly class FixtureManifestWriter
 {

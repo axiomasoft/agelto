@@ -12,21 +12,16 @@ use Spatie\LaravelData\Data;
 use Spatie\LaravelData\Support\Validation\ValidationContext;
 
 /**
- * Единственный носитель контракта одной записи `estimates/manifest.json` (D1/D20). Обязательные
- * поля — `code`/`storage_path`/`sha256`/`size_bytes`/`class`/`source_format`/`form`/`gold_source`/
- * `document_type`/`owner_document_type`/`title`; остальные nullable/дефолтные.
- * - code: код эталона, единственный контракт — `Fixture::CODE_PATTERN` (D13).
- * - storage_path: путь на диске эталонов, обязан совпадать с `Fixture::storagePathFor($code,
- *   $source_format)` — иначе конвенция раскладки (D17) нарушена.
- * - source_path: относительный путь в корпусе-источнике — провенанс, НЕ путь на диске эталонов.
- * - gold_path: путь к `*.gold.json` в git; `null`, пока файл не построен — пишет `estimate:gold:build
- *   --update-manifest` (P5.3) вместе с самим файлом (D91: указатель и файл появляются одним актом,
- *   владелец поля — производитель файла gold, не генератор манифеста).
- * - document_type: фактический тип файла = ожидаемый вердикт скрининга (§6.1 document-type-axis.md,
- *   D90) — `class`/`form`/`expected_*`/`gold_source` остаются ФЛОСКИМИ полями манифеста и уезжают в
- *   `type_profile` только на границе импорта (`FixturesImportCommand`), не в самом файле.
- * - owner_document_type: тип, чей анализатор владеет корпусом и валидирует `type_profile` (§6.1).
- * - title: человекочитаемое название эталона, чисто читательское (D90, §6.3).
+ * Запись `estimates/manifest.json`. Обязательные поля: `code`, `storage_path`, `sha256`,
+ * `size_bytes`, `class`, `source_format`, `form`, `gold_source`, `document_type`,
+ * `owner_document_type`, `title`; остальные nullable или имеют default.
+ * `code` соответствует `Fixture::CODE_PATTERN`, а `storage_path` — `Fixture::storagePathFor()`.
+ * `source_path` хранит относительный путь в исходном корпусе, а не адрес на диске эталонов.
+ * `gold_path` остаётся `null` до сборки: `estimate:gold:build --update-manifest` пишет его вместе с gold.
+ * `document_type` задаёт ожидаемый вердикт скрининга. `owner_document_type` выбирает анализатор
+ * корпуса и валидатор `type_profile`. `class`, `form`, `expected_*`, `gold_source` остаются
+ * плоскими полями манифеста и переходят в `type_profile` на границе импорта.
+ * `title` — человекочитаемое название эталона.
  */
 final class FixtureManifestEntry extends Data
 {
@@ -79,7 +74,7 @@ final class FixtureManifestEntry extends Data
                     );
 
                     if (is_string($value) && $value !== $expected) {
-                        $fail("storage_path обязан быть «{$expected}» (конвенция D17), получено «{$value}»");
+                        $fail("storage_path обязан быть «{$expected}», получено «{$value}»");
                     }
                 },
             ],

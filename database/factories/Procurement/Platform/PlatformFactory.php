@@ -26,7 +26,7 @@ final class PlatformFactory extends Factory
     }
 
     /**
-     * Служебная площадка «Обучалка» (§1.3 root/document-contour.md, D91) — тот же профиль,
+     * Служебная площадка «Обучалка» — тот же профиль,
      * что заводит сидер.
      */
     public function training(): static

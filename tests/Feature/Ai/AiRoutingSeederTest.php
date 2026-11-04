@@ -85,7 +85,7 @@ test('после сидирования LlmRouteResolver находит акти
     expect($candidates)->toBe(['gemini-3.5-flash', 'gemini-3.1-pro-preview']);
 });
 
-// D98/D99 (P2.9): три extraction-маршрута (ExtractPassport/ExtractRows/ExtractTotals), ОБЕ строки
+// три extraction-маршрута (ExtractPassport/ExtractRows/ExtractTotals), ОБЕ строки
 // приоритетов, несут бюджет вывода/уровень размышления как настройку — не константу резолвера.
 test('сидер проставляет options.max_tokens/thinking_level на ОБЕИХ строках приоритетов трёх extraction-маршрутов', function (): void {
     (new AiRoutingSeeder)->run();
@@ -113,7 +113,7 @@ test('сидер проставляет options.max_tokens/thinking_level на �
         ->and($resolved->options->thinkingLevel)->toBe('LOW');
 });
 
-test('сидер НЕ проставляет options на маршрутах вне узкого исключения D98 (screening/discovery/prompt_critic)', function (): void {
+test('сидер НЕ проставляет options на маршрутах вне узкого исключения (screening/discovery/prompt_critic)', function (): void {
     (new AiRoutingSeeder)->run();
 
     $nonExtractionRoutes = LlmRoute::query()

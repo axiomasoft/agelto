@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * work + dispatch_generation + fixed required lane set. Один active group на work (partial unique);
- * members вставляются/переводятся/освобождаются только целиком (execution#s11).
+ * members вставляются/переводятся/освобождаются только целиком.
  *
  * @property string $id
  * @property string $work_id

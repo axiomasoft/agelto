@@ -10,15 +10,9 @@ use App\Models\Procurement\Ai\Analysis;
 use App\Services\Procurement\Contracts\Dto\AnalysisSummary;
 
 /**
- * Что тип документа обязан объявить о себе ядру (§1 контракта P2.1, D14/D16/D27).
- *
- * В интерфейс входит РОВНО то, что вызывает ЯДРО: персистер, ститчер, валидатор, метрика, промты
- * и оркестратор конкретного типа вызываются ЕГО ЖЕ кодом внутри его каталога
- * (`**\Analyzers\<Type>\**`) и сюда не выносятся. Широкий интерфейс здесь дороже узкого: его
- * реализует КАЖДЫЙ будущий тип, то есть цена ошибки умножается на число типов.
- *
- * Метода `documentType()` НЕТ намеренно: ключ реестра и есть тип, спрашивать анализатор о том,
- * что ядро уже знает, — лишняя поверхность.
+ * Минимальный контракт анализатора типа для ядра. Персистер, ститчер, валидатор, метрика
+ * и прочие внутренние части вызываются собственным кодом анализатора и не расширяют интерфейс.
+ * Тип задаётся ключом реестра, поэтому отдельный documentType() не требуется.
  */
 interface DocumentAnalyzer
 {
@@ -29,11 +23,9 @@ interface DocumentAnalyzer
     public function hasExtraction(): bool;
 
     /**
-     * Диспатчит СВОЙ job извлечения. Контур checkpoint-requeue / lease /
-     * `ShouldBeUniqueUntilProcessing` (D28/D39) остаётся ВНУТРИ анализатора и ядру не виден.
-     *
-     * Вызов на анализаторе с `hasExtraction() === false` — ошибка ядра, а не штатная ветка:
-     * реализация обязана бросить `LogicException`.
+     * Отправляет extraction job своего типа. Управление execution и checkpoint остаётся
+     * внутри анализатора. Если hasExtraction()=false, вызов является ошибкой caller
+     * и должен завершиться LogicException.
      */
     public function dispatchExtraction(int $documentId): void;
 
@@ -53,7 +45,7 @@ interface DocumentAnalyzer
     public function purposes(): array;
 
     /**
-     * Сводка результата для витрины прогонов (D27) — данные, не разметка.
+     * Сводка результата для витрины прогонов — данные, не разметка.
      */
     public function summarize(Analysis $analysis): AnalysisSummary;
 }

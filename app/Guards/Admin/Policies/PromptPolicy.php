@@ -11,17 +11,12 @@ use AzGuard\Attributes\GateAbility;
 use AzGuard\Attributes\GuardPolicy;
 
 /**
- * Канонические (сидовые, `is_protected=true`) промты read-only в админке:
- * правка/удаление/etc. доступны только операторским (`is_protected=false`)
- * записям, коарс-право (`PromptPermission::*`) остаётся предусловием.
+ * Защищённые канонические промты (`is_protected=true`) доступны в админке только для чтения.
+ * Правка и удаление разрешены для операторских записей; `PromptPermission` остаётся предусловием.
  *
- * Исключение `PromptResource` из enum-RBAC (`config/az-guard-filament.php`,
- * D44) снимает `ResourceGate`-короткое замыкание сразу для ВСЕХ 9
- * Filament-абилок модели (viewAny/view/create/update/delete/restore/
- * forceDelete/replicate/reorder), не только update/delete — Filament
- * дефолтит непокрытую абилку в allow (`get_authorization_response()`),
- * поэтому политика обязана явно закрыть весь набор, иначе аутентифицированный
- * пользователь без права видит/создаёт промты в обход `hasPermission()`.
+ * `PromptResource` исключён из enum-RBAC в `config/az-guard-filament.php`, поэтому политика
+ * явно закрывает все Filament abilities: viewAny/view/create/update/delete/restore/
+ * forceDelete/replicate/reorder. Непокрытая ability иначе могла бы разрешиться без проверки права.
  */
 #[GuardPolicy(model: Prompt::class)]
 final class PromptPolicy

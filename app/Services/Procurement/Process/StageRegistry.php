@@ -11,13 +11,12 @@ use App\Services\Procurement\Process\Contracts\StageResultRepository;
 use Illuminate\Container\Attributes\Singleton;
 
 /**
- * Явная composition registry исполняющих handler versions (execution#s03/#s11). Identity handler
+ * Явная composition registry исполняющих handler versions. Identity handler
  * version — версия исполняющего кода, не control/epoch/generation. Регистрация разрешена только
  * schema-supported stage; пустая registry означает, что ни один handler не активен и admission
- * ничего не выдаёт. Реальные acquisition/AI handlers здесь ещё не регистрируются: P1.7/P1.8
- * работают на fixture handlers. Finalization binding (P1.8) связывает stage со stage codec его
- * checkpoint/result и stage-specific finalization repository; handler instances и dispatch
- * добавляет WorkRunner следующих пунктов.
+ * ничего не выдаёт. Finalization binding связывает stage с codec checkpoint/result и
+ * stage-specific finalization repository; handler instances регистрирует composition root,
+ * а WorkRunner получает их из registry при исполнении delivery.
  */
 #[Singleton]
 final class StageRegistry

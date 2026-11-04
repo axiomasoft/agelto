@@ -21,11 +21,11 @@ use JsonException;
 use Spatie\LaravelData\Exceptions\CannotCreateData;
 
 /**
- * Импорт пары «файл + gold» контракта P2.2 (`estimate:dataset:import`, вынесено из
- * `DatasetImportCommand`, P3.3): каждый эталон валидируется контрактом P2.2
+ * Импорт пары «файл + gold» контракта (`estimate:dataset:import`, вынесено из
+ * `DatasetImportCommand`): каждый эталон валидируется контрактом
  * (`PassportResponse`/`EstimateRow`) ДО записи — битый JSON отклоняется с перечнем ошибок,
  * остальные пары импорта не затрагивает. Документ/версия создаются вне краулинга
- * (`procurement_id=null`, D22).
+ * (`procurement_id=null`).
  */
 final readonly class DatasetImporter
 {

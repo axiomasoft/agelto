@@ -9,7 +9,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
 /**
- * Список коррекций документа (P9.2, Code Guidance — «не строить отдельный UI списка hints,
+ * Список коррекций документа («не строить отдельный UI списка hints,
  * relation manager на ресурсе анализа») — read-only: коррекции создаются ТОЛЬКО через action
  * «Отклонить с коррекцией» (`ViewAnalysis`), которая уже привязывает `analysis_id`/`created_by`.
  */

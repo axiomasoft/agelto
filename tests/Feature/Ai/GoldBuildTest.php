@@ -15,10 +15,10 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 /**
- * P5.3 — `estimate:gold:build` собирает `estimates/gold/**` по реестру `prc_ai_fixtures`, обходит
- * gsfx- (P5.1) и табличные (P5.2) мапперы, пишет сводный отчёт и (`--update-manifest`) РОВНО
+ * `estimate:gold:build` собирает `estimates/gold/**` по реестру `prc_ai_fixtures`, обходит
+ * gsfx- и табличные мапперы, пишет сводный отчёт и (`--update-manifest`) РОВНО
  * четыре gold-производных поля манифеста. Синтетические gsfx/xlsx-эталоны собираются в тесте
- * (D1 — реальный корпус не коммитится); реальный прогон — предмет Completion Notes P5.3.
+ * ( — реальный корпус не коммитится); реальный прогон — предмет Completion Notes .
  */
 function buildGoldTestDir(): string
 {

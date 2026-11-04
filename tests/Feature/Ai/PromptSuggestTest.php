@@ -27,8 +27,8 @@ use Illuminate\Support\Str;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 /**
- * P7.4 — `PromptCritic` (`estimate:prompts:suggest`): дешёвый критик читает diff-отчёт (P7.3) и текущую
- * композицию промта шага, предлагает патч/hint и кладёт `pending` в очередь (D8/D59–D61/D64).
+ * `PromptCritic` (`estimate:prompts:suggest`): дешёвый критик читает diff-отчёт и текущую
+ * композицию промта шага, предлагает патч/hint и кладёт `pending` в очередь.
  */
 function promptSuggestRoute(FakeLlmProvider $fake): void
 {

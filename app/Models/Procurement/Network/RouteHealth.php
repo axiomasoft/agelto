@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Route-global health (proven proxy-phase failures). Единственный writer — network health
- * reducer (P2.4); epoch/probe fencing под lock.
+ * reducer; epoch/probe fencing под lock.
  *
  * @property string $id
  * @property string $route_id

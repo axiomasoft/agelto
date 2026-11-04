@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Materialized handler-version eligibility authority unique(stage, handler_version): healthy
  * создаётся registration до первого admission; held требует signature/incident/held_at. Не
- * подменяет manual desired_mode (execution#s08/#s11).
+ * подменяет manual desired_mode.
  *
  * @property string $id
  * @property StageCode $stage

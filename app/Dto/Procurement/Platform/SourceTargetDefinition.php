@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Platform;
 use App\Dto\Procurement\Network\AdapterContractRef;
 
 /**
- * Logical source target площадки (platform-transport#s02): key + capability + canonical origin +
+ * Logical source target площадки: key + capability + canonical origin +
  * endpoint request profiles. Key уникален внутри platform в `prc_source_targets`. Origin budget default опционален: null —
  * общий default OutboundPolicy. Physical budget принадлежит origin, не target.
  */

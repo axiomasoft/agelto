@@ -19,15 +19,14 @@ use RuntimeException;
  * @phpstan-type EvalProfile array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int}
  * @phpstan-type EvalComparison array{base_run_id: int, candidate_run_id: int, subsamples: array<string, EvalSubsample>, per_fixture: array<string, float>, verdict: 'accept'|'reject', reasons: list<string>, noise_basis?: array{pair_base_id: int, pair_candidate_id: int, subsample_thresholds: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string}, profile?: array{base: EvalProfile, candidate: EvalProfile, output_drop: int, output_drop_noise_threshold: int}}
  *
- * Сравнение двух `EvalRun` по критерию приёмки патча промта (P7.5, D63 + правило отбора
- * D119/D120): дельты `overall.f1`/`row_coverage`/`per_field` на подвыборках `tune`/`holdout` и
+ * Сравнение двух `EvalRun` по критерию приёмки патча промта: дельты `overall.f1`/`row_coverage`/`per_field` на подвыборках `tune`/`holdout` и
  * дельта `f1` по каждому эталону, вердикт `accept`/`reject` — {@see EvalRunComparator}. НИ ОДНОГО
  * LLM-вызова не делает — читает уже посчитанные `prc_ai_eval_results` двух прогонов.
- * `--criterion` (P2.2, D24/D91; `noise-aware` — P2.13, D108/D109) переключает режим сравнения
+ * `--criterion` (`noise-aware`) переключает режим сравнения
  * (`patch`|`no-regression`|`noise-aware`), дефолт сохраняет сегодняшнее поведение — тюнинг-контур
  * `2026.07.26-EST-TRAIN` его не замечает.
  */
-#[Description('Сравнение двух EvalRun по критерию приёмки патча промта (tune/holdout, D63)')]
+#[Description('Сравнение двух EvalRun по критерию приёмки патча промта (tune/holdout)')]
 #[Signature('estimate:eval:compare
         {--base= : id базового прогона (EvalRun)}
         {--candidate= : id прогона-кандидата (EvalRun)}

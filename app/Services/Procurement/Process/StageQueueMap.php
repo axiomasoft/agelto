@@ -9,7 +9,7 @@ use App\Enums\Procurement\Process\StageCode;
 use Illuminate\Contracts\Config\Repository;
 
 /**
- * Единственный источник connection, queue и таймаутов доставки stage (bp-jobs, execution#s09).
+ * Единственный источник connection, queue и таймаутов доставки stage.
  * Connection/queue/job timeout берутся из process.queues, Horizon timeout — из фактического
  * supervisor этой connection+queue, retry_after — из фактической queue connection, slice и lease —
  * из ProcessPolicy. Любая stage обязана иметь ровно один маршрут, а цепочка

@@ -12,7 +12,7 @@ use Illuminate\Contracts\Container\Container;
 
 /**
  * Registry и inspector определяют единственный strategy до его запуска. Legacy strategy methods
- * still return their internal completion signal while P6.2 migrates their public contract; that
+ * still return their internal completion signal until their public contract is migrated; that
  * signal is not used for format selection and cannot fall through to another handler.
  */
 final readonly class DocumentPreparer

@@ -10,7 +10,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 /**
- * Синхронизация `resources/ai/prompts/**\/*.md` → `llm_prompts` (P8.1, D5/D17). Без `--check`
+ * Синхронизация `resources/ai/prompts/**\/*.md` → `llm_prompts`. Без `--check`
  * делает ровно то же самое, что `PromptSeeder` внутри `db:seed` — прямой путь для деплоя промтов
  * без прогона остального `DatabaseSeeder`. С `--check` НИЧЕГО не пишет — только сверяет файлы с
  * текущим состоянием БД и завершает CI-джобу ошибкой при найденном дрейфе.

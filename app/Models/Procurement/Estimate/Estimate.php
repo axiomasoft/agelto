@@ -48,7 +48,7 @@ use Illuminate\Support\Str;
  * @property Carbon|null $period_end
  * @property int|null $rows_extracted
  * @property string $validation_status
- * @property Collection<int, string>|null $validation_notes ValidationReport::$notes сметы целиком (research/12-uncertainty-model.md §5); null — валидатор ничего не нашёл
+ * @property Collection<int, string>|null $validation_notes ValidationReport::$notes сметы целиком; null — валидатор ничего не нашёл
  * @property string|null $raw_result_ref
  * @property string|null $raw_result_disk
  * @property Collection<array-key, mixed>|null $passport
@@ -56,8 +56,8 @@ use Illuminate\Support\Str;
  * @property int|null $source_page_start
  * @property-read DocumentVersion|null $documentVersion
  * @property-read Analysis|null $analysis
- * @property-read int $items_count `withCount('items')` — счётчик витрины (P8.5, EstimateResource::getEloquentQuery())
- * @property-read int $marked_items_count `withCount('items as marked_items_count', ...)` — то же, отфильтровано по `quality IS NOT NULL`
+ * @property-read int $items_count `withCount('items')` — счётчик витрины (EstimateResource::getEloquentQuery())
+ * @property-read int $marked_items_count `withCount('items as marked_items_count',...)` — то же, отфильтровано по `quality IS NOT NULL`
  */
 #[UseFactory(EstimateFactory::class)]
 #[Fillable([
@@ -117,7 +117,7 @@ final class Estimate extends Model
             'passport' => AsCollection::class,
             'raw_result' => AsCollection::class,
             // Примитивный `'collection'`, НЕ `AsCollection::class` — тот же null-safety довод, что
-            // `Item::$quality` (research/12-uncertainty-model.md §5): класс-каст пишет JSON `"null"`
+            // `Item::$quality`: класс-каст пишет JSON `"null"`
             // вместо SQL NULL на пустом значении.
             'validation_notes' => 'collection',
             'rows_expected' => 'integer',
@@ -132,7 +132,7 @@ final class Estimate extends Model
 
     /**
      * Подпись сметы для витрины — вычислима из `estimate_number`/`ordinal`, колонки не имеет
-     * (D100: хранимое производное значение расходилось с источником при правке номера оператором).
+     * (хранимое производное значение расходилось с источником при правке номера оператором).
      */
     /** @return Attribute<string, never> */
     protected function title(): Attribute
@@ -146,7 +146,7 @@ final class Estimate extends Model
 
     /**
      * Система координат адреса сметы в многосметном документе — производная, колонки не имеет
-     * (D106): лист книги → `Sheet`, страничный сегмент → `Pages`, ни то ни другое → `WholeDocument`.
+     * лист книги → `Sheet`, страничный сегмент → `Pages`, ни то ни другое → `WholeDocument`.
      */
     /** @return Attribute<EstimateSourceKind, never> */
     protected function sourceKind(): Attribute
@@ -215,8 +215,7 @@ final class Estimate extends Model
     }
 
     /**
-     * Единственный носитель правила показа (§4 root/document-contour.md, D91) — вырезает сметы
-     * служебных площадок (`is_public=false`, «Обучалка») из публичной витрины.
+     * Исключает сметы служебных площадок (`is_public=false`) из публичной витрины.
      *
      * @param  Builder<Estimate>  $query
      * @return Builder<Estimate>

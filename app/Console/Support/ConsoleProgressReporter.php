@@ -9,8 +9,7 @@ use App\Services\Procurement\Contracts\ProgressReporter;
 use Illuminate\Console\OutputStyle;
 
 /**
- * Единственный класс проекта, который печатает прогресс сервисного слоя (§2
- * `root/service-layer-map.md`) — обёртка над {@see OutputStyle} команды.
+ * Выводит прогресс сервисного слоя через {@see OutputStyle} команды.
  */
 final readonly class ConsoleProgressReporter implements ProgressReporter
 {

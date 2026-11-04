@@ -11,12 +11,12 @@ use App\Services\Procurement\Contracts\Dto\AnalysisSummary;
 use App\Services\Procurement\Contracts\Dto\SummaryMetric;
 
 /**
- * Фиктивный ВТОРОЙ тип документа (P2.6, D14/D26) — доказательство расширяемости: тип со СВОИМ
+ * Фиктивный ВТОРОЙ тип документа — доказательство расширяемости: тип со СВОИМ
  * job'ом извлечения, зарегистрированный ОДНОЙ строкой `config('ai.analyzers')` только в тестовом
  * окружении (Implementation Rules 2–3). Использует существующий кейс `AiDocumentType::TechSpec` —
  * заводить кейс ради теста запрещено (Implementation Rule 3).
  *
- * НЕ реализует `SupportsResultComparison` (§1.5 контракта, D106) — намеренно: тип без опциональной
+ * НЕ реализует `SupportsResultComparison` (§1.5 контракта) — намеренно: тип без опциональной
  * способности обязан давать штатный `null` в `ShadowAnalysisJob::compareWithPrimary()`, а не
  * ошибку; `EstimateAnalyzer` — сегодня единственный реализующий эту способность тип, и ветку
  * «способности нет» им проверить нельзя.

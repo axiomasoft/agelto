@@ -39,7 +39,7 @@ final readonly class EisCardCatalog
     /**
      * Шаблоны URL детальной карточки по сегменту типа + вкладке — `{regNumber}` резолвит
      * `EisCardUrlBuilder::buildUrl()`. `supplier-results` у `ea615`/`po615` — явный маркер
-     * `null` (D121): вкладка отвечает 404 у обоих типов «по природе» (разведка §`_observed`),
+     * `null`: вкладка не применима к обоим типам процедур и отвечает 404,
      * а не «справочник не заполнен» — `EisCardUrlBuilder` отличает эти два случая по
      * `array_key_exists`.
      *

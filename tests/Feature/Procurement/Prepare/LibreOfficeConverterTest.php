@@ -11,7 +11,7 @@ use Tests\Support\ProcessCore\StoredDocumentFixtures;
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
 /**
- * Обёртка над `soffice --headless --convert-to pdf` (P3.4) — реальный `soffice` в юнит-тестах не
+ * Обёртка над `soffice --headless --convert-to pdf` — реальный `soffice` в юнит-тестах не
  * вызывается (Code Guidance), выход подставляется вручную по конвенции именования LibreOffice
  * (`<имя входного файла без расширения>.pdf` в `$outputDir`).
  */

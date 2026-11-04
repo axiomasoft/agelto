@@ -29,7 +29,7 @@ test('явные версии адаптера читаются без I/O и н
         ->and(AdapterContractRef::fromArray(array_reverse($ref->toArray(), true))->equals($ref))->toBeTrue()
         ->and($ref->fingerprint()->hex)->toBe((new AdapterContractRef('eis', 'listing', '1', '1'))->fingerprint()->hex)
         ->and($queries)->toBe([]);
-})->group('t04', 'p26');
+})->group('network-route-policy');
 
 test('binding отвергает другую capability площадку и provider owner', function (): void {
     $origin = CanonicalOrigin::fromUrl('https://example.test');
@@ -41,7 +41,7 @@ test('binding отвергает другую capability площадку и pro
     $providerTarget = new SourceTargetDefinition('provider:fixture:listing', 'listing', $origin, [NetworkFixtures::profile()], adapterContract: $ref);
     expect(fn () => new ProviderTargetDefinitions(new ProviderKey('fixture'), [$providerTarget]))
         ->toThrow(InvalidArgumentException::class, 'platform parser contract');
-})->group('t04', 'p26');
+})->group('network-route-policy');
 
 test('catalog создаёт validating contract один раз и новая версия не оживляет старый hold', function (): void {
     $code = 'adapter_'.bin2hex(random_bytes(6));
@@ -64,4 +64,4 @@ test('catalog создаёт validating contract один раз и новая �
     expect(DB::table('prc_adapter_health')->where('adapter_version', '1')->sole()->state)->toBe('held')
         ->and(DB::table('prc_adapter_health')->where('adapter_version', '2')->sole()->state)->toBe('validating')
         ->and(DB::table('prc_adapter_health')->count())->toBe(2);
-})->group('t04', 'p26');
+})->group('network-route-policy');

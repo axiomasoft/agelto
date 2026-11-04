@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Process;
 
 /**
- * Process daemons (bp-daemons). Все четыре активированы: relay/reconcile/feed — P1.10/P1.11, project —
- * P1.15 (registry reducers, receipts и totals существуют). `activated()` сохранён как единая точка,
+ * Process daemons. Все четыре роли активированы: relay/reconcile/feed/project.
+ * `activated()` — единая точка,
  * через которую readiness и команда решают, какой daemon обязан быть живым.
  */
 enum DaemonKind: string

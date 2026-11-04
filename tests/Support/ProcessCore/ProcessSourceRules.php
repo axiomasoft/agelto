@@ -6,7 +6,7 @@ namespace Tests\Support\ProcessCore;
 
 use Tests\Support\Architecture\PlatformSourceRules;
 
-/** Scoped T44 source checks. This does not prove transaction or single-writer behavior. */
+/** Scoped source checks. This does not prove transaction or single-writer behavior. */
 final class ProcessSourceRules
 {
     /** @var list<string> Exact application composition seams, never a whole namespace bypass. */

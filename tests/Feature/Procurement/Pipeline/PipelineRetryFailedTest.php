@@ -30,6 +30,6 @@ test('document retry принадлежит durable due и не имеет от�
         ->and(is_file(app_path('Console/Commands/Procurement/PipelineRetryFailed.php')))->toBeFalse();
 });
 
-// Д-4 (P7.7, research/10 §3): раньше ветка PipelineStage::Extraction бросала LogicException
-// безусловно («стадия ещё не реализована (P6)») — провалившийся extraction никогда не
+// Проверяет маршрутизацию повторной обработки.
+// безусловно («стадия ещё не реализована») — провалившийся extraction никогда не
 // передиспатчился, хотя EstimateExtractionJob существует с e06434c.

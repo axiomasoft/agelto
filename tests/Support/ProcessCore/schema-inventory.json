@@ -417,10 +417,12 @@
     },
     {
       "path": "database/migrations/2026_07_04_100000_create_prc_platforms_table.php",
-      "sha256": "b6f2e189767a9d51fab08a77ea287042ad71438bf95f46979f32085aa4336a6a",
+      "sha256": "3c42322b6daed9e383a3eb4850973e13679be7e9cbd83aef6a03cf4e7f56def1",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "b6f2e189767a9d51fab08a77ea287042ad71438bf95f46979f32085aa4336a6a",
+      "before_polish_sha256": "b6f2e189767a9d51fab08a77ea287042ad71438bf95f46979f32085aa4336a6a"
     },
     {
       "path": "database/migrations/2026_07_04_100001_create_prc_registries_table.php",
@@ -474,18 +476,21 @@
     },
     {
       "path": "database/migrations/2026_07_04_100010_create_prc_procurement_parties_table.php",
-      "sha256": "f4127e2d7efd712ce30676e3959fb0faf3b2f1a13a6b0ba36fc79d0b78189532",
+      "sha256": "05d6984e3e9bb0151f5164a197e2d472256aac46137dcda54136cab0bbe70cd1",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "f4127e2d7efd712ce30676e3959fb0faf3b2f1a13a6b0ba36fc79d0b78189532",
+      "before_polish_sha256": "f4127e2d7efd712ce30676e3959fb0faf3b2f1a13a6b0ba36fc79d0b78189532"
     },
     {
       "path": "database/migrations/2026_07_04_100011_create_prc_procurements_table.php",
-      "sha256": "c3c4bfea9d566d4389405e1cccb6aa2f52334c544fb2b0aba9a51d3bd8de1ade",
+      "sha256": "06991fd4abf14f6699658d80e8bc6fd32227863b3ef69468bbdf8e99c5280649",
       "action": "adapt_baseline",
       "owner_item": "P2.18",
       "reason": "Atomic acquisition producer, profile, provenance and adapter owner cutover.",
-      "original_sha256": "10afa35b633ff5114aa573b787dcd5e9b3c59f787e106395594e1dc8f03f9dce"
+      "original_sha256": "10afa35b633ff5114aa573b787dcd5e9b3c59f787e106395594e1dc8f03f9dce",
+      "before_polish_sha256": "c3c4bfea9d566d4389405e1cccb6aa2f52334c544fb2b0aba9a51d3bd8de1ade"
     },
     {
       "path": "database/migrations/2026_07_04_100012_create_prc_revisions_table.php",
@@ -510,46 +515,57 @@
     },
     {
       "path": "database/migrations/2026_07_04_100015_create_prc_items_table.php",
-      "sha256": "0a76edd8c58d42f86ceda6a96f888160ff5086e2467ad1a629d7b623844aa4c8",
+      "sha256": "79955876697bab0a83a1b1a3ac2b3e225db7039ce29ecc1eb6bf5162d190b133",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "0a76edd8c58d42f86ceda6a96f888160ff5086e2467ad1a629d7b623844aa4c8",
+      "before_polish_sha256": "0a76edd8c58d42f86ceda6a96f888160ff5086e2467ad1a629d7b623844aa4c8"
     },
     {
       "path": "database/migrations/2026_07_04_100016_create_prc_financing_table.php",
-      "sha256": "7a62001fab79f040091fea404db066a41553de8e927451905db5cc6a9f42e9cc",
+      "sha256": "d5e572d5715b4a448abadba51ba8a26caed8714e052587ce5c261f5b7f604101",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "7a62001fab79f040091fea404db066a41553de8e927451905db5cc6a9f42e9cc",
+      "before_polish_sha256": "7a62001fab79f040091fea404db066a41553de8e927451905db5cc6a9f42e9cc"
     },
     {
       "path": "database/migrations/2026_07_04_100017_create_prc_eis_details_table.php",
-      "sha256": "27dcc5d237d17a1e8275756a4f72548b6686db0d32b05d1230888289aaf5f0c3",
+      "sha256": "fe351def8b711a81f2d3aee45583760624eb7aaf7ba0cba1b1c9e8fa6c763169",
       "action": "adapt",
       "owner_item": "P2.14",
       "reason": "Canonical platform-scoped primary identity and single EIS extension writer baseline cutover.",
-      "original_sha256": "ae90524de01460073c772abdeb7b5fc59588d1ef0f3fe4fb9db5e6ff506dd7f1"
+      "original_sha256": "ae90524de01460073c772abdeb7b5fc59588d1ef0f3fe4fb9db5e6ff506dd7f1",
+      "before_polish_sha256": "27dcc5d237d17a1e8275756a4f72548b6686db0d32b05d1230888289aaf5f0c3"
     },
     {
       "path": "database/migrations/2026_07_04_100018_create_prc_documents_table.php",
-      "sha256": "05fca4c9dce4a6fd33194f9141775d7a11fdeac691f5625f7d613fa49295a534",
+      "sha256": "2e5cc7b58eef5bb9d0391607790fd53f1af01897cc25240032c15ed1f7853ce1",
       "action": "adapt_baseline",
       "owner_item": "P2.18",
-      "reason": "Atomic acquisition cutover; versioned source document reference descriptor."
+      "reason": "Atomic acquisition cutover; versioned source document reference descriptor.",
+      "original_sha256": "05fca4c9dce4a6fd33194f9141775d7a11fdeac691f5625f7d613fa49295a534",
+      "before_polish_sha256": "05fca4c9dce4a6fd33194f9141775d7a11fdeac691f5625f7d613fa49295a534"
     },
     {
       "path": "database/migrations/2026_07_04_100019_create_prc_document_versions_table.php",
-      "sha256": "56d3697cde720d5282f1f7371a4391cf6a9ad87d006b1d2f804156c54b2b2c30",
+      "sha256": "8a8dc0ae37d305c82e31bd0c2746def81c56524b175a7663bb109d2d063a3e96",
       "action": "rewrite-baseline",
       "owner_item": "P3.5",
-      "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness."
+      "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness.",
+      "original_sha256": "56d3697cde720d5282f1f7371a4391cf6a9ad87d006b1d2f804156c54b2b2c30",
+      "before_polish_sha256": "56d3697cde720d5282f1f7371a4391cf6a9ad87d006b1d2f804156c54b2b2c30"
     },
     {
       "path": "database/migrations/2026_07_04_100020_create_prc_protocols_table.php",
-      "sha256": "1ef5efafc8fc26f0012292904eed88bbd5ed35611be131c3763a7e760e2fa2b2",
+      "sha256": "a38ac95a1e953cba9af8c0ba143db01d59204ac443d620ac19c784e24c0858b9",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "1ef5efafc8fc26f0012292904eed88bbd5ed35611be131c3763a7e760e2fa2b2",
+      "before_polish_sha256": "1ef5efafc8fc26f0012292904eed88bbd5ed35611be131c3763a7e760e2fa2b2"
     },
     {
       "path": "database/migrations/2026_07_04_100021_create_prc_bids_table.php",
@@ -567,24 +583,30 @@
     },
     {
       "path": "database/migrations/2026_07_04_100023_create_prc_clarifications_table.php",
-      "sha256": "f5b999dffe09f021e6ede1e5dc4a26c912a5bdf6a2eb2d8ade4aa51dba4a1cf5",
+      "sha256": "2ab92ec0f80605bec5e768cecb4af910f157639506ba41ef8f11e5720663b9f0",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "f5b999dffe09f021e6ede1e5dc4a26c912a5bdf6a2eb2d8ade4aa51dba4a1cf5",
+      "before_polish_sha256": "f5b999dffe09f021e6ede1e5dc4a26c912a5bdf6a2eb2d8ade4aa51dba4a1cf5"
     },
     {
       "path": "database/migrations/2026_07_04_100024_create_prc_cancellations_table.php",
-      "sha256": "6ed5c3ad66c0328715765607395c9580c5104ca3ed6a04f1823a4e5e55b58903",
+      "sha256": "583fea53e500829880d42f95372aea6754dc2fb6d55bd3674b1d0ea8d9417be7",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "6ed5c3ad66c0328715765607395c9580c5104ca3ed6a04f1823a4e5e55b58903",
+      "before_polish_sha256": "6ed5c3ad66c0328715765607395c9580c5104ca3ed6a04f1823a4e5e55b58903"
     },
     {
       "path": "database/migrations/2026_07_04_100025_create_prc_ai_analyses_table.php",
-      "sha256": "a7c3acc0d8aa18aaa966106d67ce4e6e07bf6a5735945f6894f08017ba155651",
+      "sha256": "78bf81893dcf461cfa0a51c757a43794ce0d3eed2213d9d43a51a5cf698074ee",
       "action": "rewrite",
       "owner_item": "P3.13",
-      "reason": "Canonical AI recipe/chunk/publication and provider-ledger consumer cutover."
+      "reason": "Canonical AI recipe/chunk/publication and provider-ledger consumer cutover.",
+      "original_sha256": "a7c3acc0d8aa18aaa966106d67ce4e6e07bf6a5735945f6894f08017ba155651",
+      "before_polish_sha256": "a7c3acc0d8aa18aaa966106d67ce4e6e07bf6a5735945f6894f08017ba155651"
     },
     {
       "path": "database/migrations/2026_07_04_100027_create_llm_providers_table.php",
@@ -595,10 +617,12 @@
     },
     {
       "path": "database/migrations/2026_07_04_100028_create_llm_routes_table.php",
-      "sha256": "8adc2f8a6d81162579ddd4200b95ac04e861093a5f380767de76da13a9aaa464",
+      "sha256": "7ad2905fbf2556be8171c0f5b518ab23b501b4a215536c5c5ee1af5bac5d519d",
       "action": "rewrite",
       "owner_item": "P3.13",
-      "reason": "Canonical AI recipe/chunk/publication and provider-ledger consumer cutover."
+      "reason": "Canonical AI recipe/chunk/publication and provider-ledger consumer cutover.",
+      "original_sha256": "8adc2f8a6d81162579ddd4200b95ac04e861093a5f380767de76da13a9aaa464",
+      "before_polish_sha256": "8adc2f8a6d81162579ddd4200b95ac04e861093a5f380767de76da13a9aaa464"
     },
     {
       "path": "database/migrations/2026_07_04_100029_create_llm_prompts_table.php",
@@ -609,10 +633,12 @@
     },
     {
       "path": "database/migrations/2026_07_04_100030_create_prc_ai_dataset_examples_table.php",
-      "sha256": "dd57da970946ba3179b3e4195992c8a0c7c5cdbd0ef19b0951ee0ac81c41a9b2",
+      "sha256": "76942f85c8e73912e115e78986f71c7759de20cc19848123238ab2177be3b960",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "dd57da970946ba3179b3e4195992c8a0c7c5cdbd0ef19b0951ee0ac81c41a9b2",
+      "before_polish_sha256": "dd57da970946ba3179b3e4195992c8a0c7c5cdbd0ef19b0951ee0ac81c41a9b2"
     },
     {
       "path": "database/migrations/2026_07_04_100031_create_prc_ai_eval_runs_table.php",
@@ -623,70 +649,85 @@
     },
     {
       "path": "database/migrations/2026_07_04_100032_create_prc_ai_eval_results_table.php",
-      "sha256": "d6b4b5916880b1ea3e96eb2ce6b65769668cb7dda24c998410577718ff3c68f4",
+      "sha256": "d2b38821efa60356267720e28b8c892ec57f2f8153a6bfceabb3b5604a6ef64e",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "d6b4b5916880b1ea3e96eb2ce6b65769668cb7dda24c998410577718ff3c68f4",
+      "before_polish_sha256": "d6b4b5916880b1ea3e96eb2ce6b65769668cb7dda24c998410577718ff3c68f4"
     },
     {
       "path": "database/migrations/2026_07_04_100033_create_prc_estimates_table.php",
-      "sha256": "9d7ca1f51e14b90abe812e270796791df5b89bf4e733a1b37216c9548b1d2a98",
+      "sha256": "62aa6b47733f2ecff12e811ebd024709c3e06f1378ad0697ea8735bfc33f4438",
       "action": "keep",
       "owner_item": "baseline",
       "reason": "Существующий CREATE, без изменений в P1.1.",
       "original_sha256": "58edc5b6573b67fba989ac32ee388f644c7653fdee30bb9331465f0c4c5a5e71",
-      "accepted_change_item": "P3.17"
+      "accepted_change_item": "P3.17",
+      "before_polish_sha256": "9d7ca1f51e14b90abe812e270796791df5b89bf4e733a1b37216c9548b1d2a98"
     },
     {
       "path": "database/migrations/2026_07_04_100034_create_prc_estimate_sections_table.php",
-      "sha256": "3fdd4abca606e7f8ce9e3f63b8f753e28bf4608bd01e859c94b2c3f338d14894",
+      "sha256": "c21e34a19a6c0991a0db5b61b4151e6929cb05123a5ae489f8d03e3b8eb4c435",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "3fdd4abca606e7f8ce9e3f63b8f753e28bf4608bd01e859c94b2c3f338d14894",
+      "before_polish_sha256": "3fdd4abca606e7f8ce9e3f63b8f753e28bf4608bd01e859c94b2c3f338d14894"
     },
     {
       "path": "database/migrations/2026_07_04_100035_create_prc_estimate_items_table.php",
-      "sha256": "99af0bef12f1a30f3bdafec2c6a39ff169306e8293159ec6756ca17aab86523a",
+      "sha256": "0638c70dd9ddd8b8a8495ded99b0435a97bcca3cd4f27c7988da310cb81a3808",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "99af0bef12f1a30f3bdafec2c6a39ff169306e8293159ec6756ca17aab86523a",
+      "before_polish_sha256": "99af0bef12f1a30f3bdafec2c6a39ff169306e8293159ec6756ca17aab86523a"
     },
     {
       "path": "database/migrations/2026_07_04_100036_create_prc_estimate_resources_table.php",
-      "sha256": "59c3a1edec601ba7f5e0c2b560e674fda7da372a527d12b61207c718380c0032",
+      "sha256": "51aea264f5576661ae740fe99e2ec823e076aba00c3bfbf77963f4e1d7a4902a",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "59c3a1edec601ba7f5e0c2b560e674fda7da372a527d12b61207c718380c0032",
+      "before_polish_sha256": "59c3a1edec601ba7f5e0c2b560e674fda7da372a527d12b61207c718380c0032"
     },
     {
       "path": "database/migrations/2026_07_04_100037_create_prc_estimate_totals_table.php",
-      "sha256": "0853b9ddcde6b1271831e59b4d547808c27f9179066b524e1e90e3cb0fa064b5",
+      "sha256": "fb544330ca9b898233e4b51d3ccfd96854124d64c74b8026766c6e3a3a6056a7",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "0853b9ddcde6b1271831e59b4d547808c27f9179066b524e1e90e3cb0fa064b5",
+      "before_polish_sha256": "0853b9ddcde6b1271831e59b4d547808c27f9179066b524e1e90e3cb0fa064b5"
     },
     {
       "path": "database/migrations/2026_07_04_100038_create_prc_crawlers_table.php",
-      "sha256": "3c47d66bb2e4601df3e8d379dcf862f2c7ab33fe14499a6567067a46c0138b12",
+      "sha256": "9ba2ccfb45c4bb69bfe26edb3748d52c9c7d0f5fa043c7f76f0b1eb82c32bfaf",
       "action": "adapt_baseline",
       "owner_item": "P2.18",
       "reason": "Atomic acquisition producer, profile, provenance and adapter owner cutover.",
-      "original_sha256": "c714c432418bf62e77fcd3218467b0ee52d73190364b7d394da34ddd67fe52b7"
+      "original_sha256": "c714c432418bf62e77fcd3218467b0ee52d73190364b7d394da34ddd67fe52b7",
+      "before_polish_sha256": "3c47d66bb2e4601df3e8d379dcf862f2c7ab33fe14499a6567067a46c0138b12"
     },
     {
       "path": "database/migrations/2026_07_04_100040_create_prc_proxies_table.php",
-      "sha256": "088b8e8f74cd200d89d36cd5fbb7657ffb229871d02a9d34dd335ff2feb272e7",
+      "sha256": "f5e896855b0882512824898e8282025ae83822dd1b282ab5a70768516585d101",
       "action": "adapt",
       "owner_item": "P2.6",
       "reason": "Atomic network consumer, provider ownership and route configuration cutover.",
-      "original_sha256": "66b30d1a3b134be076af6727aa748cb4b98e731be0d3fc8501cfd36840affb1f"
+      "original_sha256": "66b30d1a3b134be076af6727aa748cb4b98e731be0d3fc8501cfd36840affb1f",
+      "before_polish_sha256": "088b8e8f74cd200d89d36cd5fbb7657ffb229871d02a9d34dd335ff2feb272e7"
     },
     {
       "path": "database/migrations/2026_07_04_100044_create_prc_ignored_items_table.php",
-      "sha256": "c03b6342c68ac7de2cb31349348b0df037e24f728d741e5807a158554b08e3df",
+      "sha256": "23636e6be30c3001d9586aed1c420979c555a27502a34be48d0a34da1b3f9b3c",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "c03b6342c68ac7de2cb31349348b0df037e24f728d741e5807a158554b08e3df",
+      "before_polish_sha256": "c03b6342c68ac7de2cb31349348b0df037e24f728d741e5807a158554b08e3df"
     },
     {
       "path": "database/migrations/2026_07_04_100047_setup_pg_partman.php",
@@ -704,59 +745,75 @@
     },
     {
       "path": "database/migrations/2026_07_09_100050_set_pg_partman_retention.php",
-      "sha256": "7c77d0c352cc939729b0640be379969b5f5eee5aca604aaf7b3697d36a5d2ce7",
+      "sha256": "81f06bf7892bfb9bf713e825758deb432baf834af79a8235eb72e0d41f4708c5",
       "action": "keep_infrastructure",
       "owner_item": "baseline",
-      "reason": "Сохранить infrastructure; full DB reset удаляет partman metadata вне public."
+      "reason": "Сохранить infrastructure; full DB reset удаляет partman metadata вне public.",
+      "original_sha256": "7c77d0c352cc939729b0640be379969b5f5eee5aca604aaf7b3697d36a5d2ce7",
+      "before_polish_sha256": "7c77d0c352cc939729b0640be379969b5f5eee5aca604aaf7b3697d36a5d2ce7"
     },
     {
       "path": "database/migrations/2026_07_09_100052_create_prc_ai_corrections_table.php",
-      "sha256": "6b0d0581c092a91bdeb807a82990a54b6eec9cfff8104aa2c3ba3306c8b62f42",
+      "sha256": "4362b0344c1e978b4124769375248c63a860b740cf4dccfbfd0b365f8cb2fee9",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "6b0d0581c092a91bdeb807a82990a54b6eec9cfff8104aa2c3ba3306c8b62f42",
+      "before_polish_sha256": "6b0d0581c092a91bdeb807a82990a54b6eec9cfff8104aa2c3ba3306c8b62f42"
     },
     {
       "path": "database/migrations/2026_07_27_100053_create_prc_ai_fixtures_table.php",
-      "sha256": "4d5fe37be122e623071bbcb5e612b57256c9c78ad288572c3ae36a5b4701d2fb",
+      "sha256": "a0b7cbb310acf470b09d767bec056d3d173491b61e931a05d5eae4b589eebe01",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "4d5fe37be122e623071bbcb5e612b57256c9c78ad288572c3ae36a5b4701d2fb",
+      "before_polish_sha256": "4d5fe37be122e623071bbcb5e612b57256c9c78ad288572c3ae36a5b4701d2fb"
     },
     {
       "path": "database/migrations/2026_07_27_100055_create_prc_document_representations_table.php",
-      "sha256": "bace3da672778ab8657fc47832cf5d8f7769a4196a1a742acf7e442004fa14f2",
+      "sha256": "b65d8e0f98ad0a6bd21912f3aac5251b0bd7460f0f4f3a5869d7d0b15f86e6cf",
       "action": "rewrite-baseline",
       "owner_item": "P3.5",
-      "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness."
+      "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness.",
+      "original_sha256": "bace3da672778ab8657fc47832cf5d8f7769a4196a1a742acf7e442004fa14f2",
+      "before_polish_sha256": "bace3da672778ab8657fc47832cf5d8f7769a4196a1a742acf7e442004fa14f2"
     },
     {
       "path": "database/migrations/2026_07_27_100057_create_prc_estimate_work_types_table.php",
-      "sha256": "3571feb6614cf92c32f4e8ace6eb73d2b9e88a9291db554fea08f3caaa6b09e9",
+      "sha256": "da1f6e398eef76e8ceb1627d9d4c975e7d156f0e5a12b4ef1e9848062842930d",
       "action": "keep",
       "owner_item": "baseline",
-      "reason": "Существующий CREATE, без изменений в P1.1."
+      "reason": "Существующий CREATE, без изменений в P1.1.",
+      "original_sha256": "3571feb6614cf92c32f4e8ace6eb73d2b9e88a9291db554fea08f3caaa6b09e9",
+      "before_polish_sha256": "3571feb6614cf92c32f4e8ace6eb73d2b9e88a9291db554fea08f3caaa6b09e9"
     },
     {
       "path": "database/migrations/2026_07_28_100058_create_prc_ai_prompt_suggestions_table.php",
-      "sha256": "32cbb56a31ffb47963e969dcb5f4b2422ce23b57e18723cedf60db4a492973d5",
+      "sha256": "11d84583f2b1061985c474ccb3d917d5159f5686e74141938d9113f55c7a02b3",
       "action": "rewrite",
       "owner_item": "P3.13",
-      "reason": "Canonical AI recipe/chunk/publication and provider-ledger consumer cutover."
+      "reason": "Canonical AI recipe/chunk/publication and provider-ledger consumer cutover.",
+      "original_sha256": "32cbb56a31ffb47963e969dcb5f4b2422ce23b57e18723cedf60db4a492973d5",
+      "before_polish_sha256": "32cbb56a31ffb47963e969dcb5f4b2422ce23b57e18723cedf60db4a492973d5"
     },
     {
       "path": "database/migrations/2026_08_05_100068_enable_db_observability_extensions.php",
-      "sha256": "279af1e27db9deabd833f98a1b9817aff72cc0c1f1d3f1ad387f63fbf54ae2e6",
+      "sha256": "20b2fb3f6b567c7da9ef5f42bf43808d635d1635d68b6faf6f3f28b743f040cc",
       "action": "keep_infrastructure",
       "owner_item": "baseline",
-      "reason": "Сохранить infrastructure; full DB reset удаляет partman metadata вне public."
+      "reason": "Сохранить infrastructure; full DB reset удаляет partman metadata вне public.",
+      "original_sha256": "279af1e27db9deabd833f98a1b9817aff72cc0c1f1d3f1ad387f63fbf54ae2e6",
+      "before_polish_sha256": "279af1e27db9deabd833f98a1b9817aff72cc0c1f1d3f1ad387f63fbf54ae2e6"
     },
     {
       "path": "database/migrations/2026_08_05_100074_precreate_historical_partitions.php",
-      "sha256": "63a5c84452a879122f3086dec9b5396902ce899603840155561d25d3d1d9b78a",
+      "sha256": "3c39d58077ed8999eedee202c65f054f2d5ed2ef360f1ecae90b1d5f3128192a",
       "action": "keep_infrastructure",
       "owner_item": "baseline",
-      "reason": "Сохранить infrastructure; full DB reset удаляет partman metadata вне public."
+      "reason": "Сохранить infrastructure; full DB reset удаляет partman metadata вне public.",
+      "original_sha256": "63a5c84452a879122f3086dec9b5396902ce899603840155561d25d3d1d9b78a",
+      "before_polish_sha256": "63a5c84452a879122f3086dec9b5396902ce899603840155561d25d3d1d9b78a"
     },
     {
       "path": "database/migrations/2026_08_05_100076_prune_orphaned_partman_part_config_entries.php",
@@ -872,35 +929,41 @@
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_ledger_tables.php",
-      "sha256": "a00dbc1125217f2eafb65ee8c3594fc78e170761c067b01906a62a12e2b3d93d",
+      "sha256": "3bbc03a6d584535fe00c06e39d7e9b0e79460d8c5511986bf9fa0066025e9760",
       "action": "adapt_baseline",
       "owner_item": "P3.8",
       "reason": "Atomic acquisition producer, profile, provenance and adapter owner cutover.",
       "original_sha256": "dfcece59c5797e26784f66fca2463146c33717948a36007a124a910fddc6e6da",
-      "change_reason": "P3.8 additive schema support and canonical constraints; legacy runtime contract retained."
+      "change_reason": "P3.8 additive schema support and canonical constraints; legacy runtime contract retained.",
+      "before_polish_sha256": "a00dbc1125217f2eafb65ee8c3594fc78e170761c067b01906a62a12e2b3d93d"
     },
     {
       "path": "database/migrations/2026_10_25_100000_create_prc_process_network_tables.php",
-      "sha256": "af2b3078e01934a31beab81f0bf78485007233a2b3625846502afd4a1207da7a",
+      "sha256": "b5bf4161db580aef12fcbf9f5b9247f515c835aa38ebde7413629a0ae464d35d",
       "action": "adapt_baseline",
       "owner_item": "P2.18",
       "reason": "Atomic acquisition producer, profile, provenance and adapter owner cutover.",
       "original_sha256": "779fbfef82862c65888be42216946f3085a485d0e5db142ef10ba18720d7e0ed",
-      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained."
+      "change_reason": "P2.6 canonical owner/caller cutover; original provenance and executed scenario identities retained.",
+      "before_polish_sha256": "af2b3078e01934a31beab81f0bf78485007233a2b3625846502afd4a1207da7a"
     },
     {
       "path": "database/migrations/2026_10_25_100001_create_prc_request_observation_tables.php",
-      "sha256": "3593545acf54f7aa2bcb66a769d2fb22dbfe6a1d28a9c8c78877154d524dc354",
+      "sha256": "23afbc7dc57d25af92a3b11ce1e5a9320a5484b97018d8142bb0f061e43e5b5d",
       "action": "create",
       "owner_item": "P1.6",
-      "reason": "P1.6 durable request attempt/observation carriers execution#s04; network FKs добавляет P2.1."
+      "reason": "P1.6 durable request attempt/observation carriers execution#s04; network FKs добавляет P2.1.",
+      "original_sha256": "3593545acf54f7aa2bcb66a769d2fb22dbfe6a1d28a9c8c78877154d524dc354",
+      "before_polish_sha256": "3593545acf54f7aa2bcb66a769d2fb22dbfe6a1d28a9c8c78877154d524dc354"
     },
     {
       "path": "database/migrations/2026_10_28_100000_create_prc_process_projection_tables.php",
-      "sha256": "075391378f0eee4a2e16390775213bf70ed8ab48f4912690ba2a13544a4467f9",
+      "sha256": "bb413e7404f2fad7d35e2d947acccefb9cec117fcde988fc034a2159541bbb3d",
       "action": "create",
       "owner_item": "P1.15",
-      "reason": "P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured."
+      "reason": "P1.15 projection states, totals and receipts; exact isolated PostgreSQL catalog and schema captured.",
+      "original_sha256": "075391378f0eee4a2e16390775213bf70ed8ab48f4912690ba2a13544a4467f9",
+      "before_polish_sha256": "075391378f0eee4a2e16390775213bf70ed8ab48f4912690ba2a13544a4467f9"
     },
     {
       "path": "database/migrations/2026_10_28_100002_create_prc_acquisition_snapshot_tables.php",
@@ -918,10 +981,12 @@
     },
     {
       "path": "database/migrations/2026_11_01_100000_create_prc_document_storage_tables.php",
-      "sha256": "d9809943d284397f13c640070526aa70889e0813aa6f4c19e74e5a08f493a10f",
+      "sha256": "150d8f62446f937c5052fef30ccab751dcb413363fe4476eb2b3d9fcfcf19635",
       "action": "rewrite-baseline",
       "owner_item": "P3.5",
-      "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness."
+      "reason": "Complete canonical tuple/disk requirements, version bytea hash, immutable metadata and no legacy NULL tuple or partial uniqueness.",
+      "original_sha256": "d9809943d284397f13c640070526aa70889e0813aa6f4c19e74e5a08f493a10f",
+      "before_polish_sha256": "d9809943d284397f13c640070526aa70889e0813aa6f4c19e74e5a08f493a10f"
     },
     {
       "path": "database/migrations/2026_11_02_100000_create_prc_analysis_tables.php",
@@ -942,10 +1007,12 @@
     },
     {
       "path": "database/migrations/2026_11_02_100002_create_llm_assets.php",
-      "sha256": "78546482936443aa195b72f62958c7ac2319143712bc11e438bfb2747e39f457",
+      "sha256": "36ee11cdb3cc693e7b8e9b47fbc5f0cdab9400bc67e9c73d3fe0b1935a26ac3f",
       "action": "create",
       "owner_item": "P3.12",
-      "reason": "Canonical files/cache identity and fenced physical creation ownership; no paid runtime activation."
+      "reason": "Canonical files/cache identity and fenced physical creation ownership; no paid runtime activation.",
+      "original_sha256": "78546482936443aa195b72f62958c7ac2319143712bc11e438bfb2747e39f457",
+      "before_polish_sha256": "78546482936443aa195b72f62958c7ac2319143712bc11e438bfb2747e39f457"
     }
   ],
   "baseline": {

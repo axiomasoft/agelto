@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Contracts\Dto;
 
 /**
- * Один тик прогресса длинной операции (§2 `root/service-layer-map.md`).
+ * Один тик прогресса длинной операции.
  */
 final readonly class ProgressTick
 {

@@ -11,7 +11,7 @@ use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Str;
 
 /**
- * CancelRun (execution#s08): отмена намерения run, а не слепая отмена его work. Run row FOR UPDATE
+ * CancelRun: отмена намерения run, а не слепая отмена его work. Run row FOR UPDATE
  * с expected transition_seq; collecting → incomplete(cancelled), cancel_requested_at и audit event
  * атомарны. Shared work, нужное другим runs, завершается и сохраняет provenance; hard cancel
  * конкретного exclusive work — явный CancelWork.

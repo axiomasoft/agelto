@@ -5,16 +5,10 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Bench;
 
 /**
- * Одна ячейка бенчмарка форматов `(эталон, вариант представления)` (P6.1, D48). Состав ровно тот,
- * что зафиксирован ТЗ item'а: `representation`/`preflight`/`predicted` заполняются ВСЕГДА (кроме
- * `not_applicable`-ячейки); `actual`/`quality`/`outcome` — только реальным прогоном (`--dry-run`
- * оставляет их `null`). `prompt_version_set` — тот же набор, что и на всех остальных ячейках
- * прогона (D54): поле СВЕРХ буквального перечня D48, добавлено ради Validation P6.2 (`jq
- * '.cells[].prompt_version_set'`), который читает его с КАЖДОЙ ячейки, а не только из паспорта
- * отчёта.
- *
- * Закрытые состояния через приватный конструктор + фабрики (канон тестов проекта — без
- * boolean-флагов, тот же приём, что {@see PreflightDecision}).
+ * Ячейка бенчмарка `(эталон, вариант представления)`. Применимая ячейка всегда несёт
+ * `representation`, `preflight`, `predicted` и общий для прогона `prompt_version_set`.
+ * `actual`, `quality`, `outcome` заполняются реальным прогоном; dry-run оставляет их `null`.
+ * Фабрики и приватный конструктор задают допустимые сочетания этих состояний.
  */
 final readonly class BenchCellResult
 {

@@ -24,20 +24,20 @@ use RuntimeException;
 
 /**
  * Excel → PDF (landscape + fitToWidth(1)/fitToHeight(0), v1-урок против обрезки по столбцам,
- * `Old/.../Strategies/ExcelStrategy.php`) — xlsx size-gate (D35, research/L finding 5):
- * строки/размер проверяются ДЁШЕВО (`size_bytes` из БД + `listWorksheetInfo()` — метаданные
+ * `Old/.../Strategies/ExcelStrategy.php`) — xlsx size-gate:
+ * строки/размер проверяются ДЁШЕВО (`size_bytes` из БД + `listWorksheetInfo` — метаданные
  * листа без загрузки данных в память) ДО полной загрузки. Сама конверсия — в ИЗОЛИРОВАННОМ
  * PHP-процессе с явным `memory_limit` ({@see ConvertXlsxToPdfCommand}), чтобы OOM не убивал
  * соседние jobs воркера.
  *
  * Превышение любого из порогов `config('ai.prepare.xlsx_*')` ЛИБО падение самой конверсии —
- * лимит ИНСТРУМЕНТА, а не приговор документу (D26/D28, P3.4): вторая ветка пробует
- * `LibreOfficeConverter` (fidelity-конвертер, сохраняет print-setup и merged cells, D7). Обе
+ * лимит ИНСТРУМЕНТА, а не приговор документу: вторая ветка пробует
+ * `LibreOfficeConverter` (fidelity-конвертер, сохраняет print-setup и merged cells). Обе
  * ветки пишут ОДИН kind `pdf` (различаются `meta.tool`) — выбор представления для LLM
- * принадлежит P6 (D3), заводить второй kind здесь запрещено. Обе ветки упали →
+ * задаётся общей политикой; отдельный kind для каждой ветки не создаётся. Обе ветки упали →
  * `unprocessable(conversion_failed)`.
  *
- * Второй проход того же вызова (P3.5, D3) пишет ВТОРОЕ представление `text_grid`
+ * Второй проход того же вызова пишет ВТОРОЕ представление `text_grid`
  * ({@see TextGridRenderer}) — третий кандидат входа в LLM наряду с PDF и OCR-текстом; тот же
  * size-gate, что у PDF-ветки, но БЕЗ фолбэка (у текстовой сетки нет второго инструмента):
  * превышение лимита просто не производит `text_grid`, документ при этом НЕ становится

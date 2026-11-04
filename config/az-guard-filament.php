@@ -122,7 +122,7 @@ return [
     | record-specific `is_protected` read-only rule on top of the coarse
     | PromptPermission grant. Coarse permissions/Role UI are untouched — that
     | catalog comes from AdminGuardPanelProvider::discoverPermissionEnums(),
-    | not from this Filament-plugin discovery (see EST-AI plan D44).
+    | not from this Filament-plugin discovery.
     |
     */
     'exclude' => [

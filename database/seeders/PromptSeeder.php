@@ -8,7 +8,7 @@ use App\Services\Llm\PromptCanonSynchronizer;
 use Illuminate\Database\Seeder;
 
 /**
- * Тонкий вызыватель `PromptCanonSynchronizer::sync()` (D5/D17, `root/service-layer-map.md` §7) —
+ * Тонкий вызыватель `PromptCanonSynchronizer::sync()` —
  * разбор канона и запись живут в `App\Services\Llm\{PromptCanonReader,PromptCanonSynchronizer}`,
  * сидер существует ради совместимости с `db:seed`/`DatabaseSeeder::call()`.
  */

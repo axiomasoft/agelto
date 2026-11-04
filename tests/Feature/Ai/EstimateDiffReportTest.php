@@ -8,7 +8,7 @@ use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 
 /**
  * §8.6 `docs/dev/ai/estimate-extraction.md` — детерминированный diff-отчёт «gold vs
- * предсказание» (`EstimateDiffReport::build()`, P7.3, D62), без LLM (чистая функция над формой
+ * предсказание» (`EstimateDiffReport::build()`), без LLM (чистая функция над формой
  * §8.2/`analysis.result.estimates[]`).
  */
 function diffRow(int $rowIndex, array $overrides = []): array
@@ -91,7 +91,7 @@ test('разное значение поля даёт запись field_mismatc
         ->and($mismatch->predicted)->toBe('Кабель ВВГнг');
 });
 
-test('P8.6: пометка неопределённости прикладывается к расхождению как контекст, если адресует это поле', function () {
+test('пометка неопределённости прикладывается к расхождению как контекст, если адресует это поле', function () {
     $gold = [diffEstimate([diffRow(1, ['quantity' => '2'])])];
     $predicted = [diffEstimate([diffRow(1, [
         'quantity' => null,
@@ -109,7 +109,7 @@ test('P8.6: пометка неопределённости прикладыва
         ->and($mismatch->toArray()['predicted_quality'])->toBe(['reason' => 'unreadable', 'fields' => ['quantity']]);
 });
 
-test('P8.6: пометка про другое поле контекстом расхождения не становится', function () {
+test('пометка про другое поле контекстом расхождения не становится', function () {
     $gold = [diffEstimate([diffRow(1, ['name' => 'Кабель ВВГ', 'quantity' => '2'])])];
     $predicted = [diffEstimate([diffRow(1, [
         'name' => 'Иное наименование',
@@ -125,7 +125,7 @@ test('P8.6: пометка про другое поле контекстом р�
         ->and($mismatch->predictedQuality)->toBeNull();
 });
 
-test('P8.6: пометка сама по себе расхождением не является — строка с пометкой и совпавшими полями не даёт записей', function () {
+test('пометка сама по себе расхождением не является — строка с пометкой и совпавшими полями не даёт записей', function () {
     $gold = [diffEstimate([diffRow(1)])];
     $predicted = [diffEstimate([diffRow(1, ['quality' => ['reason' => 'unreadable', 'fields' => ['quantity']]])])];
 
@@ -202,7 +202,7 @@ test('итоги: расхождение value сопоставленной ст
         ->and($mismatch->predicted)->toBe('1500.00');
 });
 
-test('таблица сопоставления смет (P6.2, D54): слот несёт индексы обеих сторон и сработавшее правило', function () {
+test('таблица сопоставления смет: слот несёт индексы обеих сторон и сработавшее правило', function () {
     $gold = [
         diffEstimate([diffRow(1, ['name' => 'Кабель ВВГ'])], ['estimate_number' => 'ЛСР-2']),
         diffEstimate([diffRow(1, ['name' => 'Розетка'])], ['estimate_number' => 'ЛСР-1']),

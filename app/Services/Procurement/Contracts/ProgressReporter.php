@@ -7,9 +7,9 @@ namespace App\Services\Procurement\Contracts;
 use App\Services\Procurement\Contracts\Dto\ProgressTick;
 
 /**
- * Сейм прогресса сервисного слоя (§2 `root/service-layer-map.md`, P3.1): передаётся ОПЦИОНАЛЬНЫМ
- * параметром МЕТОДА длинной операции (`run(..., ?ProgressReporter $progress = null)`), не
- * конструктора — репортёр является свойством ВЫЗОВА, а не сервиса.
+ * Опциональный reporter длинной сервисной операции. Передаётся параметром метода,
+ * например run(..., ?ProgressReporter $progress=null), поскольку относится к вызову,
+ * а не к сроку жизни сервиса.
  */
 interface ProgressReporter
 {

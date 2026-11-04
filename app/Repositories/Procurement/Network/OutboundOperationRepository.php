@@ -14,7 +14,7 @@ use App\Repositories\Procurement\Process\LedgerRow;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Writer standalone outbound owner `prc_outbound_operations` (bp-ddl-network). Это bounded owner
+ * Writer standalone outbound owner `prc_outbound_operations`. Это bounded owner
  * одного logical outbound call, не второй process engine: нет ready/deferred/DAG/queue/retries.
  *
  * Open снимает snapshot полного inherited control closure (FOR SHARE, sorted scope_key) как

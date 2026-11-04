@@ -37,8 +37,6 @@ test('versioned recovery corpus проверяет вручную заданны
     expect(fn () => F::codec()->decodeCheckpoint($invalid))->toThrow(InvalidArgumentException::class);
 });
 
-pest()->group('p11');
-
 test('checkpoint roundtrip сохраняет pinned receipt и directive при progress restart и consumption', function (): void {
     $codec = F::codec();
     $plan = F::recovery();

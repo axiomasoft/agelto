@@ -15,7 +15,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * P9.1 — схема обратной связи оператора (D15, аудит F ось 6): ревью-колонки на `prc_ai_analyses`
+ * схема обратной связи оператора (аудит F ось 6): ревью-колонки на `prc_ai_analyses`
  * + структурированные коррекции в `prc_ai_corrections`, partial unique допускает историю
  * перепрогонов и теневые анализы вне активного множества.
  */

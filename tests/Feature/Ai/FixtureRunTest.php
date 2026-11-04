@@ -67,7 +67,7 @@ test('prepare producer сохраняет auto без инициатора и ma
         ->and(DB::table('prc_process_work')->where('state', 'ready')->count())->toBe(2);
 });
 
-test('оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (D41, единственность сейма)', function (): void {
+test('оба вызывающих пути (estimate:gold:import и «Прогнать») резолвят одну и ту же рабочую копию по sha256 (единственность сейма)', function (): void {
     $fixture = fixtureRunFixture('EST-XLSX-RUN-005');
     $this->artisan('estimate:gold:import', ['--code' => [$fixture->code]])->assertSuccessful();
     $a = DocumentVersion::query()->where('document_id', $fixture->refresh()->document_id)->sole();

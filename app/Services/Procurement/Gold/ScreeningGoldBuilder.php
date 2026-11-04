@@ -13,12 +13,9 @@ use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
- * Эталон скрининга ОДНОГО эталона корпуса (P5.4, D5, §8.5): вердикт — `Fixture::document_type`
- * для ЛЮБОГО класса эталона (§6.1 root/document-type-axis.md, D90 — колонка `NOT NULL` и
- * заполнена и для позитивов, ветвление по классу для ВЕРДИКТА больше не нужно). Форма — дословно
- * {@see ScreeningResult}: `confidence` эталона всегда `1.0` (в сравнении не участвует, §8.5),
- * `summary` — заметка корпуса либо title, когда заметка ещё не заполнена; `classification_note`
- * заполняется только у негативов и остаётся неавторитетным пояснением, не backend-решением.
+ * Эталон скрининга берёт вердикт из Fixture::document_type для любого класса корпуса.
+ * Форма — ScreeningResult; confidence=1.0 не участвует в сравнении. Summary берётся
+ * из заметки или title. Classification_note у негативов — пояснение, не backend-решение.
  */
 final readonly class ScreeningGoldBuilder
 {

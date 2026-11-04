@@ -42,8 +42,8 @@ final readonly class LlmRouteReadRepository
     }
 
     /**
-     * Первый активный теневой маршрут (`shadow=true`, P9.4, ТЗ 04 §5) для (document_type,
-     * purpose) — та же сортировка exact-match/`priority`, что `activeCandidatesFor()`; `shadow`
+     * Первый активный теневой маршрут (`shadow=true`, ТЗ 04 §5) для (document_type,
+     * purpose) — та же сортировка exact-match/`priority`, что `activeCandidatesFor`; `shadow`
      * маршруты — отдельное подмножество (обычный основной маршрут `shadow=false` этим методом
      * никогда не возвращается).
      */

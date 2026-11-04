@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Platform settings are the shared layer because detail and document requests have no crawler
- * profile. Nullable fields inherit reviewed defaults from config/crawler.php (P4.1, D36).
+ * profile. Nullable fields inherit reviewed defaults from config/crawler.php.
  */
 return new class extends Migration
 {

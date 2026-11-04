@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Process;
 use App\Enums\Procurement\Process\StageCode;
 
 /**
- * Один маршрут доставки stage (bp-jobs): connection, queue и вся цепочка таймаутов. Цепочка
+ * Один маршрут доставки stage: connection, queue и вся цепочка таймаутов. Цепочка
  * slice < jobTimeout < horizonTimeout < retryAfter < lease проверяется StageQueueMap при сборке;
  * здесь только неизменяемое значение.
  */

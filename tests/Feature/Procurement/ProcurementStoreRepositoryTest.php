@@ -8,7 +8,7 @@ use App\Services\Procurement\Acquisition\SnapshotFinalizer;
 use Tests\Support\Procurement\SnapshotFactory;
 
 /**
- * DOMLANG P3.3 (D13) — `etp_number` имеет write-path DTO→репозиторий→колонка, но пока ни один
+ * DOMLANG `etp_number` имеет write-path DTO→репозиторий→колонка, но пока ни один
  * источник его не заполняет (223-ФЗ forward-provision). Пин защищает от тихого промаха будущего
  * продюсера мимо колонки.
  */

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Llm\Requests;
 
-/** Provisional financial authorization. P3.10's joint gate alone may grant transport. */
+/** Provisional financial authorization. The joint gate alone may grant transport. */
 final readonly class AuthorizedProviderOperation
 {
     public function __construct(

@@ -54,7 +54,7 @@ test('bound target отвергает пропущенный validator claim д�
     expect($f->repo->register($f->plan(), $context, $f->route))->toBeInstanceOf(TransportBlocked::class)
         ->and(DB::table('prc_network_demands')->count())->toBe(0)
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
-})->group('t35', 'p26');
+})->group('provider-send-fencing');
 
 test('hold адаптера между reserve и claimSend запрещает send intent', function (): void {
     [$f, $health, $contract] = boundAdapterPermit();
@@ -67,7 +67,7 @@ test('hold адаптера между reserve и claimSend запрещает s
     DB::table('prc_adapter_health')->where('id', $health->id)->update(['state' => 'held', 'health_epoch' => 2, 'state_version' => 2]);
     expect($f->repo->claimSend($permit, $context))->toBeInstanceOf(TransportBlocked::class)
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
-})->group('t35', 'p26');
+})->group('provider-send-fencing');
 
 test('adapter-only canary использует permit но HTTP 200 не объявляет parser healthy', function (): void {
     $wire = new WireFixture;
@@ -89,4 +89,4 @@ test('adapter-only canary использует permit но HTTP 200 не объ�
     } finally {
         $wire->stop();
     }
-})->group('t35', 'p26');
+})->group('provider-send-fencing');

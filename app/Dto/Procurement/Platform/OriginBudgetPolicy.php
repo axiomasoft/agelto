@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Platform;
 /**
  * Физический rate/concurrency budget одного scope (origin, route-origin, probe). Rate не
  * умножается числом proxy. emission interval = ceil(60e6 / rate): округление никогда не
- * повышает фактический rate (bp-ddl-network).
+ * повышает фактический rate.
  */
 final readonly class OriginBudgetPolicy
 {

@@ -13,12 +13,12 @@ use Illuminate\Support\LazyCollection;
 /**
  * Единственная точка персистентности `prc_documents`/`prc_document_versions` для `DocumentIndexer`
  * и `DocumentDownloader` — сервисы решают, когда и с какими атрибутами писать, репозиторий
- * только читает/пишет по уже принятым ключам (аналог `OrganizationStoreRepository`, P3.4).
+ * только читает/пишет по уже принятым ключам (аналог `OrganizationStoreRepository`).
  */
 final readonly class DocumentStoreRepository
 {
     /**
-     * `$procurementId` nullable — дочерние документы архива (P4.2) и manual-импорт (P7.4, D22)
+     * `$procurementId` nullable — дочерние документы архива и manual-импорт
      * могут существовать вне закупки.
      */
     public function findOrFail(int $id): Document
@@ -123,7 +123,7 @@ final readonly class DocumentStoreRepository
     }
 
     /**
-     * Версии по возрастанию `id`, начиная с `$fromId` — read-путь backfill'а дисков (P6.5,
+     * Версии по возрастанию `id`, начиная с `$fromId` — read-путь backfill'а дисков (
      * `research/07-storage-addressing.md` §6): Eloquent cursor, память не растёт с объёмом.
      *
      * @return LazyCollection<int, DocumentVersion>

@@ -14,8 +14,8 @@ use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
- * Разбор вкладки `common-info` карточки закупки ЕИС (`findings/P4-card-layout.md` §3, живая
- * проба P4.13/P4.14) в {@see CommonInfoData}. Только HTML → DTO, без записи в БД (это
+ * Разбор вкладки `common-info` карточки закупки ЕИС в {@see CommonInfoData}.
+ * Только HTML → DTO, без записи в БД (это
  * `CommonInfoProcessor`). Устойчив к отсутствию отдельных блоков вёрстки — блок отсутствует →
  * соответствующее поле/список остаётся `null`/пустым, парсер не падает. Раскладка полей — не
  * `dt`/`dd` (снято ошибочно `research/10` §3.7), а плоские пары
@@ -417,8 +417,7 @@ final readonly class CommonInfoParser
     }
 
     /**
-     * Единственный носитель поиска «раздел по заголовку» (Implementation Rules item'а P4.14 —
-     * общий помощник меняется ОДИН раз, не тремя локальными костылями): ищет
+     * Общий поиск раздела по заголовку: ищет
      * `span.section__title` с точным текстом `$term` и возвращает ближайший `section`-предок.
      */
     private function titleSection(Crawler $crawler, string $term): ?Crawler

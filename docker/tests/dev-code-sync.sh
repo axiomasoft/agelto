@@ -6,7 +6,7 @@ root_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 compose_file="$root_dir/docker-compose.yml"
 project_name="agelto_p1_2_$(date +%s)_$RANDOM"
 temp_dir=$(mktemp -d)
-sentinel=".p1-2-code-sync-$RANDOM"
+sentinel=".code-sync-$RANDOM"
 
 cleanup() {
     rm -f "$root_dir/$sentinel"
@@ -53,7 +53,7 @@ done
 image_id_before=$("${compose[@]}" images --quiet app)
 [[ -n "$image_id_before" ]] || { echo 'App image ID is unavailable' >&2; exit 1; }
 
-printf 'P1.2 code-sync validation\n' > "$root_dir/$sentinel"
+printf 'code-sync validation\n' > "$root_dir/$sentinel"
 "${compose[@]}" exec -T app test -f "/var/www/html/$sentinel"
 "${compose[@]}" exec -T -e AI_AGENT=1 app php -v >/dev/null
 "${compose[@]}" kill app >/dev/null

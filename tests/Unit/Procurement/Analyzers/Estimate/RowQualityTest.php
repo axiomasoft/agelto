@@ -6,7 +6,7 @@ use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Enums\Procurement\Estimate\RowQualityReason;
 use Illuminate\Validation\ValidationException;
 
-// Гейт фиксированной схемы `quality` (research/12-uncertainty-model.md §3.1, P8.3) — тем же
+// Проверяет фиксированный контракт пометок качества.
 // приёмом, что уже применён к `attributes` (EstimateRowContractTest).
 
 test('строка с валидной пометкой quality проходит валидацию', function (): void {

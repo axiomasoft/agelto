@@ -9,7 +9,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Единственная обёртка Process tx (bp-lock-modes): READ COMMITTED, lock_timeout 2s,
+ * Единственная обёртка Process tx: READ COMMITTED, lock_timeout 2s,
  * statement_timeout 5s; до 3 попыток только на 40P01/40001/55P03 с jitter 20–200 ms. Повторяется
  * лишь SQL closure: event/message IDs создаёт caller до run, сети и handler внутри нет.
  * Вложенный вызов (уже открытая tx caller) не повторяется: решение о retry принадлежит владельцу

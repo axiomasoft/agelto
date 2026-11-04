@@ -165,9 +165,9 @@
     },
     {
       "source": "tests/Support/ProcessCore/RuntimeInputs/audit-remediation-2026-10-08.md",
-      "runtime": "research/2026-10-08-audit-remediation.md",
+      "runtime": "tests/Support/ProcessCore/RuntimeInputs/audit-remediation-2026-10-08.md",
       "sha256": "818a872d0e63675dd713b0f204b9b5e92d9e5bba2aa1ecf6e83f0abee51a43c5",
-      "provenance": "Byte-identical Git blob f1cf54defca3824a9f53406bc99f1ebe9633de57 from 612d6df7:research/2026-10-08-audit-remediation.md; relocated for isolated runtime; runtime path and SHA-256 unchanged"
+      "provenance": "Byte-identical Git blob f1cf54defca3824a9f53406bc99f1ebe9633de57 from 612d6df7:research/2026-10-08-audit-remediation.md; relocated for isolated runtime; SHA-256 unchanged"
     },
     {
       "source": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.immutable58.md",
@@ -181,7 +181,7 @@
     },
     {
       "source": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.md",
-      "runtime": "plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md",
+      "runtime": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.md",
       "sha256": "bfb62a613a2b9d366cd41e3861fd146c732a3782d47e03f6f64852591b7386ef",
       "provenance": {
         "commit": "feaaca2f7c81c69173f58e434948daae4211efef",
@@ -190,8 +190,8 @@
       }
     },
     {
-      "source": "tests/Fixtures/ProcessCore/historical/P7.4-fields-audit.json",
-      "runtime": "plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json",
+      "source": "tests/Fixtures/ProcessCore/historical/gold-fields-audit.json",
+      "runtime": "tests/Fixtures/ProcessCore/historical/gold-fields-audit.json",
       "sha256": "221b395d513c9612de02e016b1ce42c283957103dc279d6678eec8d783e4f5b0",
       "provenance": {
         "commit": "0a071dca52d95e91a534cd335e24dfb036deef76",

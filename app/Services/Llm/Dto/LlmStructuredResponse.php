@@ -7,8 +7,8 @@ namespace App\Services\Llm\Dto;
 use App\Enums\Llm\FinishReason;
 
 /**
- * Ответ `LlmProvider::completeStructured()` — `$data` decoded JSON ПО СХЕМЕ (ТЗ 04 §2), ещё не
- * гидратирован в конкретный Data-класс: гидрация и доменная валидация — каскад P3.4
+ * Ответ `LlmProvider::completeStructured` — `$data` decoded JSON ПО СХЕМЕ (ТЗ 04 §2), ещё не
+ * гидратирован в конкретный Data-класс: гидрация и доменная валидация — ответственность каскада
  * (`StructuredResponseValidator`), а не этот транспортный слой. `finishReason` обязателен
  * (не nullable) — гейт MAX_TOKENS применяется ДО json_decode (research/E §2/§6).
  *

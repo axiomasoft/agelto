@@ -11,9 +11,7 @@ use App\Services\Llm\Schema\ContractAttributeReader;
 use App\Services\Llm\Schema\DataTypeGraph;
 
 /**
- * `Класс::$свойство` → однострочная причина, почему #[Description] не нужен (имя самодостаточно).
- * Пусто — покрытие полное (research/03-prompt-contract.md §5.3): описания перенесены на все
- * контракты пяти шагов P2.3.
+ * Причины, по которым свойствам не нужен #[Description].
  *
  * @return array<string, string>
  */

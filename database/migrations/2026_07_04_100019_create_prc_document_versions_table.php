@@ -9,10 +9,10 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * `prepared_storage_path` отсутствует по D25/P3.1: подготовленные версии живут только в
- * `prc_document_representations`, два носителя одного факта запрещены. Адресация файла версии
- * (P3.5) хранит обязательный `disk` и 32-byte SHA-256; адрес не зависит от конфига
- * в момент чтения. P7.5 F-01/F-02: `parent_version_id` индексирован, `document_id` явно NO ACTION.
+ * Подготовленные представления живут в `prc_document_representations`;
+ * отдельного `prepared_storage_path` у версии нет. Адрес исходной версии хранит
+ * обязательный `disk` и 32-byte SHA-256 и не зависит от конфига в момент чтения.
+ * `parent_version_id` индексирован, `document_id` сохраняет `NO ACTION`.
  */
 return new class extends Migration
 {
@@ -26,7 +26,7 @@ return new class extends Migration
                 ->constrained(table: (new Document)->getTable())
                 ->onDelete('NO ACTION');
 
-            // P3.5: every source revision has complete canonical metadata.
+            // every source revision has complete canonical metadata.
             $table->bigInteger('revision_no');
             $table->uuid('blob_id');
             $table->text('etag')->nullable();

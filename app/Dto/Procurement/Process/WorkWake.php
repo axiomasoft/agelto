@@ -7,7 +7,7 @@ namespace App\Dto\Procurement\Process;
 use App\Enums\Procurement\Process\StageCode;
 
 /**
- * Decoded typed payload work_wake (bp-sql-admit): ровно то, что relay кладёт в ExecuteWorkJob.
+ * Decoded typed payload work_wake: ровно то, что relay кладёт в ExecuteWorkJob.
  * Версия queue schema хранится как есть: неподдерживаемая версия отвергается relay, а не codec.
  */
 final readonly class WorkWake

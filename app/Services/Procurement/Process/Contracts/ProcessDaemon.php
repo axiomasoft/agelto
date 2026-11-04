@@ -8,7 +8,7 @@ use App\Dto\Procurement\Process\DaemonTick;
 use App\Enums\Procurement\Process\DaemonKind;
 
 /**
- * Один tick долгоживущего Process daemon (bp-daemons). Цикл, signals, heartbeat, backoff и recycle
+ * Один tick долгоживущего Process daemon. Цикл, signals, heartbeat, backoff и recycle
  * принадлежат DaemonLoop; daemon знает только свою работу и свой интервал. tick не бросает ради
  * штатной деградации (publish/feed failure возвращается кодом ошибки), неожиданное исключение
  * loop классифицирует сам.

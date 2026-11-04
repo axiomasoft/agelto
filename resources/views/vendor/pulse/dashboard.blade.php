@@ -1,5 +1,5 @@
 <x-pulse>
-    {{-- EST-AI P7.5 (D25) — кастомные карточки пайплайна, SQL-агрегаты по prc_* --}}
+    {{-- Карточки пайплайна с SQL-агрегатами по prc_* --}}
     <livewire:pulse.pipeline-stages cols="6" />
 
     <livewire:pulse.llm-spend cols="6" />

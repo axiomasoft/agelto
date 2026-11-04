@@ -8,11 +8,11 @@ use App\Dto\Procurement\Analyzers\Estimate\RowQuality;
 use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
 
 /**
- * Одна запись расхождения «gold ↔ предсказание» (P7.3, `docs/specs/v2/08-estimate-extraction.md`
+ * Одна запись расхождения «gold ↔ предсказание» (`docs/specs/v2/08-estimate-extraction.md`
  * §8.6) — самодостаточна (адрес + оба значения), не полагается на соседние записи. Используется
  * во всех трёх группах отчёта (`rows`/`passport`/`totals`, `EstimateDiffReport`):
- * - estimateIndex: номер СЛОТА парного сопоставления смет (P6.2, D54: `estimate_number` →
- *   `passport.address` → позиция среди оставшихся, {@see EvalMetrics::matchEstimates()}) —
+ * - estimateIndex: номер СЛОТА парного сопоставления смет (`estimate_number` →
+ *   `passport.address` → позиция среди оставшихся, {@see EvalMetrics::matchEstimates}) —
  *   НЕ позиция в исходном списке `estimates`; см. `DiffReport::$matches` для самой таблицы
  *   сопоставления (слот → смета эталона, смета предсказания, сработавшее правило).
  * - rowIndex: `row_index` строки — только для группы `rows`; `null` у `passport`/`totals`.
@@ -21,8 +21,7 @@ use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
  * - field: имя расходящегося поля (`field_mismatch`) — `null` у `missing`/`extra` (расхождение
  *   целой строки/начисления, не одного поля).
  * - gold / predicted: значения соответствующей стороны как есть (decimal — строкой, без float).
- * - predictedQuality: пометка неопределённости строки предсказания (`EstimateRow::$quality`,
- *   P8.3) — КОНТЕКСТ расхождения, а не само расхождение (P8.6): она объясняет, почему предсказание
+ * - predictedQuality: пометка неопределённости строки предсказания (`EstimateRow::$quality`) — КОНТЕКСТ расхождения, а не само расхождение: она объясняет, почему предсказание
  *   пусто («модель не прочитала это поле в источнике»), и потому прикладывается только к
  *   `field_mismatch` и только когда пометка АДРЕСУЕТ это поле ({@see RowQuality::$fields});
  *   `null` — пометки нет либо она про другое поле; у `missing` (строки предсказания нет вовсе) и

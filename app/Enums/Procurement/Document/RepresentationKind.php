@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Document;
 
 /**
- * Вид представления версии документа (D25) — что именно лежит по `storage_path` записи
+ * Вид представления версии документа — что именно лежит по `storage_path` записи
  * `prc_document_representations`. Хранится ТЕКСТОМ, не PG-enum: новый вид не должен требовать
  * миграции (требование универсальности владельца, `brief/01-refinements.md` §3).
  *
@@ -14,31 +14,31 @@ namespace App\Enums\Procurement\Document;
  */
 enum RepresentationKind: string
 {
-    /** Рендер исходника в PDF (Excel→PDF `SpreadsheetStrategy`, LibreOffice P3.4). */
+    /** Рендер исходника в PDF (Excel→PDF `SpreadsheetStrategy`, LibreOffice). */
     case Pdf = 'pdf';
 
-    /** PDF со встроенным текстовым слоем после OCR (P3.7). */
+    /** PDF со встроенным текстовым слоем после OCR. */
     case PdfOcr = 'pdf_ocr';
 
     /** Плоский текст документа. */
     case Text = 'text';
 
-    /** Компактная текстовая сетка таблицы (P3.5). */
+    /** Компактная текстовая сетка таблицы. */
     case TextGrid = 'text_grid';
 
-    /** Машинная структурная модель ГрандСметы из `Data.xml` (P3.3). */
+    /** Машинная структурная модель ГрандСметы из `Data.xml`. */
     case StructuredXml = 'structured_xml';
 
     /**
      * PDF альтернативного конвертера (`LibreOfficeConverter`), производится САМИМ бенчмарком
-     * (P6.1, D49) — отдельный kind, а не второй `pdf`: `unique(version_id, kind)` не даёт хранить
+     * — отдельный kind, а не второй `pdf`: `unique(version_id, kind)` не даёт хранить
      * два PDF одного kind, а различие инструмента несёт `meta.tool`, не kind.
      */
     case PdfAlt = 'pdf_alt';
 
     /**
      * Расширение файла представления — нужно потребителю, который кладёт его во временный файл
-     * перед upload'ом (`RepresentationResolver::forLlm()`).
+     * перед upload'ом (`RepresentationResolver::forLlm`).
      */
     public function extension(): string
     {

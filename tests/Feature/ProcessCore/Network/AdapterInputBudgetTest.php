@@ -49,7 +49,7 @@ test('input retry budget пауза и release lease атомарны; авто�
         ->and(ExecutionFixtures::work($f['work'])->item_failures)->toBe(3)
         ->and(ExecutionFixtures::work($result->successor)->item_failures)->toBe(0)
         ->and(ExecutionFixtures::work($result->successor)->state)->toBe('ready');
-})->group('t05', 'p26');
+})->group('network-admission-probes');
 
 test('partial projection metrics не стирают локальную историю layout failures карточки', function (): void {
     DetailFixtures::bind();
@@ -68,4 +68,4 @@ test('partial projection metrics не стирают локальную исто
         ->and(ExecutionFixtures::work($f['work'])->state)->toBe('deferred')
         ->and(DB::table('prc_process_attempts')->where('work_id', $f['work']->value->value)->count())->toBe(3)
         ->and(DB::table('prc_request_attempts')->count())->toBe(0);
-})->group('t05', 'p26');
+})->group('network-admission-probes');

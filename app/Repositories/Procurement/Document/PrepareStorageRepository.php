@@ -17,6 +17,7 @@ use App\Exceptions\Procurement\Process\LeaseLost;
 use App\Repositories\Procurement\Process\AuthorityRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Document\PreparePolicy;
+use App\Services\Procurement\Document\PrepareWorkspace;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\SubjectLockResolver;
 use Illuminate\Support\Str;
@@ -39,7 +40,7 @@ final readonly class PrepareStorageRepository
                 $this->policy->artifactBytes, StoragePhase::Prepare, $this->policy->disk, $lease->workId->value, $lease->attemptId),
             // Isolated upload spool; workspace has its own independent charge.
             new StorageReservationRequest(new ProcessUuid((string) Str::uuid()), $tmp, $lease->token, $lease->generation,
-                $this->policy->artifactBytes, StoragePhase::Prepare, $this->policy->temporaryDisk, $lease->workId->value, $lease->attemptId),
+                $this->policy->artifactBytes + PrepareWorkspace::SPOOL_PROOF_BYTES, StoragePhase::Prepare, $this->policy->temporaryDisk, $lease->workId->value, $lease->attemptId),
             new StorageReservationRequest(new ProcessUuid((string) Str::uuid()), $tmp, $lease->token, $lease->generation,
                 $this->policy->tmpBytes, StoragePhase::Prepare, $this->policy->temporaryDisk, $lease->workId->value, $lease->attemptId));
         try {

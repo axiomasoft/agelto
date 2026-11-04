@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Enums\Procurement\Proxy;
 
 /**
- * Таксономия причин отказа прокси-узла; уровень реакции (глобальный/целевой) — research/02 §5,
- * реализация автомата breaker'а по уровню — P1.4.
+ * Причины отказа proxy node. Уровень реакции — глобальный или для конкретной цели —
+ * выбирает health policy, отдельно от самой классификации причины.
  */
 enum ProxyFailureReason: string
 {

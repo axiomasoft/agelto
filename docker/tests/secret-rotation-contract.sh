@@ -6,7 +6,7 @@ readonly root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 readonly script="$root/docker/scripts/rotate-production-secrets.sh"
 
 fail() {
-    printf '[FAIL] P12.5-ROTATION %s\n' "$*" >&2
+    printf '[FAIL] %s\n' "$*" >&2
     exit 1
 }
 
@@ -20,8 +20,11 @@ expect_fail() {
 
 bash -n "$script"
 matrix=$("$script" check)
+app_consumers='app,horizon,scheduler,process-relay,process-reconciler,process-feeder,process-projector,doctor'
 for credential in APP DB REDIS MINIO; do
-    grep -q "^$credential:" <<<"$matrix" || fail "$credential is absent from the dependency matrix"
+    suffix=''
+    case "$credential" in DB) suffix=',postgres' ;; REDIS) suffix=',redis' ;; MINIO) suffix=',minio' ;; esac
+    grep -Fx "$credential:$app_consumers$suffix" <<<"$matrix" >/dev/null || fail "$credential dependency matrix differs from production services"
 done
 
 fixture_root=$(mktemp -d)
@@ -53,6 +56,9 @@ for credential in APP DB REDIS MINIO; do
     grep -qx "credential=$credential" "$state"
     grep -qx 'status=applied' "$state"
     grep -q '^retire-old:' "$ROTATION_LOG" || fail "$credential did not retire the old credential after green consumers"
+    expected=$(sed -n "s/^$credential://p" <<<"$matrix" | tr ',' '\n')
+    observed=$(sed -n "s/^verify-consumer:$credential://p" "$ROTATION_LOG")
+    [[ $observed == "$expected" ]] || fail "$credential did not verify every declared consumer in order"
     ! rg -n 'SENTINEL' "$ROTATION_LOG" "$state" >/dev/null
 done
 
@@ -62,7 +68,7 @@ expect_fail 'partial DB cutover' env FAIL_CONSUMER=scheduler ROTATION_LOG="$ROTA
     --adapter "$adapter" --state-file "$fixture_root/failure.state" --lock-file "$lock"
 ! grep -q '^retire-old:' "$ROTATION_LOG"
 mapfile -t rollback_order < <(sed -n 's/^rollback-consumer:DB://p' "$ROTATION_LOG")
-[[ ${rollback_order[*]} == 'queue app' ]] || fail 'partial cutover did not roll back consumers in reverse order'
+[[ ${rollback_order[*]} == 'horizon app' ]] || fail 'partial cutover did not roll back consumers in reverse order'
 
 cp "$before" "$fixture_root/same"
 chmod 0600 "$fixture_root/same"

@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Вид работ и его иерархия — per-estimate носитель нормативов НР/СП (D34/D90).
+ * Вид работ и его иерархия — per-estimate носитель нормативов НР/СП.
  */
 #[UseFactory(WorkTypeFactory::class)]
 #[Fillable([

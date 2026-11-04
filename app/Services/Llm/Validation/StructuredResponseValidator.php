@@ -15,7 +15,7 @@ use Throwable;
 
 /**
  * Валидационный каскад structured-ответа (ТЗ 04 §2/§6, research/E §2/§6): finishReason-гейт →
- * json_validate()/json_decode(JSON_THROW_ON_ERROR) → гидрация Data-класса → структурные проверки.
+ * json_validate/json_decode(JSON_THROW_ON_ERROR) → гидрация Data-класса → структурные проверки.
  * Никакого «repair» невалидного JSON (дописывание скобок) — гейт finishReason обязан ловить
  * обрезание раньше; семантические проблемы уходят на re-ask (`ReaskPolicy`).
  */
@@ -71,7 +71,7 @@ final readonly class StructuredResponseValidator
 
     /**
      * Структурная проверка делегируется самому DTO ответа (`StructurallyValidatable`, §6.4
-     * контракта P2.1, D107) — у валидатора в этой точке нет типа документа, чтобы спросить
+     * контракта) — у валидатора в этой точке нет типа документа, чтобы спросить
      * реестр анализаторов; типы без такой проверки пропускаются штатной веткой `null`.
      */
     private function structuralError(Data $data): ?string

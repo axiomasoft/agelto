@@ -10,8 +10,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * P7.5 F-02/D133: обе аудируемые связи результата оценки сохраняют исходный `NO ACTION`
- * явно; изменение поведения удаления не входит в консолидацию.
+ * Обе аудируемые связи результата оценки сохраняют `NO ACTION`,
+ * чтобы история оценки не исчезала вместе с её источниками.
  */
 return new class extends Migration
 {

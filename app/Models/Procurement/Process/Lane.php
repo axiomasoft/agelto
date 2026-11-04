@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Capacity lane: W = max_outstanding (admitted+running), C = max_running. Authoritative count —
- * active reservation rows под lane lock, не counter cache (execution#s05/#s11).
+ * active reservation rows под lane lock, не counter cache.
  *
  * @property string $id
  * @property string $lane_key

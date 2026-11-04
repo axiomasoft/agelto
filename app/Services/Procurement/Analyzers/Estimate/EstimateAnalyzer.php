@@ -20,19 +20,11 @@ use App\Services\Procurement\Contracts\SupportsResultComparison;
 use App\Services\Procurement\Contracts\SupportsTypeProfileValidation;
 
 /**
- * Смета как тип документа — первая реализация `DocumentAnalyzer` (§6.1 контракта P2.1:
- * всё, что принадлежит типу, лежит по пути с сегментом `Analyzers\Estimate\` в СВОЁМ слое).
- *
- * На этом шаге анализатор — тонкая обёртка: он объявляет наличие извлечения, свой job, свои шаги
- * и назначения и собирает сводку результата, а внутрь зовёт существующие классы по их
- * СЕГОДНЯШНИМ путям. Переезд шестнадцати сметных единиц и самого job'а в этот каталог — P2.4,
- * расщепление enum'ов шагов/назначений на ядерные и сметные — P2.5.
- *
- * Реализует `SupportsResultComparison` (§1.5 контракта P2.1, D106) — сравнение теневого прогона
- * с боевым (`EvalMetrics`) и разбор ключа `'estimates'` payload'а живут здесь, а не в ядерном
- * `ShadowAnalysisJob`. Реализует `SupportsTypeProfileValidation` (§1.6 контракта P2.1, D132) —
- * пять полей `type_profile` §6.2 root/document-type-axis.md проверяются здесь, а не в витрине
- * P5.1 (D43): экран решает, КАК показать сообщения, анализатор — ЧТО в профиле не так.
+ * Анализатор сметы: объявляет извлечение, собственные шаги и назначения, собирает сводку.
+ * Типовые классы лежат в `Analyzers\Estimate\` соответствующего слоя.
+ * `SupportsResultComparison` сравнивает теневой и боевой прогоны через `EvalMetrics`;
+ * разбор `estimates` остаётся в анализаторе. `SupportsTypeProfileValidation` проверяет
+ * пять полей профиля: анализатор возвращает ошибки, а витрина выбирает способ их показа.
  */
 final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResultComparison, SupportsTypeProfileValidation
 {
@@ -81,8 +73,8 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
     /**
      * Сводка прогона извлечения: сколько смет, сколько позиций и на какую сумму. Деньги считаются
      * `bcadd` по строковому представлению `decimal:2` — прогон через `float` терял бы копейки
-     * ровно там, где их показывают (§3 контракта). Предметного экрана у сметы пока нет, поэтому
-     * `detailRoute` — `null`: маршрут появится вместе с витриной P5.
+     * ровно там, где их показывают. Предметного экрана у сметы пока нет, поэтому
+     * `detailRoute` — `null`: маршрут появится вместе с витриной.
      */
     public function summarize(Analysis $analysis): AnalysisSummary
     {
@@ -96,7 +88,7 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
             $rows += (int) ($estimate->rows_extracted ?? 0);
             $total = bcadd($total, $this->decimal($estimate->total_amount), 2);
             // Форма `?? null` — не украшение: вне `??`-контекста Larastan не резолвит тип
-            // свойства модели и заводит `property.notFound` (тот же приём, что P2.2).
+            // свойства модели и заводит `property.notFound`.
             $currency ??= $estimate->currency ?? null;
         }
 
@@ -113,7 +105,7 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
     }
 
     /**
-     * Сравнение теневого прогона с боевым (§1.5 контракта P2.1, D106) — сырые payload'ы
+     * Сравнение теневого прогона с боевым — сырые payload'ы
      * `Analysis::$result`, ключ `'estimates'` разбирается ЗДЕСЬ, а не в вызывающем job'е.
      *
      * @param  array<string, mixed>  $primaryResult
@@ -133,11 +125,9 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
     }
 
     /**
-     * Валидация пяти полей профиля §6.2 root/document-type-axis.md (§1.6 контракта P2.1, D132) —
-     * ДОСЛОВНО по инвариантам: полная проверка (все поля разом, инвариант 5), не бросает
-     * (инвариант 4), закрытый состав — ключ вне пяти известных полей есть ошибка (Implementation
-     * Rule 6, P5.1). `form` валидируется ПРОТИВ `Fixture::CODE_PATTERN` (единственный носитель
-     * контракта кода, Implementation Rule 2) — синтетический код с валидными EST/XLSX-сегментами
+     * Полная валидация пяти полей профиля: все ошибки возвращаются вместе, без исключений.
+     * Состав закрытый — ключ вне пяти известных полей считается ошибкой. `form` валидируется ПРОТИВ `Fixture::CODE_PATTERN` (единственный носитель
+     * контракта кода) — синтетический код с валидными EST/XLSX-сегментами
      * и NNN-хвостом матчится целиком, второй регэксп на третий сегмент не заводится.
      *
      * @param  array<string, mixed>  $profile
@@ -178,7 +168,7 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
     /**
      * Третий сегмент `Fixture::CODE_PATTERN` (`form`) проверяется через синтетический код с
      * фиксированными валидными первым/вторым/четвёртым сегментами — единственный носитель
-     * контракта кода эталона остаётся `Fixture::CODE_PATTERN` (D13).
+     * контракта кода эталона остаётся `Fixture::CODE_PATTERN`.
      */
     private function isValidForm(string $form): bool
     {

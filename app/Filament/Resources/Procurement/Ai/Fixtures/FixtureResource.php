@@ -23,9 +23,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Реестр эталонных документов обучающего контура (P5.1, D6/D18/D90/D132/D133): загрузка файла,
+ * Реестр эталонных документов обучающего контура: загрузка файла,
  * обе оси типа, `type_profile`, валидация профиля анализатором типа через `instanceof
- * SupportsTypeProfileValidation` — экран сам полей профиля не знает (D43).
+ * SupportsTypeProfileValidation` — экран сам полей профиля не знает.
  */
 class FixtureResource extends Resource
 {

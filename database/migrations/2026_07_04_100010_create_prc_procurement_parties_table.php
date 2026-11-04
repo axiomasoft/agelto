@@ -15,11 +15,11 @@ return new class extends Migration
         Schema::create($this->table(), function (Blueprint $table): void {
             $table->id();
 
-            // Без constrained() — prc_procurements появится в другом item.
+            // FK добавляется после создания родительской prc_procurements в следующей миграции.
             $table->unsignedBigInteger('procurement_id')->index();
 
             $table->foreignId('organization_id')
-                // P7.5, F-01: индекс ведущей колонки FK; таблица < 1 МБ на ревизии.
+                // Индекс ведущей колонки FK для обратной связи.
                 ->index()
                 ->constrained(table: (new Organization)->getTable())
                 ->cascadeOnDelete();
@@ -31,8 +31,8 @@ return new class extends Migration
             $table->unique(['procurement_id', 'organization_id', 'role']);
         });
 
-        // FK procurement_id объявляется сразу после создания prc_procurements в миграции 100011:
-        // create-миграции не перенумеровываются (D81), а родителя на этом шаге ещё нет.
+        // FK procurement_id объявляется в миграции 100011 после создания prc_procurements;
+        // порядок исходных create-файлов сохраняется.
     }
 
     public function down(): void

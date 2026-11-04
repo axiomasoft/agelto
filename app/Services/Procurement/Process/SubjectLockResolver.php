@@ -20,10 +20,10 @@ use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
 
 /**
- * Composition seam subject locks (execution#subject-locks) для schema-supported stages текущего
- * baseline. Без I/O: набор реальных subject rows выводится из immutable typed input, их heads
+ * Набор subject locks для поддерживаемых stages. Без I/O: реальные subject rows
+ * выводятся из immutable typed input, их heads
  * repository читает сам, а решение input invalidation принимается уже по locked heads.
- * Будущие prepare/screening/extraction/publication добавляют ancestors своими пакетами.
+ * Document и analysis stages требуют заранее загруженных ancestors.
  */
 final readonly class SubjectLockResolver
 {
@@ -58,7 +58,7 @@ final readonly class SubjectLockResolver
      * Текущий subject authority больше не соответствует immutable input work: работа подлежит
      * fenced supersede, а не исполнению. Listing — input_revision блока; detail/download —
      * expected head generation procurement/document. Status refresh сериализуется procurement
-     * row; его cycle invalidation вводит acquisition contract (P2.16).
+     * row; cycle invalidation определяется acquisition contract.
      *
      * @param  array<string, LockedSubject>  $locked  keyed by SubjectKey::key()
      */

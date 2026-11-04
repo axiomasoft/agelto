@@ -104,7 +104,7 @@ test('неизвестный ключ фильтра отклоняется фо
 
     $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
 
-    // Гейт неизвестного ключа стоит в модельном `saving` (P4.3), форма его не дублирует —
+    // Гейт неизвестного ключа стоит в модельном `saving`, форма его не дублирует —
     // Filament ловит исключение сохранения и не создаёт запись, вместо проброса выше.
     Livewire::test(CreateCrawler::class)
         ->fillForm([
@@ -112,7 +112,7 @@ test('неизвестный ключ фильтра отклоняется фо
             'name' => 'Профиль с опечаткой в фильтре',
             'listing_kind' => AcquisitionKind::Archive->value,
             // Заведомо чужой ключ: `okpd2Codes` теперь валиден, а `okpd2` отличается от него одним
-            // суффиксом — тест на такой строке был бы хрупким (research/03-p2-okpd2-design.md §2.4).
+            // Суффикс сделал бы тест хрупким.
             'filter' => ['stageUnknown' => true, 'okpd2Codes' => ['43']],
             'is_active' => true,
             'route_profile_id' => null,
@@ -159,7 +159,7 @@ test('the profile UI uses the registered extension and does not offer a legacy C
     Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43', 'external_id' => '10501000']);
     Livewire::test(CreateCrawler::class)->fillForm(['registry_id' => $registry->id])
         ->assertFormFieldExists('filter.okpd2Codes')->assertFormFieldDoesNotExist('url_preview');
-    // The emitted OKPD2 query is asserted in T17ProfilePreparationTest and the platform contract kit.
+    // The emitted OKPD2 query is asserted in ProfilePreparationTest and the platform contract kit.
 });
 
 test('форма сохраняет профиль с полями сортировки', function (): void {

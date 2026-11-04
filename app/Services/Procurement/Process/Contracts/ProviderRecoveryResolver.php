@@ -8,10 +8,10 @@ use App\Dto\Procurement\Process\ProviderRecoveryPlan;
 use App\Dto\Procurement\Process\WorkId;
 
 /**
- * Purpose/outcome resolver provider operation (documents-ai#s08): единственный способ превратить
+ * Purpose/outcome resolver provider operation: единственный способ превратить
  * durable факты платной operation в recovery plan. Общий recovery не применяет receipt→resume
- * напрямую. Реальную mapping на AnalysisLlmRequest/Llm ledger подключает P3.8–P3.14; до этого
- * provider stages не активны, а fixture resolver P1.11 живёт только в tests.
+ * напрямую. Mapping на provider ledger принадлежит реализации resolver, которую composition
+ * root подключает до admission stage с provider operations.
  *
  * Разбор plan.mode: ResumeFromReceipt/ResumeProviderAsset — verified receipt (pinned в plan);
  * KnownRetryEligible — доказанный not-sent либо known-nonbillable (receipt может отсутствовать);
