@@ -57,7 +57,7 @@ test('actual Definitions drive CLI sync and preserve legacy target identities ad
     expect(isset($catalogs['eis']->targets['document.'.substr($origin->hash()->hex, 0, 16)]))->toBeTrue();
     $sync = app(SourceCatalogSync::class);
     $scope = $origin->budgetScopeKey();
-    expect($sync->overrideBudget($scope, new OriginBudgetPolicy(12, 2, 3), 1, null, 'T45 override')->status)->toBe(NetworkChangeStatus::Applied);
+    expect($sync->overrideBudget($scope, new OriginBudgetPolicy(12, 2, 3), 1, null, 'operator budget override')->status)->toBe(NetworkChangeStatus::Applied);
     $before = DB::table('prc_source_targets')->orderBy('id')->get()->all();
     $budget = DB::table('prc_network_budgets')->where('scope_key', $scope)->sole();
     $events = DB::table('prc_process_transitions')->count();
@@ -92,7 +92,7 @@ test('retired actual Definition target cannot authorize reserved or new permits 
     expect($ticket)->toBeInstanceOf(NetworkDemandTicket::class);
     $permit = $permits->reserve($ticket, $context);
     expect($permit)->toBeInstanceOf(ScheduledNetworkPermit::class);
-    expect($sync->retireTarget($target, 1, null, 'T45 retire')->status)->toBe(NetworkChangeStatus::Applied);
+    expect($sync->retireTarget($target, 1, null, 'operator target retirement')->status)->toBe(NetworkChangeStatus::Applied);
     expect($permits->claimSend($permit, $context))->toBeInstanceOf(TransportBlocked::class);
     expect($permits->register($makePlan(), $context, $route))->not->toBeInstanceOf(NetworkDemandTicket::class);
     expect(DB::table('prc_request_attempts')->count())->toBe(0)

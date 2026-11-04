@@ -17,7 +17,13 @@ final readonly class RunReadRepository
      */
     public function correlationFor(WorkId $workId): ?array
     {
-        $row = LedgerRow::one('SELECT origin_run_id, cohort_key FROM prc_process_work WHERE id = ?', [$workId->value->value]);
+        $row = LedgerRow::one(
+            "SELECT w.origin_run_id,
+                    CASE WHEN p.code IS NOT NULL AND w.cohort_key = ('platform:' || w.platform_id::text) THEN 'platform:' || p.code ELSE w.cohort_key END AS cohort_key
+             FROM prc_process_work w LEFT JOIN prc_platforms p ON p.id = w.platform_id
+             WHERE w.id = ?",
+            [$workId->value->value],
+        );
         if ($row === null) {
             return null;
         }

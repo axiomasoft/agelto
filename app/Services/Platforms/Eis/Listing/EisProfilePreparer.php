@@ -76,7 +76,8 @@ final readonly class EisProfilePreparer implements AcquisitionProfilePreparer
         $first = $partitioner->plan($typed, $start, $start, $axis, $low, $high, $this->policy->blockSize);
         $stream = $partitioner->streamKey($registry->id, $first->windows[0]->cursor, $access, '1');
         if ($kind !== AcquisitionKind::Archive) {
-            $start = $this->coverage->read($stream)->resumeFrom($start);
+            $resumed = $this->coverage->read($stream)->resumeFrom($start);
+            $start = $start <= $finish ? min($finish, $resumed) : $resumed;
         }
         $plan = $partitioner->plan($typed, $start, $finish, $axis, $low, $high, $this->policy->blockSize);
         $version = $profile->profile_version;

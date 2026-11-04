@@ -109,7 +109,7 @@ dev\:composer-bootstrap:
 	$(COMPOSE_DEV) run --rm --no-deps app composer $(ARGS)
 
 dev\:storage-init:
-	$(COMPOSE_DEV) exec -T app sh -ec 'mc alias set agelto-bootstrap "$$AWS_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$(cat "$$AWS_SECRET_ACCESS_KEY_FILE")" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$$AWS_BUCKET" >/dev/null'
+	$(COMPOSE_DEV) exec -T app sh -ec 'mc alias set agelto-bootstrap "$$AWS_ENDPOINT" "$$AWS_ACCESS_KEY_ID" "$$(cat "$$AWS_SECRET_ACCESS_KEY_FILE")" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$$AWS_BUCKET" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$${AWS_ESTIMATES_BUCKET:-agelto-estimates}" >/dev/null'
 
 dev\:migrate:
 	$(COMPOSE_DEV) exec -T app php artisan migrate --force

@@ -95,7 +95,9 @@ final readonly class WorkFinalizationRepository
     ): CompletionResult|PrefixFailure {
         CallerTransaction::require('Work finalize');
         $accepted = null;
-        $publication = $outcome instanceof StageSucceeded ? $this->registry->resultRepository($lease->stage) : null;
+        $publication = ($outcome instanceof StageSucceeded || $outcome instanceof StageFailedItem)
+            ? $this->registry->resultRepository($lease->stage)
+            : null;
         $publication = $publication instanceof StagePublicationRepository ? $publication : null;
         $locks = $publication !== null && $outcome instanceof StageSucceeded
             ? $publication->publicationLocks($snapshot->input, $outcome->result) : null;
@@ -175,12 +177,13 @@ final readonly class WorkFinalizationRepository
         }
         $this->works->releaseGroupLocked($group, count($prefix->members), $decision['terminal_kind']);
         $this->storeSuccessors($lease->workId, $work, $successors, $successorIds);
-        $publication?->afterSuccessors($snapshot->input, $lease->workId, $ids['incident_event'], $ids['incident_projection']);
-        // Terminal work продвигает очередь intents своего subject/stage. failed_item
-        // завершает intent; успех — только если publication уже перевела intent в terminal.
+        if (in_array($decision['state'], [WorkState::Succeeded, WorkState::FailedItem], true)) {
+            $publication?->afterSuccessors($snapshot->input, $lease->workId, $ids['incident_event'], $ids['incident_projection']);
+        }
+        // Terminal work завершает свой active intent и продвигает очередь intents своего subject/stage.
         if (($intentId = $work->nullableString('intent_id')) !== null
             && in_array($decision['state'], [WorkState::Succeeded, WorkState::FailedItem], true)) {
-            $this->intents->releaseLocked($intentId, terminate: $decision['state'] === WorkState::FailedItem);
+            $this->intents->releaseLocked($intentId);
         }
         if ($decision['exhausted'] !== null) {
             $this->incidents->open(

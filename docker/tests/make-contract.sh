@@ -55,7 +55,7 @@ for legacy_target in up down artisan; do
     fi
 done
 
-if run_make help | rg -F 'legacy:' >/dev/null; then
+if run_make help | grep -F 'legacy:' >/dev/null; then
     echo 'Contract failed: expired targets remain in make help' >&2
     exit 1
 fi

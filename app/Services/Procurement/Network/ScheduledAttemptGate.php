@@ -86,6 +86,12 @@ final readonly class ScheduledAttemptGate implements OutboundAttemptGate
             }
             throw $exit;
         } catch (QueryException $exception) {
+            if ($ticket !== null) {
+                try {
+                    $this->permits->abandon($ticket, $context);
+                } catch (\Throwable) {
+                }
+            }
             throw DatabaseFailureClassifier::isTransient($exception) ? new DependencyUnavailable('database', $exception) : $exception;
         }
     }

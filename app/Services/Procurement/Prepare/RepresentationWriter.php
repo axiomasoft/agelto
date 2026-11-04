@@ -105,7 +105,12 @@ final readonly class RepresentationWriter
         $attributes['storage_path'] = $storagePath;
         $attributes['size_bytes'] = $storedSize;
 
-        return $this->finalize->execute(version: $version, kind: $kind, attributes: $attributes);
+        $representation = $this->finalize->execute(version: $version, kind: $kind, attributes: $attributes);
+        if ($representation->storage_path !== $storagePath && $disk->exists(path: $storagePath)) {
+            $disk->delete($storagePath);
+        }
+
+        return $representation;
     }
 
     /** @return array{string, int} */

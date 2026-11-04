@@ -42,4 +42,43 @@ final class FixturePolicy
     {
         return $user->hasPermission(FixturePermission::Delete);
     }
+
+    public function deleteAny(User $user): bool
+    {
+        return $user->hasPermission(FixturePermission::Delete);
+    }
+
+    #[GateAbility(permission: FixturePermission::Restore)]
+    public function restore(User $user, Fixture $fixture): bool
+    {
+        return $user->hasPermission(FixturePermission::Restore);
+    }
+
+    public function restoreAny(User $user): bool
+    {
+        return $user->hasPermission(FixturePermission::Restore);
+    }
+
+    #[GateAbility(permission: FixturePermission::ForceDelete)]
+    public function forceDelete(User $user, Fixture $fixture): bool
+    {
+        return $user->hasPermission(FixturePermission::ForceDelete);
+    }
+
+    public function forceDeleteAny(User $user): bool
+    {
+        return $user->hasPermission(FixturePermission::ForceDelete);
+    }
+
+    #[GateAbility(permission: FixturePermission::Replicate)]
+    public function replicate(User $user, Fixture $fixture): bool
+    {
+        return $user->hasPermission(FixturePermission::Replicate);
+    }
+
+    #[GateAbility(permission: FixturePermission::Reorder)]
+    public function reorder(User $user): bool
+    {
+        return $user->hasPermission(FixturePermission::Reorder);
+    }
 }

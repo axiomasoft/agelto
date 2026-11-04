@@ -114,7 +114,7 @@ final readonly class PlatformMetricsReadRepository
             FROM prc_crawl_blocks b JOIN prc_crawl_runs c ON c.id=b.crawl_run_id
             JOIN prc_registries r ON r.id=(b.partition_payload->>'registryId')::bigint
             JOIN prc_platforms p ON p.id=r.platform_id
-            WHERE p.code=? AND c.listing_kind='fresh' AND jsonb_exists(b.partition_payload, 'streamKey')
+            WHERE p.code=? AND c.listing_kind IN ('fresh','reconciliation') AND jsonb_exists(b.partition_payload, 'streamKey')
             GROUP BY c.id, b.partition_payload->>'streamKey', b.partition_payload->>'windowStart', b.partition_payload->>'windowEnd'
             ORDER BY stream, start, finish", [$platform->value]);
     }
@@ -122,11 +122,11 @@ final readonly class PlatformMetricsReadRepository
     private function partitions(PlatformCode $platform): LedgerRow
     {
         // Only the terminal leaf proof counts: page/pass/split are traversal, not closed partitions.
-        return LedgerRow::one("SELECT count(*) FILTER (WHERE b.terminal_proof IS NULL) AS collecting,
-                count(*) FILTER (WHERE b.terminal_proof->>'outcome' IN ('complete','incomplete')
+        return LedgerRow::one("SELECT count(DISTINCT b.id) FILTER (WHERE b.terminal_proof IS NULL) AS collecting,
+                count(DISTINCT b.id) FILTER (WHERE b.terminal_proof->>'outcome' IN ('complete','incomplete')
                   AND t.occurred_at>=clock_timestamp()-interval '24 hours'
                   AND (b.partition_payload->>'closesAt')::timestamptz<=clock_timestamp()) AS closed,
-                count(*) FILTER (WHERE b.terminal_proof->>'outcome'='complete'
+                count(DISTINCT b.id) FILTER (WHERE b.terminal_proof->>'outcome'='complete'
                   AND t.occurred_at>=clock_timestamp()-interval '24 hours'
                   AND (b.partition_payload->>'closesAt')::timestamptz<=clock_timestamp()) AS complete
             FROM prc_crawl_blocks b

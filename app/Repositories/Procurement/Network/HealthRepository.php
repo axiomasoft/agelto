@@ -79,7 +79,7 @@ final readonly class HealthRepository
             FROM prc_network_routes r JOIN prc_request_attempts a ON a.route_id = r.id
             JOIN prc_observations o ON o.request_id = a.request_id
             WHERE r.id = ? AND o.kind = 'network_transport' AND o.reason_code = 'credential_hold' AND NOT o.stale
-              AND o.epochs->>? = ? ORDER BY o.occurred_at DESC LIMIT 1", [$routeId, $row->key(), (string) ($row->epoch - 1)]);
+              AND (o.epochs->>?)::bigint < ? ORDER BY o.occurred_at DESC LIMIT 1", [$routeId, $row->key(), $row->epoch]);
 
         return $hold === null || $hold->string('version') === (string) $hold->int('current_version');
     }

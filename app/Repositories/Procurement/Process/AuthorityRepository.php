@@ -410,7 +410,7 @@ final readonly class AuthorityRepository
         return $subjects;
     }
 
-    private static function headColumn(SubjectKind $kind): string
+    public static function headColumn(SubjectKind $kind): string
     {
         return match ($kind) {
             SubjectKind::DocumentVersion, SubjectKind::AnalysisWindow => '1::bigint AS head_generation',

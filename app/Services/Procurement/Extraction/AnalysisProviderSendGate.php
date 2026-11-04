@@ -152,7 +152,7 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
                 'full_timeout_does_not_fit' => ProviderSendDenial::SliceExhausted,
                 'network_wait_exhausted' => ProviderSendDenial::RateLimit,
                 'account_unknown_hold', 'account_exposure_hold' => ProviderSendDenial::PolicyReview,
-                'authorization_revoked' => ProviderSendDenial::Revoked,
+                'authorization_revoked', 'financial_reservation_not_active' => ProviderSendDenial::Revoked,
                 default => ProviderSendDenial::Configuration,
             });
         } catch (SliceExhausted) {

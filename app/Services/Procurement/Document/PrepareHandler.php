@@ -236,6 +236,7 @@ final readonly class PrepareHandler implements StageHandler
             rewind($stream);
 
             $artifact = $this->blobs->put($r->output, $stream, $r->spool, $ctx);
+            $this->blobs->verifyExisting($artifact, $ctx);
             if ($this->clock->monotonicNs() / 1e9 >= $deadline) {
                 throw new ToolUnavailable('prepare_persistence_deadline');
             }

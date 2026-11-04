@@ -73,14 +73,21 @@ final readonly class OutboundExecutor
         if (! $ticket instanceof NetworkDemandTicket) {
             return $ticket;
         }
+        $waitUntil = hrtime(true) + (new OutboundPolicy(app('config')))->maxInlineWaitSeconds * 1_000_000_000;
         try {
             do {
                 $context->tick();
                 $revalidate();
                 $permit = $this->permits->reserve($ticket, $context, $provider);
                 if ($permit instanceof NetworkPermitWait) {
+                    if (hrtime(true) >= $waitUntil) {
+                        $this->permits->abandon($ticket, $context);
+
+                        return new TransportDeferred($permit->reason, $permit->retryAt);
+                    }
                     // One second maximum; next iteration revalidates finance and Process authority.
-                    usleep(100_000);
+                    $delayUs = max(100_000, min(1_000_000, (int) (((float) $permit->retryAt->value->format('U.u') - microtime(true)) * 1_000_000)));
+                    usleep($delayUs);
                 }
             } while ($permit instanceof NetworkPermitWait);
         } catch (\Throwable $exception) {
@@ -256,8 +263,10 @@ final readonly class OutboundExecutor
                             $policy->resolve($next, $context, $plan->profile->connectSeconds);
                         } catch (OutboundOwnershipLost|ExecutionInterrupted $exit) {
                             throw $exit;
-                        } catch (\InvalidArgumentException|\RuntimeException) {
+                        } catch (\InvalidArgumentException) {
                             return new TransportBlocked(NetworkBlockedReason::UrlPolicyDenied);
+                        } catch (\RuntimeException) {
+                            return $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
                         }
                         $redirectTarget = $gate->targetForRedirect($physical, $next);
                         if ($redirectTarget instanceof TransportBlocked) {

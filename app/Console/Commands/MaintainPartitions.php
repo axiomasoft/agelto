@@ -63,7 +63,7 @@ final class MaintainPartitions extends Command
     private function maintainFallback(string $table): void
     {
         $premake = $this->nonNegativeInt(config('partitioning.premake'), 'partitioning.premake');
-        $start = Carbon::now()->startOfMonth();
+        $start = Carbon::now('UTC')->startOfMonth();
 
         app(PartitionCoverage::class)->ensure(table: $table, from: $start, to: $start->copy()->addMonthsNoOverflow($premake + 1));
 
@@ -92,7 +92,7 @@ final class MaintainPartitions extends Command
             return;
         }
 
-        $cutoff = Carbon::now()->startOfMonth()->subMonths($this->nonNegativeInt($rule['months'] ?? null, "partitioning.retention.{$table}.months"));
+        $cutoff = Carbon::now('UTC')->startOfMonth()->subMonths($this->nonNegativeInt($rule['months'] ?? null, "partitioning.retention.{$table}.months"));
 
         $partitions = DB::select(
             'SELECT c.relname AS name, pg_get_expr(c.relpartbound, c.oid) AS bounds FROM pg_inherits i
@@ -114,7 +114,7 @@ final class MaintainPartitions extends Command
             if (! is_string($bounds) || preg_match("/TO \('([^']+)'\)/", $bounds, $groups) !== 1) {
                 continue;
             }
-            $upper = Carbon::parse($groups[1]);
+            $upper = Carbon::parse($groups[1])->utc();
             if ($upper->lte($cutoff)) {
                 DB::statement('DROP TABLE '.$name);
             }

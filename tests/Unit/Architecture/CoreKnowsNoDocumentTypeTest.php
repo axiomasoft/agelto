@@ -94,7 +94,7 @@ test('периметр ядра собран правилом вычитания
     // adds twelve provider-neutral financial/receipt and consumer coordination classes.
     // adds twelve provider-neutral wire, send capability and joint owner classes.
     // adds five provider-neutral asset lifecycle/policy components and Gemini codecs.
-    expect($classes)->toHaveCount(167)
+    expect($classes)->toHaveCount(165)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->not->toContain('App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob');

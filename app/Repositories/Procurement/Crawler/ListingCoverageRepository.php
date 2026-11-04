@@ -19,7 +19,12 @@ final readonly class ListingCoverageRepository
                 bool_and(terminal_proof IS NOT NULL) AND
                 bool_or(terminal_proof->>'outcome'='complete') AND
                 NOT bool_or(COALESCE(terminal_proof->>'outcome' IN ('observed','incomplete'),true)) AS complete,
-                COALESCE(bool_or(terminal_proof->>'outcome' IN ('observed','complete')),false) AS observed,
+                COALESCE(
+                    bool_and(terminal_proof IS NOT NULL) AND
+                    bool_and(terminal_proof->>'outcome' IN ('observed','complete','split','pass')) AND
+                    bool_or(terminal_proof->>'outcome' IN ('observed','complete')),
+                    false
+                ) AS observed,
                 min(id::text) FILTER (WHERE parent_block_id IS NULL) AS root_id
             FROM prc_crawl_blocks WHERE partition_payload->>'streamKey'=?
             GROUP BY crawl_run_id, partition_payload->>'windowStart', partition_payload->>'windowEnd'

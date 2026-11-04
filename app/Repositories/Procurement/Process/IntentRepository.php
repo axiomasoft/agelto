@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Process;
 
+use App\Dto\Procurement\Acquisition\RefreshPolicy;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\SubjectKind;
 use Illuminate\Support\Facades\DB;
@@ -32,12 +33,35 @@ final readonly class IntentRepository
         if ($intent === null || (! $terminate && $intent->string('state') !== IntentState::Terminal->value)) {
             return;
         }
+        $stage = $intent->string('stage');
+        $subjectKind = $intent->string('subject_kind');
+        $subjectId = $intent->string('subject_id');
         if ($intent->string('state') !== IntentState::Terminal->value) {
             // Pending intent, чья work завершилась до активации, выходит из очереди и не активируется пустым.
-            DB::update("UPDATE prc_operation_intents SET state = 'terminal' WHERE id = ? AND state IN ('active', 'pending')", [$intentId]);
+            DB::update(
+                "UPDATE prc_operation_intents
+                 SET state = 'terminal',
+                     next_due_at = CASE WHEN stage = 'detail' AND state = 'active' AND next_due_at IS NULL
+                         AND EXISTS (
+                             SELECT 1 FROM prc_operation_intents s JOIN prc_process_work sw ON sw.intent_id = s.id
+                             WHERE s.subject_kind = 'prc_procurements' AND s.subject_id = prc_operation_intents.subject_id
+                               AND s.stage = 'detail' AND s.state = 'terminal' AND sw.state = 'succeeded'
+                         )
+                         THEN clock_timestamp() + (? * interval '1 second') ELSE next_due_at END
+                 WHERE id = ? AND state IN ('active', 'pending')",
+                [(new RefreshPolicy)->detailSeconds, $intentId],
+            );
         }
         if ($intent->string('state') !== IntentState::Pending->value) {
-            $this->activateNextLocked($intent->string('stage'), $intent->string('subject_kind'), $intent->string('subject_id'));
+            $activated = $this->activateNextLocked($stage, $subjectKind, $subjectId);
+            if ($terminate && $activated === null && $subjectKind === SubjectKind::Document->value) {
+                DB::update(
+                    "UPDATE prc_documents
+                     SET next_revalidation_due_at = COALESCE(next_revalidation_due_at, clock_timestamp() + interval '1 day')
+                     WHERE id = ? AND ? = 'download' AND current_version_id IS NOT NULL AND removed_at IS NULL",
+                    [(int) $subjectId, $stage],
+                );
+            }
         }
     }
 
@@ -58,14 +82,17 @@ final readonly class IntentRepository
         $next = LedgerRow::one(
             "SELECT id FROM prc_operation_intents
              WHERE stage = ? AND subject_kind = ? AND subject_id = ? AND state = 'pending' AND pending_reason IS NULL
+               AND EXISTS (SELECT 1 FROM prc_process_work w WHERE w.intent_id = prc_operation_intents.id)
              ORDER BY requested_at, id LIMIT 1 FOR UPDATE",
             [$stage, $subjectKind, $subjectId],
         );
         if ($next === null) {
             return null;
         }
-        $table = SubjectKind::from($subjectKind)->value;
-        $head = LedgerRow::one("SELECT head_generation FROM {$table} WHERE id::text = ?", [$subjectId])
+        $kind = SubjectKind::from($subjectKind);
+        $table = $kind->value;
+        $headColumn = AuthorityRepository::headColumn($kind);
+        $head = LedgerRow::one("SELECT {$headColumn} FROM {$table} WHERE id::text = ?", [$subjectId])
             ?? throw new \LogicException('Pending intent subject disappeared.');
         DB::update(
             "UPDATE prc_operation_intents SET state = 'active', expected_head_generation = ? WHERE id = ? AND state = 'pending'",

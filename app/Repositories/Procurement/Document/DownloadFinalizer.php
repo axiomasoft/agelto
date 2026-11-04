@@ -48,16 +48,18 @@ final readonly class DownloadFinalizer implements StagePublicationRepository
             throw new \InvalidArgumentException('Download input/result mismatch.');
         }
         $owner = $result->artifact->reservation;
-        if ($owner->workId === null || $owner->attemptId === null || LedgerRow::one("SELECT id FROM prc_process_work
-            WHERE id=? AND intent_id=? AND document_id=? AND state='running' AND generation=? AND owner_token=?",
-            [$owner->workId->value, $input->acquisitionIntentId->value, $input->documentId, $owner->generation, $owner->ownerToken->value]) === null) {
+        $work = $owner->workId === null || $owner->attemptId === null ? null : LedgerRow::one("SELECT id, intent_id FROM prc_process_work
+            WHERE id=? AND document_id=? AND state='running' AND generation=? AND owner_token=?
+              AND (intent_id=? OR (work_identity->'manual_retry'->>'intent_id' = intent_id::text AND work_identity->'input'->>'acquisition_intent_id' = ?))",
+            [$owner->workId->value, $input->documentId, $owner->generation, $owner->ownerToken->value, $input->acquisitionIntentId->value, $input->acquisitionIntentId->value]);
+        if ($work === null || ($activeIntentId = $work->nullableString('intent_id')) === null) {
             throw new \LogicException('Download artifact belongs to another execution owner.');
         }
         $revision = $this->versions->observeLocked($result->head, $result->artifact, $result->metadata);
         if (DB::update("UPDATE prc_operation_intents SET state='terminal',next_due_at=clock_timestamp()+(? * interval '1 second')
             WHERE id=? AND stage='download' AND subject_kind='prc_documents' AND subject_id=? AND state='active'
             AND expected_head_generation=? AND access_policy_hash=decode(?,'hex')", [$this->policy->revalidationSeconds,
-            $input->acquisitionIntentId->value, (string) $input->documentId, $input->expectedDocumentHeadGeneration, $input->accessPolicyHash->hex]) !== 1) {
+            $activeIntentId, (string) $input->documentId, $input->expectedDocumentHeadGeneration, $input->accessPolicyHash->hex]) !== 1) {
             throw new \LogicException('Download acquisition intent fence failed.');
         }
         DB::update("UPDATE prc_documents SET next_revalidation_due_at=clock_timestamp()+(? * interval '1 second') WHERE id=?",

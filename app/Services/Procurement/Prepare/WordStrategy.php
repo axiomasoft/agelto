@@ -39,11 +39,13 @@ final readonly class WordStrategy implements PreparationStrategy
 
         $diskName = $this->locationResolver->currentDocumentsDisk();
         $disk = Storage::disk($diskName);
+        $sourceDiskName = $version->disk !== '' ? $version->disk : $diskName;
+        $sourceDisk = $sourceDiskName === $diskName ? $disk : Storage::disk($sourceDiskName);
         $localInput = PipelineTemporaryFile::create(prefix: 'word_', extension: $version->extension);
         $outputDir = PipelineTemporaryFile::createDirectory(prefix: 'word_pdf_');
 
         try {
-            file_put_contents($localInput, $disk->get($version->storage_path));
+            file_put_contents($localInput, $sourceDisk->get($version->storage_path));
 
             try {
                 $localOutput = $this->converter->toPdf($localInput, $outputDir);

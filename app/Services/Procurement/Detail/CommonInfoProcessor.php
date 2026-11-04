@@ -89,11 +89,12 @@ final readonly class CommonInfoProcessor
     private function financingRows(CommonInfoData $data): array
     {
         return array_map(
-            static fn (FinancingRowData $row): array => [
+            fn (FinancingRowData $row): array => [
                 'fiscal_year' => $row->fiscalYear,
                 'amount' => $row->amount,
                 'kind' => $row->kind,
                 'kbk' => $row->kbk,
+                'kbk_ref_id' => $this->classifierResolver->resolveKbk(code: $row->kbk),
                 'kvr' => $row->kvr,
                 'receipt_code' => $row->receiptCode,
                 'is_beyond_horizon' => $row->isBeyondHorizon,

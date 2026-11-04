@@ -123,6 +123,9 @@ final class CostReconcileCommand extends Command
 
     private function formatUsd(int $micros): string
     {
-        return sprintf('$%.4f', $micros / 1_000_000);
+        $sign = $micros < 0 ? '-' : '';
+        $rounded = bcdiv(bcadd((string) abs($micros), '50'), '100', 0);
+
+        return $sign.'$'.bcdiv($rounded, '10000', 4);
     }
 }

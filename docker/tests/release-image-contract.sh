@@ -54,7 +54,7 @@ grep -F 'make prod:deploy:{code,php-deps,frontend,runtime}' "$root_dir/docs/dev/
 for target in prod:deploy:code prod:deploy:php-deps prod:deploy:frontend prod:deploy:runtime prod:image:promote prod:deploy:image; do
     grep -F "$target" "$root_dir/docs/dev/process/deploy.md" >/dev/null
 done
-! rg -n '\byarn\b' \
+! grep -En '\byarn\b' \
     "$root_dir/.ai/guidelines/architecture.md" \
     "$root_dir/CLAUDE.md" \
     "$root_dir/docs/dev/getting-started.md" \

@@ -324,7 +324,13 @@ final readonly class NetworkPermitRepository
                 OR (d.operation_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_outbound_operations o WHERE o.id = d.operation_id AND o.generation = d.operation_generation AND o.state = 'open' AND o.lease_until > clock_timestamp() AND (o.parent_attempt_id IS NULL OR EXISTS (SELECT 1 FROM prc_process_attempts pa JOIN prc_process_work pw ON pw.id=pa.work_id AND pw.generation=pa.generation WHERE pa.id=o.parent_attempt_id AND pa.finished_at IS NULL AND pw.state='running' AND pw.lease_until > clock_timestamp()))))
                 OR (d.work_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_process_work w WHERE w.id = d.work_id AND w.generation = d.work_generation AND w.state = 'running' AND w.lease_until > clock_timestamp()))))
             OR EXISTS (SELECT 1 FROM prc_network_demands d JOIN prc_network_permits p ON p.demand_id = d.id
-                WHERE d.origin_budget_id = b.id AND p.state IN ('reserved','sent') AND p.expires_at <= clock_timestamp()))
+                WHERE d.origin_budget_id = b.id AND (
+                    (p.state IN ('reserved','sent') AND p.expires_at <= clock_timestamp())
+                    OR (p.state = 'reserved' AND (
+                        d.operation_deadline <= clock_timestamp()
+                        OR (d.operation_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_outbound_operations o WHERE o.id = d.operation_id AND o.generation = d.operation_generation AND o.state = 'open' AND o.lease_until > clock_timestamp() AND (o.parent_attempt_id IS NULL OR EXISTS (SELECT 1 FROM prc_process_attempts pa JOIN prc_process_work pw ON pw.id=pa.work_id AND pw.generation=pa.generation WHERE pa.id=o.parent_attempt_id AND pa.finished_at IS NULL AND pw.state='running' AND pw.lease_until > clock_timestamp()))))
+                        OR (d.work_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_process_work w WHERE w.id = d.work_id AND w.generation = d.work_generation AND w.state = 'running' AND w.lease_until > clock_timestamp()))))
+                )))
             ORDER BY b.scope_key COLLATE \"C\" LIMIT ?", [max(1, min(64, $limit))]);
         $total = 0;
         foreach ($origins as $origin) {
@@ -387,7 +393,13 @@ final readonly class NetworkPermitRepository
 
         return $expired + DB::update("UPDATE prc_network_permits p SET state = 'expired' WHERE p.id IN (
             SELECT p2.id FROM prc_network_permits p2 JOIN prc_network_demands d ON d.id = p2.demand_id
-            WHERE d.origin_budget_id = ? AND p2.state IN ('reserved','sent') AND p2.expires_at <= clock_timestamp()
+            WHERE d.origin_budget_id = ? AND (
+                (p2.state IN ('reserved','sent') AND p2.expires_at <= clock_timestamp())
+                OR (p2.state = 'reserved' AND (
+                    d.operation_deadline <= clock_timestamp()
+                    OR (d.operation_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_outbound_operations o WHERE o.id = d.operation_id AND o.generation = d.operation_generation AND o.state = 'open' AND o.lease_until > clock_timestamp() AND (o.parent_attempt_id IS NULL OR EXISTS (SELECT 1 FROM prc_process_attempts pa JOIN prc_process_work pw ON pw.id=pa.work_id AND pw.generation=pa.generation WHERE pa.id=o.parent_attempt_id AND pa.finished_at IS NULL AND pw.state='running' AND pw.lease_until > clock_timestamp()))))
+                    OR (d.work_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM prc_process_work w WHERE w.id = d.work_id AND w.generation = d.work_generation AND w.state = 'running' AND w.lease_until > clock_timestamp()))))
+            )
             ORDER BY p2.expires_at LIMIT 64)", [$originId]);
     }
 

@@ -138,6 +138,8 @@ final readonly class ScreeningFinalizer implements StageResultRepository
         $this->projection->screening($run, new StoredScreeningResult($screening->confidence, $screening->summary,
             $screening->estimate_cardinality, $screening->tags, $screening->classification_note, $run->source?->pageCount, $decision),
             $screening->document_type);
+        DB::update("UPDATE prc_operation_intents SET state='terminal' WHERE stage='screening' AND subject_kind='prc_document_versions' AND subject_id=? AND state='active'",
+            [(string) $input->documentVersionId]);
 
         return $successors;
     }

@@ -29,7 +29,7 @@ use Tests\Support\ProcessCore\LedgerFixtures;
 
 pest()->group('delivery-and-daemon-lifecycle', 'daemon-reconciliation');
 
-/** Таблица bp-jobs: connection, queue, job timeout, Horizon timeout, retry_after, lease. */
+/** Маршруты очередей стадий: connection, queue, job timeout, Horizon timeout, retry_after, lease. */
 const ENVELOPE_ROUTES = [
     'listing' => ['process_long', 'process-listing', 260, 280, 330, 360],
     'detail' => ['process_short', 'process-acquisition', 110, 120, 150, 180],
@@ -106,7 +106,7 @@ function envelopeRawWake(string $payload, int $schemaVersion = 1): string
     return $id;
 }
 
-test('StageQueueMap повторяет таблицу bp-jobs и цепочку slice < job < Horizon < retry_after < lease каждой stage', function (): void {
+test('StageQueueMap проверяет маршруты очередей и цепочку slice < job < Horizon < retry_after < lease каждой stage', function (): void {
     $map = app(StageQueueMap::class);
     $values = array_map(static fn (StageCode $code): string => $code->value, StageCode::cases());
     sort($values);

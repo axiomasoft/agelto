@@ -5,37 +5,29 @@ description: "Быстрая карта структуры проекта Agelto
 
 # Project Map (Agelto)
 
-## Когда активировать
+Сначала сверяйся с `.ai/guidelines/navigation.md`, `.ai/guidelines/architecture.md` и `.ai/guidelines/cheatsheet.md`.
 
-Нужно быстро понять, где вносить изменения в crawling/parsing/EIS/Inertia.
+## Домены (`app/**`)
 
-## Быстрый роутинг
+Плоская структура без `Modules/`, 5 доменов:
+1. **`Procurement` (`prc_*`)** — `app/{Models,Services,Dto,Enums,Repositories,Jobs,Console/Commands}/Procurement/`:
+   - `Process/` — оркестрация работ (`prc_process_work`, `prc_operation_intents`, `prc_execution_leases`, `prc_subject_heads`, `prc_process_outbox`, `FeederDaemon`, `RecoveryDaemon`).
+   - `Network/` — исходящий транспорт (`OutboundExecutor`, `ScheduledAttemptGate`, `ProxyResolver`, `NetworkPermitRepository`, `HealthRepository`, `RouteRepository`).
+   - `Acquisition/` & `Crawler/` — запуск обхода, курсоры, coverage, финализация `listing`/`detail`/`refresh`.
+   - `Document/` & `Prepare/` & `Storage/` — скачивание, immutable CAS blobs (`prc_storage_blobs`), резервации, конвертеры (`GsfxStrategy`, `WordStrategy`, `SpreadsheetStrategy`, `ScanStrategy`), GC/reconcile.
+   - `Screening/` & `Extraction/` & `Ai/` — скрининг документов, извлечение смет, финализация анализов.
+2. **`Platforms/<Code>`** — `app/{Services,Dto,Enums}/Platforms/<Code>/`:
+   - Изолированные адаптеры площадок (`Eis`, `Rts`, `SberAst`, `Roseltorg`, `Zakazrf`, `Fabrikant`, `Gpbl`, `EtpEts`, `TekTorg`). Никаких площадочных полей/веток в общих моделях и сервисах.
+3. **`Reference` (`ref_*`)** — `app/{Models,Services}/Reference/`:
+   - Классификаторы ОКПД2, КТРУ, ОКВЭД2, КБК (`ClassifierResolver`, `ClassifierImporter`).
+4. **`Organization` (`org_*`)** — `app/{Models,Services,Repositories}/Organization/`:
+   - Организации и внешние идентификаторы `(platformCode, type, value)`.
+5. **`Llm` (`llm_*`)** — `app/{Models,Services,Repositories,Dto,Enums}/Llm/`:
+   - Провайдер-агностичный транспорт, промты, `FinancialLedgerRepository`, `ProviderCallLedgerRepository`, `AssetRepository`, `BillingReconciler`.
 
-Структура плоская (`app/**`), без `Modules/` — три домена по короткому префиксу таблицы:
+## Прочие директории
 
-- `app/Models/Procurement/`, `app/Services/Procurement/`, `app/Dto/Procurement/`, `app/Enums/Procurement/`, `app/Repositories/Procurement/`, `app/Console/Commands/Procurement/` — единый домен закупок (`prc_*`): crawling, document prepare, AI analysis, estimate extraction, площадки, логи операций. Внутри `Services/Procurement/` — подпапки `Eis/` (обход ЕИС), `Modes/`, `Contracts/`, `Exceptions/`, `Detail/`; внутри `Models/Procurement/` — подпапки по назначению `Document/`, `Estimate/`, `Crawler/`, `Ai/`, `Platform/` (ядро закупки и `OperationLog` — плоско в корне).
-- `app/Models/Reference/`, `app/Services/Reference/` — общие справочники (`ref_*`): ОКПД2, КТРУ, ОКВЭД2, КБК.
-- `app/Models/Organization/`, `app/Services/Organization/`, `app/Repositories/Organization/` — организации (`org_*`).
-- `app/Http/Controllers/` — Inertia, settings, Fortify (тонкий HTTP).
-- `resources/js/pages/` — Inertia/Vue UI.
-- `routes/` — web, settings.
-- `docker/` — Dockerfile, Makefile, compose; deploy через `make prod:*`.
-- `docs/workflow/` — бизнес-процессы (procurement lifecycle, crawling, document/estimate pipeline, глоссарий).
-- `docs/dev/` — архитектура, схема БД, crawling/document pipeline, LLM providers, admin panel.
-- `.ai/` — source of truth для AI guidelines.
-- `tests/` — Pest feature/unit.
-
-## Принцип размещения логики
-
-- Домен parsing/crawling — `app/{Models,Services,Dto,Enums,Repositories}/Procurement/` (площадка ЕИС — `Services/Procurement/Eis/`).
-- Длительные операции (browser, Gemini, file processing) — queued Jobs, Horizon.
-- Синхронный HTTP — только быстрые операции и UI.
-- Filament CRUD — ресурсы админки, см. `docs/dev/admin-panel.md`.
-
-## Связанные источники
-
-- `.ai/guidelines/architecture.md`
-- `.ai/guidelines/navigation.md`
-- skill `procurement-pipeline-dev`
-- `docs/workflow/crawling-and-discovery.md`
-- `docs/dev/architecture.md`
+- `app/Filament/` — операторская панель (runs, work, incidents, storage, LLM ledger, каталоги).
+- `app/Http/Controllers/` — тонкий HTTP-слой (Inertia, health/readiness, private docs).
+- `docs/workflow/` и `docs/dev/` — документация процессов, схемы БД и `process-core.md`.
+- `tests/Feature/ProcessCore/` и `tests/Unit/ProcessCore/` — изолированные сьюты `core-*`.

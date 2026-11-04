@@ -32,6 +32,21 @@ final readonly class SubjectLockResolver
         return in_array($stage, [StageCode::Screening, StageCode::Extraction, StageCode::Publication], true);
     }
 
+    /**
+     * @param  array<string, LockedSubject>  $locked
+     */
+    public function ownerSubject(StageCode $stage, array $locked): LockedSubject
+    {
+        $ownerKind = SchemaSupportedStages::subject($stage);
+        foreach ($locked as $subject) {
+            if ($subject->subject->kind === $ownerKind) {
+                return $subject;
+            }
+        }
+
+        throw new \LogicException('Stage owner subject must be locked: '.$stage->value);
+    }
+
     /** @return non-empty-list<SubjectKey> */
     public function subjects(WorkInput $input, ?int $documentId = null, ?AnalysisSubjects $analysis = null): array
     {

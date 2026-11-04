@@ -1,153 +1,49 @@
 ---
 name: estimate-extraction-dev
-description: "Dev-раннбук извлечения смет (стадия 5 пайплайна): PHP Data-контракты как SSOT промта/схемы, два пути (row-range vs windowed-discovery), preflight по capability-лимитам провайдера, checkpoint-requeue, unprocessable-таксономия, границы stitcher/validator/persister. Активировать при правках в Services/Procurement/Extraction, Dto/Procurement/Analyzers/Estimate, EstimateExtractionJob, config('ai.extraction.*')."
+description: "Dev-раннбук извлечения смет (стадия extraction Process Core): PHP Data-контракты как SSOT схемы, двухпроходный ExtractionHandler (Whole/Windowed), preflight и asset claim, checkpoint/recovery, границы stitcher/validator/persister. Активировать при правках в Services/Procurement/Extraction, Dto/Procurement/Analyzers/Estimate, Repositories/Procurement/Ai/ExtractionFinalizer."
 paths:
   - "app/Services/Procurement/Extraction/**"
   - "app/Dto/Procurement/Analyzers/Estimate/**"
-  - "app/Jobs/Procurement/EstimateExtractionJob.php"
+  - "app/Repositories/Procurement/Ai/ExtractionFinalizer.php"
   - "resources/estimates/ai/prompts/extraction-*/**"
 ---
 
 # Estimate Extraction — dev-раннбук
 
-Стадия 5 пайплайна (`screened → extracted`). Источник домена: `docs/dev/ai/estimate-extraction.md`.
-Смежное: skill `llm-layer-dev` (транспорт/кэш/EOL), `prompt-engineering-agelto` (тексты промтов),
-`procurement-pipeline-dev` (весь пайплайн, стадии 1–5).
+Стадия `StageCode::Extraction` в Process Core. Источники: `.ai/guidelines/cheatsheet.md`, `docs/dev/ai/estimate-extraction.md`, `docs/dev/process-core.md`.
 
-## 1) Контракты — единственный источник истины (D2)
+## 1. Контракты — единственный источник истины
 
-`app/Dto/Procurement/Analyzers/Estimate/*.php` (`EstimatePassport`, `EstimateRow`, `EstimateTotalsBlock`,
-`DiscoveryResponse`+`DiscoveryMarkerLine`, `*Response`-обёртки) — PHP Data-класс одновременно
-определяет: (1) JSON Schema для structured output (`Llm\Schema\JsonSchemaGenerator` →
-`GeminiResponseSchemaAdapter`), (2) текст-в-промте (`Llm\Schema\PromptContextGenerator` — очищенный
-исходник класса, докблоки/`#[Alias]`-словари модель читает как инструкцию). Оба генерируются
-РЕФЛЕКСИЕЙ из класса при каждом `PromptComposer::compose()` — **никаких сгенерированных файлов
-коммитить не нужно**, рассинхронизация PHP↔JSON исключена по построению.
+`app/Dto/Procurement/Analyzers/Estimate/*.php` (`EstimatePassport`, `EstimateRow`, `EstimateTotalsBlock`, `DiscoveryResponse`, `DiscoveryMarkerLine`, `*Response`) определяют JSON Schema для structured output (`Llm\Schema\JsonSchemaGenerator` + `#[Description]`/`#[Alias]` атрибуты через `ContractAttributeReader`). Никаких сгенерированных JSON-файлов коммитить не нужно.
 
-**Чек-лист «поменял DTO»:**
+При изменении DTO:
+1. Обнови Data-класс и его атрибуты (`#[Description]`, `#[Alias]`).
+2. Проверь список `$schemaClasses` во всех вызовах `PromptComposer::compose($step, $schemaClasses)` (`ExtractionHandler`, `ScreeningHandler`).
+3. `rules_hash` пересчитывается автоматически; несовпадение `recipe_hash` инвалидирует устаревший checkpoint при `resume()`.
 
-1. Правь Data-класс (поле/докблок/`#[Alias]`) — здесь и только здесь.
-2. Найди КАЖДОГО вызывающего `PromptComposer::compose($step, $schemaClasses)` для затронутого шага
-   (`RowRangeChunkSource`/`WindowedChunkSource`/`ScreeningProcessor`) — `$schemaClasses` передаётся
-   явным списком на call-сайте, не выводится автоматически; забытый класс в списке — новое поле
-   молча не попадёт в промт/схему конкретного вызова.
-3. `rules_hash` (`llm_prompts`-независимый sha1 системной части, `PromptComposer::compose()`)
-   пересчитывается САМ на следующий вызов — ничего вручную не генерировать. Если используется
-   explicit context cache (`Analysis.cache_id`) — старый кэш с прежним `rules_hash` инвалидируется
-   логически, `LlmCacheManager` пересоздаст по несовпадению хэша.
-4. Прогони `php artisan estimate:eval:run` на gold-датасете (`prc_ai_dataset_examples`, task=extraction) —
-   регресс контракта ловится сравнением `analysis.result.estimates[]` с эталоном (`EvalMetrics`).
-5. Смысл контракта изменился (не только формулировка) — синхронно правь
-   `docs/dev/ai/estimate-extraction.md`.
+## 2. Исполнение в Process Core (`ExtractionHandler`)
 
-## 2) Два пути извлечения (D3/D29/D30/D40/D42)
+Исполняется через `ExecuteWorkJob` → `ExtractionHandler` (не отдельный legacy Job).
+- **Preflight и выбор пути (`ExtractionPreflight`)**: до вызова провайдера сверяет размер и число страниц с `config('ai.capabilities.<model>')` и выбирает `ExtractionRoute::Whole` или `ExtractionRoute::Windowed`. При превышении лимитов возвращает терминальный блок (`document_quality` / `provider_limit_*`), не жжёт retry budget.
+- **Asset lifecycle (`AssetRepository`)**: загруженные файлы и explicit context cache управляются через `llm_provider_assets` (`claim` → `activate` / `releaseAfterNonBillableFailure`).
+- **Авторизация и списание (`AnalysisProviderSendGate`)**: каждый шаг проходит `FinancialLedgerRepository::reserve()` → `ProviderCallLedgerRepository::registerPlanned()` → `claimForSend()` → `OutboundExecutor` → `recordOutcome()` → `settle()`/`release()`.
+- **Checkpoints и fencing**: прогресс по чанкам/окнам сохраняется в `prc_process_work.checkpoint` через `WorkExecutionRepository::checkpoint()` под проверкой `(id, work_epoch, lease_token)`. При истечении slice бюджетного окна возвращается `SliceOutcome::yielded(...)`.
 
-`ExtractionPreflight` выбирает путь ДО первого upload по capability-матрице активного маршрута
-(`config('ai.capabilities.<model>')`, size+pages) — `ExtractionRoute::Whole`/`Windowed`, не решение LLM.
+## 3. Stitcher / Validator / Persister / Finalizer
 
-| | `Whole` (основной, D3) | `Windowed` (fallback, D30) |
-|---|---|---|
-| Источник чанков | `RowRangeChunkSource` — реализует `ChunkSource` (row-index-адресация: паспорт/строки/итоги) | `WindowedChunkSource` — **свой** контракт, `ChunkSource` НЕ реализует (D42, страничная адресация: discovery-окно/segment-паспорт/segment-строки/segment-итоги) |
-| Документ в контексте | целиком, в Files API (`ExtractionSession::fileHandle`) | НЕТ — каждый вызов грузит свой временный PDF-срез (`PdfPageSlicer::sliceRange()`), reupload на каждый вызов |
-| Как находим границы смет | паспорт одним LLM-вызовом над целым документом | 3-стадийный: (1) discovery по окнам (sliding window, overlap 1 стр., `extraction:discovery`, `DiscoveryMarker`) → бэкенд ДЕТЕРМИНИРОВАННО склеивает сегменты `{estimate_ordinal, page_start, page_end}`; (2) паспорт/строки per-сегмент; (3) итоги по хвостовым страницам сегмента |
-| Оркестратор | `ExtractionOrchestrator::runWholeDocument()` | `ExtractionOrchestrator::runWindowed()` (D43) — свой top-level метод, своя progress-схема; переиспользует `checkpointDue()`/`checkpoint()`, не завязан на `estimates`-аккумулятор whole-пути |
-| Гейт | всегда включён | `config('ai.extraction.windowed_enabled')` |
+- `EstimateStitcher` — детерминированная склейка построчных чанков одной сметы (`row_index`). Чистая функция над DTO.
+- `EstimateValidator` — детерминированная проверка структуры и арифметики (`bcmath`, **float запрещён**). Не выбрасывает строки при аномалиях, а помечает вовлечённые `row_index`.
+- `EstimatePersister` — материализует `row_type = item` в `prc_estimates`/`prc_estimate_items`/`prc_estimate_item_resources`, нормализует единицы измерения (`UnitNormalizer`) и резолвит `work_type_id`.
+- `ExtractionFinalizer` — атомарно публикует `prc_document_analyses` (`is_current = true`), обновляет `prc_documents.current_extraction_analysis_id` и переводит активный `extraction` intent в `terminal`.
 
-Оба пути сходятся в одном формате — `analysis.result.estimates[].{rows, incomplete_items}` — который
-дальше ест общий `EstimateStitcher`/`EstimateValidator`/`EstimatePersister` (§4).
+## 4. Пометка качества строк и касты JSONB
 
-## 3) Preflight и лимиты провайдера (D29)
+- Модель может вернуть только `RowQualityReason::Unreadable`; арифметические и структурные аномалии формирует `EstimateValidator`.
+- В моделях Eloquent для nullable JSONB колонок (`quality`, `validation_notes`) используй примитивный каст `'collection'`, а не `AsCollection::class` (который пишет JSON-строку `"null"` вместо SQL `NULL`).
 
-`ExtractionPreflight` сравнивает размер файла (Storage) + число страниц (`qpdf --show-npages`,
-только PDF) с `config('ai.capabilities.<model>').max_request_file_mb`/`max_pages` ДО upload.
-Рантайм-ошибка провайдера о превышении лимита в processing — тот же исход, что preflight-отказ:
-**не** обычный retry, а маршрут в unprocessable (§5). Меняешь модель маршрута — проверь, что в
-`config('ai.capabilities.*')` у неё заведены `max_request_file_mb`/`max_pages`/`supports_files_api`,
-иначе preflight не сможет решить.
-
-## 4) Checkpoint-requeue (D31/D39)
-
-Разбор документа любого размера = цепочка коротких запусков `EstimateExtractionJob`. Единица
-прогресса — один вызов `ChunkSource`/`WindowedChunkSource`. После `config('ai.extraction.
-checkpoint_ranges')` единиц ИЛИ `checkpoint_seconds` секунд — прогресс персистится отдельной
-транзакцией, job ре-диспатчит себя `afterCommit()`, текущий запуск завершается успешно (`return`,
-не exception).
-
-**Инвариант, который легко сломать:** `EstimateExtractionJob` обязан оставаться на
-`ShouldBeUniqueUntilProcessing` (lock снимается В НАЧАЛЕ обработки), НЕ `ShouldBeUnique` — под
-обычным `ShouldBeUnique` self-dispatch продолжения тихо дедуплицируется, пока текущий запуск ещё
-держит lock, и документ навсегда «застревает» в extraction. Короткие single-shot jobs
-(`PrepareDocumentJob`, `ScreeningJob`) остаются на обычном `ShouldBeUnique` — не путать их модель
-уникальности между собой. Защита от двойного диспатча ВО ВРЕМЯ обработки — lease + status-guard
-(`HasLease`), не уникальность job'а.
-
-## 5) Unprocessable — терминальный, не сбой (D32/D38)
-
-`DocumentStatus::Unprocessable` + `UnprocessableReason` — константация «не можем обработать»
-(`too_large`/`zip_bomb`/`unreadable_format`/`password_protected`/`provider_limit_size`/
-`provider_limit_pages`), НЕ `failed`. Не ретраится, attempts не жжём. Extraction-стадия добавляет
-`provider_limit_*` (preflight §3 или рантайм-отказ провайдера) — не пиши новый reason без
-обновления `docs/dev/ai/estimate-extraction.md` §4в/§4г и `PipelineStuckCheck`/алертов P7.3.
-
-## 6) Stitcher / Validator / Persister — границы ответственности
-
-- `EstimateStitcher` — детерминированный (без LLM) merge построчных чанков ОДНОЙ сметы (дедуп,
-  сортировка по `row_index`). Чистая функция над DTO — никакого состояния/БД. Обслуживает ОБА пути.
-- `EstimateValidator` — детерминированная арифметика/структура (bcmath, **не float** — конверсия
-  во float запрещена во всём контракте P2.2). НЕ выбрасывает строки при аномалиях — только
-  классифицирует и перечисляет вовлечённые `row_index` (кандидаты `RerunRangeAction`).
-- `EstimatePersister` — нормализация `analysis.result.estimates[]` → `prc_estimate_*`, ОДНА
-  транзакция на смету. Не переключает `DocumentStatus` (это делает `ExtractionOrchestrator`) и
-  сознательно пропускает документы без `procurement_id` (эталоны P7.4/`estimate:dataset:import`).
-  Материализует ТОЛЬКО `row_type = item` (КС-3/печатные агрегаты/итог раздела — решение владельца,
-  не хранятся); пишет `unit_base`/`unit_multiplier` детерминированным нормализатором `unit`
-  (позиция и ресурс) и резолвит `work_type_id` через `findOrCreate(estimate_id, title)` — нормативы
-  НР/СП в резолве не заполняются (`docs/dev/database.md`).
-
-Если меняешь формат `analysis.result.estimates[]` — обнови ВСЕ три класса синхронно, они читают
-один и тот же промежуточный формат позиционно, не через общий DTO-контракт между собой.
-
-## 6a) Деградированный источник — пометка неопределённости позиции (план `2026.07.31-SYS-INTEGRITY` P8)
-
-Плохой скан/нечитаемый фрагмент документа не превращается в отдельную ветку пайплайна — он виден
-на уровне ОДНОЙ строки, через `EstimateRow::$quality` (`RowQuality{reason, fields}`,
-`docs/dev/ai/estimate-extraction.md` §3.2). Модель вправе вернуть только
-`RowQualityReason::Unreadable` — построчные аномалии (`ArithmeticMismatch`/`NumberingGap`)
-производит ТОЛЬКО `EstimateValidator`, `EstimateRow::validateAndCreate()` отклоняет любую другую
-причину модели тем же приёмом, что и неизвестный ключ `attributes`.
-
-- **Контрактная форма ≠ форма хранения.** `EstimateRow::$quality` (ответ модели) — плоский объект;
-  `prc_estimate_items.quality` (БД, jsonb) — провенанс ключом верхнего уровня `model`/`validator`,
-  каждый в форме контракта. Мёрж — приватный сборщик `EstimatePersister::rowQuality()`, второй
-  писатель не заводится (канон «персистентность только через `*StoreRepository`»).
-- **Пишется ВСЕГДА, включая явный `NULL`.** `RerunRangeAction` не несёт отдельной ветки для
-  пометки — она следует из необязательного `?ValidationReport`-параметра общего сборщика: без
-  явного `NULL` на переизвлечённой строке пометка первого прогона пережила бы факт, который её
-  вызвал.
-- **`AsCollection::class` на nullable jsonb — ловушка null-safety** (найдено P8.4): этот каст
-  безусловно JSON-кодирует `null` в строку `"null"`, а не пишет SQL `NULL` — партиционирующий
-  индекс `WHERE quality IS NOT NULL` тогда вечно пуст. `Item::$quality`/`Estimate::$validation_notes`
-  используют примитивный каст `'collection'` вместо `AsCollection::class` — та же ловушка ждёт
-  любую другую nullable jsonb-колонку проекта, кастуемую через `AsCollection::class`.
-- **Eval мерит заполненность (`fill_rate`), не F1** (`EvalMetrics::compare()['quality']`,
-  `research/12-uncertainty-model.md` §9) — extraction-gold деградированного эталона в корпусе нет,
-  сравнивать пометку не с чем; F1 на всегда-пустом поле был бы структурным нулём, а не сигналом.
-
-## 7) Калибруемые параметры (`config('ai.extraction.*')`)
-
-`row_range_size`/`min_row_range_size` (размер row-range диапазона и его уменьшение при
-`MaxTokensExceededException`), `checkpoint_ranges`/`checkpoint_seconds` (§4), `window_pages`/
-`window_overlap_pages`/`totals_tail_pages` (оконный путь), `max_estimates_per_document`,
-`windowed_enabled`. Пороги НЕ откалиброваны на живом трафике (Open risk плана) — трогай
-осторожно, синхронно с `PipelineStuckCheck` (P7.3), если меняешь checkpoint-тайминги.
-
-## 8) Test-gate
-
-Реальные LLM-вызовы в тестах запрещены — `Tests\Support\Doubles\FakeLlmProvider`
-(`succeeding()`/`truncated()`/`throwing()`/`andThen()` для re-ask-сценариев). См. skill
-`testing-rules` §Test doubles.
+## 5. Проверка
 
 ```bash
-docker compose exec app php artisan test --compact --filter=Extraction
-docker compose exec app php artisan estimate:eval:run   # регресс на gold-датасете, если менялся контракт
+make core-test-ai
+make core-test-file TEST_FILE=tests/Feature/ProcessCore/Ai/ExtractionPipelineTest.php
 ```

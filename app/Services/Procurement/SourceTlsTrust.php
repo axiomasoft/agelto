@@ -16,6 +16,7 @@ final readonly class SourceTlsTrust
      */
     public function optionsFor(string $host): array
     {
+        $host = rtrim(strtolower(trim($host)), '.');
         // Хост — доменное имя с точками (`zakupki.gov.ru`): dot-notation `config('a.b.host')`
         // читала бы его как вложенный путь, а не ключ карты — массив достаётся целиком.
         $bundles = config('outbound.http.tls_bundles', []);

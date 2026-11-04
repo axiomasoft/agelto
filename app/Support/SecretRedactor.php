@@ -12,7 +12,7 @@ final readonly class SecretRedactor
         $message = preg_replace('~\bSQL:.*$~s', 'SQL: [redacted]', $message) ?? '';
         $message = preg_replace('~\b(Authorization\s*:\s*(?:Bearer|Basic)\s+)\S+~i', '$1[redacted]', $message) ?? '';
 
-        return preg_replace('~(["\']?(?:password|passwd|secret|token|api[_-]?key|access_token)["\']?\s*[:=]\s*)(?:"[^"]*"|\'[^\']*\'|[^\s&,;]+)~i', '$1[redacted]', $message) ?? '';
+        return preg_replace('~(["\']?(?:password|passwd|secret|token|api[_-]?key|access_token|signature|sig|cursor)["\']?\s*[:=]\s*)(?:"[^"]*"|\'[^\']*\'|[^\s&,;]+)~i', '$1[redacted]', $message) ?? '';
     }
 
     /** @param array<string, mixed>|null $values

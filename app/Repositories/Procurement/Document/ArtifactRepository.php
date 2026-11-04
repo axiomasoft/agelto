@@ -15,6 +15,7 @@ use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Process\ProcessTransaction;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
 /** Reference acquisition and deletion share the storage capacity authority. No object I/O here. */
@@ -200,6 +201,21 @@ final readonly class ArtifactRepository
         });
     }
 
+    /**
+     * @return list<BlobReference>
+     */
+    public function unreferencedCandidates(int $graceSeconds = 900, int $limit = 25): array
+    {
+        $rows = LedgerRow::all("SELECT b.*, encode(b.content_hash, 'hex') AS hash FROM prc_document_blobs b
+            WHERE b.verified_at <= clock_timestamp() - (? * interval '1 second')
+              AND NOT EXISTS (SELECT 1 FROM prc_document_versions v WHERE v.blob_id = b.id)
+              AND NOT EXISTS (SELECT 1 FROM prc_document_representations r WHERE r.blob_id = b.id)
+              AND NOT EXISTS (SELECT 1 FROM prc_analysis_chunks c WHERE c.output_ref->>'disk' = b.disk AND c.output_ref->>'key' = b.object_key)
+            ORDER BY b.verified_at, b.id LIMIT ?", [max(900, $graceSeconds), max(1, min(100, $limit))]);
+
+        return array_map(self::reference(...), $rows);
+    }
+
     private function checkpointed(LedgerRow $row): bool
     {
         $workId = $row->nullableString('work_id');
@@ -207,6 +223,10 @@ final readonly class ArtifactRepository
         return $workId !== null && $row->string('status') === 'staged'
             && DB::table('prc_process_work')->where('id', $workId)
                 ->whereNotIn('state', ['succeeded', 'failed_item', 'cancelled', 'superseded'])
+                ->where(static function (Builder $query): void {
+                    $query->where('state', '!=', 'blocked')
+                        ->orWhereNotIn('reason_code', ['document_quality', 'preparation_recipe_mismatch', 'policy_review']);
+                })
                 ->whereRaw("checkpoint->'stage_progress'->'payload'->'batches' @> jsonb_build_array(jsonb_build_object('artifact', jsonb_build_object('id', ?::text)))", [$row->string('id')])
                 ->exists();
     }

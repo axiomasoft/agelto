@@ -135,7 +135,10 @@ final class CostReportCommand extends Command
 
     private function formatRub(int $micros, float $rubPerUsd): string
     {
-        return sprintf('%.2f ₽', ($micros / 1_000_000) * $rubPerUsd);
+        $rub = bcmul(bcdiv((string) $micros, '1000000', 8), (string) $rubPerUsd, 4);
+        $rounded = bcdiv(bcadd($rub, '0.005', 4), '1', 2);
+
+        return $rounded.' ₽';
     }
 
     private function timezone(): string

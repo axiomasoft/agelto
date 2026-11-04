@@ -38,6 +38,10 @@ final readonly class ClassifierImporter
             $columns = [];
 
             foreach ($header as $column) {
+                if (is_string($column) && $columns === [] && str_starts_with($column, "\xEF\xBB\xBF")) {
+                    $column = substr($column, 3);
+                }
+
                 if (! is_string($column) || $column === '') {
                     throw new RuntimeException("Выгрузка содержит пустой или нестроковый заголовок: {$path}");
                 }
@@ -47,6 +51,10 @@ final readonly class ClassifierImporter
 
             if (count($columns) !== count(array_unique($columns))) {
                 throw new RuntimeException("Выгрузка содержит повторяющиеся заголовки: {$path}");
+            }
+
+            if (! in_array('code', $columns, true)) {
+                throw new RuntimeException("В заголовке выгрузки отсутствует обязательная колонка code: {$path}");
             }
 
             while (($line = fgetcsv($handle)) !== false) {
@@ -79,6 +87,11 @@ final readonly class ClassifierImporter
      */
     private function normalize(array $row): array
     {
+        $attributes = ($row['attributes'] ?? '') !== '' ? $row['attributes'] : null;
+        if ($attributes !== null && ! json_validate($attributes)) {
+            throw new RuntimeException("Некорректный JSON в колонке attributes для кода «{$row['code']}».");
+        }
+
         return [
             'code' => $row['code'],
             'parent_code' => ($row['parent_code'] ?? '') !== '' ? $row['parent_code'] : null,
@@ -89,7 +102,7 @@ final readonly class ClassifierImporter
             'valid_to' => ($row['valid_to'] ?? '') !== '' ? $row['valid_to'] : null,
             // Сырой JSON-текст из колонки выгрузки — передаётся в jsonb как есть,
             // без повторного json_encode на стороне LoadClassifiers.
-            'attributes' => ($row['attributes'] ?? '') !== '' ? $row['attributes'] : null,
+            'attributes' => $attributes,
         ];
     }
 }

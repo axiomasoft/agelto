@@ -57,6 +57,16 @@ final class SentrySanitizer
             ], static fn (?string $value): bool => $value !== null));
             foreach ($event->getExceptions() as $exception) {
                 $exception->setValue($sanitizer->exceptionMessage($exception->getValue()));
+                $stacktrace = $exception->getStacktrace();
+                if ($stacktrace !== null) {
+                    foreach ($stacktrace->getFrames() as $frame) {
+                        $frame->setVars($sanitizer->stringContext($frame->getVars()));
+                    }
+                }
+                $mechanism = $exception->getMechanism();
+                if ($mechanism !== null) {
+                    $mechanism->setData($sanitizer->stringContext($mechanism->getData()));
+                }
             }
             $event->setSpans(array_map(
                 static fn (Span $span): Span => self::rebuildSpan($span, $sanitizer),

@@ -300,7 +300,7 @@
     },
     {
       "path": "app/Services/Procurement/Extraction/AnalysisProviderSendGate.php",
-      "sha256": "19f962cefa2a39f7d31dfb447d0125dd501a3c753f90e0d2c5043483a066d227"
+      "sha256": "73ecee5e915ec2ba7ca00cedf485afcd18373178fba435a6646db905b21063be"
     },
     {
       "path": "app/Services/Procurement/Extraction/ChunkCommitter.php",

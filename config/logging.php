@@ -65,6 +65,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
         ],
 
         'daily' => [
@@ -73,6 +74,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
         ],
 
         'slack' => [
@@ -104,7 +106,7 @@ return [
                 'stream' => 'php://stderr',
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
-            'processors' => [PsrLogMessageProcessor::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
         ],
 
         /*

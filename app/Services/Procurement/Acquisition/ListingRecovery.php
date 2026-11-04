@@ -37,8 +37,11 @@ final readonly class ListingRecovery
                 $original = LedgerRow::one("SELECT c.listing_kind,c.adapter_version,encode(c.access_policy_hash,'hex') AS access_hash,
                     r.configuration_snapshot::text AS configuration,r.configuration_schema_version
                     FROM prc_crawl_blocks b JOIN prc_crawl_runs c ON c.id=b.crawl_run_id
-                    JOIN prc_process_runs r ON r.id=c.process_run_id WHERE b.id=? AND r.profile_id=?",
-                    [$task->rootBlockId->value, $profile->id]) ?? throw new \LogicException('Missing coverage provenance.');
+                    JOIN prc_process_runs r ON r.id=c.process_run_id
+                    WHERE (b.id=? OR b.partition_payload->>'streamKey'=?) AND r.profile_id=?
+                    ORDER BY (b.id = ?::uuid) DESC, r.requested_at DESC LIMIT 1",
+                    [$task->rootBlockId->value, $task->streamKey->hex, $profile->id, $task->rootBlockId->value])
+                    ?? throw new \LogicException('Missing coverage provenance.');
                 $registry = $profile->registry ?? throw new \LogicException('Missing recovery registry.');
                 $launch = new AcquisitionLaunch($profile->id, $profile->profile_version, $registry->platform_id,
                     $task->registryId, $task->registry, AcquisitionKind::from($original->string('listing_kind')),

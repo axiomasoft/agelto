@@ -106,10 +106,19 @@ final class FeederDaemon implements ProcessDaemon
     /** Valid wake принят feed tick; нечитаемый — quarantine с видимым кодом, а не молчаливая потеря. */
     private function consume(ClaimedOutboxMessage $wake): bool
     {
+        if ($wake->payload->schemaVersion !== 1) {
+            $code = OutboxRepository::QUARANTINE_PREFIX.'schema_unsupported';
+            ProcessLog::quarantined($code, ['message_id' => $wake->messageId->value]);
+            $this->outbox->quarantine($wake, $code, 3600);
+
+            return false;
+        }
         try {
             $this->codec->decodeFeederWake($wake->payload);
         } catch (\InvalidArgumentException) {
-            $this->outbox->quarantine($wake, OutboxRepository::QUARANTINE_PREFIX.'payload_invalid', 3600);
+            $code = OutboxRepository::QUARANTINE_PREFIX.'payload_invalid';
+            ProcessLog::quarantined($code, ['message_id' => $wake->messageId->value]);
+            $this->outbox->quarantine($wake, $code, 3600);
 
             return false;
         }

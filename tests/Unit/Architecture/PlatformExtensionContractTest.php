@@ -41,7 +41,6 @@ function platformExtensionSourceLiteralIsAllowed(string $path): bool
         app_path('Services/Procurement/Contracts/ListingRowMapper.php'),
         app_path('Services/Procurement/Contracts/SourceMethod.php'),
         app_path('Services/Procurement/Detail/CommonInfoProcessor.php'),
-        app_path('Services/Procurement/Exceptions/SourceMethodUnavailableException.php'),
         app_path('Services/Procurement/Health/PlatformHealthChecker.php'),
         app_path('Services/Procurement/Modes/DetailAnalysisProcessor.php'),
         app_path('Services/Procurement/Modes/FreshRunProcessor.php'),

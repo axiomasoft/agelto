@@ -161,8 +161,12 @@ final readonly class BillingReconciler
                     continue;
                 }
 
-                $rawCost = trim((string) ($record[$columns['cost']] ?? ''));
-                $costMicros = (int) round(((float) str_replace(',', '.', $rawCost)) * 1_000_000);
+                $rawCost = str_replace(',', '.', trim((string) ($record[$columns['cost']] ?? '')));
+                if (! is_numeric($rawCost) || (float) $rawCost < 0) {
+                    throw new BillingExportUnreadable("Некорректная сумма «{$rawCost}» в выгрузке за {$rawDate}.");
+                }
+                $scaled = bcmul($rawCost, '1000000', 6);
+                $costMicros = (int) bcadd($scaled, bccomp($scaled, '0', 6) >= 0 ? '0.5' : '-0.5', 0);
                 $key = $day->toDateString();
                 $byDay[$key] = ($byDay[$key] ?? 0) + $costMicros;
             }

@@ -31,7 +31,8 @@ final readonly class PartitionCoverage
                 $intervals[] = [Carbon::parse($match[1])->utc(), Carbon::parse($match[2])->utc()];
             }
             usort($intervals, static fn (array $a, array $b): int => $a[0]->getTimestamp() <=> $b[0]->getTimestamp());
-            $cursor = $from->copy();
+            $cursor = $from->copy()->utc();
+            $to = $to->copy()->utc();
             foreach ($intervals as [$lower, $upper]) {
                 if ($upper->lte($cursor) || $lower->gte($to)) {
                     continue;

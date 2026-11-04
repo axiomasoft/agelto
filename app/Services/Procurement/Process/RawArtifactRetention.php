@@ -27,7 +27,8 @@ final readonly class RawArtifactRetention
                 if (! $eligible) {
                     return 0;
                 }
-                if (! Storage::disk($row->disk)->delete($row->path)) {
+                $disk = Storage::disk($row->disk);
+                if (! $disk->delete($row->path) && $disk->exists($row->path)) {
                     throw new \RuntimeException('Retired raw artifact deletion failed.');
                 }
 

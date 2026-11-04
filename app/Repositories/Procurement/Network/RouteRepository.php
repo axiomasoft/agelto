@@ -55,17 +55,18 @@ final readonly class RouteRepository
             $node = LedgerRow::one('SELECT route_id, host, port FROM prc_proxies WHERE id = ? FOR UPDATE', [$proxy->id])
                 ?? throw new \InvalidArgumentException('Proxy configuration no longer exists.');
             $route = $node->string('route_id');
-            $current = LedgerRow::one('SELECT secret_ref, enabled FROM prc_network_routes WHERE id = ? FOR UPDATE', [$route])
-                ?? throw new \LogicException('Proxy route is missing.');
             if ($node->string('host') !== $configuration->host || $node->int('port') !== $configuration->port) {
-                DB::update("UPDATE prc_network_routes SET enabled = false, disabled_at = clock_timestamp(), disabled_reason = 'node_reconfigured' WHERE id = ?", [$route]);
+                $oldRoute = $route;
+                DB::update("UPDATE prc_network_routes SET enabled = false, disabled_at = clock_timestamp(), disabled_reason = 'node_reconfigured' WHERE id = ?", [$oldRoute]);
                 $route = $this->createProxyRoute('proxy:'.Str::uuid(), $configuration->secretRef, $configuration->enabled);
+                DB::update('UPDATE prc_network_route_profiles SET policy_version = policy_version + 1 WHERE id IN (SELECT profile_id FROM prc_network_route_profile_members WHERE route_id = ?)', [$oldRoute]);
+                DB::update('UPDATE prc_network_route_profile_members SET route_id = ? WHERE route_id = ?', [$route, $oldRoute]);
                 $proxy->forceFill(['route_id' => $route]);
             } else {
-                DB::update('UPDATE prc_network_routes SET enabled = ?, secret_ref = ?, credential_version = credential_version + ?::int,
+                DB::update('UPDATE prc_network_routes SET enabled = ?, secret_ref = ?, credential_version = credential_version + 1,
                     disabled_at = CASE WHEN ?::boolean THEN NULL ELSE clock_timestamp() END,
                     disabled_reason = CASE WHEN ?::boolean THEN NULL ELSE ? END WHERE id = ?',
-                    [$configuration->enabled, $configuration->secretRef, 1,
+                    [$configuration->enabled, $configuration->secretRef,
                         $configuration->enabled, $configuration->enabled, $reason, $route]);
             }
         }

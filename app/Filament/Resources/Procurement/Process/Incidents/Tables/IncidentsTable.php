@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Process\Incidents\Tables;
 
+use App\Dto\Procurement\Process\OperatorCommandResult;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Process\Incident;
 use App\Models\User;
@@ -47,13 +49,17 @@ final class IncidentsTable
                     ->label('Принять')
                     ->authorize(static fn (): bool => self::actor()->hasPermission(ProcessControlPermission::AcknowledgeIncident))
                     ->visible(static fn (Incident $record): bool => $record->state === 'open')
-                    ->schema([Textarea::make('reason')->label('Причина')->required()->maxLength(500)])
-                    ->action(function (Incident $record, array $data): void {
-                        $reason = $data['reason'] ?? '';
+                    ->schema([
+                        OperatorActionInput::versionField('acknowledge'),
+                        Textarea::make('reason')->label('Причина')->required()->maxLength(OperatorActionInput::REASON_LIMIT),
+                    ])
+                    ->action(function (Action $action, Incident $record, array $data): void {
                         $id = $record->getKey();
-                        $result = app(ProcessOperatorCommands::class)->acknowledgeIncident(
-                            self::actor(), new ProcessUuid(is_string($id) ? $id : ''), (int) $record->transition_seq, is_string($reason) ? $reason : '',
-                        );
+                        $recordId = is_string($id) ? $id : '';
+                        $version = OperatorActionInput::confirmedVersion($action, 'acknowledge', $recordId, $data);
+                        $result = OperatorActionInput::attempt($action, fn (): OperatorCommandResult => app(ProcessOperatorCommands::class)->acknowledgeIncident(
+                            self::actor(), new ProcessUuid($recordId), $version, OperatorActionInput::reason($data),
+                        ));
                         $notification = Notification::make();
                         if ($result->status->isSettled()) {
                             $notification->title('Инцидент принят')->success();

@@ -66,6 +66,8 @@ final readonly class ScanStrategy implements PreparationStrategy
         $isPdf = $version->extension === 'pdf';
         $diskName = $this->locationResolver->currentDocumentsDisk();
         $disk = Storage::disk($diskName);
+        $sourceDiskName = $version->disk !== '' ? $version->disk : $diskName;
+        $sourceDisk = $sourceDiskName === $diskName ? $disk : Storage::disk($sourceDiskName);
         $workDir = PipelineTemporaryFile::createDirectory(prefix: 'ocr_');
         $localInput = $workDir.'/source.'.$version->extension;
         $localOutput = $workDir.'/ocr.pdf';
@@ -75,7 +77,7 @@ final readonly class ScanStrategy implements PreparationStrategy
             // Скан-эталон корпуса весит 132 МБ (`EST-PDF-SCAN-001`) — оригинал и результат OCR
             // ходят между диском и временным файлом ПОТОКОМ, целиком в память не читаются
             // В памяти живёт только sidecar-текст.
-            $this->copyToLocal($disk, $version->storage_path, $localInput);
+            $this->copyToLocal($sourceDisk, $version->storage_path, $localInput);
 
             if ($isPdf && ! $this->needsOcr(localPdf: $localInput, deadlineAt: $deadlineAt)) {
                 return PreparationResult::ReadyForScreening;

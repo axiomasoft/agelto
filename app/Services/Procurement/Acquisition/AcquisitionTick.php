@@ -25,7 +25,7 @@ final readonly class AcquisitionTick
                     $this->scheduler->configure($profile->id, $profile->listing_kind, $cron, 'UTC', $profile->profile_version);
                 }
                 foreach (LedgerRow::all('SELECT acquisition_kind FROM prc_acquisition_schedules
-                    WHERE profile_id=? AND next_due_at<=clock_timestamp() ORDER BY acquisition_kind', [$profile->id]) as $row) {
+                    WHERE profile_id=? AND profile_version=? AND next_due_at<=clock_timestamp() ORDER BY acquisition_kind', [$profile->id, $profile->profile_version]) as $row) {
                     $kind = AcquisitionKind::from($row->string('acquisition_kind'));
                     if ($kind === $profile->listing_kind && $cron === '') {
                         continue;

@@ -31,6 +31,7 @@ class RevisionsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('revision_number')
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->reorder())
             ->columns([
                 TextColumn::make('revision_number')
                     ->label('Редакция')
@@ -70,10 +71,8 @@ class RevisionsRelationManager extends RelationManager
             ->modalCancelActionLabel('Закрыть')
             ->modalContent(function (ProcurementRevision $record): HtmlString {
                 $previous = $this->ownerProcurement()->revisions()
-                    ->whereBetween('detected_at', [
-                        Carbon::parse($this->rawDateTime($this->ownerProcurement(), 'published_at')),
-                        Carbon::parse($this->rawDateTime($record, 'detected_at')),
-                    ])
+                    ->reorder()
+                    ->where('detected_at', '<=', Carbon::parse($this->rawDateTime($record, 'detected_at')))
                     ->where('revision_number', '<', $record->revision_number)
                     ->orderByDesc('revision_number')
                     ->first();

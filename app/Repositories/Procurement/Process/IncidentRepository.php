@@ -60,7 +60,8 @@ final readonly class IncidentRepository
         ProcessUuid $projectionMessageId,
     ): OperatorCommandStatus {
         CallerTransaction::require('Incident acknowledge');
-        if (trim($reason) === '') {
+        $reason = trim($reason);
+        if ($reason === '' || mb_strlen($reason) > 200 || str_contains($reason, "\0")) {
             throw new \InvalidArgumentException('Incident acknowledge requires a reason.');
         }
         $row = LedgerRow::one('SELECT state, transition_seq FROM prc_process_incidents WHERE id = ? FOR UPDATE', [$incidentId->value]);

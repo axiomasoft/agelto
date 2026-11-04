@@ -80,15 +80,22 @@ final readonly class DetailFinalizer implements StagePublicationRepository
         $identity = $this->identities->resolve($p->registry_id, $request->identity);
         $tx = LedgerRow::one('SELECT txid_current()::text AS id') ?? throw new \LogicException('Missing tx');
         $s = $result->snapshot;
-        $p = $this->snapshots->persistLocked($this->heads->make($p, $s->identity, $s->title, $s->sourceStage, $s->extension),
-            new LockedProcurement($identity, $p, $tx->string('id')),
-            processRunId: AcquisitionProvenance::runFor($input), observedAt: Carbon::instance($result->observedAt));
         $complete = [];
         foreach ($s->parts as $part) {
             if (in_array($part->completeness, [Completeness::Complete, Completeness::CompleteEmpty], true)) {
                 $complete[$part->name] = true;
             }
         }
+        $hasAttributes = isset($complete['attributes']);
+        $p = $this->snapshots->persistLocked($this->heads->make(
+            $p,
+            $s->identity,
+            $hasAttributes ? $s->title : null,
+            $hasAttributes ? $s->sourceStage : null,
+            $hasAttributes ? $s->extension : null,
+        ),
+            new LockedProcurement($identity, $p, $tx->string('id')),
+            processRunId: AcquisitionProvenance::runFor($input), observedAt: Carbon::instance($result->observedAt));
         $this->common->process($p, new CommonInfoSnapshot(isset($complete['attributes']) ? DetailSnapshotStatus::Complete : DetailSnapshotStatus::Incomplete,
             new CommonInfoData(extension: $s->extension, financingRows: $s->financing, items: $s->items), $s->parties, isset($complete['parties'])));
         if (isset($complete['events'])) {

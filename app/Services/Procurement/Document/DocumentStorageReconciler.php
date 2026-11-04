@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Document;
 use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Document\StoragePhase;
+use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
 
@@ -15,7 +16,11 @@ final class DocumentStorageReconciler implements ReconcileCategory
 {
     private ?string $cursor = null;
 
-    public function __construct(private readonly PrepareWorkspace $workspace, private readonly ArtifactGarbageCollector $gc) {}
+    public function __construct(
+        private readonly PrepareWorkspace $workspace,
+        private readonly ArtifactGarbageCollector $gc,
+        private readonly ArtifactRepository $artifacts,
+    ) {}
 
     public function name(): string
     {
@@ -41,6 +46,12 @@ final class DocumentStorageReconciler implements ReconcileCategory
                 self::uuid($row->nullableString('attempt_id')), self::uuid($row->nullableString('operation_id')));
             $cleaned += (int) ($r->phase === StoragePhase::Prepare && $row->string('status') === 'writing'
                 ? $this->workspace->cleanup($r) : $this->gc->cleanup($r));
+        }
+        foreach ($this->artifacts->unreferencedCandidates(900, 25) as $blob) {
+            $mark = $this->artifacts->markDeletion($blob, 900);
+            if ($mark !== null && $this->gc->deleteMarked($mark)) {
+                $cleaned++;
+            }
         }
 
         return $cleaned;

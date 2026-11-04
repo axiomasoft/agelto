@@ -147,11 +147,15 @@ final readonly class AdmissionRepository
 
     /**
      * @param  array<string, ProcessUuid>  $ids
-     * @param  array<string, AuthoritySnapshot>  $eligibility
+     * @param  array<string, AuthoritySnapshot|AuthorityGap>  $eligibility
      */
     private function admitLocked(AuthoritySnapshot $snapshot, FairnessCursor $expectedCursor, int $eligibleCohorts, array $ids, array $eligibility): AdmissionResult
     {
-        $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: true, eligibilitySnapshots: array_values($eligibility));
+        $eligibilitySnapshots = array_values(array_filter(
+            $eligibility,
+            static fn (AuthoritySnapshot|AuthorityGap $item): bool => $item instanceof AuthoritySnapshot,
+        ));
+        $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: true, eligibilitySnapshots: $eligibilitySnapshots);
         if ($prefix instanceof PrefixFailure) {
             return AdmissionResult::refused(match ($prefix) {
                 PrefixFailure::WorkLocked => AdmissionStatus::WorkLocked,
@@ -210,7 +214,7 @@ final readonly class AdmissionRepository
         return $this->grantLocked($snapshot, $prefix, $cursor->advance($cohort, $code), $ids);
     }
 
-    /** @return array<string, AuthoritySnapshot> One representative per ready/due pair, for early authority locks only. */
+    /** @return array<string, AuthoritySnapshot|AuthorityGap> One representative per ready/due pair, for early authority locks only. */
     private function readEligibilitySnapshots(AuthoritySnapshot $candidate): array
     {
         $snapshots = [];
@@ -223,10 +227,7 @@ final readonly class AdmissionRepository
             if ($work === null) {
                 continue;
             }
-            $snapshot = $this->authority->readAuthoritySnapshot(new WorkId(new ProcessUuid($work->string('id'))));
-            if ($snapshot instanceof AuthoritySnapshot) {
-                $snapshots[$pair['stage']->value.':'.$pair['cohort']] = $snapshot;
-            }
+            $snapshots[$pair['stage']->value.':'.$pair['cohort']] = $this->authority->readAuthoritySnapshot(new WorkId(new ProcessUuid($work->string('id'))));
         }
 
         return $snapshots;
@@ -235,7 +236,7 @@ final readonly class AdmissionRepository
     /**
      * Fresh ready/due pairs + early-locked controls/handlers/capacity; caller count is never authority.
      *
-     * @param  array<string, AuthoritySnapshot>  $eligibility
+     * @param  array<string, AuthoritySnapshot|AuthorityGap>  $eligibility
      */
     private function lockedEligibleCohorts(AuthoritySnapshot $candidate, LockedPrefix $prefix, array $eligibility): ?int
     {
@@ -244,6 +245,9 @@ final readonly class AdmissionRepository
             $snapshot = $eligibility[$pair['stage']->value.':'.$pair['cohort']] ?? null;
             if ($snapshot === null) {
                 return null;
+            }
+            if ($snapshot instanceof AuthorityGap) {
+                continue;
             }
             $keys = array_map(static fn (ControlSnapshot $scope): string => $scope->scopeKey, $snapshot->controls);
             if (array_diff($keys, $prefix->enabledScopeKeys) !== [] || ! in_array($snapshot->handler->id->value, $prefix->healthyHandlerIds, true)) {

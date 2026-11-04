@@ -227,8 +227,11 @@ final class ListingFinalizer implements StagePublicationRepository
             ORDER BY r.id FOR UPDATE OF r', [$workId->value->value]);
         foreach ($runs as $run) {
             // Required listing graph can span shared runs. Every unfinished registered page retains discovery.
-            $counts = LedgerRow::one("SELECT count(*) FILTER (WHERE b.terminal_proof IS NULL) AS pending,
-                count(*) FILTER (WHERE b.terminal_proof->>'outcome' IN ('incomplete','observed')) AS debt
+            $counts = LedgerRow::one("SELECT count(*) FILTER (WHERE b.terminal_proof IS NULL AND EXISTS (
+                    SELECT 1 FROM prc_process_work lw WHERE lw.crawl_block_id = b.id
+                        AND lw.state NOT IN ('succeeded', 'failed_item', 'cancelled', 'superseded')
+                )) AS pending,
+                count(*) FILTER (WHERE b.terminal_proof IS NULL OR b.terminal_proof->>'outcome' IN ('incomplete','observed')) AS debt
                 FROM prc_crawl_blocks b WHERE b.crawl_run_id IN (
                     SELECT DISTINCT cb.crawl_run_id FROM prc_process_run_work rw JOIN prc_process_work w ON w.id=rw.work_id
                     JOIN prc_crawl_blocks cb ON cb.id=w.crawl_block_id WHERE rw.run_id=? AND rw.accounting_role='required')", [$run->string('id')]);

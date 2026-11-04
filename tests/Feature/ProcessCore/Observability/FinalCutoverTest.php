@@ -63,7 +63,7 @@ test('final schema renders the entire admin sidebar badges filters and audited i
     $this->actingAs($operator);
     Livewire::test(ListIncidents::class)->filterTable('state', 'open')
         ->assertCanSeeTableRecords([$incident])
-        ->callTableAction('acknowledge', $incident, ['reason' => 'P3.17 checked <script>unsafe</script>'])
+        ->callTableAction('acknowledge', $incident, ['reason' => 'operator checked <script>unsafe</script>'])
         ->assertHasNoTableActionErrors();
     expect($incident->fresh()->state)->toBe('acknowledged')
         ->and($incident->fresh()->acknowledged_by)->toBe($operator->id)

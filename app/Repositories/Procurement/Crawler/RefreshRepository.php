@@ -84,7 +84,12 @@ final readonly class RefreshRepository
                 return null;
             }
             // Latest published complete detail pins locator, adapter and both policy dimensions.
-            $template = LedgerRow::one("SELECT w.input_payload::text AS payload, w.cohort_key, i.id, i.next_due_at<=clock_timestamp() AS due,
+            $template = LedgerRow::one("SELECT w.input_payload::text AS payload, w.cohort_key, i.id,
+                    EXISTS (
+                        SELECT 1 FROM prc_operation_intents d
+                        WHERE d.subject_kind='prc_procurements' AND d.subject_id=i.subject_id
+                          AND d.stage='detail' AND d.state='terminal' AND d.next_due_at<=clock_timestamp()
+                    ) AS due,
                     r.configuration_snapshot::text AS configuration, r.configuration_schema_version
                 FROM prc_operation_intents i JOIN prc_process_work w ON w.intent_id=i.id
                 JOIN prc_process_runs r ON r.id=w.origin_run_id
@@ -115,7 +120,7 @@ final readonly class RefreshRepository
             if ($stage === StageCode::Detail) {
                 $input = new DetailInput($p->id, $intent, $p->head_generation, $semantic, $base->accessPolicyHash, $base->adapterVersion);
                 // Consume this due trigger atomically; the new cycle owns its next due on finish.
-                DB::update('UPDATE prc_operation_intents SET next_due_at=NULL WHERE id=?', [$template->string('id')]);
+                DB::update("UPDATE prc_operation_intents SET next_due_at=NULL WHERE subject_kind='prc_procurements' AND subject_id=? AND stage='detail' AND state='terminal' AND next_due_at IS NOT NULL", [(string) $p->id]);
             } else {
                 $input = new StatusRefreshInput($p->id, $cycle, $semantic, $base->adapterVersion);
                 $seconds = $this->statusSeconds($p);

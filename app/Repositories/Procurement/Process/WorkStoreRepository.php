@@ -491,6 +491,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         }
         if (! $prefix->intentActive || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {
             $this->supersedeLocked($snapshot, $prefix, $ids['event'], $ids['projection'], ActorKind::Worker);
+            $this->outbox->enqueueFeederWake($ids['wake'], $this->policy->parentLane($snapshot->handler->stage));
 
             return ClaimResult::refused(ClaimStatus::WorkTerminal);
         }

@@ -27,7 +27,7 @@ class EventsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('occurred_at')
-            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('revision'))
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('revision')->reorder())
             ->columns([
                 TextColumn::make('occurred_at')
                     ->label('Когда')

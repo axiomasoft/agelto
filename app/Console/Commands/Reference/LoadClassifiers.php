@@ -81,6 +81,8 @@ final class LoadClassifiers extends Command
                         'created_at' => $now,
                         'updated_at' => $now,
                     ])
+                    ->keyBy('code')
+                    ->values()
                     ->all();
 
                 if ($rows === []) {

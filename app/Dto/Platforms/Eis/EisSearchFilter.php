@@ -141,10 +141,13 @@ final class EisSearchFilter extends Data implements HasArchiveWindow, HasPriceRa
      */
     public static function rules(ValidationContext $context): array
     {
+        $priceFrom = is_array($context->payload) ? ($context->payload['priceFrom'] ?? null) : null;
+        $minPriceTo = is_numeric($priceFrom) ? max(1, (int) $priceFrom) : 1;
+
         return [
             // Ноль здесь не «пустое значение», а боевой отказ: `priceToGeneral=0` возвращает
             // пустую выгрузку. Нет верхней границы — поле остаётся `null`.
-            'priceTo' => ['nullable', 'integer', 'min:1'],
+            'priceTo' => ['nullable', 'integer', 'min:'.$minPriceTo],
             'priceFrom' => ['nullable', 'integer', 'min:0'],
             // Пустой скоуп расширяет выборку на весь реестр.
             'okpd2Codes' => ['required', 'array', 'min:1'],

@@ -20,11 +20,11 @@ use Illuminate\Support\Str;
  * существующего пользователя, поэтому RBAC и audit actor не обходятся. Код 0 — команда settled
  * (applied/unchanged/duplicate), 1 — отказ без записей, 2 — неверные аргументы/нет прав.
  */
-#[Description('Typed operator command Process-ядра: pause, resume, cancel-work, cancel-run, retry-fault, ack-incident')]
-#[Signature('process:control {action : pause|resume|cancel-work|cancel-run|retry-fault|ack-incident} {target : scope key, work id, run id или incident id} {--user= : id или email оператора} {--reason= : причина для audit} {--expected= : ожидаемая control_version либо transition_seq} {--command-id= : UUID команды для dedup retry-fault}')]
+#[Description('Typed operator command Process-ядра: pause, resume, cancel-work, cancel-run, retry-fault, retry-failed-item, ack-incident')]
+#[Signature('process:control {action : pause|resume|cancel-work|cancel-run|retry-fault|retry-failed-item|ack-incident} {target : scope key, work id, run id или incident id} {--user= : id или email оператора} {--reason= : причина для audit} {--expected= : ожидаемая control_version либо transition_seq} {--command-id= : UUID команды для dedup retry-fault/retry-failed-item}')]
 final class ProcessControlCommand extends Command
 {
-    private const array ACTIONS = ['pause', 'resume', 'cancel-work', 'cancel-run', 'retry-fault', 'ack-incident'];
+    private const array ACTIONS = ['pause', 'resume', 'cancel-work', 'cancel-run', 'retry-fault', 'retry-failed-item', 'ack-incident'];
 
     public function handle(ProcessOperatorCommands $commands): int
     {
@@ -48,6 +48,7 @@ final class ProcessControlCommand extends Command
                 'cancel-work' => $commands->cancelWork($actor, new WorkId(new ProcessUuid($target)), $version, $reason),
                 'cancel-run' => $commands->cancelRun($actor, new ProcessUuid($target), $version, $reason),
                 'retry-fault' => $commands->retryHandlerFaultedWork($actor, new WorkId(new ProcessUuid($target)), $version, new ProcessUuid($this->commandId()), $reason),
+                'retry-failed-item' => $commands->retryFailedItem($actor, new WorkId(new ProcessUuid($target)), $version, new ProcessUuid($this->commandId()), $reason),
                 'ack-incident' => $commands->acknowledgeIncident($actor, new ProcessUuid($target), $version, $reason),
             };
         } catch (AuthorizationException $exception) {

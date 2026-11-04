@@ -59,7 +59,7 @@ final readonly class DocumentWorkRepository
     public function prepare(int $documentId, ?int $requestedBy = null, bool $manual = false): int
     {
         return $this->transactions->run(function () use ($documentId, $requestedBy, $manual): int {
-            $head = LedgerRow::one('SELECT current_version_id,head_generation,platform_id FROM prc_documents WHERE id=? FOR UPDATE', [$documentId]);
+            $head = LedgerRow::one('SELECT current_version_id,head_generation,platform_id FROM prc_documents WHERE id=? AND removed_at IS NULL FOR UPDATE', [$documentId]);
             if ($head === null || $head->nullableInt('current_version_id') === null) {
                 return 0;
             }

@@ -3,59 +3,55 @@
 ## Resident rules
 
 - `CLAUDE.md` is the generated Claude Code hub; `AGENTS.md` is the compact Codex entrypoint. Shared rules live in `.ai/guidelines/**`; do not recreate retired `GEMINI.md`.
-- Keep this hub short. Read `docs/dev/**` or `docs/workflow/**` only for the active task. Architectural changes update their source docs and this guideline.
+- Keep this hub short. Use `.ai/guidelines/cheatsheet.md` for lock order, stage queues and schema map; read `docs/dev/**` or `docs/workflow/**` only for the active task. Architectural changes update their source docs and this guideline.
 - Native Planner execution-input defines the current scope and authority. Executors change product files and return stage-reports; the coordinator owns lifecycle, acceptance evidence and commits. Archived Task Layout v2 carriers and `plan-lint.py`/`plan-views.py` are historical provenance, not an execution interface.
 
 ## Domain boundaries
 
-- Flat `app/**`, no modules: `Procurement` (`prc_*`: procurements, documents, estimates, AI, crawling), `Reference` (`ref_*`), `Organization` (`org_*`), `Llm` (`llm_*`: provider-agnostic transport), `Platforms/<Code>` (platform-specific adapters across layers; existing table names stay unchanged).
-- Procurement AI pipeline: `Services/Procurement/{Prepare,Screening,Extraction}`, `Jobs/Procurement/*Job`, `Models/Procurement/Ai/*`; LLM transport stays in `Services/Llm/**` with `Models/Llm/**`, repositories and factories. Use its local skills for extraction, LLM transport and prompts.
+- Flat `app/**`, no modules: `Procurement` (`prc_*`: process core, network, acquisition, documents, estimates, AI), `Reference` (`ref_*`), `Organization` (`org_*`), `Llm` (`llm_*`: provider-agnostic ledger, execution, cache and schema), `Platforms/<Code>` (platform-specific adapters across layers; existing table names stay unchanged).
+- Process execution: `Services/Procurement/Process/**`, `Repositories/Procurement/Process/**`, `ExecuteWorkJob` (delivery-only wakeup), and 4 daemons (`relay`, `reconcile`, `feed`, `project`). Stage handlers (`Listing`, `Detail`, `StatusRefresh`, `Download`, `Prepare`, `Screening`, `Extraction`, `Publication`) run under lease + `SubjectLockResolver` prefix fencing and commit via `WorkFinalizer`.
 - Общие DTO, модели и резолверы не содержат полей и веток конкретной площадки. Внешние идентификаторы организаций передаются как `(platformCode, type, value)`; их разбор и форматы принадлежат адаптеру в `Services/Platforms/<Code>/`. Текущие legacy зависимости ограничены сокращаемым architecture baseline до owning cutovers.
-- Crawling contracts: typed profile filters are resolved through `crawler.filters`; TLS trust exists only in `SourceTlsTrust` / `crawler.tls.bundles`. See `docs/dev/crawling-pipeline.md`.
-- Controllers handle HTTP only; Actions/Services own short mutations and transactions; repositories access persistence. Long crawling/parsing/AI work runs as Horizon jobs, never in HTTP.
-- A file in `app/<Layer>/<Domain>/` has one subdomain directory; only domain-core and cross-subdomain files may be at its root. `tests/Unit/Architecture/DomainLayoutTest.php` enforces this.
-- `Platforms/<Code>` uses matching roots in Services/Dto/Enums/Models/Filament, factories and seeders. Service subdirectories: Card, Csv, Listing, Status, Documents, Filters, Validators, Diagnostics, Persistence; one level only. Platform Filament roots contain form/schema components outside resource discovery. `PlatformsDomainLayoutTest` enforces direction, exact integration roles and the shrinking `tests/Unit/Architecture/platforms-dependency-baseline.php`; see `docs/dev/platform-extension.md`.
-- Jobs must be idempotent. AI jobs use lease + status guard, prefix-stable system prompt and checkpoint-requeue without double dispatch.
+- Outbound network & TLS: all source/provider calls go through `OutboundExecutor` / `ScheduledAttemptGate` / `AnalysisProviderSendGate` with `ProxyResolver` (`ProxyScope`) and separate route/target/route-target/adapter health. `SourceTlsTrust` (`crawler.tls.bundles`) is the sole TLS-trust holder; `verify => false` is forbidden.
+- Controllers handle HTTP only; Actions/Services own short mutations and transactions; repositories access persistence. Crawling, document preparation and AI never run in HTTP.
+- A file in `app/<Layer>/<Domain>/` has one subdomain directory; only domain-core and cross-subdomain files may be at its root (`tests/Unit/Architecture/DomainLayoutTest.php`).
+- `Platforms/<Code>` uses matching roots in Services/Dto/Enums/Models/Filament, factories and seeders. Service subdirectories: Card, Csv, Listing, Status, Documents, Filters, Validators, Diagnostics, Persistence; one level only (`PlatformsDomainLayoutTest` + `tests/Unit/Architecture/platforms-dependency-baseline.php`).
 
 ## Runtime
 
 - Process-core checks use only the dedicated `agelto_core_test` Compose project and its internal network. Local HTTP/proxy/fake LLM fixtures are the only outbound targets; `Http::preventStrayRequests()` supplements network isolation. Deterministic checks never run live crawling, paid model calls or external schedulers.
 - Fixture inputs have versioned manifests with hashes and sanitized provenance. HTTP sequences and request logs are server-owned. Implemented suites require executed assertions without skips; future suites fail explicitly with `suite_not_implemented` (exit 78).
-
 - Browser automation runs only in the `horizon` worker (`shm_size`, `CHROME_BIN`).
 - Development keeps source bind-mounted and Vite runs with pinned `pnpm`; production consumes a promoted immutable `IMAGE_TAG` without source, `vendor`, or frontend bind mounts and never builds on the host. The deploy class is explicit: `code`, `php-deps`, `frontend`, `runtime`, or `image-promotion`.
 - Internal VitePress output is built in the frontend stage into `var/private-documentation/site` with its manifest beside it; the application image copies it read-only outside `public` and writable volumes. Documentation source changes require an image artifact, never `prod:deploy:code`.
 
-For pipeline stages and schema detail: `docs/dev/architecture.md`, `docs/workflow/crawling-and-discovery.md`, `docs/workflow/document-and-estimate-pipeline.md`.
+For pipeline stages and schema detail: `.ai/guidelines/cheatsheet.md`, `docs/dev/process-core.md`, `docs/dev/architecture.md`, `docs/workflow/crawling-and-discovery.md`, `docs/workflow/document-and-estimate-pipeline.md`.
 
 # Glossary & Naming Canon
 
-Use the technical names below in identifiers; business terms are fine in UI/comments. The full, versioned glossary is `docs/workflow/glossary.md`; table/domain detail is `docs/dev/architecture.md`. Rename a canon term consistently.
+Use the technical names below in identifiers; business terms are fine in UI/comments. Full glossary: `docs/workflow/glossary.md`; schema/stage cheat-sheet: `.ai/guidelines/cheatsheet.md`.
 
-## Core entities
+## Core & Process entities
 
-- `Platform` → `$platform`: source platform; `Crawler` → `$crawler`: crawl profile; `CrawlerRun` → `$run`: one run.
-- `Procurement` → `$procurement`: procurement; `Document`/`DocumentVersion` → `$document`/`$documentVersion`: procurement document and downloaded version.
-- `Estimate` → `$estimate`: parsed estimate DTO; never use `Smeta` in identifiers. `Lot`/`PurchaseItem` is not `Estimate\Item`.
-- `Proxy` → `$proxy`: outbound node. Obtain it only through `ProxyResolver`; `ProxyScope` names the request purpose, not a node. Per-target and global health are distinct.
-- Crawler filters are typed DTOs resolved by registry through `crawler.filters`; an unmapped registry fails, never falls back silently.
-- `DeltaScanProcessor` performs the scheduled overlap-window update scan; `SourceTlsTrust` is the sole platform TLS-trust holder. `verify => false` is forbidden.
+- `Platform` → `$platform`: source platform; `Crawler` → `$crawler`: crawl profile; `CrawlRun` / `CrawlBlock` → `$crawlRun` / `$block`: acquisition run and partition block.
+- `ProcessRun` → `$run`: process run; `OperationIntent` → `$intent`: coalesced `(subject_kind, subject_id, stage)` intent (`active` + at most one `pending`).
+- `WorkId` / `AttemptLease` → `$workId` / `$lease`: process work item and fenced attempt lease (`owner_token`, `dispatch_generation`).
+- `Procurement` → `$procurement`: procurement (`head_generation`); `Document` / `DocumentVersion` → `$document` / `$documentVersion`: procurement document (`head_generation`) and immutable version bytes.
+- `Estimate` → `$estimate`: parsed estimate DTO/model; never use `Smeta` in identifiers. `Lot` / `PurchaseItem` is not `Estimate\Item`.
+- `Proxy` → `$proxy`: outbound node. Obtain it only through `ProxyResolver`; `ProxyScope` names request purpose. Route (`prc_route_health`), target (`prc_target_health`), pair (`prc_route_target_health`), and adapter (`prc_adapter_health`) health are separate.
+- Crawler filters are typed DTOs resolved by registry through `crawler.filters`; an unmapped registry fails, never falls back silently. `SourceTlsTrust` is the sole TLS-trust holder (`verify => false` is forbidden).
 
-## AI terms
+## AI & LLM Ledger terms
 
-- `Ai\Analysis` → `$analysis`: version-analysis session; re-run has `parent_analysis_id`, shadow run `is_shadow`.
-- `Ai\Prompt` → `$prompt`: versioned system instruction; prompt files sync via `ai:prompts:sync`; protected seeded prompts are read-only.
-- `Ai\Correction` is an operator correction; `Ai\DatasetExample` is an immutable approved gold snapshot.
-- `PromptStep` composes a system instruction; do not confuse it with `AnalysisStep` or `LlmPurpose`.
-- `DocumentStatus::Unprocessable` is terminal and not retried. `ExtractionRoute` (`Whole`/`Windowed`) is selected by pre-upload preflight.
-- `#[Description]` is the source of response-schema semantics; `#[Alias]` only describes document spelling variants.
+- `AnalysisRunSnapshot` / `AnalysisWindowSnapshot` → `$run` / `$window`: canonical version-analysis run (`prc_analysis_runs`) and extraction window (`prc_analysis_windows`) with sealed `declared_coverage` and `AnalysisRecipe`.
+- `ProviderOperationPlan` / `AuthorizedProviderOperation` → `$plan` / `$operation`: pre-authorized provider call in `llm_provider_requests` / `llm_provider_calls` backed by `llm_budget_reservations`.
+- `VerifiedReceipt` → `$receipt`: immutable v1 response envelope in `ReceiptStore` verified before financial settlement or chunk/asset acceptance.
+- `Prompt` → `$prompt`: versioned system instruction (`ai:prompts:sync`); protected seeded prompts (`is_protected = true`) are read-only in UI. `PromptStep` composes RULES; `#[Description]` defines response-schema semantics; `#[Alias]` defines document spelling variants.
 
 ## Methods and tests
 
-- `find*` is nullable identity lookup; `get*` returns computed/required value; `store*` writes; `mark<State>` changes state; `run()` is a processor entrypoint; `start()` begins a lifecycle.
+- `find*` is nullable identity lookup; `get*` returns computed/required value; `store*` writes; `mark<State>` changes state; `execute()` is a `StageHandler` entrypoint.
 - Do not use `fetch*`/`load*` for DB reads (`load` is eager loading), generic `handle`/`process`/`do`, or needless `get` accessors.
-- Tests: `tests/{Feature|Unit}/<Domain>/<Subject>Test.php`, one responsibility; `test('<русский intent>', fn)`, factories/states/`->for()`/`->has()`, domain-canon variables, doubles in `tests/Support/Doubles/`.
-- Keep existing data-affecting exceptions: `CrawlingStatus` UPPER_CASE cases and `ProcessStage::DocParsing = 'parsing_docs'`.
+- Tests: `tests/{Feature|Unit|Integration}/<Domain>/<Subject>Test.php`, one responsibility; `test('<русский intent>', fn)` without plan item codes (`T26`, `P1.x`); factories/states, domain-canon variables, local fixtures/doubles in `tests/Support/`.
 
 # Navigation Guide
 
@@ -64,19 +60,20 @@ Read 1–2 relevant sources first; expand only for an unresolved term, a cross-l
 ## Safety
 
 - Before an edit, check whether the target is Git-ignored.
-- Edit shared rules in `.ai/guidelines/**`; update the generated Claude hub only from them. `AGENTS.md` is the Codex-specific entrypoint. Managed `.claude/skills/**` carry `swissknifeman:managed` and are overwritten by sync; local skills without it may be edited.
+- Edit shared rules in `.ai/guidelines/**`; update `CLAUDE.md` and `AGENTS.md` from them. Managed `.claude/skills/**` carry `swissknifeman:managed` and are overwritten by sync; local skills without it may be edited.
 
 ## Routing
 
 | Task | Load/use |
 |---|---|
-| Crawling, parsing, screening, extraction | `docs/workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md` |
-| Domain terms, layers, schema | `docs/dev/{architecture,database}.md`, full glossary as needed |
-| Parsing pipeline/jobs/queues | skill `procurement-pipeline-dev` |
-| Estimate discovery, extraction, unprocessable | skill `estimate-extraction-dev`, `docs/dev/ai/estimate-extraction.md` |
-| LLM provider, cache, capability, EOL | skill `llm-layer-dev`, `docs/dev/llm-providers.md` |
+| Lock order, stage queues, table map, fast CLI tricks | `.ai/guidelines/cheatsheet.md` |
+| Process core, admission, recovery, network, storage, AI | `docs/dev/process-core.md`, skill `procurement-pipeline-dev` |
+| Crawling, discovery, document & estimate workflow | `docs/workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md` |
+| Domain terms, layers, schema | `docs/dev/{architecture,database}.md`, `.ai/guidelines/glossary.md` |
+| Estimate extraction, windows, chunks, publication | skill `estimate-extraction-dev`, `docs/dev/ai/estimate-extraction.md` |
+| LLM ledger, send gate, receipts, assets, pricing | skill `llm-layer-dev`, `docs/dev/llm-providers.md` |
 | Prompts, protected records, eval | skill `prompt-engineering-agelto`, `docs/dev/ai/prompts.md` |
-| Tests, migrations, PHP style | skills `testing-rules`, `database`, `code-style-spatie`, `named-arguments`, `static-analysis` |
+| Isolated `core-*` test rig, concurrency, manifest | skill `testing-rules`, `docs/dev/runbooks/process-test-rig.md` |
 | Filament / Inertia / routes | skills `filament`, `inertia-vue`, `wayfinder` |
 | PR documentation, commits, risky multi-layer work | `.ai/guidelines/docs-pr-checklist.md`; `docs/meta/structure.md`; `tests/Unit/Docs/DocsIntegrityTest.php`; skills `git-commit-rules`, `complex-task-orchestrator` |
 | Runbooks, operators, training loop | `docs/dev/runbooks/_index.md`, `docs/operators/_index.md`, `docs/dev/ai/training-loop.md` |

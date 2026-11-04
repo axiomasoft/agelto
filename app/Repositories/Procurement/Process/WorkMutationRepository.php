@@ -16,6 +16,7 @@ use App\Dto\Procurement\Process\WorkMutationResult;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\PrefixFailure;
+use App\Enums\Procurement\Process\ProviderRecoveryMode;
 use App\Enums\Procurement\Process\WorkMutationStatus;
 use App\Enums\Procurement\Process\WorkState;
 use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
@@ -95,7 +96,10 @@ final readonly class WorkMutationRepository
         $generation = $work->int('generation');
         // Blocked provider_result_unknown: pinned plan остаётся durable до settlement reconciler-ом.
         // Работа уходит из blocked-selector, но не из provider-recovery; due у cancelled запрещён схемой.
-        $keepPlan = $state === WorkState::Blocked && $this->works->lockedCheckpoint($work)?->providerRecoveryPlan instanceof ProviderRecoveryPlan;
+        $plan = $this->works->lockedCheckpoint($work)?->providerRecoveryPlan;
+        $keepPlan = $state === WorkState::Blocked
+            && $plan instanceof ProviderRecoveryPlan
+            && $plan->mode === ProviderRecoveryMode::BlockedUnknown;
         $row = LedgerRow::one(
             "UPDATE prc_process_work
              SET state = 'cancelled', reason_code = 'cancelled', generation = generation + 1, owner_token = NULL, lease_until = NULL,
@@ -240,7 +244,8 @@ final readonly class WorkMutationRepository
         }
 
         $stage = $snapshot->handler->stage;
-        $subject = $this->resolver->subjects($input)[0];
+        $owner = $this->resolver->ownerSubject($stage, $prefix->subjects);
+        $subject = $owner->subject;
         // Authority прежнего intent — колонка work, а при её отсутствии identity внутри immutable input.
         $oldIntentId = $work->nullableString('intent_id')
             ?? match (true) {
@@ -266,7 +271,7 @@ final readonly class WorkMutationRepository
             semanticPolicyHash: $semantic,
             accessPolicyHash: $access,
             cycleSeq: ($oldIntent?->int('cycle_seq') ?? 0) + 1,
-            expectedHeadGeneration: $prefix->subjects[$subject->key()]->headGeneration,
+            expectedHeadGeneration: $owner->headGeneration,
             // Один active intent на subject/stage: если очередь уже продвинута, retry ждёт в pending.
             state: $this->intents->admissionState($stage->value, $subject->kind->value, is_int($subject->id) ? (string) $subject->id : $subject->id->value),
         );

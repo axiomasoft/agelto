@@ -59,10 +59,12 @@ final readonly class GsfxStrategy implements PreparationStrategy
 
         $diskName = $this->locationResolver->currentDocumentsDisk();
         $disk = Storage::disk($diskName);
+        $sourceDiskName = $version->disk !== '' ? $version->disk : $diskName;
+        $sourceDisk = $sourceDiskName === $diskName ? $disk : Storage::disk($sourceDiskName);
         $localZip = PipelineTemporaryFile::create(prefix: 'gsfx_', extension: 'zip');
 
         try {
-            file_put_contents($localZip, $disk->get($version->storage_path));
+            file_put_contents($localZip, $sourceDisk->get($version->storage_path));
             try {
                 $budget = ArchiveBudget::fromConfig();
                 // Полный hostile listing проходит общий gate ДО чтения Data.xml/Properties.txt.
@@ -288,12 +290,13 @@ final readonly class GsfxStrategy implements PreparationStrategy
                 );
             }
 
-            foreach ($attachments as $entry) {
+            foreach ($attachments as $index => $entry) {
                 $this->expandArchiveEntry->execute(
                     parent: $document,
                     parentVersion: $version,
                     entryPath: $entry->path,
                     localPath: $extractPath.'/'.$entry->path,
+                    childOrdinal: $index + 1,
                 );
             }
         } finally {

@@ -105,7 +105,8 @@ final readonly class AssetRepository
                     throw new OperationDenied('asset_single_flight_or_unknown');
                 }
             }
-            if ($row->nullableString('expires_at') !== null && strtotime($row->string('expires_at')) > time() && $row->string($stateColumn) !== 'expired'
+            if ($row->nullableString('expires_at') !== null && strtotime($row->string('expires_at')) > time()
+                && ! in_array($row->string($stateColumn), ['expired', 'creating', 'FAILED'], true)
                 && $call->purpose !== OperationPurpose::CacheRefresh) {
                 throw new OperationDenied('asset_still_usable');
             }

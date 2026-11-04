@@ -19,10 +19,10 @@ function storageAddressingGateAllowlist(): array
         // Следующие файлы используют текущий диск вместо диска из записи.
         // Пишут/читают ТЕКУЩИЙ диск (та же семантика, что current*Disk()), не диск ИЗ ЗАПИСИ —
         // конвертация безопасна, но это отдельный дифф. Pending Work .
-        'FormatBenchRunner.php' => 'producePdfAlt() уже пишет реальное имя диска (D115, :440) — вне Files P6.3, follow-up',
-        'GoldBuildCommand.php' => 'estimate:gold:build читает текущий диск эталонов для GoldCorpusBuilder — вне Files P6.3, follow-up',
-        'FixtureForm.php' => 'Filament upload-виджет — текущий диск для НОВОЙ загрузки — вне Files P6.3, follow-up',
-        'FixturesVerifyCommand.php' => 'estimate:fixtures:verify читает текущий диск эталонов — вне Files P6.3, follow-up',
+        'FormatBenchRunner.php' => 'producePdfAlt() уже пишет реальное имя диска для созданного артефакта',
+        'GoldBuildCommand.php' => 'estimate:gold:build читает текущий диск эталонов для GoldCorpusBuilder',
+        'FixtureForm.php' => 'Filament upload-виджет — текущий диск для новой загрузки',
+        'FixturesVerifyCommand.php' => 'estimate:fixtures:verify читает текущий диск эталонов',
     ];
 }
 

@@ -46,7 +46,8 @@ final readonly class NetworkRouteCommands
         if (! $actor->hasPermission(permission: $permission, panelId: 'admin')) {
             throw new AuthorizationException('Network route command is not permitted.');
         }
-        if (trim($reason) === '') {
+        $trimmed = trim($reason);
+        if ($trimmed === '' || mb_strlen($trimmed) > 200 || str_contains($trimmed, "\0")) {
             throw new \InvalidArgumentException('A network route command requires an audit reason.');
         }
     }

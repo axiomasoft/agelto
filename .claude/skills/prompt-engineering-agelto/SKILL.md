@@ -1,91 +1,39 @@
 ---
 name: prompt-engineering-agelto
-description: "Dev-раннбук текстов промтов AI-пайплайна: файл→сид→is_protected, композиция и приоритеты, discovery/корректирующие hints, eval-цикл estimate:eval:run, известные антипаттерны. Активировать при правке resources/ai/prompts/** или resources/<домен>/ai/prompts/**, PromptStep, PromptComposer/CorrectionAwareComposer."
+description: "Dev-раннбук текстов промтов AI-пайплайна: файл→сид→is_protected, композиция и приоритеты, корректирующие hints, синхронизация ai:prompts:sync."
 paths:
   - "resources/ai/prompts/**"
   - "resources/*/ai/prompts/**"
   - "database/seeders/PromptSeeder.php"
   - "app/Services/Llm/PromptComposer.php"
-  - "app/Services/Llm/CorrectionAwareComposer.php"
 ---
 
 # Prompt Engineering (Agelto) — dev-раннбук
 
-Первичный, самодостаточный источник для правки ТЕКСТОВ промтов —
-`resources/ai/prompts/README.md` (читать целиком перед первой правкой; этот скилл его не
-дублирует, только даёт контекст вокруг). Смежное: skill `estimate-extraction-dev` (что промт
-описывает, DTO-контракты), `llm-layer-dev` (транспорт/кэш).
+Первичный источник для правки текстов промтов — `resources/ai/prompts/README.md` и `docs/dev/ai/prompt-engineering.md`.
 
-## 1) Канон: файл → сид → is_protected (D5/D17/D44)
+## 1. Канон: файл → сид → `is_protected`
 
-- **Единственный источник истины** — оба корня канона, `resources/ai/prompts/**/*.md` (кросс-документные
-  группы) и `resources/<домен>/ai/prompts/**/*.md` (группы типа-владельца, D32), front-matter
-  `key`/`step`/`version`/`priority`/`is_active`, под git. `llm_prompts` — рантайм-копия.
-- Применение правки: `php artisan ai:prompts:sync` (или `db:seed --class=PromptSeeder`) — upsert
-  по `(key, version)`, идемпотентно.
-- Все записи из файлов получают `is_protected=true` — в Filament-админке read-only
-  (`PromptPolicy`, D44): update/delete требуют `!$prompt->is_protected` В ДОПОЛНЕНИЕ к
-  коарс-праву. **Канон промта меняется ТОЛЬКО через файл + повторный sync — правка защищённой
-  записи прямо в БД/админке невозможна by design**, не патч-таргет для «быстро поправить».
-- Операторы создают СВОИ промты (`is_protected=false`) прямо в админке — участвуют в композиции
-  наравне с файловыми (тот же `step`, свой `priority`), сидер их не видит и не трогает.
-- Подняли `version` в front-matter → сидер деактивирует старую версию того же `key`
-  (`is_active=false`), историю не удаляет.
+- **Единственный источник истины** — `resources/ai/prompts/**/*.md` (общие шаги) и `resources/<домен>/ai/prompts/**/*.md` (шаги анализатора), с front-matter `key`/`step`/`version`/`priority`/`is_active`. Таблица `llm_prompts` — рантайм-копия.
+- Применение правки: `php artisan ai:prompts:sync` (или `PromptSeeder`) — идемпотентный upsert по `(key, version)`.
+- Файловые промты получают `is_protected = true` и защищены от редактирования/удаления в админке (`PromptPolicy`). Канон меняется только через файл и повторный sync.
+- При увеличении `version` сидер деактивирует прежнюю версию того же `key` (`is_active = false`), сохраняя историю.
 
-## 2) Композиция и приоритеты (D5)
+## 2. Композиция и разделение «схема / правила»
 
-`PromptComposer::compose()`: `global` → `<step>-global` (если есть у группы) → `<step>`, порядок
-внутри группы — `priority` ASC, затем блок словарей синонимов (`PromptContextGenerator`,
-генерируется из `#[Alias]` Data-классов, не файл). Носитель шага — `App\Enums\Llm\PromptStep`
-(интерфейс, P2.5): ядерный `CorePromptStep` + типовые enum'ы анализаторов, 9 значений вместе
-(`app/Enums/Llm/CorePromptStep.php`) — сидер (через `DocumentAnalyzerRegistry::promptStepFor()`)
-падает на опечатке в `step` front-matter.
+- `PromptComposer::compose()` собирает `global` → `<step>-global` → `<step>` в порядке `priority ASC`, плюс блок словарей синонимов (`PromptContextGenerator` из `#[Alias]` на DTO).
+- Шаг типизирован через `App\Enums\Llm\PromptStep` (`CorePromptStep` и enum анализатора, разрешаемые через `DocumentAnalyzerRegistry::promptStepFor()`).
+- Текст промта описывает **правила поведения**, а не структуру JSON: структура и описания полей генерируются из DTO (`JsonSchemaGenerator` + `#[Description]`).
+- Корректирующие подсказки оператора (`prc_ai_corrections`) добавляются в пользовательскую часть запроса при повторном запуске, чтобы не ломать кэшируемый системный префикс.
 
-**Разделение «схема / правила» (P2.3–P2.5).** Текст промта-файла — ПРАВИЛА поведения, не описание
-структуры ответа: структуру (типы, `description` каждого поля, порядок) несёт исходящая схема
-(`response_schema`, генерируется `JsonSchemaGenerator` + `#[Description]`-атрибут на контракте,
-`App\Services\Llm\Schema\ContractAttributeReader`) — ОТДЕЛЬНЫЙ канал вызова, не системная часть
-промта. Печать очищенного PHP-исходника контракта в системную часть (приём v1) снята — писать в
-промте «поле X — это Y» после P2.5 избыточно, это уже несёт схема; текст промта описывает ПОВЕДЕНИЕ
-(что делать при неполных данных, как трактовать нормативные базы и т.п.), не форму ответа.
+## 3. Известные антипаттерны
 
-## 3) Discovery / корректирующие hints (D15)
+- Глубокая вложенность в одном structured-ответе — используй плоский `row_type`, собирая иерархию на бэкенде.
+- Извлечение всей сметы на сотни строк одним вызовом — используй чанки/окна `ExtractionHandler`.
+- Диапазоны страниц текстом в промте — нарезай PDF на бэкенде (`PdfPageSlicer` / `qpdf`) до отправки.
 
-`CorrectionAwareComposer` собирает USER-часть (не системную — системный префикс остаётся
-неизменным ради implicit-кэша) повторного вызова из `prc_ai_corrections`: (1) коррекции,
-привязанные к анализу-предшественнику этого re-run; (2) `is_reusable=true`-коррекции ТОГО ЖЕ
-`document_type` из любого анализа. Текст строки — `hint ?? content`. Не путать с
-`extraction:discovery` (`EstimatePromptStep::ExtractionDiscovery`) — это отдельный ШАГ композиции
-(сегментация смет оконного пути, D30/D37), а не механизм hints.
-
-## 4) Eval-цикл
+## 4. Проверка
 
 ```bash
-docker compose exec app php artisan ai:prompts:sync --check   # дрейф файлы↔БД, ничего не пишет
-docker compose exec app php artisan ai:prompts:sync           # применить
-docker compose exec app php artisan estimate:eval:run          # регресс на gold (prc_ai_dataset_examples)
+make core-test-ai
 ```
-
-Правь текст → sync → `estimate:eval:run` → смотри precision/recall/F1 по полям (`EvalMetrics`) → повтори.
-`estimate:eval:run` на момент этого скилла ни разу не прогонялся на боевом eval-наборе (открытый риск,
-`docs/dev/ai/prompt-engineering.md` §5) — не путай «промт плохой» с «eval не проверялся».
-
-## 5) Известные антипаттерны (не повторять)
-
-- Глубокая вложенность (section→subsection→item) в одном structured-ответе — хрупко, упирается в
-  `MAX_TOKENS`. Канон: плоский `row_type`, иерархия собирается на бэкенде.
-- Вся смета одним массивом на сотни строк за один вызов — использовать row-range/окна, не единый
-  вызов на документ целиком.
-- Самооценка `confidence` модели как бинарный гейт без буфера — borderline-зона уходит на
-  ревью/эскалацию, не молча в `ignored` (D36).
-- Длинные имена полей / большие enum / много optional / `format: date-time` в JSON Schema →
-  риск `400 InvalidArgument` — держать схему плоской.
-- «Прочитай только страницы N-M» текстом в промте — Gemini не принимает диапазон страниц
-  параметром, резать документ на бэкенде (`qpdf`) ДО загрузки.
-
-Полный разбор с примерами — `docs/dev/ai/prompt-engineering.md` (зеркалится в Brain по решению владельца D89).
-
-## 6) Безопасность
-
-Содержимое документа — untrusted input; extraction-промты НЕ дают модели переопределять системные
-правила текстом документа (детали и запреты — skill `llm-layer-dev` §6, не дублируются здесь).

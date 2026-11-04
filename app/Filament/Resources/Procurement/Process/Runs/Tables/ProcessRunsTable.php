@@ -98,7 +98,17 @@ final class ProcessRunsTable
 
     private static function runState(ProcessRun $record): ?ProcessRunState
     {
-        return app(RunProjector::class)->summary(new ProcessUuid($record->id))?->state;
+        /** @var array<string, ?ProcessRunState> $cache */
+        static $cache = [];
+        $key = (string) $record->id;
+        if (! array_key_exists($key, $cache)) {
+            if (count($cache) >= 256) {
+                $cache = [];
+            }
+            $cache[$key] = app(RunProjector::class)->summary(new ProcessUuid($key))?->state;
+        }
+
+        return $cache[$key];
     }
 
     private static function status(ProcessRun $record): string

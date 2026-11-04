@@ -74,7 +74,7 @@ function processLedgerSubject(StageCode $stage): array
 
             return ['input' => LedgerFixtures::downloadInput($document->id, $intent(new SubjectKey(SubjectKind::Document, $document->id))), 'owner' => $document->id];
         })(),
-        default => throw new InvalidArgumentException('Not a P1.6 schema-supported stage.'),
+        default => throw new InvalidArgumentException('Unsupported acquisition/download ledger stage.'),
     };
 }
 

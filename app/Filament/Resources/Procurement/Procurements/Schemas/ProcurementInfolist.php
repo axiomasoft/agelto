@@ -191,14 +191,17 @@ class ProcurementInfolist
     {
         /** @var array<int, ProcurementDurations> $durations */
         static $durations = [];
+        $key = (int) $record->id;
+        if (! isset($durations[$key])) {
+            if (count($durations) >= 256) {
+                $durations = [];
+            }
+            $durations[$key] = app(ProcurementTimelineBuilder::class)
+                ->build(procurement: $record, from: Carbon::parse(self::rawDateTime($record, 'first_seen_at')), until: now())
+                ->durations;
+        }
 
-        $key = $record->getKey();
-
-        assert(is_int($key));
-
-        return $durations[$key] ??= app(ProcurementTimelineBuilder::class)
-            ->build(procurement: $record, from: Carbon::parse(self::rawDateTime($record, 'first_seen_at')), until: now())
-            ->durations;
+        return $durations[$key];
     }
 
     private static function rawDateTime(Procurement $record, string $attribute): \DateTimeInterface|float|int|string|null

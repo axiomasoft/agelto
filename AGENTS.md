@@ -1,39 +1,28 @@
 # Agelto — Codex Instructions
 
-## Provider contract
+## Provider & Context Contract
 
-- Codex and Claude Code are both active providers. This file is Codex's project entrypoint; `CLAUDE.md` is the Claude Code hub.
-- Shared rules are sourced in `.ai/guidelines/{architecture,glossary,navigation}.md`. Change those sources for shared policy, then rebuild the Claude hub; keep this file Codex-specific and compact.
-- Project skill bundles are managed by Swissknifeman under `.agents/plugins/`; do not edit generated bundles or `.agents/.swissknifeman-codex-links.json`. Use a matching skill before work; `task:*` commands come from the installed task plugin.
+- Codex (`AGENTS.md`) and Claude Code (`CLAUDE.md`) share policy from `.ai/guidelines/{architecture,glossary,navigation,cheatsheet}.md`. Update `.ai/guidelines/**` first, then sync `CLAUDE.md` and `AGENTS.md`.
+- Project skill bundles under `.agents/plugins/` are managed by Swissknifeman; do not edit generated bundles or `.agents/.swissknifeman-codex-links.json`. Read the matching local skill in `.claude/skills/` before domain edits.
 
-## Working discipline
+## Working Discipline & Verification
 
 - При оркестрации непрерывно отслеживать conductor до результата: самостоятельно устранять технические остановки, поручать исправления исполнителям и принимать их по evidence. Не завершать работу лишь потому, что запуск оставлен в фоне.
-- Start with one or two relevant files. Expand context only for an unresolved term, a cross-layer change, or a conflict between rules.
-- Before editing, check whether the target is Git-ignored. Preserve unrelated dirty worktree changes.
-- Native Planner owns plan source and execution state. The coordinator records completion facts and commits; an executor follows its execution-input authority and returns evidence in its stage-report.
-- Use the project test/quality commands and report the exact verification performed. Do not weaken tests, guards, or security checks to make a change pass.
+- Start with 1–2 relevant files and `.ai/guidelines/cheatsheet.md`. Expand context only for an unresolved term, a cross-layer change, or conflicting rules. Preserve unrelated worktree changes.
+- Native Planner owns plan state; archived Task Layout v2 plans (`plans/archive/**`) are historical provenance only — never run archived plan lifecycle commands.
+- Run verification via the isolated `agelto_core_test` harness (`docs/dev/runbooks/process-test-rig.md`): `make core-quality`, `make core-test-file TEST_FILE=...`, and `make core-test-*`. Never reset dev/shared DB, run live crawling, call paid LLM APIs, or weaken guards/assertions.
+- Sync SHA-256 in `tests/Fixtures/ProcessCore/manifest.json['source_classes']` whenever a tracked source file changes. Keep test names in Russian describing behavior without `T26`/`P1.x` plan bindings.
 
-## Plan execution
+## Architecture Invariants (Quick Reference)
 
-- Archived Task Layout v2 plans are historical provenance. Their carriers and `plan-lint.py`/`plan-views.py` checks are not the current execution interface.
-- Codex selects the project plugins in `.codex/config.toml`, matching `.swissknife.json`; native caches supply discovery and `.agents/plugins/` carries the managed project bundles. Installed Task/cache versions are read from the native CLI, not pinned in these instructions. Claude Code uses the same declared plugin set through its marketplace configuration.
-- Current work uses native Planner execution-input and its assigned authority. Coordinator owns lifecycle, acceptance evidence registration and commits; executor changes product files and returns its stage-report. Executors do not read or mutate plan carriers or run plan lifecycle commands.
-- The isolated PHP harness is documented in `docs/dev/runbooks/process-test-rig.md`. Use `core-*` targets for process-core checks; never reset a dev/shared database. Future suites must fail explicitly with `suite_not_implemented` until their owning package supplies assertions.
-- Fixture manifest hashes/provenance and real local HTTP/proxy/fake LLM assertions run before the env/unit proof. Server-owned sequences do not trust client attempt numbers. Keep Docker egress denial alongside `Http::preventStrayRequests()`; fixture wire checks do not prove future domain behavior.
-
-## Architecture invariants
-
-- The flat `app/**` tree has five domains: `Procurement` (`prc_*`), `Reference` (`ref_*`), `Organization` (`org_*`), provider-agnostic `Llm` (`llm_*`) and `Platforms/<Code>` (platform adapters across layers; existing table names stay unchanged).
-- Controllers are HTTP-only. Actions/Services own short mutations; repositories own persistence; crawling, parsing and AI run as idempotent Horizon jobs, never in HTTP.
-- Общие DTO, модели и резолверы не содержат полей и веток конкретной площадки. Внешние идентификаторы организаций передаются как `(platformCode, type, value)`; их разбор и форматы принадлежат адаптеру в `Services/Platforms/<Code>/`. Текущие legacy зависимости ограничены сокращаемым architecture baseline до owning cutovers.
-- Crawler profile filters are typed and registry-resolved; `SourceTlsTrust` is the sole TLS-trust holder and `verify => false` is forbidden.
-- Obtain outbound proxies only through `ProxyResolver`; `ProxyScope` describes request purpose, while global and per-target health remain separate.
-- Follow the technical naming canon in `.ai/guidelines/glossary.md`; use factories and `test('<русский intent>', fn)` for tests.
+- **Five domains in flat `app/**`**: `Procurement` (`prc_*`), `Reference` (`ref_*`), `Organization` (`org_*`), `Llm` (`llm_*`), `Platforms/<Code>` (platform adapters across layers; no source-specific branches in shared DTOs/models/services; org IDs pass as `(platformCode, type, value)`).
+- **Process Core**: 8 stages (`listing`, `detail`, `status_refresh`, `download`, `prepare`, `screening`, `extraction`, `publication`) delivered by `ExecuteWorkJob` + 4 daemons (`relay`, `reconcile`, `feed`, `project`). Follow canonical lock order in `.ai/guidelines/cheatsheet.md`. No object I/O or HTTP inside DB transactions; use `clock_timestamp()` for authority deadlines.
+- **Network & TLS**: all outbound traffic goes through `OutboundExecutor` / `ScheduledAttemptGate` / `AnalysisProviderSendGate` + `ProxyResolver` (`ProxyScope`). Route, target, pair, and adapter health are separate. `SourceTlsTrust` is the sole TLS authority (`verify => false` is forbidden).
+- **LLM Ledger**: pre-authorize (`llm_provider_requests` + `llm_budget_reservations`) → claim send (`AnalysisProviderSendGate`) → durable receipt (`ReceiptStore`) → settle & accept under subject lock.
 
 ## Routing
 
-- Crawling/parsing: `docs/workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md`.
-- Architecture/schema: `docs/dev/{architecture,database}.md`.
-- Extraction, LLM, prompts, tests and migrations: use the matching project skill first.
-- For generated or AI-context files: read `docs/dev/ai-context/index.md` and use `ai-context-workflow`.
+- Cheat-sheet (locks, stages, queues, tables, CLI): `.ai/guidelines/cheatsheet.md`.
+- Process & architecture: `docs/dev/{process-core,architecture,database}.md`.
+- Workflows: `docs/workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md`.
+- Local skills: `.claude/skills/{procurement-pipeline-dev,estimate-extraction-dev,llm-layer-dev,prompt-engineering-agelto,project-map,testing-rules}/SKILL.md`.
