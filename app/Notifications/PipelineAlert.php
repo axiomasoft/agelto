@@ -32,10 +32,13 @@ final readonly class PipelineAlert
             ? (int) $configuredMinutes
             : 60;
         $due = [];
+        $dueKeys = [];
 
         foreach ($findings as $key => $message) {
-            if (Cache::add(key: "pipeline_alert:{$key}", value: true, ttl: now()->addMinutes($antispamMinutes))) {
+            $cacheKey = "pipeline_alert:{$key}";
+            if (! Cache::has($cacheKey)) {
                 $due[] = $message;
+                $dueKeys[] = $cacheKey;
             }
         }
 
@@ -43,7 +46,12 @@ final readonly class PipelineAlert
             return;
         }
 
-        $this->send($this->buildMessage($due));
+        if ($this->send($this->buildMessage($due))) {
+            $ttl = now()->addMinutes($antispamMinutes);
+            foreach ($dueKeys as $cacheKey) {
+                Cache::put(key: $cacheKey, value: true, ttl: $ttl);
+            }
+        }
     }
 
     /**
@@ -60,11 +68,11 @@ final readonly class PipelineAlert
             '',
             ...array_map(static fn (string $message): string => '• '.$message, $messages),
             '',
-            'Проверьте Horizon или запустите <code>php artisan pipeline:status</code>',
+            'Проверьте Horizon или запустите <code>php artisan process:status</code> / <code>php artisan pipeline:status</code>',
         ]);
     }
 
-    private function send(string $message): void
+    private function send(string $message): bool
     {
         $token = config('services.telegram.bot_token');
         $chatId = config('services.telegram.chat_id');
@@ -72,18 +80,29 @@ final readonly class PipelineAlert
         if (! is_string($token) || $token === '' || ! is_string($chatId) || $chatId === '') {
             Log::warning('PipelineAlert: Telegram канал не настроен, алерт отправлен в лог', ['message' => $message]);
 
-            return;
+            return true;
         }
 
-        Http::timeout(10)
-            ->retry(times: 2, sleepMilliseconds: 500)
-            ->post("https://api.telegram.org/bot{$token}/sendMessage", [
-                'chat_id' => $chatId,
-                'text' => $message,
-                'parse_mode' => 'HTML',
-            ])
-            ->onError(function () use ($message): void {
+        try {
+            $response = Http::timeout(10)
+                ->retry(times: 2, sleepMilliseconds: 500, throw: false)
+                ->post("https://api.telegram.org/bot{$token}/sendMessage", [
+                    'chat_id' => $chatId,
+                    'text' => $message,
+                    'parse_mode' => 'HTML',
+                ]);
+
+            if (! $response->successful()) {
                 Log::error('PipelineAlert: не удалось отправить уведомление', ['message' => $message]);
-            });
+
+                return false;
+            }
+
+            return true;
+        } catch (\Throwable) {
+            Log::error('PipelineAlert: не удалось отправить уведомление', ['message' => $message]);
+
+            return false;
+        }
     }
 }

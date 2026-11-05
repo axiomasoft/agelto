@@ -11,6 +11,7 @@ use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\ControlChangeStatus;
 use App\Enums\Procurement\Process\ControlMode;
 use App\Models\Procurement\Process\ControlScope;
+use App\Support\SecretRedactor;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -101,6 +102,7 @@ final readonly class ControlRepository
         if ($reason === '' || mb_strlen($reason) > self::REASON_LIMIT || str_contains($reason, "\0")) {
             throw new \InvalidArgumentException('Control change requires a short nonempty reason.');
         }
+        $reason = SecretRedactor::text($reason);
         // Topology immutable: unlocked чтение ancestor chain, затем locks в sorted порядке.
         $chain = LedgerRow::all(
             'WITH RECURSIVE chain AS (

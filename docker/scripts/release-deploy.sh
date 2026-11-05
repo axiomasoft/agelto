@@ -40,6 +40,22 @@ compose=(
 if [[ "$deploy_class" == 'image-promotion' ]]; then
     docker pull "agelto/app:$IMAGE_TAG"
     docker pull "agelto/doctor:$IMAGE_TAG"
+    app_labels=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}}' "agelto/app:$IMAGE_TAG")
+    doctor_labels=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}}' "agelto/doctor:$IMAGE_TAG")
+    if [[ -n "$app_labels" || -n "$doctor_labels" || -n "${EXPECTED_SOURCE_SHA:-}" ]]; then
+        if [[ -z "$app_labels" || "$app_labels" != *:* || "${app_labels#:}" != "$app_labels" || "${app_labels%:}" != "$app_labels" ]]; then
+            echo "Image agelto/app:$IMAGE_TAG is missing required revision or vendor-lock labels" >&2
+            exit 2
+        fi
+        if [[ "$app_labels" != "$doctor_labels" ]]; then
+            echo "Image pair agelto/app:$IMAGE_TAG and agelto/doctor:$IMAGE_TAG label mismatch" >&2
+            exit 2
+        fi
+        if [[ -n "${EXPECTED_SOURCE_SHA:-}" && "${app_labels%%:*}" != "$EXPECTED_SOURCE_SHA" ]]; then
+            echo "Image agelto/app:$IMAGE_TAG revision does not match EXPECTED_SOURCE_SHA" >&2
+            exit 2
+        fi
+    fi
     exit 0
 fi
 
@@ -48,3 +64,4 @@ fi
 services=(app horizon scheduler process-relay process-reconciler process-feeder process-projector)
 "${compose[@]}" pull "${services[@]}"
 "${compose[@]}" up -d --no-build --remove-orphans "${services[@]}"
+"${compose[@]}" exec -T app php artisan app:readiness --format=agent

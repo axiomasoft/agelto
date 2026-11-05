@@ -14,16 +14,22 @@ final readonly class PromptStoreRepository
      */
     public function storeOrUpdate(array $record): Prompt
     {
-        return Prompt::query()->updateOrCreate(
-            ['document_type' => $record['document_type'], 'key' => $record['key'], 'version' => $record['version']],
-            [
-                'step' => $record['step'],
-                'content' => $record['content'],
-                'priority' => $record['priority'],
-                'is_active' => $record['is_active'],
-                'is_protected' => true,
-            ],
-        );
+        $prompt = Prompt::query()->firstOrNew([
+            'document_type' => $record['document_type'],
+            'key' => $record['key'],
+            'version' => $record['version'],
+        ]);
+
+        $prompt->fill([
+            'step' => $record['step'],
+            'content' => $record['content'],
+            'priority' => $record['priority'],
+            'is_active' => $record['is_active'],
+        ])->forceFill([
+            'is_protected' => true,
+        ])->save();
+
+        return $prompt;
     }
 
     public function deactivate(Prompt $prompt): void

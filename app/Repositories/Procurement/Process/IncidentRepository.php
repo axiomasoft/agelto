@@ -8,6 +8,7 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\OperatorCommandStatus;
+use App\Support\SecretRedactor;
 
 /**
  * Writer prc_process_incidents: один нерешённый incident на fingerprint (partial unique). Повтор
@@ -64,6 +65,7 @@ final readonly class IncidentRepository
         if ($reason === '' || mb_strlen($reason) > 200 || str_contains($reason, "\0")) {
             throw new \InvalidArgumentException('Incident acknowledge requires a reason.');
         }
+        $reason = SecretRedactor::text($reason);
         $row = LedgerRow::one('SELECT state, transition_seq FROM prc_process_incidents WHERE id = ? FOR UPDATE', [$incidentId->value]);
         if ($row === null) {
             return OperatorCommandStatus::NotFound;

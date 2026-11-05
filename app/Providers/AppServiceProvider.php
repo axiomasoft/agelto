@@ -45,13 +45,13 @@ use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ReconcileDaemon;
 use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\SourceTargetValidator;
+use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\ParallelTesting;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Str;
 use Laravel\Doctor\Facades\Doctor;
 use Livewire\Livewire;
 use Tests\Support\TestEnvironmentGuard;
@@ -115,6 +115,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('production') && (
+            (bool) config('app.debug') !== false
+            || in_array(config('queue.default'), ['sync', 'null'], true)
+            || in_array(config('cache.default'), ['array', 'null'], true)
+            || in_array(config('session.driver'), ['array', 'null'], true)
+        )) {
+            throw new \RuntimeException('Unsafe production configuration detected.');
+        }
 
         if ($this->app->environment('testing')) {
             ParallelTesting::setUpProcess(function (string $token): void {
@@ -153,10 +161,19 @@ class AppServiceProvider extends ServiceProvider
         // суперадминистраторам и операционным ролям (OperatorRole), но не read-only бизнес-ролям.
         Gate::define('viewPulse', fn (?User $user = null): bool => $user !== null && ($user->isSuperAdmin() || $user->hasRole(OperatorRole::class)));
 
-        // Каждая artisan-команда получает cmd:<name>:<uuid>; Laravel Context переносит trace_id
-        // в payload jobs, отправленных из команды.
-        Event::listen(function (CommandStarting $event): void {
-            Context::add('trace_id', 'cmd:'.$event->command.':'.(string) Str::uuid());
+        // Каждая artisan-команда получает свежий 32-hex trace_id и command в Context;
+        // стек восстанавливает предыдущий контекст при завершении вложенной или последовательной команды.
+        /** @var list<array{trace_id: mixed, has_trace_id: bool, command: mixed, has_command: bool}> $commandContextStack */
+        $commandContextStack = [];
+        Event::listen(function (CommandStarting $event) use (&$commandContextStack): void {
+            $commandContextStack[] = [
+                'trace_id' => Context::get('trace_id'),
+                'has_trace_id' => Context::has('trace_id'),
+                'command' => Context::get('command'),
+                'has_command' => Context::has('command'),
+            ];
+            Context::add('command', $event->command);
+            Context::add('trace_id', bin2hex(random_bytes(16)));
 
             if ($event->command === 'schedule:work') {
                 try {
@@ -164,6 +181,25 @@ class AppServiceProvider extends ServiceProvider
                 } catch (\Throwable) {
                     // Best-effort initial heartbeat; readiness check will report unavailable if cache is down.
                 }
+            }
+        });
+        Event::listen(function (CommandFinished $event) use (&$commandContextStack): void {
+            $previous = array_pop($commandContextStack);
+            if ($previous === null) {
+                Context::forget('trace_id');
+                Context::forget('command');
+
+                return;
+            }
+            if ($previous['has_trace_id'] && $previous['trace_id'] !== null) {
+                Context::add('trace_id', $previous['trace_id']);
+            } else {
+                Context::forget('trace_id');
+            }
+            if ($previous['has_command'] && $previous['command'] !== null) {
+                Context::add('command', $previous['command']);
+            } else {
+                Context::forget('command');
             }
         });
     }

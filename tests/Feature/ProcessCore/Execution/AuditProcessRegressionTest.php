@@ -42,6 +42,7 @@ use App\Services\Procurement\Process\WorkFinalizer;
 use App\Services\Procurement\Process\WorkRunner;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FixtureProviderRecoveryResolver;
@@ -412,4 +413,60 @@ test('WorkRunner классифицирует транзиентный сбой 
         ->and(ExecutionFixtures::work($work3)->state)->toBe('deferred');
     $dueIn = (float) DB::selectOne('SELECT extract(epoch FROM due_at - clock_timestamp()) AS due_in FROM prc_process_work WHERE id = ?', [$work3->value->value])->due_in;
     expect($dueIn)->toBeGreaterThan(29.0)->toBeLessThanOrEqual(36.0);
+});
+
+test('WorkRunner::finalize сопоставляет LostOwnership с LeaseLost и InvariantViolation с Rejected при небросающем предупреждении телеметрии', function (): void {
+    FinalizeFixtures::authority([StageCode::Listing]);
+    $handler = new class implements StageHandler
+    {
+        public ?Closure $effect = null;
+
+        public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
+        {
+            if ($this->effect !== null) {
+                ($this->effect)($execution);
+            }
+
+            return FinalizeFixtures::succeeded(StageCode::Listing, 'delivered');
+        }
+    };
+    app(StageRegistry::class)->bindHandler(StageCode::Listing, $handler);
+
+    // 1. Потеря владения во время исполнения handler (CancelWork увеличивает generation до finalize) -> DeliveryOutcome::LeaseLost.
+    $lostWork = ExecutionFixtures::listingWork();
+    app(WorkFeeder::class)->tick('acquisition');
+    $lostEnvelope = DeliveryEnvelope::fromScalars(
+        $lostWork->value->value,
+        ExecutionFixtures::delivery($lostWork)->value,
+        LedgerFixtures::uuid()->value,
+        1,
+    );
+    $handler->effect = static function () use ($lostWork): void {
+        expect(app(CancelWork::class)->execute($lostWork, 'cancel during execution')->status)
+            ->toBe(WorkMutationStatus::Applied);
+    };
+
+    expect(app(WorkRunner::class)->runDelivery($lostEnvelope))->toBe(DeliveryOutcome::LeaseLost)
+        ->and(ExecutionFixtures::work($lostWork)->state)->toBe('cancelled');
+
+    // 2. Нарушение инварианта финализации (расхождение membership резерваций группы) -> логирует warning и возвращает DeliveryOutcome::Rejected.
+    Log::spy();
+    $corruptWork = ExecutionFixtures::listingWork();
+    app(WorkFeeder::class)->tick('acquisition');
+    $corruptEnvelope = DeliveryEnvelope::fromScalars(
+        $corruptWork->value->value,
+        ExecutionFixtures::delivery($corruptWork)->value,
+        LedgerFixtures::uuid()->value,
+        1,
+    );
+    $handler->effect = static function () use ($corruptWork): void {
+        DB::table('prc_process_reservations')->where('work_id', $corruptWork->value->value)->limit(1)->delete();
+    };
+
+    expect(app(WorkRunner::class)->runDelivery($corruptEnvelope))->toBe(DeliveryOutcome::Rejected);
+    Log::shouldHaveReceived('log')->withArgs(
+        static fn (string $level, string $message, array $context): bool => $level === 'warning'
+            && $message === 'process.work_finalization_invariant_violation'
+            && ($context['status'] ?? null) === CompletionStatus::InvariantViolation->value,
+    )->once();
 });

@@ -86,6 +86,14 @@ json=$(run --mode dev --env-file "$repo/preflight.env" --agent-json)
 printf '%s' "$json" | python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["exit_code"] == 0; assert all(set(i) == {"id", "status", "remediation"} for i in x["checks"])'
 ! printf '%s' "$json" | grep -q 'fixture-app_key'
 run --mode prod-build --env-file "$repo/preflight.env" >/dev/null
+expect_failure 12 run --mode prod-runtime --env-file "$repo/preflight.env"
+sed \
+    -e 's/^APP_ENV=.*/APP_ENV=production/' \
+    -e 's#^APP_URL=.*#APP_URL=https://agelto.example.test#' \
+    "$repo/preflight.env" > "$repo/prod-runtime.env"
+run --mode prod-runtime --env-file "$repo/prod-runtime.env" >/dev/null
+sed -e 's/^APP_DEBUG=.*/APP_DEBUG=true/' "$repo/prod-runtime.env" > "$repo/prod-runtime-debug.env"
+expect_failure 12 run --mode prod-runtime --env-file "$repo/prod-runtime-debug.env"
 
 expect_failure 64 run --mode unknown --env-file "$repo/preflight.env"
 printf 'APP_NAME=agelto\nAPP_NAME=placeholder\n' > "$repo/bad.env"

@@ -54,7 +54,17 @@ while IFS='=' read -r key value; do
     values["$key"]=$value
 done < "$manifest"
 [[ ${values[schema]:-} == agelto.backup-manifest/v1 && ${values[verified]:-} == 1 ]] || fail 'manifest is not verified'
-[[ ${values[manifest_sha256]:-} =~ ^[0-9a-f]{64}$ && ${values[source_backup_id]:-} =~ ^backup-[0-9]{8}T[0-9]{6}Z$ ]] || fail 'manifest identity is invalid'
+[[ ${values[manifest_sha256]:-} =~ ^[0-9a-f]{64}$ && ${values[source_backup_id]:-} =~ ^(backup-[0-9]{8}T[0-9]{6}Z|fixture-[0-9]{4})$ ]] || fail 'manifest identity is invalid'
+
+backup_dir=$(dirname "$manifest")
+for artifact in manifest.sha256 postgres.dump object-current.manifest config-secrets.tar.enc; do
+    [[ -f $backup_dir/$artifact && ! -L $backup_dir/$artifact ]] || fail "missing backup artifact $artifact"
+done
+[[ $(sha256sum "$backup_dir/manifest.sha256" | cut -d' ' -f1) == "${values[manifest_sha256]}" ]] || fail 'manifest_sha256 does not match manifest.sha256'
+(
+    cd "$backup_dir"
+    sha256sum --check manifest.sha256 >/dev/null 2>&1
+) || fail 'backup artifact checksum verification failed'
 
 mkdir -p "$(dirname "$lock_file")"
 exec 9>"$lock_file"

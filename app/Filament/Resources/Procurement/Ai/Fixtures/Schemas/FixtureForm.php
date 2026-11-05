@@ -36,6 +36,8 @@ class FixtureForm
                         FileUpload::make('source')
                             ->label('Файл эталона')
                             ->required()
+                            ->maxSize(51200)
+                            ->rules(['extensions:xlsx,xls,pdf,gsfx,docx,jpg'])
                             ->disk(self::fixturesDisk())
                             ->storeFiles(false)
                             ->previewable(false)

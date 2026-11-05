@@ -27,6 +27,9 @@ final readonly class LibreOfficeConverter
                 ->run([
                     $this->stringConfig('ai.tools.soffice_bin'),
                     '--headless',
+                    '--nolockcheck',
+                    '--nodefault',
+                    '--nofirststartwizard',
                     '--norestore',
                     "-env:UserInstallation=file://{$profileDir}",
                     '--convert-to', 'pdf',

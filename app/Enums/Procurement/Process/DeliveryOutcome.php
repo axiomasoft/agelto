@@ -12,7 +12,7 @@ enum DeliveryOutcome: string
 {
     /** Claimed: handler исполнен и результат передан WorkFinalizer. */
     case Executed = 'executed';
-    /** Stale, duplicate, expired, paused, held, terminal или capacity wait: handler не вызывался. */
+    /** Pre-execution rejection (stale, duplicate, expired, paused, held, terminal, capacity wait) или finalization invariant violation. */
     case Rejected = 'rejected';
     /** Handler прекратил работу из-за потерянного lease: публикации нет. */
     case LeaseLost = 'lease_lost';

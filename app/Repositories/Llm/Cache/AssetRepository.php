@@ -89,7 +89,7 @@ final readonly class AssetRepository
             throw new OperationDenied('asset_call_not_prepared');
         }
         $query = $this->query($key);
-        $row = $this->row($query->lockForUpdate());
+        $row = $this->row((clone $query)->selectRaw('*, (expires_at IS NOT NULL AND expires_at <= clock_timestamp()) AS is_expired')->lockForUpdate());
         $physical = $call->authorization->physicalCallId;
         $stateColumn = $key instanceof FileAssetKey ? 'state' : 'creation_state';
         if ($row !== null && $row->nullableString('creation_token') === $physical) {
@@ -101,11 +101,11 @@ final readonly class AssetRepository
                 // Successful metadata must first be recovered. Unknown/orphan cost remains reserved.
                 if (! in_array($previous->outcome, ['not_sent', 'known_retryable_nonbillable'], true)
                     && ! ($previous->requestState === 'completed' && ($call->purpose === OperationPurpose::CacheRefresh
-                        || $row->nullableString('expires_at') !== null && strtotime($row->string('expires_at')) <= time()))) {
+                        || $row->nullableString('expires_at') !== null && $row->bool('is_expired')))) {
                     throw new OperationDenied('asset_single_flight_or_unknown');
                 }
             }
-            if ($row->nullableString('expires_at') !== null && strtotime($row->string('expires_at')) > time()
+            if ($row->nullableString('expires_at') !== null && ! $row->bool('is_expired')
                 && ! in_array($row->string($stateColumn), ['expired', 'creating', 'FAILED'], true)
                 && $call->purpose !== OperationPurpose::CacheRefresh) {
                 throw new OperationDenied('asset_still_usable');

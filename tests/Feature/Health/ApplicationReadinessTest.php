@@ -133,3 +133,12 @@ test('запись heartbeat отклоняет нетипизированный
     expect(fn () => ApplicationReadiness::recordSchedulerHeartbeat())
         ->toThrow(LogicException::class, 'должен быть положительным целым числом');
 });
+
+test('соединение pgsql фиксирует часовой пояс UTC, а ApplicationReadiness ограничивает бюджет проб по дедлайну', function (): void {
+    expect(config('database.connections.pgsql.timezone'))->toBe('UTC');
+
+    $readiness = app(ApplicationReadiness::class);
+    $method = new ReflectionMethod($readiness, 'remainingBudgetMs');
+    expect($method->invoke($readiness, hrtime(true) - 10_000_000))->toBe(1)
+        ->and($method->invoke($readiness, hrtime(true) + 500_000_000))->toBeGreaterThanOrEqual(1);
+});

@@ -23,12 +23,14 @@ final class ArchiveEntryValidator
 
         foreach ($entries as $entry) {
             $path = ArchiveEntryPath::normalize($entry->path, $budget->maxPathLength);
-            $key = mb_strtolower($path);
+            $normalized = \Normalizer::normalize($path, \Normalizer::FORM_C);
+            $nfc = is_string($normalized) ? $normalized : $path;
+            $normalizedKey = mb_strtolower($nfc, 'UTF-8');
 
-            if (isset($seen[$key])) {
+            if (isset($seen[$normalizedKey])) {
                 throw new ArchiveValidationException('коллидирующие пути записей архива');
             }
-            $seen[$key] = true;
+            $seen[$normalizedKey] = true;
 
             if ($entry->isEncrypted) {
                 throw new ArchivePasswordProtectedException('архив содержит зашифрованную запись');

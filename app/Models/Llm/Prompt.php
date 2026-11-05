@@ -32,7 +32,6 @@ use Illuminate\Database\Eloquent\Model;
     'version',
     'priority',
     'is_active',
-    'is_protected',
 ])]
 #[Table(name: 'llm_prompts')]
 final class Prompt extends Model

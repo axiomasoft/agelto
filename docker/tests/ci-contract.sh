@@ -8,7 +8,7 @@ cd "$root_dir"
 ci_workflow=.github/workflows/ci.yml
 tia_workflow=.github/workflows/tia-baseline.yml
 
-for required_file in "$ci_workflow" "$tia_workflow" .github/dependabot.yml docker/scripts/coverage-gate.py; do
+for required_file in "$ci_workflow" "$tia_workflow" .github/dependabot.yml .github/CODEOWNERS docker/scripts/coverage-gate.py; do
     test -f "$required_file" || { echo "Missing CI carrier: $required_file" >&2; exit 1; }
 done
 
@@ -54,11 +54,15 @@ rg -q 'E2E_ARTIFACT_DIR: .ci-artifacts' "$ci_workflow"
 rg -q 'E2E_ARTIFACT_DIR' docker/tests/clean-install-e2e.sh
 rg -q 'export IMAGE_TAG="\$image_tag"' docker/tests/clean-install-e2e.sh
 rg -q 'playwright-report/index\.html' "$ci_workflow"
+rg -q 'playwright-report/\*\*' "$ci_workflow"
+rg -q 'test-results/\*\*' "$ci_workflow"
 [[ $(rg -c 'run: make vendor:sync' "$ci_workflow") -eq 2 ]]
 rg -q 'make image:build' "$ci_workflow"
+rg -q 'docker build -t agelto/postgres:' "$ci_workflow"
 rg -q 'composer audit --locked' "$ci_workflow"
 rg -q 'pnpm audit --audit-level=high' "$ci_workflow"
-rg -q 'aquasecurity/trivy-action@[0-9a-f]{40}' "$ci_workflow"
+[[ $(rg -c 'aquasecurity/trivy-action@[0-9a-f]{40}' "$ci_workflow") -eq 5 ]]
+rg -q 'make bootstrap MODE=dev ENV_FILE=\.env\.example' "$tia_workflow"
 rg -q 'make test:tia-refresh' "$tia_workflow"
 rg -q 'make test:tia-baseline-export' "$tia_workflow"
 rg -q 'include-hidden-files: true' "$tia_workflow"

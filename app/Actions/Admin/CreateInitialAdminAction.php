@@ -19,6 +19,10 @@ final readonly class CreateInitialAdminAction
             throw new InvalidArgumentException('Пароль не может быть пустым.');
         }
 
+        if (mb_strlen(trim($password)) < 8) {
+            throw new InvalidArgumentException('Пароль должен содержать не менее 8 символов.');
+        }
+
         return DB::transaction(callback: function () use ($email, $password): User {
             $existingUsers = User::query()
                 ->whereRaw(sql: 'lower(email) = ?', bindings: [$email])

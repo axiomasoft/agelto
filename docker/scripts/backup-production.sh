@@ -66,7 +66,7 @@ fi
 
 [[ $fixture_root = /* && $profile = /* && $adapter = /* ]] || { usage; exit 2; }
 [[ -x $adapter && -f $adapter && ! -L $adapter ]] || fail 'fixture adapter must be an executable regular file'
-[[ $backup_id =~ ^fixture-[0-9]{4}$ ]] || fail 'fixture backup ID must match fixture-NNNN'
+[[ $backup_id =~ ^(fixture-[0-9]{4}|backup-[0-9]{8}T[0-9]{6}Z)$ ]] || fail 'fixture backup ID must match fixture-NNNN or backup-YYYYMMDDTHHMMSSZ'
 [[ $retention =~ ^[1-9][0-9]*$ ]] || fail 'retention must be positive'
 
 tmp_base=$(realpath -m "${TMPDIR:-/tmp}")
@@ -103,15 +103,29 @@ done
     sha256sum postgres.dump object-current.manifest config-secrets.tar.enc > manifest.sha256
     sha256sum --check manifest.sha256 >/dev/null
 )
-printf 'backup_id=%s\nverified=1\n' "$backup_id" > "$staging/status"
+manifest_sha=$(sha256sum "$staging/manifest.sha256" | cut -d' ' -f1)
+completed_at=$(date +%s)
+cat > "$staging/backup.manifest" <<EOF
+schema=agelto.backup-manifest/v1
+verified=1
+manifest_sha256=$manifest_sha
+source_backup_id=$backup_id
+EOF
+cat > "$staging/status" <<EOF
+completed_at=$completed_at
+verified=1
+offhost=0
+manifest_sha256=$manifest_sha
+EOF
 mv "$staging" "$local_copy"
 cp -a "$local_copy" "$offhost_staging"
 diff -qr "$local_copy" "$offhost_staging" >/dev/null || fail 'off-host fixture copy differs from the verified local copy'
-printf 'offhost=1\n' >> "$offhost_staging/status"
+sed -i 's/^offhost=0$/offhost=1/' "$offhost_staging/status"
 mv "$offhost_staging" "$offhost_copy"
-printf 'offhost=1\n' >> "$local_copy/status"
+sed -i 's/^offhost=0$/offhost=1/' "$local_copy/status"
+cp "$offhost_copy/status" "$resolved_root/latest.status"
 
-mapfile -t old_backups < <(find "$resolved_root/local" -mindepth 1 -maxdepth 1 -type d -name 'fixture-[0-9][0-9][0-9][0-9]' -printf '%f\n' | sort -r)
+mapfile -t old_backups < <(find "$resolved_root/local" -mindepth 1 -maxdepth 1 -type d \( -name 'fixture-[0-9][0-9][0-9][0-9]' -o -name 'backup-[0-9]*T[0-9]*Z' \) -printf '%f\n' | sort -r)
 for ((index=retention; index<${#old_backups[@]}; index++)); do
     candidate=${old_backups[$index]}
     [[ -f $resolved_root/offhost/$candidate/status ]] || fail "refusing to prune $candidate before a verified off-host copy"

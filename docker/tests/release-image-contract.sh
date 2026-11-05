@@ -10,6 +10,15 @@ log_file="$temp_dir/docker.argv"
 cat > "$temp_dir/bin/docker" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "${DOCKER_LOG:?}"
+if [[ "${1:-} ${2:-}" == 'image inspect' ]]; then
+    if [[ "$*" == *'agelto/doctor:'* && -v FAKE_DOCTOR_IMAGE_LABELS ]]; then
+        printf '%s\n' "${FAKE_DOCTOR_IMAGE_LABELS:-:}"
+    elif [[ -v FAKE_IMAGE_LABELS ]]; then
+        printf '%s\n' "${FAKE_IMAGE_LABELS:-:}"
+    else
+        printf '%s\n' "${FAKE_IMAGE_LABELS:-deadbeefdeadbeefdeadbeefdeadbeefdeadbeef:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}"
+    fi
+fi
 exit 0
 EOF
 chmod +x "$temp_dir/bin/docker"
@@ -24,19 +33,28 @@ for target in prod:deploy:code prod:deploy:php-deps prod:deploy:frontend prod:de
     grep -F 'compose --project-directory ' "$log_file" | grep -F -- '--project-name agelto_contract' | grep -F 'docker-compose.prod.yml config' >/dev/null
     grep -F 'pull app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
     grep -F 'up -d --no-build --remove-orphans app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
+    grep -F 'exec -T app php artisan app:readiness --format=agent' "$log_file" >/dev/null
     ! grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"
 done
 
 run_release_target prod:image:promote
 grep -Fx 'pull agelto/app:2026.08.10.1' "$log_file" >/dev/null
 grep -Fx 'pull agelto/doctor:2026.08.10.1' "$log_file" >/dev/null
+grep -F 'image inspect --format {{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}} agelto/app:2026.08.10.1' "$log_file" >/dev/null
+grep -F 'image inspect --format {{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}} agelto/doctor:2026.08.10.1' "$log_file" >/dev/null
 ! grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"
+
+! FAKE_IMAGE_LABELS='' run_release_target prod:image:promote >/dev/null 2>&1
+! FAKE_IMAGE_LABELS='deadbeef:' run_release_target prod:image:promote >/dev/null 2>&1
+! FAKE_DOCTOR_IMAGE_LABELS='1111111111111111111111111111111111111111:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' run_release_target prod:image:promote >/dev/null 2>&1
+! EXPECTED_SOURCE_SHA='1111111111111111111111111111111111111111' run_release_target prod:image:promote >/dev/null 2>&1
 
 run_release_target prod:deploy:image
 grep -Fx 'pull agelto/app:2026.08.10.1' "$log_file" >/dev/null
 grep -Fx 'pull agelto/doctor:2026.08.10.1' "$log_file" >/dev/null
 grep -F 'pull app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
 grep -F 'up -d --no-build --remove-orphans app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
+grep -F 'exec -T app php artisan app:readiness --format=agent' "$log_file" >/dev/null
 ! grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"
 
 bash "$root_dir/docker/tests/make-contract.sh"

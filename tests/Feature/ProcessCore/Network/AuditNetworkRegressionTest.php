@@ -4,16 +4,24 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Network\BinaryBodyArtifact;
 use App\Dto\Procurement\Network\HealthSnapshot;
+use App\Dto\Procurement\Network\HttpRouteBinding;
+use App\Dto\Procurement\Network\NetworkDemandTicket;
+use App\Dto\Procurement\Network\NetworkRouteSelection;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\ProxyNodeConfiguration;
+use App\Dto\Procurement\Network\ReservedProviderNetwork;
+use App\Dto\Procurement\Network\ResolvedUrl;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Network\ScheduledNetworkPermit;
+use App\Dto\Procurement\Network\SelectedNetworkRoute;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
 use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
 use App\Dto\Procurement\Process\ArtifactRef;
+use App\Dto\Procurement\Process\ContentHash;
+use App\Enums\Llm\OperationPurpose;
 use App\Enums\Procurement\Network\CircuitState;
 use App\Enums\Procurement\Network\HealthScope;
 use App\Enums\Procurement\Network\IdempotencyClass;
@@ -24,7 +32,9 @@ use App\Enums\Procurement\Network\TransportFailure;
 use App\Models\User;
 use App\Repositories\Procurement\Network\HealthRepository;
 use App\Repositories\Procurement\Network\RouteRepository;
+use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Procurement\Network\ArtifactResponseStream;
+use App\Services\Procurement\Network\HttpTransport;
 use App\Services\Procurement\Network\NetworkReconcileCategory;
 use App\Services\Procurement\Network\OutboundExecutor;
 use App\Services\Procurement\Network\UrlPolicy;
@@ -33,10 +43,12 @@ use App\Services\Procurement\SourceTlsTrust;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\FinancialFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\TransportFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ToolContext;
 
 beforeEach(function (): void {
     F::clean();
@@ -376,5 +388,106 @@ test('UrlPolicy отвергает смешанный public/private DNS, а Out
             ->and($redirectGate->requests)->toHaveCount(4);
     } finally {
         $wire->stop();
+    }
+});
+
+test('UrlPolicy отклоняет зарезервированные диапазоны IPv6 NAT64 Teredo 6to4 и IPv4-translated, а HttpTransport::prepareProvider проверяет согласованность плана и отсутствие транзакции', function (): void {
+    while (DB::transactionLevel() > 0) {
+        DB::rollBack();
+    }
+
+    $origin = CanonicalOrigin::fromUrl('https://example.test');
+    foreach (['::ffff:0:127.0.0.1', '64:ff9b:1::1', '2001::1', '2001:db8::1', '2002:7f00:1::'] as $reservedIpv6) {
+        $policy = new UrlPolicy([$origin], [], static fn (): array => [$reservedIpv6]);
+        expect(fn () => $policy->resolve(new SafeUrl('https://example.test/v1')))
+            ->toThrow(InvalidArgumentException::class, 'Non-public address denied by URL policy.');
+    }
+
+    $transport = app(HttpTransport::class);
+    $url = new SafeUrl('https://example.test/v1beta/models/gemini:generateContent');
+    $otherUrl = new SafeUrl('https://example.test/v1beta/models/other:generateContent');
+    $physicalId = LedgerFixtures::uuid();
+    $profile = TransportFixtures::profile();
+    $operationPlan = FinancialFixtures::genericPlan('prepare-provider-audit');
+    $wirePost = new ProviderWireRequest(
+        operation: $operationPlan,
+        method: 'POST',
+        endpoint: $url->reveal(),
+        allowedOrigin: 'https://example.test',
+        headers: [],
+        contentType: 'application/json',
+        body: '{"contents":[]}',
+    );
+
+    $makeNetwork = static function (
+        SafeUrl $planUrl,
+        SafeUrl $resolvedUrl,
+        string $method,
+        ?ContentHash $bodyHash,
+    ) use ($physicalId, $profile): ReservedProviderNetwork {
+        $plan = new OutboundRequestPlan(
+            $physicalId,
+            LedgerFixtures::uuid(),
+            $method,
+            $planUrl,
+            $profile,
+            TrafficClass::Provider,
+            $method === 'GET' ? IdempotencyClass::ReadOnly : IdempotencyClass::AmbiguousWrite,
+            $bodyHash,
+            1,
+        );
+        $routeId = LedgerFixtures::uuid();
+        $selection = new NetworkRouteSelection($routeId);
+        $route = new SelectedNetworkRoute($selection, new HttpRouteBinding($routeId));
+        $ticket = new NetworkDemandTicket(LedgerFixtures::uuid(), 1, $plan, $selection);
+        $permit = new ScheduledNetworkPermit(
+            $ticket->id,
+            $ticket,
+            new DateTimeImmutable('now', new DateTimeZone('UTC')),
+            new DateTimeImmutable('+60 seconds', new DateTimeZone('UTC')),
+        );
+
+        return new ReservedProviderNetwork($permit, $route, new ResolvedUrl($resolvedUrl, '127.0.0.1', ['127.0.0.1']));
+    };
+
+    $validPostNetwork = $makeNetwork($url, $url, 'POST', new ContentHash($wirePost->bodyHash));
+    $ctx = ToolContext::make();
+
+    // Валидный POST и валидный GET (bodyHash === null в плане и sha256('') в wire) проходят проверку.
+    expect($transport->prepareProvider($wirePost, $physicalId->value, $validPostNetwork, $ctx, 'key', hrtime(true) + 10_000_000_000))
+        ->not->toBeNull();
+
+    $lookupPlan = FinancialFixtures::genericPlan('prepare-provider-get', OperationPurpose::Lookup);
+    $wireGet = new ProviderWireRequest(
+        operation: $lookupPlan,
+        method: 'GET',
+        endpoint: $url->reveal(),
+        allowedOrigin: 'https://example.test',
+        headers: [],
+        contentType: 'application/json',
+        body: '',
+    );
+    $validGetNetwork = $makeNetwork($url, $url, 'GET', null);
+    expect($transport->prepareProvider($wireGet, $physicalId->value, $validGetNetwork, $ctx, 'key', hrtime(true) + 10_000_000_000))
+        ->not->toBeNull();
+
+    // Нарушение physicalId, resolvedUrl, endpoint, method, bodyHash или активная транзакция БД выбрасывают LogicException.
+    expect(fn () => $transport->prepareProvider($wirePost, LedgerFixtures::uuid()->value, $validPostNetwork, $ctx, 'key', hrtime(true) + 10_000_000_000))
+        ->toThrow(LogicException::class)
+        ->and(fn () => $transport->prepareProvider($wirePost, $physicalId->value, $makeNetwork($url, $otherUrl, 'POST', new ContentHash($wirePost->bodyHash)), $ctx, 'key', hrtime(true) + 10_000_000_000))
+        ->toThrow(LogicException::class)
+        ->and(fn () => $transport->prepareProvider($wirePost, $physicalId->value, $makeNetwork($otherUrl, $otherUrl, 'POST', new ContentHash($wirePost->bodyHash)), $ctx, 'key', hrtime(true) + 10_000_000_000))
+        ->toThrow(LogicException::class)
+        ->and(fn () => $transport->prepareProvider($wirePost, $physicalId->value, $makeNetwork($url, $url, 'GET', new ContentHash($wirePost->bodyHash)), $ctx, 'key', hrtime(true) + 10_000_000_000))
+        ->toThrow(LogicException::class)
+        ->and(fn () => $transport->prepareProvider($wirePost, $physicalId->value, $makeNetwork($url, $url, 'POST', LedgerFixtures::hash('wrong-body')), $ctx, 'key', hrtime(true) + 10_000_000_000))
+        ->toThrow(LogicException::class);
+
+    DB::beginTransaction();
+    try {
+        expect(fn () => $transport->prepareProvider($wirePost, $physicalId->value, $validPostNetwork, $ctx, 'key', hrtime(true) + 10_000_000_000))
+            ->toThrow(LogicException::class, 'Outbound I/O is forbidden inside a database transaction.');
+    } finally {
+        DB::rollBack();
     }
 });

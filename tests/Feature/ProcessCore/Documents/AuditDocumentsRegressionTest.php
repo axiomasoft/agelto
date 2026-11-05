@@ -7,8 +7,11 @@ use App\Dto\Procurement\Document\DownloadResult;
 use App\Dto\Procurement\Document\SourceDocumentMetadata;
 use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Dto\Procurement\Process\SubjectKey;
+use App\Enums\Procurement\Document\DocumentStatus;
+use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\StoragePhase;
+use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\StageCode;
@@ -26,10 +29,13 @@ use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentStorageReconciler;
 use App\Services\Procurement\Document\PrepareWorkspace;
 use App\Services\Procurement\Document\StoredDocumentWriter;
+use App\Services\Procurement\Prepare\ArchiveStrategy;
 use App\Services\Procurement\Prepare\BoundedToolProcess;
+use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
@@ -514,4 +520,146 @@ test('DocumentStorageReconciler изолирует сбой удаления о�
         ->and(DB::table('prc_document_blobs')->where('id', $brokenBlob->id->value)->exists())->toBeTrue()
         ->and(DB::table('prc_document_blobs')->where('id', $healthyBlob->id->value)->exists())->toBeFalse()
         ->and(Storage::disk('local')->exists($healthyBlob->objectKey))->toBeFalse();
+});
+
+test('tool_supervisor принудительно убивает дерево процессов с причиной nproc_limit при превышении лимита --max-procs', function (): void {
+    $dir = storage_path('app/testing/tool-nproc-'.bin2hex(random_bytes(6)));
+    mkdir($dir, 0700, true);
+
+    try {
+        $tool = new BoundedToolProcess;
+        $pidsFile = $dir.'/spawned.pids';
+        $caught = null;
+
+        try {
+            $tool->run(
+                [
+                    '--max-procs',
+                    '2',
+                    'python3',
+                    '-c',
+                    'import os, sys, time
+pids = []
+for _ in range(4):
+    pid = os.fork()
+    if pid == 0:
+        os.setsid()
+        time.sleep(30)
+    pids.append(str(pid))
+open(sys.argv[1], "w").write("\n".join(pids))
+time.sleep(30)',
+                    $pidsFile,
+                ],
+                $dir,
+                ToolContext::make(),
+                hrtime(true) / 1e9 + 10,
+            );
+        } catch (ToolFailed $e) {
+            $caught = $e;
+        }
+
+        expect($caught)->toBeInstanceOf(ToolFailed::class)
+            ->and($caught?->reason)->toBe('nproc_limit')
+            ->and(is_file($pidsFile))->toBeTrue();
+
+        foreach (array_filter(explode("\n", trim((string) file_get_contents($pidsFile)))) as $pidStr) {
+            $pid = (int) $pidStr;
+            expect($pid)->toBeGreaterThan(0)
+                ->and(posix_kill($pid, 0))->toBeFalse();
+        }
+    } finally {
+        File::deleteDirectory($dir);
+    }
+});
+
+test('ArchiveStrategy учитывает кумулятивный бюджет вложенных архивов от корня, а SpreadsheetStrategy терминально отклоняет XLSX с DOCTYPE/ENTITY без фолбэка в LibreOffice', function (): void {
+    StoredDocumentFixtures::reset();
+    $diskName = (string) config('documents.disk');
+    $disk = Storage::fake($diskName);
+
+    // 1. Вложенный архив не может обойти max_files за счёт разбиения файлов по уровням вложенности.
+    config([
+        'ai.prepare.archive.max_depth' => 3,
+        'ai.prepare.archive.max_files' => 3,
+    ]);
+
+    $makeZipBytes = static function (array $entries): string {
+        $tmp = tempnam(sys_get_temp_dir(), 'audit_zip_');
+        if ($tmp === false) {
+            throw new RuntimeException('Не удалось создать временный ZIP.');
+        }
+        $zip = new ZipArchive;
+        $zip->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        foreach ($entries as $name => $content) {
+            $zip->addFromString($name, $content);
+        }
+        $zip->close();
+        $bytes = (string) file_get_contents($tmp);
+        @unlink($tmp);
+
+        return $bytes;
+    };
+
+    $nestedZipBytes = $makeZipBytes([
+        'inner-1.txt' => 'first nested payload',
+        'inner-2.txt' => 'second nested payload',
+    ]);
+    $rootZipBytes = $makeZipBytes([
+        'outer.txt' => 'outer sibling payload',
+        'nested.zip' => $nestedZipBytes,
+    ]);
+
+    $rootDoc = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $rootPath = 'documents/audit-root.zip';
+    $disk->put($rootPath, $rootZipBytes);
+    $rootVersion = DocumentVersion::factory()->create([
+        'document_id' => $rootDoc->id,
+        'extension' => 'zip',
+        'disk' => $diskName,
+        'storage_path' => $rootPath,
+        'content_hash' => hash('sha256', $rootZipBytes),
+        'size_bytes' => strlen($rootZipBytes),
+    ]);
+
+    expect(app(ArchiveStrategy::class)->process($rootDoc, $rootVersion))
+        ->toBe(PreparationResult::ExpandedContainer);
+
+    $nestedVersion = DocumentVersion::query()
+        ->where('parent_version_id', $rootVersion->id)
+        ->where('archive_entry_path', 'nested.zip')
+        ->firstOrFail();
+    $nestedDoc = Document::query()->findOrFail($nestedVersion->document_id);
+
+    // Корневой архив уже породил 2 записи (outer.txt и nested.zip) при лимите max_files=3;
+    // распаковка nested.zip с ещё 2 записями (2 + 2 = 4 > 3) должна быть отклонена.
+    expect(app(ArchiveStrategy::class)->process($nestedDoc, $nestedVersion))
+        ->toBe(PreparationResult::Unprocessable)
+        ->and($nestedDoc->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($nestedDoc->unprocessable_reason)->toBe(UnprocessableReason::ZipBomb)
+        ->and(DocumentVersion::query()->where('parent_version_id', $nestedVersion->id)->count())->toBe(0);
+
+    // 2. XLSX с запрещённой декларацией <!DOCTYPE / <!ENTITY терминально отклоняется без вызова LibreOffice.
+    Process::fake();
+    $maliciousXlsxBytes = $makeZipBytes([
+        '[Content_Types].xml' => '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
+        'xl/worksheets/sheet1.xml' => '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE worksheet [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><worksheet/>',
+    ]);
+    $xlsxDoc = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $xlsxPath = 'documents/malicious.xlsx';
+    $disk->put($xlsxPath, $maliciousXlsxBytes);
+    $xlsxVersion = DocumentVersion::factory()->create([
+        'document_id' => $xlsxDoc->id,
+        'extension' => 'xlsx',
+        'disk' => $diskName,
+        'storage_path' => $xlsxPath,
+        'content_hash' => hash('sha256', $maliciousXlsxBytes),
+        'size_bytes' => strlen($maliciousXlsxBytes),
+    ]);
+
+    expect(app(SpreadsheetStrategy::class)->process($xlsxDoc, $xlsxVersion))
+        ->toBe(PreparationResult::Unprocessable)
+        ->and($xlsxDoc->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($xlsxDoc->unprocessable_reason)->toBe(UnprocessableReason::UnreadableFormat);
+
+    Process::assertNothingRan();
 });

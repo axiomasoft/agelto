@@ -34,6 +34,7 @@ final class CrawlersTable
             IconColumn::make('is_active')->label('Активно')->boolean(),
         ])->recordActions([
             Action::make('start')->label('Запустить')->requiresConfirmation()
+                ->authorize(fn (): bool => auth()->user()?->hasPermission(ProcessControlPermission::LaunchRun, panelId: 'admin') ?? false)
                 ->visible(fn (Crawler $record): bool => $record->is_active && (Auth::user()?->hasPermission(ProcessControlPermission::LaunchRun, panelId: 'admin') ?? false))
                 ->schema([
                     Hidden::make(OperatorActionInput::FIELD)->required()->default(fn (Crawler $record): string => OperatorActionInput::issue('launch_acquisition', (string) $record->id, $record->profile_version)),

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
+use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Procurement\Ai\RowRange;
 use App\Dto\Procurement\Process\PublicationInput;
 use App\Dto\Procurement\Process\ScreeningInput;
@@ -16,6 +17,7 @@ use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
 use App\Exceptions\Llm\BillingExportUnreadable;
+use App\Exceptions\Llm\OperationDenied;
 use App\Exceptions\Llm\ReceiptUnavailable;
 use App\Exceptions\Procurement\Process\PublicationBlocked;
 use App\Repositories\Llm\Cache\AssetRepository;
@@ -463,5 +465,97 @@ test('BillingReconciler и ai:cost-reconcile ловят взаимокомпен
         ])->assertExitCode(ConsoleCommand::FAILURE);
     } finally {
         @unlink($tmp);
+    }
+});
+
+test('AssetRepository::claim оценивает истечение expires_at по clock_timestamp СУБД и не позволяет перехватить незавершённый создание-вызов', function (): void {
+    $server = new WireFixture;
+    try {
+        AssetFixtures::clearAssets();
+        $f = new ProviderSendFixtures($server, operationFactory: function (ProviderOperationPlan $base, string $origin): array {
+            $client = new GeminiAssetClient($origin);
+            $caps = AssetFixtures::capabilities($base->context);
+            $prefix = AssetFixtures::prefix($base);
+            $plan = AssetFixtures::plan($base, OperationPurpose::CacheCreate, $prefix->key->hash);
+
+            return [$plan, $client->createCache($plan, $caps, $prefix, 2048, 10, 1000, 3600)];
+        });
+        app(ReceiptPolicies::class)->register('fixture-provider', new AssetFixtures);
+        $server->respond(
+            parse_url($f->wire->endpoint, PHP_URL_PATH),
+            json_encode(AssetFixtures::envelope('cache'), JSON_THROW_ON_ERROR),
+            headers: ['Content-Type' => 'application/json'],
+            method: 'POST',
+        );
+
+        $outcome = app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, $f->gate());
+        expect($outcome)->toBeInstanceOf(ProviderTransportOutcome::class)
+            ->and($outcome->status)->toBe(200);
+
+        $assets = app(AssetRepository::class);
+        $requests = app(RequestRepository::class);
+        $cacheKey = $f->wire->assetKey;
+        expect($cacheKey)->not->toBeNull();
+
+        $makeCall = static function () use ($f, $cacheKey, $requests): array {
+            $plan = new ProviderOperationPlan(
+                new RequestIdentity(
+                    $f->plan->identity->recipeHash,
+                    $cacheKey->hash,
+                    OperationPurpose::CacheCreate,
+                    0,
+                    LedgerFixtures::uuid()->value,
+                ),
+                $f->plan->context,
+                $f->plan->pricing,
+                $f->plan->consumerCorrelationId,
+            );
+            $wire = new ProviderWireRequest(
+                operation: $plan,
+                method: $f->wire->method,
+                endpoint: $f->wire->endpoint,
+                allowedOrigin: $f->wire->allowedOrigin,
+                body: $f->wire->body,
+                contentType: $f->wire->contentType,
+                headers: $f->wire->headers,
+                assetKey: $f->wire->assetKey,
+                capabilities: $f->wire->capabilities,
+            );
+            $op = DB::transaction(fn () => $requests->authorize(
+                $plan,
+                LedgerFixtures::uuid()->value,
+                1,
+                $f->period,
+                wire: $wire,
+            ));
+
+            return [$op, $requests->get($op->physicalCallId)];
+        };
+
+        [$nextOp, $nextCall] = $makeCall();
+
+        // 1. При expires_at > clock_timestamp() активный кэш отклоняет повторный claim.
+        DB::table('llm_context_caches')->update([
+            'expires_at' => DB::raw("clock_timestamp() + interval '60 seconds'"),
+        ]);
+        expect(fn () => DB::transaction(fn () => $assets->claim($cacheKey, $nextCall)))
+            ->toThrow(OperationDenied::class, 'asset_single_flight_or_unknown');
+
+        // 2. При expires_at <= clock_timestamp() и завершённом предыдущем вызове claim перехватывает creation_token.
+        DB::table('llm_context_caches')->update([
+            'expires_at' => DB::raw("clock_timestamp() - interval '1 second'"),
+        ]);
+        DB::transaction(fn () => $assets->claim($cacheKey, $nextCall));
+        expect(DB::table('llm_context_caches')->value('creation_token'))->toBe($nextOp->physicalCallId);
+
+        // 3. Даже при истёкшем expires_at незавершённый (sending) вызов не может быть перехвачен другим вызовом.
+        [, $thirdCall] = $makeCall();
+        DB::table('llm_context_caches')->update([
+            'expires_at' => DB::raw("clock_timestamp() - interval '10 seconds'"),
+        ]);
+        expect(fn () => DB::transaction(fn () => $assets->claim($cacheKey, $thirdCall)))
+            ->toThrow(OperationDenied::class, 'asset_single_flight_or_unknown');
+    } finally {
+        $server->stop();
     }
 });

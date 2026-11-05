@@ -72,12 +72,17 @@ final class PromptCompositionPage extends Page
 
     public function updatedDocumentType(): void
     {
-        $this->step = array_key_first($this->stepOptions()) ?? 'global';
+        $this->step = $this->defaultStepFor($this->selectedDocumentType());
     }
 
     public function selectedPromptStep(): PromptStep
     {
-        return app(DocumentAnalyzerRegistry::class)->promptStepFor($this->selectedDocumentType(), $this->step);
+        $documentType = $this->selectedDocumentType();
+        $step = $this->step !== '' && array_key_exists($this->step, $this->stepOptions())
+            ? $this->step
+            : $this->defaultStepFor($documentType);
+
+        return app(DocumentAnalyzerRegistry::class)->promptStepFor($documentType, $step);
     }
 
     public function composedPrompt(): ComposedPrompt
@@ -94,6 +99,15 @@ final class PromptCompositionPage extends Page
             steps: $step->compositionChain(),
             documentType: $step->documentTypeScope(),
         );
+    }
+
+    private function defaultStepFor(AiDocumentType|DocumentTypeScope $documentType): string
+    {
+        $options = LlmPresentation::promptStepOptions(
+            steps: app(DocumentAnalyzerRegistry::class)->promptStepsFor($documentType),
+        );
+
+        return array_key_first($options) ?? 'global';
     }
 
     private function selectedDocumentType(): AiDocumentType|DocumentTypeScope

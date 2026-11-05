@@ -90,6 +90,11 @@ if [[ "$mode" != dev ]]; then
         grep -q "^${key}=[^[:space:]]" "$parsed" || fail ENV_SCHEMA "add required production key: $key" 12
     done
 fi
+if [[ "$mode" == prod-runtime ]]; then
+    grep -qx 'APP_ENV=production' "$parsed" || fail ENV_SCHEMA 'set APP_ENV=production for prod-runtime' 12
+    grep -qx 'APP_DEBUG=false' "$parsed" || fail ENV_SCHEMA 'set APP_DEBUG=false for prod-runtime' 12
+    grep -Eq '^APP_URL=https://[^[:space:]]+$' "$parsed" || fail ENV_SCHEMA 'set an https:// APP_URL for prod-runtime' 12
+fi
 rm -f "$parsed"
 trap - EXIT
 pass ENV_SCHEMA 'environment schema is non-secret and complete'

@@ -110,16 +110,32 @@ test('active svg отсутствует в закрытом mime contract и н�
 
 test('only the declared GET HEAD documentation route exists and remains fail closed', function (): void {
     $routes = collect(Route::getRoutes()->getRoutes())
-        ->filter(fn ($route): bool => str_starts_with($route->uri(), 'documentation'));
+        ->filter(fn ($route): bool => str_starts_with($route->uri(), 'documentation') || str_starts_with($route->uri(), 'admin/documentation'))
+        ->values();
 
-    expect($routes)->toHaveCount(1)
-        ->and($routes->first()->methods())->toBe(['GET', 'HEAD'])
-        ->and($routes->first()->getActionName())->toBe(PrivateDocumentationController::class);
+    expect($routes)->toHaveCount(2);
+
+    foreach ($routes as $route) {
+        expect($route->methods())->toBe(['GET', 'HEAD'])
+            ->and($route->getActionName())->toBe(PrivateDocumentationController::class);
+    }
+
+    $adminResponse = $this->get('/admin/documentation');
+
+    expect(file_get_contents($adminResponse->baseResponse->getFile()->getPathname()))->toContain('root sentinel')
+        ->and($adminResponse->headers->get('Content-Type'))->toBe('text/html; charset=utf-8')
+        ->and(privateDocumentationCacheDirectives($adminResponse->headers->get('Cache-Control')))->toBe(['no-store', 'private'])
+        ->and($adminResponse->headers->get('X-Content-Type-Options'))->toBe('nosniff')
+        ->and($adminResponse->headers->get('Referrer-Policy'))->toBe('no-referrer')
+        ->and($adminResponse->headers->get('Cross-Origin-Resource-Policy'))->toBe('same-origin')
+        ->and($adminResponse->headers->get('Content-Security-Policy'))->toContain("default-src 'self'");
 
     actingAs(User::factory()->create());
 
     $this->get('/documentation')->assertForbidden();
     $this->call('HEAD', '/documentation')->assertForbidden();
+    $this->get('/admin/documentation')->assertForbidden();
+    $this->call('HEAD', '/admin/documentation')->assertForbidden();
 });
 
 function privateDocumentationResponseRemoveDirectory(string $directory): void

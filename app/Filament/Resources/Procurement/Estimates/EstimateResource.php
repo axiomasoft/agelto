@@ -16,6 +16,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Read-only витрина смет с причинами неопределённости позиций. Доступны index и view;
@@ -52,12 +53,19 @@ class EstimateResource extends Resource
     // независимо от числа позиций в смете.
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        /** @var Builder<Estimate> $baseQuery */
+        $baseQuery = parent::getEloquentQuery();
+
+        /** @var Builder<Model> $query */
+        $query = $baseQuery
+            ->publicPlatform()
             ->with(['procurement', 'documentVersion.document', 'analysis'])
             ->withCount([
                 'items as items_count',
                 'items as marked_items_count' => fn (Builder $query): Builder => $query->whereNotNull('quality'),
             ]);
+
+        return $query;
     }
 
     public static function getRelations(): array

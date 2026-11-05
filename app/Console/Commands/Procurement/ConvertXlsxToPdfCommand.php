@@ -33,6 +33,7 @@ final class ConvertXlsxToPdfCommand extends Command
         }
 
         $writer = IOFactory::createWriter($spreadsheet, 'Pdf');
+        $writer->setPreCalculateFormulas(false);
         $writer->save((string) $this->argument('output'));
 
         $spreadsheet->disconnectWorksheets();

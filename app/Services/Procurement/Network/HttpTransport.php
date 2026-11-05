@@ -14,6 +14,7 @@ use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\ReservedProviderNetwork;
 use App\Dto\Procurement\Network\ResolvedUrl;
 use App\Dto\Procurement\Network\ResponseEnvelope;
+use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportMetrics;
 use App\Dto\Procurement\Process\ArtifactRef;
@@ -49,9 +50,7 @@ final readonly class HttpTransport
 
     public function sendOnce(AuthorizedHttpRequest $authorized, ResolvedUrl $resolved, HttpRequestPayload $payload, ExecutionContext|OutboundExecutionContext $context, TransferBudget $budget): HttpAttemptResult
     {
-        if (DB::transactionLevel() !== 0) {
-            throw new \LogicException('Outbound I/O is forbidden inside a database transaction.');
-        }
+        $this->outsideTransaction();
         $plan = $authorized->plan;
         if ($plan->url->hash()->hex !== $resolved->url->hash()->hex) {
             throw new \LogicException('Resolved URL does not match authorized request.');
@@ -230,7 +229,18 @@ final readonly class HttpTransport
     public function prepareProvider(ProviderWireRequest $wire, string $physical, ReservedProviderNetwork $network,
         ExecutionContext $context, string $apiKey, int $latestStartNs): PreparedProviderTransport
     {
+        $this->outsideTransaction();
         $plan = $network->permit->ticket->plan;
+        $bodyMatches = $wire->method === 'GET'
+            ? ($plan->bodyHash === null && $wire->body === '' && $wire->bodyHash === hash('sha256', ''))
+            : ($plan->bodyHash?->hex === $wire->bodyHash);
+        if ($plan->physicalRequestId->value !== $physical
+            || $plan->url->hash()->hex !== $network->resolved->url->hash()->hex
+            || (new SafeUrl($wire->endpoint))->hash()->hex !== $plan->url->hash()->hex
+            || $plan->method !== $wire->method
+            || ! $bodyMatches) {
+            throw new \LogicException('Provider wire request does not match reserved network plan.');
+        }
         $profile = $plan->profile;
         $host = $plan->url->origin->host;
         $port = $plan->url->origin->port;
@@ -315,6 +325,13 @@ final readonly class HttpTransport
         }
 
         return $trustOptions;
+    }
+
+    private function outsideTransaction(): void
+    {
+        if (DB::transactionLevel() !== 0) {
+            throw new \LogicException('Outbound I/O is forbidden inside a database transaction.');
+        }
     }
 
     private static function headersByteLength(ResponseInterface $response): int

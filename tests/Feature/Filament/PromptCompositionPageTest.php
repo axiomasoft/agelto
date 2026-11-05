@@ -71,3 +71,13 @@ test('без права просмотра промтов прямой URL ко�
 
     get(PromptCompositionPage::getUrl())->assertForbidden();
 });
+
+test('подмена step на недопустимое значение для типа документа откатывается к дефолтному шагу', function (): void {
+    promptCompositionViewer();
+
+    Livewire::test(PromptCompositionPage::class)
+        ->set('documentType', 'any')
+        ->set('step', 'extraction:rows')
+        ->assertSuccessful()
+        ->assertSee('global');
+});

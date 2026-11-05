@@ -10,12 +10,11 @@ use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * HTTP trace_id сохраняется в Laravel Context, дегидрируется в payload отправленных
- * jobs и восстанавливается в worker. Console commands используют `cmd:<name>:<uuid>`.
+ * jobs и восстанавливается в worker. Console commands используют 32-hex trace_id и command в Context.
  *
  * Middleware работает до роутера. Имя и шаблон route записываются на RouteMatched,
  * после сопоставления запроса и до вызова handler.
@@ -24,7 +23,11 @@ final class AssignTraceId
 {
     public function handle(Request $request, Closure $next): Response
     {
-        Context::add('trace_id', (string) Str::uuid());
+        $incoming = $request->headers->get('X-Request-Id');
+        $traceId = is_string($incoming) && preg_match('/^[A-Za-z0-9._:-]{1,128}$/D', $incoming) === 1
+            ? $incoming
+            : bin2hex(random_bytes(16));
+        Context::add('trace_id', $traceId);
         self::rememberRoute($request);
         self::listenForMatchedRoute();
 

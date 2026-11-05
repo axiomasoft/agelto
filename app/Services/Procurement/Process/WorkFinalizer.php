@@ -176,10 +176,25 @@ final readonly class WorkFinalizer
                 reason: $accepted['reason'],
                 retryAt: is_string($due) ? new \DateTimeImmutable($due) : null,
                 itemFailureConsumed: $accepted['item_increment'] > 0,
-                traceId: is_string($trace) && preg_match('/^[0-9a-f]{32}$/D', $trace) === 1 ? $trace : null,
+                traceId: self::normalizeTraceId($trace),
                 occurredAt: new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
             );
         });
+    }
+
+    private static function normalizeTraceId(mixed $trace): ?string
+    {
+        if (! is_string($trace)) {
+            return null;
+        }
+        if (preg_match('/^[0-9a-f]{32}$/D', $trace) === 1) {
+            return $trace;
+        }
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iD', $trace) === 1) {
+            return strtolower(str_replace('-', '', $trace));
+        }
+
+        return null;
     }
 
     /** @param array<string, ProcessUuid> $ids */

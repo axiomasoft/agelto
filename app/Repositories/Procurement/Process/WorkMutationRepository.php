@@ -23,6 +23,7 @@ use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\SubjectLockResolver;
+use App\Support\SecretRedactor;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -338,6 +339,6 @@ final readonly class WorkMutationRepository
             throw new \InvalidArgumentException('Control action requires a short nonempty reason.');
         }
 
-        return $reason;
+        return SecretRedactor::text($reason);
     }
 }

@@ -136,11 +136,21 @@ mapfile -t rollback_stages < <(sed -n 's/^rollback:\([^:]*\):.*/\1/p' "$LIFECYCL
 [[ ${rollback_stages[*]} == 'stop compatibility previous-digest promote readiness' ]] || fail 'rollback stage order drifted'
 expect_fail 'rollback with unknown compatibility' "$rollback" fixture --adapter "$adapter" --previous-digest "$previous" --schema-compatible unknown
 
-manifest="$fixture_root/backup.manifest"
-cat > "$manifest" <<'EOF'
+restore_dir="$fixture_root/restore-backup"
+mkdir -p "$restore_dir"
+printf 'PGDMP fixture\n' > "$restore_dir/postgres.dump"
+printf 'bucket/current-object sha256:fixture\n' > "$restore_dir/object-current.manifest"
+printf 'encrypted-config-fixture\n' > "$restore_dir/config-secrets.tar.enc"
+(
+    cd "$restore_dir"
+    sha256sum postgres.dump object-current.manifest config-secrets.tar.enc > manifest.sha256
+)
+manifest_sha=$(sha256sum "$restore_dir/manifest.sha256" | cut -d' ' -f1)
+manifest="$restore_dir/backup.manifest"
+cat > "$manifest" <<EOF
 schema=agelto.backup-manifest/v1
 verified=1
-manifest_sha256=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+manifest_sha256=$manifest_sha
 source_backup_id=backup-20260815T000000Z
 EOF
 export LIFECYCLE_LOG="$fixture_root/restore.log"
@@ -148,6 +158,12 @@ export LIFECYCLE_LOG="$fixture_root/restore.log"
 [[ $(grep -c '^restore:' "$LIFECYCLE_LOG") -eq 6 ]] || fail 'restore did not execute the closed isolated sequence'
 expect_fail 'production restore target' "$restore" check --target production
 expect_fail 'prod-like rehearsal target' "$restore" check --target agelto_prod_rehearsal
+printf 'corrupted\n' >> "$restore_dir/postgres.dump"
+expect_fail 'corrupted postgres dump' "$restore" fixture --target agelto_rehearsal --manifest "$manifest" --adapter "$adapter" --lock-file "$lock"
+printf 'PGDMP fixture\n' > "$restore_dir/postgres.dump"
+sed -i 's/^manifest_sha256=.*/manifest_sha256=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc/' "$manifest"
+expect_fail 'mismatched manifest_sha256' "$restore" fixture --target agelto_rehearsal --manifest "$manifest" --adapter "$adapter" --lock-file "$lock"
+sed -i "s/^manifest_sha256=.*/manifest_sha256=$manifest_sha/" "$manifest"
 sed -i 's/verified=1/verified=0/' "$manifest"
 expect_fail 'unverified backup manifest' "$restore" fixture --target agelto_rehearsal --manifest "$manifest" --adapter "$adapter" --lock-file "$lock"
 

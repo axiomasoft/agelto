@@ -6,12 +6,16 @@ use App\Enums\Procurement\Ai\FixtureClass;
 use App\Enums\Procurement\Ai\GoldSource;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PreparationResult;
+use App\Filament\Resources\Procurement\Estimates\EstimateResource;
+use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\Procurement\Platform\Platform;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Procurement;
 use App\Services\Procurement\Prepare\ArchiveStrategy;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
@@ -45,6 +49,22 @@ test('выборка витрины не содержит смету и доку
     $estimates = Estimate::query()->publicPlatform()->pluck('id');
     expect($estimates)->toContain($publicEstimate->id)
         ->and($estimates)->not->toContain($trainingEstimate->id);
+
+    $trainingRegistry = Registry::factory()->create(['platform_id' => $training->id, 'code' => 'training_reg']);
+    $trainingProcurement = Procurement::factory()->create(['registry_id' => $trainingRegistry->id, 'platform_id' => $training->id]);
+    $publicProcurement = Procurement::factory()->create();
+
+    $resourceProcurements = ProcurementResource::getEloquentQuery()->pluck('id');
+    expect($resourceProcurements)->toContain($publicProcurement->id)
+        ->and($resourceProcurements)->not->toContain($trainingProcurement->id);
+
+    $resourceEstimates = EstimateResource::getEloquentQuery()->pluck('id');
+    expect($resourceEstimates)->toContain($publicEstimate->id)
+        ->and($resourceEstimates)->not->toContain($trainingEstimate->id);
+
+    expect(fn () => $training->update(['is_public' => true]))->toThrow(LogicException::class)
+        ->and(fn () => $training->fresh()->update(['code' => 'renamed']))->toThrow(LogicException::class)
+        ->and(fn () => $training->fresh()->delete())->toThrow(LogicException::class);
 });
 
 test('прогон с mode=auto над документом площадки «Обучалка» не создаётся', function (): void {

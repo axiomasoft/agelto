@@ -32,6 +32,12 @@ final class ProcessLog
         self::write('info', 'process.delivery_rejected', ['work_id' => $workId, 'dispatch_generation' => $dispatchGeneration, 'reason' => $reason->value]);
     }
 
+    /** @param array<string, mixed> $context */
+    public static function deliveryWarning(string $event, array $context = []): void
+    {
+        self::write('warning', 'process.'.$event, ['event' => $event, ...$context]);
+    }
+
     /** @param array<string, int|string> $context */
     public static function quarantined(string $code, array $context): void
     {

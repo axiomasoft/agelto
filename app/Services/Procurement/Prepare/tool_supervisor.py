@@ -11,7 +11,29 @@ import time
 
 
 def main():
-    receipt, seconds, ceiling, memory, cpu, *command = sys.argv[1:]
+    max_procs = 64
+    args = sys.argv[1:]
+    pos = []
+    idx = 0
+    while idx < len(args):
+        arg = args[idx]
+        if arg == '--max-procs':
+            if idx + 1 >= len(args):
+                raise ValueError('--max-procs requires an integer argument')
+            max_procs = int(args[idx + 1])
+            idx += 2
+            continue
+        if arg.startswith('--max-procs='):
+            max_procs = int(arg.split('=', 1)[1])
+            idx += 1
+            continue
+        if len(pos) < 5:
+            pos.append(arg)
+            idx += 1
+            continue
+        break
+    receipt, seconds, ceiling, memory, cpu = pos
+    command = args[idx:]
     seconds, ceiling, memory, cpu = float(seconds), int(ceiling), int(memory), int(cpu)
     # Linux subreaper: grandchildren are ours to reap, including tools whose leader exited.
     if ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0) != 0:
@@ -147,9 +169,23 @@ def main():
                 if time.monotonic() - started >= seconds:
                     reason = 'page_timeout'
                     break
+                pids = descendants()
+                if max_procs > 0 and len(pids) > max_procs:
+                    reason = 'nproc_limit'
+                    if group_alive():
+                        try:
+                            os.killpg(pgid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    for pid in pids:
+                        try:
+                            os.kill(pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    break
                 live_rss = 0
                 live_cpu = 0.0
-                for pid in descendants():
+                for pid in pids:
                     p_cpu, p_rss = proc_usage(pid)
                     if p_cpu > seen_cpu.get(pid, 0.0):
                         seen_cpu[pid] = p_cpu
@@ -168,6 +204,8 @@ def main():
                     break
                 time.sleep(.05)
         finally:
+            if reason is None and max_procs > 0 and len(descendants()) > max_procs:
+                reason = 'nproc_limit'
             if group_alive():
                 try:
                     os.killpg(pgid, signal.SIGTERM)

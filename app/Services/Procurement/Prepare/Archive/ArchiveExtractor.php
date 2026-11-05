@@ -109,12 +109,24 @@ final readonly class ArchiveExtractor
     /** @return list<ArchiveEntry> */
     private function listSevenZip(string $archivePath, ?float $deadlineAt): array
     {
-        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run([$this->configString('ai.tools.sevenzip_bin'), 'l', '-slt', $archivePath]);
+        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run([
+            $this->configString('ai.tools.sevenzip_bin'),
+            'l',
+            '-slt',
+            '-y',
+            '-p',
+            '--',
+            $archivePath,
+        ]);
         if ($result->failed()) {
             $this->rejectByOutput($result);
         }
 
-        $afterSeparator = explode('----------', $result->output(), 2)[1] ?? '';
+        [$headerSection, $afterSeparator] = array_pad(explode('----------', $result->output(), 2), 2, '');
+        if (preg_match('/^Encrypted\s*=\s*\+/m', $headerSection) === 1) {
+            throw new ArchivePasswordProtectedException('архив содержит зашифрованные заголовки');
+        }
+
         $entries = [];
         foreach (preg_split('/\n{2,}/', trim($afterSeparator)) ?: [] as $block) {
             $parsed = $this->parseSevenZipEntryBlock($block);
@@ -156,7 +168,7 @@ final readonly class ArchiveExtractor
     private function extractSevenZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $this->extractProcessEntry(
-            [$this->configString('ai.tools.sevenzip_bin'), 'x', '-so', '-y', '-spd', '--', $archivePath, $entry->path],
+            [$this->configString('ai.tools.sevenzip_bin'), 'x', '-so', '-y', '-p', '-spd', '--', $archivePath, $entry->path],
             $entry,
             $targetPath,
             $budget,
@@ -289,8 +301,14 @@ final readonly class ArchiveExtractor
     private function rejectByOutput(ProcessResult $result): never
     {
         $output = trim($result->errorOutput().$result->output());
-        if (str_contains(mb_strtolower($output), 'password')) {
-            throw new ArchivePasswordProtectedException($output);
+        $lower = mb_strtolower($output, 'UTF-8');
+        if (
+            str_contains($lower, 'password')
+            || str_contains($lower, 'can not open encrypted archive')
+            || str_contains($lower, 'cannot open encrypted archive')
+            || preg_match('/^encrypted\s*=\s*\+/mi', $output) === 1
+        ) {
+            throw new ArchivePasswordProtectedException($output !== '' ? $output : 'архив защищён паролем');
         }
         throw new ArchiveUnsupportedException($output !== '' ? $output : 'распаковщик не смог обработать архив');
     }

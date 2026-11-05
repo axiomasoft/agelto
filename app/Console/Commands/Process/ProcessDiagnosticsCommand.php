@@ -20,6 +20,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use LogicException;
 
 /**
@@ -52,6 +53,9 @@ final class ProcessDiagnosticsCommand extends Command
             ...$this->backlogSpike(),
             ...$this->failureRateSpike(),
             ...$this->noCompletions(),
+            ...$this->openIncidents(),
+            ...$this->blockedWork(),
+            ...$this->staleOutbox(),
         ];
 
         if ($findings === []) {
@@ -350,6 +354,58 @@ final class ProcessDiagnosticsCommand extends Command
         }
 
         return ['no_completions' => "Ни одного завершённого анализа за {$minutes}мин при непустом backlog — пайплайн, похоже, встал"];
+    }
+
+    /** @return array<string, string> */
+    private function openIncidents(): array
+    {
+        if (! Schema::hasTable('prc_process_incidents')) {
+            return [];
+        }
+
+        $count = DB::table('prc_process_incidents')->where('state', 'open')->count();
+
+        if ($count === 0) {
+            return [];
+        }
+
+        return ['open_incidents' => "Открытых инцидентов (prc_process_incidents): {$count}"];
+    }
+
+    /** @return array<string, string> */
+    private function blockedWork(): array
+    {
+        if (! Schema::hasTable('prc_process_work')) {
+            return [];
+        }
+
+        $count = DB::table('prc_process_work')->where('state', 'blocked')->where('reason_code', '!=', 'paused')->count();
+
+        if ($count === 0) {
+            return [];
+        }
+
+        return ['blocked_work' => "Заблокированных работ (prc_process_work, кроме paused): {$count}"];
+    }
+
+    /** @return array<string, string> */
+    private function staleOutbox(): array
+    {
+        if (! Schema::hasTable('prc_process_outbox')) {
+            return [];
+        }
+
+        $timeColumn = Schema::hasColumn('prc_process_outbox', 'created_at') ? 'created_at' : 'available_at';
+        $count = DB::table('prc_process_outbox')
+            ->whereNull('published_at')
+            ->where($timeColumn, '<', now()->subMinutes(15))
+            ->count();
+
+        if ($count === 0) {
+            return [];
+        }
+
+        return ['stale_outbox' => "Неопубликованных сообщений в outbox (>15мин): {$count}"];
     }
 
     private function intConfig(string $key, int $default): int

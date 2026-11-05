@@ -19,6 +19,11 @@ use Illuminate\Support\Str;
  * Площадка-источник закупок (ЕИС и т.п.) либо служебный контур обучения (`code=training`,
  * `is_public=false`) — оба различаются РОВНО этой строкой, без второй оси на документе.
  *
+ * @property string $code
+ * @property string $name
+ * @property string $base_url
+ * @property bool $is_active
+ * @property bool $is_public
  * @property PlatformThrottleSettings|null $throttle
  * @property string $uuid
  */
@@ -64,7 +69,21 @@ final class Platform extends Model
     protected static function booted(): void
     {
         self::saving(static function (self $platform): void {
+            if ($platform->getOriginal('code') === self::TRAINING_CODE && $platform->code !== self::TRAINING_CODE) {
+                throw new \LogicException('Код служебной площадки обучения не может быть изменён.');
+            }
+
+            if ($platform->code === self::TRAINING_CODE && $platform->is_public === true) {
+                throw new \LogicException('Служебная площадка обучения не может быть публичной.');
+            }
+
             $platform->resolveThrottle(raw: $platform->rawThrottle());
+        });
+
+        self::deleting(static function (self $platform): void {
+            if ($platform->getOriginal('code') === self::TRAINING_CODE || $platform->code === self::TRAINING_CODE) {
+                throw new \LogicException('Служебная площадка обучения не может быть удалена.');
+            }
         });
 
         self::creating(function (self $platform): void {

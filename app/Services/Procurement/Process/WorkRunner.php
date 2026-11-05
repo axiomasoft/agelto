@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Process;
 
 use App\Dto\Procurement\Process\AuthoritySnapshot;
+use App\Dto\Procurement\Process\CompletionResult;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DeliveryEnvelope;
 use App\Dto\Procurement\Process\ExecutionContext;
@@ -17,6 +18,7 @@ use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\StagePartial;
 use App\Enums\Procurement\Process\ClaimStatus;
+use App\Enums\Procurement\Process\CompletionStatus;
 use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\DeliveryOutcome;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
@@ -145,11 +147,11 @@ final readonly class WorkRunner
         return $this->finalize(fn () => $this->finalizer->finishHandlerFault($context->lease(), HandlerFaultEvidence::fromThrowable($fault)));
     }
 
-    /** @param \Closure(): mixed $finalization */
+    /** @param \Closure(): CompletionResult $finalization */
     private function finalize(\Closure $finalization): DeliveryOutcome
     {
         try {
-            $finalization();
+            $result = $finalization();
         } catch (DependencyUnavailable $unavailable) {
             ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
 
@@ -163,7 +165,15 @@ final readonly class WorkRunner
             return DeliveryOutcome::DependencyUnavailable;
         }
 
-        return DeliveryOutcome::Executed;
+        if ($result->status === CompletionStatus::InvariantViolation) {
+            ProcessLog::deliveryWarning('work_finalization_invariant_violation', ['status' => $result->status->value]);
+        }
+
+        return match ($result->status) {
+            CompletionStatus::Applied => DeliveryOutcome::Executed,
+            CompletionStatus::LostOwnership => DeliveryOutcome::LeaseLost,
+            CompletionStatus::InvariantViolation => DeliveryOutcome::Rejected,
+        };
     }
 
     /** Устойчивый прогресс сохраняется как Partial (ready); без него — deferred(slice_exhausted). */

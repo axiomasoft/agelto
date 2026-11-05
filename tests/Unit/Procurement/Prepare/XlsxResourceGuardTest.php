@@ -50,6 +50,31 @@ test('xlsx guard не теряет cell tag на границе streaming chunk'
     }
 });
 
+test('xlsx guard отклоняет DOCTYPE и ENTITY объявления в xml и rels записях в UTF-8 и UTF-16', function (string $entryName, string $payload): void {
+    $path = hostileXlsx([$entryName => $payload]);
+
+    try {
+        $guard = app(XlsxResourceGuard::class);
+        expect($guard->accepts(path: $path, extension: 'xlsx'))->toBeFalse();
+        expect(fn () => $guard->assertSafeXmlEntries($path))->toThrow(RuntimeException::class);
+    } finally {
+        @unlink($path);
+    }
+})->with([
+    'utf8 doctype in worksheet' => [
+        'xl/worksheets/sheet1.xml',
+        '<?xml version="1.0"?><!DOCTYPE worksheet [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><worksheet/>',
+    ],
+    'utf8 entity in rels' => [
+        '_rels/.rels',
+        '<?xml version="1.0"?><!ENTITY lol "lol"><Relationships/>',
+    ],
+    'utf16le doctype in sharedStrings' => [
+        'xl/sharedStrings.xml',
+        "\xFF\xFE".mb_convert_encoding('<?xml version="1.0"?><!DOCTYPE sst><sst/>', 'UTF-16LE', 'UTF-8'),
+    ],
+]);
+
 /** @param array<string, string> $entries */
 function hostileXlsx(array $entries): string
 {

@@ -12,6 +12,7 @@ use Filament\Support\Assets\Asset;
 use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
+use Illuminate\Database\Connection;
 use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
@@ -60,14 +61,14 @@ final readonly class ApplicationReadiness
             }
 
             $result = match ($code) {
-                ReadinessCheckCode::Database => $this->database(),
-                ReadinessCheckCode::Cache => $this->cache(),
-                ReadinessCheckCode::Storage => $this->storage(),
-                ReadinessCheckCode::ReleaseState => $this->releaseState(),
+                ReadinessCheckCode::Database => $this->database($deadlineNs),
+                ReadinessCheckCode::Cache => $this->cache($deadlineNs),
+                ReadinessCheckCode::Storage => $this->storage($deadlineNs),
+                ReadinessCheckCode::ReleaseState => $this->releaseState($deadlineNs),
                 ReadinessCheckCode::Assets => $this->assets(),
-                ReadinessCheckCode::Horizon => $this->horizon(),
-                ReadinessCheckCode::Scheduler => $this->scheduler(),
-                ReadinessCheckCode::ProcessDaemons => $this->processDaemons(),
+                ReadinessCheckCode::Horizon => $this->horizon($deadlineNs),
+                ReadinessCheckCode::Scheduler => $this->scheduler($deadlineNs),
+                ReadinessCheckCode::ProcessDaemons => $this->processDaemons($deadlineNs),
             };
 
             if ($result->passed && hrtime(true) > $deadlineNs) {
@@ -100,59 +101,103 @@ final readonly class ApplicationReadiness
         );
     }
 
-    private function database(): ReadinessCheckResult
+    private function database(int $deadlineNs): ReadinessCheckResult
     {
-        return $this->attempt(code: ReadinessCheckCode::Database, callback: function (): void {
-            $this->database->connection()->select(query: 'select 1');
+        return $this->attempt(code: ReadinessCheckCode::Database, callback: function () use ($deadlineNs): void {
+            $connection = $this->database->connection();
+            if ($connection instanceof Connection && $connection->getDriverName() === 'pgsql') {
+                $connection->transaction(function () use ($connection, $deadlineNs): void {
+                    $ms = $this->remainingBudgetMs($deadlineNs);
+                    $connection->statement("SET LOCAL lock_timeout = {$ms}");
+                    $connection->statement("SET LOCAL statement_timeout = {$ms}");
+                    $connection->select(query: 'select 1');
+                });
+
+                return;
+            }
+            $connection->select(query: 'select 1');
         });
     }
 
-    private function cache(): ReadinessCheckResult
+    private function cache(int $deadlineNs): ReadinessCheckResult
     {
         $key = 'agelto:readiness:'.bin2hex(random_bytes(16));
         $value = bin2hex(random_bytes(16));
 
-        return $this->attempt(code: ReadinessCheckCode::Cache, callback: function () use ($key, $value): void {
+        return $this->attempt(code: ReadinessCheckCode::Cache, callback: function () use ($key, $value, $deadlineNs): void {
+            $written = false;
             try {
                 $store = $this->cache->store();
                 $store->put(key: $key, value: $value, ttl: self::positiveIntConfig('readiness.cache.ttl_seconds'));
+                $written = true;
+                if (hrtime(true) >= $deadlineNs) {
+                    throw new \RuntimeException('cache readiness deadline exceeded');
+                }
                 $storedValue = $store->get(key: $key);
 
                 if (! is_string($storedValue) || ! hash_equals($value, $storedValue)) {
                     throw new \RuntimeException('cache round-trip mismatch');
                 }
             } finally {
-                $this->cache->store()->forget(key: $key);
+                if ($written && hrtime(true) < $deadlineNs) {
+                    try {
+                        $this->cache->store()->forget(key: $key);
+                    } catch (Throwable) {
+                    }
+                }
             }
         });
     }
 
-    private function storage(): ReadinessCheckResult
+    private function storage(int $deadlineNs): ReadinessCheckResult
     {
         $path = 'health/readiness-'.bin2hex(random_bytes(16)).'.txt';
         $value = bin2hex(random_bytes(16));
         $disk = self::nonEmptyStringConfig('readiness.storage.disk');
 
-        return $this->attempt(code: ReadinessCheckCode::Storage, callback: function () use ($disk, $path, $value): void {
+        return $this->attempt(code: ReadinessCheckCode::Storage, callback: function () use ($disk, $path, $value, $deadlineNs): void {
             $filesystem = $this->filesystem->disk(name: $disk);
+            $written = false;
 
             try {
-                if (! $filesystem->put(path: $path, contents: $value)
-                    || ! hash_equals($value, (string) $filesystem->get(path: $path))) {
+                if (! $filesystem->put(path: $path, contents: $value)) {
+                    throw new \RuntimeException('storage round-trip mismatch');
+                }
+                $written = true;
+                if (hrtime(true) >= $deadlineNs || ! hash_equals($value, (string) $filesystem->get(path: $path))) {
                     throw new \RuntimeException('storage round-trip mismatch');
                 }
             } finally {
-                $filesystem->delete(paths: $path);
+                if ($written && hrtime(true) < $deadlineNs) {
+                    try {
+                        $filesystem->delete(paths: $path);
+                    } catch (Throwable) {
+                    }
+                }
             }
         });
     }
 
-    private function releaseState(): ReadinessCheckResult
+    private function releaseState(int $deadlineNs): ReadinessCheckResult
     {
-        return $this->attempt(code: ReadinessCheckCode::ReleaseState, callback: function (): void {
-            if (! $this->releaseState->baseDataIsReady() || ! $this->releaseState->initialAdminIsReady()) {
-                throw new \RuntimeException('base data or initial administrator is not ready');
+        return $this->attempt(code: ReadinessCheckCode::ReleaseState, callback: function () use ($deadlineNs): void {
+            $connection = $this->database->connection();
+            $verify = function (): void {
+                if (! $this->releaseState->baseDataIsReady() || ! $this->releaseState->initialAdminIsReady()) {
+                    throw new \RuntimeException('base data or initial administrator is not ready');
+                }
+            };
+            if ($connection instanceof Connection && $connection->getDriverName() === 'pgsql') {
+                $connection->transaction(function () use ($connection, $deadlineNs, $verify): void {
+                    $ms = $this->remainingBudgetMs($deadlineNs);
+                    $connection->statement("SET LOCAL lock_timeout = {$ms}");
+                    $connection->statement("SET LOCAL statement_timeout = {$ms}");
+                    $verify();
+                });
+
+                return;
             }
+            $verify();
         });
     }
 
@@ -169,9 +214,12 @@ final readonly class ApplicationReadiness
         });
     }
 
-    private function horizon(): ReadinessCheckResult
+    private function horizon(int $deadlineNs): ReadinessCheckResult
     {
-        return $this->attempt(code: ReadinessCheckCode::Horizon, callback: function (): void {
+        return $this->attempt(code: ReadinessCheckCode::Horizon, callback: function () use ($deadlineNs): void {
+            if (hrtime(true) >= $deadlineNs) {
+                throw new \RuntimeException('Horizon readiness deadline exceeded');
+            }
             $masters = $this->masters->all();
 
             if ($masters === [] || collect($masters)->contains(static fn (mixed $master): bool => self::horizonMasterIsNotRunning($master))) {
@@ -180,9 +228,12 @@ final readonly class ApplicationReadiness
         });
     }
 
-    private function scheduler(): ReadinessCheckResult
+    private function scheduler(int $deadlineNs): ReadinessCheckResult
     {
-        return $this->attempt(code: ReadinessCheckCode::Scheduler, callback: function (): void {
+        return $this->attempt(code: ReadinessCheckCode::Scheduler, callback: function () use ($deadlineNs): void {
+            if (hrtime(true) >= $deadlineNs) {
+                throw new \RuntimeException('scheduler readiness deadline exceeded');
+            }
             $heartbeat = $this->cache->store()->get(key: self::SchedulerHeartbeatKey);
 
             if (! is_string($heartbeat)
@@ -192,13 +243,18 @@ final readonly class ApplicationReadiness
         });
     }
 
-    private function processDaemons(): ReadinessCheckResult
+    private function processDaemons(int $deadlineNs): ReadinessCheckResult
     {
-        return $this->attempt(code: ReadinessCheckCode::ProcessDaemons, callback: function (): void {
-            if (! $this->daemons->ready()) {
+        return $this->attempt(code: ReadinessCheckCode::ProcessDaemons, callback: function () use ($deadlineNs): void {
+            if (hrtime(true) >= $deadlineNs || ! $this->daemons->ready()) {
                 throw new \RuntimeException('Process daemons are not ready');
             }
         });
+    }
+
+    private function remainingBudgetMs(int $deadlineNs): int
+    {
+        return max(1, (int) ceil(($deadlineNs - hrtime(true)) / 1_000_000));
     }
 
     /** @param callable(): void $callback */

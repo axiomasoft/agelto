@@ -51,6 +51,10 @@ final class XlsxResourceGuard
 
                 $name = $stat['name'];
 
+                if (preg_match('/\.(?:xml|rels)$/i', $name) === 1 && $this->entryContainsProhibitedXml($zip, $name, $maxDecoded)) {
+                    return false;
+                }
+
                 if (preg_match('#^xl/worksheets/[^/]+\.xml$#', $name) === 1) {
                     $reader = new \XMLReader;
                     $uri = 'zip://'.((string) realpath($path)).'#'.$name;
@@ -74,6 +78,75 @@ final class XlsxResourceGuard
             return $decoded === 0 || ($compressed > 0 && $decoded / $compressed <= $maxRatio);
         } finally {
             $zip->close();
+        }
+    }
+
+    public function assertSafeXmlEntries(string $filePath): void
+    {
+        $zip = new ZipArchive;
+
+        if ($zip->open($filePath, ZipArchive::CHECKCONS) !== true) {
+            return;
+        }
+
+        try {
+            $maxDecoded = $this->positiveInt('ai.prepare.xlsx_max_decoded_mb', 128) * 1024 * 1024;
+
+            for ($index = 0; $index < $zip->numFiles; $index++) {
+                $stat = $zip->statIndex($index);
+
+                if ($stat === false) {
+                    continue;
+                }
+
+                $name = $stat['name'];
+
+                if (preg_match('/\.(?:xml|rels)$/i', $name) === 1 && $this->entryContainsProhibitedXml($zip, $name, $maxDecoded)) {
+                    throw new \RuntimeException("XLSX entry {$name} contains prohibited DOCTYPE/ENTITY declaration.");
+                }
+            }
+        } finally {
+            $zip->close();
+        }
+    }
+
+    private function entryContainsProhibitedXml(ZipArchive $zip, string $name, int $maxBytes): bool
+    {
+        $stream = $zip->getStream($name);
+
+        if (! is_resource($stream)) {
+            return true;
+        }
+
+        try {
+            $read = 0;
+            $tail = '';
+
+            while (! feof($stream) && $read < $maxBytes) {
+                $chunk = fread($stream, 65536);
+
+                if ($chunk === false) {
+                    return true;
+                }
+
+                if ($chunk === '') {
+                    continue;
+                }
+
+                $read += strlen($chunk);
+                $window = $tail.$chunk;
+                $normalized = str_replace("\x00", '', $window);
+
+                if (stripos($normalized, '<!doctype') !== false || stripos($normalized, '<!entity') !== false) {
+                    return true;
+                }
+
+                $tail = substr($window, -64);
+            }
+
+            return false;
+        } finally {
+            fclose($stream);
         }
     }
 

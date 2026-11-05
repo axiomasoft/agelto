@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Actions\Admin\ResetAdminPasswordAction;
 use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use App\Filament\Resources\Procurement\Process\Runs\ProcessRunResource;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
@@ -11,7 +12,13 @@ use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\Llm\Prompt;
 use App\Models\User;
+use AzGuard\Filament\Resources\RoleResource\Pages\EditRole;
+use AzGuard\Filament\Resources\RoleResource\RelationManagers\RoleUsersRelationManager;
+use AzGuard\Models\Role;
+use AzGuard\Models\RolePermission;
+use Filament\Actions\DetachAction;
 use Filament\Facades\Filament;
+use Livewire\Livewire;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
@@ -118,4 +125,60 @@ test('PromptResource: без права на промты viewAny/view/create de
     expect(PromptResource::canViewAny())->toBeFalse()
         ->and(PromptResource::canView($prompt))->toBeFalse()
         ->and(PromptResource::canCreate())->toBeFalse();
+});
+
+test('отзыв роли в RoleUsersRelationManager и удаление RolePermission сразу сбрасывают кэш прав', function () {
+    $superAdmin = User::factory()->create();
+    $superAdmin->assignRole(SuperAdminRole::class);
+
+    $target = User::factory()->create();
+    $target->assignRole(SuperAdminRole::class);
+
+    expect($target->fresh()->isSuperAdmin())->toBeTrue();
+
+    actingAs($superAdmin);
+
+    $superAdminRole = Role::findByName('super-admin');
+    expect($superAdminRole)->not->toBeNull();
+
+    Livewire::test(RoleUsersRelationManager::class, [
+        'ownerRecord' => $superAdminRole,
+        'pageClass' => EditRole::class,
+    ])->callTableAction(DetachAction::class, $target);
+
+    expect($target->fresh()->isSuperAdmin())->toBeFalse();
+
+    $customRole = Role::query()->create(['name' => 'custom-db-role', 'level' => 10]);
+    $permission = RolePermission::query()->create([
+        'role_id' => $customRole->id,
+        'permission_key' => 'admin.procurement.view_any',
+        'panel_id' => 'admin',
+    ]);
+
+    $dbUser = User::factory()->create();
+    $dbUser->assignRole($customRole);
+
+    expect($dbUser->fresh()->can('admin.procurement.view_any'))->toBeTrue();
+
+    $permission->delete();
+
+    expect($dbUser->fresh()->can('admin.procurement.view_any'))->toBeFalse();
+});
+
+test('сброс пароля администратора ротирует remember_token и отклоняет короткий пароль', function () {
+    $admin = User::factory()->create([
+        'email' => 'reset-check@example.test',
+        'password' => 'old-valid-password',
+        'remember_token' => 'fixed-remember-token',
+    ]);
+
+    expect(fn () => app(ResetAdminPasswordAction::class)->run('reset-check@example.test', 'short'))
+        ->toThrow(InvalidArgumentException::class);
+
+    app(ResetAdminPasswordAction::class)->run('reset-check@example.test', 'new-valid-password');
+
+    $fresh = $admin->fresh();
+    expect($fresh)->not->toBeNull()
+        ->and($fresh->remember_token)->not->toBe('fixed-remember-token')
+        ->and($fresh->remember_token)->not->toBeNull();
 });

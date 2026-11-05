@@ -52,6 +52,50 @@ test('отклоняет дубликаты с case-fold коллизией', fu
     app(ArchiveEntryValidator::class)->validate([archiveEntry('File.txt'), archiveEntry('file.txt')], archiveBudget());
 })->throws(ArchiveValidationException::class);
 
+test('отклоняет дубликаты с Unicode NFC и NFD коллизией, сохраняя исходный NFD путь для одиночной записи', function (): void {
+    $nfcPath = "отч\u{0451}т.txt";
+    $nfdPath = "отч\u{0435}\u{0308}т.txt";
+
+    expect($nfcPath)->not->toBe($nfdPath);
+
+    $single = app(ArchiveEntryValidator::class)->validate([archiveEntry($nfdPath)], archiveBudget());
+    expect($single)->toHaveCount(1)
+        ->and($single[0]->path)->toBe($nfdPath);
+
+    expect(fn () => app(ArchiveEntryValidator::class)->validate([
+        archiveEntry($nfcPath),
+        archiveEntry($nfdPath),
+    ], archiveBudget()))->toThrow(ArchiveValidationException::class);
+});
+
+test('7z с зашифрованными заголовками отклоняется неинтерактивно как ArchivePasswordProtectedException', function (): void {
+    $workspace = PipelineTemporaryFile::createDirectory(prefix: 'archive_mhe_');
+
+    try {
+        file_put_contents($workspace.'/secret.txt', 'secret-payload');
+        $archive = $workspace.'/encrypted-headers.7z';
+        $binary = (string) config('ai.tools.sevenzip_bin');
+        $result = Process::path($workspace)->run([
+            $binary,
+            'a',
+            '-t7z',
+            '-mhe=on',
+            '-pSecret123',
+            $archive,
+            'secret.txt',
+        ]);
+
+        expect($result->successful())->toBeTrue($result->errorOutput());
+
+        expect(fn () => app(ArchiveExtractor::class)->listEntries(
+            archivePath: $archive,
+            format: '7z',
+        ))->toThrow(ArchivePasswordProtectedException::class);
+    } finally {
+        File::deleteDirectory($workspace);
+    }
+});
+
 test('отклоняет encryption', function () {
     app(ArchiveEntryValidator::class)->validate([archiveEntry('file', encrypted: true)], archiveBudget());
 })->throws(ArchivePasswordProtectedException::class);

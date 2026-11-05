@@ -50,6 +50,8 @@ test('отклоняет одинаковой 404-поверхностью не�
     'parent segment' => '../index.html',
     'empty segment' => 'guide//index.html',
     'unknown extension' => 'index.exe',
+    'dotfile env' => '.env',
+    'absolute passwd' => '/etc/passwd',
 ]);
 
 test('отклоняет missing build malformed manifest missing file и symlink escape', function (): void {
@@ -74,6 +76,14 @@ test('отклоняет missing build malformed manifest missing file и symlin
 
     file_put_contents($this->documentationRoot.'/outside.html', 'outside sentinel');
     symlink($this->documentationRoot.'/outside.html', $this->documentationRoot.'/site/index.html');
+
+    expect(fn () => (new PrivateDocumentationLocator)->locate(requestedPath: null))
+        ->toThrow(NotFoundHttpException::class);
+
+    mkdir($this->documentationRoot.'/site-other', recursive: true);
+    file_put_contents($this->documentationRoot.'/site-other/index.html', 'sibling prefix sentinel');
+    unlink($this->documentationRoot.'/site/index.html');
+    symlink($this->documentationRoot.'/site-other/index.html', $this->documentationRoot.'/site/index.html');
 
     expect(fn () => (new PrivateDocumentationLocator)->locate(requestedPath: null))
         ->toThrow(NotFoundHttpException::class);

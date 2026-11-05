@@ -32,7 +32,7 @@ jobs:
           php-version: '8.5'
           coverage: pcov
       - name: Bootstrap trusted local carrier
-        run: make bootstrap MODE=dev ENV_FILE=.env
+        run: make bootstrap MODE=dev ENV_FILE=.env.example
       - name: Record fresh TIA baseline
         run: make test:tia-refresh
       - name: Export exact hidden Pest baseline path

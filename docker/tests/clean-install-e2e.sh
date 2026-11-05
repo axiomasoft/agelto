@@ -45,6 +45,24 @@ redis_port=${isolated_ports[2]}
 minio_port=${isolated_ports[3]}
 minio_console_port=${isolated_ports[4]}
 
+export_e2e_artifacts() {
+    [[ -n "${E2E_ARTIFACT_DIR:-}" ]] || return 0
+
+    local report_dest="$root_dir/$E2E_ARTIFACT_DIR/playwright-report"
+    local results_dest="$root_dir/$E2E_ARTIFACT_DIR/test-results"
+
+    if [[ -d "$candidate/playwright-report" ]]; then
+        mkdir -p "$report_dest"
+        cp -R "$candidate/playwright-report/." "$report_dest/" 2>/dev/null || true
+    fi
+
+    if [[ -d "$output_dir" ]]; then
+        mkdir -p "$results_dest"
+        cp -R "$output_dir/." "$results_dest/" 2>/dev/null || true
+        rm -f "$results_dest/admin.json" 2>/dev/null || true
+    fi
+}
+
 cleanup() {
     local exit_status=$?
 
@@ -63,6 +81,8 @@ cleanup() {
     if [[ -d "$candidate" ]] && ! docker run --rm -v "$candidate:/candidate" node:24-bookworm chown -R "$(id -u):$(id -g)" /candidate >/dev/null 2>&1; then
         echo "Could not restore candidate worktree ownership in $candidate" >&2
     fi
+
+    export_e2e_artifacts
 
     if ! git -C "$root_dir" worktree remove --force "$candidate" >/dev/null 2>&1; then
         echo "Could not remove isolated candidate worktree $candidate" >&2
@@ -176,10 +196,9 @@ E2E_COMPOSE_FILE="$compose_file" \
 pnpm exec playwright test
 
 if [[ -n "${E2E_ARTIFACT_DIR:-}" ]]; then
+    export_e2e_artifacts
     artifact_dir="$root_dir/$E2E_ARTIFACT_DIR/playwright-report"
-    test -f "$candidate/playwright-report/index.html" || { echo 'Playwright report is missing' >&2; exit 1; }
-    mkdir -p "$artifact_dir"
-    cp "$candidate/playwright-report/index.html" "$artifact_dir/index.html"
+    test -f "$artifact_dir/index.html" || { echo 'Playwright report is missing' >&2; exit 1; }
 fi
 
 image_id=$(docker image inspect --format '{{.Id}}' "agelto/app:$image_tag")

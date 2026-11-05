@@ -17,6 +17,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -53,7 +54,10 @@ class ProcurementResource extends Resource
     // Eager-load связи, показанной в таблице (registry.name) — против N+1 в реестре.
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery()->with('registry.platform')->addSelect([
+        /** @var Builder<Procurement> $baseQuery */
+        $baseQuery = parent::getEloquentQuery();
+
+        $query = $baseQuery->publicPlatform()->with('registry.platform')->addSelect([
             'detail_fetched_at' => DB::table('prc_detail_snapshots')->selectRaw('max(created_at)')
                 ->whereColumn('procurement_id', 'prc_procurements.id')->where('part_key', 'like', '%:published')
                 ->where('completeness', 'complete'),
@@ -64,7 +68,10 @@ class ProcurementResource extends Resource
                 ->orderByDesc('created_at')->orderByDesc('id')->limit(1)]);
         }
 
-        return $query;
+        /** @var Builder<Model> $result */
+        $result = $query;
+
+        return $result;
     }
 
     public static function getPages(): array

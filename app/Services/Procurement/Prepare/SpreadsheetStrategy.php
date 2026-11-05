@@ -73,6 +73,16 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         try {
             file_put_contents($localInput, $sourceDisk->get($version->storage_path));
 
+            if ($version->extension === 'xlsx') {
+                try {
+                    $this->xlsxResourceGuard->assertSafeXmlEntries($localInput);
+                } catch (RuntimeException $exception) {
+                    $this->markUnprocessable($document, $exception->getMessage(), UnprocessableReason::UnreadableFormat);
+
+                    return PreparationResult::Unprocessable;
+                }
+            }
+
             $withinToolLimits = $this->withinToolLimits($version, $localInput);
 
             if (! $hasPdf) {
@@ -234,9 +244,9 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         return 'documents/'.substr($version->content_hash, 0, 2)."/{$version->content_hash}.prepared.text_grid.txt";
     }
 
-    private function markUnprocessable(Document $document, string $detail): void
+    private function markUnprocessable(Document $document, string $detail, UnprocessableReason $reason = UnprocessableReason::ConversionFailed): void
     {
-        $this->markUnprocessable->execute($document, UnprocessableReason::ConversionFailed, $detail);
+        $this->markUnprocessable->execute($document, $reason, $detail);
     }
 
     private function floatConfig(string $key, float|int $default): float

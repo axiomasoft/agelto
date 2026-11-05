@@ -143,6 +143,19 @@ backup_root="$fixture_root/backups"
 "$backup" fixture --fixture-root "$backup_root" --profile "$profile" --adapter "$adapter" --backup-id fixture-0002 --retention 1 >/dev/null
 [[ ! -e $backup_root/local/fixture-0001 && -f $backup_root/offhost/fixture-0001/manifest.sha256 ]]
 (cd "$backup_root/offhost/fixture-0002" && sha256sum --check manifest.sha256 >/dev/null)
+"$watchdog" check --status-file "$backup_root/latest.status" --max-age 3600 >/dev/null
+restore_adapter="$fixture_root/restore-adapter"
+cat > "$restore_adapter" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $1 == restore ]]
+EOF
+chmod 0700 "$restore_adapter"
+"$root/docker/scripts/restore-production.sh" fixture \
+    --target agelto_rehearsal \
+    --manifest "$backup_root/offhost/fixture-0002/backup.manifest" \
+    --adapter "$restore_adapter" \
+    --lock-file "$backup_root/.backup.lock" >/dev/null
 
 FAIL_STAGE=object-current-state-export expect_fail 'adapter failure' \
     "$backup" fixture --fixture-root "$backup_root" --profile "$profile" --adapter "$adapter" --backup-id fixture-0003 --retention 1
