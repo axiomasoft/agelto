@@ -34,25 +34,47 @@ use Illuminate\Support\Facades\DB;
 #[Signature('partitions:maintain')]
 final class MaintainPartitions extends Command
 {
+    private const string ADVISORY_LOCK_KEY = 'agelto:partitions:maintain';
+
     public function handle(): int
     {
-        if ($this->pgPartmanIsAvailable()) {
-            DB::statement('SELECT partman.run_maintenance()');
+        return DB::transaction(function (): int {
+            if (! $this->acquireAdvisoryLock()) {
+                $this->info('Обслуживание партиций уже выполняется другим процессом.');
+
+                return self::SUCCESS;
+            }
+
+            if ($this->pgPartmanIsAvailable()) {
+                DB::statement('SELECT partman.run_maintenance()');
+                $this->assertContinuousCoverage();
+                $this->info('Партиции обновлены через pg_partman (run_maintenance, вкл. retention-DROP по part_config).');
+
+                return self::SUCCESS;
+            }
+
+            foreach ($this->partitionedTables() as $table) {
+                $this->maintainFallback($table);
+            }
+
             $this->assertContinuousCoverage();
-            $this->info('Партиции обновлены через pg_partman (run_maintenance, вкл. retention-DROP по part_config).');
+
+            $this->info('pg_partman недоступен — партиции досозданы и просрочённые дропнуты fallback-командой.');
 
             return self::SUCCESS;
+        });
+    }
+
+    private function acquireAdvisoryLock(): bool
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            return true;
         }
 
-        foreach ($this->partitionedTables() as $table) {
-            $this->maintainFallback($table);
-        }
+        /** @var object{acquired?: bool}|null $row */
+        $row = DB::selectOne('SELECT pg_try_advisory_xact_lock(hashtext(?)) AS acquired', [self::ADVISORY_LOCK_KEY]);
 
-        $this->assertContinuousCoverage();
-
-        $this->info('pg_partman недоступен — партиции досозданы и просрочённые дропнуты fallback-командой.');
-
-        return self::SUCCESS;
+        return (bool) ($row->acquired ?? false);
     }
 
     private function pgPartmanIsAvailable(): bool

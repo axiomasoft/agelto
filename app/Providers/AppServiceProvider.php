@@ -11,6 +11,7 @@ use App\Doctor\Diagnostics\PrivatePackagesArePinned;
 use App\Doctor\Diagnostics\SecretContractIsReady;
 use App\Dto\Platforms\Eis\EisCardRoutes;
 use App\Dto\Platforms\Eis\EisPolicy;
+use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\User;
 use App\Pulse\Cards\LlmSpendCard;
 use App\Pulse\Cards\PipelineStagesCard;
@@ -147,11 +148,10 @@ class AppServiceProvider extends ServiceProvider
         Livewire::component('pulse.llm-spend', LlmSpendCard::class);
         Livewire::component('pulse.process-platform-health', ProcessPlatformHealthCard::class);
 
-        // Pulse — отдельная страница за auth: ТОТ ЖЕ предикат, что
-        // `User::canAccessPanel()` (super-admin или есть роль), а не «любой аутентифицированный» —
-        // Pulse отдаёт SQL-текст медленных запросов, стектрейсы исключений и LLM-расход/стоимость,
-        // поэтому страница требует тех же прав персонала, что Filament-панель.
-        Gate::define('viewPulse', fn (?User $user = null): bool => $user !== null && ($user->isSuperAdmin() || $user->getRoleNames()->isNotEmpty()));
+        // Pulse — отдельная страница за auth: отдаёт SQL-текст медленных запросов,
+        // стектрейсы исключений и LLM-расход/стоимость, поэтому доступ разрешён только
+        // суперадминистраторам и операционным ролям (OperatorRole), но не read-only бизнес-ролям.
+        Gate::define('viewPulse', fn (?User $user = null): bool => $user !== null && ($user->isSuperAdmin() || $user->hasRole(OperatorRole::class)));
 
         // Каждая artisan-команда получает cmd:<name>:<uuid>; Laravel Context переносит trace_id
         // в payload jobs, отправленных из команды.

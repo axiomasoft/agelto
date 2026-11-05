@@ -17,13 +17,14 @@ final readonly class UrlPolicy
     /**
      * @param  list<CanonicalOrigin>  $origins
      * @param  array<string, list<string>>  $fixtureBindings  Only isolated test rig, never production.
+     * @param  (\Closure(string, int, ExecutionContext|OutboundExecutionContext|null): list<string>)|null  $dnsResolver
      */
-    public function __construct(private array $origins, private array $fixtureBindings = [])
+    public function __construct(private array $origins, private array $fixtureBindings = [], private ?\Closure $dnsResolver = null)
     {
         if ($origins === []) {
             throw new \InvalidArgumentException('URL policy needs explicit origins.');
         }
-        if ($fixtureBindings !== [] && (! app()->environment('testing') || getenv('PROCESS_CORE_TEST') !== '1')) {
+        if (($fixtureBindings !== [] || $this->dnsResolver !== null) && (! app()->environment('testing') || getenv('PROCESS_CORE_TEST') !== '1')) {
             throw new \LogicException('Local DNS bindings require the isolated test rig.');
         }
     }
@@ -39,6 +40,8 @@ final readonly class UrlPolicy
         if ($addresses === null) {
             if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
                 $addresses = [$host];
+            } elseif ($this->dnsResolver !== null) {
+                $addresses = ($this->dnsResolver)($host, $dnsTimeoutSeconds, $context);
             } else {
                 $addresses = (new BoundedDnsResolver)->resolve($host, $dnsTimeoutSeconds, $context);
             }
@@ -46,13 +49,17 @@ final readonly class UrlPolicy
         if ($addresses === []) {
             throw new \RuntimeException('DNS has no usable addresses.');
         }
+        $validated = [];
         foreach ($addresses as $address) {
             if (filter_var($address, FILTER_VALIDATE_IP) === false || (! $fixture && ! self::publicAddress($address))) {
                 throw new \InvalidArgumentException('Non-public address denied by URL policy.');
             }
+            if (! in_array($address, $validated, true)) {
+                $validated[] = $address;
+            }
         }
 
-        return new ResolvedUrl($url, $addresses[0]);
+        return new ResolvedUrl($url, $validated[0], $validated);
     }
 
     private static function publicAddress(string $address): bool

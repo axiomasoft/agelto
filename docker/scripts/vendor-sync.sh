@@ -77,9 +77,8 @@ package_paths=("${manifest_values[@]:3}")
 normalize_origin() {
     local origin=$1 normalized=''
 
-    [[ "$origin" != *'://'[^/]*'@'* && "$origin" != *@*:* ]] || return 1
     case "$origin" in
-        "https://$host/$repo_path"|"https://$host/$repo_path.git"|"http://$host/$repo_path"|"http://$host/$repo_path.git"|"git@$host:$repo_path"|"git@$host:$repo_path.git"|"ssh://git@$host/$repo_path"|"ssh://git@$host/$repo_path.git")
+        "https://$host/$repo_path"|"https://$host/$repo_path.git"|"git@$host:$repo_path"|"git@$host:$repo_path.git"|"ssh://git@$host/$repo_path"|"ssh://git@$host/$repo_path.git")
             normalized="$host/$repo_path"
             ;;
     esac
@@ -87,12 +86,16 @@ normalize_origin() {
     printf '%s\n' "$normalized"
 }
 
-require_checkout() {
-    [[ -d "$checkout/.git" ]] || { echo "Vendor checkout is missing: $checkout" >&2; return 1; }
-
+require_origin() {
     local origin
     origin=$(git -C "$checkout" config --get remote.origin.url) || { echo 'Vendor checkout has no origin' >&2; return 1; }
     normalize_origin "$origin" >/dev/null || { echo 'Vendor checkout origin does not match the manifest' >&2; return 1; }
+}
+
+require_checkout() {
+    [[ -d "$checkout/.git" ]] || { echo "Vendor checkout is missing: $checkout" >&2; return 1; }
+
+    require_origin || return 1
 
     local package_path
     for package_path in "${package_paths[@]}"; do
@@ -117,6 +120,7 @@ else
         git -C "$checkout" checkout --detach "$commit"
     else
         [[ -d "$checkout/.git" ]] || { echo "Vendor checkout is not a Git checkout: $checkout" >&2; exit 1; }
+        require_origin
         if [[ -n $(git -C "$checkout" status --porcelain --untracked-files=all) ]]; then
             echo 'Vendor checkout is dirty; sync refuses to overwrite it' >&2
             exit 1

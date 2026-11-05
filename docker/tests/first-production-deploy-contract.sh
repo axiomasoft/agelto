@@ -74,6 +74,22 @@ done
 export CALL_LOG="$fixture_root/mismatch-calls"
 expect_fail 'candidate mismatch' \
     "$script" fixture --adapter "$adapter" --state-file "$state" --candidate-sha fedcba9876543210fedcba9876543210fedcba98 --profile-sha "$profile_sha"
+corrupt_state="$fixture_root/corrupt-state"
+cat > "$corrupt_state" <<EOF
+schema=agelto.first-deploy-state/v1
+candidate_sha=$candidate
+profile_sha=$profile_sha
+completed=preflight,migration
+EOF
+chmod 0600 "$corrupt_state"
+expect_fail 'out-of-order completed stages' \
+    "$script" fixture --adapter "$adapter" --state-file "$corrupt_state" --candidate-sha "$candidate" --profile-sha "$profile_sha"
+shared_lock="$fixture_root/shared.lock"
+exec 8>"$shared_lock"
+flock -n 8
+expect_fail 'shared lock contention' \
+    "$script" fixture --adapter "$adapter" --state-file "$fixture_root/locked-state" --lock-file "$shared_lock" --candidate-sha "$candidate" --profile-sha "$profile_sha"
+flock -u 8
 ln -s "$state" "$fixture_root/state-link"
 expect_fail 'state symlink' \
     "$script" fixture --adapter "$adapter" --state-file "$fixture_root/state-link" --candidate-sha "$candidate" --profile-sha "$profile_sha"

@@ -11,41 +11,55 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('partitions:maintain')->daily();
+Schedule::command('partitions:maintain')->daily()->withoutOverlapping();
 Schedule::call(ApplicationReadiness::recordSchedulerHeartbeat(...))->everyMinute();
 
-// `$hasTable` — schema-guard, который не бросает при недоступной БД: файл выполняется на
-// КАЖДЫЙ artisan-вызов (включая `package:discover` в `composer install` и старт воркеров), а
-// `schedule:work` перечитывает его каждую минуту, поэтому временный отказ БД только пропускает
-// задачи, зависящие от таблиц, а не роняет процесс. Отказ пишется в лог один раз за загрузку.
+// `$hasTable` — ленивый schema-guard внутри `when()`, который не обращается к БД при загрузке
+// `routes/console.php` (на `composer install`, `package:discover` и старт воркеров) и не роняет
+// `schedule:work` при временном отказе БД: отказ кэшируется на тик и логируется один раз без сырого
+// текста исключения (чтобы не раскрывать DSN/секреты).
 $hasTable = (static function (): Closure {
     $databaseAvailable = null;
+    /** @var array<string, bool> $tableCache */
+    $tableCache = [];
 
-    return static function (string $table) use (&$databaseAvailable): bool {
+    return static function (string $table) use (&$databaseAvailable, &$tableCache): bool {
         if ($databaseAvailable === false) {
             return false;
+        }
+        if (array_key_exists($table, $tableCache)) {
+            return $tableCache[$table];
         }
 
         try {
             $exists = Schema::hasTable($table);
             $databaseAvailable = true;
+            $tableCache[$table] = $exists;
 
             return $exists;
         } catch (Throwable $exception) {
             $databaseAvailable = false;
-            Log::warning('Планировщик: БД недоступна, задачи, зависящие от таблиц, пропущены.', ['exception' => $exception->getMessage()]);
+            Log::warning('Планировщик: БД недоступна, задачи, зависящие от таблиц, пропущены.', [
+                'error_code' => 'scheduler_schema_unavailable',
+                'exception_class' => $exception::class,
+            ]);
 
             return false;
         }
     };
 })();
 
-if ($hasTable('prc_acquisition_schedules')) {
-    Schedule::command('process:schedule-acquisition')->everyMinute()->withoutOverlapping();
-}
+Schedule::command('process:schedule-acquisition')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->when(static fn (): bool => $hasTable('prc_acquisition_schedules'));
 
 // Delivery, recovery and document due production belong to durable daemons.
-if ($hasTable('prc_process_transitions')) {
-    Schedule::command('process:retention')->hourly()->withoutOverlapping();
-    Schedule::command('process:health-report')->everyFiveMinutes()->withoutOverlapping();
-}
+Schedule::command('process:retention')
+    ->hourly()
+    ->withoutOverlapping()
+    ->when(static fn (): bool => $hasTable('prc_process_transitions'));
+Schedule::command('process:health-report')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->when(static fn (): bool => $hasTable('prc_process_transitions'));

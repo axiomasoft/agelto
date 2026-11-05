@@ -29,12 +29,14 @@ shift
 
 adapter=''
 state_file=''
+lock_file=''
 candidate_sha=''
 profile_sha=''
 while (($#)); do
     case "$1" in
         --adapter) adapter=${2:-}; shift ;;
         --state-file) state_file=${2:-}; shift ;;
+        --lock-file) lock_file=${2:-}; shift ;;
         --candidate-sha) candidate_sha=${2:-}; shift ;;
         --profile-sha) profile_sha=${2:-}; shift ;;
         *) usage; exit 2 ;;
@@ -43,7 +45,7 @@ while (($#)); do
 done
 
 if [[ $mode == check ]]; then
-    [[ -z $adapter && -z $state_file && -z $candidate_sha && -z $profile_sha ]] || { usage; exit 2; }
+    [[ -z $adapter && -z $state_file && -z $lock_file && -z $candidate_sha && -z $profile_sha ]] || { usage; exit 2; }
     cat <<'EOF'
 preflight|check|profile,image-pair,secrets,repository|repair preflight and rerun
 data|mutation|postgres,redis,minio healthy|resume at data
@@ -63,14 +65,19 @@ fi
 [[ $state_file = /* ]] || fail 'state file must be absolute'
 [[ $candidate_sha =~ ^[0-9a-f]{40}$ ]] || fail 'candidate SHA must be 40 lowercase hex characters'
 [[ $profile_sha =~ ^[0-9a-f]{64}$ ]] || fail 'profile SHA must be 64 lowercase hex characters'
+if [[ -z $lock_file ]]; then
+    lock_file="$state_file.lock"
+fi
+[[ $lock_file = /* ]] || fail 'lock file must be absolute'
 
 tmp_base=$(realpath -m "${TMPDIR:-/tmp}")
 resolved_state=$(realpath -m "$state_file")
 resolved_adapter=$(realpath -m "$adapter")
-[[ $resolved_state == "$tmp_base"/* && $resolved_adapter == "$tmp_base"/* ]] || fail 'fixture files must live below TMPDIR'
-[[ ! -L $state_file ]] || fail 'state file must not be a symlink'
-mkdir -p "$(dirname "$state_file")"
-exec 9>"$state_file.lock"
+resolved_lock=$(realpath -m "$lock_file")
+[[ $resolved_state == "$tmp_base"/* && $resolved_adapter == "$tmp_base"/* && $resolved_lock == "$tmp_base"/* ]] || fail 'fixture files must live below TMPDIR'
+[[ ! -L $state_file && ! -L $lock_file ]] || fail 'state and lock files must not be symlinks'
+mkdir -p "$(dirname "$state_file")" "$(dirname "$lock_file")"
+exec 9>"$lock_file"
 flock -n 9 || fail 'another deploy/release/recovery operation holds the lock'
 
 declare -A state=()
@@ -87,7 +94,13 @@ if [[ -e $state_file ]]; then
     [[ ${state[schema]:-} == agelto.first-deploy-state/v1 ]] || fail 'state schema mismatch'
     [[ ${state[candidate_sha]:-} == "$candidate_sha" ]] || fail 'candidate SHA differs from the existing state'
     [[ ${state[profile_sha]:-} == "$profile_sha" ]] || fail 'profile SHA differs from the existing state'
-    IFS=',' read -r -a completed <<<"${state[completed]:-}"
+    if [[ -n ${state[completed]:-} ]]; then
+        IFS=',' read -r -a completed <<<"${state[completed]}"
+    fi
+    (( ${#completed[@]} <= ${#STAGES[@]} )) || fail 'existing state has more completed stages than defined'
+    for idx in "${!completed[@]}"; do
+        [[ ${completed[$idx]} == "${STAGES[$idx]}" ]] || fail "invalid or out-of-order completed stage ${completed[$idx]}"
+    done
 fi
 
 contains_stage() {

@@ -75,6 +75,50 @@ export LIFECYCLE_LOG="$fixture_root/timeout.log"
 expect_fail 'bounded drain timeout' env FAIL_STAGE=drain FAIL_STATUS=124 LIFECYCLE_LOG="$LIFECYCLE_LOG" \
     "$release" fixture --adapter "$adapter" --state-file "$fixture_root/timeout.state" --lock-file "$lock" \
     --candidate-digest "$candidate" --previous-digest "$previous" --schema-compatible yes
+mapfile -t drain_reversed < <(sed -n 's/^rollback:\([^:]*\):.*/\1/p' "$LIFECYCLE_LOG")
+[[ ${drain_reversed[*]} == 'drain' ]] || fail 'failed drain stage was not compensated during rollback'
+grep -qx 'completed=preflight,backup,compatibility' "$fixture_root/timeout.state" || fail 'failed drain retained mutation state'
+
+canary_state="$fixture_root/canary.state"
+export LIFECYCLE_LOG="$fixture_root/canary.log"
+expect_fail 'canary failure' env FAIL_STAGE=canary LIFECYCLE_LOG="$LIFECYCLE_LOG" \
+    "$release" fixture --adapter "$adapter" --state-file "$canary_state" --lock-file "$lock" \
+    --candidate-digest "$candidate" --previous-digest "$previous" --schema-compatible yes
+grep -qx 'completed=preflight,backup,compatibility' "$canary_state" || fail 'canary rollback did not invalidate readiness'
+: > "$LIFECYCLE_LOG"
+"$release" fixture --adapter "$adapter" --state-file "$canary_state" --lock-file "$lock" \
+    --candidate-digest "$candidate" --previous-digest "$previous" --schema-compatible yes >/dev/null
+grep -qx "run:readiness:$candidate" "$LIFECYCLE_LOG" || fail 'resume after canary rollback skipped readiness'
+
+crash_state="$fixture_root/crash.state"
+cat > "$crash_state" <<EOF
+schema=agelto.release-state/v1
+candidate_digest=$candidate
+previous_digest=$previous
+schema_compatible=yes
+completed=preflight,backup,compatibility,drain
+in_progress=promote
+EOF
+chmod 0600 "$crash_state"
+export LIFECYCLE_LOG="$fixture_root/crash.log"
+"$release" fixture --adapter "$adapter" --state-file "$crash_state" --lock-file "$lock" \
+    --candidate-digest "$candidate" --previous-digest "$previous" --schema-compatible yes >/dev/null
+mapfile -t crash_reversed < <(sed -n 's/^rollback:\([^:]*\):.*/\1/p' "$LIFECYCLE_LOG")
+[[ ${crash_reversed[*]} == 'promote drain' ]] || fail 'crash recovery did not compensate in_progress promote and completed drain'
+grep -qx 'completed=preflight,backup,compatibility,drain,promote,readiness,canary' "$crash_state"
+
+corrupt_state="$fixture_root/corrupt.state"
+cat > "$corrupt_state" <<EOF
+schema=agelto.release-state/v1
+candidate_digest=$candidate
+previous_digest=$previous
+schema_compatible=yes
+completed=preflight,promote
+EOF
+chmod 0600 "$corrupt_state"
+expect_fail 'out-of-order completed stages' "$release" fixture --adapter "$adapter" --state-file "$corrupt_state" --lock-file "$lock" \
+    --candidate-digest "$candidate" --previous-digest "$previous" --schema-compatible yes
+
 expect_fail 'unknown schema compatibility' "$release" fixture --adapter "$adapter" --state-file "$fixture_root/unknown.state" --lock-file "$lock" \
     --candidate-digest "$candidate" --previous-digest "$previous" --schema-compatible unknown
 expect_fail 'same release digest' "$release" fixture --adapter "$adapter" --state-file "$fixture_root/same.state" --lock-file "$lock" \
@@ -83,6 +127,7 @@ exec 8>"$lock"
 flock -n 8
 expect_fail 'release lock contention' "$release" fixture --adapter "$adapter" --state-file "$fixture_root/lock.state" --lock-file "$lock" \
     --candidate-digest "$candidate" --previous-digest "$previous" --schema-compatible yes
+expect_fail 'rollback lock contention' "$rollback" fixture --adapter "$adapter" --previous-digest "$previous" --schema-compatible yes --lock-file "$lock"
 flock -u 8
 
 export LIFECYCLE_LOG="$fixture_root/rollback.log"

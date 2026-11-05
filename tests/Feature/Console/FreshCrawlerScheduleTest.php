@@ -51,16 +51,34 @@ test('невалидный cron одного профиля пропускает
 
 test('недоступная БД не роняет загрузку console.php и оставляет задачи без таблиц', function (): void {
     Log::spy();
-    Schema::shouldReceive('hasTable')->andThrow(new RuntimeException('connection refused'));
+    Schema::shouldReceive('hasTable')->andThrow(new RuntimeException('connection refused password=super-secret-dsn'));
     $schedule = app(Schedule::class);
     $before = count($schedule->events());
 
     require base_path('routes/console.php');
 
-    $commands = collect(array_slice($schedule->events(), $before))->map(fn (Event $event): string => (string) $event->command);
-    expect($commands->contains(fn (string $command): bool => str_contains($command, 'partitions:maintain')))->toBeTrue()
-        ->and($commands->contains(fn (string $command): bool => str_contains($command, 'process:schedule-acquisition')))->toBeFalse();
-    Log::shouldHaveReceived('warning')->once();
+    // Загрузка routes/console.php не выполняет SQL-запросов к схеме до вычисления фильтров планировщика.
+    Log::shouldNotHaveReceived('warning');
+
+    $events = collect(array_slice($schedule->events(), $before));
+    $maintainEvent = $events->first(fn (Event $event): bool => str_contains((string) $event->command, 'partitions:maintain'));
+    expect($maintainEvent)->toBeInstanceOf(Event::class)
+        ->and($maintainEvent->withoutOverlapping)->toBeTrue();
+
+    $runnableCommands = $events
+        ->filter(fn (Event $event): bool => $event->filtersPass(app()))
+        ->map(fn (Event $event): string => (string) $event->command);
+
+    expect($runnableCommands->contains(fn (string $command): bool => str_contains($command, 'partitions:maintain')))->toBeTrue()
+        ->and($runnableCommands->contains(fn (string $command): bool => str_contains($command, 'process:schedule-acquisition')))->toBeFalse()
+        ->and($runnableCommands->contains(fn (string $command): bool => str_contains($command, 'process:retention')))->toBeFalse()
+        ->and($runnableCommands->contains(fn (string $command): bool => str_contains($command, 'process:health-report')))->toBeFalse();
+
+    Log::shouldHaveReceived('warning')->withArgs(
+        fn (string $message, array $context): bool => ($context['error_code'] ?? null) === 'scheduler_schema_unavailable'
+            && ($context['exception_class'] ?? null) === RuntimeException::class
+            && ! str_contains(json_encode($context, JSON_THROW_ON_ERROR), 'super-secret-dsn'),
+    )->once();
 });
 
 test('сбой чтения профилей после успешной проверки схемы не роняет console.php', function (): void {

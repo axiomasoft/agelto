@@ -51,8 +51,11 @@ case "$1" in
             [[ -f "$repo/tree-dirty" ]] && printf ' M README.md\n'
         fi
         ;;
-    fetch) ;;
-    checkout) printf '%s\n' "$3" > "$repo/head" ;;
+    fetch) printf 'fetch\n' >> "$repo/git-ops" ;;
+    checkout)
+        printf 'checkout\n' >> "$repo/git-ops"
+        printf '%s\n' "$3" > "$repo/head"
+        ;;
     *) echo "unexpected fake git invocation: $*" >&2; exit 64 ;;
 esac
 EOF
@@ -75,8 +78,37 @@ import sys
 print(json.load(open(sys.argv[1], encoding='utf-8'))['commit'])
 PY
 )
-printf '%s\n' 'https://github.com/other/azguard.git' > "$checkout/origin"
-! run_fixture --check
+for valid_origin in \
+    'https://github.com/axiomasoft/azguard-private' \
+    'https://github.com/axiomasoft/azguard-private.git' \
+    'git@github.com:axiomasoft/azguard-private' \
+    'git@github.com:axiomasoft/azguard-private.git' \
+    'ssh://git@github.com/axiomasoft/azguard-private' \
+    'ssh://git@github.com/axiomasoft/azguard-private.git'; do
+    printf '%s\n' "$valid_origin" > "$checkout/origin"
+    : > "$checkout/git-ops"
+    run_fixture --check
+    run_fixture
+    grep -qx 'fetch' "$checkout/git-ops"
+    grep -qx 'checkout' "$checkout/git-ops"
+done
+
+for invalid_origin in \
+    'https://github.com/other/azguard.git' \
+    'http://github.com/axiomasoft/azguard-private.git' \
+    'http://github.com/axiomasoft/azguard-private' \
+    'https://token:secret@github.com/axiomasoft/azguard-private.git' \
+    'ssh://deploy@github.com/axiomasoft/azguard-private.git' \
+    'deploy@github.com:axiomasoft/azguard-private.git' \
+    'https://github.com:8443/axiomasoft/azguard-private.git' \
+    'https://github.com/axiomasoft/azguard-private.git/extra'; do
+    printf '%s\n' "$invalid_origin" > "$checkout/origin"
+    : > "$checkout/git-ops"
+    ! run_fixture --check
+    ! run_fixture
+    [[ ! -s "$checkout/git-ops" ]]
+done
+
 printf '%s\n' 'https://github.com/axiomasoft/azguard-private.git' > "$checkout/origin"
 printf '%s\n' '0000000000000000000000000000000000000000' > "$checkout/head"
 ! run_fixture --check
@@ -85,7 +117,9 @@ touch "$checkout/package-dirty"
 ! run_fixture --check
 rm "$checkout/package-dirty"
 touch "$checkout/tree-dirty"
+: > "$checkout/git-ops"
 ! run_fixture
+[[ ! -s "$checkout/git-ops" ]]
 rm "$checkout/tree-dirty"
 run_fixture --check
 

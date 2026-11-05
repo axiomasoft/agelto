@@ -31,6 +31,7 @@ shift
 fixture_root=''
 profile=''
 adapter=''
+lock_file=''
 backup_id='fixture-0001'
 retention=2
 
@@ -39,6 +40,7 @@ while (($#)); do
         --fixture-root) fixture_root=${2:-}; shift ;;
         --profile) profile=${2:-}; shift ;;
         --adapter) adapter=${2:-}; shift ;;
+        --lock-file) lock_file=${2:-}; shift ;;
         --backup-id) backup_id=${2:-}; shift ;;
         --retention) retention=${2:-}; shift ;;
         *) usage; exit 2 ;;
@@ -47,7 +49,7 @@ while (($#)); do
 done
 
 if [[ $mode == check ]]; then
-    [[ -z $fixture_root && -z $profile && -z $adapter ]] || { usage; exit 2; }
+    [[ -z $fixture_root && -z $profile && -z $adapter && -z $lock_file ]] || { usage; exit 2; }
     printf '%s\n' \
         lock \
         profile \
@@ -70,16 +72,21 @@ fi
 tmp_base=$(realpath -m "${TMPDIR:-/tmp}")
 resolved_root=$(realpath -m "$fixture_root")
 [[ $resolved_root == "$tmp_base"/* && ! -L $fixture_root ]] || fail 'fixture root must be a non-symlink path below TMPDIR'
+if [[ -z $lock_file ]]; then
+    lock_file="$resolved_root/.backup.lock"
+fi
+[[ $lock_file = /* && ! -L $lock_file && $(realpath -m "$lock_file") == "$tmp_base"/* ]] || fail 'lock file must be an absolute non-symlink path below TMPDIR'
 
 bash "$profile_checker" check --profile "$profile" >/dev/null
-mkdir -p "$resolved_root/staging" "$resolved_root/local" "$resolved_root/offhost"
-exec 9>"$resolved_root/.backup.lock"
+mkdir -p "$resolved_root/staging" "$resolved_root/local" "$resolved_root/offhost" "$(dirname "$lock_file")"
+exec 9>"$lock_file"
 flock -n 9 || fail 'another backup/release/recovery operation holds the lock'
 
 staging="$resolved_root/staging/$backup_id"
 local_copy="$resolved_root/local/$backup_id"
 offhost_copy="$resolved_root/offhost/$backup_id"
-[[ ! -e $staging && ! -e $local_copy && ! -e $offhost_copy ]] || fail 'backup ID already exists'
+offhost_staging="$resolved_root/offhost/.staging-$backup_id.$$"
+[[ ! -e $staging && ! -e $local_copy && ! -e $offhost_copy && ! -e $offhost_staging ]] || fail 'backup ID already exists'
 mkdir -m 0700 "$staging"
 
 "$adapter" postgres-custom-dump "$staging/postgres.dump"
@@ -98,10 +105,11 @@ done
 )
 printf 'backup_id=%s\nverified=1\n' "$backup_id" > "$staging/status"
 mv "$staging" "$local_copy"
-cp -a "$local_copy" "$offhost_copy"
-diff -qr "$local_copy" "$offhost_copy" >/dev/null || fail 'off-host fixture copy differs from the verified local copy'
+cp -a "$local_copy" "$offhost_staging"
+diff -qr "$local_copy" "$offhost_staging" >/dev/null || fail 'off-host fixture copy differs from the verified local copy'
+printf 'offhost=1\n' >> "$offhost_staging/status"
+mv "$offhost_staging" "$offhost_copy"
 printf 'offhost=1\n' >> "$local_copy/status"
-printf 'offhost=1\n' >> "$offhost_copy/status"
 
 mapfile -t old_backups < <(find "$resolved_root/local" -mindepth 1 -maxdepth 1 -type d -name 'fixture-[0-9][0-9][0-9][0-9]' -printf '%f\n' | sort -r)
 for ((index=retention; index<${#old_backups[@]}; index++)); do

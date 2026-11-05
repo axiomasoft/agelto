@@ -37,6 +37,11 @@ services:
       AWS_USE_PATH_STYLE_ENDPOINT: "true"
     networks:
       - agelto_network
+    logging: &default_logging
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
 
   app:
     image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -96,6 +101,7 @@ services:
       start_period: 40s
     networks:
       - agelto_network
+    logging: *default_logging
 
   horizon:
     image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -136,6 +142,7 @@ services:
       redis: { condition: service_healthy }
     networks:
       - agelto_network
+    logging: *default_logging
 
   scheduler:
     image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -164,6 +171,7 @@ services:
       redis: { condition: service_healthy }
     networks:
       - agelto_network
+    logging: *default_logging
 
   process-relay: &process_daemon
     image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
@@ -193,6 +201,7 @@ services:
       start_period: 40s
     networks:
       - agelto_network
+    logging: *default_logging
 
   process-reconciler:
     <<: *process_daemon
@@ -266,6 +275,7 @@ services:
       retries: 10
     networks:
       - agelto_network
+    logging: *default_logging
 
   redis:
     image: redis:7-alpine
@@ -291,6 +301,7 @@ services:
       retries: 10
     networks:
       - agelto_network
+    logging: *default_logging
 
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
@@ -313,6 +324,7 @@ services:
       retries: 10
     networks:
       - agelto_network
+    logging: *default_logging
 
 networks:
   agelto_network:

@@ -39,3 +39,25 @@ test('fallback-путь создаёт недостающие партиции �
     // повторный запуск не должен падать на уже существующих партициях (idempotent).
     expect(Artisan::call('partitions:maintain'))->toBe(0);
 });
+
+test('команда partitions:maintain пропускает выполнение без ошибки, когда транзакционный advisory lock занят другим процессом', function () {
+    $armed = true;
+    DB::beforeExecuting(function (string $query) use (&$armed): void {
+        if (! $armed) {
+            return;
+        }
+        if (str_contains($query, 'partman.run_maintenance') || str_contains($query, 'pg_extension')) {
+            throw new RuntimeException('Maintenance body must not execute when advisory lock is not acquired');
+        }
+    });
+
+    DB::shouldReceive('transaction')->once()->andReturnUsing(fn (Closure $callback): int => $callback());
+    DB::shouldReceive('getDriverName')->once()->andReturn('pgsql');
+    DB::shouldReceive('selectOne')
+        ->once()
+        ->with('SELECT pg_try_advisory_xact_lock(hashtext(?)) AS acquired', ['agelto:partitions:maintain'])
+        ->andReturn((object) ['acquired' => false]);
+
+    expect(Artisan::call('partitions:maintain'))->toBe(0);
+    $armed = false;
+});

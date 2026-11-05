@@ -4,17 +4,23 @@ declare(strict_types=1);
 
 use App\Actions\Procurement\Process\CancelWork;
 use App\Dto\Procurement\Process\ArtifactRef;
+use App\Dto\Procurement\Process\DeliveryEnvelope;
+use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\LockedSubject;
 use App\Dto\Procurement\Process\StageFailedItem;
+use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\CompletionStatus;
 use App\Enums\Procurement\Process\ControlMode;
+use App\Enums\Procurement\Process\DeliveryOutcome;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Enums\Procurement\Process\ProviderRecoveryMode;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
 use App\Enums\Procurement\Process\WorkMutationStatus;
+use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -25,12 +31,16 @@ use App\Repositories\Procurement\Process\IntentRepository;
 use App\Repositories\Procurement\Process\RecoveryRepository;
 use App\Repositories\Procurement\Process\RunReadRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Procurement\Process\Contracts\StageHandler;
 use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\RecoveryReconciler;
+use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\SubjectLockResolver;
 use App\Services\Procurement\Process\WorkFeeder;
 use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\WorkRunner;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
@@ -297,4 +307,109 @@ test('RecoveryReconciler::sweepHandlerFaults изолирует сбойную �
         ->toBe(1)
         ->and(DB::table('prc_process_attempts')->where('work_id', $listingFault->value->value)->whereNotNull('fault_policy_checked_at')->count())
         ->toBe(0);
+});
+
+test('WorkRunner классифицирует транзиентный сбой БД при чтении authority snapshot после claim как DependencyUnavailable без вызова handler и без расхода fault budget, а typed deferral получает bounded jitter', function (): void {
+    FinalizeFixtures::authority([StageCode::Listing]);
+    $handler = new class implements StageHandler
+    {
+        public int $calls = 0;
+
+        public bool $throwStorageUnavailable = false;
+
+        public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
+        {
+            $this->calls++;
+            if ($this->throwStorageUnavailable) {
+                throw new DependencyUnavailable('storage');
+            }
+
+            return FinalizeFixtures::succeeded(StageCode::Listing, 'delivered');
+        }
+    };
+    app(StageRegistry::class)->bindHandler(StageCode::Listing, $handler);
+
+    $work = ExecutionFixtures::listingWork();
+    app(WorkFeeder::class)->tick('acquisition');
+    $envelope = DeliveryEnvelope::fromScalars(
+        $work->value->value,
+        ExecutionFixtures::delivery($work)->value,
+        LedgerFixtures::uuid()->value,
+        1,
+    );
+
+    // 1. Транзиентный сбой БД на readAuthoritySnapshot (после успешного claim) возвращает DependencyUnavailable, оставляет running и не вызывает handler.
+    $claimed = false;
+    $armed = true;
+    DB::beforeExecuting(function (string $query, array $bindings) use (&$armed, &$claimed): void {
+        if (str_contains($query, 'INSERT INTO prc_process_attempts')) {
+            $claimed = true;
+
+            return;
+        }
+        if (! $armed || ! $claimed || ! str_contains($query, 'SELECT stage, cohort_key, input_revision')) {
+            return;
+        }
+        $armed = false;
+        $driver = new PDOException('simulated snapshot disconnect');
+        $driver->errorInfo = ['08006', 7, 'simulated snapshot disconnect'];
+
+        throw new QueryException('pgsql', $query, $bindings, $driver);
+    });
+
+    expect(app(WorkRunner::class)->runDelivery($envelope))->toBe(DeliveryOutcome::DependencyUnavailable)
+        ->and($handler->calls)->toBe(0)
+        ->and(ExecutionFixtures::work($work)->state)->toBe('running')
+        ->and(DB::table('prc_process_attempts')->where('work_id', $work->value->value)->whereNull('finished_at')->count())->toBe(1)
+        ->and(DB::table('prc_process_attempts')->where('work_id', $work->value->value)->whereNotNull('fault_signature')->count())->toBe(0);
+
+    // 2. Нетранзиентная SQL ошибка на том же шаге bootstrap пробрасывается видимо.
+    $work2 = ExecutionFixtures::listingWork();
+    app(WorkFeeder::class)->tick('acquisition');
+    $envelope2 = DeliveryEnvelope::fromScalars(
+        $work2->value->value,
+        ExecutionFixtures::delivery($work2)->value,
+        LedgerFixtures::uuid()->value,
+        1,
+    );
+    $claimedFatal = false;
+    $armedFatal = true;
+    DB::beforeExecuting(function (string $query, array $bindings) use (&$armedFatal, &$claimedFatal): void {
+        if (str_contains($query, 'INSERT INTO prc_process_attempts')) {
+            $claimedFatal = true;
+
+            return;
+        }
+        if (! $armedFatal || ! $claimedFatal || ! str_contains($query, 'SELECT stage, cohort_key, input_revision')) {
+            return;
+        }
+        $armedFatal = false;
+        $driver = new PDOException('simulated fatal sql');
+        $driver->errorInfo = ['42P01', 7, 'simulated fatal sql'];
+
+        throw new QueryException('pgsql', $query, $bindings, $driver);
+    });
+    expect(fn () => app(WorkRunner::class)->runDelivery($envelope2))->toThrow(QueryException::class)
+        ->and($handler->calls)->toBe(0);
+
+    // 3. Typed dependency deferral (storage_unavailable) получает due_at в окне bounded jitter [30, 35] секунд.
+    DB::table('prc_process_reservations')
+        ->whereIn('work_id', [$work->value->value, $work2->value->value])
+        ->delete();
+    DB::table('prc_process_work')
+        ->whereIn('id', [$work->value->value, $work2->value->value])
+        ->update(['state' => 'succeeded', 'lease_until' => null, 'owner_token' => null]);
+    $handler->throwStorageUnavailable = true;
+    $work3 = ExecutionFixtures::listingWork();
+    app(WorkFeeder::class)->tick('acquisition');
+    $envelope3 = DeliveryEnvelope::fromScalars(
+        $work3->value->value,
+        ExecutionFixtures::delivery($work3)->value,
+        LedgerFixtures::uuid()->value,
+        1,
+    );
+    expect(app(WorkRunner::class)->runDelivery($envelope3))->toBe(DeliveryOutcome::Executed)
+        ->and(ExecutionFixtures::work($work3)->state)->toBe('deferred');
+    $dueIn = (float) DB::selectOne('SELECT extract(epoch FROM due_at - clock_timestamp()) AS due_in FROM prc_process_work WHERE id = ?', [$work3->value->value])->due_in;
+    expect($dueIn)->toBeGreaterThan(29.0)->toBeLessThanOrEqual(36.0);
 });

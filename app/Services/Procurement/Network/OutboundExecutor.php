@@ -42,6 +42,7 @@ use App\Services\Procurement\Network\Contracts\OutboundAttemptGate;
 use App\Services\Procurement\Network\Contracts\OutboundRouteSelector;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -131,6 +132,8 @@ final readonly class OutboundExecutor
         $preferUntried = false;
         $hops = 0;
         $sends = 0;
+        /** @var array<string, list<string>> $failedAddressesByOrigin */
+        $failedAddressesByOrigin = [];
         // One transport attempt per adapter canary; redirects remain bounded, individually
         // authorized physical sends within that one logical read.
         $maxAttempts = $plan->adapterClaim?->canary === true || $plan->trafficClass === TrafficClass::Diagnostic ? 1 : $plan->maxAttempts();
@@ -152,6 +155,19 @@ final readonly class OutboundExecutor
                 } catch (\RuntimeException) {
                     return $this->deferred(NetworkDeferralReason::DependencyUnavailable, $this->retryPolicy->dependencySeconds);
                 }
+                $originKey = $url->origin->scheme.'://'.$url->origin->host.':'.$url->origin->port;
+                $failedAddresses = $failedAddressesByOrigin[$originKey] ?? [];
+                $selectedAddress = $resolved->address;
+                foreach ($resolved->addresses as $candidateAddress) {
+                    if (! in_array($candidateAddress, $failedAddresses, true)) {
+                        $selectedAddress = $candidateAddress;
+                        break;
+                    }
+                }
+                if (in_array($selectedAddress, $failedAddresses, true)) {
+                    $selectedAddress = $resolved->addresses[($attempt - 1) % count($resolved->addresses)];
+                }
+                $resolved = $resolved->withAddress($selectedAddress);
                 $context->tick();
                 if (! $context->canStart(Duration::seconds($plan->profile->totalSeconds))) {
                     return $this->deferred(NetworkDeferralReason::SliceExhausted, 1);
@@ -219,6 +235,10 @@ final readonly class OutboundExecutor
                             return new TransportBlocked($result->failure === TransportFailure::Tls
                                 ? NetworkBlockedReason::ConfigurationHold : NetworkBlockedReason::PolicyReview);
                         }
+                        if (in_array($result->failure, [TransportFailure::Connect, TransportFailure::Timeout], true)
+                            && ! in_array($resolved->address, $failedAddressesByOrigin[$originKey] ?? [], true)) {
+                            $failedAddressesByOrigin[$originKey][] = $resolved->address;
+                        }
                         $preferUntried = count($tried) < $plan->profile->distinctRoutes;
                         break;
                     }
@@ -276,7 +296,23 @@ final readonly class OutboundExecutor
                 } finally {
                     // A completed spool belongs to the caller only when returned via TransportSucceeded.
                     if (! $transferredOwnership && $result->response?->body instanceof BinaryBodyArtifact) {
-                        Storage::disk($result->response->body->artifact->disk)->delete($result->response->body->artifact->key);
+                        $artifact = $result->response->body->artifact;
+                        try {
+                            if (! Storage::disk($artifact->disk)->delete($artifact->key)) {
+                                Log::warning('Outbound binary artifact delete returned false after attempt.', [
+                                    'physical_request_id' => $physical->physicalRequestId->value,
+                                    'disk' => $artifact->disk,
+                                    'artifact_key' => $artifact->key,
+                                ]);
+                            }
+                        } catch (\Throwable $cleanupError) {
+                            Log::warning('Outbound binary artifact delete failed after attempt.', [
+                                'physical_request_id' => $physical->physicalRequestId->value,
+                                'disk' => $artifact->disk,
+                                'artifact_key' => $artifact->key,
+                                'error_class' => $cleanupError::class,
+                            ]);
+                        }
                     }
                 }
             }

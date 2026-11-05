@@ -73,16 +73,17 @@
     },
     "scripts": {
         "setup": [
+            "@php -r 'if (strtolower(trim((string) getenv(\"APP_ENV\"))) === \"production\" || (is_file(\"bootstrap/cache/config.php\") && strtolower((string) ((@include \"bootstrap/cache/config.php\")[\"app\"][\"env\"] ?? \"\")) === \"production\") || (is_file(\".env\") && preg_match(\"/^\\s*(?:export\\s+)?APP_ENV\\s*=\\s*[\\x22\\x27]?production[\\x22\\x27]?\\s*(?:#.*)?\\x24/mi\", (string) file_get_contents(\".env\")) === 1)) { fwrite(STDERR, \"Refusing to run composer setup in production environment.\".PHP_EOL); exit(1); }'",
             "composer install",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
-            "@php artisan key:generate",
-            "@php artisan migrate --force",
+            "@php -r 'if (trim((string) getenv(\"APP_KEY_FILE\")) !== \"\") { if (!is_file(trim((string) getenv(\"APP_KEY_FILE\"))) || !is_readable(trim((string) getenv(\"APP_KEY_FILE\"))) || trim((string) file_get_contents(trim((string) getenv(\"APP_KEY_FILE\")))) === \"\") { fwrite(STDERR, \"APP_KEY_FILE is set but unreadable or empty.\".PHP_EOL); exit(1); } exit(0); } if (trim((string) getenv(\"APP_KEY\")) !== \"\" || (is_file(\".env\") && preg_match(\"/^\\s*(?:export\\s+)?APP_KEY\\s*=\\s*(?![\\x22\\x27]?\\s*(?:#|\\x24))\\S+/m\", (string) file_get_contents(\".env\")) === 1)) { exit(0); } passthru(escapeshellarg(PHP_BINARY).\" artisan key:generate --ansi\", $status); exit($status);'",
+            "@php artisan migrate --no-interaction",
             "pnpm install",
             "pnpm build"
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "pnpm dlx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"pnpm dev\" --names=server,queue,logs,vite --kill-others"
+            "pnpm exec concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"pnpm dev\" --names=server,queue,logs,vite --kill-others"
         ],
         "test": [
             "@php artisan config:clear --ansi",

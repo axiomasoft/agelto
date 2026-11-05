@@ -27,6 +27,13 @@ def main():
         resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
         resource.setrlimit(resource.RLIMIT_FSIZE, (ceiling, ceiling))
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        try:
+            _, hard_nofile = resource.getrlimit(resource.RLIMIT_NOFILE)
+            target_nofile = 1024 if hard_nofile == resource.RLIM_INFINITY else min(1024, hard_nofile)
+            if target_nofile > 0:
+                resource.setrlimit(resource.RLIMIT_NOFILE, (target_nofile, target_nofile))
+        except (OSError, ValueError):
+            pass
     def workspace_size():
         total = 0
         for base, dirs, files in os.walk(os.getcwd()):
@@ -108,15 +115,32 @@ def main():
                 return (utime + stime) / clk_tck, max(0, rss_pages) * page_size
             except (OSError, ValueError, IndexError):
                 return 0.0, 0
+        child_exit = None
+        def poll_child():
+            nonlocal child_exit
+            if child_exit is not None:
+                return child_exit
+            code = child.poll()
+            if code is not None:
+                child_exit = code
+            return child_exit
         def reap_nonblocking():
+            nonlocal child_exit
             try:
-                while os.waitpid(-1, os.WNOHANG)[0] > 0:
-                    pass
+                while True:
+                    pid, status = os.waitpid(-1, os.WNOHANG)
+                    if pid <= 0:
+                        break
+                    if pid == child.pid:
+                        child_exit = os.waitstatus_to_exitcode(status)
+                        child.returncode = child_exit
             except ChildProcessError:
                 pass
         try:
-            while child.poll() is None:
+            while poll_child() is None:
                 reap_nonblocking()
+                if child_exit is not None:
+                    break
                 if stopped:
                     reason = 'cancelled'
                     break
@@ -156,8 +180,8 @@ def main():
                     pass
             end = time.monotonic() + 1
             while (group_alive() or descendants()) and time.monotonic() < end:
-                child.poll()
                 reap_nonblocking()
+                poll_child()
                 time.sleep(.02)
             end = time.monotonic() + 2
             while time.monotonic() < end:
@@ -171,18 +195,24 @@ def main():
                         os.kill(pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
-                child.poll()
                 reap_nonblocking()
-                if not group_alive() and not descendants() and child.poll() is not None:
+                poll_child()
+                if not group_alive() and not descendants() and poll_child() is not None:
                     break
                 time.sleep(.02)
-            child.wait()
+            if poll_child() is None:
+                try:
+                    _, status = os.waitpid(child.pid, 0)
+                    child_exit = os.waitstatus_to_exitcode(status)
+                    child.returncode = child_exit
+                except ChildProcessError:
+                    poll_child()
             reap_nonblocking()
             if reason is None and workspace_size() > ceiling:
                 reason = 'tmp_limit'
             clean = not group_alive() and not descendants()
             with open(receipt + '.new', 'x') as f:
-                json.dump({'stopped': clean, 'exit': child.returncode, 'reason': reason, 'pgid': pgid}, f)
+                json.dump({'stopped': clean, 'exit': child_exit if child_exit is not None else child.returncode, 'reason': reason, 'pgid': pgid}, f)
                 f.flush()
                 os.fsync(f.fileno())
             os.rename(receipt + '.new', receipt)

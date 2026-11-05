@@ -2,22 +2,36 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Network\BinaryBodyArtifact;
 use App\Dto\Procurement\Network\HealthSnapshot;
+use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\ProxyNodeConfiguration;
+use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Network\ScheduledNetworkPermit;
 use App\Dto\Procurement\Network\TransferBudget;
+use App\Dto\Procurement\Network\TransportBlocked;
+use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Network\TransportSucceeded;
+use App\Dto\Procurement\Platform\CanonicalOrigin;
 use App\Dto\Procurement\Process\ArtifactRef;
 use App\Enums\Procurement\Network\CircuitState;
 use App\Enums\Procurement\Network\HealthScope;
+use App\Enums\Procurement\Network\IdempotencyClass;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
+use App\Enums\Procurement\Network\TrafficClass;
+use App\Enums\Procurement\Network\TransportFailure;
 use App\Models\User;
 use App\Repositories\Procurement\Network\HealthRepository;
 use App\Repositories\Procurement\Network\RouteRepository;
 use App\Services\Procurement\Network\ArtifactResponseStream;
 use App\Services\Procurement\Network\NetworkReconcileCategory;
 use App\Services\Procurement\Network\OutboundExecutor;
+use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\SourceTlsTrust;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\TransportFixtures;
@@ -191,6 +205,175 @@ test('ArtifactResponseStream идемпотентно удаляет артеф�
             $budget,
         ))->toThrow(RuntimeException::class, 'Gate record failed after binary response staged')
             ->and(Storage::disk('local')->allFiles('outbound-responses'))->toBe([]);
+
+        // Сбой удаления временного бинарного артефакта в cleanup не маскирует первичное исключение record(), а успешный ответ сохраняет файл.
+        $okGate = TransportFixtures::gate();
+        $okOutcome = app(OutboundExecutor::class)->execute(
+            TransportFixtures::plan($wire->url('/document'), $profile),
+            TransportFixtures::context(),
+            $okGate,
+            $wire->policy(),
+            new TransferBudget(5_000_000, 5_000_000),
+        );
+        expect($okOutcome)->toBeInstanceOf(TransportSucceeded::class)
+            ->and($okOutcome->response->body)->toBeInstanceOf(BinaryBodyArtifact::class)
+            ->and(Storage::disk('local')->exists($okOutcome->response->body->artifact->key))->toBeTrue();
+
+        Log::spy();
+        $failingDisk = Mockery::mock(Storage::disk('local'))->makePartial();
+        $failingDisk->shouldReceive('delete')->andThrow(new RuntimeException('Disk delete crashed during cleanup'));
+        Storage::set('local', $failingDisk);
+
+        $failGate = TransportFixtures::gate();
+        $failGate->afterRecord = static function (): void {
+            throw new RuntimeException('Primary gate record failure preserved');
+        };
+        expect(fn () => app(OutboundExecutor::class)->execute(
+            TransportFixtures::plan($wire->url('/document'), $profile),
+            TransportFixtures::context(),
+            $failGate,
+            $wire->policy(),
+            new TransferBudget(5_000_000, 5_000_000),
+        ))->toThrow(RuntimeException::class, 'Primary gate record failure preserved');
+        Log::shouldHaveReceived('warning')->once();
+    } finally {
+        $wire->stop();
+    }
+});
+
+test('UrlPolicy отвергает смешанный public/private DNS, а OutboundExecutor переключает следующий проверенный IP в новом физическом запросе с соблюдением sendLimit, pause и redirect', function (): void {
+    while (DB::transactionLevel() > 0) {
+        DB::rollBack();
+    }
+
+    $publicOrigin = CanonicalOrigin::fromUrl('https://example.test');
+    $mixedPolicy = new UrlPolicy(
+        [$publicOrigin],
+        [],
+        static fn (): array => ['8.8.8.8', '10.0.0.1'],
+    );
+    expect(fn () => $mixedPolicy->resolve(new SafeUrl('https://example.test/path')))
+        ->toThrow(InvalidArgumentException::class, 'Non-public address denied by URL policy.');
+
+    $dedupPolicy = new UrlPolicy(
+        [$publicOrigin],
+        [],
+        static fn (): array => ['8.8.8.8', '8.8.8.8', '1.1.1.1'],
+    );
+    $resolvedDedup = $dedupPolicy->resolve(new SafeUrl('https://example.test/path'));
+    expect($resolvedDedup->address)->toBe('8.8.8.8')
+        ->and($resolvedDedup->addresses)->toBe(['8.8.8.8', '1.1.1.1']);
+
+    $wire = new WireFixture;
+    try {
+        $origins = [
+            CanonicalOrigin::fromUrl($wire->url('/')->reveal()),
+            CanonicalOrigin::fromUrl($wire->url('/', true)->reveal()),
+            CanonicalOrigin::fromUrl($wire->url('/', false, 'second.test')->reveal()),
+        ];
+        $failoverPolicy = new UrlPolicy($origins, [
+            'fixture.test' => ['127.0.0.2', '127.0.0.1'],
+            'second.test' => ['127.0.0.2', '127.0.0.1'],
+        ]);
+
+        // 1. Mixed public/private DNS блокируется до любого authorize/send.
+        $blockedGate = TransportFixtures::gate();
+        $blockedPolicy = new UrlPolicy($origins, [], static fn (): array => ['8.8.8.8', '127.0.0.1']);
+        $blockedOutcome = app(OutboundExecutor::class)->execute(
+            TransportFixtures::plan($wire->url('/ok')),
+            TransportFixtures::context(),
+            $blockedGate,
+            $blockedPolicy,
+            new TransferBudget(1_000_000, 1_000_000),
+        );
+        expect($blockedOutcome)->toBeInstanceOf(TransportBlocked::class)
+            ->and($blockedOutcome->reason)->toBe(NetworkBlockedReason::UrlPolicyDenied)
+            ->and($blockedGate->requests)->toBe([]);
+
+        // 2. Два проверенных IP: отказ соединения на 127.0.0.2 переключает вторую попытку на 127.0.0.1 с новым physicalRequestId и отдельным permit.
+        $gate = TransportFixtures::gate();
+        $outcome = app(OutboundExecutor::class)->execute(
+            TransportFixtures::plan($wire->url('/ok')),
+            TransportFixtures::context(),
+            $gate,
+            $failoverPolicy,
+            new TransferBudget(1_000_000, 1_000_000),
+        );
+        expect($outcome)->toBeInstanceOf(TransportSucceeded::class)
+            ->and($gate->requests)->toHaveCount(2)
+            ->and($gate->results)->toHaveCount(2)
+            ->and($gate->results[0]->failure)->toBe(TransportFailure::Connect)
+            ->and($gate->results[1]->failure)->toBeNull()
+            ->and($gate->requests[0]->plan->physicalRequestId->value)
+            ->not->toBe($gate->requests[1]->plan->physicalRequestId->value)
+            ->and($outcome->physicalRequestId->value)->toBe($gate->requests[1]->plan->physicalRequestId->value);
+
+        // 3. Неоднозначная запись (AmbiguousWrite / sendLimit=1) никогда не отправляет второй запрос на второй IP.
+        $writeGate = TransportFixtures::gate();
+        $writePlan = new OutboundRequestPlan(
+            LedgerFixtures::uuid(),
+            LedgerFixtures::uuid(),
+            'POST',
+            $wire->url('/ok'),
+            TransportFixtures::profile(),
+            TrafficClass::Detail,
+            IdempotencyClass::AmbiguousWrite,
+            null,
+            1,
+        );
+        $writeOutcome = app(OutboundExecutor::class)->execute(
+            $writePlan,
+            TransportFixtures::context(),
+            $writeGate,
+            $failoverPolicy,
+            new TransferBudget(1_000_000, 1_000_000),
+        );
+        expect($writeOutcome)->toBeInstanceOf(TransportDeferred::class)
+            ->and($writeOutcome->reason)->toBe(NetworkDeferralReason::AttemptsExhausted)
+            ->and($writeGate->requests)->toHaveCount(1);
+
+        // 4. Пауза между попытками останавливает перебор IP до второго физического запроса.
+        $pauseGate = TransportFixtures::gate();
+        $pauseGate->afterRecord = static function ($g): void {
+            $g->deny = new TransportBlocked(NetworkBlockedReason::Paused);
+        };
+        $pauseOutcome = app(OutboundExecutor::class)->execute(
+            TransportFixtures::plan($wire->url('/ok')),
+            TransportFixtures::context(),
+            $pauseGate,
+            $failoverPolicy,
+            new TransferBudget(1_000_000, 1_000_000),
+        );
+        expect($pauseOutcome)->toBeInstanceOf(TransportBlocked::class)
+            ->and($pauseOutcome->reason)->toBe(NetworkBlockedReason::Paused)
+            ->and($pauseGate->requests)->toHaveCount(1);
+
+        // 5. Недостаточный остаток времени попытки (canStart() === false) возвращает SliceExhausted.
+        $shortGate = TransportFixtures::gate();
+        $shortProfile = TransportFixtures::profile(['total_seconds' => 10]);
+        $shortOutcome = app(OutboundExecutor::class)->execute(
+            TransportFixtures::plan($wire->url('/ok'), $shortProfile),
+            TransportFixtures::context(seconds: 5),
+            $shortGate,
+            $failoverPolicy,
+            new TransferBudget(1_000_000, 1_000_000),
+        );
+        expect($shortOutcome)->toBeInstanceOf(TransportDeferred::class)
+            ->and($shortOutcome->reason)->toBe(NetworkDeferralReason::SliceExhausted)
+            ->and($shortGate->requests)->toBe([]);
+
+        // 6. Cross-origin redirect сбрасывает историю отказов на новый origin и доставляет ответ со второго IP.
+        $wire->respond('/redirect-second', '', 302, ['Location' => $wire->url('/ok', false, 'second.test')->reveal()]);
+        $redirectGate = TransportFixtures::gate();
+        $redirectOutcome = app(OutboundExecutor::class)->execute(
+            TransportFixtures::plan($wire->url('/redirect-second')),
+            TransportFixtures::context(),
+            $redirectGate,
+            $failoverPolicy,
+            new TransferBudget(1_000_000, 1_000_000),
+        );
+        expect($redirectOutcome)->toBeInstanceOf(TransportSucceeded::class)
+            ->and($redirectGate->requests)->toHaveCount(4);
     } finally {
         $wire->stop();
     }

@@ -52,6 +52,8 @@ final readonly class WorkRunner
     /** Минимальная пауза до повтора после typed dependency / slice без устойчивого checkpoint. */
     private const int RETRY_SECONDS = 30;
 
+    private const int RETRY_JITTER_SECONDS = 5;
+
     public function __construct(
         private WorkStoreRepository $store,
         private AuthorityRepository $authority,
@@ -86,12 +88,26 @@ final readonly class WorkRunner
 
     private function execute(ExecutionLease $lease): DeliveryOutcome
     {
-        $snapshot = $this->authority->readAuthoritySnapshot($lease->workId);
-        if (! $snapshot instanceof AuthoritySnapshot) {
-            // Claim только что видел тот же snapshot: расхождение — дефект, work восстановит recovery.
-            throw new \LogicException('Claimed work has no readable authority snapshot.');
+        try {
+            $snapshot = $this->authority->readAuthoritySnapshot($lease->workId);
+            if (! $snapshot instanceof AuthoritySnapshot) {
+                // Claim только что видел тот же snapshot: расхождение — дефект, work восстановит recovery.
+                throw new \LogicException('Claimed work has no readable authority snapshot.');
+            }
+            $context = $this->contexts->open($lease);
+        } catch (DependencyUnavailable $unavailable) {
+            ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
+
+            return DeliveryOutcome::DependencyUnavailable;
+        } catch (\PDOException $failure) {
+            if (! DatabaseFailureClassifier::isTransient($failure)) {
+                throw $failure;
+            }
+            ProcessLog::dependencyUnavailable('database', $failure);
+
+            return DeliveryOutcome::DependencyUnavailable;
         }
-        $context = $this->contexts->open($lease);
+
         try {
             $outcome = $this->registry->handler($lease->stage)->execute($snapshot->input, $context);
         } catch (LeaseLost) {
@@ -138,6 +154,13 @@ final readonly class WorkRunner
             ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
 
             return DeliveryOutcome::DependencyUnavailable;
+        } catch (\PDOException $failure) {
+            if (! DatabaseFailureClassifier::isTransient($failure)) {
+                throw $failure;
+            }
+            ProcessLog::dependencyUnavailable('database', $failure);
+
+            return DeliveryOutcome::DependencyUnavailable;
         }
 
         return DeliveryOutcome::Executed;
@@ -156,7 +179,9 @@ final readonly class WorkRunner
 
     private function retryAt(): RetryAt
     {
-        return new RetryAt($this->clock->dbNow()->value->add(new \DateInterval('PT'.self::RETRY_SECONDS.'S')));
+        $seconds = self::RETRY_SECONDS + random_int(0, self::RETRY_JITTER_SECONDS);
+
+        return new RetryAt($this->clock->dbNow()->value->add(new \DateInterval('PT'.$seconds.'S')));
     }
 
     /** Неподдерживаемая queue schema: видимый incident; саму работу восстановят durable scanners. */

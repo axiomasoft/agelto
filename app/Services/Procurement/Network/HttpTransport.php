@@ -38,6 +38,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException as ClientRequestException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Psr\Http\Message\ResponseInterface;
 
@@ -199,9 +200,29 @@ final readonly class HttpTransport
 
             return new HttpAttemptResult(null, $failure, $wireBytes, $sink->bytes(), $code, $head, $metrics);
         } finally {
-            $sink->close();
+            try {
+                $sink->close();
+            } catch (\Throwable $cleanupError) {
+                Log::warning('Outbound sink close failed during transport cleanup.', [
+                    'physical_request_id' => $plan->physicalRequestId->value,
+                    'error_class' => $cleanupError::class,
+                ]);
+            }
             if ($artifactKey !== null && ! $keepArtifact) {
-                Storage::disk('local')->delete($artifactKey);
+                try {
+                    if (! Storage::disk('local')->delete($artifactKey)) {
+                        Log::warning('Outbound staged artifact delete returned false during transport cleanup.', [
+                            'physical_request_id' => $plan->physicalRequestId->value,
+                            'artifact_key' => $artifactKey,
+                        ]);
+                    }
+                } catch (\Throwable $cleanupError) {
+                    Log::warning('Outbound staged artifact delete failed during transport cleanup.', [
+                        'physical_request_id' => $plan->physicalRequestId->value,
+                        'artifact_key' => $artifactKey,
+                        'error_class' => $cleanupError::class,
+                    ]);
+                }
             }
         }
     }

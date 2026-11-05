@@ -156,7 +156,7 @@ test('BoundedToolProcess и tool_supervisor очищают секреты окр
     try {
         $tool = new BoundedToolProcess;
         $envJson = $tool->run(
-            ['python3', '-c', 'import json, os; print(json.dumps({"aws": os.environ.get("AWS_SECRET_ACCESS_KEY_FILE"), "app_key": os.environ.get("APP_KEY"), "omp": os.environ.get("OMP_THREAD_LIMIT")}))'],
+            ['python3', '-c', 'import json, os, resource; print(json.dumps({"aws": os.environ.get("AWS_SECRET_ACCESS_KEY_FILE"), "app_key": os.environ.get("APP_KEY"), "omp": os.environ.get("OMP_THREAD_LIMIT"), "nofile": resource.getrlimit(resource.RLIMIT_NOFILE)[0]}))'],
             $dir,
             ToolContext::make(),
             hrtime(true) / 1e9 + 10,
@@ -164,7 +164,52 @@ test('BoundedToolProcess и tool_supervisor очищают секреты окр
         $env = json_decode(trim($envJson), true, flags: JSON_THROW_ON_ERROR);
         expect($env['aws'])->toBeNull()
             ->and($env['app_key'])->toBeNull()
-            ->and($env['omp'])->toBe('1');
+            ->and($env['omp'])->toBe('1')
+            ->and($env['nofile'])->toBeLessThanOrEqual(1024);
+
+        // Ненулевой код возврата (23) и сигнальный выход (-SIGABRT) не теряются при reap_nonblocking и живых потомках в cleanup.
+        $orphanPidFile = $dir.'/orphan-cleanup.pid';
+        $nonZeroCaught = null;
+        try {
+            $tool->run(
+                ['python3', '-c', 'import os, sys, time
+pid = os.fork()
+if pid == 0:
+    os.setsid()
+    open(sys.argv[1], "w").write(str(os.getpid()))
+    time.sleep(30)
+while not os.path.exists(sys.argv[1]):
+    time.sleep(0.005)
+sys.exit(23)', $orphanPidFile],
+                $dir,
+                ToolContext::make(),
+                hrtime(true) / 1e9 + 10,
+            );
+        } catch (ToolFailed $e) {
+            $nonZeroCaught = $e;
+        }
+        expect($nonZeroCaught)->toBeInstanceOf(ToolFailed::class)
+            ->and($nonZeroCaught?->getMessage())->toBe('page_ocr_error')
+            ->and($nonZeroCaught?->exitCode)->toBe(23)
+            ->and(is_file($orphanPidFile))->toBeTrue();
+        $orphanPid = (int) trim((string) file_get_contents($orphanPidFile));
+        expect($orphanPid)->toBeGreaterThan(0)
+            ->and(posix_kill($orphanPid, 0))->toBeFalse();
+
+        $signalCaught = null;
+        try {
+            $tool->run(
+                ['python3', '-c', 'import os, signal; os.kill(os.getpid(), signal.SIGABRT)'],
+                $dir,
+                ToolContext::make(),
+                hrtime(true) / 1e9 + 10,
+            );
+        } catch (ToolFailed $e) {
+            $signalCaught = $e;
+        }
+        expect($signalCaught)->toBeInstanceOf(ToolFailed::class)
+            ->and($signalCaught?->getMessage())->toBe('page_ocr_error')
+            ->and($signalCaught?->exitCode)->toBe(-6);
 
         // Быстрый процесс (<20мс) создаёт два файла в рабочей директории сверх tmpBytes и сразу завершается с кодом 0.
         $caught = null;
