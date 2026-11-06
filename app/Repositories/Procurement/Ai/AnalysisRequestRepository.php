@@ -5,16 +5,24 @@ declare(strict_types=1);
 namespace App\Repositories\Procurement\Ai;
 
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
+use App\Dto\Procurement\Ai\AnalysisRequestLink;
+use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
+use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Process\WorkInput;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Services\Procurement\Process\ProcessPayloadCodec;
 use Illuminate\Support\Facades\DB;
 
 /** Explicit active linkage, never ORDER BY latest call. Historical physical rows remain immutable. */
 final class AnalysisRequestRepository
 {
+    public function __construct(private readonly ProcessPayloadCodec $codec) {}
+
     public function linkLocked(ExecutionLease $lease, ProcessUuid $run, AuthorizedProviderOperation $operation, ProcessUuid $linkId): void
     {
         CallerTransaction::require('Analysis request linking');
@@ -34,21 +42,37 @@ final class AnalysisRequestRepository
             $linkId->value, $run->value, $lease->workId->value->value, $lease->attemptId->value, $lease->generation, $operation->physicalCallId, $lease->inputHash->hex,
         ]);
         $mapping = $this->active($lease->workId);
-        if (($inserted !== 1 && $mapping?->string('physical_call_id') !== $operation->physicalCallId) || $mapping === null) {
+        if (($inserted !== 1 && $mapping?->physicalCallId !== $operation->physicalCallId) || $mapping === null) {
             throw new \LogicException('Exact analysis/work/attempt/request linkage mismatch.');
         }
     }
 
-    public function active(WorkId $work): ?LedgerRow
+    public function active(WorkId $work): ?AnalysisRequestLink
     {
-        return LedgerRow::one("SELECT *,encode(expected_input_hash,'hex') AS input_hex,encode(recipe_hash,'hex') AS recipe_hex
+        $row = LedgerRow::one("SELECT *,encode(expected_input_hash,'hex') AS input_hex,encode(recipe_hash,'hex') AS recipe_hex
             FROM prc_analysis_llm_requests WHERE work_id=? AND recovery_active", [$work->value->value]);
+
+        return $row === null ? null : $this->link($row);
     }
 
-    public function physical(string $physical): LedgerRow
+    public function physical(string $physical): AnalysisRequestLink
     {
-        return LedgerRow::one("SELECT *,encode(expected_input_hash,'hex') AS input_hex,encode(recipe_hash,'hex') AS recipe_hex
+        $row = LedgerRow::one("SELECT *,encode(expected_input_hash,'hex') AS input_hex,encode(recipe_hash,'hex') AS recipe_hex
             FROM prc_analysis_llm_requests WHERE physical_call_id=?", [$physical]) ?? throw new \LogicException('Missing exact analysis provider mapping.');
+
+        return $this->link($row);
+    }
+
+    /** Missing physical identity is an invariant failure; a different immutable input is not a match. */
+    public function physicalForInput(string $physical, AnalysisRunSnapshot $run, WorkInput $input): ?AnalysisRequestLink
+    {
+        $link = $this->physical($physical);
+        $inputHash = WorkStoreRepository::inputHash($this->codec->encodeInput($input)->json ?? '');
+        if ($link->analysisRunId != $run->id || $link->expectedWorkInputHash != $inputHash || $link->recipeHash != $run->recipe->hash) {
+            return null;
+        }
+
+        return $link;
     }
 
     /** Rechecked while the joint owner holds document/version subjects; no latest-call heuristic. */
@@ -69,5 +93,17 @@ final class AnalysisRequestRepository
         if (DB::update('UPDATE prc_analysis_llm_requests SET recovery_active=false WHERE work_id=? AND physical_call_id=? AND recovery_active', [$work->value->value, $physical]) !== 1) {
             throw new \LogicException('Provider directive consumption conflict.');
         }
+    }
+
+    private function link(LedgerRow $row): AnalysisRequestLink
+    {
+        return new AnalysisRequestLink(
+            analysisRunId: new ProcessUuid($row->string('analysis_run_id')),
+            workId: new WorkId(new ProcessUuid($row->string('work_id'))),
+            logicalRequestId: $row->string('logical_request_id'),
+            physicalCallId: $row->string('physical_call_id'),
+            expectedWorkInputHash: new ContentHash($row->string('input_hex')),
+            recipeHash: new ContentHash($row->string('recipe_hex')),
+        );
     }
 }

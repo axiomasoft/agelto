@@ -7,26 +7,11 @@ namespace App\Repositories\Procurement\Document;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Services\Procurement\Document\StoredDocumentWriter;
 use Illuminate\Database\Eloquent\Collection;
 
-/**
- * Единственная точка персистентности `prc_document_representations` — стратегии подготовки
- * пишут представления только через неё.
- */
+/** Read complete stored representations for retained format strategies and resolvers. */
 final readonly class RepresentationStoreRepository
 {
-    /**
-     * Идемпотентность повторной генерации: ключ — пара версия+kind, второй прогон обновляет
-     * ту же запись (та же уникальность, что в схеме).
-     *
-     * @param  array<string, mixed>  $attributes
-     */
-    public function storeOrUpdate(DocumentVersion $version, RepresentationKind $kind, array $attributes): DocumentRepresentation
-    {
-        return app(StoredDocumentWriter::class)->representation($version, $kind, $attributes);
-    }
-
     public function find(DocumentVersion $version, RepresentationKind $kind): ?DocumentRepresentation
     {
         return DocumentRepresentation::query()

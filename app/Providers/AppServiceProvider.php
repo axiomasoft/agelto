@@ -47,6 +47,7 @@ use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\SourceTargetValidator;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -115,6 +116,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Relation::morphMap(['user' => User::class]);
+
         if ($this->app->environment('production') && (
             (bool) config('app.debug') !== false
             || in_array(config('queue.default'), ['sync', 'null'], true)

@@ -7,10 +7,12 @@ namespace App\Guards\Admin\Roles;
 use App\Guards\Admin\Permissions\AnalysisPermission;
 use App\Guards\Admin\Permissions\EstimatePermission;
 use App\Guards\Admin\Permissions\FixturePermission;
+use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Guards\Admin\Permissions\ProcessRunPermission;
 use App\Guards\Admin\Permissions\ProcurementPermission;
 use App\Guards\Admin\Permissions\PromptSuggestionPermission;
 use AzGuard\Roles\BaseRole;
+use Override;
 use UnitEnum;
 
 /**
@@ -19,12 +21,26 @@ use UnitEnum;
  */
 final class AnalystRole extends BaseRole
 {
-    public function getLevel(): int
+    #[Override]
+    public function key(): string
+    {
+        return 'analyst';
+    }
+
+    #[Override]
+    public function label(): string
+    {
+        return 'Аналитик';
+    }
+
+    #[Override]
+    public function level(): int
     {
         return 10;
     }
 
     /** @return list<UnitEnum> */
+    #[Override]
     public function permissions(): array
     {
         return [
@@ -42,6 +58,9 @@ final class AnalystRole extends BaseRole
             // Сметы доступны аналитику для чтения вместе с пометками неопределённости.
             EstimatePermission::ViewAny,
             EstimatePermission::View,
+            ProcessControlPermission::DashboardPageView,
+            ProcessControlPermission::FinalPromptPageView,
+            ProcessControlPermission::LlmSpendChartWidgetView,
         ];
     }
 }

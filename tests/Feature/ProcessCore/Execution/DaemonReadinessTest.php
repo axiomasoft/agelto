@@ -5,11 +5,14 @@ declare(strict_types=1);
 use App\Dto\Procurement\Process\DaemonTick;
 use App\Dto\Procurement\Process\DbInstant;
 use App\Dto\Procurement\Process\Duration;
+use App\Dto\Procurement\Process\PrepareInput;
 use App\Dto\Procurement\Process\WorkWake;
 use App\Enums\Procurement\Process\DaemonHealth;
 use App\Enums\Procurement\Process\DaemonKind;
 use App\Enums\Procurement\Process\StageCode;
+use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Process\DaemonHeartbeatRepository;
+use App\Services\Procurement\Document\PreparePolicy;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
@@ -17,6 +20,7 @@ use App\Services\Procurement\Process\Contracts\WorkWakePublisher;
 use App\Services\Procurement\Process\DaemonLoop;
 use App\Services\Procurement\Process\DaemonPolicy;
 use App\Services\Procurement\Process\DaemonReadiness;
+use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ReconcileDaemon;
 use App\Services\Procurement\Process\RelayDaemon;
 use App\Services\Procurement\Process\WorkFeeder;
@@ -88,6 +92,192 @@ function loopProbe(DaemonKind $kind, Closure $tick, int $delayMs = 0): object
         }
     };
 }
+
+test('карантин feeder wake сохраняет degraded на idle polls до разрешения сообщения', function (): void {
+    ExecutionFixtures::authority([StageCode::Listing]);
+    app()->instance(ProcessClock::class, loopClock());
+    $message = LedgerFixtures::uuid();
+    DB::table('prc_process_outbox')->insert([
+        'message_id' => $message->value,
+        'dedup_key' => 'feed:acquisition:unsupported-idle',
+        'kind' => 'feeder_wake',
+        'payload' => '{}',
+        'payload_schema_version' => 2,
+        'available_at' => DB::raw('clock_timestamp()'),
+    ]);
+    $daemon = app(FeederDaemon::class);
+    expect($daemon->tick()->errorCode)->toBe('outbox_quarantined');
+    for ($poll = 0; $poll < 3; $poll++) {
+        $tick = $daemon->tick();
+        expect($tick->processed)->toBe(0)->and($tick->errorCode)->toBe('outbox_quarantined');
+    }
+    expect(DB::table('prc_process_outbox')->where('message_id', $message->value)->value('attempts'))->toBe(1);
+    DB::table('prc_process_outbox')->where('message_id', $message->value)->update(['published_at' => DB::raw('clock_timestamp()')]);
+    expect($daemon->tick()->errorCode)->toBeNull();
+});
+
+test('ошибка producer не останавливает здоровый producer и admission listing, а wake ждёт чистого tick', function (): void {
+    ExecutionFixtures::authority([StageCode::Listing]);
+    app()->instance(ProcessClock::class, loopClock());
+    $work = ExecutionFixtures::listingWork();
+    $message = LedgerFixtures::uuid();
+    DB::table('prc_process_outbox')->insert([
+        'message_id' => $message->value,
+        'dedup_key' => 'feed:fixture:producer-isolation',
+        'kind' => 'feeder_wake',
+        'payload' => '{"lane_key":"acquisition"}',
+        'payload_schema_version' => 1,
+        'available_at' => DB::raw('clock_timestamp()'),
+    ]);
+    $failure = new RuntimeException('fixture producer failure');
+    $failing = new class($failure) implements ReconcileCategory
+    {
+        public bool $fails = true;
+
+        public function __construct(private readonly Throwable $failure) {}
+
+        public function name(): string
+        {
+            return 'fixture_failing';
+        }
+
+        public function reconcile(): int
+        {
+            if ($this->fails) {
+                throw $this->failure;
+            }
+
+            return 0;
+        }
+    };
+    $healthy = new class implements ReconcileCategory
+    {
+        public int $calls = 0;
+
+        public function name(): string
+        {
+            return 'fixture_healthy';
+        }
+
+        public function reconcile(): int
+        {
+            $this->calls++;
+
+            return 1;
+        }
+    };
+    $laterFailing = new class implements ReconcileCategory
+    {
+        public bool $fails = true;
+
+        public function name(): string
+        {
+            return 'fixture_later_failing';
+        }
+
+        public function reconcile(): int
+        {
+            if ($this->fails) {
+                throw new LogicException('fixture later producer failure');
+            }
+
+            return 0;
+        }
+    };
+    $daemon = app(FeederDaemon::class);
+    $daemon->registerProducer($failing);
+    $daemon->registerProducer($laterFailing);
+    $daemon->registerProducer($healthy);
+
+    for ($attempt = 1; $attempt <= 2; $attempt++) {
+        $caught = null;
+        try {
+            $daemon->tick();
+        } catch (Throwable $thrown) {
+            $caught = $thrown;
+        }
+        $wake = DB::table('prc_process_outbox')->where('message_id', $message->value)->sole();
+        expect($caught)->toBe($failure)
+            ->and($healthy->calls)->toBe($attempt)
+            ->and(ExecutionFixtures::work($work)->state)->toBe('admitted')
+            ->and(DB::table('prc_admission_groups')->where('work_id', $work->value->value)->count())->toBe(1)
+            ->and(DB::table('prc_process_outbox')->where('kind', 'work_wake')->where('payload->work_id', $work->value->value)->count())->toBe(1)
+            ->and($wake->published_at)->toBeNull()
+            ->and($wake->claim_token)->toBeNull()
+            ->and($wake->claim_until)->toBeNull()
+            ->and($wake->last_error_code)->toBe('feed_tick_failed')
+            ->and($wake->attempts)->toBe($attempt);
+    }
+
+    $failing->fails = false;
+    $laterFailing->fails = false;
+    $tick = $daemon->tick();
+    $wake = DB::table('prc_process_outbox')->where('message_id', $message->value)->sole();
+    expect($tick->errorCode)->toBeNull()
+        ->and($tick->processed)->toBeGreaterThanOrEqual(2)
+        ->and($healthy->calls)->toBe(3)
+        ->and($wake->published_at)->not->toBeNull()
+        ->and($wake->last_error_code)->toBeNull()
+        ->and(DB::table('prc_admission_groups')->where('work_id', $work->value->value)->count())->toBe(1)
+        ->and($daemon->tick()->processed)->toBe(0)
+        ->and($healthy->calls)->toBe(3);
+});
+
+test('ошибка первой lane сохраняет wake и не мешает admission готовой работы в следующей lane', function (): void {
+    ExecutionFixtures::authority([StageCode::Listing, StageCode::Prepare]);
+    $listing = ExecutionFixtures::listingWork();
+    $version = DocumentVersion::factory()->create();
+    $prepare = ExecutionFixtures::store(
+        input: new PrepareInput(documentVersionId: $version->id, preparationRecipeHash: app(PreparePolicy::class)->hash),
+        cohort: 'manual',
+        priority: 100,
+    );
+    app()->instance(ProcessClock::class, loopClock());
+    $message = LedgerFixtures::uuid();
+    DB::table('prc_process_outbox')->insert([
+        'message_id' => $message->value,
+        'dedup_key' => 'feed:fixture:lane-isolation',
+        'kind' => 'feeder_wake',
+        'payload' => '{"lane_key":"acquisition"}',
+        'payload_schema_version' => 1,
+        'available_at' => DB::raw('clock_timestamp()'),
+    ]);
+    $failure = new RuntimeException('fixture acquisition lane failure');
+    $armed = true;
+    DB::beforeExecuting(static function (string $query, array $bindings) use (&$armed, $failure): void {
+        if ($armed && str_contains($query, 'FROM prc_process_lanes l WHERE') && in_array('acquisition', $bindings, true)) {
+            throw $failure;
+        }
+    });
+    $daemon = app(FeederDaemon::class);
+    $caught = null;
+    try {
+        $daemon->tick();
+    } catch (Throwable $thrown) {
+        $caught = $thrown;
+    } finally {
+        $armed = false;
+    }
+    $wake = DB::table('prc_process_outbox')->where('message_id', $message->value)->sole();
+    expect($caught)->toBe($failure)
+        ->and(ExecutionFixtures::work($listing)->state)->toBe('ready')
+        ->and(ExecutionFixtures::work($prepare)->state)->toBe('admitted')
+        ->and(DB::table('prc_admission_groups')->where('work_id', $prepare->value->value)->count())->toBe(1)
+        ->and(DB::table('prc_process_outbox')->where('kind', 'work_wake')->where('payload->work_id', $prepare->value->value)->count())->toBe(1)
+        ->and($wake->published_at)->toBeNull()
+        ->and($wake->claim_token)->toBeNull()
+        ->and($wake->claim_until)->toBeNull()
+        ->and($wake->last_error_code)->toBe('feed_tick_failed');
+
+    $tick = $daemon->tick();
+    expect($tick->errorCode)->toBeNull()
+        ->and($tick->processed)->toBeGreaterThanOrEqual(2)
+        ->and(ExecutionFixtures::work($listing)->state)->toBe('admitted')
+        ->and(DB::table('prc_admission_groups')->where('work_id', $listing->value->value)->count())->toBe(1)
+        ->and(DB::table('prc_admission_groups')->where('work_id', $prepare->value->value)->count())->toBe(1)
+        ->and(DB::table('prc_process_outbox')->where('message_id', $message->value)->value('published_at'))->not->toBeNull()
+        ->and(DB::table('prc_process_outbox')->where('message_id', $message->value)->value('last_error_code'))->toBeNull();
+});
 
 test('heartbeat readiness: свежий instance без ошибки — healthy, с ошибкой — degraded, молчащий — down, retire убирает instance', function (): void {
     $heartbeats = app(DaemonHeartbeatRepository::class);

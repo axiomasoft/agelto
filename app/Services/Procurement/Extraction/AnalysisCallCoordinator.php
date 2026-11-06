@@ -72,7 +72,7 @@ final readonly class AnalysisCallCoordinator
             $plan = $this->works->lockedCheckpoint($prefix->work)?->providerRecoveryPlan;
             $mapping = $this->mapping->active($lease->workId);
             if ($call->authorization != $operation || ! $plan instanceof ProviderRecoveryPlan
-                || $mapping?->string('physical_call_id') !== $operation->physicalCallId
+                || $mapping?->physicalCallId !== $operation->physicalCallId
                 || $plan->physicalCallId->value !== $operation->physicalCallId
                 || ! in_array($call->outcome, ['not_sent', 'known_nonbillable_cache_miss', 'known_retryable_nonbillable'], true)) {
                 throw new OperationDenied('unsafe_provider_retry');
@@ -158,8 +158,8 @@ final readonly class AnalysisCallCoordinator
             }
             $operation = $this->ledger->authorize($plan, $lease->attemptId->value, $lease->generation, $periodId, $ids, $wire);
             $prior = $this->mapping->active($lease->workId);
-            if ($prior !== null && $prior->string('physical_call_id') !== $operation->physicalCallId) {
-                $old = $this->requests->get($prior->string('physical_call_id'));
+            if ($prior !== null && $prior->physicalCallId !== $operation->physicalCallId) {
+                $old = $this->requests->get($prior->physicalCallId);
                 if ($old->authorization->logicalRequestId !== $operation->logicalRequestId
                     || ! in_array($old->outcome, ['not_sent', 'known_retryable_nonbillable', 'known_nonbillable_cache_miss'], true)) {
                     throw new OperationDenied('prior_operation_not_consumed');

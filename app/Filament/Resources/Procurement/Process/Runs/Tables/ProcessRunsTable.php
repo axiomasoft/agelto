@@ -100,12 +100,20 @@ final class ProcessRunsTable
     {
         /** @var array<string, ?ProcessRunState> $cache */
         static $cache = [];
-        $key = (string) $record->id;
+        $runId = (string) $record->id;
+        $key = implode(':', [
+            $runId,
+            (string) $record->transition_seq,
+            (string) ($record->cancel_requested_at?->toIso8601String() ?? ''),
+            (string) ($record->finished_at?->toIso8601String() ?? ''),
+            (string) self::count($record, 'required_active'),
+            (string) self::count($record, 'required_waiting'),
+        ]);
         if (! array_key_exists($key, $cache)) {
             if (count($cache) >= 256) {
                 $cache = [];
             }
-            $cache[$key] = app(RunProjector::class)->summary(new ProcessUuid($key))?->state;
+            $cache[$key] = app(RunProjector::class)->summary(new ProcessUuid($runId))?->state;
         }
 
         return $cache[$key];

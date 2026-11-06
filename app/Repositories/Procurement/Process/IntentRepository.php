@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Repositories\Procurement\Process;
 
 use App\Dto\Procurement\Acquisition\RefreshPolicy;
+use App\Dto\Procurement\Process\SubjectKey;
 use App\Enums\Procurement\Process\IntentState;
+use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
 use Illuminate\Support\Facades\DB;
 
@@ -18,6 +20,21 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class IntentRepository
 {
+    /** Caller holds the subject lock; replace staging intents before publishing active work. */
+    public function retirePendingLocked(StageCode $stage, SubjectKey $subject): void
+    {
+        CallerTransaction::require('Pending intent retirement');
+        DB::update(
+            "UPDATE prc_operation_intents SET state='terminal',pending_reason=NULL
+             WHERE stage=? AND subject_kind=? AND subject_id=? AND state='pending'",
+            [
+                $stage->value,
+                $subject->kind->value,
+                is_int($subject->id) ? (string) $subject->id : $subject->id->value,
+            ],
+        );
+    }
+
     /**
      * Завершить intent work, ушедшей в terminal без successor (failed_item, cancel), и активировать
      * следующий pending того же subject/stage. С $terminate=false (успех: stage publication уже

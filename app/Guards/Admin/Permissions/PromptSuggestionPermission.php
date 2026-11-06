@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Guards\Admin\Permissions;
 
+use App\Models\Procurement\Ai\PromptSuggestion;
+use AzGuard\Permissions\RequiresGrant;
+use AzGuard\Permissions\Resource;
+
+#[RequiresGrant]
+#[Resource(model: PromptSuggestion::class)]
 enum PromptSuggestionPermission: string
 {
     case ViewAny = 'prompt_suggestion.view_any';

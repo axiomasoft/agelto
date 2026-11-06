@@ -56,6 +56,13 @@ function committedAdminRouteInventory(): array
 function declaredAdminRouteExtensions(): array
 {
     $routes = [
+        ['azguard-doctor', 'filament.admin.pages.azguard-doctor', 'AzGuard\Filament\Pages\DoctorPage'],
+        ['azguard-panels', 'filament.admin.pages.azguard-panels', 'AzGuard\Filament\Pages\PanelsPage'],
+        ['azguard-permission-grants', 'filament.admin.resources.azguard-permission-grants.index', 'AzGuard\Filament\Resources\PermissionGrantResource\Pages\ListPermissionGrants'],
+        ['azguard-permissions', 'filament.admin.resources.azguard-permissions.index', 'AzGuard\Filament\Resources\PermissionResource\Pages\ListPermissions'],
+        ['azguard-role-grants', 'filament.admin.resources.azguard-role-grants.index', 'AzGuard\Filament\Resources\RoleGrantResource\Pages\ListRoleGrants'],
+        ['azguard-roles', 'filament.admin.resources.azguard-roles.index', 'AzGuard\Filament\Resources\RoleResource\Pages\ListRoles'],
+        ['azguard-roles/{panel}/{role}', 'filament.admin.resources.azguard-roles.view', 'AzGuard\Filament\Resources\RoleResource\Pages\ViewRole'],
         ['procurement/process/control-scopes', 'filament.admin.resources.procurement.process.control-scopes.index', 'App\Filament\Resources\Procurement\Process\ControlScopes\Pages\ListControlScopes'],
         ['procurement/process/incidents', 'filament.admin.resources.procurement.process.incidents.index', 'App\Filament\Resources\Procurement\Process\Incidents\Pages\ListIncidents'],
         ['procurement/process/runs/process-runs', 'filament.admin.resources.procurement.process.runs.process-runs.index', 'App\Filament\Resources\Procurement\Process\Runs\Pages\ListProcessRuns'],
@@ -72,6 +79,12 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     $runtimeRoutes = adminRouteInventory();
     $historical = committedAdminRouteInventory();
     $retired = [
+        'filament.admin.resources.direct-grants.index',
+        'filament.admin.resources.direct-grants.create',
+        'filament.admin.pages.doctor-page',
+        'filament.admin.resources.roles.index',
+        'filament.admin.resources.roles.create',
+        'filament.admin.resources.roles.edit',
         'filament.admin.resources.procurement.crawler.source-incidents.index',
         'filament.admin.resources.procurement.crawler.source-circuits.edit',
         'filament.admin.resources.procurement.crawler.source-circuits.index',
@@ -94,7 +107,7 @@ test('runtime admin routes exactly match committed resource and role matrix', fu
     usort($runtimeRoutes, static fn (array $a, array $b): int => [$a['uri'], $a['name']] <=> [$b['uri'], $b['name']]);
 
     expect($runtimeRoutes)
-        ->toHaveCount(60)
+        ->toHaveCount(61)
         ->toEqual($matrixRoutes)
         ->and(array_column($runtimeRoutes, 'name'))
         ->toHaveCount(count(array_unique(array_column($runtimeRoutes, 'name'))));

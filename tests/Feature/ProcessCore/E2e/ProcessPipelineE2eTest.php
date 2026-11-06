@@ -27,6 +27,7 @@ use App\Models\Procurement\Procurement;
 use App\Pulse\Cards\ProcessPlatformHealthCard;
 use App\Repositories\Procurement\Crawler\RefreshRepository;
 use App\Repositories\Procurement\Network\RouteRepository;
+use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
 use App\Services\Llm\Execution\ReceiptPolicies;
 use App\Services\Llm\Providers\GeminiAssetReceiptPolicy;
@@ -284,11 +285,12 @@ function processPipelineE2e(bool $horizon): Closure
         });
         app()->instance(RuntimeDownloadHandler::class, app()->makeWith(RuntimeDownloadHandler::class, ['urls' => $wire->policy()]));
         app()->bind(AcquisitionHandler::class, static fn ($app, array $params): AcquisitionHandler => new AcquisitionHandler(
-            $params['stage'],
-            $app->make(PlatformRegistry::class),
-            $app->make(AcquisitionValidation::class),
-            $app->make(ProxyResolver::class),
-            $wire->policy(),
+            stage: $params['stage'],
+            platforms: $app->make(PlatformRegistry::class),
+            validation: $app->make(AcquisitionValidation::class),
+            routes: $app->make(ProxyResolver::class),
+            catalog: $app->make(SourceCatalogRepository::class),
+            urls: $wire->policy(),
         ));
 
         app()->forgetInstance(StageRegistry::class);

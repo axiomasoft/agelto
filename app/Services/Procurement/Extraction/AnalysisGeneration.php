@@ -17,6 +17,7 @@ use App\Dto\Procurement\Ai\RowRange;
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ProviderRecoveryPlan;
 use App\Enums\Llm\OperationPurpose;
@@ -41,28 +42,66 @@ use App\Services\Procurement\Proxy\ProxyResolver;
 /** One explicit operation per subrange/reask; recovery never enters the authorization branch. */
 final readonly class AnalysisGeneration
 {
-    public function __construct(private AnalysisRequestRepository $mapping, private RequestRepository $requests,
-        private ReceiptStore $receipts, private AnalysisCallCoordinator $coordinator, private StructuredCallExecutor $executor,
-        private AnalysisProviderConnections $connections, private SourceCatalogRepository $targets, private ProxyResolver $routes, private AnalysisRepresentation $representation, private FinancialReservationRepository $finance) {}
+    public function __construct(
+        private AnalysisRequestRepository $mapping,
+        private RequestRepository $requests,
+        private ReceiptStore $receipts,
+        private AnalysisCallCoordinator $coordinator,
+        private StructuredCallExecutor $executor,
+        private AnalysisProviderConnections $connections,
+        private SourceCatalogRepository $targets,
+        private ProxyResolver $routes,
+        private AnalysisRepresentation $representation,
+        private FinancialReservationRepository $finance,
+    ) {}
 
     /** @param StructuredTask<ExtractionOutput|PageExtractionOutput> $task */
-    public function receipt(AnalysisWindowSnapshot $window, RowRange|PageRange $range, int $ordinal, StructuredTask $task, ExecutionContext $context): VerifiedReceipt
-    {
-        return $this->operation($window->run, $window->subrangeInputHash($range), $ordinal, $task, $context,
-            ['range' => $range->fields(), 'estimate_ordinal' => $window->estimateOrdinal, 'anchors' => $window->sourceAnchors,
-                ...($window->range instanceof PageRange ? ['context_range' => $window->range->fields()] : [])]);
+    public function receipt(
+        AnalysisWindowSnapshot $window,
+        RowRange|PageRange $range,
+        int $ordinal,
+        StructuredTask $task,
+        ExecutionContext $context,
+    ): VerifiedReceipt {
+        return $this->operation(
+            run: $window->run,
+            inputHash: $window->subrangeInputHash($range),
+            ordinal: $ordinal,
+            task: $task,
+            context: $context,
+            fields: [
+                'range' => $range->fields(),
+                'estimate_ordinal' => $window->estimateOrdinal,
+                'anchors' => $window->sourceAnchors,
+                ...($window->range instanceof PageRange ? ['context_range' => $window->range->fields()] : []),
+            ],
+        );
     }
 
     /** @param StructuredTask<ScreeningResult> $task */
     public function screeningReceipt(AnalysisRunSnapshot $run, int $ordinal, StructuredTask $task, ExecutionContext $context): VerifiedReceipt
     {
-        return $this->operation($run, $run->screeningInputHash(), $ordinal, $task, $context, []);
+        return $this->operation(
+            run: $run,
+            inputHash: $run->screeningInputHash(),
+            ordinal: $ordinal,
+            task: $task,
+            context: $context,
+            fields: [],
+        );
     }
 
     /** @param StructuredTask<PageDiscoveryOutput> $task */
     public function discoveryReceipt(AnalysisRunSnapshot $run, PageRange $range, int $ordinal, StructuredTask $task, ExecutionContext $context): VerifiedReceipt
     {
-        return $this->operation($run, $run->discoveryInputHash($range), $ordinal, $task, $context, ['range' => $range->fields()]);
+        return $this->operation(
+            run: $run,
+            inputHash: $run->discoveryInputHash($range),
+            ordinal: $ordinal,
+            task: $task,
+            context: $context,
+            fields: ['range' => $range->fields()],
+        );
     }
 
     /**
@@ -71,9 +110,106 @@ final readonly class AnalysisGeneration
      * @param  StructuredTask<T>  $task
      * @param  array<string,mixed>  $fields
      */
-    private function operation(AnalysisRunSnapshot $run, ContentHash $inputHash, int $ordinal, StructuredTask $task, ExecutionContext $context, array $fields): VerifiedReceipt
-    {
+    private function operation(
+        AnalysisRunSnapshot $run,
+        ContentHash $inputHash,
+        int $ordinal,
+        StructuredTask $task,
+        ExecutionContext $context,
+        array $fields,
+    ): VerifiedReceipt {
         $lease = $context->lease();
+        $receipt = $this->recoveredReceipt(run: $run, inputHash: $inputHash, lease: $lease);
+        if ($receipt !== null) {
+            return $receipt;
+        }
+        $connection = $this->connections->for($run->recipe->llm);
+        $text = $this->representation->text(run: $run, context: $context);
+        if ($run->source !== null) {
+            $range = $task->purpose === TaskPurpose::Rows ? ($fields['context_range'] ?? $fields['range'] ?? null) : null;
+            if ($range !== null && (! is_array($range) || ! is_int($range['start'] ?? null) || ! is_int($range['end'] ?? null))) {
+                throw new OperationDenied('analysis_range_codec_drift');
+            }
+            $text = $this->representation->anchored(
+                text: $text,
+                range: $range === null ? null : new PageRange(start: $range['start'], end: $range['end']),
+            );
+        }
+        $user = CanonicalJson::encode([...$fields, 'semantic_reask_ordinal' => $ordinal, 'untrusted_document' => $text]);
+        $identity = new RequestIdentity(
+            recipeHash: $run->recipe->hash->hex,
+            inputHash: $inputHash->hex,
+            purpose: OperationPurpose::Generate,
+            semanticReaskOrdinal: $ordinal,
+            replayIntentId: $run->id->value,
+        );
+        $generation = new ProviderGenerationInput(
+            system: $task->prompt,
+            user: $user,
+            schema: (new ProviderSchemaCompiler)->compile($task->schema),
+            purpose: $task->purpose,
+        );
+        $plan = new ProviderOperationPlan(
+            identity: $identity,
+            context: $run->recipe->llm,
+            pricing: $connection->pricing,
+            consumerCorrelationId: $lease->workId->value->value,
+            generation: $generation,
+        );
+        $wire = $this->executor->compileGeneration(plan: $plan, origin: $connection->origin);
+        $target = $this->targets->targetForCall(
+            platformId: null,
+            providerKey: $plan->context->provider,
+            capability: 'provider',
+            origin: $connection->origin,
+        ) ?? throw new OperationDenied('provider_target_missing');
+        $period = $connection->periodId !== ''
+            ? $connection->periodId
+            : $this->finance->currentPeriod(account: $plan->context->account, currency: $plan->pricing->currency);
+        $operation = $this->coordinator->authorize(
+            lease: $lease,
+            runId: $run->id,
+            plan: $plan,
+            periodId: $period,
+            wire: $wire,
+        );
+        $gate = app()->make(
+            abstract: AnalysisProviderSendGate::class,
+            parameters: [
+                'context' => $context,
+                'runId' => $run->id,
+                'target' => new ProcessUuid($target->string('id')),
+                'profile' => $connection->profile,
+                'urlPolicy' => $connection->urlPolicy,
+                'routes' => $this->routes->outboundRoutes(policy: $this->routes->profile(provider: true)),
+                'apiKey' => $connection->credential(),
+            ],
+        );
+        $executionResult = $this->executor->execute(operation: $operation, wire: $wire, gate: $gate);
+        $call = $this->requests->get($operation->physicalCallId);
+        $receipt = $this->receipts->inspect($call);
+        if ($receipt === null || $receipt->assessment->outcome !== ReceiptOutcome::Success) {
+            if (in_array($call->outcome, ['not_sent', 'known_nonbillable_cache_miss', 'known_retryable_nonbillable'], true)) {
+                $control = $this->coordinator->pinKnownRetry(lease: $lease, operation: $operation);
+                if ($control !== null) {
+                    throw new OperationDenied($control);
+                }
+                if ($executionResult instanceof SendClaimResult) {
+                    throw new AnalysisSendDenied($executionResult);
+                }
+                throw new OperationDenied('provider_send_not_sent');
+            }
+            if ($receipt?->assessment->outcome === ReceiptOutcome::BilledError) {
+                throw new OperationDenied('provider_error_review');
+            }
+            throw new OperationDenied('provider_result_unknown');
+        }
+
+        return $receipt;
+    }
+
+    private function recoveredReceipt(AnalysisRunSnapshot $run, ContentHash $inputHash, ExecutionLease $lease): ?VerifiedReceipt
+    {
         $pinned = $lease->checkpoint?->providerRecoveryPlan;
         $mapping = $this->mapping->active($lease->workId);
         if ($pinned instanceof ProviderRecoveryPlan && $pinned->mode !== ProviderRecoveryMode::ResumeFromReceipt
@@ -81,8 +217,8 @@ final readonly class AnalysisGeneration
             throw new OperationDenied('non_generation_recovery');
         }
         if ($mapping !== null) {
-            $call = $this->requests->get($mapping->string('physical_call_id'));
-            if ($mapping->string('analysis_run_id') !== $run->id->value || $mapping->string('input_hex') !== $lease->inputHash->hex
+            $call = $this->requests->get($mapping->physicalCallId);
+            if ($mapping->analysisRunId->value !== $run->id->value || $mapping->expectedWorkInputHash->hex !== $lease->inputHash->hex
                 || $call->recipeHash !== $run->recipe->hash->hex || $call->context != $run->recipe->llm
                 || $call->inputHash !== $inputHash->hex || $call->purpose !== OperationPurpose::Generate) {
                 throw new OperationDenied('provider_receipt_identity_drift');
@@ -104,48 +240,7 @@ final readonly class AnalysisGeneration
         } elseif ($pinned instanceof ProviderRecoveryPlan) {
             throw new OperationDenied('pinned_mapping_missing');
         }
-        $connection = $this->connections->for($run->recipe->llm);
-        $text = $this->representation->text($run, $context);
-        if ($run->source !== null) {
-            $range = $task->purpose === TaskPurpose::Rows ? ($fields['context_range'] ?? $fields['range'] ?? null) : null;
-            if ($range !== null && (! is_array($range) || ! is_int($range['start'] ?? null) || ! is_int($range['end'] ?? null))) {
-                throw new OperationDenied('analysis_range_codec_drift');
-            }
-            $text = $this->representation->anchored($text, $range === null ? null : new PageRange($range['start'], $range['end']));
-        }
-        $user = CanonicalJson::encode([...$fields, 'semantic_reask_ordinal' => $ordinal, 'untrusted_document' => $text]);
-        $plan = new ProviderOperationPlan(new RequestIdentity($run->recipe->hash->hex, $inputHash->hex,
-            OperationPurpose::Generate, $ordinal, $run->id->value), $run->recipe->llm, $connection->pricing,
-            $lease->workId->value->value, generation: new ProviderGenerationInput($task->prompt, $user, (new ProviderSchemaCompiler)->compile($task->schema), purpose: $task->purpose));
-        $wire = $this->executor->compileGeneration($plan, $connection->origin);
-        $target = $this->targets->targetForCall(null, $plan->context->provider, 'provider', $connection->origin)
-            ?? throw new OperationDenied('provider_target_missing');
-        $period = $connection->periodId !== '' ? $connection->periodId : $this->finance->currentPeriod($plan->context->account, $plan->pricing->currency);
-        $operation = $this->coordinator->authorize($lease, $run->id, $plan, $period, $wire);
-        $gate = app()->make(AnalysisProviderSendGate::class, ['context' => $context, 'runId' => $run->id,
-            'target' => new ProcessUuid($target->string('id')), 'profile' => $connection->profile,
-            'urlPolicy' => $connection->urlPolicy,
-            'routes' => $this->routes->outboundRoutes($this->routes->profile(provider: true)), 'apiKey' => $connection->credential()]);
-        $executionResult = $this->executor->execute($operation, $wire, $gate);
-        $call = $this->requests->get($operation->physicalCallId);
-        $receipt = $this->receipts->inspect($call);
-        if ($receipt === null || $receipt->assessment->outcome !== ReceiptOutcome::Success) {
-            if (in_array($call->outcome, ['not_sent', 'known_nonbillable_cache_miss', 'known_retryable_nonbillable'], true)) {
-                $control = $this->coordinator->pinKnownRetry($lease, $operation);
-                if ($control !== null) {
-                    throw new OperationDenied($control);
-                }
-                if ($executionResult instanceof SendClaimResult) {
-                    throw new AnalysisSendDenied($executionResult);
-                }
-                throw new OperationDenied('provider_send_not_sent');
-            }
-            if ($receipt?->assessment->outcome === ReceiptOutcome::BilledError) {
-                throw new OperationDenied('provider_error_review');
-            }
-            throw new OperationDenied('provider_result_unknown');
-        }
 
-        return $receipt;
+        return null;
     }
 }

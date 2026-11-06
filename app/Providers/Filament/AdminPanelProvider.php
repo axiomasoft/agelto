@@ -36,7 +36,7 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Amber,
             ])
             ->plugins([
-                AzGuardPlugin::make()->forPanel('admin'),
+                AzGuardPlugin::make()->guardPanel('admin'),
             ])
             // Ресурсы раскладываются по доменным подпапкам (зеркало app/Models/**);
             // discoverResources рекурсивен — подхватывает вложенные namespace.

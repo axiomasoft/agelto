@@ -8,6 +8,7 @@ use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\Fixtures\FixtureResource;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Estimate\Estimate;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -140,7 +141,9 @@ class AnalysisInfolist
                             ->schema([
                                 TextEntry::make('ordinal')
                                     ->label('Порядковый номер')
-                                    ->url(fn ($record): string => EstimateResource::getUrl('view', ['record' => $record])),
+                                    ->url(fn (Estimate $record): ?string => $record->platform?->is_public === true
+                                        ? EstimateResource::getUrl('view', ['record' => $record])
+                                        : null),
                                 TextEntry::make('estimate_number')->label('Номер сметы')->placeholder('-'),
                                 TextEntry::make('validation_status')->label('Статус валидации')->badge(),
                                 TextEntry::make('rows_extracted')->label('Строк извлечено'),

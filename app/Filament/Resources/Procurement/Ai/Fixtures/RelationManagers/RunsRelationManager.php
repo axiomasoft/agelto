@@ -107,6 +107,7 @@ class RunsRelationManager extends RelationManager
                     ->openUrlInNewTab(),
                 Action::make('finalPrompt')
                     ->label('Финальный промт')
+                    ->visible(fn (): bool => FinalPromptPage::canAccess())
                     ->url(fn (AnalysisRun $record): string => FinalPromptPage::getUrl(['run' => $record->id]))
                     ->openUrlInNewTab(),
             ])

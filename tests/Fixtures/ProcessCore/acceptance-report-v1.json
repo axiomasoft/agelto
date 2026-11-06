@@ -2265,8 +2265,8 @@
       "names_sha256": "bbc875997260df71f173c769fbd582e7c81884a30f85fab3c5a3b80205b16160"
     },
     "tests/Feature/ProcessCore/Execution/DaemonReadinessTest.php": {
-      "count": 14,
-      "names_sha256": "8d76b88764470ce36f39707864edef6d6a552d04bd9aa3a266b0805af4c07693"
+      "count": 17,
+      "names_sha256": "bf3b8f0228f0a99fdd7c5f75773be49b0cc8abe03738934fec2138ce00b00f79"
     },
     "tests/Feature/ProcessCore/Execution/QueueEnvelopeTest.php": {
       "count": 14,
@@ -2377,8 +2377,8 @@
       "names_sha256": "e65bca7fc651c6e62bf0e00d5e0ccbdecf08902e7e6f334696d7c3cfce74a80b"
     },
     "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php": {
-      "count": 23,
-      "names_sha256": "3a794f96be4f3083c729d04944b43adf7a63b94093165ce2e70a44d0479dfee0"
+      "count": 25,
+      "names_sha256": "3a9fc5affc7b65820e563a84d91aaa8acca08bd852127b7eefd5ed13ab83b74a"
     },
     "tests/Feature/ProcessCore/Llm/GenerationRoutingTest.php": {
       "count": 16,

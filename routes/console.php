@@ -11,6 +11,10 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+Artisan::command('guard:sync-roles', function () {
+    $this->comment('Roles are code-defined in AzGuard 2.0.');
+})->purpose('No-op compatibility alias for AzGuard 2.0 code-defined roles');
+
 Schedule::command('partitions:maintain')->daily()->withoutOverlapping();
 Schedule::call(ApplicationReadiness::recordSchedulerHeartbeat(...))->everyMinute();
 

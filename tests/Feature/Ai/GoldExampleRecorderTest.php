@@ -41,6 +41,16 @@ test('approve обычного анализа без коррекций созд
         ->and($example->verified_at)->not->toBeNull()
         ->and($example->gold['tier'])->toBe(1)
         ->and($example->gold['estimates'][0]['rows'][0]['name'])->toBe('Позиция 1');
+
+    $verifiedAt = $example->getRawOriginal('verified_at');
+    $replayed = clone $analysis;
+    $replayed->reviewed_by = User::factory()->create()->id;
+    $replayed->reviewed_at = now()->addDay();
+    app(GoldExampleRecorder::class)->record($replayed);
+    expect(DatasetExample::query()->where('analysis_id', $analysis->id)->count())->toBe(1)
+        ->and($example->refresh()->version)->toBe(1)
+        ->and($example->verified_by)->toBe($reviewer->id)
+        ->and($example->getRawOriginal('verified_at'))->toBe($verifiedAt);
 });
 
 test('approve без персистированных смет — no-op (нечего фиксировать)', function (): void {

@@ -8,7 +8,8 @@ use App\Models\Llm\LlmCall;
 use App\Repositories\Procurement\Ai\AnalysisCallReadRepository;
 use App\Services\Llm\Dto\StoredPayload;
 use App\Services\Llm\LlmPayloadReader;
-use AzGuard\Filament\Concerns\HasAzGuardPage;
+use AzGuard\Filament\Authorization\FilamentGate;
+use AzGuard\Filament\Concerns\AuthorizesPage;
 use Filament\Actions\Action;
 use Filament\Pages\Page;
 use Filament\Tables\Columns\IconColumn;
@@ -16,6 +17,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Url;
@@ -23,14 +25,21 @@ use Livewire\Attributes\Url;
 /** Authorized canonical-call history and verified response body; no reconstructed request is claimed as sent. */
 final class FinalPromptPage extends Page implements HasTable
 {
-    use HasAzGuardPage;
+    use AuthorizesPage;
     use InteractsWithTable;
+
+    protected static ?string $azguardKey = 'final-prompt';
 
     protected static ?string $slug = 'final-prompt/{run}';
 
     protected static bool $shouldRegisterNavigation = false;
 
     protected string $view = 'filament.pages.final-prompt-page';
+
+    public static function canAccess(): bool
+    {
+        return FilamentGate::page(self::class, static fn (): Response => Response::deny())->allowed();
+    }
 
     public string $run;
 

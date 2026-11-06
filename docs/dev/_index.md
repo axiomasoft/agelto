@@ -48,6 +48,7 @@ status: living
 - [LLM-провайдеры](llm-providers.md)
 - [Контракт извлечения смет](ai/estimate-extraction.md)
 - [Открытые технические вопросы](open-follow-ups.md)
+- [Аудит репозитория: надёжность, тесты и AI-контекст](repository-audit.md)
 
 ## AI и контекст агента
 

@@ -16,7 +16,6 @@ use App\Dto\Procurement\Process\WorkMutationResult;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\PrefixFailure;
-use App\Enums\Procurement\Process\ProviderRecoveryMode;
 use App\Enums\Procurement\Process\WorkMutationStatus;
 use App\Enums\Procurement\Process\WorkState;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
@@ -97,12 +96,11 @@ final readonly class WorkMutationRepository
 
         $provider->revokeUnclaimedLocked($snapshot->workId);
         $generation = $work->int('generation');
-        // Blocked provider_result_unknown: pinned plan остаётся durable до settlement reconciler-ом.
-        // Работа уходит из blocked-selector, но не из provider-recovery; due у cancelled запрещён схемой.
+        // Любая pinned operation остаётся durable до settlement, включая cancel живого send:
+        // claimed call может получить receipt уже после отзыва worker или его падения.
+        // Работа уходит из running/blocked selectors, но остаётся в cancelled-provider recovery.
         $plan = $this->works->lockedCheckpoint($work)?->providerRecoveryPlan;
-        $keepPlan = $state === WorkState::Blocked
-            && $plan instanceof ProviderRecoveryPlan
-            && $plan->mode === ProviderRecoveryMode::BlockedUnknown;
+        $keepPlan = $plan instanceof ProviderRecoveryPlan;
         $row = LedgerRow::one(
             "UPDATE prc_process_work
              SET state = 'cancelled', reason_code = 'cancelled', generation = generation + 1, owner_token = NULL, lease_until = NULL,

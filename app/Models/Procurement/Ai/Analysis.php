@@ -14,6 +14,7 @@ use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Ai\ScreeningDisposition;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\Estimate\Estimate;
+use App\Models\Scopes\PublicPlatformScope;
 use App\Models\User;
 use Database\Factories\Procurement\Ai\AnalysisFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -153,6 +154,17 @@ final class Analysis extends Model
     public function datasetExamples(): HasMany
     {
         return $this->hasMany(related: DatasetExample::class);
+    }
+
+    /**
+     * Исключает анализы документов служебных площадок (`is_public=false`, «Обучалка») из публичной витрины.
+     *
+     * @param  Builder<Analysis>  $query
+     * @return Builder<Analysis>
+     */
+    public function scopePublicPlatform(Builder $query): Builder
+    {
+        return PublicPlatformScope::apply($query, 'documentVersion.document.platform');
     }
 
     /**

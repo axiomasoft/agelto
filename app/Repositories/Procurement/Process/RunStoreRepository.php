@@ -46,4 +46,31 @@ final readonly class RunStoreRepository
         );
         $this->transitions->recordRun($eventId, $projectionMessageId, $id, 1, null, 'collecting', null, ActorKind::System);
     }
+
+    /** Close discovery in the same transaction that created and linked this run's required work. */
+    public function completeCreatedRunLocked(
+        ProcessUuid $runId,
+        ProcessUuid $eventId,
+        ProcessUuid $projectionMessageId,
+        ActorKind $actor = ActorKind::System,
+        ?int $actorId = null,
+    ): void {
+        CallerTransaction::require('New process run discovery completion');
+        DB::update(
+            "UPDATE prc_process_runs
+             SET discovery_outcome='complete',discovery_closed_at=clock_timestamp(),transition_seq=2 WHERE id=?",
+            [$runId->value],
+        );
+        $this->transitions->recordRun(
+            eventId: $eventId,
+            projectionMessageId: $projectionMessageId,
+            runId: $runId,
+            entitySeq: 2,
+            previousState: 'collecting',
+            newState: 'complete',
+            reasonCode: null,
+            actor: $actor,
+            actorId: $actorId,
+        );
+    }
 }

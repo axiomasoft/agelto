@@ -8,9 +8,11 @@ use App\Services\Llm\Contracts\UsageSource;
 use App\Services\Llm\Dto\UsageQuery;
 use App\Services\Llm\Dto\UsageReport;
 use App\Services\Llm\Dto\UsageRow;
-use AzGuard\Filament\Concerns\HasAzGuardWidget;
+use AzGuard\Filament\Authorization\FilamentGate;
+use AzGuard\Filament\Concerns\AuthorizesWidget;
 use Carbon\CarbonImmutable;
 use Filament\Widgets\ChartWidget;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Collection;
 
 /**
@@ -20,7 +22,12 @@ use Illuminate\Support\Collection;
  */
 final class LlmSpendChartWidget extends ChartWidget
 {
-    use HasAzGuardWidget;
+    use AuthorizesWidget;
+
+    public static function canView(): bool
+    {
+        return FilamentGate::widget(self::class, static fn (): Response => Response::deny())->allowed();
+    }
 
     protected ?string $heading = 'Расход LLM по дням';
 

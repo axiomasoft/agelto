@@ -124,6 +124,35 @@ test('late put-before-ref после committed blocked восстанавлив�
     [OperationPurpose::Lookup, ProviderRecoveryMode::ResumeProviderAsset],
 ]);
 
+test('отмена running send сохраняет точную operation для settlement receipt после падения worker', function (bool $receiptBeforeCancel): void {
+    [$work, , , , $operation] = FinancialFixtures::authorized($this->period);
+    expect(FinancialFixtures::claim($operation))->toBeTrue();
+    if ($receiptBeforeCancel) {
+        app(ReceiptStore::class)->put(app(RequestRepository::class)->get($operation->physicalCallId), 200, FinancialFixtures::body());
+    }
+    app(CancelWork::class)->execute($work, 'operator cancels running send', ExecutionFixtures::work($work)->transition_seq);
+    $checkpoint = json_decode(ExecutionFixtures::work($work)->checkpoint, true, flags: JSON_THROW_ON_ERROR);
+    expect($checkpoint['provider_recovery_plan']['physical_call_id'])->toBe($operation->physicalCallId)
+        ->and(DB::table('llm_budget_reservations')->where('id', $operation->reservationId)->value('state'))->toBe('reserved');
+    if (! $receiptBeforeCancel) {
+        app(ReceiptStore::class)->put(app(RequestRepository::class)->get($operation->physicalCallId), 200, FinancialFixtures::body());
+    }
+    // Only immutable bytes survived the worker: no synchronous capture/DB receipt acceptance.
+    expect(app(RequestRepository::class)->get($operation->physicalCallId)->receiptHash)->toBeNull();
+    app()->forgetInstance(RecoveryReconciler::class);
+    expect(financialRecoveryTick())->toBe(1)
+        ->and(ExecutionFixtures::work($work)->state)->toBe('cancelled')
+        ->and(ExecutionFixtures::work($work)->checkpoint)->toBeNull()
+        ->and(DB::table('llm_budget_reservations')->where('id', $operation->reservationId)->value('settled_amount'))->toBe('0.00200001')
+        ->and(DB::table('llm_budget_periods')->where('id', $this->period)->value('reserved'))->toBe('0.00000000')
+        ->and(DB::table('llm_provider_calls')->count())->toBe(1)
+        ->and(DB::table('p39_receipt_publications')->count())->toBe(0)
+        ->and(DB::table('prc_analysis_chunks')->count())->toBe(0)
+        ->and(DB::table('prc_estimates')->count())->toBe(0)
+        ->and(financialRecoveryTick())->toBe(0);
+    Http::assertNothingSent();
+})->with(['receipt до отмены' => true, 'receipt после отмены' => false]);
+
 test('late raw после cancel сохраняет financial facts без business publication', function (): void {
     [$work, , , , $operation] = FinancialFixtures::authorized($this->period);
     FinancialFixtures::claim($operation);
@@ -135,6 +164,8 @@ test('late raw после cancel сохраняет financial facts без busin
         ->and(DB::table('llm_budget_reservations')->value('settled_amount'))->toBe('0.00200001')
         ->and(DB::table('p39_receipt_publications')->count())->toBe(0)
         ->and(DB::table('prc_analysis_chunks')->count())->toBe(0)->and(DB::table('prc_estimates')->count())->toBe(0);
+    expect(financialRecoveryTick())->toBe(1)
+        ->and(ExecutionFixtures::work($work)->checkpoint)->toBeNull();
     [$cancelledBlocked, , , , $billedOp] = FinancialFixtures::authorized($this->period);
     FinancialFixtures::claim($billedOp);
     FinalizeFixtures::expire($cancelledBlocked, 600);

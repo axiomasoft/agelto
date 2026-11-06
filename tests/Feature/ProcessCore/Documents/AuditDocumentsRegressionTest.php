@@ -6,6 +6,7 @@ use App\Dto\Procurement\Document\DocumentHead;
 use App\Dto\Procurement\Document\DownloadResult;
 use App\Dto\Procurement\Document\SourceDocumentMetadata;
 use App\Dto\Procurement\Document\StorageReservationRequest;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PreparationResult;
@@ -485,6 +486,87 @@ test('DocumentStorageReconciler восстанавливает и очищает
         ->and(Storage::disk('local')->exists($canonicalBlob->objectKey.'.repair-owner'))->toBeFalse()
         ->and(DB::table('prc_storage_reservations')->where('id', $opReservation->id->value)->value('status'))->toBe('cleaned')
         ->and(Storage::disk('local')->exists($opReservation->objectKey()))->toBeFalse();
+});
+
+test('невосстановимые repair и ошибка первого объекта не блокируют хвост очереди, а обход возвращается к ранним UUID', function (): void {
+    $domain = DocumentStorageFixtures::domain(capacity: 500_000);
+    $temporaryDomain = DocumentStorageFixtures::domain(prefix: 'tmp');
+    $capacity = app(StorageCapacityRepository::class);
+    $artifacts = app(ArtifactRepository::class);
+    $blobs = app(BlobStore::class);
+    $disk = Storage::disk('local');
+    $repairs = [];
+    $charged = 0;
+    for ($i = 1; $i <= 26; $i++) {
+        $bytes = 'repair-'.$i;
+        $reservation = new StorageReservationRequest(
+            id: new ProcessUuid(sprintf('00000000-0000-4000-8000-%012d', $i)),
+            domainId: $domain,
+            ownerToken: LedgerFixtures::uuid(),
+            generation: 1,
+            byteUpperBound: strlen($bytes),
+            phase: StoragePhase::Download,
+            disk: 'local',
+        );
+        app(ProcessTransaction::class)->run(function () use ($capacity, $reservation): void {
+            $capacity->lockDomains([$reservation->domainId]);
+            expect($capacity->reserveLocked($reservation))->toBeTrue();
+        });
+        $temporary = DocumentStorageFixtures::reservation($temporaryDomain, strlen($bytes), 'p31_tmp');
+        $stream = fopen('php://memory', 'w+b');
+        assert(is_resource($stream));
+        fwrite($stream, $bytes);
+        rewind($stream);
+        try {
+            $artifact = $blobs->put($reservation, $stream, $temporary);
+        } finally {
+            fclose($stream);
+        }
+        $blob = app(ProcessTransaction::class)->run(function () use ($capacity, $artifacts, $artifact) {
+            $capacity->lockDomains([$artifact->reservation->domainId]);
+
+            return $artifacts->acquireLocked($artifact);
+        });
+        expect($artifacts->beginRepair($blob))->toBeTrue();
+        // Odd candidates have no writer-stop proof; even candidates have corrupt stopped writes.
+        // The first candidate reaches object I/O to exercise the recoverable error policy.
+        if ($i === 1 || $i % 2 === 0) {
+            file_put_contents($disk->path($blob->objectKey).'.repair-owner', json_encode([
+                'blob' => $blob->id->value, 'key' => $blob->objectKey, 'pid' => 999_999_999, 'start' => 'dead-start',
+            ], JSON_THROW_ON_ERROR));
+        }
+        if ($i < 26) {
+            $disk->put($blob->objectKey, 'partial');
+        }
+        $repairs[] = $blob;
+        $charged += strlen($bytes);
+    }
+    $failed = false;
+    $mock = Mockery::mock($disk)->makePartial();
+    $mock->shouldReceive('exists')->with($repairs[0]->objectKey)->andReturnUsing(function () use ($disk, $repairs, &$failed): bool {
+        if (! $failed) {
+            $failed = true;
+            throw new RuntimeException('First canonical repair read is temporarily unavailable.');
+        }
+
+        return $disk->exists($repairs[0]->objectKey);
+    });
+    Storage::partialMock()->shouldReceive('disk')->with('local')->andReturn($mock);
+    $reconciler = app(DocumentStorageReconciler::class);
+
+    expect($reconciler->reconcile())->toBe(0)->and($failed)->toBeTrue()
+        ->and(DB::table('prc_storage_reservations')->where('domain_id', $domain->value)->where('status', 'writing')->count())->toBe(26);
+    expect($reconciler->reconcile())->toBe(1)
+        ->and(DB::table('prc_storage_reservations')->where('id', $repairs[25]->id->value)->value('status'))->toBe('transferred')
+        ->and(DB::table('prc_storage_reservations')->where('domain_id', $domain->value)->where('status', 'writing')->count())->toBe(25)
+        ->and((int) DB::table('prc_storage_reservations')->where('domain_id', $domain->value)->where('status', 'writing')->sum('byte_upper_bound'))->toBe($charged - strlen('repair-26'))
+        ->and(DB::table('prc_storage_domains')->where('id', $domain->value)->value('accounted_durable_bytes'))->toBe($charged);
+
+    $disk->put($repairs[0]->objectKey, 'repair-1');
+    expect($reconciler->reconcile())->toBe(1)
+        ->and(DB::table('prc_storage_reservations')->where('id', $repairs[0]->id->value)->value('status'))->toBe('transferred')
+        ->and(DB::table('prc_storage_reservations')->where('domain_id', $domain->value)->where('status', 'writing')->count())->toBe(24)
+        ->and(DB::table('prc_document_blobs')->where('storage_domain_id', $domain->value)->count())->toBe(26);
 });
 
 test('DocumentStorageReconciler изолирует сбой удаления отдельного объекта и продолжает очистку остальных элементов в том же тике', function (): void {

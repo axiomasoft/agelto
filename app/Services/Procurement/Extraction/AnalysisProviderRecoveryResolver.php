@@ -44,8 +44,8 @@ final class AnalysisProviderRecoveryResolver implements ProviderRecoveryPolicy, 
 
             return null;
         }
-        $call = $this->requests->get($mapping->string('physical_call_id'));
-        if ($call->authorization->logicalRequestId !== $mapping->string('logical_request_id') || $call->recipeHash !== $mapping->string('recipe_hex')) {
+        $call = $this->requests->get($mapping->physicalCallId);
+        if ($call->authorization->logicalRequestId !== $mapping->logicalRequestId || $call->recipeHash !== $mapping->recipeHash->hex) {
             throw new ProviderLinkageUnavailable('Analysis/provider identity mismatch.');
         }
         try {
@@ -67,7 +67,7 @@ final class AnalysisProviderRecoveryResolver implements ProviderRecoveryPolicy, 
         }
         $ref = $receipt === null ? null : new ReceiptRef(new ProcessUuid($call->receiptId), $call->receiptDisk, $call->receiptUploadKey, new ContentHash($receipt->hash), 1);
         $plan = new ProviderRecoveryPlan($mode, new ProcessUuid($call->authorization->logicalRequestId), new ProcessUuid($call->authorization->physicalCallId),
-            self::purpose($call->purpose), $ref, new ContentHash($mapping->string('input_hex')), new ContentHash($call->recipeHash), $call->authorization->requestEpoch);
+            self::purpose($call->purpose), $ref, $mapping->expectedWorkInputHash, new ContentHash($call->recipeHash), $call->authorization->requestEpoch);
         if ($pinned !== null && ($pinned->logicalRequestId != $plan->logicalRequestId || $pinned->physicalCallId != $plan->physicalCallId
             || $pinned->purpose !== $plan->purpose || $pinned->expectedInputHash != $plan->expectedInputHash || $pinned->recipeHash != $plan->recipeHash || $pinned->requestEpoch !== $plan->requestEpoch)) {
             throw new ProviderLinkageUnavailable('Pinned provider operation drift.');
@@ -81,7 +81,7 @@ final class AnalysisProviderRecoveryResolver implements ProviderRecoveryPolicy, 
         $mapping = $this->mapping->physical($plan->physicalCallId->value);
         $call = $this->requests->lock($this->requests->get($plan->physicalCallId->value));
         if ($call->authorization->logicalRequestId !== $plan->logicalRequestId->value || $call->authorization->requestEpoch !== $plan->requestEpoch
-            || $call->recipeHash !== $plan->recipeHash->hex || $mapping->string('input_hex') !== $plan->expectedInputHash->hex || self::purpose($call->purpose) !== $plan->purpose) {
+            || $call->recipeHash !== $plan->recipeHash->hex || $mapping->expectedWorkInputHash->hex !== $plan->expectedInputHash->hex || self::purpose($call->purpose) !== $plan->purpose) {
             throw new \LogicException('Provider settlement identity drift.');
         }
         $receipt = $this->verified[$call->authorization->physicalCallId] ?? null;
@@ -104,7 +104,7 @@ final class AnalysisProviderRecoveryResolver implements ProviderRecoveryPolicy, 
         if ($mapping === null) {
             return;
         }
-        $call = $this->requests->lock($this->requests->get($mapping->string('physical_call_id')));
+        $call = $this->requests->lock($this->requests->get($mapping->physicalCallId));
         $receipt = $this->verified[$call->authorization->physicalCallId] ?? null;
         if ($receipt !== null) {
             $this->requests->acceptReceiptLocked($receipt);

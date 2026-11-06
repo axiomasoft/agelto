@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
+use App\Dto\Procurement\Document\BlobReference;
+use App\Dto\Procurement\Document\StorageCleanupCandidate;
 use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Enums\Procurement\Document\StoragePhase;
+use App\Exceptions\Procurement\Document\ArtifactUnavailable;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Process\ProcessTransaction;
@@ -27,6 +32,33 @@ final readonly class StorageCapacityRepository
         $row = LedgerRow::one('SELECT * FROM prc_storage_domains WHERE id=?', [$id->value]) ?? throw new \LogicException('Missing storage domain.');
         if ($row->string('domain_key') !== $key || $row->int('capacity_bytes') !== $capacity || $row->int('high_watermark_bytes') !== $highWatermark) {
             throw new \LogicException('Storage policy changes require a versioned capacity mutation.');
+        }
+    }
+
+    /** Explicit stored-import provisioning, independent of the reservation-backed upload lifecycle. */
+    public function provisionImportDomain(string $disk): ProcessUuid
+    {
+        $key = 'documents.import:'.$disk;
+        $domain = ListingStoreRepository::id($key);
+        // Dotted storage keys are literal array keys.
+        $policies = config('documents.storage');
+        $limits = is_array($policies) ? ($policies['documents.originals'] ?? null) : null;
+        if (! is_array($limits) || ! is_int($limits['capacity_bytes'] ?? null) || ! is_int($limits['high_watermark_bytes'] ?? null)) {
+            throw new \LogicException('Missing documents storage policy.');
+        }
+        $this->ensureDomain($domain, $key, $limits['capacity_bytes'], $limits['high_watermark_bytes']);
+
+        return $domain;
+    }
+
+    /** Caller holds the blob's capacity domain; accounting and import publication commit together. */
+    public function accountStoredLocked(BlobReference $blob): void
+    {
+        CallerTransaction::require('Stored artifact accounting');
+        $changed = DB::update("UPDATE prc_storage_domains SET accounted_durable_bytes=accounted_durable_bytes+? WHERE id=? AND accounted_durable_bytes+?+
+            (SELECT coalesce(sum(byte_upper_bound),0) FROM prc_storage_reservations WHERE domain_id=? AND status IN ('reserved','writing','staged','cleaning')) <= high_watermark_bytes", [$blob->sizeBytes, $blob->domainId->value, $blob->sizeBytes, $blob->domainId->value]);
+        if ($changed !== 1) {
+            throw new ArtifactUnavailable('Stored object capacity unavailable.');
         }
     }
 
@@ -122,6 +154,47 @@ final readonly class StorageCapacityRepository
             || $row->nullableString('operation_id') !== $request->operationId?->value) {
             throw new \LogicException('Storage reservation identity changed.');
         }
+    }
+
+    /** @return list<StorageCleanupCandidate> */
+    public function cleanupCandidates(?ProcessUuid $afterId = null, int $limit = 50): array
+    {
+        $rows = LedgerRow::all(
+            "SELECT s.* FROM prc_storage_reservations s
+             LEFT JOIN prc_process_work w ON w.id = s.work_id
+             LEFT JOIN prc_outbound_operations o ON o.id = s.operation_id
+             WHERE s.status IN ('reserved','writing','staged','cleaning')
+               AND NOT EXISTS (SELECT 1 FROM prc_document_blobs b WHERE b.disk=s.disk AND b.object_key=s.object_key)
+               AND (
+                   (s.work_id IS NOT NULL AND (w.state<>'running' OR w.generation<>s.generation OR w.owner_token IS DISTINCT FROM s.owner_token))
+                   OR (s.work_id IS NULL AND s.operation_id IS NOT NULL AND o.state<>'open')
+               )
+               AND (s.operation_id IS NULL OR o.state<>'open')
+               AND (?::uuid IS NULL OR s.id>?::uuid)
+             ORDER BY s.id LIMIT ?",
+            [$afterId?->value, $afterId?->value, max(1, min(100, $limit))],
+        );
+
+        return array_map(static fn (LedgerRow $row): StorageCleanupCandidate => new StorageCleanupCandidate(
+            reservation: new StorageReservationRequest(
+                id: new ProcessUuid($row->string('id')),
+                domainId: new ProcessUuid($row->string('domain_id')),
+                ownerToken: new ProcessUuid($row->string('owner_token')),
+                generation: $row->int('generation'),
+                byteUpperBound: $row->int('byte_upper_bound'),
+                phase: StoragePhase::from($row->string('phase')),
+                disk: $row->string('disk'),
+                workId: self::uuid($row->nullableString('work_id')),
+                attemptId: self::uuid($row->nullableString('attempt_id')),
+                operationId: self::uuid($row->nullableString('operation_id')),
+            ),
+            writing: $row->string('status') === 'writing',
+        ), $rows);
+    }
+
+    private static function uuid(?string $value): ?ProcessUuid
+    {
+        return $value === null ? null : new ProcessUuid($value);
     }
 
     /** @param \Closure(LedgerRow): void $write */

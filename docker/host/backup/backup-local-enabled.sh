@@ -17,8 +17,12 @@ flock -n 9 || { echo 'Agelto release/backup lock is held' >&2; exit 1; }
 available_kib=$(df -Pk /srv/agelto | awk 'NR == 2 {print $4}')
 database_bytes=$(docker exec "$source_container" psql -U agelto -d agelto -Atc "SELECT pg_database_size('agelto');" </dev/null)
 object_kib=$(docker exec agelto_prod-minio-1 du -sk /data </dev/null | awk '{print $1}')
-[[ $available_kib =~ ^[0-9]+$ && $database_bytes =~ ^[0-9]+$ && $object_kib =~ ^[0-9]+$ ]]
-required_kib=$((10 * 1024 * 1024 + 3 * database_bytes / 1024 + 2 * object_kib))
+receipt_kib=0
+if docker exec agelto_prod-app-1 test -d /var/www/html/storage/app/private/llm/receipts </dev/null 2>/dev/null; then
+    receipt_kib=$(docker exec agelto_prod-app-1 du -sk /var/www/html/storage/app/private/llm/receipts </dev/null | awk '{print $1}')
+fi
+[[ $available_kib =~ ^[0-9]+$ && $database_bytes =~ ^[0-9]+$ && $object_kib =~ ^[0-9]+$ && $receipt_kib =~ ^[0-9]+$ ]]
+required_kib=$((10 * 1024 * 1024 + 3 * database_bytes / 1024 + 2 * object_kib + 2 * receipt_kib))
 (( available_kib > required_kib )) || { echo 'Agelto backup disk floor failed' >&2; exit 1; }
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 backup_dir="$backup_root/$stamp"
@@ -26,6 +30,11 @@ rehearsal_db="agelto_${stamp,,}_rehearsal"
 [[ $rehearsal_db =~ ^agelto_[0-9]{8}t[0-9]{6}z_rehearsal$ ]]
 [[ ! -e $backup_dir ]]
 [[ -z $(docker exec "$source_container" psql -U agelto -d agelto -Atc "SELECT datname FROM pg_database WHERE datname = '$rehearsal_db';" </dev/null) ]]
+cleanup_rehearsal_db() {
+    docker exec "$source_container" psql -U agelto -d postgres -v ON_ERROR_STOP=1 \
+        -c "DROP DATABASE IF EXISTS \"$rehearsal_db\" WITH (FORCE);" </dev/null >/dev/null 2>&1 || true
+}
+trap cleanup_rehearsal_db EXIT
 mkdir -p -m 0700 "$backup_dir/objects"
 schema_query="SELECT 'migration:' || migration FROM migrations UNION ALL SELECT 'table:' || tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY 1;"
 docker exec "$source_container" psql -U agelto -d agelto -Atc "$schema_query" </dev/null > "$backup_dir/schema.source"
@@ -36,6 +45,7 @@ docker exec -i "$source_container" pg_restore -U agelto -d "$rehearsal_db" --no-
 docker exec "$source_container" psql -U agelto -d "$rehearsal_db" -Atc "$schema_query" </dev/null > "$backup_dir/schema.restored"
 cmp "$backup_dir/schema.source" "$backup_dir/schema.restored"
 docker exec "$source_container" psql -U agelto -d "$rehearsal_db" -Atc 'SELECT current_database(); SELECT count(*) FROM migrations; SELECT count(*) FROM users;' </dev/null > "$backup_dir/restore.receipt"
+docker exec "$source_container" dropdb -U agelto --if-exists --force "$rehearsal_db" </dev/null
 /srv/agelto/bin/compose run --rm --no-deps -T --user root \
     --volume "$backup_dir/objects:/backup-export" \
     --volume /srv/agelto/bin/backup-objects.php:/backup-objects.php:ro \
@@ -74,7 +84,14 @@ openssl enc -d -aes-256-cbc -pbkdf2 -pass file:/srv/agelto/backup-encryption.key
 )
 manifest_hash=$(sha256sum "$backup_dir/manifest.sha256" | awk '{print $1}')
 completed_at=$(date +%s)
-printf 'completed_at=%s\nverified_local=1\noffhost=0\nmanifest_sha256=%s\nbackup_dir=%s\nrehearsal_db=%s\n' \
+printf 'completed_at=%s\nverified=1\nverified_local=1\noffhost=0\nmanifest_sha256=%s\nbackup_dir=%s\nrehearsal_db=%s\n' \
     "$completed_at" "$manifest_hash" "$backup_dir" "$rehearsal_db" > "$backup_dir/status"
 install -m 0600 "$backup_dir/status" "$backup_root/latest.status"
-printf 'Agelto LOCAL backup verified: %s; retained rehearsal DB: %s; offhost=0\n' "$backup_dir" "$rehearsal_db"
+retention=${BACKUP_LOCAL_RETENTION:-7}
+if [[ $retention =~ ^[1-9][0-9]*$ ]]; then
+    mapfile -t old_local_backups < <(find "$backup_root" -mindepth 1 -maxdepth 1 -type d -name '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z' -printf '%f\n' | sort -r)
+    for ((idx=retention; idx<${#old_local_backups[@]}; idx++)); do
+        find "$backup_root/${old_local_backups[$idx]}" -depth -delete
+    done
+fi
+printf 'Agelto LOCAL backup verified: %s; rehearsal DB verified and dropped: %s; offhost=0\n' "$backup_dir" "$rehearsal_db"

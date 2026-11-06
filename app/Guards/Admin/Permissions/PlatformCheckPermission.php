@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Guards\Admin\Permissions;
 
+use App\Models\Procurement\Health\PlatformCheck;
+use AzGuard\Permissions\RequiresGrant;
+use AzGuard\Permissions\Resource;
+
+#[RequiresGrant]
+#[Resource(model: PlatformCheck::class)]
 enum PlatformCheckPermission: string
 {
     case ViewAny = 'platform_check.view_any';

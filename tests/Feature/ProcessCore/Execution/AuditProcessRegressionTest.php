@@ -393,7 +393,7 @@ test('WorkRunner классифицирует транзиентный сбой 
     expect(fn () => app(WorkRunner::class)->runDelivery($envelope2))->toThrow(QueryException::class)
         ->and($handler->calls)->toBe(0);
 
-    // 3. Typed dependency deferral (storage_unavailable) получает due_at в окне bounded jitter [30, 35] секунд.
+    // 3. WorkRunner задаёт RetryAt через 30–35 s; finalizer отдельно добавляет до 10% остатка.
     DB::table('prc_process_reservations')
         ->whereIn('work_id', [$work->value->value, $work2->value->value])
         ->delete();
@@ -409,10 +409,41 @@ test('WorkRunner классифицирует транзиентный сбой 
         LedgerFixtures::uuid()->value,
         1,
     );
-    expect(app(WorkRunner::class)->runDelivery($envelope3))->toBe(DeliveryOutcome::Executed)
-        ->and(ExecutionFixtures::work($work3)->state)->toBe('deferred');
-    $dueIn = (float) DB::selectOne('SELECT extract(epoch FROM due_at - clock_timestamp()) AS due_in FROM prc_process_work WHERE id = ?', [$work3->value->value])->due_in;
-    expect($dueIn)->toBeGreaterThan(29.0)->toBeLessThanOrEqual(36.0);
+    $observeDeferral = true;
+    $retryAt = null;
+    $beforeFinalizeAt = null;
+    DB::beforeExecuting(function (string $query, array $bindings) use ($work3, &$observeDeferral, &$retryAt, &$beforeFinalizeAt): void {
+        if (! $observeDeferral
+            || ! str_contains($query, 'UPDATE prc_process_work')
+            || ! str_contains($query, 'due_at = GREATEST(')
+            || ($bindings[0] ?? null) !== 'deferred'
+            || ($bindings[1] ?? null) !== 'storage_unavailable'
+            || ($bindings[11] ?? null) !== $work3->value->value) {
+            return;
+        }
+
+        $retryAt = $bindings[2];
+        $beforeFinalizeAt = DB::selectOne('SELECT clock_timestamp()::text AS now')->now;
+    });
+    try {
+        expect(app(WorkRunner::class)->runDelivery($envelope3))->toBe(DeliveryOutcome::Executed)
+            ->and(ExecutionFixtures::work($work3)->state)->toBe('deferred');
+    } finally {
+        $observeDeferral = false;
+    }
+
+    expect($retryAt)->not->toBeNull()
+        ->and($beforeFinalizeAt)->not->toBeNull();
+    $deferral = DB::selectOne(
+        'SELECT extract(epoch FROM ?::timestamptz - ?::timestamptz) AS retry_in,
+                due_at >= ?::timestamptz AS respects_retry_at,
+                due_at <= ?::timestamptz + (?::timestamptz - ?::timestamptz) * 0.1 AS bounded_jitter
+         FROM prc_process_work WHERE id = ?',
+        [$retryAt, $beforeFinalizeAt, $retryAt, $retryAt, $retryAt, $beforeFinalizeAt, $work3->value->value],
+    );
+    expect((float) $deferral->retry_in)->toBeGreaterThan(29.0)->toBeLessThanOrEqual(35.0)
+        ->and($deferral->respects_retry_at)->toBeTrue()
+        ->and($deferral->bounded_jitter)->toBeTrue();
 });
 
 test('WorkRunner::finalize сопоставляет LostOwnership с LeaseLost и InvariantViolation с Rejected при небросающем предупреждении телеметрии', function (): void {

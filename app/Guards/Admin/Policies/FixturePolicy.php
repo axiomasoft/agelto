@@ -7,38 +7,38 @@ namespace App\Guards\Admin\Policies;
 use App\Guards\Admin\Permissions\FixturePermission;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\User;
-use AzGuard\Attributes\GateAbility;
-use AzGuard\Attributes\GuardPolicy;
+use AzGuard\Policies\Decides;
+use AzGuard\Policies\PolicyFor;
 
-#[GuardPolicy(model: Fixture::class)]
+#[PolicyFor(FixturePermission::class)]
 final class FixturePolicy
 {
-    #[GateAbility(permission: FixturePermission::ViewAny)]
+    #[Decides(FixturePermission::ViewAny)]
     public function viewAny(User $user): bool
     {
         return $user->hasPermission(FixturePermission::ViewAny);
     }
 
-    #[GateAbility(permission: FixturePermission::View)]
-    public function view(User $user, Fixture $fixture): bool
+    #[Decides(FixturePermission::View)]
+    public function view(User $user, ?Fixture $fixture = null): bool
     {
         return $user->hasPermission(FixturePermission::View);
     }
 
-    #[GateAbility(permission: FixturePermission::Create)]
+    #[Decides(FixturePermission::Create)]
     public function create(User $user): bool
     {
         return $user->hasPermission(FixturePermission::Create);
     }
 
-    #[GateAbility(permission: FixturePermission::Update)]
-    public function update(User $user, Fixture $fixture): bool
+    #[Decides(FixturePermission::Update)]
+    public function update(User $user, ?Fixture $fixture = null): bool
     {
         return $user->hasPermission(FixturePermission::Update);
     }
 
-    #[GateAbility(permission: FixturePermission::Delete)]
-    public function delete(User $user, Fixture $fixture): bool
+    #[Decides(FixturePermission::Delete)]
+    public function delete(User $user, ?Fixture $fixture = null): bool
     {
         return $user->hasPermission(FixturePermission::Delete);
     }
@@ -48,8 +48,8 @@ final class FixturePolicy
         return $user->hasPermission(FixturePermission::Delete);
     }
 
-    #[GateAbility(permission: FixturePermission::Restore)]
-    public function restore(User $user, Fixture $fixture): bool
+    #[Decides(FixturePermission::Restore)]
+    public function restore(User $user, ?Fixture $fixture = null): bool
     {
         return $user->hasPermission(FixturePermission::Restore);
     }
@@ -59,8 +59,8 @@ final class FixturePolicy
         return $user->hasPermission(FixturePermission::Restore);
     }
 
-    #[GateAbility(permission: FixturePermission::ForceDelete)]
-    public function forceDelete(User $user, Fixture $fixture): bool
+    #[Decides(FixturePermission::ForceDelete)]
+    public function forceDelete(User $user, ?Fixture $fixture = null): bool
     {
         return $user->hasPermission(FixturePermission::ForceDelete);
     }
@@ -70,13 +70,13 @@ final class FixturePolicy
         return $user->hasPermission(FixturePermission::ForceDelete);
     }
 
-    #[GateAbility(permission: FixturePermission::Replicate)]
-    public function replicate(User $user, Fixture $fixture): bool
+    #[Decides(FixturePermission::Replicate)]
+    public function replicate(User $user, ?Fixture $fixture = null): bool
     {
         return $user->hasPermission(FixturePermission::Replicate);
     }
 
-    #[GateAbility(permission: FixturePermission::Reorder)]
+    #[Decides(FixturePermission::Reorder)]
     public function reorder(User $user): bool
     {
         return $user->hasPermission(FixturePermission::Reorder);

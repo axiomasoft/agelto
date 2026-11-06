@@ -17,7 +17,9 @@ use App\Exceptions\Procurement\Ai\AnalysisRunAlreadyActive;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Models\User;
 use App\Repositories\Procurement\Ai\AnalysisReviewRepository;
+use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Execution\ProviderOperationPlan;
@@ -81,14 +83,19 @@ test('manual reanalysis creates one new intent and immutable recipe while duplic
     $analysis = acceptedRetainedScreening();
     $old = $analysis->analysis_run_id;
     $command = LedgerFixtures::uuid();
+    $operator = User::factory()->create();
     $action = app(RerunAnalysisAction::class);
-    $work = $action->run($analysis, $command);
+    $work = $action->run(analysis: $analysis, commandId: $command, actorId: $operator->id);
+    $closeEventId = ListingStoreRepository::id('analysis-command-close:'.$command->value);
     expect($action->run($analysis, $command))->toEqual($work)
         ->and(DB::table('prc_analysis_runs')->count())->toBe(2)
         ->and(DB::table('prc_process_work')->where('state', 'ready')->count())->toBe(1)
         ->and(DB::table('prc_operation_intents')->where('state', 'active')->count())->toBe(1)
         ->and(DB::table('llm_provider_calls')->count())->toBe(1)
         ->and(DB::table('llm_budget_reservations')->count())->toBe(1)
+        ->and(DB::table('prc_process_runs')->where('id', ListingStoreRepository::id('analysis-command:'.$command->value)->value)->value('requested_by'))->toBe($operator->id)
+        ->and(DB::table('prc_process_transitions')->where('event_id', $closeEventId->value)->value('actor_kind'))->toBe('operator')
+        ->and(DB::table('prc_process_transitions')->where('event_id', $closeEventId->value)->value('actor_id'))->toBe($operator->id)
         ->and($analysis->fresh()->analysis_run_id)->toBe($old)
         ->and($analysis->fresh()->storedScreeningResult()->summary)->toBe('Локальная смета');
     expect(fn () => $action->run($analysis, LedgerFixtures::uuid()))->toThrow(InvalidArgumentException::class, 'current source');

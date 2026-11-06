@@ -7,11 +7,9 @@ namespace App\Services\Procurement\Extraction;
 use App\Dto\Procurement\Ai\ExtractionCompleted;
 use App\Dto\Procurement\Ai\ExtractionProgress;
 use App\Dto\Procurement\Process\ExtractionWindowInput;
-use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\PublicationInput;
 use App\Dto\Procurement\Process\StageCheckpoint;
 use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
@@ -20,11 +18,7 @@ use App\Repositories\Procurement\Ai\AnalysisRepository;
 use App\Repositories\Procurement\Ai\AnalysisRequestRepository;
 use App\Repositories\Procurement\Ai\ChunkRepository;
 use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Process\Contracts\StageResultRepository;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
-use Illuminate\Support\Facades\DB;
 
 /** Invoked exclusively by the guarded WorkFinalizer/checkpoint transaction. */
 final readonly class ChunkCommitter implements StageResultRepository
@@ -75,16 +69,17 @@ final readonly class ChunkCommitter implements StageResultRepository
         }
         $this->coverage->assertPartition($window, $progress->checkpoint);
         if ($progress->physicalCallId !== null) {
-            $mapping = $this->requests->physical($progress->physicalCallId->value);
-            $hash = WorkStoreRepository::inputHash((new ProcessPayloadCodec)->encodeInput($input)->json ?? '');
-            if ($mapping->string('analysis_run_id') !== $input->analysisRunId->value || $mapping->string('input_hex') !== $hash->hex
-                || $mapping->string('recipe_hex') !== $input->recipeHash->hex) {
+            $mapping = $this->requests->physicalForInput(
+                physical: $progress->physicalCallId->value,
+                run: $window->run,
+                input: $input,
+            );
+            if ($mapping === null) {
                 throw new \LogicException('Consumed operation belongs to another immutable input.');
             }
-            $this->requests->consumeLocked(new WorkId(new ProcessUuid($mapping->string('work_id'))), $progress->physicalCallId->value);
+            $this->requests->consumeLocked(work: $mapping->workId, physical: $progress->physicalCallId->value);
         }
-        DB::update('UPDATE prc_analysis_windows SET state=?,checkpoint_version=checkpoint_version+1 WHERE id=?', [
-            $progress->checkpoint->pending === [] ? 'complete' : 'partial', $window->id->value]);
+        $this->analyses->storeWindowProgressLocked(window: $window, checkpoint: $progress->checkpoint);
     }
 
     public function storeResult(WorkInput $input, ValidatedStageResult $result): array
@@ -95,9 +90,13 @@ final readonly class ChunkCommitter implements StageResultRepository
         }
         $window = $this->analyses->windowFor($input);
         $this->coverage->assertPartition($window, $result->checkpoint);
-        DB::update("UPDATE prc_analysis_windows SET state='complete' WHERE id=?", [$window->id->value]);
-        $missing = LedgerRow::one("SELECT count(*) AS count FROM prc_analysis_windows WHERE run_id=? AND state<>'complete'", [$input->analysisRunId->value]);
 
-        return $missing?->int('count') === 0 ? [new PublicationInput($input->analysisRunId, $input->recipeHash, $window->run->generation)] : [];
+        return $this->analyses->completeWindowLocked($window)
+            ? [new PublicationInput(
+                analysisRunId: $input->analysisRunId,
+                recipeHash: $input->recipeHash,
+                resultGeneration: $window->run->generation,
+            )]
+            : [];
     }
 }

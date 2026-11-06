@@ -58,16 +58,40 @@ final class FeederDaemon implements ProcessDaemon
         $wakes = $this->transaction->run(fn (): array => $this->outbox->claim(OutboxKind::FeederWake, $token, $this->policy->feedWakeBatch, $this->policy->feedClaimSeconds));
         $now = $this->clock->monotonicNs();
         if ($wakes === [] && $this->nextFullTickNs !== null && $now < $this->nextFullTickNs) {
-            return DaemonTick::idle();
+            return new DaemonTick(0, $this->outbox->quarantinedCount(OutboxKind::FeederWake) > 0 ? 'outbox_quarantined' : null);
         }
 
         try {
             $granted = 0;
-            foreach ($this->producers as $producer) {
-                $granted += $producer->reconcile();
+            $firstFailure = null;
+            foreach ($this->producers as $name => $producer) {
+                try {
+                    $granted += $producer->reconcile();
+                } catch (\Throwable $failure) {
+                    $firstFailure ??= $failure;
+                    ProcessLog::daemonError(
+                        daemon: 'feed',
+                        code: 'feed_producer_failed',
+                        failure: $failure,
+                        context: ['producer' => $name],
+                    );
+                }
             }
             foreach ($this->parentLanes() as $lane) {
-                $granted += $this->feeder->tick($lane);
+                try {
+                    $granted += $this->feeder->tick($lane);
+                } catch (\Throwable $failure) {
+                    $firstFailure ??= $failure;
+                    ProcessLog::daemonError(
+                        daemon: 'feed',
+                        code: 'feed_lane_failed',
+                        failure: $failure,
+                        context: ['lane' => $lane],
+                    );
+                }
+            }
+            if ($firstFailure !== null) {
+                throw $firstFailure;
             }
         } catch (\Throwable $failure) {
             // Tick не принят: wakes остаются в outbox для следующего tick, исключение классифицирует loop.

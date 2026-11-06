@@ -10,14 +10,40 @@ use App\Dto\Procurement\Acquisition\FetchItemRejected;
 use App\Dto\Procurement\Acquisition\ListingFetchResult;
 use App\Dto\Procurement\Acquisition\ListingRequest;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
+use App\Dto\Procurement\Platform\PlatformDefinition;
+use App\Dto\Procurement\Platform\SupportedDetailCapability;
+use App\Dto\Procurement\Platform\SupportedListingCapability;
+use App\Dto\Procurement\Platform\SupportedStatusCapability;
 use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Services\Procurement\Platform\Contracts\DetailPartsSource;
+use App\Services\Procurement\Platform\Contracts\DetailSource;
 use App\Services\Procurement\Platform\Contracts\ListingSource;
+use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Platform\Contracts\StatusSource;
 
-/** Preserve typed diagnostic reasons before the stage bridge maps them to execution outcomes. */
+/** Request-local source composition and typed assessment wrappers for acquisition work. */
 final class AcquisitionSources
 {
+    public static function resolve(
+        PlatformDefinition $definition,
+        SupportedListingCapability|SupportedDetailCapability|SupportedStatusCapability $capability,
+        PlatformOutbound $outbound,
+        ProcessUuid $targetId,
+    ): ListingSource|DetailSource|StatusSource {
+        // Propagate request dependencies through adapter-private helpers without changing the worker container.
+        $container = clone app();
+        $container->instance(PlatformDefinition::class, $definition);
+        $container->instance(PlatformOutbound::class, $outbound);
+        $container->instance(ProcessUuid::class, $targetId);
+        $source = $container->make($capability->implementation);
+        if (! $source instanceof ListingSource && ! $source instanceof DetailSource && ! $source instanceof StatusSource) {
+            throw new \LogicException('Invalid acquisition source binding.');
+        }
+
+        return $source;
+    }
+
     public static function listing(ListingSource $source, AcquisitionAssessment $assessment): ListingSource
     {
         return new readonly class($source, $assessment) implements ListingSource

@@ -8,14 +8,18 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DownloadInput;
 use App\Dto\Procurement\Process\PrepareInput;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkIdentity;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\AccountingRole;
 use App\Enums\Procurement\Process\ActorKind;
+use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\RunKind;
 use App\Enums\Procurement\Process\RunWorkRelation;
+use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\SubjectKind;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
@@ -31,6 +35,77 @@ final readonly class DocumentWorkRepository
 {
     public function __construct(private WorkStoreRepository $works, private RunStoreRepository $runs,
         private TransitionRepository $transitions, private ProcessTransaction $transactions, private PreparePolicy $prepare) {}
+
+    /** @return list<int> */
+    public function dueRevalidationDocumentIds(): array
+    {
+        return array_map(static fn (LedgerRow $row): int => $row->int('id'), LedgerRow::all(
+            "SELECT id FROM prc_documents WHERE source_document_key IS NOT NULL AND removed_at IS NULL
+            AND current_version_id IS NOT NULL AND next_revalidation_due_at<=clock_timestamp()
+            AND NOT EXISTS (SELECT 1 FROM prc_operation_intents i WHERE i.subject_kind='prc_documents'
+                AND i.subject_id=prc_documents.id::text AND i.stage='download' AND i.state IN ('active','pending'))
+            ORDER BY next_revalidation_due_at,id LIMIT 50",
+        ));
+    }
+
+    /** @return list<int> */
+    public function pendingDownloadDocumentIds(): array
+    {
+        return array_map(static fn (LedgerRow $row): int => $row->int('id'), LedgerRow::all(
+            "SELECT d.id FROM prc_documents d WHERE d.removed_at IS NULL AND EXISTS
+            (SELECT 1 FROM prc_operation_intents i WHERE i.subject_kind='prc_documents' AND i.subject_id=d.id::text
+            AND i.stage='download' AND i.state='pending') AND NOT EXISTS
+            (SELECT 1 FROM prc_operation_intents i WHERE i.subject_kind='prc_documents' AND i.subject_id=d.id::text
+            AND i.stage='download' AND i.state='active') ORDER BY d.id LIMIT 50",
+        ));
+    }
+
+    /**
+     * Existing blocked/failed prepare work is not recreated by polling.
+     *
+     * @return list<int>
+     */
+    public function missingPreparationDocumentIds(): array
+    {
+        return array_map(static fn (LedgerRow $row): int => $row->int('id'), LedgerRow::all(
+            "SELECT d.id FROM prc_documents d WHERE d.removed_at IS NULL AND d.current_version_id IS NOT NULL AND NOT EXISTS
+            (SELECT 1 FROM prc_process_work w WHERE w.stage='prepare' AND w.document_version_id=d.current_version_id
+            AND w.input_payload->>'preparation_recipe_hash'=?) ORDER BY d.id LIMIT 50",
+            [$this->prepare->hash->hex],
+        ));
+    }
+
+    /** Revalidate due/head/policy under the document lock in the caller's transaction. */
+    public function allocateRevalidationLocked(int $documentId, ProcessUuid $intentId): ?ProcessUuid
+    {
+        CallerTransaction::require('Document revalidation allocation');
+        $head = LedgerRow::one('SELECT head_generation,acquisition_cycle_seq FROM prc_documents WHERE id=?
+                AND source_document_key IS NOT NULL AND removed_at IS NULL AND current_version_id IS NOT NULL
+                AND next_revalidation_due_at<=clock_timestamp() FOR UPDATE', [$documentId]);
+        if ($head === null || LedgerRow::one("SELECT id FROM prc_operation_intents WHERE stage='download'
+                AND subject_kind='prc_documents' AND subject_id=? AND state IN ('active','pending')", [(string) $documentId]) !== null) {
+            return null;
+        }
+        $prior = LedgerRow::one("SELECT encode(semantic_policy_hash,'hex') AS semantic,encode(access_policy_hash,'hex') AS access
+                FROM prc_operation_intents WHERE stage='download' AND subject_kind='prc_documents' AND subject_id=?
+                ORDER BY cycle_seq DESC LIMIT 1", [(string) $documentId]) ?? throw new \LogicException('Missing initial acquisition policy.');
+        $cycle = $head->int('acquisition_cycle_seq') + 1;
+        $this->works->storeIntent(
+            id: $intentId,
+            intentKey: ContentHash::of('document-acquisition:'.$documentId.':'.$cycle),
+            stage: StageCode::Download,
+            subject: new SubjectKey(SubjectKind::Document, $documentId),
+            semanticPolicyHash: new ContentHash($prior->string('semantic')),
+            accessPolicyHash: new ContentHash($prior->string('access')),
+            cycleSeq: $cycle,
+            expectedHeadGeneration: $head->int('head_generation'),
+            state: IntentState::Pending,
+        );
+        DB::update("UPDATE prc_operation_intents SET pending_reason='handler_not_activated' WHERE id=?", [$intentId->value]);
+        DB::update('UPDATE prc_documents SET acquisition_cycle_seq=?,next_revalidation_due_at=NULL WHERE id=?', [$cycle, $documentId]);
+
+        return $intentId;
+    }
 
     public function activate(int $documentId): int
     {

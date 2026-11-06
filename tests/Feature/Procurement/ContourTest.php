@@ -8,6 +8,7 @@ use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PreparationResult;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
+use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
@@ -61,6 +62,15 @@ test('выборка витрины не содержит смету и доку
     $resourceEstimates = EstimateResource::getEloquentQuery()->pluck('id');
     expect($resourceEstimates)->toContain($publicEstimate->id)
         ->and($resourceEstimates)->not->toContain($trainingEstimate->id);
+
+    $trainingVersion = DocumentVersion::factory()->create(['document_id' => $trainingDocument->id]);
+    $publicVersion = DocumentVersion::factory()->create(['document_id' => $publicDocument->id]);
+    $trainingAnalysis = Analysis::factory()->create(['document_version_id' => $trainingVersion->id]);
+    $publicAnalysis = Analysis::factory()->create(['document_version_id' => $publicVersion->id]);
+
+    $analyses = Analysis::query()->publicPlatform()->pluck('id');
+    expect($analyses)->toContain($publicAnalysis->id)
+        ->and($analyses)->not->toContain($trainingAnalysis->id);
 
     expect(fn () => $training->update(['is_public' => true]))->toThrow(LogicException::class)
         ->and(fn () => $training->fresh()->update(['code' => 'renamed']))->toThrow(LogicException::class)

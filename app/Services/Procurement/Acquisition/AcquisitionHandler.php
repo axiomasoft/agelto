@@ -8,7 +8,6 @@ use App\Dto\Procurement\Acquisition\AcquisitionConfiguration;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\PlatformDefinition;
 use App\Dto\Procurement\Platform\SupportedDetailCapability;
 use App\Dto\Procurement\Platform\SupportedListingCapability;
 use App\Dto\Procurement\Platform\SupportedListingPartitioningCapability;
@@ -27,6 +26,7 @@ use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\StageCode;
+use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Platform\Contracts\DetailPartsSource;
@@ -44,7 +44,8 @@ use Illuminate\Support\Str;
 final readonly class AcquisitionHandler implements StageHandler
 {
     public function __construct(private StageCode $stage, private PlatformRegistry $platforms,
-        private AcquisitionValidation $validation, private ProxyResolver $routes, private ?UrlPolicy $urls = null) {}
+        private AcquisitionValidation $validation, private ProxyResolver $routes,
+        private SourceCatalogRepository $catalog, private ?UrlPolicy $urls = null) {}
 
     public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
     {
@@ -80,13 +81,14 @@ final readonly class AcquisitionHandler implements StageHandler
         $endpoint = $definition->endpoints->get($capability->endpoints[0]);
         $target = $definition->sourceTargets->targets[$endpoint->targetKey] ?? throw new \LogicException('Missing endpoint target.');
         $contract = $target->adapterContract ?? throw new \LogicException('Acquisition requires an adapter contract.');
-        $catalog = LedgerRow::one('SELECT id FROM prc_source_targets WHERE platform_id=? AND target_key=? AND retired_at IS NULL
-            AND endpoint_policy_schema_version=2 AND endpoint_policy->\'adapter_contract\'=?::jsonb',
-            [$run->int('platform_id'), $target->key, json_encode($contract->toArray(), JSON_THROW_ON_ERROR)]);
-        if ($catalog === null) {
+        $targetId = $this->catalog->findActiveAdapterTarget(
+            platformId: $run->int('platform_id'),
+            targetKey: $target->key,
+            contract: $contract,
+        );
+        if ($targetId === null) {
             return new StageBlocked(BlockedReason::PolicyReview);
         }
-        $targetId = new ProcessUuid($catalog->string('id'));
         $traffic = $this->stage === StageCode::StatusRefresh ? TrafficClass::StatusRefresh
             : ($this->stage === StageCode::Detail ? TrafficClass::Detail
                 : ($settings->kind === AcquisitionKind::Archive ? TrafficClass::ArchiveListing : TrafficClass::FreshListing));
@@ -96,13 +98,12 @@ final readonly class AcquisitionHandler implements StageHandler
         return $this->validation->run($contract, $run->int('platform_id'), $this->routes->profile($profileId), $first,
             $this->urls ?? new UrlPolicy($definition->sourceTargets->origins()), $execution,
             function (PlatformOutbound $outbound, AcquisitionAssessment $assessment) use ($capability, $definition, $targetId, $input, $execution): StageOutcome {
-                // An isolated resolution container propagates typed request dependencies through
-                // adapter-private helpers without mutating the long-lived worker container.
-                $container = clone app();
-                $container->instance(PlatformDefinition::class, $definition);
-                $container->instance(PlatformOutbound::class, $outbound);
-                $container->instance(ProcessUuid::class, $targetId);
-                $source = $container->make($capability->implementation);
+                $source = AcquisitionSources::resolve(
+                    definition: $definition,
+                    capability: $capability,
+                    outbound: $outbound,
+                    targetId: $targetId,
+                );
                 if ($input instanceof ListingInput) {
                     if (! $source instanceof ListingSource || ! $definition->partitioning instanceof SupportedListingPartitioningCapability) {
                         throw new \LogicException('Invalid listing composition.');

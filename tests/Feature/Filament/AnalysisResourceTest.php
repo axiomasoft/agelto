@@ -5,14 +5,18 @@ declare(strict_types=1);
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\CorrectionReason;
 use App\Enums\Procurement\Ai\EstimateCardinality;
 use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Ai\ScreeningDisposition;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\Analyses\Pages\ListAnalyses;
 use App\Filament\Resources\Procurement\Ai\Analyses\Pages\ViewAnalysis;
+use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Ai\Analysis;
+use App\Models\Procurement\Ai\Correction;
+use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -227,4 +231,37 @@ test('пользователь без analysis.view_any не открывает 
 
     get(AnalysisResource::getUrl('index'))->assertForbidden();
     get(AnalysisResource::getUrl('view', ['record' => $analysis]))->assertForbidden();
+});
+
+test('оператор атомарно проверяет и отклоняет screening без gold, аналитик не может отправить эти действия', function (): void {
+    $operator = analysisResourceOperator();
+    actingAs($operator);
+    $analysis = screeningAnalysis();
+    Livewire::test(ViewAnalysis::class, ['record' => $analysis->id])
+        ->callAction('approve')
+        ->assertNotified('Анализ отмечен проверенным');
+    expect($analysis->refresh()->review_status->value)->toBe('approved')
+        ->and($analysis->reviewed_by)->toBe($operator->id)
+        ->and(DatasetExample::query()->where('analysis_id', $analysis->id)->count())->toBe(0);
+    Livewire::test(ViewAnalysis::class, ['record' => $analysis->id])
+        ->callAction('rejectWithCorrection', [
+            'field_path' => '', 'reason' => CorrectionReason::Other->value,
+            'content' => 'Проверить классификацию', 'is_reusable' => false,
+        ])
+        ->assertNotified('Коррекция сохранена');
+    expect($analysis->refresh()->review_status->value)->toBe('rejected')
+        ->and(Correction::query()->where('analysis_id', $analysis->id)->count())->toBe(1);
+
+    $reader = User::factory()->create();
+    $reader->assignRole(AnalystRole::class);
+    actingAs($reader);
+    $page = Livewire::test(ViewAnalysis::class, ['record' => $analysis->id])
+        ->assertActionHidden('approve')->assertActionHidden('rejectWithCorrection');
+    // Bypass the testing helper's visibility assertion, not Filament's server authorization.
+    $page->call('mountAction', 'approve')->call('callMountedAction')
+        ->call('mountAction', 'rejectWithCorrection')->call('callMountedAction');
+    expect($analysis->refresh()->review_status->value)->toBe('rejected')
+        ->and($analysis->reviewed_by)->toBe($operator->id)
+        ->and(Correction::query()->where('analysis_id', $analysis->id)->count())->toBe(1)
+        ->and(DatasetExample::query()->where('analysis_id', $analysis->id)->count())->toBe(0);
 });

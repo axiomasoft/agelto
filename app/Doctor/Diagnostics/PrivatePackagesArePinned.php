@@ -79,8 +79,8 @@ final class PrivatePackagesArePinned extends Diagnostic
 
     private function packagesAreInstalled(): bool
     {
-        return is_dir(base_path(path: 'vendor/axioma-studio/azguard-core'))
-            && is_dir(base_path(path: 'vendor/axioma-studio/azguard-filament'));
+        return is_dir(base_path(path: 'vendor/axiomasoft/azguard'))
+            && is_dir(base_path(path: 'vendor/axiomasoft/azguard-filament'));
     }
 
     protected function messages(): array

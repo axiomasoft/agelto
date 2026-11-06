@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Document\StoragePhase;
 use App\Repositories\Procurement\Document\ArtifactRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
 use App\Services\Procurement\Process\ProcessLog;
 
 /** Object I/O stays outside DB locks. A dead lease alone never releases uncertain tool bytes. */
 final class DocumentStorageReconciler implements ReconcileCategory
 {
-    private ?string $cursor = null;
+    private ?ProcessUuid $cursor = null;
+
+    private ?ProcessUuid $repairCursor = null;
 
     private ?string $blobVerifiedAtCursor = null;
 
@@ -27,7 +25,8 @@ final class DocumentStorageReconciler implements ReconcileCategory
         private readonly PrepareWorkspace $workspace,
         private readonly ArtifactGarbageCollector $gc,
         private readonly ArtifactRepository $artifacts,
-        private readonly ?BlobStore $blobs = null,
+        private readonly BlobStore $blobs,
+        private readonly StorageCapacityRepository $capacity,
     ) {}
 
     public function name(): string
@@ -37,31 +36,28 @@ final class DocumentStorageReconciler implements ReconcileCategory
 
     public function reconcile(): int
     {
-        $rows = $this->reservationCandidates($this->cursor);
+        $rows = $this->capacity->cleanupCandidates(afterId: $this->cursor);
         if ($rows === [] && $this->cursor !== null) {
             $this->cursor = null;
-            $rows = $this->reservationCandidates(null);
+            $rows = $this->capacity->cleanupCandidates();
         }
         if ($rows === []) {
             $this->cursor = null;
         }
         $cleaned = 0;
-        foreach ($rows as $row) {
-            $this->cursor = $row->string('id');
-            $r = new StorageReservationRequest(new ProcessUuid($row->string('id')), new ProcessUuid($row->string('domain_id')),
-                new ProcessUuid($row->string('owner_token')), $row->int('generation'), $row->int('byte_upper_bound'),
-                StoragePhase::from($row->string('phase')), $row->string('disk'), self::uuid($row->nullableString('work_id')),
-                self::uuid($row->nullableString('attempt_id')), self::uuid($row->nullableString('operation_id')));
+        foreach ($rows as $candidate) {
+            $reservation = $candidate->reservation;
+            $this->cursor = $reservation->id;
             try {
-                $cleaned += (int) ($row->string('status') === 'writing'
-                    ? $this->workspace->cleanupOrStoppedFile($r)
-                    : $this->gc->cleanup($r));
+                $cleaned += (int) ($candidate->writing
+                    ? $this->workspace->cleanupOrStoppedFile($reservation)
+                    : $this->gc->cleanup($reservation));
             } catch (\LogicException $invariant) {
                 throw $invariant;
             } catch (\Throwable $failure) {
                 ProcessLog::daemonError('reconcile', 'document_storage_reservation_cleanup_failed', $failure, [
-                    'reservation_id' => $r->id->value,
-                    'disk' => $r->disk,
+                    'reservation_id' => $reservation->id->value,
+                    'disk' => $reservation->disk,
                 ]);
             }
         }
@@ -69,24 +65,15 @@ final class DocumentStorageReconciler implements ReconcileCategory
             $this->cursor = null;
         }
 
-        $repairs = LedgerRow::all(
-            "SELECT b.*, encode(b.content_hash, 'hex') AS hash
-             FROM prc_document_blobs b
-             JOIN prc_storage_reservations s ON s.id = b.id
-             WHERE s.status = 'writing' AND b.deletion_marked_at IS NULL
-             ORDER BY b.id LIMIT 25",
-        );
-        foreach ($repairs as $repairRow) {
-            $blob = new BlobReference(
-                new ProcessUuid($repairRow->string('id')),
-                new ProcessUuid($repairRow->string('storage_domain_id')),
-                new ContentHash($repairRow->string('hash')),
-                $repairRow->string('disk'),
-                $repairRow->string('object_key'),
-                $repairRow->int('size_bytes'),
-            );
+        $repairs = $this->artifacts->repairCandidates(afterId: $this->repairCursor);
+        if ($repairs === [] && $this->repairCursor !== null) {
+            $this->repairCursor = null;
+            $repairs = $this->artifacts->repairCandidates();
+        }
+        foreach ($repairs as $blob) {
+            $this->repairCursor = $blob->id;
             try {
-                $cleaned += (int) ($this->blobs ?? app(BlobStore::class))->recoverStoppedRepair($blob);
+                $cleaned += (int) $this->blobs->recoverStoppedRepair($blob);
             } catch (\LogicException $invariant) {
                 throw $invariant;
             } catch (\Throwable $failure) {
@@ -96,6 +83,9 @@ final class DocumentStorageReconciler implements ReconcileCategory
                 ]);
             }
         }
+        if (count($repairs) < 25) {
+            $this->repairCursor = null;
+        }
 
         $candidates = $this->artifacts->unreferencedBatch(900, 25, $this->blobVerifiedAtCursor, $this->blobIdCursor);
         if ($candidates === [] && $this->blobIdCursor !== null) {
@@ -104,8 +94,8 @@ final class DocumentStorageReconciler implements ReconcileCategory
             $candidates = $this->artifacts->unreferencedBatch(900, 25);
         }
         foreach ($candidates as $candidate) {
-            $blob = $candidate['blob'];
-            $this->blobVerifiedAtCursor = $candidate['verifiedAt'];
+            $blob = $candidate->blob;
+            $this->blobVerifiedAtCursor = $candidate->verifiedAt;
             $this->blobIdCursor = $blob->id;
             try {
                 $mark = $this->artifacts->markDeletion($blob, 900);
@@ -127,32 +117,5 @@ final class DocumentStorageReconciler implements ReconcileCategory
         }
 
         return $cleaned;
-    }
-
-    /**
-     * @return list<LedgerRow>
-     */
-    private function reservationCandidates(?string $cursor): array
-    {
-        return LedgerRow::all(
-            "SELECT s.* FROM prc_storage_reservations s
-             LEFT JOIN prc_process_work w ON w.id = s.work_id
-             LEFT JOIN prc_outbound_operations o ON o.id = s.operation_id
-             WHERE s.status IN ('reserved','writing','staged','cleaning')
-               AND NOT EXISTS (SELECT 1 FROM prc_document_blobs b WHERE b.disk=s.disk AND b.object_key=s.object_key)
-               AND (
-                   (s.work_id IS NOT NULL AND (w.state<>'running' OR w.generation<>s.generation OR w.owner_token IS DISTINCT FROM s.owner_token))
-                   OR (s.work_id IS NULL AND s.operation_id IS NOT NULL AND o.state<>'open')
-               )
-               AND (s.operation_id IS NULL OR o.state<>'open')
-               AND (?::uuid IS NULL OR s.id>?::uuid)
-             ORDER BY s.id LIMIT 50",
-            [$cursor, $cursor],
-        );
-    }
-
-    private static function uuid(?string $value): ?ProcessUuid
-    {
-        return $value === null ? null : new ProcessUuid($value);
     }
 }

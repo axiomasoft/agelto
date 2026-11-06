@@ -5,13 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Document;
 
 use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\DocumentRange;
-use App\Dto\Procurement\Document\RepresentationCoverage;
 use App\Dto\Procurement\Document\SourceDocumentMetadata;
 use App\Dto\Procurement\Document\VerifiedStoredArtifact;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Document\CoverageUnit;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
@@ -19,11 +16,10 @@ use App\Exceptions\Procurement\Document\DocumentHeadChanged;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Repositories\Procurement\Document\ArtifactRepository;
+use App\Repositories\Procurement\Document\DocumentRepresentationRepository;
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -32,8 +28,13 @@ use Illuminate\Support\Str;
 /** Manual imports and retained format tools publish verified immutable metadata through the same blob gate. */
 final readonly class StoredDocumentWriter
 {
-    public function __construct(private StorageCapacityRepository $capacity, private ArtifactRepository $artifacts,
-        private DocumentVersionRepository $versions, private ProcessTransaction $transactions) {}
+    public function __construct(
+        private StorageCapacityRepository $capacity,
+        private ArtifactRepository $artifacts,
+        private DocumentVersionRepository $versions,
+        private ProcessTransaction $transactions,
+        private DocumentRepresentationRepository $representations,
+    ) {}
 
     /** @param array<string,mixed> $attributes */
     public function version(array $attributes): DocumentVersion
@@ -63,7 +64,7 @@ final readonly class StoredDocumentWriter
         $committed = $this->transactions->run(function () use ($blob, $verified, $documentId, $metadata): array {
             $this->capacity->lockDomains([$blob->domainId]);
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$documentId]);
-            $stored = $this->acquire($verified);
+            $stored = $this->artifacts->adoptStoredLocked($verified);
 
             return [$this->versions->observeBlobLocked($this->versions->head($documentId), $stored, $metadata)->id, $stored];
         });
@@ -97,7 +98,7 @@ final readonly class StoredDocumentWriter
             ], ['platform_id' => $parent->platform_id, 'title' => basename($entryPath), 'status' => DocumentStatus::Downloaded]);
             // Parent lock serializes the identity even for NULL procurement_id; child+version commit together.
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$child->id]);
-            $stored = $this->acquire($verified);
+            $stored = $this->artifacts->adoptStoredLocked($verified);
 
             return [$this->versions->observeBlobLocked($this->versions->head($child->id), $stored, $metadata)->id, $stored];
         });
@@ -124,32 +125,30 @@ final readonly class StoredDocumentWriter
         if (! is_string($tool) || ! is_string($toolVersion) || ! is_int($pages)) {
             throw new \InvalidArgumentException('Typed tool metadata and page count required.');
         }
-        $recipe = hash('sha256', json_encode([$tool, $toolVersion, $meta], JSON_THROW_ON_ERROR));
+        $recipe = new ContentHash(hex: hash('sha256', json_encode([$tool, $toolVersion, $meta], JSON_THROW_ON_ERROR)));
+        $metadata = [
+            'page_count' => ($attributes['page_count'] ?? null) === null ? null : $pages,
+            'token_estimate' => $attributes['token_estimate'] ?? null,
+            'mime' => $attributes['mime'] ?? null,
+            'meta' => $meta,
+        ];
         /** @var array{int,BlobReference} $committed */
-        $committed = $this->transactions->run(function () use ($version, $kind, $attributes, $blob, $verified, $recipe, $toolVersion, $pages): array {
+        $committed = $this->transactions->run(function () use ($version, $kind, $metadata, $blob, $verified, $recipe, $toolVersion, $pages): array {
             $this->capacity->lockDomains([$blob->domainId]);
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$version->document_id]);
             DB::select('SELECT id FROM prc_document_versions WHERE id=? FOR UPDATE', [$version->id]);
-            $stored = $this->acquire($verified);
-            $this->artifacts->referenceLocked($stored);
-            $existing = LedgerRow::one("SELECT id,blob_id FROM prc_document_representations WHERE document_version_id=? AND kind=? AND preparation_recipe_hash=decode(?,'hex') AND range_key='complete'", [$version->id, $kind->value, $recipe]);
-            if ($existing !== null) {
-                if ($existing->string('blob_id') !== $stored->id->value) {
-                    throw new \LogicException('Immutable representation recipe returned different bytes.');
-                }
+            $stored = $this->artifacts->adoptStoredLocked($verified);
+            $id = $this->representations->storeImportedLocked(
+                versionId: $version->id,
+                blob: $stored,
+                recipe: $recipe,
+                kind: $kind,
+                toolVersion: $toolVersion,
+                pages: $pages,
+                metadata: $metadata,
+            );
 
-                return [$existing->int('id'), $stored];
-            }
-            // Format output does not prove original-page coverage. Never label it automatic complete coverage.
-            $units = max(1, $pages);
-            $coverage = (new RepresentationCoverage(CoverageUnit::Page, $units, [], [new DocumentRange(0, $units)]))->json();
-            $row = LedgerRow::one("INSERT INTO prc_document_representations(document_version_id,kind,blob_id,preparation_recipe_hash,content_hash,range_key,tool_version,coverage_manifest,coverage_manifest_schema_version,storage_path,disk,size_bytes,page_count,token_estimate,mime,meta,generated_at,created_at,updated_at)
-                VALUES (?,?,?,decode(?,'hex'),decode(?,'hex'),'complete',?,?::jsonb,1,?,?,?,?,?,?,?::jsonb,clock_timestamp(),clock_timestamp(),clock_timestamp()) RETURNING id", [
-                $version->id, $kind->value, $stored->id->value, $recipe, $stored->hash->hex, $toolVersion, $coverage,
-                $stored->objectKey, $stored->disk, $stored->sizeBytes, $attributes['page_count'] ?? null, $attributes['token_estimate'] ?? null,
-                $attributes['mime'], json_encode($attributes['meta'] ?? [], JSON_THROW_ON_ERROR)]);
-
-            return [$row?->int('id') ?? throw new \LogicException('Representation insert failed.'), $stored];
+            return [$id, $stored];
         });
         [$id, $stored] = $committed;
         $this->cleanupUnreferencedDuplicate($inputDisk, $inputPath, $stored);
@@ -172,38 +171,38 @@ final readonly class StoredDocumentWriter
         if (($attributes['content_hash'] ?? $hex) !== $hex || ($attributes['size_bytes'] ?? $size) !== $size) {
             throw new ArtifactUnavailable('Stored object hash or size mismatch.');
         }
-        $key = 'documents.import:'.$disk;
-        $domain = ListingStoreRepository::id($key);
-        // Dotted storage keys are literal array keys.
-        $policies = config('documents.storage');
-        $limits = is_array($policies) ? ($policies['documents.originals'] ?? null) : null;
-        if (! is_array($limits) || ! is_int($limits['capacity_bytes'] ?? null) || ! is_int($limits['high_watermark_bytes'] ?? null)) {
-            throw new \LogicException('Missing documents storage policy.');
-        }
-        $this->capacity->ensureDomain($domain, $key, $limits['capacity_bytes'], $limits['high_watermark_bytes']);
-        $id = $domain->value;
-
-        $existing = LedgerRow::one("SELECT *,encode(content_hash,'hex') AS hash FROM prc_document_blobs WHERE disk=? AND object_key=?", [$disk, $path]);
+        $domain = $this->capacity->provisionImportDomain($disk);
+        $hash = new ContentHash(hex: $hex);
+        $existing = $this->artifacts->storedReferenceAt(disk: $disk, objectKey: $path);
         if ($existing === null) {
-            $existing = LedgerRow::one("SELECT *,encode(content_hash,'hex') AS hash FROM prc_document_blobs WHERE storage_domain_id=? AND content_hash=decode(?,'hex')", [$id, $hex]);
+            $existing = $this->artifacts->storedReferenceByHash(domain: $domain, hash: $hash);
             if ($existing !== null) {
                 // Different sources/recipes can produce identical bytes under different immutable keys.
                 // Verify the winning object outside locks before reusing its exact reference.
-                if ($existing->nullableString('deletion_marked_at') !== null || $existing->string('disk') !== $disk
-                    || $this->digestObject($disk, $existing->string('object_key')) !== [$hex, $size]) {
+                if ($existing->disk !== $disk || $this->digestObject($disk, $existing->objectKey) !== [$hex, $size]) {
                     throw new ArtifactUnavailable('Canonical deduplicated object is unavailable.');
                 }
             }
         }
         if ($existing !== null) {
-            if ($existing->string('hash') !== $hex || $existing->int('size_bytes') !== $size || $existing->nullableString('deletion_marked_at') !== null) {
+            if ($existing->hash != $hash || $existing->sizeBytes !== $size) {
                 throw new ArtifactUnavailable('Stored object metadata changed.');
             }
 
-            return new VerifiedStoredArtifact(new BlobReference(new ProcessUuid($existing->string('id')), new ProcessUuid($existing->string('storage_domain_id')), new ContentHash($hex), $existing->string('disk'), $existing->string('object_key'), $size), true);
+            return new VerifiedStoredArtifact(blob: $existing, catalogued: true);
         }
 
-        return new VerifiedStoredArtifact(new BlobReference(new ProcessUuid((string) Str::uuid()), new ProcessUuid($id), new ContentHash($hex), $disk, $path, $size), false);
+        return new VerifiedStoredArtifact(
+            blob: new BlobReference(
+                id: new ProcessUuid(value: (string) Str::uuid()),
+                domainId: $domain,
+                hash: $hash,
+                disk: $disk,
+                objectKey: $path,
+                sizeBytes: $size,
+            ),
+            catalogued: false,
+        );
     }
 
     /** @return array{string,int} */
@@ -223,32 +222,6 @@ final readonly class StoredDocumentWriter
         }
     }
 
-    /** Caller holds the capacity authority; reference acquisition and GC serialize here. */
-    private function acquire(VerifiedStoredArtifact $verified): BlobReference
-    {
-        $blob = $verified->blob;
-        $existing = LedgerRow::one("SELECT *,encode(content_hash,'hex') AS hash FROM prc_document_blobs WHERE storage_domain_id=? AND content_hash=decode(?,'hex') FOR UPDATE", [$blob->domainId->value, $blob->hash->hex]);
-        if ($existing !== null) {
-            if (($verified->catalogued && ($existing->string('id') !== $blob->id->value || $existing->string('object_key') !== $blob->objectKey)) || $existing->string('disk') !== $blob->disk || $existing->string('storage_domain_id') !== $blob->domainId->value || $existing->nullableString('deletion_marked_at') !== null || $existing->string('hash') !== $blob->hash->hex || $existing->int('size_bytes') !== $blob->sizeBytes) {
-                throw new ArtifactUnavailable('Stored object reference conflicts or is being deleted.');
-            }
-
-            return new BlobReference(new ProcessUuid($existing->string('id')), new ProcessUuid($existing->string('storage_domain_id')), $blob->hash,
-                $existing->string('disk'), $existing->string('object_key'), $blob->sizeBytes);
-        }
-        if ($verified->catalogued) {
-            throw new ArtifactUnavailable('Previously verified artifact was deleted; do not resurrect its reference.');
-        }
-        $changed = DB::update("UPDATE prc_storage_domains SET accounted_durable_bytes=accounted_durable_bytes+? WHERE id=? AND accounted_durable_bytes+?+
-            (SELECT coalesce(sum(byte_upper_bound),0) FROM prc_storage_reservations WHERE domain_id=? AND status IN ('reserved','writing','staged','cleaning')) <= high_watermark_bytes", [$blob->sizeBytes, $blob->domainId->value, $blob->sizeBytes, $blob->domainId->value]);
-        if ($changed !== 1) {
-            throw new ArtifactUnavailable('Stored object capacity unavailable.');
-        }
-        DB::insert("INSERT INTO prc_document_blobs(id,storage_domain_id,content_hash,disk,object_key,size_bytes,verified_at) VALUES (?,?,decode(?,'hex'),?,?,?,clock_timestamp())", [$blob->id->value, $blob->domainId->value, $blob->hash->hex, $blob->disk, $blob->objectKey, $blob->sizeBytes]);
-
-        return $blob;
-    }
-
     private function cleanupUnreferencedDuplicate(string $inputDisk, string $inputPath, BlobReference $stored): void
     {
         if (DB::transactionLevel() !== 0 || $inputDisk === '' || $inputPath === '') {
@@ -257,7 +230,7 @@ final readonly class StoredDocumentWriter
         if ($inputDisk === $stored->disk && $inputPath === $stored->objectKey) {
             return;
         }
-        if (LedgerRow::one('SELECT 1 FROM prc_document_blobs WHERE disk=? AND object_key=?', [$inputDisk, $inputPath]) !== null) {
+        if ($this->artifacts->isCatalogued(disk: $inputDisk, objectKey: $inputPath)) {
             return;
         }
         try {

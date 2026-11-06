@@ -485,10 +485,13 @@ def reset(folder, *, clock=None):
 def env_proof(folder):
     proof = destructive_guard()
     fixture_proof(folder)
-    guard_tests = run([sys.executable, "-B", "-m", "unittest", "discover", "-s",
-                       "docker/tests/process-core", "-p", "test_rig.py", "-v"], check=False)
-    (folder / "guard-tests.log").write_text(guard_tests.stdout + guard_tests.stderr)
-    require(guard_tests.returncode == 0, "negative guard examples failed")
+    for pattern, log in (("test_rig.py", "guard-tests.log"),
+                         ("test_load_report.py", "load-report-tests.log"),
+                         ("test_acceptance_report.py", "acceptance-report-tests.log")):
+        guard_tests = run([sys.executable, "-B", "-m", "unittest", "discover", "-s",
+                           "docker/tests/process-core", "-p", pattern, "-v"], check=False)
+        (folder / log).write_text(guard_tests.stdout + guard_tests.stderr)
+        require(guard_tests.returncode == 0, "negative guard examples failed: " + pattern)
     # The negative proof never invokes reset; unit tests also assert no mutation on rejection.
     base = {"project": PROJECT, "database": "agelto_test", "user": "core_test", "port": 5432,
             "server_version": "17.0", "environment": "testing"}

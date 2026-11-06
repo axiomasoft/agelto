@@ -106,6 +106,7 @@ export default defineConfig({
                         { text: 'Production-образ и runtime', link: '/dev/docker/production' },
                         { text: 'Модель релизов', link: '/dev/process/deploy' },
                         { text: 'Тестирование', link: '/dev/process/testing' },
+                        { text: 'Аудит репозитория', link: '/dev/repository-audit' },
                     ],
                 },
             ],

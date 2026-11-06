@@ -1980,53 +1980,164 @@ Constraints:
 
 ### Installed baseline (before Process ledger)
 
-#### az_direct_grants
+#### azg_panel_state
+
+Owner: Framework/vendor; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| panel | character varying / varchar | NO | character varying(64) NOT NULL COLLATE pg_catalog."C" |
+| version | bigint / int8 | NO | bigint DEFAULT '0'::bigint NOT NULL |
+| incarnation | character varying / varchar | NO | character varying(26) NOT NULL COLLATE pg_catalog."C" |
+| updated_at | timestamp without time zone / timestamp | NO | timestamp(0) without time zone NOT NULL |
+| epoch | bigint / int8 | NO | bigint DEFAULT '0'::bigint NOT NULL |
+
+Constraints:
+- `azg_panel_state_pkey`: `PRIMARY KEY (panel)`
+
+Indexes:
+- `azg_panel_state_pkey`: `CREATE UNIQUE INDEX azg_panel_state_pkey ON public.azg_panel_state USING btree (panel)`
+
+#### azg_permission_grants
 
 Owner: Framework/vendor; retention: business.
 
 | Column | PostgreSQL type | Nullable | Exact column definition |
 | --- | --- | --- | --- |
 | id | bigint / int8 | NO | bigint NOT NULL |
-| grantable_type | character varying / varchar | NO | character varying(255) NOT NULL |
-| grantable_id | bigint / int8 | NO | bigint NOT NULL |
-| permission_key | character varying / varchar | NO | character varying(255) NOT NULL |
-| panel_id | character varying / varchar | NO | character varying(128) NOT NULL |
+| panel | character varying / varchar | NO | character varying(64) NOT NULL COLLATE pg_catalog."C" |
+| tenant_key | character varying / varchar | NO | character varying(200) NOT NULL COLLATE pg_catalog."C" |
+| tenant_type | character varying / varchar | YES | character varying(128) COLLATE pg_catalog."C" |
+| tenant_id | character varying / varchar | YES | character varying(64) COLLATE pg_catalog."C" |
+| permission | character varying / varchar | NO | character varying(255) NOT NULL COLLATE pg_catalog."C" |
+| subject_type | character varying / varchar | NO | character varying(128) NOT NULL COLLATE pg_catalog."C" |
+| subject_id | character varying / varchar | NO | character varying(64) NOT NULL COLLATE pg_catalog."C" |
+| context_key | character varying / varchar | NO | character varying(200) NOT NULL COLLATE pg_catalog."C" |
+| context_type | character varying / varchar | YES | character varying(128) COLLATE pg_catalog."C" |
+| context_id | character varying / varchar | YES | character varying(64) COLLATE pg_catalog."C" |
+| origin | character varying / varchar | NO | character varying(128) DEFAULT 'manual'::character varying NOT NULL COLLATE pg_catalog."C" |
 | expires_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| actor_type | character varying / varchar | YES | character varying(128) COLLATE pg_catalog."C" |
+| actor_id | character varying / varchar | YES | character varying(64) COLLATE pg_catalog."C" |
+| actor_reason | text / text | YES | text |
+| meta | json / json | YES | json |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 
 Constraints:
-- `az_direct_grant_unique`: `UNIQUE (grantable_type, grantable_id, permission_key, panel_id)`
-- `az_direct_grants_pkey`: `PRIMARY KEY (id)`
+- `azg_permission_grants_pkey`: `PRIMARY KEY (id)`
+- `azg_pg_context_pair`: `CHECK (((((context_key)::text = 'global'::text) = ((context_type IS NULL) AND (context_id IS NULL))) AND ((context_type IS NULL) = (context_id IS NULL))))`
+- `azg_pg_identity`: `UNIQUE (panel, tenant_key, permission, subject_type, subject_id, context_key, origin)`
+- `azg_pg_tenant_pair`: `CHECK (((((tenant_key)::text = 'global'::text) = ((tenant_type IS NULL) AND (tenant_id IS NULL))) AND ((tenant_type IS NULL) = (tenant_id IS NULL))))`
 
 Indexes:
-- `az_direct_grant_lookup`: `CREATE INDEX az_direct_grant_lookup ON public.az_direct_grants USING btree (grantable_type, grantable_id, panel_id, expires_at)`
-- `az_direct_grant_unique`: `CREATE UNIQUE INDEX az_direct_grant_unique ON public.az_direct_grants USING btree (grantable_type, grantable_id, permission_key, panel_id)`
-- `az_direct_grants_pkey`: `CREATE UNIQUE INDEX az_direct_grants_pkey ON public.az_direct_grants USING btree (id)`
-- `azg_853fadc7b32c436284043003bb137233bf92ae6a_idx`: `CREATE INDEX azg_853fadc7b32c436284043003bb137233bf92ae6a_idx ON public.az_direct_grants USING btree (grantable_type, grantable_id)`
+- `azg_permission_grants_pkey`: `CREATE UNIQUE INDEX azg_permission_grants_pkey ON public.azg_permission_grants USING btree (id)`
+- `azg_pg_context`: `CREATE INDEX azg_pg_context ON public.azg_permission_grants USING btree (panel, tenant_key, context_type, context_id)`
+- `azg_pg_expiry`: `CREATE INDEX azg_pg_expiry ON public.azg_permission_grants USING btree (expires_at)`
+- `azg_pg_identity`: `CREATE UNIQUE INDEX azg_pg_identity ON public.azg_permission_grants USING btree (panel, tenant_key, permission, subject_type, subject_id, context_key, origin)`
+- `azg_pg_origin`: `CREATE INDEX azg_pg_origin ON public.azg_permission_grants USING btree (panel, tenant_key, origin)`
+- `azg_pg_subject`: `CREATE INDEX azg_pg_subject ON public.azg_permission_grants USING btree (panel, tenant_key, subject_type, subject_id, context_key)`
 
-#### az_guard_role_permissions
+#### azg_permissions
 
 Owner: Framework/vendor; retention: business.
 
 | Column | PostgreSQL type | Nullable | Exact column definition |
 | --- | --- | --- | --- |
 | id | bigint / int8 | NO | bigint NOT NULL |
-| role_id | bigint / int8 | NO | bigint NOT NULL |
-| permission_key | character varying / varchar | NO | character varying(255) NOT NULL |
-| panel_id | character varying / varchar | NO | character varying(128) NOT NULL |
+| panel | character varying / varchar | NO | character varying(64) NOT NULL COLLATE pg_catalog."C" |
+| tenant_key | character varying / varchar | NO | character varying(200) NOT NULL COLLATE pg_catalog."C" |
+| tenant_type | character varying / varchar | YES | character varying(128) COLLATE pg_catalog."C" |
+| tenant_id | character varying / varchar | YES | character varying(64) COLLATE pg_catalog."C" |
+| name | character varying / varchar | NO | character varying(255) NOT NULL COLLATE pg_catalog."C" |
+| label | character varying / varchar | YES | character varying(191) |
+| group | character varying / varchar | YES | character varying(191) |
+| description | text / text | YES | text |
+| meta | json / json | YES | json |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 
 Constraints:
-- `az_guard_role_permissions_pkey`: `PRIMARY KEY (id)`
-- `az_guard_role_permissions_role_id_foreign`: `FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE`
-- `az_role_perm_unique`: `UNIQUE (role_id, permission_key, panel_id)`
+- `azg_permissions_pkey`: `PRIMARY KEY (id)`
+- `azg_pm_identity`: `UNIQUE (panel, tenant_key, name)`
+- `azg_pm_tenant_pair`: `CHECK (((((tenant_key)::text = 'global'::text) = ((tenant_type IS NULL) AND (tenant_id IS NULL))) AND ((tenant_type IS NULL) = (tenant_id IS NULL))))`
 
 Indexes:
-- `az_guard_role_permissions_pkey`: `CREATE UNIQUE INDEX az_guard_role_permissions_pkey ON public.az_guard_role_permissions USING btree (id)`
-- `az_role_perm_lookup`: `CREATE INDEX az_role_perm_lookup ON public.az_guard_role_permissions USING btree (panel_id, permission_key)`
-- `az_role_perm_unique`: `CREATE UNIQUE INDEX az_role_perm_unique ON public.az_guard_role_permissions USING btree (role_id, permission_key, panel_id)`
+- `azg_permissions_pkey`: `CREATE UNIQUE INDEX azg_permissions_pkey ON public.azg_permissions USING btree (id)`
+- `azg_pm_identity`: `CREATE UNIQUE INDEX azg_pm_identity ON public.azg_permissions USING btree (panel, tenant_key, name)`
+
+#### azg_role_grants
+
+Owner: Framework/vendor; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | bigint / int8 | NO | bigint NOT NULL |
+| panel | character varying / varchar | NO | character varying(64) NOT NULL COLLATE pg_catalog."C" |
+| tenant_key | character varying / varchar | NO | character varying(200) NOT NULL COLLATE pg_catalog."C" |
+| tenant_type | character varying / varchar | YES | character varying(128) COLLATE pg_catalog."C" |
+| tenant_id | character varying / varchar | YES | character varying(64) COLLATE pg_catalog."C" |
+| role | character varying / varchar | NO | character varying(64) NOT NULL COLLATE pg_catalog."C" |
+| subject_type | character varying / varchar | NO | character varying(128) NOT NULL COLLATE pg_catalog."C" |
+| subject_id | character varying / varchar | NO | character varying(64) NOT NULL COLLATE pg_catalog."C" |
+| context_key | character varying / varchar | NO | character varying(200) NOT NULL COLLATE pg_catalog."C" |
+| context_type | character varying / varchar | YES | character varying(128) COLLATE pg_catalog."C" |
+| context_id | character varying / varchar | YES | character varying(64) COLLATE pg_catalog."C" |
+| origin | character varying / varchar | NO | character varying(128) DEFAULT 'manual'::character varying NOT NULL COLLATE pg_catalog."C" |
+| expires_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| actor_type | character varying / varchar | YES | character varying(128) COLLATE pg_catalog."C" |
+| actor_id | character varying / varchar | YES | character varying(64) COLLATE pg_catalog."C" |
+| actor_reason | text / text | YES | text |
+| meta | json / json | YES | json |
+| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+
+Constraints:
+- `azg_rg_context_pair`: `CHECK (((((context_key)::text = 'global'::text) = ((context_type IS NULL) AND (context_id IS NULL))) AND ((context_type IS NULL) = (context_id IS NULL))))`
+- `azg_rg_identity`: `UNIQUE (panel, tenant_key, role, subject_type, subject_id, context_key, origin)`
+- `azg_rg_tenant_pair`: `CHECK (((((tenant_key)::text = 'global'::text) = ((tenant_type IS NULL) AND (tenant_id IS NULL))) AND ((tenant_type IS NULL) = (tenant_id IS NULL))))`
+- `azg_role_grants_pkey`: `PRIMARY KEY (id)`
+
+Indexes:
+- `azg_rg_context`: `CREATE INDEX azg_rg_context ON public.azg_role_grants USING btree (panel, tenant_key, context_type, context_id)`
+- `azg_rg_expiry`: `CREATE INDEX azg_rg_expiry ON public.azg_role_grants USING btree (expires_at)`
+- `azg_rg_identity`: `CREATE UNIQUE INDEX azg_rg_identity ON public.azg_role_grants USING btree (panel, tenant_key, role, subject_type, subject_id, context_key, origin)`
+- `azg_rg_origin`: `CREATE INDEX azg_rg_origin ON public.azg_role_grants USING btree (panel, tenant_key, origin)`
+- `azg_rg_subject`: `CREATE INDEX azg_rg_subject ON public.azg_role_grants USING btree (panel, tenant_key, subject_type, subject_id, context_key)`
+- `azg_role_grants_pkey`: `CREATE UNIQUE INDEX azg_role_grants_pkey ON public.azg_role_grants USING btree (id)`
+
+#### azg_storage_state
+
+Owner: Framework/vendor; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | smallint / int2 | NO | smallint NOT NULL |
+| schema | json / json | NO | json NOT NULL |
+
+Constraints:
+- `azg_ss_singleton`: `CHECK ((id = 1))`
+- `azg_storage_state_pkey`: `PRIMARY KEY (id)`
+
+Indexes:
+- `azg_storage_state_pkey`: `CREATE UNIQUE INDEX azg_storage_state_pkey ON public.azg_storage_state USING btree (id)`
+
+#### azg_subject_revisions
+
+Owner: Framework/vendor; retention: business.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| panel | character varying / varchar | NO | character varying(64) NOT NULL COLLATE pg_catalog."C" |
+| subject_type | character varying / varchar | NO | character varying(128) NOT NULL COLLATE pg_catalog."C" |
+| subject_id | character varying / varchar | NO | character varying(64) NOT NULL COLLATE pg_catalog."C" |
+| revision | bigint / int8 | NO | bigint DEFAULT '0'::bigint NOT NULL |
+
+Constraints:
+- `azg_subject_revisions_pkey`: `PRIMARY KEY (panel, subject_type, subject_id)`
+
+Indexes:
+- `azg_subject_revisions_pkey`: `CREATE UNIQUE INDEX azg_subject_revisions_pkey ON public.azg_subject_revisions USING btree (panel, subject_type, subject_id)`
 
 #### cache
 
@@ -2222,52 +2333,6 @@ Constraints:
 
 Indexes:
 - `migrations_pkey`: `CREATE UNIQUE INDEX migrations_pkey ON public.migrations USING btree (id)`
-
-#### model_has_roles
-
-Owner: Framework/vendor; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| role_id | bigint / int8 | NO | bigint NOT NULL |
-| model_type | character varying / varchar | NO | character varying(255) NOT NULL |
-| model_id | bigint / int8 | NO | bigint NOT NULL |
-
-Constraints:
-- `model_has_roles_role_id_foreign`: `FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE`
-- `model_has_roles_unique`: `UNIQUE (role_id, model_type, model_id)`
-
-Indexes:
-- `azg_ecf0cb43c2fcb2e068a1502f15dbf41f2077daa4_idx`: `CREATE INDEX azg_ecf0cb43c2fcb2e068a1502f15dbf41f2077daa4_idx ON public.model_has_roles USING btree (model_type, model_id)`
-- `model_has_roles_unique`: `CREATE UNIQUE INDEX model_has_roles_unique ON public.model_has_roles USING btree (role_id, model_type, model_id)`
-
-#### model_has_scopes
-
-Owner: Framework/vendor; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| model_type | character varying / varchar | NO | character varying(255) NOT NULL |
-| model_id | bigint / int8 | NO | bigint NOT NULL |
-| scope_entity_type | character varying / varchar | YES | character varying(255) |
-| scope_entity_id | bigint / int8 | YES | bigint |
-| scope_class | character varying / varchar | YES | character varying(255) |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| role_id | bigint / int8 | YES | bigint |
-| panel_id | character varying / varchar | YES | character varying(255) |
-
-Constraints:
-- `model_has_scopes_pkey`: `PRIMARY KEY (id)`
-- `model_has_scopes_role_id_foreign`: `FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL`
-
-Indexes:
-- `azg_364be6041f25cf9392be1970c7177ba6390b9198_idx`: `CREATE INDEX azg_364be6041f25cf9392be1970c7177ba6390b9198_idx ON public.model_has_scopes USING btree (model_type, model_id)`
-- `azg_36c1e6e07cca0dccc8ef9a39c8148f57a212b63f_idx`: `CREATE INDEX azg_36c1e6e07cca0dccc8ef9a39c8148f57a212b63f_idx ON public.model_has_scopes USING btree (scope_entity_type, scope_entity_id)`
-- `model_has_scopes_panel_id_index`: `CREATE INDEX model_has_scopes_panel_id_index ON public.model_has_scopes USING btree (panel_id)`
-- `model_has_scopes_pkey`: `CREATE UNIQUE INDEX model_has_scopes_pkey ON public.model_has_scopes USING btree (id)`
-- `model_has_scopes_unique`: `CREATE UNIQUE INDEX model_has_scopes_unique ON public.model_has_scopes USING btree (model_type, model_id, COALESCE(scope_entity_type, ''::character varying), COALESCE(scope_entity_id, (0)::bigint), COALESCE(role_id, (0)::bigint), COALESCE(panel_id, ''::character varying))`
 
 #### org_organization_identifiers
 
@@ -5330,27 +5395,6 @@ Indexes:
 - `ref_okved2_parent_code_index`: `CREATE INDEX ref_okved2_parent_code_index ON public.ref_okved2 USING btree (parent_code)`
 - `ref_okved2_pkey`: `CREATE UNIQUE INDEX ref_okved2_pkey ON public.ref_okved2 USING btree (id)`
 
-#### roles
-
-Owner: Framework/vendor; retention: business.
-
-| Column | PostgreSQL type | Nullable | Exact column definition |
-| --- | --- | --- | --- |
-| id | bigint / int8 | NO | bigint NOT NULL |
-| name | character varying / varchar | NO | character varying(255) NOT NULL |
-| class_name | character varying / varchar | YES | character varying(255) |
-| level | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
-| created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-| updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
-
-Constraints:
-- `roles_name_unique`: `UNIQUE (name)`
-- `roles_pkey`: `PRIMARY KEY (id)`
-
-Indexes:
-- `roles_name_unique`: `CREATE UNIQUE INDEX roles_name_unique ON public.roles USING btree (name)`
-- `roles_pkey`: `CREATE UNIQUE INDEX roles_pkey ON public.roles USING btree (id)`
-
 #### sessions
 
 Owner: Framework/vendor; retention: runtime.
@@ -5881,6 +5925,7 @@ Indexes:
 
 
 
+
 ## Передача P1.4 → P1.6–P1.12
 
 Inventory выше остаётся декларацией целевой схемы, подготовленной P1.1. P1.4 сверяет её с PHP-контрактами P1.2 и изолированным стендом P1.3. Новых migrations, Process tables, admission, handlers или production consumers этот пункт не включает. Существующие consumers работают до своего owning cutover.
@@ -5948,7 +5993,7 @@ installed-schema or activation claim. Earlier schema snapshots above predate thi
   platform_id. A provider operation must bind its exact provider control and system ancestor.
   Target/owner mismatch is rejected by the common network authority. No ProcessWork or financial
   identity is fabricated for a legacy provider request.
-- `prc_control_scopes.scope_kind` includes `provider`, with system → provider:<key> topology.
+- `prc_control_scopes.scope_kind` includes `provider`, with `system → provider:<key>` topology.
   `prc_network_demands.traffic_class` includes `provider`; demand purpose remains ordinary/probe/diagnostic.
 - Origin identity, shared budgets, existing TAT/send_tat/not_before debt and overrides remain
   independent of the provider/platform owner branch. A sync only retires its own catalog.

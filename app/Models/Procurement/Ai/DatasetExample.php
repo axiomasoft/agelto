@@ -21,6 +21,7 @@ use Illuminate\Support\Collection;
  *
  * @property int $document_version_id
  * @property string $document_type
+ * @property string $task
  * @property Collection<string, mixed>|null $gold
  * @property string|null $gold_ref
  * @property string $source

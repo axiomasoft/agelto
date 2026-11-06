@@ -46,6 +46,11 @@ final readonly class OrganizationResolver
     private function persist(OrganizationData $data, ?Organization $organization): Organization
     {
         return DB::transaction(function () use ($data, $organization): Organization {
+            if ($organization === null && $data->ogrn !== null) {
+                $this->storeRepository->lockOgrnResolution($data->ogrn);
+                $organization = $this->find($data);
+            }
+
             if ($organization === null) {
                 $organization = $this->storeRepository->create($this->attributes($data));
             } else {

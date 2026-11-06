@@ -25,6 +25,7 @@ use App\Guards\Admin\Permissions\RegistryPermission;
 use App\Guards\Admin\Permissions\StatusMappingPermission;
 use App\Guards\Admin\Permissions\WorkItemPermission;
 use AzGuard\Roles\BaseRole;
+use Override;
 use UnitEnum;
 
 /**
@@ -34,12 +35,26 @@ use UnitEnum;
  */
 final class OperatorRole extends BaseRole
 {
-    public function getLevel(): int
+    #[Override]
+    public function key(): string
+    {
+        return 'operator';
+    }
+
+    #[Override]
+    public function label(): string
+    {
+        return 'Оператор';
+    }
+
+    #[Override]
+    public function level(): int
     {
         return 100;
     }
 
     /** @return list<UnitEnum> */
+    #[Override]
     public function permissions(): array
     {
         return [
@@ -106,6 +121,11 @@ final class OperatorRole extends BaseRole
             ProcessControlPermission::CancelWork,
             ProcessControlPermission::CancelRun,
             ProcessControlPermission::AcknowledgeIncident,
+            ProcessControlPermission::DashboardPageView,
+            ProcessControlPermission::FinalPromptPageView,
+            ProcessControlPermission::NetworkRouteProfilesPageView,
+            ProcessControlPermission::PromptCompositionPageView,
+            ProcessControlPermission::LlmSpendChartWidgetView,
         ];
     }
 

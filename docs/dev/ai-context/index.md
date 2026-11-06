@@ -6,61 +6,62 @@ status: living
 
 # AI-контур проекта
 
-Про устройство агентского контекста проекта (skills/rules/CLAUDE.md для Claude Code и других
-AI-агентов). НЕ про LLM-пайплайн документов/смет — см. [`ai/prompts.md`](../ai/prompts.md) для этого.
+Устройство агентского контекста проекта: общие инструкции, локальные skills и управляемые
+интеграции Claude Code/Codex. LLM-пайплайн документов и смет описан в [`ai/prompts.md`](../ai/prompts.md).
 
 ## Источники и потребители
 
 ```mermaid
 flowchart LR
-    Guidelines[".ai/guidelines/**<br/>(source, редактируется вручную)"]
-    Skiller["swissknifeman skill registry<br/>(129 скиллов, ecosystem-wide)"]
-    ProjectSkills[".claude/rules/**<br/>agelto-специфичные оверрайды"]
-    Sync["skiller sync (ручной запуск)"]
-    ClaudeSkills[".claude/skills/ (mirror, gitignored кроме списка исключений)"]
-    CursorSkills[".cursor/skills/ (mirror)"]
-    ClaudeMd["CLAUDE.md (генерируемый файл, коммитится)"]
-    AgentsMd["AGENTS.md (генерируемый файл)"]
-    Agent["Claude Code / другой AI-агент в сессии"]
+    Guidelines[".ai/guidelines/**<br/>canonical правила проекта"]
+    Local["Локальные skills и разрешённые overrides"]
+    Managed["Swissknifeman / mAInd<br/>owning templates и plugins"]
+    Delivery["Управляемые skills / agent-packs<br/>native plugins и generated bundles"]
+    ClaudeMd["CLAUDE.md<br/>Claude Code hub"]
+    AgentsMd["AGENTS.md<br/>компактный Codex entrypoint"]
+    Agent["AI-агент в сессии"]
 
-    Guidelines -->|"ручной перенос при архитектурных решениях"| ClaudeMd
-    Skiller --> Sync
-    Sync --> ClaudeSkills
-    Sync --> CursorSkills
-    ProjectSkills --> Agent
+    Guidelines -->|"синхронизация затронутых правил"| ClaudeMd
+    Guidelines -->|"синхронизация затронутых правил"| AgentsMd
+    Managed --> Delivery
+    Delivery --> Agent
+    Local --> Agent
     ClaudeMd --> Agent
     AgentsMd --> Agent
-    ClaudeSkills --> Agent
 ```
 
 ## Что коммитить
 
 ### Выбор providers и plugins
 
-`.swissknife.json` объявляет активные Claude Code/Codex providers и минимальный набор plugins.
-Оба providers включены. Skiller `connect` управляет marketplace-проекциями и Codex bundles
-в `.agents/plugins/`; их обновляют через Skiller, без ручной правки generated files.
-`.codex/config.toml` включает тот же набор native plugins только для этого доверенного проекта.
-Native caches устанавливаются через Codex CLI; версии проверяют через `codex plugin list --json`,
-а доступность skills — через offline `codex debug prompt-input`.
+Настройку providers, plugins и connections ведёт skill `ecosystem-setup` через owning
+инструменты Swissknifeman/mAInd. `.agents/plugins/**` и
+`.agents/.swissknifeman-codex-links.json` — управляемые bundles/links; вручную их не редактируют.
+Локальные настройки и caches не заменяют canonical инструкции проекта.
 
 - `.ai/guidelines/**` — ЕДИНСТВЕННЫЙ источник для agelto-специфичных правил (архитектура, глоссарий,
   навигация, PR-чеклист, шаблоны задач). Коммитится всегда.
-- `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` — **генерируемые артефакты**, ведутся ВРУЧНУЮ (Boost подключён
-  только как MCP-сервер, не композитор контекста — см. корневой `CLAUDE.md` §Fast Entry Rules).
-  Правки идей — сначала в `.ai/guidelines/**`/`docs/`, затем вручную переносятся в эти файлы.
-- `.claude/skills/`, `.cursor/rules/` — генерируемые зеркала skill-реестра (`skiller sync`), **не
-  редактируются напрямую** (см. `.ai/guidelines/navigation.md` §Agent File Edit Safety). `.gitignore`
-  игнорирует `.claude/*` целиком, с явными исключениями (`skills/`, `agents/`, `workflows/`,
-  `rules/`, `hooks/`, `agent-pack.lock.json`, `review-gate.env.ini`) — только они трекаются.
-- `.claude/rules/**` (например `agelto-reviewer-overrides.md`) — проектные оверрайды поверх общих
-  swissknifeman-скиллов; коммитятся, читаются агентом наравне с CLAUDE.md.
+- `CLAUDE.md` и `AGENTS.md` — трекаемые entrypoints. Сначала меняют `.ai/guidelines/**`, затем
+  синхронизируют затронутые правила в обоих файлах. Laravel Boost служит MCP-инструментом.
+- Локальные `.claude/skills/**` без managed/generated-маркера можно редактировать и коммитить.
+  Перед правкой проверяют заголовок: явно указанный mAInd owning template также означает
+  управляемую копию, независимо от `source: local` в lock-файле.
+- Managed skills и generated agent-packs обновляют у владельца через штатный канал доставки;
+  правила `swissknifeman:managed`, `swissknifeman:generated` и extension-points указаны в файлах.
+  Каталог `.claude/rules/**` содержит и generated правила, и разрешённые проектные overrides
+  (например `agelto-reviewer-overrides.md`); владение определяют по заголовку каждого файла.
+- Перед изменением/коммитом проверяют `git status` и `git check-ignore` целевого пути. Полные
+  каталоги skills между providers вручную не копируют.
 
 ## Цикл редактирования
 
-`item/phase → handoff → /clear` (skill `plan-protocol`) применим и к контексту: правка правила →
-`.ai/guidelines/**` → при необходимости ручной перенос в `CLAUDE.md` → коммит. Подробный цикл и
-источник истины — skill `ai-context-workflow`.
+Native Planner владеет активным plan state; его execution-input задаёт текущий scope и authority.
+Исполнитель возвращает stage-report, координатор принимает evidence и ведёт lifecycle/коммиты.
+Task Layout v2 и `plans/archive/**` сохраняются как история; их lifecycle-команды не запускают.
+
+Для AI-контекста цикл: canonical правило → синхронизация затронутых entrypoints/local skills →
+проверка ссылок и фактов → коммит. Подробности — skill `ai-context-workflow`. Проверки выполняют
+через изолированный `core-*` rig по `testing-rules`.
 
 ## Смежное
 

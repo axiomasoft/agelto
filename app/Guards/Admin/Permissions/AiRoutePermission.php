@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Guards\Admin\Permissions;
 
+use App\Models\Llm\LlmRoute;
+use AzGuard\Permissions\RequiresGrant;
+use AzGuard\Permissions\Resource;
+
+#[RequiresGrant]
+#[Resource(model: LlmRoute::class)]
 enum AiRoutePermission: string
 {
     case ViewAny = 'ai_route.view_any';

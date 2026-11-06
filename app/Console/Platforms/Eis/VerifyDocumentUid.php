@@ -25,17 +25,12 @@ use Symfony\Component\Process\Process;
 #[Signature('crawler:verify-document-uid {--input= : Authorized P4 scope JSON} {--output= : Sanitized verification JSON}')]
 final class VerifyDocumentUid extends Command
 {
-    public function __construct(
-        private readonly EisCardUrlBuilder $urls,
-        private readonly DocumentsParser $documents,
-        private readonly ProxyResolver $proxies,
-        private readonly LegacyOutbound $outbound,
-    ) {
-        parent::__construct();
-    }
-
-    public function handle(): int
-    {
+    public function handle(
+        EisCardUrlBuilder $urls,
+        DocumentsParser $documents,
+        ProxyResolver $proxies,
+        LegacyOutbound $outbound,
+    ): int {
         try {
             [$scope, $authoritySha, $scopeSha] = $this->loadCarriers();
             $registry = $this->registry();
@@ -74,7 +69,7 @@ final class VerifyDocumentUid extends Command
                         Sleep::for($intervalMs)->milliseconds();
                     }
 
-                    $url = $this->urls->buildUrl(
+                    $url = $urls->buildUrl(
                         registry: $registry->code,
                         procedureUrlType: $procedureType,
                         tab: 'documents',
@@ -89,10 +84,10 @@ final class VerifyDocumentUid extends Command
                     $evidenceId = sprintf('b2-card-%s-%02d', $registryNumber, $requestCount);
 
                     try {
-                        [$response, $metadata] = $this->request(registry: $registry, url: $url);
+                        [$response, $metadata] = $this->request(registry: $registry, url: $url, proxies: $proxies, outbound: $outbound);
                         $consecutiveErrors = $response->serverError() ? $consecutiveErrors + 1 : 0;
                         $snapshot = $response->successful() && str_contains($response->body(), $registryNumber)
-                            ? $this->documents->parse($response->body())
+                            ? $documents->parse($response->body())
                             : null;
                         $documentFacts = [];
 
@@ -202,7 +197,7 @@ final class VerifyDocumentUid extends Command
     }
 
     /** @return array{0: Response, 1: array{duration_ms: int, wait_ms: int, proxy_source: string|null}} */
-    private function request(Registry $registry, string $url): array
+    private function request(Registry $registry, string $url, ProxyResolver $proxies, LegacyOutbound $outbound): array
     {
         $platform = $registry->platform()->firstOrFail();
         $startedAt = hrtime(true);
@@ -210,9 +205,9 @@ final class VerifyDocumentUid extends Command
         if (! is_string($platformCode)) {
             throw new \LogicException('Platform code is unavailable.');
         }
-        $response = $this->outbound->request(callerCode: 'legacy.uid_verification', platformId: $platform->id,
+        $response = $outbound->request(callerCode: 'legacy.uid_verification', platformId: $platform->id,
             providerKey: null, capability: 'detail', url: new SafeUrl($url),
-            trafficClass: TrafficClass::Diagnostic, routePolicy: $this->proxies->profile(),
+            trafficClass: TrafficClass::Diagnostic, routePolicy: $proxies->profile(),
             controls: ['system', 'acquisition', 'acquisition:platform:'.$platformCode], deadlineSeconds: 90,
             payload: new HttpRequestPayload([
                 'user-agent' => config()->string('outbound.http.user_agent'), 'referer' => 'https://zakupki.gov.ru/',

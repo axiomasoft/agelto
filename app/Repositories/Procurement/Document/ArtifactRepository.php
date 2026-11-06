@@ -7,7 +7,9 @@ namespace App\Repositories\Procurement\Document;
 use App\Dto\Procurement\Document\BlobDeletion;
 use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Document\StorageReservationRequest;
+use App\Dto\Procurement\Document\UnreferencedBlobCandidate;
 use App\Dto\Procurement\Document\VerifiedArtifact;
+use App\Dto\Procurement\Document\VerifiedStoredArtifact;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Document\ArtifactDeletionState;
@@ -55,6 +57,60 @@ final readonly class ArtifactRepository
         DB::update("UPDATE prc_storage_reservations SET status='transferred' WHERE id=?", [$request->id->value]);
 
         return new BlobReference($request->id, $request->domainId, $artifact->hash, $request->disk, $request->objectKey(), $artifact->sizeBytes);
+    }
+
+    /** Stored imports have no upload reservation. Caller holds capacity before document/version locks. */
+    public function adoptStoredLocked(VerifiedStoredArtifact $verified): BlobReference
+    {
+        CallerTransaction::require('Stored artifact adoption');
+        $blob = $verified->blob;
+        $existing = LedgerRow::one("SELECT *,encode(content_hash,'hex') AS hash FROM prc_document_blobs WHERE storage_domain_id=? AND content_hash=decode(?,'hex') FOR UPDATE", [$blob->domainId->value, $blob->hash->hex]);
+        if ($existing !== null) {
+            if (
+                ($verified->catalogued && (
+                    $existing->string('id') !== $blob->id->value
+                    || $existing->string('object_key') !== $blob->objectKey
+                ))
+                || $existing->string('disk') !== $blob->disk
+                || $existing->string('storage_domain_id') !== $blob->domainId->value
+                || $existing->nullableString('deletion_marked_at') !== null
+                || $existing->string('hash') !== $blob->hash->hex
+                || $existing->int('size_bytes') !== $blob->sizeBytes
+            ) {
+                throw new ArtifactUnavailable('Stored object reference conflicts or is being deleted.');
+            }
+
+            return self::reference($existing);
+        }
+        if ($verified->catalogued) {
+            throw new ArtifactUnavailable('Previously verified artifact was deleted; do not resurrect its reference.');
+        }
+        $this->capacity->accountStoredLocked($blob);
+        DB::insert("INSERT INTO prc_document_blobs(id,storage_domain_id,content_hash,disk,object_key,size_bytes,verified_at) VALUES (?,?,decode(?,'hex'),?,?,?,clock_timestamp())", [$blob->id->value, $blob->domainId->value, $blob->hash->hex, $blob->disk, $blob->objectKey, $blob->sizeBytes]);
+
+        return $blob;
+    }
+
+    public function storedReferenceAt(string $disk, string $objectKey): ?BlobReference
+    {
+        return self::storedReference(LedgerRow::one(
+            "SELECT *,encode(content_hash,'hex') AS hash FROM prc_document_blobs WHERE disk=? AND object_key=?",
+            [$disk, $objectKey],
+        ));
+    }
+
+    public function storedReferenceByHash(ProcessUuid $domain, ContentHash $hash): ?BlobReference
+    {
+        return self::storedReference(LedgerRow::one(
+            "SELECT *,encode(content_hash,'hex') AS hash FROM prc_document_blobs WHERE storage_domain_id=? AND content_hash=decode(?,'hex')",
+            [$domain->value, $hash->hex],
+        ));
+    }
+
+    /** Includes deletion-marked blobs: a catalogued key is never an unreferenced duplicate. */
+    public function isCatalogued(string $disk, string $objectKey): bool
+    {
+        return LedgerRow::one('SELECT 1 FROM prc_document_blobs WHERE disk=? AND object_key=?', [$disk, $objectKey]) !== null;
     }
 
     /** Full reference gate, called after the early capacity locks, before inserting any reference. */
@@ -201,19 +257,35 @@ final readonly class ArtifactRepository
         });
     }
 
+    /** @return list<BlobReference> */
+    public function repairCandidates(?ProcessUuid $afterId = null, int $limit = 25): array
+    {
+        $rows = LedgerRow::all(
+            "SELECT b.*, encode(b.content_hash, 'hex') AS hash
+             FROM prc_document_blobs b
+             JOIN prc_storage_reservations s ON s.id = b.id
+             WHERE s.status = 'writing' AND b.deletion_marked_at IS NULL
+               AND (?::uuid IS NULL OR b.id>?::uuid)
+             ORDER BY b.id LIMIT ?",
+            [$afterId?->value, $afterId?->value, max(1, min(100, $limit))],
+        );
+
+        return array_map(self::reference(...), $rows);
+    }
+
     /**
      * @return list<BlobReference>
      */
     public function unreferencedCandidates(int $graceSeconds = 900, int $limit = 25, ?string $afterVerifiedAt = null, ?ProcessUuid $afterId = null): array
     {
         return array_map(
-            static fn (array $item): BlobReference => $item['blob'],
+            static fn (UnreferencedBlobCandidate $item): BlobReference => $item->blob,
             $this->unreferencedBatch($graceSeconds, $limit, $afterVerifiedAt, $afterId),
         );
     }
 
     /**
-     * @return list<array{blob: BlobReference, verifiedAt: string}>
+     * @return list<UnreferencedBlobCandidate>
      */
     public function unreferencedBatch(int $graceSeconds = 900, int $limit = 25, ?string $afterVerifiedAt = null, ?ProcessUuid $afterId = null): array
     {
@@ -247,10 +319,10 @@ final readonly class ArtifactRepository
               AND NOT EXISTS (SELECT 1 FROM prc_analysis_chunks c WHERE c.output_ref->>'disk' = b.disk AND c.output_ref->>'key' = b.object_key)"
             .$cursorClause.' ORDER BY b.verified_at, b.id LIMIT ?', $bindings);
 
-        return array_map(static fn (LedgerRow $row): array => [
-            'blob' => self::reference($row),
-            'verifiedAt' => $row->string('verified_at_cursor'),
-        ], $rows);
+        return array_map(static fn (LedgerRow $row): UnreferencedBlobCandidate => new UnreferencedBlobCandidate(
+            blob: self::reference($row),
+            verifiedAt: $row->string('verified_at_cursor'),
+        ), $rows);
     }
 
     private function checkpointed(LedgerRow $row): bool
@@ -289,5 +361,17 @@ final readonly class ArtifactRepository
     {
         return new BlobReference(new ProcessUuid($row->string('id')), new ProcessUuid($row->string('storage_domain_id')),
             new ContentHash($row->string('hash')), $row->string('disk'), $row->string('object_key'), $row->int('size_bytes'));
+    }
+
+    private static function storedReference(?LedgerRow $row): ?BlobReference
+    {
+        if ($row === null) {
+            return null;
+        }
+        if ($row->nullableString('deletion_marked_at') !== null) {
+            throw new ArtifactUnavailable('Stored object metadata changed.');
+        }
+
+        return self::reference($row);
     }
 }

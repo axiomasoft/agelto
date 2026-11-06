@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Guards\Admin\Permissions;
 
+use App\Models\Procurement\Ai\DatasetExample;
+use AzGuard\Permissions\RequiresGrant;
+use AzGuard\Permissions\Resource;
+
+#[RequiresGrant]
+#[Resource(model: DatasetExample::class)]
 enum DatasetExamplePermission: string
 {
     case ViewAny = 'dataset_example.view_any';

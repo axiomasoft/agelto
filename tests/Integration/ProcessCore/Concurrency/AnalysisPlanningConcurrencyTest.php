@@ -51,7 +51,7 @@ test('два producer после одного pre-read сериализуют ve
         DB::unprepared('DROP FUNCTION fixture_analysis_planning_barrier()');
     }
     expect($observed)->toHaveCount(2)
-        ->and(count(array_filter($observed, static fn ($r): bool => str_contains($r->query, 'FROM prc_document_versions') && $r->wait_event !== 'advisory')))->toBe(1)
+        ->and(count(array_filter($observed, static fn ($r): bool => str_contains($r->query, 'FROM prc_documents') && $r->wait_event !== 'advisory')))->toBe(1)
         ->and(count(array_filter($observed, static fn ($r): bool => $r->wait_event === 'advisory')))->toBe(1)
         ->and($results['first']['pid'])->not->toBe($results['second']['pid'])
         ->and($results['first']['created'] + $results['second']['created'])->toBe(1)
@@ -105,7 +105,7 @@ test('concurrent manual commands serialize the current analysis and deduplicate 
     }
     expect($observed)->toHaveCount(2)
         ->and(count(array_filter($observed, static fn ($r): bool => $r->wait_event === 'advisory')))->toBe(1)
-        ->and(count(array_filter($observed, static fn ($r): bool => str_contains($r->query, 'FROM prc_analysis_runs') && $r->wait_event !== 'advisory')))->toBe(1)
+        ->and(count(array_filter($observed, static fn ($r): bool => str_contains($r->query, 'FROM prc_documents') && $r->wait_event !== 'advisory')))->toBe(1)
         ->and($results['first']['pid'])->not->toBe($results['second']['pid'])
         ->and(count(array_filter($results, static fn ($r): bool => $r['rejected'])))->toBe($sameCommand ? 0 : 1)
         ->and(count(array_unique(array_filter(array_column($results, 'work')))))->toBe(1)

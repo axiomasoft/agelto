@@ -3,27 +3,25 @@
 declare(strict_types=1);
 
 use App\Actions\Admin\ResetAdminPasswordAction;
+use App\Filament\Pages\Dashboard;
+use App\Filament\Pages\FinalPromptPage;
 use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use App\Filament\Resources\Procurement\Process\Runs\ProcessRunResource;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
+use App\Filament\Widgets\LlmSpendChartWidget;
 use App\Guards\Admin\Permissions\DocumentationPermission;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\Llm\Prompt;
 use App\Models\User;
-use AzGuard\Filament\Resources\RoleResource\Pages\EditRole;
-use AzGuard\Filament\Resources\RoleResource\RelationManagers\RoleUsersRelationManager;
-use AzGuard\Models\Role;
-use AzGuard\Models\RolePermission;
-use Filament\Actions\DetachAction;
+use AzGuard\Filament\Resources\RoleGrantResource\Pages\ListRoleGrants;
 use Filament\Facades\Filament;
 use Livewire\Livewire;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
 
-// PHP-роли зеркалятся в таблицу roles до назначения (class_name → assignRole).
 beforeEach(fn () => artisan('guard:sync-roles'));
 
 test('суперадмин проходит на admin-панель, пользователь без ролей — нет', function () {
@@ -83,10 +81,33 @@ test('прямые admin URL повторно проверяют роль, а н
     $this->get('/admin/procurement/platform/platforms')->assertForbidden();
 
     actingAs($operator);
-    $this->get('/admin/roles')->assertForbidden();
+    $this->get('/admin/azguard-roles')->assertForbidden();
 
     actingAs($superAdmin);
-    $this->get('/admin/roles')->assertOk();
+    $this->get('/admin/azguard-roles')->assertOk();
+});
+
+test('Dashboard, FinalPromptPage и LlmSpendChartWidget авторизуются через AzGuard для оператора и аналитика и закрыты без права', function () {
+    $unprivileged = User::factory()->create();
+    $analyst = User::factory()->create();
+    $analyst->assignRole(AnalystRole::class);
+    $operator = User::factory()->create();
+    $operator->assignRole(OperatorRole::class);
+
+    actingAs($unprivileged);
+    expect(Dashboard::canAccess())->toBeFalse()
+        ->and(FinalPromptPage::canAccess())->toBeFalse()
+        ->and(LlmSpendChartWidget::canView())->toBeFalse();
+
+    actingAs($analyst);
+    expect(Dashboard::canAccess())->toBeTrue()
+        ->and(FinalPromptPage::canAccess())->toBeTrue()
+        ->and(LlmSpendChartWidget::canView())->toBeTrue();
+
+    actingAs($operator);
+    expect(Dashboard::canAccess())->toBeTrue()
+        ->and(FinalPromptPage::canAccess())->toBeTrue()
+        ->and(LlmSpendChartWidget::canView())->toBeTrue();
 });
 
 test('view-only ресурсы Run и Procurement не имеют create/edit страниц', function () {
@@ -95,7 +116,7 @@ test('view-only ресурсы Run и Procurement не имеют create/edit с
 });
 
 test('PromptResource вне enum-RBAC каталога, остальные ресурсы и коарс-право на промты не задеты', function () {
-    expect(config('az-guard-filament.exclude.resources'))->toContain(PromptResource::class);
+    expect(config('azguard-filament.exclude.resources'))->toContain(PromptResource::class);
 
     $operator = User::factory()->create();
     $operator->assignRole(OperatorRole::class);
@@ -110,12 +131,6 @@ test('PromptResource вне enum-RBAC каталога, остальные ре�
 });
 
 test('PromptResource: без права на промты viewAny/view/create denied несмотря на исключение из enum-каталога', function () {
-    // Регресс-гвард на реальную дыру: exclude.resources снимает enum-RBAC
-    // короткое замыкание для ВСЕХ 9 Filament-абилок Prompt, не только
-    // update/delete. Если PromptPolicy не покрывает viewAny/view/create,
-    // Filament молча дефолтит непокрытую абилку в allow
-    // (`Filament\get_authorization_response()`), и любой аутентифицированный
-    // пользователь без права видит/создаёт промты в обход `hasPermission()`.
     $analyst = User::factory()->create();
     $analyst->assignRole(AnalystRole::class);
     $prompt = Prompt::factory()->create(['is_protected' => false]);
@@ -138,29 +153,20 @@ test('отзыв роли в RoleUsersRelationManager и удаление RolePe
 
     actingAs($superAdmin);
 
-    $superAdminRole = Role::findByName('super-admin');
-    expect($superAdminRole)->not->toBeNull();
+    $grant = $target->guard('admin')->roleGrants()->first();
+    expect($grant)->not->toBeNull();
 
-    Livewire::test(RoleUsersRelationManager::class, [
-        'ownerRecord' => $superAdminRole,
-        'pageClass' => EditRole::class,
-    ])->callTableAction(DetachAction::class, $target);
+    Livewire::test(ListRoleGrants::class)
+        ->callTableAction('revoke', 'role:'.$grant->getKey());
 
     expect($target->fresh()->isSuperAdmin())->toBeFalse();
 
-    $customRole = Role::query()->create(['name' => 'custom-db-role', 'level' => 10]);
-    $permission = RolePermission::query()->create([
-        'role_id' => $customRole->id,
-        'permission_key' => 'admin.procurement.view_any',
-        'panel_id' => 'admin',
-    ]);
-
     $dbUser = User::factory()->create();
-    $dbUser->assignRole($customRole);
+    $dbUser->guard('admin')->grantPermission('admin.procurement.view_any');
 
     expect($dbUser->fresh()->can('admin.procurement.view_any'))->toBeTrue();
 
-    $permission->delete();
+    $dbUser->guard('admin')->revokePermission('admin.procurement.view_any');
 
     expect($dbUser->fresh()->can('admin.procurement.view_any'))->toBeFalse();
 });

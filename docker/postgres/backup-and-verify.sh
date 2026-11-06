@@ -23,6 +23,7 @@ SCRATCH_DB="agelto_restore_check_${STAMP}"
   set -euo pipefail
   DUMP_FILE="'"${DUMP_FILE}"'"
   SCRATCH_DB="'"${SCRATCH_DB}"'"
+  trap '\''psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres -c "DROP DATABASE IF EXISTS \"$SCRATCH_DB\" WITH (FORCE);" >/dev/null 2>&1 || true'\'' EXIT
 
   echo "db:backup — pg_dump $POSTGRES_DB → $DUMP_FILE"
   pg_dump -Fc --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -f "$DUMP_FILE"

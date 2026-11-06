@@ -9,12 +9,10 @@ use App\Dto\Procurement\Ai\ScreeningCompleted;
 use App\Dto\Procurement\Ai\ScreeningProgress;
 use App\Dto\Procurement\Process\ExtractionWindowInput;
 use App\Dto\Procurement\Process\NoProviderRecovery;
-use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\StageCheckpoint;
 use App\Dto\Procurement\Process\ValidatedStageResult;
 use App\Dto\Procurement\Process\VersionedPayload;
-use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
@@ -74,17 +72,15 @@ final readonly class ScreeningFinalizer implements StageResultRepository
         }
         $receipt = $progress->receipt ?? throw new \LogicException('Screening operation requires verified raw.');
         $physical = $progress->physicalCallId->value;
-        $link = $this->mapping->physical($physical);
-        $inputHash = WorkStoreRepository::inputHash((new ProcessPayloadCodec)->encodeInput($input)->json ?? '');
+        $link = $this->mapping->physicalForInput(physical: $physical, run: $run, input: $input);
         if ($receipt->call->authorization->physicalCallId !== $physical || $receipt->call->recipeHash !== $run->recipe->hash->hex
             || $receipt->call->context != $run->recipe->llm || $receipt->call->inputHash !== ($progress->consumedRange === null ? $run->screeningInputHash()->hex : $run->discoveryInputHash($progress->consumedRange)->hex)
             || $receipt->call->purpose !== OperationPurpose::Generate || $receipt->assessment->outcome !== ReceiptOutcome::Success
-            || $link->string('analysis_run_id') !== $run->id->value || $link->string('input_hex') !== $inputHash->hex
-            || $link->string('recipe_hex') !== $run->recipe->hash->hex) {
+            || $link === null) {
             throw new \LogicException('Screening receipt/input identity mismatch.');
         }
         $this->ledger->acceptReceiptLocked($receipt);
-        $this->mapping->consumeLocked(new WorkId(new ProcessUuid($link->string('work_id'))), $physical);
+        $this->mapping->consumeLocked(work: $link->workId, physical: $physical);
     }
 
     public function storeResult(WorkInput $input, ValidatedStageResult $result): array

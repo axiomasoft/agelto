@@ -59,7 +59,7 @@ class EstimateResource extends Resource
         /** @var Builder<Model> $query */
         $query = $baseQuery
             ->publicPlatform()
-            ->with(['procurement', 'documentVersion.document', 'analysis'])
+            ->with(['procurement.registry.platform', 'documentVersion.document', 'analysis'])
             ->withCount([
                 'items as items_count',
                 'items as marked_items_count' => fn (Builder $query): Builder => $query->whereNotNull('quality'),

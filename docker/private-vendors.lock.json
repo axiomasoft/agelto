@@ -4,14 +4,14 @@
         "host": "github.com",
         "path": "axiomasoft/azguard-private"
     },
-    "commit": "7e7009cc7c26e173cfa6bfec42365a311fc2adb0",
+    "commit": "ebd613cb99b1d72b7b303032e0d7ed0dd7774f4f",
     "packages": [
         {
-            "name": "axioma-studio/azguard-core",
+            "name": "axiomasoft/azguard",
             "path": "packages/core"
         },
         {
-            "name": "axioma-studio/azguard-filament",
+            "name": "axiomasoft/azguard-filament",
             "path": "packages/filament"
         }
     ]

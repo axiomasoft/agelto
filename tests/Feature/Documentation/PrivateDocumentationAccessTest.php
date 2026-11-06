@@ -7,7 +7,6 @@ use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\User;
-use AzGuard\Facades\AzGuard;
 use Filament\Facades\Filament;
 use Filament\Navigation\NavigationItem;
 use Illuminate\Support\Facades\Auth;
@@ -72,9 +71,7 @@ test('superadmin can access documentation and sees its navigation item', functio
 
 test('admin-scoped direct grant opens documentation and revocation closes it again', function (): void {
     $user = User::factory()->create();
-    AzGuard::forUser($user)
-        ->on('admin')
-        ->grant(DocumentationPermission::View);
+    $user->guard('admin')->grantPermission(DocumentationPermission::View);
     actingAs($user);
 
     expect($user->canAccessPanel(Filament::getPanel('admin')))->toBeFalse();
@@ -83,9 +80,7 @@ test('admin-scoped direct grant opens documentation and revocation closes it aga
     $this->call('HEAD', '/documentation')->assertOk();
     expect(privateDocumentationNavigationItem()->isVisible())->toBeTrue();
 
-    AzGuard::forUser($user)
-        ->on('admin')
-        ->revoke(DocumentationPermission::View);
+    $user->guard('admin')->revokePermission(DocumentationPermission::View);
 
     $this->get('/documentation')
         ->assertForbidden()
@@ -96,9 +91,7 @@ test('admin-scoped direct grant opens documentation and revocation closes it aga
 
 test('guest and revoked users cannot recover cached documentation bytes through a direct asset URL', function (): void {
     $user = User::factory()->create();
-    AzGuard::forUser($user)
-        ->on('admin')
-        ->grant(DocumentationPermission::View);
+    $user->guard('admin')->grantPermission(DocumentationPermission::View);
     actingAs($user);
 
     $response = $this->get('/documentation')->assertOk();
@@ -106,9 +99,7 @@ test('guest and revoked users cannot recover cached documentation bytes through 
     expect($response->headers->get('Cache-Control'))->toContain('private')
         ->toContain('no-store');
 
-    AzGuard::forUser($user)
-        ->on('admin')
-        ->revoke(DocumentationPermission::View);
+    $user->guard('admin')->revokePermission(DocumentationPermission::View);
 
     $this->get('/documentation')
         ->assertForbidden()

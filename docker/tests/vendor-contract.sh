@@ -140,8 +140,8 @@ docker build --target application -t "$image" -f "$root_dir/docker/php/Dockerfil
 docker run --rm --entrypoint sh "$image" -c '
     test ! -e /var/www/html/local/vendors/azguard
     ! find /var/www/html -name .git -print -quit | grep -q .
-    test -d /var/www/html/vendor/axioma-studio/azguard-core
-    test -d /var/www/html/vendor/axioma-studio/azguard-filament
+    test -d /var/www/html/vendor/axiomasoft/azguard
+    test -d /var/www/html/vendor/axiomasoft/azguard-filament
 '
 
 echo 'Vendor contract passed'

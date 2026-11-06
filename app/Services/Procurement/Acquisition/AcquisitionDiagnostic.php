@@ -28,6 +28,7 @@ use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Exceptions\Procurement\Process\ExecutionInterrupted;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\Network\OutboundOperationRepository;
+use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Network\AdapterCanaryRouteSelector;
 use App\Services\Procurement\Network\OutboundExecutor;
@@ -35,7 +36,6 @@ use App\Services\Procurement\Network\ScheduledAttemptGate;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Platform\Contracts\DetailSource;
 use App\Services\Procurement\Platform\Contracts\ListingSource;
-use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Proxy\RoutePolicy;
 use Illuminate\Database\QueryException;
@@ -46,7 +46,7 @@ final readonly class AcquisitionDiagnostic
 {
     public function __construct(private AdapterHealthRepository $health, private OutboundOperationRepository $operations,
         private ProcessTransaction $transactions, private OutboundExecutor $executor,
-        private AcquisitionArtifacts $artifacts, private ?UrlPolicy $urls = null) {}
+        private AcquisitionArtifacts $artifacts, private SourceCatalogRepository $catalog, private ?UrlPolicy $urls = null) {}
 
     public function fetch(PlatformDefinition $definition, int $platformId, ListingRequest|DetailRequest $request,
         RoutePolicy $routes, ContentHash $inputHash, ?UrlPolicy $urls = null): DiagnosticResponse
@@ -58,9 +58,11 @@ final readonly class AcquisitionDiagnostic
         $endpoint = $definition->endpoints->get($capability->endpoints[0]);
         $target = $definition->sourceTargets->targets[$endpoint->targetKey] ?? throw new \LogicException('Missing diagnostic target.');
         $contract = $target->adapterContract ?? throw new \LogicException('Missing diagnostic contract.');
-        $catalog = LedgerRow::one('SELECT id FROM prc_source_targets WHERE platform_id=? AND target_key=? AND retired_at IS NULL
-            AND endpoint_policy_schema_version=2 AND endpoint_policy->\'adapter_contract\'=?::jsonb',
-            [$platformId, $target->key, json_encode($contract->toArray(), JSON_THROW_ON_ERROR)])
+        $targetId = $this->catalog->findActiveAdapterTarget(
+            platformId: $platformId,
+            targetKey: $target->key,
+            contract: $contract,
+        )
             ?? throw new \InvalidArgumentException('Diagnostic catalog is absent or incompatible.');
         $token = new ProcessUuid((string) Str::uuid());
         $handle = $this->transactions->run(fn () => $this->operations->open(new ProcessUuid((string) Str::uuid()), $token,
@@ -78,11 +80,12 @@ final readonly class AcquisitionDiagnostic
             $gate = app()->makeWith(ScheduledAttemptGate::class, ['routes' => $selector]);
             $outbound = new AcquisitionPlatformOutbound($this->executor, $gate, $urls ?? $this->urls ?? new UrlPolicy($definition->sourceTargets->origins()),
                 new TransferBudget(134217728, 134217728), $owner, $owner, $this->artifacts);
-            $container = clone app();
-            $container->instance(PlatformDefinition::class, $definition);
-            $container->instance(PlatformOutbound::class, $outbound);
-            $container->instance(ProcessUuid::class, new ProcessUuid($catalog->string('id')));
-            $source = $container->make($capability->implementation);
+            $source = AcquisitionSources::resolve(
+                definition: $definition,
+                capability: $capability,
+                outbound: $outbound,
+                targetId: $targetId,
+            );
             if (($request instanceof ListingRequest && ! $source instanceof ListingSource)
                 || ($request instanceof DetailRequest && ! $source instanceof DetailSource)) {
                 throw new \LogicException('Invalid diagnostic adapter binding.');

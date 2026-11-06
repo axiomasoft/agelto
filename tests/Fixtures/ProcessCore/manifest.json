@@ -32,7 +32,7 @@
                 "T46",
                 "T48"
             ],
-            "sha256": "98dc9bed64d606526b7f6734498ba901d6aae023bcbf703603e473c1ab82f686",
+            "sha256": "30d7e3f8fbc6cbe8519ebc738f95bdd81c004819ab1f8982ebde57f670443c05",
             "original_path": "tests/Fixtures/ProcessCore/acceptance-report-v1.json",
             "original_sha256": "e9cc93686f6b58cbbc5d2df8902d916ac16abb7e844edd878ad2baaff7c1c5f7",
             "current_change_reason": "Semantic test naming and current reference refresh; historical provenance retained.",
@@ -118,9 +118,9 @@
             "adapter_version": "analysis/1",
             "provenance": "P3.14 current contract/prompt/schema/test hashes and legacy eval inventory. No paid model calls; unverified legacy labels are explicitly not canonical quality proof.",
             "captured_at": "2026-11-03",
-            "contract_hashes_refreshed_at": "2026-11-04",
+            "contract_hashes_refreshed_at": "2026-11-05",
             "previous_accepted_sha256": "b910db33b772938f028a1734cba5942d004684718ab5b6058caa5e7c86e16063",
-            "sha256": "95ef36571b880785b6382abeebe46aa359c47433d0120c9b4e2332cc7b4d9f89",
+            "sha256": "0590a4052d1ec2a49f5f59cbb128efb6d3c106586d7a670eec119b7c4d740d37",
             "expected": {
                 "assessment": "orchestration_contracts_quality_not_measured",
                 "schema_version": 1
@@ -1157,7 +1157,7 @@
         },
         {
             "path": "tests/Feature/Ai/GoldExampleRecorderTest.php",
-            "sha256": "37faff95303832ed5fcdb8332f5ffca802dcb92c3540dcb2f212064a0fd659b7",
+            "sha256": "2815b575de849db827973dc5c959cab6e124bbc6ba4b58299b8411f2c7151904",
             "scenarios": [
                 "approve обычного анализа без коррекций создаёт gold версии 1 с source=llm",
                 "approve без персистированных смет — no-op (нечего фиксировать)",
@@ -2492,7 +2492,7 @@
         },
         {
             "path": "tests/Feature/Documentation/PrivateDocumentationAccessTest.php",
-            "sha256": "282bc8c2346021f116680774a0f3c58782d15d9699661bcc1a37d976766da814",
+            "sha256": "b1c9df8b649bc01f07373c7a8b51f7b41a3fecabfce795cea4ec2a3674313e82",
             "scenarios": [
                 "guest redirects to the login without documentation bytes",
                 "roleless analyst and operator are denied documentation bytes on GET and HEAD",
@@ -2514,7 +2514,7 @@
         },
         {
             "path": "tests/Feature/Filament/AdminPanelAccessTest.php",
-            "sha256": "7fc957585227570fbe6b2ad4276834c7f242d5e02134be6ad0a140630bbde314",
+            "sha256": "dca88ca6378dcdbc4df0acead61db6136a7b863b310ae34768ddc34b6ded1e24",
             "scenarios": [
                 "суперадмин проходит на admin-панель, пользователь без ролей — нет",
                 "оператор имеет CRUD на конфигурации, управляет прогонами, но не трогает реестр и роли",
@@ -2533,7 +2533,7 @@
         },
         {
             "path": "tests/Feature/Filament/AdminRouteInventoryTest.php",
-            "sha256": "93d9eefd3e5d32e522deedb2db376b919ef22b79adf53a48846c6350d4758525",
+            "sha256": "9b752e2fe5c27e575bd080524ecb6f276abc902e1d87f126d46cfec45309332d",
             "scenarios": [
                 "runtime admin routes exactly match committed resource and role matrix"
             ],
@@ -2545,7 +2545,7 @@
         },
         {
             "path": "tests/Feature/Filament/AnalysisResourceTest.php",
-            "sha256": "8f3b5d6a7c241b2e747f9c0febab7a7e24dbfb23a2b7e81a83f7f54e1cfdcb6f",
+            "sha256": "8f05ec02fc040b2790ee3925e4c1177db72f084e012750e2b30f1a84d272dcf0",
             "scenarios": [
                 "оператор видит v2 классификацию и backend-решение на списке и карточке",
                 "точный тег-якорь и поиск summary/tag не захватывают неактивные прогоны",
@@ -3286,7 +3286,7 @@
         },
         {
             "path": "tests/Feature/Organization/OrganizationResolverTest.php",
-            "sha256": "8cb974cd86053ff878e7c5cdff0837604dc9f1d9513bf069bff1fc1bbc24c593",
+            "sha256": "3645f6340177e5b4748bade9a441b46db1fde786c4eceaa31194d5cd3cd8ad87",
             "scenarios": [
                 "resolve создаёт новую организацию при отсутствии совпадения по ИНН/ОГРН",
                 "resolve возвращает ту же запись для повторного резолва по тому же ИНН+КПП",
@@ -3717,7 +3717,7 @@
         },
         {
             "path": "tests/Feature/Procurement/ContourTest.php",
-            "sha256": "608e8b076bb3e5f629b2a8025e782285a3cfd82a730303d9e0d29a802014e127",
+            "sha256": "817e2ee2b004d4b7330c25a338f780a3df6d008e9cec0b24ae02a952a9a7bc69",
             "scenarios": [
                 "документ без platform_id не создаётся (NOT NULL)",
                 "выборка витрины не содержит смету и документ площадки «Обучалка»",
@@ -4212,7 +4212,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/RepresentationContractTest.php",
-            "sha256": "2bba7105f061f8cc5cc9e5926428f60372748e5bd075c1a63a67d74786977dce",
+            "sha256": "96c8acb6563094095095a1968f3ec03e602201e6004ac5bdc520fa3e0250f3af",
             "scenarios": [
                 "повторный storeOrUpdate по паре версия+kind обновляет ту же запись, а не плодит вторую",
                 "пара версия+kind уникальна на уровне схемы — вторая запись тем же kind отбивается БД",
@@ -4797,7 +4797,7 @@
         },
         {
             "path": "tests/TestCase.php",
-            "sha256": "cffae2e6affa0d4da98095731049d0464db3dc66484de13b9f53e298e16764ea",
+            "sha256": "607d59c8625fa538aba17d2b23b40dceb143f9c680ad5a73f573dd5591d497c6",
             "original_sha256": "63312f076231d00f83b03076bb3df9dd19bd6fe7cffcf46f6d03e4b986fa865d",
             "accepted_change_item": "P3.17",
             "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained."
@@ -5729,7 +5729,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Llm/AiCutoverTest.php",
-            "sha256": "5422cc84526839d07e670966b20fc581df7b15527ba6da79fabdf5a29ed0d124",
+            "sha256": "fb1c60251e4fcdd822c9788d6b6aa77519620b00effaf1e9c703738a628d1bef",
             "scenarios": [
                 "production container registers all real analysis handlers without configuration IO or provider calls",
                 "manual reanalysis creates one new intent and immutable recipe while duplicate command never resets accepted history",
@@ -6015,7 +6015,7 @@
         },
         {
             "path": "tests/Integration/ProcessCore/Concurrency/AnalysisPlanningConcurrencyTest.php",
-            "sha256": "8b76c621a5bd536011e544be27053806b3e32f0daeae0d41912c2625a001fa5c",
+            "sha256": "4bcaacba787ee0a6aa1731a2c3dada62e021a06eb493a4f161c042b4fa92bae7",
             "scenarios": [
                 "два producer после одного pre-read сериализуют version и создают ровно один analysis",
                 "concurrent manual commands serialize the current analysis and deduplicate only the same command"

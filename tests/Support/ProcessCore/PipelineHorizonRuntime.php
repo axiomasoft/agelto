@@ -8,6 +8,7 @@ use App\Dto\Platforms\Eis\EisCardRoutes;
 use App\Dto\Procurement\Ai\AnalysisProviderConnection;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
+use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Services\Llm\Execution\ReceiptPolicies;
 use App\Services\Llm\Providers\GeminiAssetReceiptPolicy;
 use App\Services\Procurement\Acquisition\AcquisitionHandler;
@@ -56,7 +57,12 @@ final class PipelineHorizonRuntime
         });
         app()->instance(RuntimeDownloadHandler::class, app()->makeWith(RuntimeDownloadHandler::class, ['urls' => $policy]));
         app()->bind(AcquisitionHandler::class, static fn ($app, array $params): AcquisitionHandler => new AcquisitionHandler(
-            $params['stage'], $app->make(PlatformRegistry::class), $app->make(AcquisitionValidation::class), $app->make(ProxyResolver::class), $policy,
+            stage: $params['stage'],
+            platforms: $app->make(PlatformRegistry::class),
+            validation: $app->make(AcquisitionValidation::class),
+            routes: $app->make(ProxyResolver::class),
+            catalog: $app->make(SourceCatalogRepository::class),
+            urls: $policy,
         ));
         $connection = unserialize(base64_decode($spec['provider']), ['allowed_classes' => true]);
         if (! $connection instanceof AnalysisProviderConnection) {

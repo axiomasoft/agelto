@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Network;
 
+use App\Dto\Procurement\Network\AdapterContractRef;
 use App\Dto\Procurement\Network\CatalogSyncReport;
 use App\Dto\Procurement\Network\NetworkChangeResult;
 use App\Dto\Procurement\Network\ProviderKey;
@@ -80,6 +81,15 @@ final readonly class SourceCatalogRepository
                     $policy->routeOriginBudget->burst, $policy->routeOriginBudget->maxInflight]);
         }
         self::ensureHealthRows($targets, [$routeId]);
+    }
+
+    public function findActiveAdapterTarget(int $platformId, string $targetKey, AdapterContractRef $contract): ?ProcessUuid
+    {
+        $row = LedgerRow::one('SELECT id FROM prc_source_targets WHERE platform_id=? AND target_key=? AND retired_at IS NULL
+            AND endpoint_policy_schema_version=2 AND endpoint_policy->\'adapter_contract\'=?::jsonb',
+            [$platformId, $targetKey, json_encode($contract->toArray(), JSON_THROW_ON_ERROR)]);
+
+        return $row === null ? null : new ProcessUuid($row->string('id'));
     }
 
     public function targetForCall(?int $platformId, ?string $providerKey, string $capability, string $origin): ?LedgerRow

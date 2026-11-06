@@ -1,6 +1,6 @@
 ---
 name: llm-layer-dev
-description: "Dev-раннбук LLM-слоя и финансового леджера: AnalysisProviderTransport, ProviderCallLedgerRepository, FinancialLedgerRepository, AssetRepository, BillingReconciler, capability-матрица и защита от indirect prompt injection."
+description: "Dev-раннбук LLM-слоя и финансового леджера: StructuredCallExecutor, RequestRepository, FinancialReservationRepository, ReceiptStore, AssetRepository, BillingReconciler и защита от indirect prompt injection."
 paths:
   - "app/Services/Llm/**"
   - "app/Repositories/Llm/**"
@@ -10,21 +10,25 @@ paths:
 
 # LLM Layer — dev-раннбук
 
-Транспортный и учётный слой LLM (`app/Services/Llm/**`, `app/Repositories/Llm/**`) провайдер-агностичен (`llm_*`). Домен закупок взаимодействует с провайдерами через `AnalysisProviderSendGate`, `AnalysisProviderTransport` и `OutboundExecutor`.
+Транспортный и учётный слой LLM (`app/Services/Llm/**`, `app/Repositories/Llm/**`) провайдер-агностичен (`llm_*`). Домен закупок взаимодействует с провайдерами через `AnalysisCallCoordinator`, `AnalysisProviderSendGate`, `StructuredCallExecutor` и `OutboundExecutor`. Актуальные контракты и provisioning описаны в `docs/dev/llm-providers.md`.
 
 ## 1. Финансовый и операционный леджер (`llm_*`)
 
 Ни один платный вызов не уходит в сеть без двухфазной фиксации:
-1. **`FinancialLedgerRepository`** (`llm_financial_periods`, `llm_financial_reservations`, `llm_financial_entries`):
-   - Резервирует бюджет (`reserve()`) в микродолларах (`int`, `bcmath` при расчётах из токенов/тарифов; **float для денег запрещён**).
-   - По завершении вызова сводит резерв (`settle()` или `release()`).
-2. **`ProviderCallLedgerRepository`** (`llm_provider_calls`):
-   - Регистрирует намерение до отправки (`registerPlanned()`), захватывает право отправки (`claimForSend()`), фиксирует исход (`recordOutcome()`).
-   - При обрыве связи или таймауте после `claimForSend()` вызов переходит в `ProviderRecoveryMode::BlockedUnknown`: запрещено слепо повторять запрос или освобождать резерв до сверки (`ProviderCallReconciler` / `BillingReconciler`).
-3. **`AssetRepository`** (`llm_provider_assets`):
-   - Управляет удалёнными файлами и explicit context cache (`creating` → `active` / `expired` / `FAILED`). Если создающий вызов завершился `not_sent` или `known_retryable_nonbillable`, ассет освобождается для повторного `claim()`.
+1. **`FinancialReservationRepository`** (`llm_budget_accounts`, `llm_budget_periods`, `llm_budget_reservations`, `llm_financial_actions`):
+   - Хранит account policy и периоды; `RequestRepository::authorize()` резервирует conservative bound под account/period locks.
+   - `PricingSnapshot` рассчитывает bound через `bcmath` из целочисленных тарифов; ledger хранит точные decimal amounts (`numeric(24,8)`). **Float для денег запрещён**.
+   - `settleLocked()` сводит резерв; доказанный `not_sent` сводится в ноль, unknown сохраняет обязательство.
+2. **`RequestRepository` / `RequestLedger`** (`llm_provider_requests`, `llm_provider_calls`):
+   - `authorize()` создаёт logical/physical identity, reservation и receipt upload intent; `claimFinancialLocked()` участвует в атомарном joint financial/network claim через `AnalysisProviderSendGate`.
+   - `StructuredCallExecutor` выполняет единственный send через `PreparedProviderTransport`. `ReceiptStore` сохраняет immutable raw receipt вне DB transaction до `RequestRepository::acceptReceiptLocked()` и model parsing.
+   - Claim без verified receipt означает unknown: запрещены слепой повтор и освобождение резерва. Общий Process reconciler использует `AnalysisProviderRecoveryResolver` для проверки receipt вне locks и settlement под locks.
+3. **`AssetRepository`** (`llm_file_assets`, `llm_context_caches`):
+   - Управляет удалёнными файлами и explicit context cache; точный physical call служит creation token. File state: `creating` / `PROCESSING` / `ACTIVE` / `FAILED` / `expired`; cache creation state: `creating` / `active` / `expired`.
+   - Новый `claim()` проверяет доказанный исход предыдущей операции; истечение creation lease не разрешает отбирать unknown create.
 4. **`BillingReconciler`**:
-   - Сверяет фактический биллинг провайдера с `llm_provider_calls`, используя строгую `bcmath`-арифметику; отрицательные и нечисловые суммы отклоняются с `BillingExportUnreadable`.
+   - Read-only сравнение нормализованного CSV с агрегатами `UsageSource`; отрицательные и нечисловые суммы отклоняются с `BillingExportUnreadable`.
+   - Суточные агрегаты не доказывают исход отдельной операции и не выполняют settlement или разрешение retry.
 
 ## 2. Промты и кэширование
 
@@ -32,9 +36,9 @@ paths:
 - Схема ответа (`JsonSchemaGenerator`) передаётся отдельным каналом `response_schema`, а не печатается PHP-исходником в промт.
 - Замечания оператора (`prc_ai_corrections`) подмешиваются только в пользовательскую часть запроса при переизвлечении.
 
-## 3. Capability-матрица (`config('ai.capabilities.<model>')`)
+## 3. Provisioning и immutable policy
 
-Каждая модель задаёт тарифы (`input_per_1m`, `output_per_1m`, `cached_per_1m`), транспортные лимиты (`max_request_file_mb`, `max_pages`, `supports_files_api`) и жизненный цикл (`eol_date`, `successor`). Без `max_request_file_mb`/`max_pages` `ExtractionPreflight` не сможет выбрать маршрут.
+Активный analysis runtime получает явный профиль из `config/llm.php`: `PinnedLlmContext`, `PricingSnapshot`, canonical origin, credential reference и period. `AnalysisConfiguration` разбирает профиль без DB/API, `AnalysisProviderConnections` сохраняет immutable bindings. Пустой профиль не включает paid work; неактивированные provider adapters бросают `UnsupportedConsumer` до HTTP. File/cache операции используют typed capability snapshots; catalog `config('ai.capabilities.<model>')` не заменяет явный owning gate и финансовую авторизацию.
 
 ## 4. Запреты и безопасность
 

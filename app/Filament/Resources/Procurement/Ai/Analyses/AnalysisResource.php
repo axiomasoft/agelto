@@ -51,7 +51,7 @@ class AnalysisResource extends Resource
     // Eager-load связей, показанных в таблице/инфолисте (документ + кто проверил) — против N+1.
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()->with(['documentVersion.document.fixture', 'estimates', 'reviewedBy']);
+        return parent::getEloquentQuery()->with(['documentVersion.document.fixture', 'estimates.platform', 'reviewedBy']);
     }
 
     public static function getRelations(): array

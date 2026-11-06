@@ -143,4 +143,36 @@ test('idempotent storage provisioning не маскирует иной id или
         ->and(fn () => $capacity->ensureDomain($id, $key, 200, 200))->toThrow(LogicException::class)
         ->and(DB::table('prc_storage_domains')->count())->toBe(1)
         ->and(DB::table('prc_storage_domains')->where('id', $id->value)->value('capacity_bytes'))->toBe(100);
+
+    config(['documents.storage' => ['documents.originals' => ['capacity_bytes' => 100, 'high_watermark_bytes' => 55]]]);
+    $writer = app(StoredDocumentWriter::class);
+    $document = Document::factory()->create();
+    Storage::disk('local')->put('first-import.pdf', str_repeat('a', 20));
+    Storage::disk('local')->put('next-import.pdf', str_repeat('b', 20));
+    $attributes = ['document_id' => $document->id, 'filename' => 'import.pdf', 'mime' => 'application/pdf', 'disk' => 'local'];
+    $first = $writer->version([...$attributes, 'storage_path' => 'first-import.pdf']);
+    $domain = new ProcessUuid(DB::table('prc_document_blobs')->where('id', $first->blob_id)->value('storage_domain_id'));
+    $reserved = DocumentStorageFixtures::reservation($domain, 5);
+    $writing = DocumentStorageFixtures::reservation($domain, 5);
+    $staged = DocumentStorageFixtures::reservation($domain, 5);
+    $cleaning = DocumentStorageFixtures::reservation($domain, 5);
+    $capacity->beginWrite($writing);
+    $capacity->beginWrite($staged);
+    $capacity->finishWrite($staged);
+    expect(app(ArtifactRepository::class)->beginCleanup($cleaning))->toBeTrue();
+
+    // 20 durable + four charged 5-byte reservations + 20 new bytes exceeds high=55, not capacity=100.
+    expect(fn () => $writer->version([...$attributes, 'storage_path' => 'next-import.pdf']))
+        ->toThrow(ArtifactUnavailable::class, 'capacity unavailable')
+        ->and(DB::table('prc_document_blobs')->count())->toBe(1)
+        ->and(DB::table('prc_document_versions')->count())->toBe(1)
+        ->and(DB::table('prc_documents')->where('id', $document->id)->value('current_version_id'))->toBe($first->id)
+        ->and(DB::table('prc_storage_domains')->where('id', $domain->value)->value('accounted_durable_bytes'))->toBe(20);
+    Storage::disk('local')->assertExists('next-import.pdf');
+
+    expect(app(ArtifactGarbageCollector::class)->cleanup($reserved))->toBeTrue();
+    $next = $writer->version([...$attributes, 'storage_path' => 'next-import.pdf']);
+    expect($next->id)->not->toBe($first->id)
+        ->and(DB::table('prc_storage_domains')->where('id', $domain->value)->value('accounted_durable_bytes'))->toBe(40)
+        ->and((int) DB::table('prc_storage_reservations')->where('domain_id', $domain->value)->whereIn('status', ['writing', 'staged', 'cleaning'])->sum('byte_upper_bound'))->toBe(15);
 });

@@ -1,23 +1,21 @@
 ---
 name: node-yarn-preflight
-description: "Проверка доступности Node/yarn на хосте перед frontend-командами и git hooks."
+description: "Проверка Node/pnpm перед frontend-командами Agelto; историческое имя skill сохранено для совместимости ссылок."
 ---
 
-# Node/yarn Preflight
+# Node/pnpm Preflight
 
-Используйте перед хостовыми командами, где нужен `yarn` или `node`:
+Проект использует `packageManager` из `package.json` (`pnpm@9.15.0`) и `pnpm-lock.yaml`.
+Имя skill историческое: команды выполняются через pnpm.
 
-- frontend-команды (`yarn lint`, `yarn build`, `yarn dev`)
-- локальные скрипты из `package.json`
-- git hooks, если они вызывают yarn
+1. Перед хостовыми frontend-командами проверь `node --version` и `pnpm --version`.
+2. Сверь pnpm с `package.json`, версию Node — с frontend-stage `docker/php/Dockerfile`
+   и сервисом `vite` в `docker-compose.yml`.
+3. Если инструментов нет, используй существующий frontend-контур Docker; не устанавливай
+   глобальный yarn и не меняй lockfile ради запуска.
+4. Для воспроизводимой установки используй `pnpm install --frozen-lockfile`, для сборки —
+   `pnpm build` / `pnpm documentation:build` согласно активной задаче.
 
-## Порядок проверки
-
-1. Проверьте `yarn --version`.
-2. Если `yarn` не найден: `corepack enable` или `npm install -g yarn@1.22.22`.
-3. Повторно проверьте `yarn --version`.
-4. Если yarn недоступен — остановитесь и сообщите блокер.
-
-## В Docker
-
-Frontend-команды выполняются через Makefile (`make frontend-dev`, `make yarn ARGS="..."`) — yarn уже в образе `agelto/app:latest`.
+Dev-сервис `vite` устанавливает зависимости и запускает Vite; `make dev:up` управляет текущим
+Compose-проектом. Runtime PHP-образ не является frontend-средой. Старые `make yarn` /
+`make frontend-dev` и образ `agelto/app:latest` не входят в текущий контракт команд.

@@ -189,9 +189,16 @@ class ProcurementInfolist
 
     private static function durations(Procurement $record): ProcurementDurations
     {
-        /** @var array<int, ProcurementDurations> $durations */
+        /** @var array<string, ProcurementDurations> $durations */
         static $durations = [];
-        $key = (int) $record->id;
+        $updatedAt = self::rawDateTime($record, 'updated_at');
+        $lastSeenAt = self::rawDateTime($record, 'last_seen_at');
+        $key = implode(':', [
+            (string) $record->id,
+            $record->status->value,
+            $updatedAt instanceof \DateTimeInterface ? $updatedAt->format(\DateTimeInterface::ATOM) : (string) ($updatedAt ?? ''),
+            $lastSeenAt instanceof \DateTimeInterface ? $lastSeenAt->format(\DateTimeInterface::ATOM) : (string) ($lastSeenAt ?? ''),
+        ]);
         if (! isset($durations[$key])) {
             if (count($durations) >= 256) {
                 $durations = [];

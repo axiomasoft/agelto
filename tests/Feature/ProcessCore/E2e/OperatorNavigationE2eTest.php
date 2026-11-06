@@ -159,15 +159,15 @@ test('навигация и все страницы админки рендер�
     actingAs($analyst)->get(ProcessRunResource::getUrl())->assertOk();
     actingAs($analyst)->get(ControlScopeResource::getUrl())->assertForbidden();
     actingAs($analyst)->get(WorkItemResource::getUrl())->assertForbidden();
-    actingAs($analyst)->get('/admin/roles')->assertForbidden();
+    actingAs($analyst)->get('/admin/azguard-roles')->assertForbidden();
 
     actingAs($operator)->get('/admin')->assertOk();
     actingAs($operator)->get(ControlScopeResource::getUrl())->assertOk();
     actingAs($operator)->get(WorkItemResource::getUrl())->assertOk();
-    actingAs($operator)->get('/admin/roles')->assertForbidden();
+    actingAs($operator)->get('/admin/azguard-roles')->assertForbidden();
 
     actingAs($admin)->get('/admin')->assertOk();
-    actingAs($admin)->get('/admin/roles')->assertOk();
+    actingAs($admin)->get('/admin/azguard-roles')->assertOk();
 
     expect(Schema::hasTable('prc_source_incidents'))->toBeFalse();
 
@@ -180,6 +180,8 @@ test('навигация и все страницы админки рендер�
         'analysis_id' => $analysis->id,
     ]);
 
+    $admin = User::factory()->create();
+    $admin->assignRole(SuperAdminRole::class);
     actingAs($admin);
     foreach (array_keys($expectedResources) as $resourceClass) {
         $this->get($resourceClass::getUrl('index'))->assertOk();

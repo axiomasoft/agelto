@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Guards\Admin\Permissions;
 
+use App\Models\Procurement\Platform\StatusMapping;
+use AzGuard\Permissions\RequiresGrant;
+use AzGuard\Permissions\Resource;
+
+#[RequiresGrant]
+#[Resource(model: StatusMapping::class)]
 enum StatusMappingPermission: string
 {
     case ViewAny = 'status_mapping.view_any';

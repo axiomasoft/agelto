@@ -10,6 +10,7 @@ use App\Dto\Procurement\Ai\ChunkReference;
 use App\Dto\Procurement\Ai\ExtractionOutput;
 use App\Dto\Procurement\Ai\PageExtractionOutput;
 use App\Dto\Procurement\Ai\PageRange;
+use App\Dto\Procurement\Ai\RowRange;
 use App\Dto\Procurement\Ai\ValidatedChunk;
 use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Process\ArtifactRef;
@@ -31,6 +32,28 @@ use Illuminate\Support\Facades\DB;
 final class ChunkRepository
 {
     public function __construct(private readonly ArtifactRepository $artifacts) {}
+
+    /**
+     * Restore the exact accepted reference inventory; partition policy checks its count after the range walk.
+     *
+     * @param  list<ChunkReference>  $references
+     * @return array{ranges: list<RowRange|PageRange>, storedChunkCount: int|null}
+     */
+    public function acceptedCoverage(AnalysisWindowSnapshot $window, array $references): array
+    {
+        $ranges = [];
+        $seen = [];
+        foreach ($references as $reference) {
+            if (isset($seen[$reference->id->value])) {
+                throw new \InvalidArgumentException('Duplicate accepted chunk reference.');
+            }
+            $seen[$reference->id->value] = true;
+            $ranges[] = $this->acceptedRange(window: $window, reference: $reference);
+        }
+        $stored = LedgerRow::one('SELECT count(*) AS count FROM prc_analysis_chunks WHERE window_id=?', [$window->id->value]);
+
+        return ['ranges' => $ranges, 'storedChunkCount' => $stored?->int('count')];
+    }
 
     /**
      * Restore and fully revalidate immutable canonical rows, without object-store I/O.
@@ -105,5 +128,19 @@ final class ChunkRepository
         }
 
         return new ChunkReference(new ProcessUuid($existing->string('id')), new ContentHash($existing->string('hash')));
+    }
+
+    private function acceptedRange(AnalysisWindowSnapshot $window, ChunkReference $reference): RowRange|PageRange
+    {
+        $row = LedgerRow::one(
+            "SELECT provenance::text AS provenance,encode(output_hash,'hex') AS hash FROM prc_analysis_chunks
+             WHERE id=? AND window_id=? AND recipe_hash=decode(?,'hex')",
+            [$reference->id->value, $window->id->value, $window->run->recipe->hash->hex],
+        );
+        if ($row === null || $row->string('hash') !== $reference->outputHash->hex) {
+            throw new \InvalidArgumentException('Accepted chunk identity/hash mismatch.');
+        }
+
+        return AnalysisRangeCodec::restore(PayloadReader::json($row->string('provenance'))->object('range'));
     }
 }

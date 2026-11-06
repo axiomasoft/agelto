@@ -7,9 +7,7 @@ namespace App\Services\Procurement\Extraction;
 use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
 use App\Dto\Procurement\Ai\RecoveredProviderAsset;
 use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ProviderRecoveryPlan;
-use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Procurement\Process\ProviderOperationPurpose;
@@ -18,10 +16,8 @@ use App\Exceptions\Llm\OperationDenied;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Repositories\Procurement\Ai\AnalysisRequestRepository;
 use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Llm\Cache\ProviderAssetManager;
 use App\Services\Llm\Execution\ReceiptStore;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
 
 /** Asset recovery is a progress commit, never a model response or a new provider authorization. */
 final readonly class AnalysisAssetRecovery
@@ -37,9 +33,9 @@ final readonly class AnalysisAssetRecovery
             return null;
         }
         $mapping = $this->mapping->active($lease->workId);
-        if ($mapping === null || $mapping->string('physical_call_id') !== $plan->physicalCallId->value
-            || $mapping->string('logical_request_id') !== $plan->logicalRequestId->value || $mapping->string('recipe_hex') !== $run->recipe->hash->hex
-            || $mapping->string('analysis_run_id') !== $run->id->value || $mapping->string('input_hex') !== $lease->inputHash->hex
+        if ($mapping === null || $mapping->physicalCallId !== $plan->physicalCallId->value
+            || $mapping->logicalRequestId !== $plan->logicalRequestId->value || $mapping->recipeHash->hex !== $run->recipe->hash->hex
+            || $mapping->analysisRunId->value !== $run->id->value || $mapping->expectedWorkInputHash->hex !== $lease->inputHash->hex
             || $plan->recipeHash != $run->recipe->hash || $plan->expectedInputHash != $lease->inputHash) {
             throw new OperationDenied('asset_recovery_linkage_drift');
         }
@@ -66,14 +62,16 @@ final readonly class AnalysisAssetRecovery
     {
         CallerTransaction::require('Analysis asset recovery progress');
         $call = $recovery->receipt->call;
-        $mapping = $this->mapping->physical($call->authorization->physicalCallId);
-        $inputHash = WorkStoreRepository::inputHash((new ProcessPayloadCodec)->encodeInput($input)->json ?? '');
-        if ($mapping->string('analysis_run_id') !== $run->id->value || $mapping->string('input_hex') !== $inputHash->hex
-            || $mapping->string('recipe_hex') !== $run->recipe->hash->hex || $call->recipeHash !== $run->recipe->hash->hex
+        $mapping = $this->mapping->physicalForInput(
+            physical: $call->authorization->physicalCallId,
+            run: $run,
+            input: $input,
+        );
+        if ($mapping === null || $call->recipeHash !== $run->recipe->hash->hex
             || $call->context != $run->recipe->llm) {
             throw new OperationDenied('asset_recovery_linkage_drift');
         }
         $this->assets->restoreLocked($recovery->asset, $recovery->receipt);
-        $this->mapping->consumeLocked(new WorkId(new ProcessUuid($mapping->string('work_id'))), $call->authorization->physicalCallId);
+        $this->mapping->consumeLocked(work: $mapping->workId, physical: $call->authorization->physicalCallId);
     }
 }

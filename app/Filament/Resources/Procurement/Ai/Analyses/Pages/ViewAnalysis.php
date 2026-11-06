@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Procurement\Ai\Analyses\Pages;
 
+use App\Actions\Procurement\Ai\ReviewAnalysisAction;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\CorrectionReason;
 use App\Enums\Procurement\Ai\ReviewStatus;
@@ -10,9 +11,6 @@ use App\Filament\Pages\FinalPromptPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Process\Work\WorkItemResource;
 use App\Models\Procurement\Ai\Analysis;
-use App\Models\Procurement\Ai\Correction;
-use App\Repositories\Procurement\Ai\AnalysisReviewRepository;
-use App\Services\Procurement\Analyzers\Estimate\GoldExampleRecorder;
 use App\Services\Procurement\Extraction\RerunAnalysisAction;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
@@ -50,18 +48,14 @@ class ViewAnalysis extends ViewRecord
         return Action::make('finalPrompt')
             ->label('Финальный промт')
             ->color('gray')
-            ->visible(fn (Analysis $record): bool => $record->analysis_run_id !== null)
+            ->visible(fn (Analysis $record): bool => $record->analysis_run_id !== null && FinalPromptPage::canAccess())
             ->url(fn (Analysis $record): ?string => $record->analysis_run_id === null ? null : FinalPromptPage::getUrl(['run' => $record->analysis_run_id]))
             ->openUrlInNewTab();
     }
 
     /**
-     * «Проверено» — доступна только при `status=succeeded` И `review_status`
-     * ещё не `approved`: без второго условия кнопка остаётся видимой после одобрения, и повторный клик/сабмит дублирует immutable gold-версию
-     * (`GoldExampleRecorder`). `review_status !== Approved` в действии — тот же guard ещё раз,
-     * на случай устаревшего `$record` в момент клика (visible рендерится раньше, чем
-     * обрабатывается action) — идемпотентность без изменения схемы `prc_ai_dataset_examples`
-     * (в ней нет `analysis_id`, docblock `GoldExampleRecorder`).
+     * Видимость — подсказка UI; fresh eligibility, идемпотентность и атомарный review/gold
+     * принадлежат ReviewAnalysisAction под version/result locks.
      */
     private function approveAction(): Action
     {
@@ -73,21 +67,13 @@ class ViewAnalysis extends ViewRecord
             ->visible(fn (Analysis $record): bool => $record->status === AnalysisStatus::Succeeded
                 && $record->review_status !== ReviewStatus::Approved)
             ->action(function (Analysis $record): void {
-                if ($record->review_status === ReviewStatus::Approved) {
+                $changed = app(ReviewAnalysisAction::class)->approve(analysisId: $record->id, reviewerId: (int) Auth::id());
+                $record->refresh();
+                if (! $changed) {
                     Notification::make()->title('Анализ уже отмечен проверенным')->warning()->send();
 
                     return;
                 }
-
-                app(AnalysisReviewRepository::class)->update($record, [
-                    'review_status' => ReviewStatus::Approved,
-                    'reviewed_by' => Auth::id(),
-                    'reviewed_at' => now(),
-                ]);
-
-                // approve — единственная точка входа gold-петли (`GoldExampleRecorder`
-                // читает уже обновлённые `reviewed_by`/`reviewed_at` того же объекта `$record`).
-                app(GoldExampleRecorder::class)->record($record);
 
                 Notification::make()->title('Анализ отмечен проверенным')->success()->send();
             });
@@ -129,28 +115,22 @@ class ViewAnalysis extends ViewRecord
                     ->label('Применять ко всем документам этого типа'),
             ])
             ->action(function (Analysis $record, array $data): void {
-                if ($record->document_type === null) {
+                $changed = app(ReviewAnalysisAction::class)->rejectWithCorrection(
+                    analysisId: $record->id,
+                    reviewerId: (int) Auth::id(),
+                    correction: [
+                        'field_path' => $data['field_path'] ?? null,
+                        'reason' => $data['reason'],
+                        'content' => $data['content'],
+                        'is_reusable' => $data['is_reusable'] ?? false,
+                    ],
+                );
+                $record->refresh();
+                if (! $changed) {
                     Notification::make()->title('Нельзя создать коррекцию: скрининг ещё не определил тип документа')->danger()->send();
 
                     return;
                 }
-
-                Correction::query()->create([
-                    'analysis_id' => $record->id,
-                    'document_type' => $record->document_type,
-                    'field_path' => $data['field_path'] !== '' ? $data['field_path'] : null,
-                    'reason' => $data['reason'],
-                    'content' => $data['content'],
-                    'is_reusable' => (bool) ($data['is_reusable'] ?? false),
-                    'created_by' => Auth::id(),
-                ]);
-
-                app(AnalysisReviewRepository::class)->update($record, [
-                    'review_status' => ReviewStatus::Rejected,
-                    'reviewed_by' => Auth::id(),
-                    'reviewed_at' => now(),
-                    'operator_comment' => $data['content'],
-                ]);
 
                 Notification::make()->title('Коррекция сохранена')->success()->send();
             });

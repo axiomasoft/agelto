@@ -166,3 +166,27 @@ test('гонка создания внешнего ключа откатывае
         ->and($resolved->identifiers->sole()->value)->toBe('000123')
         ->and($resolved->full_name)->toBe('Верная организация');
 });
+
+test('гонка создания организации только по ОГРН сериализуется и не плодит дубликаты', function () {
+    $injected = false;
+    DB::listen(function (QueryExecuted $query) use (&$injected): void {
+        if (! $injected && str_starts_with($query->sql, 'select') && in_array('1027700987654', $query->bindings, true)) {
+            $injected = true;
+            Organization::factory()->create([
+                'full_name' => 'Первая запись по ОГРН',
+                'inn' => null,
+                'kpp' => null,
+                'ogrn' => '1027700987654',
+            ]);
+        }
+    });
+
+    $resolved = app(OrganizationResolver::class)->resolve(new OrganizationData(
+        fullName: 'Актуальная запись по ОГРН',
+        ogrn: '1027700987654',
+    ));
+
+    expect($injected)->toBeTrue()
+        ->and(Organization::query()->where('ogrn', '1027700987654')->count())->toBe(1)
+        ->and($resolved->full_name)->toBe('Актуальная запись по ОГРН');
+});

@@ -17,12 +17,12 @@ description: "Правила безопасного тестирования Age
   - `make core-test-platforms`, `make core-test-acquisition`, `make core-test-documents`
   - `make core-test-ai`, `make core-test-observability`, `make core-test-install`, `make core-test-regression`
   - Точечный файл: `make core-test-file TEST_FILE=tests/Feature/...`
-- `Http::preventStrayRequests()` работает совместно с Docker egress denial: внешняя сеть на стенде закрыта, используются локальные контейнеры `fake-source`, `forward-proxy`, `fake-llm`, `minio`.
+- `Http::preventStrayRequests()` работает совместно с Docker egress denial: внешняя сеть на стенде закрыта, используются локальные сервисы `fixture-http`, `fixture-proxy`, `fake-gemini`, `object-storage`.
 
 ## 2. Изоляция состояния и конкурентность
 
 - Обычные serial feature-тесты используют `RefreshDatabase` согласно `tests/Pest.php`.
-- Concurrency-тесты (`tests/Feature/ProcessCore/Concurrency/`) используют реальные параллельные соединения/воркеры PostgreSQL и детерминированную очистку без внешней обёрточной rollback-транзакции.
+- Concurrency-тесты (`tests/Integration/ProcessCore/Concurrency/`) используют реальные параллельные соединения/воркеры PostgreSQL и детерминированную очистку без внешней обёрточной rollback-транзакции.
 
 ## 3. Стиль тестов и именование
 

@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Actions\Procurement\Document\FinalizeRepresentationAction;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
+use App\Services\Procurement\Document\StoredDocumentWriter;
 use App\Services\Procurement\Prepare\DocumentFormatRegistry;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use App\Services\Procurement\Prepare\ScanStrategy;
@@ -22,21 +24,37 @@ beforeEach(fn () => StoredDocumentFixtures::reset());
  */
 test('повторный storeOrUpdate идемпотентен по recipe kind range и отвергает изменение immutable bytes', function () {
     $version = DocumentVersion::factory()->create();
-    $repository = app(RepresentationStoreRepository::class);
+    $finalize = app(FinalizeRepresentationAction::class);
     $disk = app(FileLocationResolver::class)->currentDocumentsDisk();
     Storage::disk($disk)->put('documents/aa/first.pdf', str_repeat('a', 100));
     Storage::disk($disk)->put('documents/aa/second.pdf', str_repeat('b', 200));
     $attributes = ['storage_path' => 'documents/aa/first.pdf', 'disk' => $disk, 'mime' => 'application/pdf', 'size_bytes' => 100, 'generated_at' => now()];
-    $first = $repository->storeOrUpdate($version, RepresentationKind::Pdf, $attributes);
-    $second = $repository->storeOrUpdate($version, RepresentationKind::Pdf, $attributes);
+    $first = $finalize->execute($version, RepresentationKind::Pdf, $attributes);
+    $second = $finalize->execute($version, RepresentationKind::Pdf, $attributes);
     expect($second->id)->toBe($first->id)->and($second->size_bytes)->toBe(100);
     $changed = [...$attributes, 'storage_path' => 'documents/aa/second.pdf', 'size_bytes' => 200];
-    expect(fn () => $repository->storeOrUpdate($version, RepresentationKind::Pdf, $changed))->toThrow(LogicException::class, 'Immutable representation');
+    expect(fn () => $finalize->execute($version, RepresentationKind::Pdf, $changed))->toThrow(LogicException::class, 'Immutable representation');
     expect($first->refresh()->storage_path)->toBe('documents/aa/first.pdf')
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(1);
-    $newRecipe = $repository->storeOrUpdate($version, RepresentationKind::Pdf, [...$changed, 'meta' => ['tool_version' => '2']]);
+    $newRecipe = $finalize->execute($version, RepresentationKind::Pdf, [...$changed, 'meta' => ['tool_version' => '2']]);
     expect($newRecipe->id)->not->toBe($first->id)->and($newRecipe->size_bytes)->toBe(200)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(2);
+
+    Storage::disk($disk)->put('documents/aa/next-source.pdf', '%PDF-next-source');
+    $current = app(StoredDocumentWriter::class)->version([
+        'document_id' => $version->document_id, 'filename' => 'next.pdf', 'mime' => 'application/pdf',
+        'disk' => $disk, 'storage_path' => 'documents/aa/next-source.pdf',
+    ]);
+    $meta = ['z' => 'last', 'tool_version' => 'historical/1', 'a' => 'first'];
+    $historical = $finalize->execute($version, RepresentationKind::Pdf,
+        [...$changed, 'meta' => $meta, 'page_count' => 3, 'token_estimate' => 17]);
+    expect($historical->document_version_id)->toBe($version->id)
+        ->and($version->document->refresh()->current_version_id)->toBe($current->id)
+        ->and($historical->preparation_recipe_hash)->toBe(hash('sha256', json_encode(['stored-format', 'historical/1', $meta], JSON_THROW_ON_ERROR)))
+        ->and($historical->page_count)->toBe(3)->and($historical->token_estimate)->toBe(17)
+        ->and(json_decode($historical->getAttribute('coverage_manifest'), true, flags: JSON_THROW_ON_ERROR))->toEqual([
+            'unit' => 'page', 'source_units' => 3, 'covered' => [], 'missing' => [[0, 3]], 'complete' => false,
+        ]);
 });
 
 test('tuple version recipe kind range уникален на уровне схемы — повтор отбивается БД', function () {

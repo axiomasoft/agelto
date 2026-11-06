@@ -35,18 +35,13 @@ use Illuminate\Support\Facades\File;
         {--screening : собрать gold/<CODE>.screening.json по всему корпусу вместо extraction-gold}')]
 final class GoldBuildCommand extends Command
 {
-    public function __construct(
-        private readonly FixtureStoreRepository $fixtures,
-        private readonly FixtureManifestReader $manifestReader,
-        private readonly FixtureManifestWriter $manifestWriter,
-        private readonly GoldCorpusBuilder $corpusBuilder,
-        private readonly ScreeningGoldBuilder $screeningBuilder,
-    ) {
-        parent::__construct();
-    }
-
-    public function handle(): int
-    {
+    public function handle(
+        FixtureStoreRepository $fixtureStore,
+        FixtureManifestReader $manifestReader,
+        FixtureManifestWriter $manifestWriter,
+        GoldCorpusBuilder $corpusBuilder,
+        ScreeningGoldBuilder $screeningBuilder,
+    ): int {
         // Книги реального корпуса (десятки листов, MERGE_HEAVY) исчерпывают дефолтный лимит
         // PHP-CLI на PhpSpreadsheet::load — тот же приём, что `SpreadsheetStrategy`
         // применяет к дочернему процессу конвертации.
@@ -58,26 +53,32 @@ final class GoldBuildCommand extends Command
         $onlyCodes = (array) $this->option('code');
 
         if ((bool) $this->option('screening')) {
-            return $this->handleScreening($goldDir, $onlyCodes, $dryRun);
+            return $this->handleScreening(
+                fixtureStore: $fixtureStore,
+                screeningBuilder: $screeningBuilder,
+                goldDir: $goldDir,
+                onlyCodes: $onlyCodes,
+                dryRun: $dryRun,
+            );
         }
 
         $manifestPath = $this->optionOrConfigString(option: 'manifest', configKey: 'ai.fixtures.manifest_path');
         $updateManifest = (bool) $this->option('update-manifest');
 
         try {
-            $manifest = $this->manifestReader->read($manifestPath);
+            $manifest = $manifestReader->read($manifestPath);
         } catch (OperationFailed $e) {
             $this->error($e->getMessage());
 
             return self::FAILURE;
         }
 
-        $fixtures = $this->fixtures->inCodeOrder($onlyCodes);
-        $result = $this->corpusBuilder->build($fixtures, $goldDir, $this->configString('ai.fixtures.disk'), $dryRun, $manifest['fixtures']);
+        $fixtures = $fixtureStore->inCodeOrder($onlyCodes);
+        $result = $corpusBuilder->build($fixtures, $goldDir, $this->configString('ai.fixtures.disk'), $dryRun, $manifest['fixtures']);
 
         if ($updateManifest && ! $dryRun) {
             $manifest['fixtures'] = $result['manifestFixtures'];
-            $this->manifestWriter->write($manifestPath, $manifest);
+            $manifestWriter->write($manifestPath, $manifest);
         }
 
         if (! $dryRun) {
@@ -85,7 +86,7 @@ final class GoldBuildCommand extends Command
             // `estimates/reports/` в репозитории не существует.
             $reportPath = $this->configString('ai.fixtures.reports_dir').'/gold-corpus-report.md';
             File::ensureDirectoryExists(dirname($reportPath));
-            file_put_contents($reportPath, $this->corpusBuilder->renderReport($result['rows']));
+            file_put_contents($reportPath, $corpusBuilder->renderReport($result['rows']));
         }
 
         $counts = $result['counts'];
@@ -97,15 +98,20 @@ final class GoldBuildCommand extends Command
     /**
      * @param  list<string>  $onlyCodes
      */
-    private function handleScreening(string $goldDir, array $onlyCodes, bool $dryRun): int
-    {
-        $fixtures = $this->fixtures->inCodeOrder($onlyCodes);
+    private function handleScreening(
+        FixtureStoreRepository $fixtureStore,
+        ScreeningGoldBuilder $screeningBuilder,
+        string $goldDir,
+        array $onlyCodes,
+        bool $dryRun,
+    ): int {
+        $fixtures = $fixtureStore->inCodeOrder($onlyCodes);
 
         $built = 0;
         $rejected = 0;
 
         foreach ($fixtures as $fixture) {
-            $result = $this->screeningBuilder->build($fixture);
+            $result = $screeningBuilder->build($fixture);
 
             if ($result['action'] === 'rejected') {
                 $rejected++;

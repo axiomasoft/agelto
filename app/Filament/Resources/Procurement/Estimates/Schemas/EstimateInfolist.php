@@ -26,7 +26,9 @@ class EstimateInfolist
                         TextEntry::make('procurement.title')
                             ->label('Закупка')
                             ->placeholder('-')
-                            ->url(fn (Estimate $record): ?string => $record->procurement === null ? null : ProcurementResource::getUrl('view', ['record' => $record->procurement]))
+                            ->url(fn (Estimate $record): ?string => $record->procurement?->registry?->platform?->is_public === true
+                                ? ProcurementResource::getUrl('view', ['record' => $record->procurement])
+                                : null)
                             ->columnSpanFull(),
                         TextEntry::make('documentVersion.document.title')
                             ->label('Документ')

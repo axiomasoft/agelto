@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
+use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Document\DocumentHead;
+use App\Dto\Procurement\Document\DocumentRange;
 use App\Dto\Procurement\Document\RepresentationCoverage;
 use App\Dto\Procurement\Document\VerifiedArtifact;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Enums\Procurement\Document\CoverageUnit;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Exceptions\Procurement\Document\DocumentHeadChanged;
 use App\Repositories\Procurement\Process\CallerTransaction;
@@ -48,5 +51,35 @@ final readonly class DocumentRepresentationRepository
             [$head->versionId, $kind->value, $blob->id->value, $recipe->hex, $blob->hash->hex, $rangeKey, $toolVersion, $coverage->json(), $blob->objectKey, $blob->disk, $blob->sizeBytes, $mime]) ?? throw new \LogicException('Representation insert failed.');
 
         return $row->int('id');
+    }
+
+    /**
+     * Caller holds capacity, the document and supplied version. Historical versions remain eligible.
+     * Stored format metadata does not prove original-source coverage or Process head authority.
+     *
+     * @param  array{page_count: int|null, token_estimate: mixed, mime: mixed, meta: array<array-key,mixed>}  $metadata
+     */
+    public function storeImportedLocked(int $versionId, BlobReference $blob, ContentHash $recipe, RepresentationKind $kind,
+        string $toolVersion, int $pages, array $metadata): int
+    {
+        CallerTransaction::require('Imported representation publication');
+        $this->artifacts->referenceLocked($blob);
+        $existing = LedgerRow::one("SELECT id,blob_id FROM prc_document_representations WHERE document_version_id=? AND kind=? AND preparation_recipe_hash=decode(?,'hex') AND range_key='complete'", [$versionId, $kind->value, $recipe->hex]);
+        if ($existing !== null) {
+            if ($existing->string('blob_id') !== $blob->id->value) {
+                throw new \LogicException('Immutable representation recipe returned different bytes.');
+            }
+
+            return $existing->int('id');
+        }
+        $units = max(1, $pages);
+        $coverage = (new RepresentationCoverage(CoverageUnit::Page, $units, [], [new DocumentRange(0, $units)]))->json();
+        $row = LedgerRow::one("INSERT INTO prc_document_representations(document_version_id,kind,blob_id,preparation_recipe_hash,content_hash,range_key,tool_version,coverage_manifest,coverage_manifest_schema_version,storage_path,disk,size_bytes,page_count,token_estimate,mime,meta,generated_at,created_at,updated_at)
+            VALUES (?,?,?,decode(?,'hex'),decode(?,'hex'),'complete',?,?::jsonb,1,?,?,?,?,?,?,?::jsonb,clock_timestamp(),clock_timestamp(),clock_timestamp()) RETURNING id", [
+            $versionId, $kind->value, $blob->id->value, $recipe->hex, $blob->hash->hex, $toolVersion, $coverage,
+            $blob->objectKey, $blob->disk, $blob->sizeBytes, $metadata['page_count'], $metadata['token_estimate'],
+            $metadata['mime'], json_encode($metadata['meta'], JSON_THROW_ON_ERROR)]);
+
+        return $row?->int('id') ?? throw new \LogicException('Representation insert failed.');
     }
 }

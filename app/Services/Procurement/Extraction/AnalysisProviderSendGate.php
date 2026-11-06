@@ -201,8 +201,8 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
         $run = $this->analyses->getRun($this->runId);
         if ($operation->ownerAttemptId !== $lease->attemptId->value || $operation->ownerWorkGeneration !== $lease->generation
             || ! $this->mapping->current($operation->physicalCallId)
-            || $link?->string('physical_call_id') !== $operation->physicalCallId || $link->string('analysis_run_id') !== $this->runId->value
-            || $link->string('input_hex') !== $lease->inputHash->hex || $link->string('recipe_hex') !== $wire->operation->identity->recipeHash
+            || $link?->physicalCallId !== $operation->physicalCallId || $link->analysisRunId->value !== $this->runId->value
+            || $link->expectedWorkInputHash->hex !== $lease->inputHash->hex || $link->recipeHash->hex !== $wire->operation->identity->recipeHash
             || $run->recipe->hash->hex !== $wire->operation->identity->recipeHash || $run->recipe->llm != $wire->operation->context
             || ($wire->operation->generation !== null && ! $run->recipe->tasks->matches($wire->operation->generation))) {
             throw new OperationDenied('consumer_operation_drift');
@@ -240,7 +240,7 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
     public function recordTransportOutcome(string $physicalCallId, ProviderTransportOutcome $outcome): void
     {
         if ($physicalCallId !== $outcome->physicalCallId
-            || $this->mapping->physical($physicalCallId)->string('work_id') !== $this->context->lease()->workId->value->value) {
+            || $this->mapping->physical($physicalCallId)->workId->value->value !== $this->context->lease()->workId->value->value) {
             throw new \InvalidArgumentException('Transport outcome belongs to a different physical operation.');
         }
         $bytes = strlen($outcome->body() ?? '');

@@ -1043,55 +1043,199 @@
       "public.prc_revisions"
     ],
     "tables": {
-      "az_direct_grants": {
+      "azg_panel_state": {
         "columns": [
           {
-            "column_default": "nextval('az_direct_grants_id_seq'::regclass)",
+            "column_default": null,
+            "column_name": "panel",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "azg_panel_state",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": "'0'::bigint",
+            "column_name": "version",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "azg_panel_state",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "incarnation",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "azg_panel_state",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "updated_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "azg_panel_state",
+            "table_schema": "public",
+            "udt_name": "timestamp"
+          },
+          {
+            "column_default": "'0'::bigint",
+            "column_name": "epoch",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "azg_panel_state",
+            "table_schema": "public",
+            "udt_name": "int8"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "PRIMARY KEY (panel)",
+            "name": "azg_panel_state_pkey",
+            "schema": "public",
+            "table_name": "azg_panel_state",
+            "type": "p"
+          }
+        ],
+        "definition": "CREATE TABLE public.azg_panel_state (\n    panel character varying(64) NOT NULL COLLATE pg_catalog.\"C\",\n    version bigint DEFAULT '0'::bigint NOT NULL,\n    incarnation character varying(26) NOT NULL COLLATE pg_catalog.\"C\",\n    updated_at timestamp(0) without time zone NOT NULL,\n    epoch bigint DEFAULT '0'::bigint NOT NULL\n);",
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX azg_panel_state_pkey ON public.azg_panel_state USING btree (panel)",
+            "indexname": "azg_panel_state_pkey",
+            "schemaname": "public",
+            "tablename": "azg_panel_state"
+          }
+        ],
+        "owner": "Framework/vendor",
+        "retention": "business"
+      },
+      "azg_permission_grants": {
+        "columns": [
+          {
+            "column_default": "nextval('azg_permission_grants_id_seq'::regclass)",
             "column_name": "id",
             "data_type": "bigint",
             "is_nullable": "NO",
             "ordinal_position": 1,
-            "table_name": "az_direct_grants",
+            "table_name": "azg_permission_grants",
             "table_schema": "public",
             "udt_name": "int8"
           },
           {
             "column_default": null,
-            "column_name": "grantable_type",
+            "column_name": "panel",
             "data_type": "character varying",
             "is_nullable": "NO",
             "ordinal_position": 2,
-            "table_name": "az_direct_grants",
+            "table_name": "azg_permission_grants",
             "table_schema": "public",
             "udt_name": "varchar"
           },
           {
             "column_default": null,
-            "column_name": "grantable_id",
-            "data_type": "bigint",
+            "column_name": "tenant_key",
+            "data_type": "character varying",
             "is_nullable": "NO",
             "ordinal_position": 3,
-            "table_name": "az_direct_grants",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "permission_key",
-            "data_type": "character varying",
-            "is_nullable": "NO",
-            "ordinal_position": 4,
-            "table_name": "az_direct_grants",
+            "table_name": "azg_permission_grants",
             "table_schema": "public",
             "udt_name": "varchar"
           },
           {
             "column_default": null,
-            "column_name": "panel_id",
+            "column_name": "tenant_type",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 4,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "tenant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 5,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "permission",
             "data_type": "character varying",
             "is_nullable": "NO",
-            "ordinal_position": 5,
-            "table_name": "az_direct_grants",
+            "ordinal_position": 6,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "subject_type",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "subject_id",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "context_key",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "context_type",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 10,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "context_id",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 11,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": "'manual'::character varying",
+            "column_name": "origin",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 12,
+            "table_name": "azg_permission_grants",
             "table_schema": "public",
             "udt_name": "varchar"
           },
@@ -1100,18 +1244,58 @@
             "column_name": "expires_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 6,
-            "table_name": "az_direct_grants",
+            "ordinal_position": 13,
+            "table_name": "azg_permission_grants",
             "table_schema": "public",
             "udt_name": "timestamp"
+          },
+          {
+            "column_default": null,
+            "column_name": "actor_type",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 14,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "actor_id",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 15,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "actor_reason",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 16,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "meta",
+            "data_type": "json",
+            "is_nullable": "YES",
+            "ordinal_position": 17,
+            "table_name": "azg_permission_grants",
+            "table_schema": "public",
+            "udt_name": "json"
           },
           {
             "column_default": null,
             "column_name": "created_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 7,
-            "table_name": "az_direct_grants",
+            "ordinal_position": 18,
+            "table_name": "azg_permission_grants",
             "table_schema": "public",
             "udt_name": "timestamp"
           },
@@ -1120,107 +1304,193 @@
             "column_name": "updated_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 8,
-            "table_name": "az_direct_grants",
+            "ordinal_position": 19,
+            "table_name": "azg_permission_grants",
             "table_schema": "public",
             "udt_name": "timestamp"
           }
         ],
         "constraints": [
           {
-            "definition": "UNIQUE (grantable_type, grantable_id, permission_key, panel_id)",
-            "name": "az_direct_grant_unique",
+            "definition": "PRIMARY KEY (id)",
+            "name": "azg_permission_grants_pkey",
             "schema": "public",
-            "table_name": "az_direct_grants",
+            "table_name": "azg_permission_grants",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK (((((context_key)::text = 'global'::text) = ((context_type IS NULL) AND (context_id IS NULL))) AND ((context_type IS NULL) = (context_id IS NULL))))",
+            "name": "azg_pg_context_pair",
+            "schema": "public",
+            "table_name": "azg_permission_grants",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (panel, tenant_key, permission, subject_type, subject_id, context_key, origin)",
+            "name": "azg_pg_identity",
+            "schema": "public",
+            "table_name": "azg_permission_grants",
             "type": "u"
           },
           {
-            "definition": "PRIMARY KEY (id)",
-            "name": "az_direct_grants_pkey",
+            "definition": "CHECK (((((tenant_key)::text = 'global'::text) = ((tenant_type IS NULL) AND (tenant_id IS NULL))) AND ((tenant_type IS NULL) = (tenant_id IS NULL))))",
+            "name": "azg_pg_tenant_pair",
             "schema": "public",
-            "table_name": "az_direct_grants",
-            "type": "p"
+            "table_name": "azg_permission_grants",
+            "type": "c"
           }
         ],
-        "definition": "CREATE TABLE public.az_direct_grants (\n    id bigint NOT NULL,\n    grantable_type character varying(255) NOT NULL,\n    grantable_id bigint NOT NULL,\n    permission_key character varying(255) NOT NULL,\n    panel_id character varying(128) NOT NULL,\n    expires_at timestamp(0) without time zone,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);",
+        "definition": "CREATE TABLE public.azg_permission_grants (\n    id bigint NOT NULL,\n    panel character varying(64) NOT NULL COLLATE pg_catalog.\"C\",\n    tenant_key character varying(200) NOT NULL COLLATE pg_catalog.\"C\",\n    tenant_type character varying(128) COLLATE pg_catalog.\"C\",\n    tenant_id character varying(64) COLLATE pg_catalog.\"C\",\n    permission character varying(255) NOT NULL COLLATE pg_catalog.\"C\",\n    subject_type character varying(128) NOT NULL COLLATE pg_catalog.\"C\",\n    subject_id character varying(64) NOT NULL COLLATE pg_catalog.\"C\",\n    context_key character varying(200) NOT NULL COLLATE pg_catalog.\"C\",\n    context_type character varying(128) COLLATE pg_catalog.\"C\",\n    context_id character varying(64) COLLATE pg_catalog.\"C\",\n    origin character varying(128) DEFAULT 'manual'::character varying NOT NULL COLLATE pg_catalog.\"C\",\n    expires_at timestamp(0) without time zone,\n    actor_type character varying(128) COLLATE pg_catalog.\"C\",\n    actor_id character varying(64) COLLATE pg_catalog.\"C\",\n    actor_reason text,\n    meta json,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    CONSTRAINT azg_pg_context_pair CHECK (((((context_key)::text = 'global'::text) = ((context_type IS NULL) AND (context_id IS NULL))) AND ((context_type IS NULL) = (context_id IS NULL)))),\n    CONSTRAINT azg_pg_tenant_pair CHECK (((((tenant_key)::text = 'global'::text) = ((tenant_type IS NULL) AND (tenant_id IS NULL))) AND ((tenant_type IS NULL) = (tenant_id IS NULL))))\n);",
         "indexes": [
           {
-            "indexdef": "CREATE INDEX az_direct_grant_lookup ON public.az_direct_grants USING btree (grantable_type, grantable_id, panel_id, expires_at)",
-            "indexname": "az_direct_grant_lookup",
+            "indexdef": "CREATE UNIQUE INDEX azg_permission_grants_pkey ON public.azg_permission_grants USING btree (id)",
+            "indexname": "azg_permission_grants_pkey",
             "schemaname": "public",
-            "tablename": "az_direct_grants"
+            "tablename": "azg_permission_grants"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX az_direct_grant_unique ON public.az_direct_grants USING btree (grantable_type, grantable_id, permission_key, panel_id)",
-            "indexname": "az_direct_grant_unique",
+            "indexdef": "CREATE INDEX azg_pg_context ON public.azg_permission_grants USING btree (panel, tenant_key, context_type, context_id)",
+            "indexname": "azg_pg_context",
             "schemaname": "public",
-            "tablename": "az_direct_grants"
+            "tablename": "azg_permission_grants"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX az_direct_grants_pkey ON public.az_direct_grants USING btree (id)",
-            "indexname": "az_direct_grants_pkey",
+            "indexdef": "CREATE INDEX azg_pg_expiry ON public.azg_permission_grants USING btree (expires_at)",
+            "indexname": "azg_pg_expiry",
             "schemaname": "public",
-            "tablename": "az_direct_grants"
+            "tablename": "azg_permission_grants"
           },
           {
-            "indexdef": "CREATE INDEX azg_853fadc7b32c436284043003bb137233bf92ae6a_idx ON public.az_direct_grants USING btree (grantable_type, grantable_id)",
-            "indexname": "azg_853fadc7b32c436284043003bb137233bf92ae6a_idx",
+            "indexdef": "CREATE UNIQUE INDEX azg_pg_identity ON public.azg_permission_grants USING btree (panel, tenant_key, permission, subject_type, subject_id, context_key, origin)",
+            "indexname": "azg_pg_identity",
             "schemaname": "public",
-            "tablename": "az_direct_grants"
+            "tablename": "azg_permission_grants"
+          },
+          {
+            "indexdef": "CREATE INDEX azg_pg_origin ON public.azg_permission_grants USING btree (panel, tenant_key, origin)",
+            "indexname": "azg_pg_origin",
+            "schemaname": "public",
+            "tablename": "azg_permission_grants"
+          },
+          {
+            "indexdef": "CREATE INDEX azg_pg_subject ON public.azg_permission_grants USING btree (panel, tenant_key, subject_type, subject_id, context_key)",
+            "indexname": "azg_pg_subject",
+            "schemaname": "public",
+            "tablename": "azg_permission_grants"
           }
         ],
         "owner": "Framework/vendor",
         "retention": "business"
       },
-      "az_guard_role_permissions": {
+      "azg_permissions": {
         "columns": [
           {
-            "column_default": "nextval('az_guard_role_permissions_id_seq'::regclass)",
+            "column_default": "nextval('azg_permissions_id_seq'::regclass)",
             "column_name": "id",
             "data_type": "bigint",
             "is_nullable": "NO",
             "ordinal_position": 1,
-            "table_name": "az_guard_role_permissions",
+            "table_name": "azg_permissions",
             "table_schema": "public",
             "udt_name": "int8"
           },
           {
             "column_default": null,
-            "column_name": "role_id",
-            "data_type": "bigint",
+            "column_name": "panel",
+            "data_type": "character varying",
             "is_nullable": "NO",
             "ordinal_position": 2,
-            "table_name": "az_guard_role_permissions",
+            "table_name": "azg_permissions",
             "table_schema": "public",
-            "udt_name": "int8"
+            "udt_name": "varchar"
           },
           {
             "column_default": null,
-            "column_name": "permission_key",
+            "column_name": "tenant_key",
             "data_type": "character varying",
             "is_nullable": "NO",
             "ordinal_position": 3,
-            "table_name": "az_guard_role_permissions",
+            "table_name": "azg_permissions",
             "table_schema": "public",
             "udt_name": "varchar"
           },
           {
             "column_default": null,
-            "column_name": "panel_id",
+            "column_name": "tenant_type",
             "data_type": "character varying",
-            "is_nullable": "NO",
+            "is_nullable": "YES",
             "ordinal_position": 4,
-            "table_name": "az_guard_role_permissions",
+            "table_name": "azg_permissions",
             "table_schema": "public",
             "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "tenant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 5,
+            "table_name": "azg_permissions",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "name",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "azg_permissions",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "label",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 7,
+            "table_name": "azg_permissions",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "group",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 8,
+            "table_name": "azg_permissions",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "description",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 9,
+            "table_name": "azg_permissions",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "meta",
+            "data_type": "json",
+            "is_nullable": "YES",
+            "ordinal_position": 10,
+            "table_name": "azg_permissions",
+            "table_schema": "public",
+            "udt_name": "json"
           },
           {
             "column_default": null,
             "column_name": "created_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 5,
-            "table_name": "az_guard_role_permissions",
+            "ordinal_position": 11,
+            "table_name": "azg_permissions",
             "table_schema": "public",
             "udt_name": "timestamp"
           },
@@ -1229,8 +1499,8 @@
             "column_name": "updated_at",
             "data_type": "timestamp without time zone",
             "is_nullable": "YES",
-            "ordinal_position": 6,
-            "table_name": "az_guard_role_permissions",
+            "ordinal_position": 12,
+            "table_name": "azg_permissions",
             "table_schema": "public",
             "udt_name": "timestamp"
           }
@@ -1238,45 +1508,419 @@
         "constraints": [
           {
             "definition": "PRIMARY KEY (id)",
-            "name": "az_guard_role_permissions_pkey",
+            "name": "azg_permissions_pkey",
             "schema": "public",
-            "table_name": "az_guard_role_permissions",
+            "table_name": "azg_permissions",
             "type": "p"
           },
           {
-            "definition": "FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE",
-            "name": "az_guard_role_permissions_role_id_foreign",
+            "definition": "UNIQUE (panel, tenant_key, name)",
+            "name": "azg_pm_identity",
             "schema": "public",
-            "table_name": "az_guard_role_permissions",
-            "type": "f"
+            "table_name": "azg_permissions",
+            "type": "u"
           },
           {
-            "definition": "UNIQUE (role_id, permission_key, panel_id)",
-            "name": "az_role_perm_unique",
+            "definition": "CHECK (((((tenant_key)::text = 'global'::text) = ((tenant_type IS NULL) AND (tenant_id IS NULL))) AND ((tenant_type IS NULL) = (tenant_id IS NULL))))",
+            "name": "azg_pm_tenant_pair",
             "schema": "public",
-            "table_name": "az_guard_role_permissions",
-            "type": "u"
+            "table_name": "azg_permissions",
+            "type": "c"
           }
         ],
-        "definition": "CREATE TABLE public.az_guard_role_permissions (\n    id bigint NOT NULL,\n    role_id bigint NOT NULL,\n    permission_key character varying(255) NOT NULL,\n    panel_id character varying(128) NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);",
+        "definition": "CREATE TABLE public.azg_permissions (\n    id bigint NOT NULL,\n    panel character varying(64) NOT NULL COLLATE pg_catalog.\"C\",\n    tenant_key character varying(200) NOT NULL COLLATE pg_catalog.\"C\",\n    tenant_type character varying(128) COLLATE pg_catalog.\"C\",\n    tenant_id character varying(64) COLLATE pg_catalog.\"C\",\n    name character varying(255) NOT NULL COLLATE pg_catalog.\"C\",\n    label character varying(191),\n    \"group\" character varying(191),\n    description text,\n    meta json,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    CONSTRAINT azg_pm_tenant_pair CHECK (((((tenant_key)::text = 'global'::text) = ((tenant_type IS NULL) AND (tenant_id IS NULL))) AND ((tenant_type IS NULL) = (tenant_id IS NULL))))\n);",
         "indexes": [
           {
-            "indexdef": "CREATE UNIQUE INDEX az_guard_role_permissions_pkey ON public.az_guard_role_permissions USING btree (id)",
-            "indexname": "az_guard_role_permissions_pkey",
+            "indexdef": "CREATE UNIQUE INDEX azg_permissions_pkey ON public.azg_permissions USING btree (id)",
+            "indexname": "azg_permissions_pkey",
             "schemaname": "public",
-            "tablename": "az_guard_role_permissions"
+            "tablename": "azg_permissions"
           },
           {
-            "indexdef": "CREATE INDEX az_role_perm_lookup ON public.az_guard_role_permissions USING btree (panel_id, permission_key)",
-            "indexname": "az_role_perm_lookup",
+            "indexdef": "CREATE UNIQUE INDEX azg_pm_identity ON public.azg_permissions USING btree (panel, tenant_key, name)",
+            "indexname": "azg_pm_identity",
             "schemaname": "public",
-            "tablename": "az_guard_role_permissions"
+            "tablename": "azg_permissions"
+          }
+        ],
+        "owner": "Framework/vendor",
+        "retention": "business"
+      },
+      "azg_role_grants": {
+        "columns": [
+          {
+            "column_default": "nextval('azg_role_grants_id_seq'::regclass)",
+            "column_name": "id",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "int8"
           },
           {
-            "indexdef": "CREATE UNIQUE INDEX az_role_perm_unique ON public.az_guard_role_permissions USING btree (role_id, permission_key, panel_id)",
-            "indexname": "az_role_perm_unique",
+            "column_default": null,
+            "column_name": "panel",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "tenant_key",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "tenant_type",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 4,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "tenant_id",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 5,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "role",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 6,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "subject_type",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "subject_id",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 8,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "context_key",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 9,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "context_type",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 10,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "context_id",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 11,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": "'manual'::character varying",
+            "column_name": "origin",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 12,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "expires_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 13,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "timestamp"
+          },
+          {
+            "column_default": null,
+            "column_name": "actor_type",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 14,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "actor_id",
+            "data_type": "character varying",
+            "is_nullable": "YES",
+            "ordinal_position": 15,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "actor_reason",
+            "data_type": "text",
+            "is_nullable": "YES",
+            "ordinal_position": 16,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "meta",
+            "data_type": "json",
+            "is_nullable": "YES",
+            "ordinal_position": 17,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "json"
+          },
+          {
+            "column_default": null,
+            "column_name": "created_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 18,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "timestamp"
+          },
+          {
+            "column_default": null,
+            "column_name": "updated_at",
+            "data_type": "timestamp without time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 19,
+            "table_name": "azg_role_grants",
+            "table_schema": "public",
+            "udt_name": "timestamp"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK (((((context_key)::text = 'global'::text) = ((context_type IS NULL) AND (context_id IS NULL))) AND ((context_type IS NULL) = (context_id IS NULL))))",
+            "name": "azg_rg_context_pair",
+            "schema": "public",
+            "table_name": "azg_role_grants",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (panel, tenant_key, role, subject_type, subject_id, context_key, origin)",
+            "name": "azg_rg_identity",
+            "schema": "public",
+            "table_name": "azg_role_grants",
+            "type": "u"
+          },
+          {
+            "definition": "CHECK (((((tenant_key)::text = 'global'::text) = ((tenant_type IS NULL) AND (tenant_id IS NULL))) AND ((tenant_type IS NULL) = (tenant_id IS NULL))))",
+            "name": "azg_rg_tenant_pair",
+            "schema": "public",
+            "table_name": "azg_role_grants",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "azg_role_grants_pkey",
+            "schema": "public",
+            "table_name": "azg_role_grants",
+            "type": "p"
+          }
+        ],
+        "definition": "CREATE TABLE public.azg_role_grants (\n    id bigint NOT NULL,\n    panel character varying(64) NOT NULL COLLATE pg_catalog.\"C\",\n    tenant_key character varying(200) NOT NULL COLLATE pg_catalog.\"C\",\n    tenant_type character varying(128) COLLATE pg_catalog.\"C\",\n    tenant_id character varying(64) COLLATE pg_catalog.\"C\",\n    role character varying(64) NOT NULL COLLATE pg_catalog.\"C\",\n    subject_type character varying(128) NOT NULL COLLATE pg_catalog.\"C\",\n    subject_id character varying(64) NOT NULL COLLATE pg_catalog.\"C\",\n    context_key character varying(200) NOT NULL COLLATE pg_catalog.\"C\",\n    context_type character varying(128) COLLATE pg_catalog.\"C\",\n    context_id character varying(64) COLLATE pg_catalog.\"C\",\n    origin character varying(128) DEFAULT 'manual'::character varying NOT NULL COLLATE pg_catalog.\"C\",\n    expires_at timestamp(0) without time zone,\n    actor_type character varying(128) COLLATE pg_catalog.\"C\",\n    actor_id character varying(64) COLLATE pg_catalog.\"C\",\n    actor_reason text,\n    meta json,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    CONSTRAINT azg_rg_context_pair CHECK (((((context_key)::text = 'global'::text) = ((context_type IS NULL) AND (context_id IS NULL))) AND ((context_type IS NULL) = (context_id IS NULL)))),\n    CONSTRAINT azg_rg_tenant_pair CHECK (((((tenant_key)::text = 'global'::text) = ((tenant_type IS NULL) AND (tenant_id IS NULL))) AND ((tenant_type IS NULL) = (tenant_id IS NULL))))\n);",
+        "indexes": [
+          {
+            "indexdef": "CREATE INDEX azg_rg_context ON public.azg_role_grants USING btree (panel, tenant_key, context_type, context_id)",
+            "indexname": "azg_rg_context",
             "schemaname": "public",
-            "tablename": "az_guard_role_permissions"
+            "tablename": "azg_role_grants"
+          },
+          {
+            "indexdef": "CREATE INDEX azg_rg_expiry ON public.azg_role_grants USING btree (expires_at)",
+            "indexname": "azg_rg_expiry",
+            "schemaname": "public",
+            "tablename": "azg_role_grants"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX azg_rg_identity ON public.azg_role_grants USING btree (panel, tenant_key, role, subject_type, subject_id, context_key, origin)",
+            "indexname": "azg_rg_identity",
+            "schemaname": "public",
+            "tablename": "azg_role_grants"
+          },
+          {
+            "indexdef": "CREATE INDEX azg_rg_origin ON public.azg_role_grants USING btree (panel, tenant_key, origin)",
+            "indexname": "azg_rg_origin",
+            "schemaname": "public",
+            "tablename": "azg_role_grants"
+          },
+          {
+            "indexdef": "CREATE INDEX azg_rg_subject ON public.azg_role_grants USING btree (panel, tenant_key, subject_type, subject_id, context_key)",
+            "indexname": "azg_rg_subject",
+            "schemaname": "public",
+            "tablename": "azg_role_grants"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX azg_role_grants_pkey ON public.azg_role_grants USING btree (id)",
+            "indexname": "azg_role_grants_pkey",
+            "schemaname": "public",
+            "tablename": "azg_role_grants"
+          }
+        ],
+        "owner": "Framework/vendor",
+        "retention": "business"
+      },
+      "azg_storage_state": {
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "smallint",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "azg_storage_state",
+            "table_schema": "public",
+            "udt_name": "int2"
+          },
+          {
+            "column_default": null,
+            "column_name": "schema",
+            "data_type": "json",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "azg_storage_state",
+            "table_schema": "public",
+            "udt_name": "json"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "CHECK ((id = 1))",
+            "name": "azg_ss_singleton",
+            "schema": "public",
+            "table_name": "azg_storage_state",
+            "type": "c"
+          },
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "azg_storage_state_pkey",
+            "schema": "public",
+            "table_name": "azg_storage_state",
+            "type": "p"
+          }
+        ],
+        "definition": "CREATE TABLE public.azg_storage_state (\n    id smallint NOT NULL,\n    schema json NOT NULL,\n    CONSTRAINT azg_ss_singleton CHECK ((id = 1))\n);",
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX azg_storage_state_pkey ON public.azg_storage_state USING btree (id)",
+            "indexname": "azg_storage_state_pkey",
+            "schemaname": "public",
+            "tablename": "azg_storage_state"
+          }
+        ],
+        "owner": "Framework/vendor",
+        "retention": "business"
+      },
+      "azg_subject_revisions": {
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "panel",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "azg_subject_revisions",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "subject_type",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "azg_subject_revisions",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": null,
+            "column_name": "subject_id",
+            "data_type": "character varying",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "azg_subject_revisions",
+            "table_schema": "public",
+            "udt_name": "varchar"
+          },
+          {
+            "column_default": "'0'::bigint",
+            "column_name": "revision",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "azg_subject_revisions",
+            "table_schema": "public",
+            "udt_name": "int8"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "PRIMARY KEY (panel, subject_type, subject_id)",
+            "name": "azg_subject_revisions_pkey",
+            "schema": "public",
+            "table_name": "azg_subject_revisions",
+            "type": "p"
+          }
+        ],
+        "definition": "CREATE TABLE public.azg_subject_revisions (\n    panel character varying(64) NOT NULL COLLATE pg_catalog.\"C\",\n    subject_type character varying(128) NOT NULL COLLATE pg_catalog.\"C\",\n    subject_id character varying(64) NOT NULL COLLATE pg_catalog.\"C\",\n    revision bigint DEFAULT '0'::bigint NOT NULL\n);",
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX azg_subject_revisions_pkey ON public.azg_subject_revisions USING btree (panel, subject_type, subject_id)",
+            "indexname": "azg_subject_revisions_pkey",
+            "schemaname": "public",
+            "tablename": "azg_subject_revisions"
           }
         ],
         "owner": "Framework/vendor",
@@ -2220,228 +2864,6 @@
             "indexname": "migrations_pkey",
             "schemaname": "public",
             "tablename": "migrations"
-          }
-        ],
-        "owner": "Framework/vendor",
-        "retention": "business"
-      },
-      "model_has_roles": {
-        "columns": [
-          {
-            "column_default": null,
-            "column_name": "role_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "model_has_roles",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "model_type",
-            "data_type": "character varying",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "model_has_roles",
-            "table_schema": "public",
-            "udt_name": "varchar"
-          },
-          {
-            "column_default": null,
-            "column_name": "model_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 3,
-            "table_name": "model_has_roles",
-            "table_schema": "public",
-            "udt_name": "int8"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE",
-            "name": "model_has_roles_role_id_foreign",
-            "schema": "public",
-            "table_name": "model_has_roles",
-            "type": "f"
-          },
-          {
-            "definition": "UNIQUE (role_id, model_type, model_id)",
-            "name": "model_has_roles_unique",
-            "schema": "public",
-            "table_name": "model_has_roles",
-            "type": "u"
-          }
-        ],
-        "definition": "CREATE TABLE public.model_has_roles (\n    role_id bigint NOT NULL,\n    model_type character varying(255) NOT NULL,\n    model_id bigint NOT NULL\n);",
-        "indexes": [
-          {
-            "indexdef": "CREATE INDEX azg_ecf0cb43c2fcb2e068a1502f15dbf41f2077daa4_idx ON public.model_has_roles USING btree (model_type, model_id)",
-            "indexname": "azg_ecf0cb43c2fcb2e068a1502f15dbf41f2077daa4_idx",
-            "schemaname": "public",
-            "tablename": "model_has_roles"
-          },
-          {
-            "indexdef": "CREATE UNIQUE INDEX model_has_roles_unique ON public.model_has_roles USING btree (role_id, model_type, model_id)",
-            "indexname": "model_has_roles_unique",
-            "schemaname": "public",
-            "tablename": "model_has_roles"
-          }
-        ],
-        "owner": "Framework/vendor",
-        "retention": "business"
-      },
-      "model_has_scopes": {
-        "columns": [
-          {
-            "column_default": "nextval('model_has_scopes_id_seq'::regclass)",
-            "column_name": "id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "model_type",
-            "data_type": "character varying",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "varchar"
-          },
-          {
-            "column_default": null,
-            "column_name": "model_id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 3,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "scope_entity_type",
-            "data_type": "character varying",
-            "is_nullable": "YES",
-            "ordinal_position": 4,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "varchar"
-          },
-          {
-            "column_default": null,
-            "column_name": "scope_entity_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 5,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "scope_class",
-            "data_type": "character varying",
-            "is_nullable": "YES",
-            "ordinal_position": 6,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "varchar"
-          },
-          {
-            "column_default": null,
-            "column_name": "created_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 7,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "timestamp"
-          },
-          {
-            "column_default": null,
-            "column_name": "updated_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 8,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "timestamp"
-          },
-          {
-            "column_default": null,
-            "column_name": "role_id",
-            "data_type": "bigint",
-            "is_nullable": "YES",
-            "ordinal_position": 9,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "panel_id",
-            "data_type": "character varying",
-            "is_nullable": "YES",
-            "ordinal_position": 10,
-            "table_name": "model_has_scopes",
-            "table_schema": "public",
-            "udt_name": "varchar"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "PRIMARY KEY (id)",
-            "name": "model_has_scopes_pkey",
-            "schema": "public",
-            "table_name": "model_has_scopes",
-            "type": "p"
-          },
-          {
-            "definition": "FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL",
-            "name": "model_has_scopes_role_id_foreign",
-            "schema": "public",
-            "table_name": "model_has_scopes",
-            "type": "f"
-          }
-        ],
-        "definition": "CREATE TABLE public.model_has_scopes (\n    id bigint NOT NULL,\n    model_type character varying(255) NOT NULL,\n    model_id bigint NOT NULL,\n    scope_entity_type character varying(255),\n    scope_entity_id bigint,\n    scope_class character varying(255),\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    role_id bigint,\n    panel_id character varying(255)\n);",
-        "indexes": [
-          {
-            "indexdef": "CREATE INDEX azg_364be6041f25cf9392be1970c7177ba6390b9198_idx ON public.model_has_scopes USING btree (model_type, model_id)",
-            "indexname": "azg_364be6041f25cf9392be1970c7177ba6390b9198_idx",
-            "schemaname": "public",
-            "tablename": "model_has_scopes"
-          },
-          {
-            "indexdef": "CREATE INDEX azg_36c1e6e07cca0dccc8ef9a39c8148f57a212b63f_idx ON public.model_has_scopes USING btree (scope_entity_type, scope_entity_id)",
-            "indexname": "azg_36c1e6e07cca0dccc8ef9a39c8148f57a212b63f_idx",
-            "schemaname": "public",
-            "tablename": "model_has_scopes"
-          },
-          {
-            "indexdef": "CREATE INDEX model_has_scopes_panel_id_index ON public.model_has_scopes USING btree (panel_id)",
-            "indexname": "model_has_scopes_panel_id_index",
-            "schemaname": "public",
-            "tablename": "model_has_scopes"
-          },
-          {
-            "indexdef": "CREATE UNIQUE INDEX model_has_scopes_pkey ON public.model_has_scopes USING btree (id)",
-            "indexname": "model_has_scopes_pkey",
-            "schemaname": "public",
-            "tablename": "model_has_scopes"
-          },
-          {
-            "indexdef": "CREATE UNIQUE INDEX model_has_scopes_unique ON public.model_has_scopes USING btree (model_type, model_id, COALESCE(scope_entity_type, ''::character varying), COALESCE(scope_entity_id, (0)::bigint), COALESCE(role_id, (0)::bigint), COALESCE(panel_id, ''::character varying))",
-            "indexname": "model_has_scopes_unique",
-            "schemaname": "public",
-            "tablename": "model_has_scopes"
           }
         ],
         "owner": "Framework/vendor",
@@ -20934,103 +21356,6 @@
           }
         ],
         "owner": "Reference",
-        "retention": "business"
-      },
-      "roles": {
-        "columns": [
-          {
-            "column_default": "nextval('roles_id_seq'::regclass)",
-            "column_name": "id",
-            "data_type": "bigint",
-            "is_nullable": "NO",
-            "ordinal_position": 1,
-            "table_name": "roles",
-            "table_schema": "public",
-            "udt_name": "int8"
-          },
-          {
-            "column_default": null,
-            "column_name": "name",
-            "data_type": "character varying",
-            "is_nullable": "NO",
-            "ordinal_position": 2,
-            "table_name": "roles",
-            "table_schema": "public",
-            "udt_name": "varchar"
-          },
-          {
-            "column_default": null,
-            "column_name": "class_name",
-            "data_type": "character varying",
-            "is_nullable": "YES",
-            "ordinal_position": 3,
-            "table_name": "roles",
-            "table_schema": "public",
-            "udt_name": "varchar"
-          },
-          {
-            "column_default": "0",
-            "column_name": "level",
-            "data_type": "integer",
-            "is_nullable": "NO",
-            "ordinal_position": 4,
-            "table_name": "roles",
-            "table_schema": "public",
-            "udt_name": "int4"
-          },
-          {
-            "column_default": null,
-            "column_name": "created_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 5,
-            "table_name": "roles",
-            "table_schema": "public",
-            "udt_name": "timestamp"
-          },
-          {
-            "column_default": null,
-            "column_name": "updated_at",
-            "data_type": "timestamp without time zone",
-            "is_nullable": "YES",
-            "ordinal_position": 6,
-            "table_name": "roles",
-            "table_schema": "public",
-            "udt_name": "timestamp"
-          }
-        ],
-        "constraints": [
-          {
-            "definition": "UNIQUE (name)",
-            "name": "roles_name_unique",
-            "schema": "public",
-            "table_name": "roles",
-            "type": "u"
-          },
-          {
-            "definition": "PRIMARY KEY (id)",
-            "name": "roles_pkey",
-            "schema": "public",
-            "table_name": "roles",
-            "type": "p"
-          }
-        ],
-        "definition": "CREATE TABLE public.roles (\n    id bigint NOT NULL,\n    name character varying(255) NOT NULL,\n    class_name character varying(255),\n    level integer DEFAULT 0 NOT NULL,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);",
-        "indexes": [
-          {
-            "indexdef": "CREATE UNIQUE INDEX roles_name_unique ON public.roles USING btree (name)",
-            "indexname": "roles_name_unique",
-            "schemaname": "public",
-            "tablename": "roles"
-          },
-          {
-            "indexdef": "CREATE UNIQUE INDEX roles_pkey ON public.roles USING btree (id)",
-            "indexname": "roles_pkey",
-            "schemaname": "public",
-            "tablename": "roles"
-          }
-        ],
-        "owner": "Framework/vendor",
         "retention": "business"
       },
       "sessions": {

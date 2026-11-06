@@ -1,8 +1,8 @@
 {
     "format": "structured-ai-acceptance/v1",
     "captured_at": "2026-11-03",
-    "contract_hashes_refreshed_at": "2026-11-04",
-    "provenance": "Synthetic orchestration contracts and existing legacy eval inventory; expectations hand-authored, hashes computed from versioned bytes; no paid model invocation or source-original verification. Current contract hashes refreshed after bounded receipt-envelope and recovery-batch fixes with their regression tests; original capture date and legacy eval inventory retained.",
+    "contract_hashes_refreshed_at": "2026-11-05",
+    "provenance": "Synthetic orchestration contracts and existing legacy eval inventory; expectations hand-authored, hashes computed from versioned bytes; no paid model invocation or source-original verification. Current contract hashes refreshed after bounded receipt-envelope, recovery-batch and cancelled running-send receipt settlement fixes with their regression tests; original capture date and legacy eval inventory retained.",
     "quality": {
         "status": "not_measured",
         "paid_holdout_executed": false,
@@ -292,19 +292,19 @@
         },
         {
             "path": "app/Services/Procurement/Extraction/AnalysisCallCoordinator.php",
-            "sha256": "52ee872b838b410003dd63062740e46f6d9a1258357f48359fdc4267406b00e7"
+            "sha256": "b58b1f731cbdc0bf7b1373c025b2ad08358baa984b4fa7adfce6700dba39c812"
         },
         {
             "path": "app/Services/Procurement/Extraction/AnalysisGeneration.php",
-            "sha256": "cd8e0a553963829f637e0b3e4fad9abbb903155edb967b17d0074441ac0a90b6"
+            "sha256": "c7ba0f37f37c8b8651714fd5bcad90489eda8826afeff0459509bf143b792134"
         },
         {
             "path": "app/Services/Procurement/Extraction/AnalysisProviderSendGate.php",
-            "sha256": "73ecee5e915ec2ba7ca00cedf485afcd18373178fba435a6646db905b21063be"
+            "sha256": "361f7df5c02a4b1fc1744cb79f9af69cd29f4ee75c29e479873b983a66f3a654"
         },
         {
             "path": "app/Services/Procurement/Extraction/ChunkCommitter.php",
-            "sha256": "3b3c70ea3f48adafe01b69a2e8b499292f5b9bfccf0f35aa99e58db9f7efdef2"
+            "sha256": "e6e11173106f5b7e61dd9fb9eb62a9205577c149cdbf0ad8a6397b2716ed3d28"
         },
         {
             "path": "app/Services/Procurement/Extraction/ExtractionHandler.php",
@@ -520,7 +520,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Llm/FinancialRecoveryTest.php",
-            "sha256": "e387319d87c8bd2cc28df793a5e9fe4f189c7ba534c2e80c4137d2e17414b64d",
+            "sha256": "9b5fa643a949f04239b6af7d1da42fa513f5a074829f72b4d889970e356df32c",
             "original_path": "tests/Feature/ProcessCore/Llm/T22FinancialRecoveryTest.php",
             "original_sha256": "dacf17d6d6bfae508bb965ec846bddc83c8fcac6d9c777be60bb0b0f2578a798",
             "before_polish_sha256": "b078a4ecc36ce3a1fdea0064421b211d0bcd0a8ac4f9739c4c09fdcd3d602b71"

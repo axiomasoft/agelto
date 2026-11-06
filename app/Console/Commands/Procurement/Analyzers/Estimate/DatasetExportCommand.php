@@ -28,12 +28,7 @@ use Illuminate\Support\Facades\Storage;
         {--path= : путь внутри диска (по умолчанию — ai/dataset-exports/<format>-<timestamp>.jsonl)}')]
 final class DatasetExportCommand extends Command
 {
-    public function __construct(private readonly DatasetExporter $exporter)
-    {
-        parent::__construct();
-    }
-
-    public function handle(): int
+    public function handle(DatasetExporter $exporter): int
     {
         $format = (string) $this->option('format');
 
@@ -65,7 +60,7 @@ final class DatasetExportCommand extends Command
         $disk = $this->disk();
         $path = (string) ($this->option('path') ?: sprintf('ai/dataset-exports/%s-%s.jsonl', $format, now()->format('Ymd-His')));
 
-        [$stats, $stream] = $this->exporter->export($format, $task, $split, $sources, $dpoSchema);
+        [$stats, $stream] = $exporter->export($format, $task, $split, $sources, $dpoSchema);
 
         Storage::disk($disk)->put($path, $stream);
         fclose($stream);

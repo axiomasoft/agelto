@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Guards\Admin\Permissions;
 
+use App\Models\Procurement\Ai\Fixture;
+use AzGuard\Permissions\RequiresGrant;
+use AzGuard\Permissions\Resource;
+
+#[RequiresGrant]
+#[Resource(model: Fixture::class)]
 enum FixturePermission: string
 {
     case ViewAny = 'fixture.view_any';

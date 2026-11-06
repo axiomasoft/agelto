@@ -7,6 +7,7 @@ namespace App\Repositories\Organization;
 use App\Dto\Organization\OrganizationIdentifierData;
 use App\Models\Organization\Organization;
 use App\Models\Organization\OrganizationIdentifier;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Единственная точка персистентности `org_organizations`. Бизнес-логика entity resolution
@@ -40,6 +41,11 @@ final readonly class OrganizationStoreRepository
     public function lock(Organization $organization): Organization
     {
         return Organization::query()->lockForUpdate()->findOrFail($organization->id);
+    }
+
+    public function lockOgrnResolution(string $ogrn): void
+    {
+        DB::select('SELECT pg_advisory_xact_lock(hashtext(?), hashtext(?))', ['org_organizations.ogrn', $ogrn]);
     }
 
     /** @param list<OrganizationIdentifierData> $identifiers */

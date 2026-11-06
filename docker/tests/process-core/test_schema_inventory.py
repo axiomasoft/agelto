@@ -135,9 +135,9 @@ class SchemaInventoryTest(unittest.TestCase):
         # Canonical AI removes both legacy run/call tables.
         self.assertEqual(self.inventory["current_item"], "P3.17")
         self.assertEqual(len(self.inventory["migrations"]), 77)
-        self.assertEqual(len(self.inventory["baseline"]["tables"]), 120)
+        self.assertEqual(len(self.inventory["baseline"]["tables"]), 121)
         # Sealed coverage/publication metadata and normalized estimate provenance are required.
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1429)
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1457)
         adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
                            for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]
                            if c["column_name"] in ("adapter_health_id", "adapter_health_epoch")}

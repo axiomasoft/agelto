@@ -27,12 +27,7 @@ use Illuminate\Console\Command;
         {--limit= : максимум предложений за прогон}')]
 final class PromptsSuggestCommand extends Command
 {
-    public function __construct(private readonly PromptSuggestionRunner $runner)
-    {
-        parent::__construct();
-    }
-
-    public function handle(): int
+    public function handle(PromptSuggestionRunner $runner): int
     {
         $codes = array_values(array_map('strval', (array) $this->option('code')));
         $analysisOption = $this->option('analysis');
@@ -53,7 +48,7 @@ final class PromptsSuggestCommand extends Command
             return self::FAILURE;
         }
 
-        $result = $this->runner->run(
+        $result = $runner->run(
             $codes,
             $analysisOption !== null ? (int) $analysisOption : null,
             $stepOptions,

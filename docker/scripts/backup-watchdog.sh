@@ -28,7 +28,7 @@ done
 
 declare -A state=()
 while IFS='=' read -r key value; do
-    case "$key" in completed_at|verified|offhost|manifest_sha256) ;; *) fail "unknown status key $key" ;; esac
+    case "$key" in completed_at|verified|verified_local|offhost|manifest_sha256|backup_dir|rehearsal_db) ;; *) fail "unknown status key $key" ;; esac
     [[ ! -v "state[$key]" ]] || fail "duplicate status key $key"
     state["$key"]=$value
 done < "$status_file"
