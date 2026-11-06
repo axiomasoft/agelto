@@ -44,7 +44,6 @@ use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\Proxy\RoutePolicy;
 use Closure;
 use GuzzleHttp\Psr7\Response;
-use Illuminate\Support\Str;
 
 /** Temporary network seam only. Existing callers retain their business scheduler and persistence. */
 final readonly class LegacyOutboundClient implements LegacyOutbound
@@ -89,7 +88,7 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
                 throw new OutboundUnavailable(new TransportBlocked(NetworkBlockedReason::ConfigurationHold));
             }
             $profile = RequestProfile::fromArray($encoded);
-            $plan = new OutboundRequestPlan(self::uuid(), new ProcessUuid($target->string('id')), 'GET', $call->firstUrl,
+            $plan = new OutboundRequestPlan(ProcessUuid::random(), new ProcessUuid($target->string('id')), 'GET', $call->firstUrl,
                 $profile, $call->trafficClass, IdempotencyClass::ReadOnly);
             $selection = $this->routes->outboundRoutes($call->routes)->select($plan,
                 new RetryRoutePreference([], null, false, $profile->distinctRoutes));
@@ -129,11 +128,6 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
             }
             throw $failure;
         }
-    }
-
-    private static function uuid(): ProcessUuid
-    {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
     }
 
     /** @param list<string> $controls */
@@ -195,7 +189,7 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
         if ($profile === null) {
             return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
         }
-        $plan = new OutboundRequestPlan(new ProcessUuid(Str::lower((string) Str::uuid())), new ProcessUuid($target->string('id')),
+        $plan = new OutboundRequestPlan(ProcessUuid::random(), new ProcessUuid($target->string('id')),
             $method, $url, $profile, $trafficClass, $idempotency,
             $payload->body === null ? null : new ContentHash(hash('sha256', $payload->body)), $sendLimit, $context?->adapterClaim());
         $hash = new ContentHash(hash('sha256', json_encode($profile->toArray(), JSON_THROW_ON_ERROR)));

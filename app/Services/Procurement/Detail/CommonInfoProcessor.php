@@ -9,12 +9,12 @@ use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
 use App\Dto\Procurement\Platform\PlatformCode;
+use App\Enums\Telemetry\LogChannel;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
 use App\Services\Procurement\Acquisition\ExtensionWriter;
 use App\Services\Reference\ClassifierResolver;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /**
  * DTO → БД для вкладки `common-info`: registered adapter extension, `prc_financing`
@@ -39,7 +39,7 @@ final readonly class CommonInfoProcessor
         $reconcileParties = $snapshot->authorizesPartiesReconciliation();
 
         if (! $reconcileCommonInfo && ! $reconcileParties) {
-            Log::warning(message: 'CommonInfoProcessor: snapshot не содержит подтверждённых полных проекций.', context: [
+            LogChannel::Procurement->warning(message: 'CommonInfoProcessor: snapshot не содержит подтверждённых полных проекций.', context: [
                 'procurement_id' => $procurement->id,
                 'common_info_status' => $snapshot->status->value,
                 'parties_complete' => $snapshot->partiesComplete,

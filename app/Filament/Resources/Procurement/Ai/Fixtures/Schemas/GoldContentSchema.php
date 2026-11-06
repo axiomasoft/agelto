@@ -12,7 +12,7 @@ use Filament\Tables\Table;
 final class GoldContentSchema
 {
     /** @var array<string, string> */
-    public const FIELD_LABELS = [
+    public const array FIELD_LABELS = [
         'estimate_number' => 'Смета №',
         'currency' => 'Валюта',
         'base_year' => 'Базовый год',

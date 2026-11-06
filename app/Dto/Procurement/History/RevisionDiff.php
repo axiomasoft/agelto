@@ -9,7 +9,7 @@ use Spatie\LaravelData\Data;
 final class RevisionDiff extends Data
 {
     /** @var array<string, string> */
-    public const FIELD_LABELS = [
+    public const array FIELD_LABELS = [
         'title' => 'Наименование',
         'status' => 'Статус',
         'initial_price' => 'Начальная цена',

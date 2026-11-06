@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers;
 
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\CreateCrawler;

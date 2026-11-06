@@ -54,7 +54,9 @@ final readonly class MinioLifecycleManager
      */
     private function existingRulePrefixes(string $target): array
     {
-        $result = Process::run(['mc', 'ilm', 'rule', 'ls', $target, '--json']);
+        $result = Process::env([
+            'MC_HOST_'.self::ALIAS => $this->aliasUrl(),
+        ])->run(['mc', 'ilm', 'rule', 'ls', $target, '--json']);
         $payload = json_decode($result->output(), true);
 
         if (! is_array($payload)) {

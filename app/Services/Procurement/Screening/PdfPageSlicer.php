@@ -35,13 +35,19 @@ final readonly class PdfPageSlicer
 
         $outputPath = PipelineTemporaryFile::create(prefix: 'screening_slice_', extension: 'pdf');
 
-        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run(['qpdf', $inputPath, '--pages', '.', "1-{$pages}", '--', $outputPath]);
+        try {
+            $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run(['qpdf', $inputPath, '--pages', '.', "1-{$pages}", '--', $outputPath]);
 
-        if ($result->failed()) {
-            throw new RuntimeException("qpdf: не удалось вырезать первые {$pages} стр.: ".trim($result->errorOutput()));
+            if ($result->failed()) {
+                throw new RuntimeException("qpdf: не удалось вырезать первые {$pages} стр.: ".trim($result->errorOutput()));
+            }
+
+            return $outputPath;
+        } catch (\Throwable $e) {
+            @unlink($outputPath);
+
+            throw $e;
         }
-
-        return $outputPath;
     }
 
     /**
@@ -71,13 +77,19 @@ final readonly class PdfPageSlicer
     {
         $outputPath = PipelineTemporaryFile::create(prefix: 'extraction_window_', extension: 'pdf');
 
-        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run(['qpdf', $inputPath, '--pages', '.', "{$pageStart}-{$pageEnd}", '--', $outputPath]);
+        try {
+            $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run(['qpdf', $inputPath, '--pages', '.', "{$pageStart}-{$pageEnd}", '--', $outputPath]);
 
-        if ($result->failed()) {
-            throw new RuntimeException("qpdf: не удалось вырезать страницы {$pageStart}-{$pageEnd}: ".trim($result->errorOutput()));
+            if ($result->failed()) {
+                throw new RuntimeException("qpdf: не удалось вырезать страницы {$pageStart}-{$pageEnd}: ".trim($result->errorOutput()));
+            }
+
+            return $outputPath;
+        } catch (\Throwable $e) {
+            @unlink($outputPath);
+
+            throw $e;
         }
-
-        return $outputPath;
     }
 
     private function timeout(?float $deadlineAt): int

@@ -29,7 +29,6 @@ use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Str;
 
 /**
  * Единственная точка исполнения одной queue delivery: envelope → claim →
@@ -200,7 +199,7 @@ final readonly class WorkRunner
         ProcessLog::quarantined('queue_schema_unsupported', [
             'work_id' => $delivery->workId->value->value, 'queue_schema_version' => $delivery->queueSchemaVersion,
         ]);
-        $ids = [self::uuid(), self::uuid(), self::uuid()];
+        $ids = [ProcessUuid::random(), ProcessUuid::random(), ProcessUuid::random()];
         try {
             $this->transaction->run(fn (): ProcessUuid => $this->incidents->open(
                 fingerprint: ContentHash::of('queue-schema:v1:'.$delivery->queueSchemaVersion),
@@ -217,10 +216,5 @@ final readonly class WorkRunner
             }
             ProcessLog::dependencyUnavailable('database', $exception);
         }
-    }
-
-    private static function uuid(): ProcessUuid
-    {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
     }
 }

@@ -28,4 +28,5 @@ description: "Правила безопасного тестирования Age
 
 - Создавай модели через фабрики (`Model::factory()->create()`).
 - Имена тестов: `test('<русский intent поведения>', fn () => ...)` — описывай проверяемый инвариант или сценарий без привязки к номерам задач (`T26`, `P1.x`, `bp-jobs`).
-- При изменении файлов, перечисленных в `tests/Fixtures/ProcessCore/manifest.json` (`source_classes`, `files`), синхронизируй SHA-256 хэши манифеста перед `make core-quality` и `make core-test-regression`.
+- При изменении файлов, перечисленных в `tests/Fixtures/ProcessCore/manifest.json` (`source_classes`, `migrations`, `contract_fixtures`, `files`) или `tests/Fixtures/ProcessCore/runtime-inputs.json`, синхронизируй SHA-256 хэши манифеста (и `tests/Support/ProcessCore/schema-inventory.json` для миграций) перед `make core-quality` и `make core-test-regression`.
+- При добавлении/удалении классов в `App\{Enums,Exceptions,Dto,Repositories}\Procurement` или ядровых пространствах имён проверяй `DomainLayoutTest.php` и `CoreKnowsNoDocumentTypeTest.php`.

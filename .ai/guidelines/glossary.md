@@ -10,7 +10,7 @@ Use the technical names below in identifiers; business terms are fine in UI/comm
 - `Procurement` → `$procurement`: procurement (`head_generation`); `Document` / `DocumentVersion` → `$document` / `$documentVersion`: procurement document (`head_generation`) and immutable version bytes.
 - `Estimate` → `$estimate`: parsed estimate DTO/model; never use `Smeta` in identifiers. `Lot` / `PurchaseItem` is not `Estimate\Item`.
 - `Proxy` → `$proxy`: outbound node. Obtain it only through `ProxyResolver`; `ProxyScope` names request purpose. Route (`prc_route_health`), target (`prc_target_health`), pair (`prc_route_target_health`), and adapter (`prc_adapter_health`) health are separate.
-- Crawler filters are typed DTOs resolved by registry through `crawler.filters`; an unmapped registry fails, never falls back silently. `SourceTlsTrust` is the sole TLS-trust holder (`verify => false` is forbidden).
+- Crawler filters are typed DTOs declared on each platform's `PlatformDefinition::acquisitionProfile` (`AcquisitionProfileDescriptor`) and restored via `ListingFilterCodec`; an unmapped filter fails, never falls back silently. `SourceTlsTrust` (`outbound.http.tls_bundles`) is the sole TLS-trust holder (`verify => false` is forbidden).
 
 ## AI & LLM Ledger terms
 

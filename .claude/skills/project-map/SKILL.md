@@ -16,8 +16,8 @@ description: "Быстрая карта структуры проекта Agelto
    - `Acquisition/` & `Crawler/` — запуск обхода, курсоры, coverage, финализация `listing`/`detail`/`status_refresh`.
    - `Document/` & `Prepare/` & `Storage/` — скачивание, immutable CAS blobs (`prc_document_blobs`), резервации, конвертеры (`GsfxStrategy`, `WordStrategy`, `SpreadsheetStrategy`, `ScanStrategy`), GC/reconcile.
    - `Screening/` & `Extraction/` & `Ai/` — скрининг документов, извлечение смет, финализация анализов.
-2. **`Platforms/<Code>`** — `app/{Services,Dto,Enums}/Platforms/<Code>/`:
-   - Изолированные адаптеры площадок (`Eis`, `Rts`, `SberAst`, `Roseltorg`, `Zakazrf`, `Fabrikant`, `Gpbl`, `EtpEts`, `TekTorg`). Никаких площадочных полей/веток в общих моделях и сервисах.
+2. **`Platforms/<Code>`** — `app/{Services,Dto,Enums,Models,Filament}/Platforms/<Code>/`:
+   - Изолированные адаптеры площадок (активный production-адаптер: `Eis`; фикстурный тестовый адаптер: `JsonProcurement` в `tests/Support/Platforms/JsonProcurement/`; целевые площадки в реестре: `Rts`, `SberAst`, `Roseltorg`, `Zakazrf`, `Fabrikant`, `Gpbl`, `EtpEts`, `TekTorg`). Никаких площадочных полей/веток в общих моделях и сервисах.
 3. **`Reference` (`ref_*`)** — `app/{Models,Services}/Reference/`:
    - Классификаторы ОКПД2, КТРУ, ОКВЭД2, КБК (`ClassifierResolver`, `ClassifierImporter`).
 4. **`Organization` (`org_*`)** — `app/{Models,Services,Repositories}/Organization/`:

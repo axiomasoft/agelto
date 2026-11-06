@@ -13,7 +13,6 @@ use App\Enums\Procurement\BidStatus;
 use App\Enums\Procurement\ProtocolType;
 use App\Services\Platforms\Eis\EisSourceClock;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
@@ -51,9 +50,9 @@ final readonly class SupplierResultsParser
     {
         try {
             $crawler = new Crawler($html);
-            $protocol = $this->parseProtocol($this->fieldValue($crawler, self::TERM_PROTOCOL));
+            $protocol = $this->parseProtocol(CardDomHelper::readDefinitionValue($crawler, self::TERM_PROTOCOL));
             $bids = $this->parseBids($crawler);
-            $formedAt = $this->parseDateTime($this->fieldValue($crawler, self::TERM_FORMED_AT));
+            $formedAt = $this->parseDateTime(CardDomHelper::readDefinitionValue($crawler, self::TERM_FORMED_AT));
             $award = $this->buildAward($bids, $protocol, $formedAt);
 
             $this->warnIfBlockInfoSuppressed($crawler, $protocol, $bids);
@@ -63,7 +62,7 @@ final readonly class SupplierResultsParser
             if ($strict) {
                 throw $exception;
             }
-            Log::warning('Разбор вкладки supplier-results провалился целиком, вкладка пропущена', [
+            CardDomHelper::logWarning('Разбор вкладки supplier-results провалился целиком, вкладка пропущена', [
                 'exception' => $exception->getMessage(),
             ]);
 
@@ -85,7 +84,7 @@ final readonly class SupplierResultsParser
         );
 
         if ($matched !== 1) {
-            Log::warning('Строка протокола на вкладке supplier-results не распознана', ['text' => $normalized]);
+            CardDomHelper::logWarning('Строка протокола на вкладке supplier-results не распознана', ['text' => $normalized]);
 
             return null;
         }
@@ -199,51 +198,11 @@ final readonly class SupplierResultsParser
         );
     }
 
-    private function fieldValue(Crawler $crawler, string $term): ?string
-    {
-        $section = $this->titleSection($crawler, $term);
-        $info = $section !== null ? $this->infoNode($section) : null;
-
-        if ($info === null) {
-            return null;
-        }
-
-        $value = trim($info->text());
-
-        return $value !== '' ? $value : null;
-    }
-
-    private function titleSection(Crawler $crawler, string $term): ?Crawler
-    {
-        try {
-            $title = $crawler
-                ->filter('span.section__title')
-                ->reduce(static fn (Crawler $span): bool => trim($span->text()) === $term);
-
-            if ($title->count() === 0) {
-                return null;
-            }
-
-            $section = $title->ancestors()->first();
-
-            return $section->count() > 0 ? $section : null;
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private function infoNode(Crawler $section): ?Crawler
-    {
-        $info = $section->filter('span.section__info')->first();
-
-        return $info->count() > 0 ? $info : null;
-    }
-
     private function parseAmount(string $value): ?float
     {
-        $normalized = str_replace([' ', "\u{A0}", ','], ['', '', '.'], $value);
+        $normalized = CardDomHelper::normalizeAmount($value);
 
-        return is_numeric($normalized) ? (float) $normalized : null;
+        return $normalized !== null ? (float) $normalized : null;
     }
 
     private function parseDate(string $value): ?Carbon
@@ -269,12 +228,6 @@ final readonly class SupplierResultsParser
             return;
         }
 
-        $sections = $crawler->filter('section.blockInfo__section')->count();
-
-        if ($sections > 0) {
-            Log::warning('На вкладке supplier-results есть блоки blockInfo, но не распознано ни протокола, ни заявок', [
-                'sections' => $sections,
-            ]);
-        }
+        CardDomHelper::warnIfBlockInfoSuppressed($crawler, 'На вкладке supplier-results есть блоки blockInfo, но не распознано ни протокола, ни заявок');
     }
 }

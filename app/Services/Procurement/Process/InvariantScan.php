@@ -9,7 +9,6 @@ use App\Repositories\Procurement\Process\InvariantRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /** first tick and then once per 60 monotonic seconds, independent of delivery. */
 final class InvariantScan implements ReconcileCategory
@@ -44,7 +43,7 @@ final class InvariantScan implements ReconcileCategory
         $changed = 0;
         foreach ($violations as $violation) {
             // Stable IDs outside retry. No read transaction/locks remain when control is mutated.
-            $ids = [self::uuid(), self::uuid(), self::uuid(), self::uuid(), self::uuid()];
+            $ids = [ProcessUuid::random(), ProcessUuid::random(), ProcessUuid::random(), ProcessUuid::random(), ProcessUuid::random()];
             if ($this->transaction->run(fn (): bool => $this->invariants->recordAndHold($violation, ...$ids))) {
                 $changed++;
             }
@@ -52,10 +51,5 @@ final class InvariantScan implements ReconcileCategory
         $this->nextScanNs = $now + self::INTERVAL_SECONDS * 1_000_000_000;
 
         return $changed;
-    }
-
-    private static function uuid(): ProcessUuid
-    {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
     }
 }

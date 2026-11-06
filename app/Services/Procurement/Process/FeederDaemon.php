@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Process;
 
 use App\Dto\Procurement\Process\ClaimedOutboxMessage;
+use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DaemonTick;
 use App\Dto\Procurement\Process\LanePolicy;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Process\DaemonKind;
 use App\Enums\Procurement\Process\OutboxKind;
+use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
-use Illuminate\Support\Str;
 
 /**
  * Feeder daemon: periodic tick 2 s ±20% по всем parent lanes плюс
@@ -38,6 +39,7 @@ final class FeederDaemon implements ProcessDaemon
 
     public function __construct(
         private readonly OutboxRepository $outbox,
+        private readonly IncidentRepository $incidents,
         private readonly ProcessPayloadCodec $codec,
         private readonly WorkFeeder $feeder,
         private readonly ProcessPolicy $process,
@@ -53,7 +55,7 @@ final class FeederDaemon implements ProcessDaemon
 
     public function tick(): DaemonTick
     {
-        $token = self::uuid();
+        $token = ProcessUuid::random();
         /** @var list<ClaimedOutboxMessage> $wakes */
         $wakes = $this->transaction->run(fn (): array => $this->outbox->claim(OutboxKind::FeederWake, $token, $this->policy->feedWakeBatch, $this->policy->feedClaimSeconds));
         $now = $this->clock->monotonicNs();
@@ -95,8 +97,9 @@ final class FeederDaemon implements ProcessDaemon
             }
         } catch (\Throwable $failure) {
             // Tick не принят: wakes остаются в outbox для следующего tick, исключение классифицирует loop.
-            foreach ($wakes as $wake) {
-                $this->outbox->releaseClaim($wake, 'feed_tick_failed');
+            try {
+                $this->outbox->releaseClaims($wakes, 'feed_tick_failed');
+            } catch (\Throwable) {
             }
 
             throw $failure;
@@ -131,27 +134,35 @@ final class FeederDaemon implements ProcessDaemon
     private function consume(ClaimedOutboxMessage $wake): bool
     {
         if ($wake->payload->schemaVersion !== 1) {
-            $code = OutboxRepository::QUARANTINE_PREFIX.'schema_unsupported';
-            ProcessLog::quarantined($code, ['message_id' => $wake->messageId->value]);
-            $this->outbox->quarantine($wake, $code, 3600);
-
-            return false;
+            return $this->quarantine($wake, 'schema_unsupported');
         }
         try {
             $this->codec->decodeFeederWake($wake->payload);
         } catch (\InvalidArgumentException) {
-            $code = OutboxRepository::QUARANTINE_PREFIX.'payload_invalid';
-            ProcessLog::quarantined($code, ['message_id' => $wake->messageId->value]);
-            $this->outbox->quarantine($wake, $code, 3600);
-
-            return false;
+            return $this->quarantine($wake, 'payload_invalid');
         }
 
         return $this->outbox->markPublished($wake);
     }
 
-    private static function uuid(): ProcessUuid
+    private function quarantine(ClaimedOutboxMessage $wake, string $reason): false
     {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
+        $code = OutboxRepository::QUARANTINE_PREFIX.$reason;
+        $ids = [ProcessUuid::random(), ProcessUuid::random(), ProcessUuid::random()];
+        ProcessLog::quarantined($code, ['message_id' => $wake->messageId->value]);
+        $this->transaction->run(function () use ($wake, $code, $ids): void {
+            $this->outbox->quarantine($wake, $code, 3600);
+            $this->incidents->open(
+                fingerprint: ContentHash::of('outbox-quarantine:v1:feeder_wake:'.$code),
+                scopeKey: 'outbox:feeder_wake',
+                kind: 'outbox_quarantine',
+                evidence: ['code' => $code, 'message_id' => $wake->messageId->value],
+                incidentId: $ids[0],
+                eventId: $ids[1],
+                projectionMessageId: $ids[2],
+            );
+        });
+
+        return false;
     }
 }

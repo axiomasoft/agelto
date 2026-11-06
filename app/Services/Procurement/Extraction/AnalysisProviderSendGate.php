@@ -36,6 +36,7 @@ use App\Repositories\Llm\Request\RequestRepository;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
 use App\Repositories\Procurement\Ai\AnalysisRequestRepository;
 use App\Repositories\Procurement\Network\NetworkPermitRepository;
+use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Llm\Execution\ProviderSendGate;
 use App\Services\Llm\Execution\ProviderTransportOutcome;
 use App\Services\Llm\Execution\ProviderWireRequest;
@@ -120,7 +121,13 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
                             throw new OperationDenied('network_wait_exhausted');
                         }
                         $this->revalidate($operation, $wireRequest);
-                        usleep(100_000);
+                        $delay = LedgerRow::one(
+                            'SELECT GREATEST(0, EXTRACT(EPOCH FROM (?::timestamptz - clock_timestamp())) * 1000000)::bigint AS delay',
+                            [$claim->retryAt->value->format('Y-m-d H:i:s.uP')],
+                        )?->int('delay') ?? 0;
+                        if ($delay > 0) {
+                            usleep(min(1_000_000, max(10_000, $delay)));
+                        }
                     }
                 }
             } while ($claim instanceof NetworkPermitWait);

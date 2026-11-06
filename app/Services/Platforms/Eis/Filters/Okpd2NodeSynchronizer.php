@@ -149,6 +149,7 @@ final readonly class Okpd2NodeSynchronizer
         // Корень поддерева в карту НЕ пишется: его `parent_code` неизвестен, а дети получают
         // `parent_code = null`, как в исходной карте справочника.
         $queue = [['external_id' => $rootId, 'code' => null, 'level' => $rootLevel]];
+        $visited = [$rootId => true];
 
         $crawled = [];
         $expandedCodes = [];
@@ -164,7 +165,7 @@ final readonly class Okpd2NodeSynchronizer
                 continue;
             }
 
-            $children = $this->fetchChildren(lease: $lease, endpoint: $endpoint, parentId: $current['external_id']);
+            $children = $this->fetchChildren(lease: $lease, endpoint: $endpoint, parentId: $current['external_id'], platform: $platform);
             $requests++;
             $expandedCodes[] = $current['code'];
 
@@ -172,7 +173,8 @@ final readonly class Okpd2NodeSynchronizer
                 $node = $this->nodeFrom(child: $child, parent: $current, parentId: $current['external_id']);
                 $crawled[$node['code']] = $node;
 
-                if ($child['hasChildren'] ?? false) {
+                if (($child['hasChildren'] ?? false) && ! isset($visited[$node['external_id']])) {
+                    $visited[$node['external_id']] = true;
                     $queue[] = [
                         'external_id' => $node['external_id'],
                         'code' => $node['code'],
@@ -270,9 +272,9 @@ final readonly class Okpd2NodeSynchronizer
     /**
      * @return list<array<string, mixed>>
      */
-    private function fetchChildren(RoutePolicy $lease, string $endpoint, string $parentId): array
+    private function fetchChildren(RoutePolicy $lease, string $endpoint, string $parentId, Platform $platform): array
     {
-        $response = $this->request(lease: $lease, endpoint: $endpoint, parentId: $parentId);
+        $response = $this->request(lease: $lease, endpoint: $endpoint, parentId: $parentId, platform: $platform);
 
         if ($response->failed()) {
             throw new RuntimeException(
@@ -310,9 +312,8 @@ final readonly class Okpd2NodeSynchronizer
         return $children;
     }
 
-    private function request(RoutePolicy $lease, string $endpoint, string $parentId): Response
+    private function request(RoutePolicy $lease, string $endpoint, string $parentId, Platform $platform): Response
     {
-        $platform = $this->requirePlatform();
         $url = $endpoint.(str_contains($endpoint, '?') ? '&' : '?').http_build_query(['parentId' => $parentId]);
 
         $platformCode = $platform->getAttribute('code');

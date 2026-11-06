@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Ai\Prompts\Tables;
 
 use App\Models\Llm\Prompt;

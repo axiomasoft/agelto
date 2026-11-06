@@ -90,7 +90,9 @@ final readonly class GeminiAssetClient
             throw new OperationDenied('asset_lookup_unsupported');
         }
 
-        $key instanceof FileAssetKey ? $key->assertContext($plan->context) : null;
+        if ($key instanceof FileAssetKey) {
+            $key->assertContext($plan->context);
+        }
         if ($plan->identity->inputHash !== $key->hash || $key instanceof ContextCacheKey && $key->context != $plan->context) {
             throw new OperationDenied('asset_lookup_identity_drift');
         }

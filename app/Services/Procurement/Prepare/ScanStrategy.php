@@ -12,6 +12,7 @@ use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
+use App\Services\Procurement\Prepare\Archive\ArchiveWorkspaceHelper;
 use App\Services\Storage\FileLocationResolver;
 use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -77,7 +78,7 @@ final readonly class ScanStrategy implements PreparationStrategy
             // Скан-эталон корпуса весит 132 МБ (`EST-PDF-SCAN-001`) — оригинал и результат OCR
             // ходят между диском и временным файлом ПОТОКОМ, целиком в память не читаются
             // В памяти живёт только sidecar-текст.
-            $this->copyToLocal($sourceDisk, $version->storage_path, $localInput);
+            ArchiveWorkspaceHelper::copyToLocal($sourceDisk, $version->storage_path, $localInput);
 
             if ($isPdf && ! $this->needsOcr(localPdf: $localInput, deadlineAt: $deadlineAt)) {
                 return PreparationResult::ReadyForScreening;
@@ -191,28 +192,6 @@ final readonly class ScanStrategy implements PreparationStrategy
         $charsPerPage = $this->converter->textCharsPerPage(pdfPath: $localPdf, deadlineAt: $deadlineAt);
 
         return $charsPerPage !== null && $charsPerPage < self::TEXT_LAYER_SPARSE_MAX_CHARS_PER_PAGE;
-    }
-
-    private function copyToLocal(Filesystem $disk, string $storagePath, string $localPath): void
-    {
-        $source = $disk->readStream($storagePath);
-
-        if (! is_resource($source)) {
-            throw new RuntimeException("Оригинал недоступен на диске: {$storagePath}");
-        }
-
-        try {
-            $target = fopen($localPath, 'w');
-
-            if (! is_resource($target)) {
-                throw new RuntimeException("Не удалось открыть временный файл: {$localPath}");
-            }
-
-            stream_copy_to_stream($source, $target);
-            fclose($target);
-        } finally {
-            fclose($source);
-        }
     }
 
     private function preparedPath(DocumentVersion $version, string $suffix): string

@@ -54,7 +54,7 @@ final readonly class GridRecognitionGate
         $totalNonEmpty = count($rows);
         $roleCoverageRatio = $totalNonEmpty > 0 ? (count($rows) - count($uncoveredRows)) / $totalNonEmpty : 0.0;
 
-        $columns = $this->declaredColumnIndexes($estimate->columns);
+        $columns = WorksheetCellReader::declaredColumnIndexes($estimate->columns);
         $quantityNumericRatio = $this->numericRatio($sheet, $columns, $itemRows, 'quantity');
         $hasCostColumn = $this->hasCostColumn($estimate->columns);
         $subtotalNumericRatio = $hasCostColumn
@@ -100,7 +100,7 @@ final readonly class GridRecognitionGate
      */
     public function classifyRows(Worksheet $sheet, GoldFormProfileEstimate $estimate): array
     {
-        $columns = $this->declaredColumnIndexes($estimate->columns);
+        $columns = WorksheetCellReader::declaredColumnIndexes($estimate->columns);
         $sortedColumns = $columns;
         asort($sortedColumns);
 
@@ -177,7 +177,7 @@ final readonly class GridRecognitionGate
                 continue;
             }
 
-            $itemNumberText = $this->cellText($sheet, $itemNumberColumnIndex, $row);
+            $itemNumberText = WorksheetCellReader::cellText($sheet, $itemNumberColumnIndex, $row);
 
             if ($itemNumberText !== '') {
                 $result[] = ['row' => $row, 'role' => RowType::Item->value, 'name' => $nameText, 'resource_type' => null];
@@ -237,7 +237,7 @@ final readonly class GridRecognitionGate
      */
     private function verifyHeaderBinding(Worksheet $sheet, GoldFormProfileEstimate $estimate): array
     {
-        $declared = $this->declaredColumnIndexes($estimate->columns);
+        $declared = WorksheetCellReader::declaredColumnIndexes($estimate->columns);
         $mismatches = [];
         $verified = 0;
 
@@ -254,7 +254,7 @@ final readonly class GridRecognitionGate
                     $hasOwnColumnPart = true;
                 }
 
-                $actual = $this->normalizeHeaderText($this->cellText($sheet, $quoteColumnIndex, (int) $quoteRow));
+                $actual = $this->normalizeHeaderText(WorksheetCellReader::cellText($sheet, $quoteColumnIndex, (int) $quoteRow));
                 $expected = $this->normalizeHeaderText($quote->text);
 
                 if ($actual !== $expected) {
@@ -287,7 +287,7 @@ final readonly class GridRecognitionGate
         $matches = 0;
 
         foreach ($itemRows as $itemRow) {
-            if (self::cleanNumeric($this->columnText($sheet, $columns, $field, $itemRow['row'])) !== null) {
+            if (self::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, $field, $itemRow['row'])) !== null) {
                 $matches++;
             }
         }
@@ -309,7 +309,7 @@ final readonly class GridRecognitionGate
 
         foreach ($subtotalRows as $subtotalRow) {
             foreach (self::COST_COLUMN_FIELDS as $field) {
-                if (self::cleanNumeric($this->columnText($sheet, $columns, $field, $subtotalRow['row'])) !== null) {
+                if (self::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, $field, $subtotalRow['row'])) !== null) {
                     $matches++;
 
                     continue 2;
@@ -335,9 +335,9 @@ final readonly class GridRecognitionGate
         $matches = 0;
 
         foreach ($itemRows as $itemRow) {
-            $quantity = self::cleanNumeric($this->columnText($sheet, $columns, 'quantity', $itemRow['row']));
-            $unitPrice = self::cleanNumeric($this->columnText($sheet, $columns, 'unit_price_curr', $itemRow['row']));
-            $totalPrice = self::cleanNumeric($this->columnText($sheet, $columns, 'total_price_curr', $itemRow['row']));
+            $quantity = self::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'quantity', $itemRow['row']));
+            $unitPrice = self::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'unit_price_curr', $itemRow['row']));
+            $totalPrice = self::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'total_price_curr', $itemRow['row']));
 
             if ($quantity === null || $unitPrice === null || $totalPrice === null) {
                 continue;
@@ -367,24 +367,6 @@ final readonly class GridRecognitionGate
     }
 
     /**
-     * @return array<string,int> поле → индекс колонки, только НЕПУСТЫЕ (объявленные) колонки
-     */
-    private function declaredColumnIndexes(GoldFormProfileColumns $columns): array
-    {
-        $result = [];
-
-        foreach (GoldFormProfileColumns::FIELDS as $field) {
-            $letter = $columns->{$field};
-
-            if ($letter !== null) {
-                $result[$field] = Coordinate::columnIndexFromString($letter);
-            }
-        }
-
-        return $result;
-    }
-
-    /**
      * @param  array<string,int>  $columns
      * @return array<string,string> поле → текст ячейки (только НЕПУСТЫЕ значения); [] — строка
      *                              полностью пуста в пределах колонок профиля
@@ -394,7 +376,7 @@ final readonly class GridRecognitionGate
         $result = [];
 
         foreach ($columns as $field => $columnIndex) {
-            $text = $this->cellText($sheet, $columnIndex, $row);
+            $text = WorksheetCellReader::cellText($sheet, $columnIndex, $row);
 
             if ($text !== '') {
                 $result[$field] = $text;
@@ -449,44 +431,6 @@ final readonly class GridRecognitionGate
         }
 
         return null;
-    }
-
-    /**
-     * @param  array<string,int>  $columns
-     */
-    private function columnText(Worksheet $sheet, array $columns, string $field, int $row): ?string
-    {
-        if (! isset($columns[$field])) {
-            return null;
-        }
-
-        $text = $this->cellText($sheet, $columns[$field], $row);
-
-        return $text === '' ? null : $text;
-    }
-
-    private function cellText(Worksheet $sheet, int $column, int $row): string
-    {
-        $value = $sheet->getCell([$column, $row])->getCalculatedValue();
-
-        return $this->stringify($value);
-    }
-
-    private function stringify(mixed $value): string
-    {
-        if ($value === null) {
-            return '';
-        }
-
-        if (is_bool($value)) {
-            return $value ? '1' : '0';
-        }
-
-        if (is_float($value)) {
-            return rtrim(rtrim(sprintf('%.10F', $value), '0'), '.');
-        }
-
-        return is_scalar($value) || $value instanceof \Stringable ? trim((string) $value) : '';
     }
 
     private function normalizeHeaderText(string $text): string

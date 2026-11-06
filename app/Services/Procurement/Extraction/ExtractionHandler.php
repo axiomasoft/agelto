@@ -14,9 +14,7 @@ use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ExtractionWindowInput;
 use App\Dto\Procurement\Process\MissingParts;
 use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\RetryAt;
 use App\Dto\Procurement\Process\StageBlocked;
-use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\StagePartial;
 use App\Dto\Procurement\Process\StageSucceeded;
@@ -24,7 +22,6 @@ use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Llm\StructuredDisposition;
 use App\Enums\Llm\TaskPurpose;
 use App\Enums\Procurement\Process\BlockedReason;
-use App\Enums\Procurement\Process\DeferralReason;
 use App\Exceptions\Llm\OperationDenied;
 use App\Exceptions\Procurement\Ai\AnalysisSendDenied;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
@@ -32,14 +29,13 @@ use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Services\Llm\Execution\StructuredCallExecutor;
 use App\Services\Llm\Schema\CanonicalJson;
 use App\Services\Llm\Validation\StructuredTaskValidator;
-use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\StageHandler;
 
 /** One bounded subrange per delivery; only WorkFinalizer accepts chunks or changes state. */
 final readonly class ExtractionHandler implements StageHandler
 {
     public function __construct(private AnalysisRepository $analyses, private AnalysisGeneration $generation,
-        private StructuredTaskValidator $validator, private ProcessClock $clock, private ValidatedOutputStore $outputs,
+        private StructuredTaskValidator $validator, private ValidatedOutputStore $outputs,
         private StructuredCallExecutor $executor, private AnalysisAssetRecovery $assetRecovery, private AnalysisSendPolicy $sendPolicy) {}
 
     public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
@@ -79,18 +75,7 @@ final readonly class ExtractionHandler implements StageHandler
         } catch (AnalysisSendDenied $denied) {
             return $this->sendPolicy->outcome($denied, $progress);
         } catch (OperationDenied $denied) {
-            return match ($denied->getMessage()) {
-                'provider_budget' => new StageDeferred(DeferralReason::ProviderBudget, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))),
-                'no_route' => new StageDeferred(DeferralReason::NoRoute, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))),
-                'provider_send_not_sent' => new StageDeferred(DeferralReason::ProviderUnavailable, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))),
-                'provider_unavailable' => new StageDeferred(DeferralReason::ProviderUnavailable, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))),
-                'slice_exhausted' => new StagePartial($progress, new MissingParts(['slice_exhausted'])),
-                'paused' => new StageBlocked(BlockedReason::Paused),
-                'handler_hold' => new StageBlocked(BlockedReason::HandlerHold),
-                'provider_error_review', 'physical_attempt_budget_exhausted', 'account_unknown_hold', 'account_exposure_hold' => new StageBlocked(BlockedReason::PolicyReview),
-                'provider_result_unknown' => new StageBlocked(BlockedReason::ProviderResultUnknown),
-                default => new StageBlocked(BlockedReason::InvalidRecipeConfiguration),
-            };
+            return $this->sendPolicy->deniedOutcome($denied, $progress);
         } catch (\InvalidArgumentException) {
             return new StageBlocked(BlockedReason::InvalidRecipeConfiguration);
         }

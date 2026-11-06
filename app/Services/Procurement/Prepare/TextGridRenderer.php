@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare;
 
+use App\Services\Procurement\Gold\WorksheetCellReader;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
@@ -76,50 +77,57 @@ final readonly class TextGridRenderer
         }
 
         $reader = $extension === 'xls' ? new XlsReader : new XlsxReader;
-        $spreadsheet = $reader->load($localPath);
-        $sheets = $spreadsheet->getAllSheets();
 
-        $maxCells = $this->positiveIntConfig(key: 'ai.prepare.xlsx_max_cells', default: 2_000_000);
-        if ($this->cellBudget($sheets) > $maxCells) {
-            $spreadsheet->disconnectWorksheets();
-
+        try {
+            $spreadsheet = $reader->load($localPath);
+        } catch (\Throwable) {
             return false;
         }
 
-        $lines = [];
-        $totalRows = 0;
+        try {
+            $sheets = $spreadsheet->getAllSheets();
 
-        foreach ($sheets as $sheet) {
-            $lines[] = '## SHEET: '.$sheet->getTitle();
-
-            $values = $this->collectValues($sheet);
-            $this->applyMerges($sheet->getMergeCells(), $values);
-            ksort($values, SORT_NUMERIC);
-
-            $columns = $this->distinctColumns($values);
-
-            foreach ($values as $row => $rowValues) {
-                if ($rowValues === []) {
-                    continue;
-                }
-
-                $cells = [];
-                foreach ($columns as $column) {
-                    $cells[] = $rowValues[$column] ?? '';
-                }
-
-                $lines[] = $row."\t".implode("\t", $cells);
-                $totalRows++;
+            $maxCells = $this->positiveIntConfig(key: 'ai.prepare.xlsx_max_cells', default: 2_000_000);
+            if ($this->cellBudget($sheets) > $maxCells) {
+                return false;
             }
+
+            $lines = [];
+            $totalRows = 0;
+
+            foreach ($sheets as $sheet) {
+                $lines[] = '## SHEET: '.$sheet->getTitle();
+
+                $values = $this->collectValues($sheet);
+                $this->applyMerges($sheet->getMergeCells(), $values);
+                ksort($values, SORT_NUMERIC);
+
+                $columns = $this->distinctColumns($values);
+
+                foreach ($values as $row => $rowValues) {
+                    if ($rowValues === []) {
+                        continue;
+                    }
+
+                    $cells = [];
+                    foreach ($columns as $column) {
+                        $cells[] = $rowValues[$column] ?? '';
+                    }
+
+                    $lines[] = $row."\t".implode("\t", $cells);
+                    $totalRows++;
+                }
+            }
+
+            return [
+                'text' => implode("\n", $lines),
+                'sheets' => count($sheets),
+                'rows' => $totalRows,
+            ];
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
         }
-
-        $spreadsheet->disconnectWorksheets();
-
-        return [
-            'text' => implode("\n", $lines),
-            'sheets' => count($sheets),
-            'rows' => $totalRows,
-        ];
     }
 
     /**
@@ -162,7 +170,15 @@ final readonly class TextGridRenderer
 
         foreach ($sheet->getCellCollection()->getCoordinates() as $coordinate) {
             [$column, $row] = Coordinate::indexesFromString($coordinate);
-            $value = $this->stringify($sheet->getCell($coordinate)->getCalculatedValue());
+            $cell = $sheet->getCell($coordinate);
+
+            try {
+                $rawValue = $cell->getCalculatedValue();
+            } catch (\Throwable) {
+                $rawValue = $cell->getValue();
+            }
+
+            $value = WorksheetCellReader::stringify($rawValue);
 
             if ($value === '') {
                 continue;
@@ -220,30 +236,14 @@ final readonly class TextGridRenderer
     private function countRows(string $path, string $extension): int
     {
         $reader = $extension === 'xls' ? new XlsReader : new XlsxReader;
-        $info = $reader->listWorksheetInfo($path);
+
+        try {
+            $info = $reader->listWorksheetInfo($path);
+        } catch (\Throwable) {
+            return PHP_INT_MAX;
+        }
 
         return array_sum(array_column($info, 'totalRows'));
-    }
-
-    private function stringify(mixed $value): string
-    {
-        if ($value === null) {
-            return '';
-        }
-
-        if (is_bool($value)) {
-            return $value ? '1' : '0';
-        }
-
-        if (is_float($value)) {
-            return rtrim(rtrim(sprintf('%.10F', $value), '0'), '.');
-        }
-
-        if (is_int($value) || is_string($value) || $value instanceof \Stringable) {
-            return trim((string) $value);
-        }
-
-        return '';
     }
 
     private function positiveFloatConfig(string $key, float $default): float

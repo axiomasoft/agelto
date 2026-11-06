@@ -10,12 +10,10 @@ use App\Dto\Procurement\Analyzers\Estimate\PassportResponse;
 use App\Dto\Procurement\Analyzers\Estimate\RowAttributes;
 use App\Dto\Procurement\Analyzers\Estimate\RowResource;
 use App\Dto\Procurement\Gold\GoldFormProfile;
-use App\Dto\Procurement\Gold\GoldFormProfileColumns;
 use App\Dto\Procurement\Gold\GoldFormProfileEstimate;
 use App\Enums\Procurement\Estimate\ResourceType;
 use App\Enums\Procurement\Estimate\RowType;
 use Illuminate\Validation\ValidationException;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use RuntimeException;
@@ -72,7 +70,7 @@ final readonly class SheetGoldMapper
     private function mapEstimate(Worksheet $sheet, GoldFormProfileEstimate $estimate): array
     {
         $classified = $this->gate->classifyRows($sheet, $estimate);
-        $columns = $this->declaredColumnIndexes($estimate->columns);
+        $columns = WorksheetCellReader::declaredColumnIndexes($estimate->columns);
 
         /** @var list<MappedRow> $rows */
         $rows = [];
@@ -198,15 +196,15 @@ final readonly class SheetGoldMapper
     private function mapCommonFields(Worksheet $sheet, array $columns, int $row): array
     {
         return [
-            'code' => $this->columnText($sheet, $columns, 'code', $row),
-            'unit' => $this->columnText($sheet, $columns, 'unit', $row),
-            'quantity' => GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'quantity', $row)),
-            'unit_price_base' => GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'unit_price_base', $row)),
-            'unit_price_curr' => GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'unit_price_curr', $row)),
-            'total_price_base' => GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'total_price_base', $row)),
-            'total_price_curr' => GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'total_price_curr', $row)),
-            'index_value' => GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'index_value', $row)),
-            'source_position_number' => $this->columnText($sheet, $columns, 'source_position_number', $row),
+            'code' => WorksheetCellReader::columnText($sheet, $columns, 'code', $row),
+            'unit' => WorksheetCellReader::columnText($sheet, $columns, 'unit', $row),
+            'quantity' => GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'quantity', $row)),
+            'unit_price_base' => GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'unit_price_base', $row)),
+            'unit_price_curr' => GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'unit_price_curr', $row)),
+            'total_price_base' => GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'total_price_base', $row)),
+            'total_price_curr' => GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'total_price_curr', $row)),
+            'index_value' => GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'index_value', $row)),
+            'source_position_number' => WorksheetCellReader::columnText($sheet, $columns, 'source_position_number', $row),
         ];
     }
 
@@ -219,9 +217,9 @@ final readonly class SheetGoldMapper
      */
     private function mapSummaryAttributes(Worksheet $sheet, array $columns, int $row): ?RowAttributes
     {
-        $sinceStart = GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'amount_since_start', $row));
-        $sinceYearStart = GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'amount_since_year_start', $row));
-        $reportingPeriod = GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'amount_reporting_period', $row));
+        $sinceStart = GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'amount_since_start', $row));
+        $sinceYearStart = GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'amount_since_year_start', $row));
+        $reportingPeriod = GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'amount_reporting_period', $row));
 
         if ($sinceStart === null && $sinceYearStart === null && $reportingPeriod === null) {
             return null;
@@ -249,67 +247,13 @@ final readonly class SheetGoldMapper
         return new RowResource(
             resource_type: $resourceType,
             name: $entry['name'],
-            code: $this->columnText($sheet, $columns, 'code', $entry['row']),
-            unit: $this->columnText($sheet, $columns, 'unit', $entry['row']),
-            quantity: GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'quantity', $entry['row'])),
-            price_base: GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'unit_price_base', $entry['row'])),
-            price_curr: GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'unit_price_curr', $entry['row'])),
+            code: WorksheetCellReader::columnText($sheet, $columns, 'code', $entry['row']),
+            unit: WorksheetCellReader::columnText($sheet, $columns, 'unit', $entry['row']),
+            quantity: GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'quantity', $entry['row'])),
+            price_base: GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'unit_price_base', $entry['row'])),
+            price_curr: GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'unit_price_curr', $entry['row'])),
             index_code: null,
-            index_value: GridRecognitionGate::cleanNumeric($this->columnText($sheet, $columns, 'index_value', $entry['row'])),
+            index_value: GridRecognitionGate::cleanNumeric(WorksheetCellReader::columnText($sheet, $columns, 'index_value', $entry['row'])),
         );
-    }
-
-    /**
-     * @return array<string,int>
-     */
-    private function declaredColumnIndexes(GoldFormProfileColumns $columns): array
-    {
-        $result = [];
-
-        foreach (GoldFormProfileColumns::FIELDS as $field) {
-            $letter = $columns->letterFor($field);
-
-            if ($letter !== null) {
-                $result[$field] = Coordinate::columnIndexFromString($letter);
-            }
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param  array<string,int>  $columns
-     */
-    private function columnText(Worksheet $sheet, array $columns, string $field, int $row): ?string
-    {
-        if (! isset($columns[$field])) {
-            return null;
-        }
-
-        $value = $sheet->getCell([$columns[$field], $row])->getCalculatedValue();
-        $text = $this->stringify($value);
-
-        return $text === '' ? null : $text;
-    }
-
-    private function stringify(mixed $value): string
-    {
-        if ($value === null) {
-            return '';
-        }
-
-        if (is_bool($value)) {
-            return $value ? '1' : '0';
-        }
-
-        if (is_float($value)) {
-            return rtrim(rtrim(sprintf('%.10F', $value), '0'), '.');
-        }
-
-        if (is_int($value) || is_string($value)) {
-            return trim((string) $value);
-        }
-
-        throw new RuntimeException('Значение ячейки должно быть скалярным.');
     }
 }

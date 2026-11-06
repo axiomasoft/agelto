@@ -9,9 +9,6 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ProviderRecoveryPlan;
-use App\Dto\Procurement\Process\ScopeDefinition;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\BlockedReason;
@@ -28,19 +25,12 @@ use App\Services\Procurement\Process\SubjectLockResolver;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Candidate selectors и locked recovery transitions RecoveryReconciler. Selection всегда unlocked и bounded; каждая locked операция — отдельная ProcessTransaction
- * одного work под полным prefix control SHARE → handler SHARE → capacity UPDATE → subjects UPDATE →
- * work UPDATE SKIP LOCKED, после чего все predicates (state, deadline, input/head, membership,
- * controls) повторяются: изменившийся lock set — Reload, а не поздний lock. Recovery только
- * закрывает attempt/освобождает group/меняет state по доказанным фактам: provider outcome
- * выбирает ProviderRecoveryResolver, storage/provider reserves здесь не освобождаются.
+ * Candidate selectors и locked recovery transitions RecoveryReconciler.
  */
 final readonly class RecoveryRepository
 {
-    /** blocked(provider_result_unknown): следующая reconciliation через 30 s по DB clock, due_at остаётся NULL. */
     private const int PROVIDER_RECOVERY_SECONDS = 30;
 
-    /** Handler hold: три distinct input_hash одной signature той же версии за окно от finished_at кандидата. */
     private const int FAULT_WINDOW_MINUTES = 5;
 
     private const int FAULT_HOLD_DISTINCT_INPUTS = 3;
@@ -54,165 +44,70 @@ final readonly class RecoveryRepository
         private SubjectLockResolver $resolver,
         private StageRegistry $registry,
         private ProcessPolicy $policy,
+        private ?RecoveryQueryRepository $queries = null,
     ) {}
 
     /**
-     * Expired running: lease истёк минимум 2 s назад; locked решение — lease_until <= now.
-     *
      * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
     public function expiredRunning(int $limit, ?array &$cursor = null): array
     {
-        return $this->selectWorkIds(
-            where: "state = 'running' AND lease_until < clock_timestamp() - interval '2 seconds'",
-            sortColumn: 'lease_until',
-            bindings: [],
-            limit: $limit,
-            cursor: $cursor,
-        );
+        return $this->queries()->expiredRunning($limit, $cursor);
     }
 
     /**
-     * Admitted с истёкшей delivery либо под committed pause/held executing handler.
-     *
      * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
     public function admittedCandidates(int $limit, ?array &$cursor = null): array
     {
-        [$control, $bindings] = $this->controlPredicate();
-
-        return $this->selectWorkIds(
-            where: "state = 'admitted' AND (dispatch_claim_until <= clock_timestamp() OR {$control})",
-            sortColumn: 'dispatch_claim_until',
-            bindings: $bindings,
-            limit: $limit,
-            cursor: $cursor,
-        );
+        return $this->queries()->admittedCandidates($limit, $cursor);
     }
 
     /**
-     * Blocked(paused|handler_hold), чьи scopes сейчас не paused и executing handler не held.
-     * Pause/held-пары исключены в SQL, поэтому постоянно paused work не занимает batch.
-     *
      * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
     public function releasableBlocked(int $limit, ?array &$cursor = null): array
     {
-        [$control, $bindings] = $this->controlPredicate();
-
-        return $this->selectWorkIds(
-            where: "state = 'blocked' AND reason_code IN ('paused', 'handler_hold') AND NOT ({$control})",
-            sortColumn: 'updated_at',
-            bindings: $bindings,
-            limit: $limit,
-            cursor: $cursor,
-        );
+        return $this->queries()->releasableBlocked($limit, $cursor);
     }
 
     /**
-     * Cancelled work с pinned provider plan. Due у cancelled запрещён схемой, поэтому очередь — по
-     * updated_at: reschedule переставляет в конец.
-     *
      * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
     public function cancelledProvider(int $limit, ?array &$cursor = null): array
     {
-        return $this->selectWorkIds(
-            where: "state = 'cancelled' AND checkpoint->'provider_recovery_plan'->>'variant' = 'provider'",
-            sortColumn: 'updated_at',
-            bindings: [],
-            limit: $limit,
-            cursor: $cursor,
-        );
+        return $this->queries()->cancelledProvider($limit, $cursor);
     }
 
     /**
-     * selector: provider_recovery_due_at, а не lease_until/due_at; earliest-due fairness.
-     *
      * @param  array{sort: string, id: string}|null  $cursor
      * @return list<WorkId>
      */
     public function blockedProvider(int $limit, ?array &$cursor = null): array
     {
-        return $this->selectWorkIds(
-            where: "state = 'blocked' AND reason_code = 'provider_result_unknown' AND provider_recovery_due_at <= clock_timestamp()",
-            sortColumn: 'provider_recovery_due_at',
-            bindings: [],
-            limit: $limit,
-            cursor: $cursor,
-        );
+        return $this->queries()->blockedProvider($limit, $cursor);
     }
 
     /**
-     * Durable unchecked fault evidence: окно отсчитывается от finished_at кандидата, а не от now.
-     *
      * @param  array{sort: string, id: string}|null  $cursor
      * @return list<array{attempt_id: string, work_id: string, handler_version: string, signature: string, finished_at: string, stage: StageCode}>
      */
     public function uncheckedFaults(int $limit, ?array &$cursor = null): array
     {
-        $rows = $this->selectCursorRows(
-            select: "SELECT a.id AS attempt_id, a.work_id::text AS work_id, a.handler_version, encode(a.fault_signature, 'hex') AS signature, a.finished_at::text AS finished_at, a.finished_at::text AS cursor_sort, w.stage
-                     FROM prc_process_attempts a JOIN prc_process_work w ON w.id = a.work_id",
-            where: 'a.fault_signature IS NOT NULL AND a.finished_at IS NOT NULL AND a.fault_policy_checked_at IS NULL',
-            sortColumn: 'a.finished_at',
-            idColumn: 'a.id',
-            bindings: [],
-            limit: $limit,
-            cursor: $cursor,
-        );
-        $candidates = [];
-        foreach ($rows as $row) {
-            $candidates[] = [
-                'attempt_id' => $row->string('attempt_id'),
-                'work_id' => $row->string('work_id'),
-                'handler_version' => $row->string('handler_version'),
-                'signature' => $row->string('signature'),
-                'finished_at' => $row->string('finished_at'),
-                'stage' => StageCode::from($row->string('stage')),
-            ];
-        }
-
-        return $candidates;
+        return $this->queries()->uncheckedFaults($limit, $cursor);
     }
 
-    /**
-     * Pinned provider plan и checkpoint_seq до locks: основа pre-read resolver. null — нет checkpoint.
-     *
-     * @return array{plan: ProviderRecoveryPlan|null, seq: int}|null
-     */
-    public function pinnedPlan(WorkId $workId): ?array
+    /** @return array{plan: ProviderRecoveryPlan|null, seq: int}|null */
+    public function pinnedPlan(WorkId|LedgerRow $work): ?array
     {
-        $row = LedgerRow::one(
-            'SELECT checkpoint::text AS checkpoint, checkpoint_schema_version, checkpoint_seq FROM prc_process_work WHERE id = ?',
-            [$workId->value->value],
-        );
-        if ($row === null) {
-            return null;
-        }
-        $checkpoint = $row->nullableString('checkpoint');
-        $seq = $row->int('checkpoint_seq');
-        // Stage codec нужен только когда в envelope реально есть provider plan: reconcile process без
-        // привязанных stage codecs не должен падать на обычном stage progress без provider recovery.
-        $decoded = $checkpoint === null ? null : json_decode($checkpoint, true);
-        $plan = is_array($decoded) && is_array($decoded['provider_recovery_plan'] ?? null) && ($decoded['provider_recovery_plan']['variant'] ?? null) === 'provider'
-            ? $this->registry->payloadCodec()->decodeCheckpoint(new VersionedPayload($checkpoint, $row->int('checkpoint_schema_version')))?->providerRecoveryPlan
-            : null;
-
-        return ['plan' => $plan instanceof ProviderRecoveryPlan ? $plan : null, 'seq' => $seq];
+        return $this->queries()->pinnedPlan($work);
     }
 
-    /**
-     * Expired running → ready (durable checkpoint сохранён), blocked(paused|handler_hold|
-     * provider_result_unknown) либо superseded. Старый attempt interrupted, generation+1 отзывает
-     * владельца, вся group освобождается; provider-linked work идёт по $finding полного resolver.
-     *
-     * @param  array<string, ProcessUuid>  $ids
-     */
+    /** @param array<string, ProcessUuid> $ids */
     public function recoverRunning(AuthoritySnapshot $snapshot, ?ProviderRecoveryPlan $finding, int $pinnedSeq, ProviderRecoveryResolver $resolver, array $ids): RecoveryOutcome
     {
         CallerTransaction::require('Expired running recovery');
@@ -221,18 +116,11 @@ final readonly class RecoveryRepository
             return $prefix;
         }
         $work = $prefix->work;
-        // Renewed heartbeat либо уже завершивший valid commit владелец выигрывают: recovery ничего не пишет.
-        if ($work->string('state') !== WorkState::Running->value || ! $work->bool('lease_expired')) {
-            return RecoveryOutcome::Skipped;
-        }
-        if ($work->int('checkpoint_seq') !== $pinnedSeq) {
+        if ($work->string('state') !== WorkState::Running->value || ! $work->bool('lease_expired') || $work->int('checkpoint_seq') !== $pinnedSeq) {
             return RecoveryOutcome::Skipped;
         }
         $generation = $work->int('generation');
-        $attempt = LedgerRow::one(
-            'SELECT id, handler_version FROM prc_process_attempts WHERE work_id = ? AND generation = ? AND finished_at IS NULL',
-            [$snapshot->workId->value->value, $generation],
-        );
+        $attempt = $this->queries()->runningAttempt($snapshot->workId, $generation);
         $group = $prefix->group;
         if ($group === null || $attempt === null || ! $this->authority->exactMembership($snapshot, $prefix, 'running')
             || $group->nullableString('attempt_id') !== $attempt->string('id')) {
@@ -241,14 +129,12 @@ final readonly class RecoveryRepository
         if ($attempt->string('handler_version') !== $snapshot->handler->handlerVersion) {
             return RecoveryOutcome::Reload;
         }
-        // A progress-only checkpoint can be preserved byte-for-byte without a stage codec binding.
-        $hasProviderPlan = ($this->pinnedPlan($snapshot->workId)['plan'] ?? null) instanceof ProviderRecoveryPlan;
+        $hasProviderPlan = ($this->pinnedPlan($work)['plan'] ?? null) instanceof ProviderRecoveryPlan;
         $current = $finding !== null || $hasProviderPlan ? $this->works->lockedCheckpoint($work) : null;
         $pinned = $current?->providerRecoveryPlan;
-        if ($pinned instanceof ProviderRecoveryPlan && $finding !== null && ! self::sameOperation($pinned, $finding)) {
+        if ($pinned instanceof ProviderRecoveryPlan && $finding !== null && ! RecoveryQueryRepository::sameOperation($pinned, $finding)) {
             throw new \LogicException('Provider recovery finding does not match the pinned operation.');
         }
-        // A missing resolver/outcome cannot turn a durable provider directive into a new send grant.
         $missingResolution = $pinned instanceof ProviderRecoveryPlan && $finding === null;
         $plan = $finding ?? ($pinned instanceof ProviderRecoveryPlan ? $pinned : null);
         $resolver->revokeUnclaimedLocked($snapshot->workId);
@@ -264,7 +150,7 @@ final readonly class RecoveryRepository
 
         $terminal = $plan !== null && $resolver instanceof ProviderRecoveryPolicy ? $resolver->terminalReason($plan) : null;
         $unknown = $plan?->mode === ProviderRecoveryMode::BlockedUnknown && $terminal === null;
-        $hold = $terminal ?? $this->holdReason($prefix);
+        $hold = $terminal ?? $this->queries()->holdReason($prefix);
         if ($unknown) {
             [$state, $reason] = [WorkState::Blocked, BlockedReason::ProviderResultUnknown->value];
         } elseif ($missingResolution) {
@@ -275,7 +161,7 @@ final readonly class RecoveryRepository
             [$state, $reason] = [WorkState::Ready, null];
         }
         $this->settle($resolver, $finding);
-        $payload = $plan === null ? null : $this->envelope($snapshot, $current, $plan);
+        $payload = $plan === null ? null : $this->queries()->envelope($snapshot, $current, $plan);
         $row = LedgerRow::one(
             "UPDATE prc_process_work
              SET state = ?, reason_code = ?, generation = generation + 1, owner_token = NULL, lease_until = NULL,
@@ -293,11 +179,7 @@ final readonly class RecoveryRepository
                 $snapshot->workId->value->value, $generation, $work->nullableString('owner_token'),
             ],
         ) ?? throw new \LogicException('Recovery fence did not match the locked expired work.');
-        $closed = DB::update(
-            "UPDATE prc_process_attempts SET finished_at = clock_timestamp(), terminal_kind = 'interrupted' WHERE id = ? AND finished_at IS NULL",
-            [$attempt->string('id')],
-        );
-        if ($closed !== 1) {
+        if (DB::update("UPDATE prc_process_attempts SET finished_at = clock_timestamp(), terminal_kind = 'interrupted' WHERE id = ? AND finished_at IS NULL", [$attempt->string('id')]) !== 1) {
             throw new \LogicException('Recovery must close exactly the expired attempt.');
         }
         $this->works->releaseGroupLocked($group, count($prefix->members), 'lease_recovery');
@@ -312,13 +194,7 @@ final readonly class RecoveryRepository
         return RecoveryOutcome::Recovered;
     }
 
-    /**
-     * Admitted: committed pause/held handler освобождает всю group в blocked; истёкшая delivery
-     * получает новый dispatch generation с той же group и обычным wake; stale input — superseded.
-     * Ни новая group, ни execution attempt не создаются.
-     *
-     * @param  array<string, ProcessUuid>  $ids
-     */
+    /** @param array<string, ProcessUuid> $ids */
     public function recoverAdmitted(AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome
     {
         CallerTransaction::require('Admitted recovery');
@@ -343,7 +219,7 @@ final readonly class RecoveryRepository
         }
 
         $dispatch = $work->int('dispatch_generation');
-        $hold = $this->holdReason($prefix);
+        $hold = $this->queries()->holdReason($prefix);
         if ($hold !== null) {
             $row = LedgerRow::one(
                 "UPDATE prc_process_work SET state = 'blocked', reason_code = ?, dispatch_claim_until = NULL,
@@ -372,12 +248,11 @@ final readonly class RecoveryRepository
              RETURNING dispatch_generation, transition_seq",
             [$this->policy->claimVisibilitySeconds($stage), $snapshot->workId->value->value, $dispatch],
         ) ?? throw new \LogicException('Redelivery fence did not match the locked admitted work.');
-        $updated = DB::update(
+        if (DB::update(
             "UPDATE prc_admission_groups SET dispatch_generation = ?, version = version + 1
              WHERE id = ? AND state = 'admitted' AND dispatch_generation = ? AND version = ?",
             [$row->int('dispatch_generation'), $group->string('id'), $dispatch, $group->int('version')],
-        );
-        if ($updated !== 1) {
+        ) !== 1) {
             throw new \LogicException('Redelivery must move the whole admission group to the new delivery generation.');
         }
         $this->transitions->recordWork(
@@ -389,13 +264,7 @@ final readonly class RecoveryRepository
         return RecoveryOutcome::Recovered;
     }
 
-    /**
-     * Blocked(paused|handler_hold) → ready только если входной work актуален, ВСЕ применимые scopes
-     * enabled и executing handler healthy. Другие blocked reasons не трогаются (generic resume их
-     * не освобождает); pinned provider plan в checkpoint сохраняется.
-     *
-     * @param  array<string, ProcessUuid>  $ids
-     */
+    /** @param array<string, ProcessUuid> $ids */
     public function releaseBlocked(AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome
     {
         CallerTransaction::require('Blocked release');
@@ -419,7 +288,7 @@ final readonly class RecoveryRepository
 
             return RecoveryOutcome::Recovered;
         }
-        if ($this->holdReason($prefix) !== null) {
+        if ($this->queries()->holdReason($prefix) !== null) {
             return RecoveryOutcome::Skipped;
         }
         $row = LedgerRow::one(
@@ -437,15 +306,7 @@ final readonly class RecoveryRepository
         return RecoveryOutcome::Recovered;
     }
 
-    /**
-     * late receipt для уже blocked(provider_result_unknown). Verified outcome → тот же work
-     * ready/resume (либо blocked paused/held с сохранённым plan), settlement original reservation,
-     * state+checkpoint_seq+transition+projection атомарны. Нет verified outcome → unknown и reserve
-     * сохранены, меняется только provider_recovery_due_at. Cancelled/superseded после pre-read:
-     * только settlement финансовой истории, без возобновления.
-     *
-     * @param  array<string, ProcessUuid>  $ids
-     */
+    /** @param array<string, ProcessUuid> $ids */
     public function recoverProvider(AuthoritySnapshot $snapshot, ?ProviderRecoveryPlan $finding, int $pinnedSeq, ProviderRecoveryResolver $resolver, array $ids): RecoveryOutcome
     {
         CallerTransaction::require('Blocked provider recovery');
@@ -472,33 +333,28 @@ final readonly class RecoveryRepository
         if ($prefix->group !== null || $prefix->members !== []) {
             return RecoveryOutcome::Corrupt;
         }
-        $due = LedgerRow::one('SELECT provider_recovery_due_at <= clock_timestamp() AS due FROM prc_process_work WHERE id = ?', [$snapshot->workId->value->value]);
-        if ($due === null || ! $due->bool('due') || $work->int('checkpoint_seq') !== $pinnedSeq) {
+        if (! $this->queries()->providerRecoveryDue($snapshot->workId) || $work->int('checkpoint_seq') !== $pinnedSeq) {
             return RecoveryOutcome::Skipped;
         }
         $current = $this->works->lockedCheckpoint($work);
         $pinned = $current?->providerRecoveryPlan;
         if (! $pinned instanceof ProviderRecoveryPlan || $pinned->mode !== ProviderRecoveryMode::BlockedUnknown) {
-            // Linkage обязателен: latest-call heuristic запрещён — incident и следующая попытка по расписанию.
             $this->incidents->open(
                 fingerprint: ContentHash::of('provider-unknown-linkage:v1:'.$snapshot->workId->value->value),
                 scopeKey: 'work:'.$snapshot->workId->value->value,
                 kind: 'provider_unknown_linkage_missing',
                 evidence: ['work_id' => $snapshot->workId->value->value],
-                incidentId: $ids['incident'],
-                eventId: $ids['incident_event'],
-                projectionMessageId: $ids['incident_projection'],
+                incidentId: $ids['incident'], eventId: $ids['incident_event'], projectionMessageId: $ids['incident_projection'],
             );
             $this->rescheduleProvider($snapshot->workId);
 
             return RecoveryOutcome::Skipped;
         }
-        if ($finding !== null && $finding->receipt !== null && self::sameOperation($pinned, $finding) && $resolver instanceof ProviderRecoveryPolicy) {
-            // Factual capture may remain unknown: retain its reservation and reconciliation schedule.
+        if ($finding !== null && $finding->receipt !== null && RecoveryQueryRepository::sameOperation($pinned, $finding) && $resolver instanceof ProviderRecoveryPolicy) {
             $resolver->settleLocked($finding);
         }
         if ($finding === null || ($finding->mode === ProviderRecoveryMode::BlockedUnknown && $terminal === null)
-            || ! self::sameOperation($pinned, $finding)) {
+            || ! RecoveryQueryRepository::sameOperation($pinned, $finding)) {
             $this->rescheduleProvider($snapshot->workId);
 
             return RecoveryOutcome::Skipped;
@@ -514,9 +370,9 @@ final readonly class RecoveryRepository
             return RecoveryOutcome::Recovered;
         }
 
-        $hold = $terminal ?? $this->holdReason($prefix);
+        $hold = $terminal ?? $this->queries()->holdReason($prefix);
         $next = $hold === null ? WorkState::Ready : WorkState::Blocked;
-        $payload = $this->envelope($snapshot, $current, $finding);
+        $payload = $this->queries()->envelope($snapshot, $current, $finding);
         $row = LedgerRow::one(
             "UPDATE prc_process_work
              SET state = ?, reason_code = ?, provider_recovery_due_at = NULL, checkpoint = ?::jsonb, checkpoint_schema_version = ?::smallint,
@@ -536,21 +392,16 @@ final readonly class RecoveryRepository
         return RecoveryOutcome::Recovered;
     }
 
-    /**
-     * Cancelled work с pinned provider plan: settlement только по verified finding той же operation и
-     * под fence по checkpoint_seq. Resume и supersede здесь не делаются. Unknown или чужая operation
-     * переставляет work в конец очереди, чтобы не голодать остальные.
-     */
     private function recoverCancelledProvider(AuthoritySnapshot $snapshot, LedgerRow $work, ?ProviderRecoveryPlan $finding, ?BlockedReason $terminal, int $pinnedSeq, ProviderRecoveryResolver $resolver): RecoveryOutcome
     {
         $pinned = $this->works->lockedCheckpoint($work)?->providerRecoveryPlan;
         if (! $pinned instanceof ProviderRecoveryPlan || $work->int('checkpoint_seq') !== $pinnedSeq) {
             return RecoveryOutcome::Skipped;
         }
-        if ($finding !== null && $finding->receipt !== null && self::sameOperation($pinned, $finding) && $resolver instanceof ProviderRecoveryPolicy) {
+        if ($finding !== null && $finding->receipt !== null && RecoveryQueryRepository::sameOperation($pinned, $finding) && $resolver instanceof ProviderRecoveryPolicy) {
             $resolver->settleLocked($finding);
         }
-        if ($finding === null || ($finding->mode === ProviderRecoveryMode::BlockedUnknown && $terminal === null) || ! self::sameOperation($pinned, $finding)) {
+        if ($finding === null || ($finding->mode === ProviderRecoveryMode::BlockedUnknown && $terminal === null) || ! RecoveryQueryRepository::sameOperation($pinned, $finding)) {
             DB::update("UPDATE prc_process_work SET updated_at = clock_timestamp() WHERE id = ? AND state = 'cancelled'", [$snapshot->workId->value->value]);
 
             return RecoveryOutcome::Skipped;
@@ -567,11 +418,6 @@ final readonly class RecoveryRepository
     }
 
     /**
-     * Historical handler-fault detector: отдельная tx после finished attempt, не
-     * из logger/finalize. Controls FOR SHARE → handler authority FOR UPDATE; кандидат помечается
-     * checked в той же tx, что hold/incident, поэтому crash между finish и detector не теряет hold,
-     * а повтор идемпотентен. Уже held версия не перезаписывается. true — кандидат обработан этим backend.
-     *
      * @param  array{attempt_id: string, handler_version: string, signature: string, finished_at: string, stage: StageCode}  $candidate
      * @param  array<string, ProcessUuid>  $ids
      */
@@ -580,39 +426,14 @@ final readonly class RecoveryRepository
         CallerTransaction::require('Handler fault detector');
         $stage = $candidate['stage'];
         $version = $candidate['handler_version'];
-        $keys = array_map(static fn (ScopeDefinition $scope): string => $scope->key, $this->policy->stageScopes($stage));
-        sort($keys, SORT_STRING);
-        $controls = LedgerRow::all(
-            'SELECT id FROM prc_control_scopes WHERE scope_key IN ('.LedgerRow::placeholders(count($keys)).') ORDER BY scope_key COLLATE "C" FOR SHARE',
-            $keys,
-        );
-        if (count($controls) !== count($keys)) {
-            throw new \LogicException('Control scopes of the stage are not materialized: '.$stage->value);
-        }
-        $hold = LedgerRow::one(
-            'SELECT id, state FROM prc_process_handler_holds WHERE stage = ? AND handler_version = ? FOR UPDATE',
-            [$stage->value, $version],
-        );
-        if ($hold === null) {
-            throw new \LogicException('Historical handler authority is missing: '.$stage->value.':'.$version);
-        }
-        $marked = DB::update(
-            'UPDATE prc_process_attempts SET fault_policy_checked_at = clock_timestamp() WHERE id = ? AND fault_policy_checked_at IS NULL',
-            [$candidate['attempt_id']],
-        );
-        if ($marked !== 1) {
+        $hold = $this->queries()->lockFaultAuthorities($stage, $version);
+        if (DB::update('UPDATE prc_process_attempts SET fault_policy_checked_at = clock_timestamp() WHERE id = ? AND fault_policy_checked_at IS NULL', [$candidate['attempt_id']]) !== 1) {
             return false;
         }
         if ($hold->string('state') === 'held') {
             return true;
         }
-        $inputs = (LedgerRow::one(
-            "SELECT count(DISTINCT w.input_hash) AS inputs
-             FROM prc_process_attempts a JOIN prc_process_work w ON w.id = a.work_id
-             WHERE w.stage = ? AND a.handler_version = ? AND a.fault_signature = decode(?, 'hex') AND a.finished_at IS NOT NULL
-                AND a.finished_at <= ?::timestamptz AND a.finished_at >= ?::timestamptz - make_interval(mins => ?)",
-            [$stage->value, $version, $candidate['signature'], $candidate['finished_at'], $candidate['finished_at'], self::FAULT_WINDOW_MINUTES],
-        ) ?? throw new \LogicException('Aggregate query always returns a row.'))->int('inputs');
+        $inputs = $this->queries()->distinctFaultInputs($stage, $version, $candidate['signature'], $candidate['finished_at'], self::FAULT_WINDOW_MINUTES);
         if ($inputs < self::FAULT_HOLD_DISTINCT_INPUTS) {
             return true;
         }
@@ -621,9 +442,7 @@ final readonly class RecoveryRepository
             scopeKey: 'handler:'.$stage->value.':'.$version,
             kind: 'handler_hold',
             evidence: ['stage' => $stage->value, 'handler_version' => $version, 'distinct_inputs' => $inputs],
-            incidentId: $ids['incident'],
-            eventId: $ids['incident_event'],
-            projectionMessageId: $ids['incident_projection'],
+            incidentId: $ids['incident'], eventId: $ids['incident_event'], projectionMessageId: $ids['incident_projection'],
         );
         DB::update(
             "UPDATE prc_process_handler_holds
@@ -635,7 +454,6 @@ final readonly class RecoveryRepository
         return true;
     }
 
-    /** Scheduling-only: без business transition, attempt и item/semantic budget. */
     private function rescheduleProvider(WorkId $workId): void
     {
         CallerTransaction::require('Provider recovery reschedule');
@@ -656,28 +474,6 @@ final readonly class RecoveryRepository
         return $prefix instanceof PrefixFailure ? RecoveryOutcome::Skipped : $prefix;
     }
 
-    private function holdReason(LockedPrefix $prefix): ?BlockedReason
-    {
-        return match (true) {
-            ! $prefix->controlsEnabled => BlockedReason::Paused,
-            ! $prefix->handlerHealthy => BlockedReason::HandlerHold,
-            default => null,
-        };
-    }
-
-    /** Metadata verified outside locks must still identify the exact pinned operation under locks. */
-    private static function sameOperation(ProviderRecoveryPlan $pinned, ProviderRecoveryPlan $finding): bool
-    {
-        return $pinned->logicalRequestId->value === $finding->logicalRequestId->value
-            && $pinned->physicalCallId->value === $finding->physicalCallId->value
-            && $pinned->purpose === $finding->purpose
-            && $pinned->expectedInputHash->hex === $finding->expectedInputHash->hex
-            && $pinned->recipeHash->hex === $finding->recipeHash->hex
-            && $pinned->requestEpoch === $finding->requestEpoch
-            && $pinned->planVersion === $finding->planVersion;
-    }
-
-    /** BlockedUnknown сохраняет reserve: settlement только для доказанных исходов. */
     private function settle(ProviderRecoveryResolver $resolver, ?ProviderRecoveryPlan $finding): void
     {
         if ($finding !== null && ($finding->mode !== ProviderRecoveryMode::BlockedUnknown
@@ -686,176 +482,8 @@ final readonly class RecoveryRepository
         }
     }
 
-    /** Envelope сохраняет stage progress; работе без checkpoint даётся initial progress её codec. */
-    private function envelope(AuthoritySnapshot $snapshot, ?WorkCheckpointEnvelope $current, ProviderRecoveryPlan $plan): VersionedPayload
+    private function queries(): RecoveryQueryRepository
     {
-        $progress = $current->stageProgress ?? $this->registry->initialProgress($snapshot->handler->stage);
-
-        return $this->registry->payloadCodec()->encodeCheckpoint(new WorkCheckpointEnvelope($progress, $plan));
-    }
-
-    /**
-     * SQL-предикат work, чья control closure содержит paused scope либо чья executing handler
-     * version held; 'FALSE' — если таких нет. Выводится из policy scope keys без сканирования prc_process_work.
-     *
-     * @return array{string, list<string>}
-     */
-    private function controlPredicate(): array
-    {
-        $paused = array_map(
-            static fn (LedgerRow $row): string => $row->string('scope_key'),
-            LedgerRow::all("SELECT scope_key FROM prc_control_scopes WHERE desired_mode = 'paused'"),
-        );
-        if (in_array('system', $paused, true)) {
-            return ['TRUE', []];
-        }
-        $pausedSet = array_fill_keys($paused, true);
-        $held = [];
-        foreach (LedgerRow::all("SELECT stage, handler_version FROM prc_process_handler_holds WHERE state = 'held'") as $row) {
-            $code = StageCode::tryFrom($row->string('stage'));
-            if ($code !== null && ($this->registry->handlerVersion($code) ?? $row->string('handler_version')) === $row->string('handler_version')) {
-                $held[$code->value] = true;
-            }
-        }
-        $cohorts = [];
-        foreach ($paused as $scopeKey) {
-            if (preg_match('/^(acquisition|documents):cohort:manual$/', $scopeKey) === 1) {
-                $cohorts[] = 'manual';
-            } elseif (preg_match('/^(acquisition|documents):platform:(.+)$/', $scopeKey, $matches) === 1) {
-                $cohorts[] = 'platform:'.$matches[2];
-            }
-        }
-        $cohorts = array_values(array_unique($cohorts));
-        $pairs = [];
-        foreach (StageCode::cases() as $code) {
-            foreach ($this->policy->stageScopes($code) as $scope) {
-                if (isset($pausedSet[$scope->key])) {
-                    $held[$code->value] = true;
-                    break;
-                }
-            }
-            if (isset($held[$code->value])) {
-                continue;
-            }
-            foreach ($cohorts as $cohort) {
-                foreach ($this->policy->workScopes($code, $cohort) as $scope) {
-                    if (isset($pausedSet[$scope->key])) {
-                        $pairs[] = [$code->value, $cohort];
-                        break;
-                    }
-                }
-            }
-        }
-        $conditions = [];
-        $bindings = [];
-        if ($held !== []) {
-            $conditions[] = 'stage IN ('.LedgerRow::placeholders(count($held)).')';
-            $bindings = [...$bindings, ...array_keys($held)];
-        }
-        if ($pairs !== []) {
-            $conditions[] = '(stage, cohort_key) IN ('.implode(', ', array_fill(0, count($pairs), '(?, ?)')).')';
-            foreach ($pairs as [$stage, $cohort]) {
-                $bindings[] = $stage;
-                $bindings[] = $cohort;
-            }
-        }
-
-        return [$conditions === [] ? 'FALSE' : '('.implode(' OR ', $conditions).')', $bindings];
-    }
-
-    /**
-     * @param  list<string>  $bindings
-     * @param  array{sort: string, id: string}|null  $cursor
-     * @return list<WorkId>
-     */
-    private function selectWorkIds(string $where, string $sortColumn, array $bindings, int $limit, ?array &$cursor = null): array
-    {
-        return self::ids($this->selectCursorRows(
-            select: "SELECT id, {$sortColumn}::text AS cursor_sort FROM prc_process_work",
-            where: $where,
-            sortColumn: $sortColumn,
-            idColumn: 'id',
-            bindings: $bindings,
-            limit: $limit,
-            cursor: $cursor,
-        ));
-    }
-
-    /**
-     * Bounded выборка с курсором и wrap-around: если выборка после курсора вернула меньше $limit
-     * строк, в этом же вызове добирается начало очереди до $limit (без дублирования строк), чтобы
-     * ни неразрешимый префикс не блокировал хвост, ни короткий хвост не скрывал ошибки префикса.
-     *
-     * @param  list<string>  $bindings
-     * @param  array{sort: string, id: string}|null  $cursor
-     * @return list<LedgerRow>
-     */
-    private function selectCursorRows(
-        string $select,
-        string $where,
-        string $sortColumn,
-        string $idColumn,
-        array $bindings,
-        int $limit,
-        ?array &$cursor = null,
-    ): array {
-        $idKey = $idColumn === 'a.id' ? 'attempt_id' : 'id';
-        if ($cursor === null) {
-            $rows = LedgerRow::all(
-                "{$select} WHERE {$where} ORDER BY {$sortColumn}, {$idColumn} LIMIT ?",
-                [...$bindings, $limit],
-            );
-            if (count($rows) === $limit && $rows !== []) {
-                $last = $rows[array_key_last($rows)];
-                $cursor = ['sort' => $last->string('cursor_sort'), 'id' => $last->string($idKey)];
-            }
-
-            return $rows;
-        }
-
-        $tail = LedgerRow::all(
-            "{$select} WHERE {$where} AND ({$sortColumn}, {$idColumn}) > (?::timestamptz, ?::uuid) ORDER BY {$sortColumn}, {$idColumn} LIMIT ?",
-            [...$bindings, $cursor['sort'], $cursor['id'], $limit],
-        );
-        if (count($tail) === $limit && $tail !== []) {
-            $last = $tail[array_key_last($tail)];
-            $cursor = ['sort' => $last->string('cursor_sort'), 'id' => $last->string($idKey)];
-
-            return $tail;
-        }
-
-        $remaining = $limit - count($tail);
-        $head = $remaining > 0
-            ? LedgerRow::all(
-                "{$select} WHERE {$where} ORDER BY {$sortColumn}, {$idColumn} LIMIT ?",
-                [...$bindings, $remaining],
-            )
-            : [];
-        if (count($head) === $remaining && $head !== []) {
-            $last = $head[array_key_last($head)];
-            $cursor = ['sort' => $last->string('cursor_sort'), 'id' => $last->string($idKey)];
-        } else {
-            $cursor = null;
-        }
-        $seen = [];
-        $combined = [];
-        foreach ([...$tail, ...$head] as $row) {
-            $id = $row->string($idKey);
-            if (! isset($seen[$id])) {
-                $seen[$id] = true;
-                $combined[] = $row;
-            }
-        }
-
-        return $combined;
-    }
-
-    /**
-     * @param  list<LedgerRow>  $rows
-     * @return list<WorkId>
-     */
-    private static function ids(array $rows): array
-    {
-        return array_map(static fn (LedgerRow $row): WorkId => new WorkId(new ProcessUuid($row->string('id'))), $rows);
+        return $this->queries ?? new RecoveryQueryRepository($this->registry, $this->policy);
     }
 }

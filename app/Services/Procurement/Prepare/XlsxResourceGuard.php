@@ -9,7 +9,7 @@ use ZipArchive;
 /** Rejects hostile OOXML containers before PhpSpreadsheet inflates metadata or cell data. */
 final class XlsxResourceGuard
 {
-    public function accepts(string $path, string $extension): bool
+    public function accepts(string $path, string $extension, bool $checkXmlEntities = true): bool
     {
         if ($extension !== 'xlsx') {
             return true;
@@ -51,7 +51,7 @@ final class XlsxResourceGuard
 
                 $name = $stat['name'];
 
-                if (preg_match('/\.(?:xml|rels)$/i', $name) === 1 && $this->entryContainsProhibitedXml($zip, $name, $maxDecoded)) {
+                if ($checkXmlEntities && preg_match('/\.(?:xml|rels)$/i', $name) === 1 && $this->entryContainsProhibitedXml($zip, $name, $maxDecoded)) {
                     return false;
                 }
 

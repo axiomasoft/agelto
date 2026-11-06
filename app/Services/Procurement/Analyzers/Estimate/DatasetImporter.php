@@ -61,40 +61,34 @@ final readonly class DatasetImporter
             }
 
             $rowsJson = $estimateJson['rows'] ?? [];
-            $passport = null;
-
-            try {
-                $passport = PassportResponse::validateAndCreate(Arr::except($estimateJson, ['rows']));
-            } catch (ValidationException $e) {
-                foreach ($e->errors() as $field => $messages) {
-                    $errors[] = "estimates.{$index}.{$field}: ".implode('; ', $this->messages($messages));
-                }
-            } catch (CannotCreateData $e) {
-                $errors[] = "estimates.{$index}: {$e->getMessage()}";
-            }
+            $passport = $this->validateDto(
+                static fn (): PassportResponse => PassportResponse::validateAndCreate(Arr::except($estimateJson, ['rows'])),
+                "estimates.{$index}",
+                $errors,
+            );
 
             $rows = [];
 
             foreach (array_values((array) $rowsJson) as $rowIndex => $rowJson) {
-                try {
-                    if (! is_array($rowJson) || array_is_list($rowJson)) {
-                        $errors[] = "estimates.{$index}.rows.{$rowIndex}: ожидается объект";
+                if (! is_array($rowJson) || array_is_list($rowJson)) {
+                    $errors[] = "estimates.{$index}.rows.{$rowIndex}: ожидается объект";
 
-                        continue;
-                    }
+                    continue;
+                }
 
-                    /** @var array<string, mixed> $rowJson */
-                    $rows[] = EstimateRow::validateAndCreate($rowJson);
-                } catch (ValidationException $e) {
-                    foreach ($e->errors() as $field => $messages) {
-                        $errors[] = "estimates.{$index}.rows.{$rowIndex}.{$field}: ".implode('; ', $this->messages($messages));
-                    }
-                } catch (CannotCreateData $e) {
-                    $errors[] = "estimates.{$index}.rows.{$rowIndex}: {$e->getMessage()}";
+                /** @var array<string, mixed> $rowJson */
+                $row = $this->validateDto(
+                    static fn (): EstimateRow => EstimateRow::validateAndCreate($rowJson),
+                    "estimates.{$index}.rows.{$rowIndex}",
+                    $errors,
+                );
+
+                if ($row instanceof EstimateRow) {
+                    $rows[] = $row;
                 }
             }
 
-            if ($passport === null || count($rows) !== count((array) $rowsJson)) {
+            if (! $passport instanceof PassportResponse || count($rows) !== count((array) $rowsJson)) {
                 continue;
             }
 
@@ -109,6 +103,28 @@ final readonly class DatasetImporter
         }
 
         return ['errors' => [], 'normalized' => ['estimates' => $normalizedEstimates]];
+    }
+
+    /**
+     * @template T
+     *
+     * @param  callable(): T  $factory
+     * @param  list<string>  $errors
+     * @return T|null
+     */
+    private function validateDto(callable $factory, string $prefix, array &$errors): mixed
+    {
+        try {
+            return $factory();
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $errors[] = "{$prefix}.{$field}: ".implode('; ', $this->messages($messages));
+            }
+        } catch (CannotCreateData $e) {
+            $errors[] = "{$prefix}: {$e->getMessage()}";
+        }
+
+        return null;
     }
 
     /** @return list<string> */
@@ -133,7 +149,11 @@ final readonly class DatasetImporter
         string $source,
         int $goldVersion,
     ): void {
-        $content = (string) file_get_contents($sourceFile);
+        $content = file_get_contents($sourceFile);
+
+        if ($content === false) {
+            throw new \RuntimeException("Не удалось прочитать исходный файл эталона: {$sourceFile}");
+        }
         $hash = hash('sha256', $content);
         $externalId = "gold:{$baseName}";
 

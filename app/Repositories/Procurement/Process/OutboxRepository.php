@@ -120,6 +120,14 @@ final readonly class OutboxRepository
         ) === 1;
     }
 
+    /** @param list<ClaimedOutboxMessage> $messages */
+    public function releaseClaims(array $messages, string $errorCode): void
+    {
+        foreach ($messages as $message) {
+            $this->releaseClaim($message, $errorCode);
+        }
+    }
+
     /**
      * Сообщение, которое этот consumer не умеет исполнить (неподдерживаемая schema, нет маршрута):
      * остаётся unpublished с видимым кодом и откладывается, а не помечается published и не теряется.

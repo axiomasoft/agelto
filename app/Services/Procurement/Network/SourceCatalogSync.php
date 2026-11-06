@@ -23,7 +23,6 @@ use App\Repositories\Procurement\Process\ControlRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Llm\LlmProviderFactory;
 use App\Services\Procurement\Process\ProcessTransaction;
-use Illuminate\Support\Str;
 
 /**
  * Explicit idempotent `platform:sync-catalog`: запускается ПОСЛЕ migrations
@@ -65,14 +64,8 @@ final readonly class SourceCatalogSync
     {
         $platform = LedgerRow::one('SELECT id FROM prc_platforms WHERE code = ?', [$catalog->platformCode])
             ?? throw new \InvalidArgumentException('Source catalog platform is not installed: '.$catalog->platformCode);
-        $scopes = self::platformScopes($catalog->platformCode);
-        $this->transaction->run(fn () => $this->controls->ensureScopes($scopes));
-        $direct = $this->transaction->run(fn (): string => $this->routes->ensureDirectRoute($this->policy->directEgressId, $this->policy->directIndependenceGroup));
-        $this->transaction->run(function () use ($direct): void {
-            $this->routes->ensureProfile($this->policy->defaultRouteProfile, $direct);
-            $this->routes->ensureProfile($this->policy->providerRouteProfile);
-        });
-        [$eventId, $projectionId] = [self::uuid(), self::uuid()];
+        $this->ensureBaseTopology(self::platformScopes($catalog->platformCode));
+        [$eventId, $projectionId] = [ProcessUuid::random(), ProcessUuid::random()];
 
         return $this->transaction->run(fn (): CatalogSyncReport => $this->catalog->syncPlatform(
             $platform->int('id'), $catalog, $this->policy, $eventId, $projectionId,
@@ -81,18 +74,25 @@ final readonly class SourceCatalogSync
 
     public function syncProvider(ProviderTargetDefinitions $catalog): CatalogSyncReport
     {
-        $scopes = [new ScopeDefinition(ScopeKind::System, 'system', null),
+        $this->ensureBaseTopology([
+            new ScopeDefinition(ScopeKind::System, 'system', null),
             new ScopeDefinition(ScopeKind::Stage, 'monitoring', 'system'),
-            new ScopeDefinition(ScopeKind::Provider, 'provider:'.$catalog->providerKey->value, 'system')];
+            new ScopeDefinition(ScopeKind::Provider, 'provider:'.$catalog->providerKey->value, 'system'),
+        ]);
+        [$eventId, $projectionId] = [ProcessUuid::random(), ProcessUuid::random()];
+
+        return $this->transaction->run(fn (): CatalogSyncReport => $this->catalog->syncProvider($catalog, $this->policy, $eventId, $projectionId));
+    }
+
+    /** @param list<ScopeDefinition> $scopes */
+    private function ensureBaseTopology(array $scopes): void
+    {
         $this->transaction->run(fn () => $this->controls->ensureScopes($scopes));
         $direct = $this->transaction->run(fn (): string => $this->routes->ensureDirectRoute($this->policy->directEgressId, $this->policy->directIndependenceGroup));
         $this->transaction->run(function () use ($direct): void {
             $this->routes->ensureProfile($this->policy->defaultRouteProfile, $direct);
             $this->routes->ensureProfile($this->policy->providerRouteProfile);
         });
-        [$eventId, $projectionId] = [self::uuid(), self::uuid()];
-
-        return $this->transaction->run(fn (): CatalogSyncReport => $this->catalog->syncProvider($catalog, $this->policy, $eventId, $projectionId));
     }
 
     /**
@@ -139,7 +139,7 @@ final readonly class SourceCatalogSync
         if (! $this->policy->withinBounds($budget)) {
             throw new \InvalidArgumentException('Budget override is outside outbound.override_bounds.');
         }
-        [$eventId, $projectionId] = [self::uuid(), self::uuid()];
+        [$eventId, $projectionId] = [ProcessUuid::random(), ProcessUuid::random()];
 
         return $this->transaction->run(fn (): NetworkChangeResult => $this->catalog->overrideBudget(
             $scopeKey, $budget, $expectedVersion, $this->policy, $actorId, $reason, $eventId, $projectionId,
@@ -148,7 +148,7 @@ final readonly class SourceCatalogSync
 
     public function retireTarget(ProcessUuid $targetId, int $expectedVersion, ?int $actorId, string $reason): NetworkChangeResult
     {
-        [$eventId, $projectionId] = [self::uuid(), self::uuid()];
+        [$eventId, $projectionId] = [ProcessUuid::random(), ProcessUuid::random()];
 
         return $this->transaction->run(fn (): NetworkChangeResult => $this->catalog->retireTarget(
             $targetId, $expectedVersion, $actorId, $reason, $eventId, $projectionId,
@@ -170,11 +170,5 @@ final readonly class SourceCatalogSync
             new ScopeDefinition(ScopeKind::Platform, ScopeKind::Acquisition->value.':platform:'.$platformCode, ScopeKind::Acquisition->value),
             new ScopeDefinition(ScopeKind::Platform, ScopeKind::Documents->value.':platform:'.$platformCode, ScopeKind::Documents->value),
         ];
-    }
-
-    /** Event/message IDs создаются ДО транзакции и стабильны при её retry. */
-    private static function uuid(): ProcessUuid
-    {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
     }
 }

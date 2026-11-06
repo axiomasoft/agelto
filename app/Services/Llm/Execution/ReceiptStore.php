@@ -154,7 +154,7 @@ final readonly class ReceiptStore
 
         $root = rtrim($rootPath, DIRECTORY_SEPARATOR);
         $directory = dirname($filePath);
-        while ($root === '' || str_starts_with($directory, $root)) {
+        while ($root !== '' && ($directory === $root || str_starts_with($directory, $root.DIRECTORY_SEPARATOR))) {
             $dirStream = @fopen($directory, 'rb');
             if (! is_resource($dirStream)) {
                 throw new ReceiptUnavailable('Receipt directory durability sync unavailable.');

@@ -8,12 +8,12 @@ use App\Dto\Procurement\Acquisition\ProcurementIdentity;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\ProcurementEventType;
+use App\Enums\Telemetry\LogChannel;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Закупка обнаружена/изменена → ревизия + события (`01-database.md` §11, чек-лист сценариев).
@@ -123,7 +123,7 @@ final readonly class ProcurementIngestProcessor
         }
 
         if ($this->isOlderThanHead(procurement: $procurement, data: $data, observedAt: $observedAt)) {
-            Log::info(message: 'ProcurementIngestProcessor: снапшот старше текущей головы закупки пропущен.', context: [
+            LogChannel::Procurement->info(message: 'ProcurementIngestProcessor: снапшот старше текущей головы закупки пропущен.', context: [
                 'procurement_id' => $procurement->id,
                 'head_source_updated_at' => $procurement->source_updated_at?->toIso8601String(),
                 'snapshot_source_updated_at' => $data->sourceUpdatedAt->toIso8601String(),

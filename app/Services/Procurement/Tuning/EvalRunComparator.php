@@ -13,25 +13,8 @@ use RuntimeException;
 /**
  * Критерий приёмки патча промта между двумя `EvalRun` (+ правило отбора):
  * подвыборки `tune`/`holdout` вычисляются из `estimates/eval-splits.json` по членству в `holdout`
- * (та же семантика, что `estimate:eval:run --split`) — сравниваемые прогоны предполагаются прогнанными
- * `--split=all`, иначе одна из подвыборок останется пустой и `compare()` откажется считать критерий.
- * Числа для порогов (а)–(г) — макро-усреднение per-example `f1`/`row_coverage` внутри подвыборки,
- * тот же приём, что `EvalRunCommand::aggregate()` для прогона целиком.
+ * (та же семантика, что `estimate:eval:run --split`).
  *
- * Режим `no-regression` — та же проверка порогов ПАДЕНИЯ (б)–(г), но БЕЗ
- * требования прироста (а) `TUNE_F1_MIN_GAIN`: перенос семантики докблока в атрибут (items)
- * не обещает улучшения, только «не хуже», и штатный режим `patch` дал бы на нём ложный `reject`.
- * Величины порогов (б)–(г) не меняются ни в одном режиме — режим только выключает проверку
- * (а), остальной `verdict()` общий для обоих режимов.
- *
- * Режим `noise-aware` — те же оси (б)–(г), но порог каждой оси ВЫЧИСЛЯЕТСЯ из
- * названной опцией `--noise-pair` нулевой пары прогонов (модуль дельты той же оси на паре без
- * изменения — `no-regression` на этом же корпусе отвергает даже нулевое изменение) вместо
- * констант `HOLDOUT_F1_MAX_DROP`/`ROW_COVERAGE_MAX_DROP`/`PER_FIXTURE_F1_MAX_DROP`. Добавляет
- * агрегат `overall` (все эталоны прогона, без деления на `tune`/`holdout`) в `subsamples` и
- * информационный (не влияющий на вердикт) профиль вызовов `llm_provider_calls` обоих сравниваемых прогонов.
- */
-/**
  * @phpstan-type PerFieldMetrics array<string, array{f1: float}>
  * @phpstan-type ResultRow array{code: string, f1: float, row_coverage: float, per_field: PerFieldMetrics}
  * @phpstan-type SubsampleAggregate array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int}
@@ -47,24 +30,12 @@ final readonly class EvalRunComparator
 
     public const string CRITERION_NOISE_AWARE = 'noise-aware';
 
-    private const float TUNE_F1_MIN_GAIN = 0.01;
-
-    private const float HOLDOUT_F1_MAX_DROP = 0.005;
-
-    private const float ROW_COVERAGE_MAX_DROP = 0.005;
-
-    private const float PER_FIXTURE_F1_MAX_DROP = 0.05;
-
     public function __construct(
         private LlmCallReadRepository $llmCalls,
+        private EvalGateEvaluator $gateEvaluator = new EvalGateEvaluator,
     ) {}
 
     /**
-     * @param  string  $criterion  'patch'|'no-regression'|'noise-aware' — не типизировано литералом:
-     *                             значение приходит от вызывающего (CLI-опция) непроверенным,
-     *                             инвариант держит runtime-guard ниже
-     * @param  EvalRun|null  $noisePairBase  нулевая пара (`--noise-pair`), обязательна ⟺ `$criterion`
-     *                                       = `noise-aware` — тихого дефолта нет
      * @return array{
      * base_run_id: int, candidate_run_id: int,
      * subsamples: array<string, array{
@@ -103,25 +74,18 @@ final readonly class EvalRunComparator
         }
 
         [$baseResults, $candidateResults] = $this->loadComparablePair($base, $candidate);
-
         $holdoutCodes = $this->loadHoldoutCodes();
 
-        $subsamples = [];
+        $subsamples = $this->gateEvaluator->buildSubsamples(
+            baseResults: $baseResults,
+            candidateResults: $candidateResults,
+            holdoutCodes: $holdoutCodes,
+            baseId: $base->id,
+            candidateId: $candidate->id,
+            includeOverall: $criterion === self::CRITERION_NOISE_AWARE,
+        );
 
-        foreach (['tune', 'holdout'] as $subsample) {
-            $baseSub = $this->filterBySubsample($baseResults, $holdoutCodes, $subsample);
-            $candidateSub = $this->filterBySubsample($candidateResults, $holdoutCodes, $subsample);
-
-            if ($baseSub->isEmpty() || $candidateSub->isEmpty()) {
-                throw new RuntimeException(
-                    "Подвыборка `{$subsample}` пуста в одном из прогонов (#{$base->id}/#{$candidate->id}) — критерий приёмки не проверить. Прогони `estimate:eval:run --split=all`.",
-                );
-            }
-
-            $subsamples[$subsample] = $this->aggregateDelta($baseSub, $candidateSub);
-        }
-
-        $perFixture = $this->perFixtureDeltas($baseResults, $candidateResults);
+        $perFixture = $this->gateEvaluator->perFixtureDeltas($baseResults, $candidateResults);
 
         $noiseThresholds = null;
         $noisePairIds = null;
@@ -130,15 +94,13 @@ final readonly class EvalRunComparator
         if ($criterion === self::CRITERION_NOISE_AWARE) {
             /** @var EvalRun $noisePairBase */
             /** @var EvalRun $noisePairCandidate */
-            $subsamples['overall'] = $this->aggregateDelta($baseResults, $candidateResults);
-
             [$noiseBaseResults, $noiseCandidateResults] = $this->loadComparablePair($noisePairBase, $noisePairCandidate);
-            $noiseThresholds = $this->computeNoiseThresholds($noiseBaseResults, $noiseCandidateResults, $holdoutCodes);
+            $noiseThresholds = $this->gateEvaluator->computeNoiseThresholds($noiseBaseResults, $noiseCandidateResults, $holdoutCodes);
             $noisePairIds = ['base' => $noisePairBase->id, 'candidate' => $noisePairCandidate->id];
             $profile = $this->buildProfile($base, $candidate, $noisePairBase, $noisePairCandidate);
         }
 
-        $verdict = $this->verdict($subsamples, $perFixture, $criterion, $noiseThresholds, $noisePairIds);
+        $verdict = $this->gateEvaluator->evaluateGates($subsamples, $perFixture, $criterion, $noiseThresholds, $noisePairIds);
 
         $result = [
             'base_run_id' => $base->id,
@@ -181,9 +143,6 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * Проверяет сопоставимость прогонов по маршруту, версиям промтов и составу эталонов.
-     * Те же проверки применяются к сравниваемой паре и noise-pair.
-     *
      * @return array{0: Collection<int, ResultRow>, 1: Collection<int, ResultRow>}
      */
     private function loadComparablePair(EvalRun $a, EvalRun $b): array
@@ -213,7 +172,12 @@ final readonly class EvalRunComparator
             ->where('metric', 'f1')
             ->with('datasetExample.fixture')
             ->get()
-            ->map(fn (EvalResult $result): array => $this->resultRow($result));
+            ->map(fn (EvalResult $result): array => $this->gateEvaluator->parseResultRow(
+                resultId: $result->id,
+                code: $result->datasetExample?->fixture?->code,
+                value: $result->value,
+                rawDetails: $result->details?->all() ?? [],
+            ));
     }
 
     /**
@@ -221,7 +185,7 @@ final readonly class EvalRunComparator
      */
     private function loadHoldoutCodes(): array
     {
-        $path = $this->stringValue(config('ai.fixtures.splits_path'), 'ai.fixtures.splits_path');
+        $path = $this->gateEvaluator->stringValue(config('ai.fixtures.splits_path'), 'ai.fixtures.splits_path');
 
         if (! is_file($path)) {
             throw new RuntimeException("Файл разбиения не найден: {$path}. Прогони `estimate:eval:run --write-splits`.");
@@ -233,7 +197,7 @@ final readonly class EvalRunComparator
             throw new RuntimeException("Файл разбиения не удалось прочитать: {$path}.");
         }
 
-        $decoded = $this->jsonObject(json_decode($contents, associative: true, flags: JSON_THROW_ON_ERROR), 'eval splits');
+        $decoded = $this->gateEvaluator->jsonObject(json_decode($contents, associative: true, flags: JSON_THROW_ON_ERROR), 'eval splits');
         $holdout = $decoded['holdout'] ?? [];
 
         if (! is_array($holdout)) {
@@ -243,182 +207,18 @@ final readonly class EvalRunComparator
         $codes = [];
 
         foreach ($holdout as $code) {
-            $codes[] = $this->stringValue($code, 'eval splits holdout code');
+            $codes[] = $this->gateEvaluator->stringValue($code, 'eval splits holdout code');
         }
 
         return $codes;
     }
 
     /**
-     * @param  Collection<int, ResultRow>  $results
-     * @param  list<string>  $holdoutCodes
-     * @return Collection<int, ResultRow>
-     */
-    private function filterBySubsample(Collection $results, array $holdoutCodes, string $subsample): Collection
-    {
-        return $results->filter(function (array $result) use ($holdoutCodes, $subsample): bool {
-            $inHoldout = in_array($result['code'], $holdoutCodes, true);
-
-            return $subsample === 'holdout' ? $inHoldout : ! $inHoldout;
-        })->values();
-    }
-
-    /**
-     * @param  Collection<int, ResultRow>  $results
-     * @return SubsampleAggregate
-     */
-    private function aggregateSubsample(Collection $results): array
-    {
-        $first = $results->first();
-
-        if ($first === null) {
-            throw new RuntimeException('Нельзя агрегировать пустую подвыборку eval.');
-        }
-
-        $fields = array_keys($first['per_field']);
-
-        $perField = [];
-
-        foreach ($fields as $field) {
-            $perField[$field] = round(
-                (float) $results->avg(fn (array $result): float => $result['per_field'][$field]['f1'] ?? 0.0),
-                4,
-            );
-        }
-
-        return [
-            'f1' => round((float) $results->avg('f1'), 4),
-            'row_coverage' => round((float) $results->avg('row_coverage'), 4),
-            'per_field' => $perField,
-            'examples' => $results->count(),
-        ];
-    }
-
-    /**
-     * @param  Collection<int, ResultRow>  $baseResults
-     * @param  Collection<int, ResultRow>  $candidateResults
      * @return array{
-     *     base: array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int},
-     *     candidate: array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int},
-     *     delta: array{f1: float, row_coverage: float, per_field: array<string, float>},
-     * }
-     */
-    private function aggregateDelta(Collection $baseResults, Collection $candidateResults): array
-    {
-        $baseAggregate = $this->aggregateSubsample($baseResults);
-        $candidateAggregate = $this->aggregateSubsample($candidateResults);
-
-        return [
-            'base' => $baseAggregate,
-            'candidate' => $candidateAggregate,
-            'delta' => [
-                'f1' => round($candidateAggregate['f1'] - $baseAggregate['f1'], 4),
-                'row_coverage' => round($candidateAggregate['row_coverage'] - $baseAggregate['row_coverage'], 4),
-                'per_field' => $this->deltaPerField($baseAggregate['per_field'], $candidateAggregate['per_field']),
-            ],
-        ];
-    }
-
-    /**
-     * @param  array<string, float>  $base
-     * @param  array<string, float>  $candidate
-     * @return array<string, float>
-     */
-    private function deltaPerField(array $base, array $candidate): array
-    {
-        $delta = [];
-
-        foreach ($base as $field => $baseValue) {
-            $delta[$field] = round(($candidate[$field] ?? 0.0) - $baseValue, 4);
-        }
-
-        return $delta;
-    }
-
-    /**
-     * @param  Collection<int, ResultRow>  $baseResults
-     * @param  Collection<int, ResultRow>  $candidateResults
-     * @return array<string, float>
-     */
-    private function perFixtureDeltas(Collection $baseResults, Collection $candidateResults): array
-    {
-        $baseByCode = $baseResults->keyBy('code');
-        $candidateByCode = $candidateResults->keyBy('code');
-
-        $deltas = [];
-
-        foreach ($baseByCode as $code => $baseResult) {
-            if (! is_string($code)) {
-                throw new RuntimeException('Код eval-эталона должен быть строкой.');
-            }
-
-            $candidateResult = $candidateByCode->get($code);
-
-            if ($candidateResult === null) {
-                continue;
-            }
-
-            $deltas[$code] = round($candidateResult['f1'] - $baseResult['f1'], 4);
-        }
-
-        return $deltas;
-    }
-
-    /**
-     * Noise-aware пороги равны модулю дельт нулевой пары; перестановка базы и кандидата
-     * не меняет модуль. Общий per-fixture порог — максимальная абсолютная дельта среди
-     * эталонов, а не отдельный порог для каждого эталона.
-     *
-     * @param  Collection<int, ResultRow>  $noiseBaseResults
-     * @param  Collection<int, ResultRow>  $noiseCandidateResults
-     * @param  list<string>  $holdoutCodes
-     * @return array{subsamples: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string}
-     */
-    private function computeNoiseThresholds(Collection $noiseBaseResults, Collection $noiseCandidateResults, array $holdoutCodes): array
-    {
-        $subsampleThresholds = [];
-
-        foreach (['tune', 'holdout'] as $subsample) {
-            $baseSub = $this->filterBySubsample($noiseBaseResults, $holdoutCodes, $subsample);
-            $candidateSub = $this->filterBySubsample($noiseCandidateResults, $holdoutCodes, $subsample);
-
-            if ($baseSub->isEmpty() || $candidateSub->isEmpty()) {
-                throw new RuntimeException("Нулевая пара не несёт подвыборку `{$subsample}` — порог не вычислить.");
-            }
-
-            $baseAggregate = $this->aggregateSubsample($baseSub);
-            $candidateAggregate = $this->aggregateSubsample($candidateSub);
-
-            $subsampleThresholds[$subsample] = [
-                'f1' => abs(round($candidateAggregate['f1'] - $baseAggregate['f1'], 4)),
-                'row_coverage' => abs(round($candidateAggregate['row_coverage'] - $baseAggregate['row_coverage'], 4)),
-            ];
-        }
-
-        $perFixtureDeltas = array_map(abs(...), $this->perFixtureDeltas($noiseBaseResults, $noiseCandidateResults));
-
-        if ($perFixtureDeltas === []) {
-            throw new RuntimeException('Нулевая пара не несёт ни одного эталона — порог per-fixture не вычислить.');
-        }
-
-        $worstCode = array_keys($perFixtureDeltas, max($perFixtureDeltas), true)[0];
-
-        return [
-            'subsamples' => $subsampleThresholds,
-            'per_fixture_threshold' => $perFixtureDeltas[$worstCode],
-            'per_fixture_worst_code' => (string) $worstCode,
-        ];
-    }
-
-    /**
-     * Профиль вызовов `llm_provider_calls` обоих сравниваемых прогонов. Порог падения вывода
-     * вычислен из нулевой пары, но блок информационный и не влияет на `verdict()`:
-     * причины отказа определяют только оси f1 и row_coverage.
-     *
-     * @return array{
-     *     base: array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int},
-     *     candidate: array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int},
-     *     output_drop: int, output_drop_noise_threshold: int,
+     *     base: UsageProfile,
+     *     candidate: UsageProfile,
+     *     output_drop: int,
+     *     output_drop_noise_threshold: int,
      * }
      */
     private function buildProfile(EvalRun $base, EvalRun $candidate, EvalRun $noisePairBase, EvalRun $noisePairCandidate): array
@@ -437,7 +237,7 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * @return array{calls: int, prompt_tokens: int, completion_tokens: int, avg_prompt_tokens: float, cost_micros: int}
+     * @return UsageProfile
      */
     private function profileFor(EvalRun $run): array
     {
@@ -455,169 +255,5 @@ final readonly class EvalRunComparator
             'avg_prompt_tokens' => $row['calls'] > 0 ? round($row['prompt_tokens'] / $row['calls'], 1) : 0.0,
             'cost_micros' => $row['cost_micros'],
         ];
-    }
-
-    /**
-     * @param  Subsamples  $subsamples
-     * @param  array<string, float>  $perFixture
-     * @param  'patch'|'no-regression'|'noise-aware'  $criterion
-     * @param  array{subsamples: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string}|null  $noiseThresholds
-     * @param  array{base: int, candidate: int}|null  $noisePairIds
-     * @return array{verdict: 'accept'|'reject', reasons: list<string>}
-     */
-    private function verdict(array $subsamples, array $perFixture, string $criterion, ?array $noiseThresholds = null, ?array $noisePairIds = null): array
-    {
-        if ($criterion === self::CRITERION_NOISE_AWARE) {
-            /** @var array{subsamples: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string} $noiseThresholds */
-            /** @var array{base: int, candidate: int} $noisePairIds */
-            return $this->noiseAwareVerdict($subsamples, $perFixture, $noiseThresholds, $noisePairIds);
-        }
-
-        $reasons = [];
-
-        $tuneF1Delta = $subsamples['tune']['delta']['f1'];
-        $holdoutF1Delta = $subsamples['holdout']['delta']['f1'];
-
-        if ($criterion === self::CRITERION_PATCH && $tuneF1Delta < self::TUNE_F1_MIN_GAIN) {
-            $reasons[] = sprintf('(а) tune.overall.f1 изменился на %.4f — меньше требуемого роста %.3f', $tuneF1Delta, self::TUNE_F1_MIN_GAIN);
-        }
-
-        if ($holdoutF1Delta < -self::HOLDOUT_F1_MAX_DROP) {
-            $reasons[] = sprintf('(б) holdout.overall.f1 упал на %.4f — больше допустимых %.3f', -$holdoutF1Delta, self::HOLDOUT_F1_MAX_DROP);
-        }
-
-        foreach (['tune', 'holdout'] as $subsample) {
-            $rowCoverageDelta = $subsamples[$subsample]['delta']['row_coverage'];
-
-            if ($rowCoverageDelta < -self::ROW_COVERAGE_MAX_DROP) {
-                $reasons[] = sprintf('(в) %s.row_coverage упал на %.4f — больше допустимых %.3f', $subsample, -$rowCoverageDelta, self::ROW_COVERAGE_MAX_DROP);
-            }
-        }
-
-        foreach ($perFixture as $code => $delta) {
-            if ($delta < -self::PER_FIXTURE_F1_MAX_DROP) {
-                $reasons[] = sprintf('(г) эталон %s потерял %.4f f1 — больше допустимых %.3f', $code, -$delta, self::PER_FIXTURE_F1_MAX_DROP);
-            }
-        }
-
-        return ['verdict' => $reasons === [] ? 'accept' : 'reject', 'reasons' => $reasons];
-    }
-
-    /**
-     * Noise-aware использует те же оси проверки, что verdict(), с порогами из нулевой
-     * пары. Граница включена: дельта, равная порогу, не считается регрессией.
-     *
-     * @param  Subsamples  $subsamples
-     * @param  array<string, float>  $perFixture
-     * @param  array{subsamples: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string}  $noiseThresholds
-     * @param  array{base: int, candidate: int}  $noisePairIds
-     * @return array{verdict: 'accept'|'reject', reasons: list<string>}
-     */
-    private function noiseAwareVerdict(array $subsamples, array $perFixture, array $noiseThresholds, array $noisePairIds): array
-    {
-        $reasons = [];
-        $pairSuffix = sprintf('шум пары #%d/#%d', $noisePairIds['base'], $noisePairIds['candidate']);
-
-        $holdoutF1Delta = $subsamples['holdout']['delta']['f1'];
-        $holdoutF1Threshold = $noiseThresholds['subsamples']['holdout']['f1'];
-
-        if ($holdoutF1Delta < -$holdoutF1Threshold) {
-            $reasons[] = sprintf('(б) holdout.overall.f1 упал на %.4f — больше порога %.4f (%s)', -$holdoutF1Delta, $holdoutF1Threshold, $pairSuffix);
-        }
-
-        foreach (['tune', 'holdout'] as $subsample) {
-            $rowCoverageDelta = $subsamples[$subsample]['delta']['row_coverage'];
-            $threshold = $noiseThresholds['subsamples'][$subsample]['row_coverage'];
-
-            if ($rowCoverageDelta < -$threshold) {
-                $reasons[] = sprintf('(в) %s.row_coverage упал на %.4f — больше порога %.4f (%s)', $subsample, -$rowCoverageDelta, $threshold, $pairSuffix);
-            }
-        }
-
-        $perFixtureThreshold = $noiseThresholds['per_fixture_threshold'];
-
-        foreach ($perFixture as $code => $delta) {
-            if ($delta < -$perFixtureThreshold) {
-                $reasons[] = sprintf('(г) эталон %s потерял %.4f f1 — больше порога %.4f (%s, худший эталон пары — %s)', $code, -$delta, $perFixtureThreshold, $pairSuffix, $noiseThresholds['per_fixture_worst_code']);
-            }
-        }
-
-        return ['verdict' => $reasons === [] ? 'accept' : 'reject', 'reasons' => $reasons];
-    }
-
-    /**
-     * @return ResultRow
-     */
-    private function resultRow(EvalResult $result): array
-    {
-        $code = $result->datasetExample?->fixture?->code;
-
-        if (! is_string($code) || $code === '') {
-            throw new RuntimeException("EvalResult #{$result->id} не имеет кода fixture.");
-        }
-
-        $details = $this->jsonObject($result->details?->all() ?? [], "EvalResult #{$result->id} details");
-
-        return [
-            'code' => $code,
-            'f1' => $this->floatValue($result->value, "EvalResult #{$result->id} f1"),
-            'row_coverage' => $this->floatValue($details['row_coverage'] ?? 0.0, "EvalResult #{$result->id} row_coverage"),
-            'per_field' => $this->perFieldMetrics($details['per_field'] ?? []),
-        ];
-    }
-
-    /**
-     * @return PerFieldMetrics
-     */
-    private function perFieldMetrics(mixed $value): array
-    {
-        $fields = $this->jsonObject($value, 'EvalResult per_field');
-        $metrics = [];
-
-        foreach ($fields as $field => $metric) {
-            $metricData = $this->jsonObject($metric, "EvalResult per_field {$field}");
-            $metrics[$field] = ['f1' => $this->floatValue($metricData['f1'] ?? null, "EvalResult per_field {$field}.f1")];
-        }
-
-        return $metrics;
-    }
-
-    private function floatValue(mixed $value, string $context): float
-    {
-        if (is_float($value)) {
-            return $value;
-        }
-
-        if (is_int($value)) {
-            return (float) $value;
-        }
-
-        if (is_string($value) && is_numeric($value)) {
-            return (float) $value;
-        }
-
-        throw new RuntimeException("{$context} должен быть числом.");
-    }
-
-    private function stringValue(mixed $value, string $context): string
-    {
-        if (! is_string($value)) {
-            throw new RuntimeException("{$context} должен быть строкой.");
-        }
-
-        return $value;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function jsonObject(mixed $value, string $context): array
-    {
-        if (! is_array($value) || array_is_list($value)) {
-            throw new RuntimeException("{$context} должен быть JSON-объектом.");
-        }
-
-        /** @var array<string, mixed> $value */
-        return $value;
     }
 }

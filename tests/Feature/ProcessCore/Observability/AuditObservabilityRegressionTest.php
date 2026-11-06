@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Health\ReadinessCheckCode;
 use App\Enums\Procurement\Process\ControlMode;
 use App\Enums\Procurement\Process\OperatorCommandStatus;
+use App\Enums\Telemetry\LogChannel;
 use App\Guards\Admin\Policies\EstimatePolicy;
 use App\Guards\Admin\Policies\FixturePolicy;
 use App\Guards\Admin\Roles\OperatorRole;
@@ -52,6 +54,18 @@ pest()->group('legacy-ownership-cutover', 'operational-metrics-and-alerting');
 
 beforeEach(fn () => $this->artisan('guard:sync-roles')->assertSuccessful());
 
+function auditObsAcknowledge(ProcessUuid $incidentId, int $seq, string $reason, int $userId): OperatorCommandStatus
+{
+    return app(ProcessTransaction::class)->run(fn () => app(IncidentRepository::class)->acknowledge(
+        $incidentId,
+        $seq,
+        $reason,
+        $userId,
+        LedgerFixtures::uuid(),
+        LedgerFixtures::uuid(),
+    ));
+}
+
 test('IncidentRepository::acknowledge проверяет оптимистичную версию expectedTransitionSeq и валидирует reason', function (): void {
     $user = User::factory()->create();
     $id = LedgerFixtures::uuid();
@@ -66,13 +80,13 @@ test('IncidentRepository::acknowledge проверяет оптимистичн�
         LedgerFixtures::uuid(),
     ));
 
-    expect(fn () => app(ProcessTransaction::class)->run(fn () => $repo->acknowledge($id, 1, '   ', $user->id, LedgerFixtures::uuid(), LedgerFixtures::uuid())))
+    expect(fn () => auditObsAcknowledge($id, 1, '   ', $user->id))
         ->toThrow(InvalidArgumentException::class)
-        ->and(fn () => app(ProcessTransaction::class)->run(fn () => $repo->acknowledge($id, 1, "bad\0reason", $user->id, LedgerFixtures::uuid(), LedgerFixtures::uuid())))
+        ->and(fn () => auditObsAcknowledge($id, 1, "bad\0reason", $user->id))
         ->toThrow(InvalidArgumentException::class)
-        ->and(app(ProcessTransaction::class)->run(fn () => $repo->acknowledge($id, 99, 'stale seq', $user->id, LedgerFixtures::uuid(), LedgerFixtures::uuid())))
+        ->and(auditObsAcknowledge($id, 99, 'stale seq', $user->id))
         ->toBe(OperatorCommandStatus::VersionConflict)
-        ->and(app(ProcessTransaction::class)->run(fn () => $repo->acknowledge($id, 1, 'valid reason', $user->id, LedgerFixtures::uuid(), LedgerFixtures::uuid())))
+        ->and(auditObsAcknowledge($id, 1, 'valid reason', $user->id))
         ->toBe(OperatorCommandStatus::Applied);
 });
 
@@ -205,7 +219,10 @@ test('жизненный цикл trace_id в CLI и HTTP генерирует 3
 });
 
 test('SafeLogChannelTap, SecretRedactor, Horizon gate и операторские репозитории редактируют секреты и блокируют неавторизованный доступ', function (): void {
-    foreach (['single', 'daily', 'slack', 'papertrail', 'stderr', 'json_file', 'json_stderr', 'syslog', 'errorlog'] as $channel) {
+    foreach ([
+        'single', 'daily', 'slack', 'papertrail', 'stderr', 'json_file', 'json_stderr', 'syslog', 'errorlog',
+        'process', 'network', 'platforms', 'procurement', 'storage', 'alerts', 'system_warnings', 'system_errors',
+    ] as $channel) {
         expect(config("logging.channels.{$channel}.tap"))->toContain(SafeLogChannelTap::class);
     }
 
@@ -291,4 +308,21 @@ test('PipelineAlert ставит дедупликационный ключ в к
     expect(Cache::has('pipeline_alert:test_key'))->toBeTrue();
 
     Http::assertSent(fn ($request): bool => str_contains((string) ($request['text'] ?? ''), 'php artisan process:status'));
+
+    $logRoot = (string) config('testing.log_root');
+    LogChannel::Platforms->warning('platform-dom-drift-marker', ['tab' => 'common-info']);
+    LogChannel::Process->error('process-incident-marker', ['daemon' => 'relay']);
+
+    $readGlob = static function (string $pattern): string {
+        $files = glob($pattern) ?: [];
+
+        return implode("\n", array_map(static fn (string $f): string => (string) file_get_contents($f), $files));
+    };
+
+    expect($readGlob("{$logRoot}/platforms*.log"))->toContain('platform-dom-drift-marker')
+        ->and($readGlob("{$logRoot}/system-warnings*.log"))->toContain('platform-dom-drift-marker')
+        ->and($readGlob("{$logRoot}/process*.log"))->toContain('process-incident-marker')
+        ->and($readGlob("{$logRoot}/system-errors*.log"))->toContain('process-incident-marker')
+        ->and($readGlob("{$logRoot}/laravel*.log"))->not->toContain('platform-dom-drift-marker')
+        ->and($readGlob("{$logRoot}/laravel*.log"))->not->toContain('process-incident-marker');
 });

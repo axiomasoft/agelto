@@ -35,7 +35,8 @@ final readonly class ListingFilterCheck implements DiagnosticCheck
     public function plan(AcquisitionLaunch $launch): ProbePlan
     {
         $filter = (new EisListingPartitioner)->restoreFilter($launch->filter);
-        $cursor = $launch->plan->windows[0]->cursor;
+        $window = $launch->plan->windows[0] ?? throw new \InvalidArgumentException('No bounded listing window to validate.');
+        $cursor = $window->cursor;
 
         $unfiltered = new EisListingProbeFilter($filter);
         $decoded = EisListingCursor::decode($cursor);

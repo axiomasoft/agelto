@@ -15,7 +15,7 @@ use Carbon\CarbonImmutable;
 /** Read-only physical-call facts. Never settles a request or changes a conservative reservation. */
 final readonly class TrackingUsageSource implements UsageSource
 {
-    private const SOURCE_ID = 'tracking';
+    private const string SOURCE_ID = 'tracking';
 
     public function __construct(private LlmCallReadRepository $calls) {}
 

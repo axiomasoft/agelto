@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Laravel\Doctor\Diagnostics\BootstrapCacheMatchesEnvironment;
 use Laravel\Doctor\Diagnostics\ComposerAuditPasses;
 use Laravel\Doctor\Diagnostics\ComposerAutoloadIsValid;

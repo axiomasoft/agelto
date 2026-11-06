@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Process;
 
 use App\Enums\Procurement\Process\ClaimStatus;
-use Illuminate\Support\Facades\Log;
+use App\Enums\Telemetry\LogChannel;
 
 /**
  * Sanitized non-throwing telemetry Process runtime. Пишет только bounded коды и IDs: класс
@@ -74,7 +74,7 @@ final class ProcessLog
     private static function write(string $level, string $message, array $context): void
     {
         try {
-            Log::log($level, $message, $context);
+            LogChannel::Process->log($level, $message, $context);
         } catch (\Throwable) {
             // Telemetry никогда не меняет исход delivery или tick.
         }

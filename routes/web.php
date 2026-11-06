@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Controllers\Documentation\PrivateDocumentationController;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Session\Middleware\AuthenticateSession;

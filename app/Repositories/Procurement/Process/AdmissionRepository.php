@@ -6,8 +6,6 @@ namespace App\Repositories\Procurement\Process;
 
 use App\Dto\Procurement\Process\AdmissionResult;
 use App\Dto\Procurement\Process\AuthoritySnapshot;
-use App\Dto\Procurement\Process\CapacityAuthority;
-use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ControlSnapshot;
 use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\FairnessCursor;
@@ -27,7 +25,6 @@ use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\SubjectLockResolver;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 /**
  * Admission ready/due work в admitted. Одна короткая
@@ -60,8 +57,8 @@ final readonly class AdmissionRepository
     public function admit(WorkId $workId, FairnessCursor $expectedCursor, int $eligibleCohorts): AdmissionResult
     {
         $ids = [
-            'group' => self::uuid(), 'event' => self::uuid(), 'projection' => self::uuid(), 'wake' => self::uuid(),
-            'incident' => self::uuid(), 'incident_event' => self::uuid(), 'incident_projection' => self::uuid(),
+            'group' => ProcessUuid::random(), 'event' => ProcessUuid::random(), 'projection' => ProcessUuid::random(), 'wake' => ProcessUuid::random(),
+            'incident' => ProcessUuid::random(), 'incident_event' => ProcessUuid::random(), 'incident_projection' => ProcessUuid::random(),
         ];
         for ($reload = 0; $reload < self::MAX_RELOADS; $reload++) {
             $snapshot = $this->authority->readAuthoritySnapshot($workId);
@@ -73,7 +70,10 @@ final readonly class AdmissionRepository
             $eligibility = $this->readEligibilitySnapshots($snapshot);
             $result = $this->transaction->run(fn (): AdmissionResult => $this->admitLocked($snapshot, $expectedCursor, $eligibleCohorts, $ids, $eligibility));
             if ($result->status === AdmissionStatus::InvariantViolation) {
-                $this->openMembershipIncident($snapshot, $ids);
+                $this->transaction->run(fn () => $this->incidents->openMembershipIncident(
+                    $snapshot->workId, 'lane:'.$this->policy->parentLane($snapshot->handler->stage), 'admit',
+                    $ids['incident'], $ids['incident_event'], $ids['incident_projection'],
+                ));
             }
             if ($result->status !== AdmissionStatus::SnapshotChanged) {
                 return $result;
@@ -326,26 +326,5 @@ final readonly class AdmissionRepository
         $this->outbox->enqueueWorkWake($ids['wake'], $snapshot->workId, $generation, $code);
 
         return AdmissionResult::admitted($generation, $ids['wake']);
-    }
-
-    /** @param array<string, ProcessUuid> $ids */
-    private function openMembershipIncident(AuthoritySnapshot $snapshot, array $ids): void
-    {
-        $lanes = array_map(static fn (CapacityAuthority $authority): string => $authority->id->value,
-            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $authority): bool => $authority->kind === CapacityKind::Lane)));
-        $this->transaction->run(fn (): ProcessUuid => $this->incidents->open(
-            fingerprint: ContentHash::of('admission-membership:v1:'.$snapshot->workId->value->value),
-            scopeKey: 'lane:'.$this->policy->parentLane($snapshot->handler->stage),
-            kind: 'admission_membership_mismatch',
-            evidence: ['work_id' => $snapshot->workId->value->value, 'required_lanes' => implode(',', $lanes)],
-            incidentId: $ids['incident'],
-            eventId: $ids['incident_event'],
-            projectionMessageId: $ids['incident_projection'],
-        ));
-    }
-
-    private static function uuid(): ProcessUuid
-    {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
     }
 }

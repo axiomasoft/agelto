@@ -10,7 +10,6 @@ use App\Dto\Procurement\Details\DocumentsSnapshot;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Enums\Procurement\DetailSnapshotStatus;
 use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
@@ -32,7 +31,7 @@ final readonly class DocumentsParser
             $block = $crawler->filter('div.blockFilesTabDocs');
 
             if ($block->count() === 0) {
-                Log::warning('Вкладка documents не содержит контейнер вложений; snapshot неполный', [
+                CardDomHelper::logWarning('Вкладка documents не содержит контейнер вложений; snapshot неполный', [
                     'filestore_links' => $crawler->filter('a[href*="filestore"]')->count(),
                 ]);
 
@@ -66,7 +65,7 @@ final readonly class DocumentsParser
             if ($strict) {
                 throw $exception;
             }
-            Log::warning('Разбор вкладки documents провалился целиком; snapshot failed', [
+            CardDomHelper::logWarning('Разбор вкладки documents провалился целиком; snapshot failed', [
                 'exception' => $exception->getMessage(),
             ]);
 
@@ -79,7 +78,7 @@ final readonly class DocumentsParser
         $link = $row->filter('span.section__value > a');
 
         if ($link->count() === 0) {
-            Log::warning('Строка вкладки documents без файла-ссылки пропущена', []);
+            CardDomHelper::logWarning('Строка вкладки documents без файла-ссылки пропущена', []);
 
             return null;
         }
@@ -88,7 +87,7 @@ final readonly class DocumentsParser
         $externalId = $this->externalIdFromHref($href);
 
         if ($externalId === null || $href === null) {
-            Log::warning('Строка вкладки documents без распознаваемого uid пропущена', ['href' => $href]);
+            CardDomHelper::logWarning('Строка вкладки documents без распознаваемого uid пропущена', ['href' => $href]);
 
             return null;
         }
@@ -116,7 +115,7 @@ final readonly class DocumentsParser
         $filestoreLinks = $crawler->filter('a[href*="filestore"]')->count();
 
         if ($filestoreLinks !== $recognized) {
-            Log::warning('На вкладке documents есть нераспознанные ссылки filestore; snapshot неполный', [
+            CardDomHelper::logWarning('На вкладке documents есть нераспознанные ссылки filestore; snapshot неполный', [
                 'filestore_links' => $filestoreLinks,
                 'recognized' => $recognized,
             ]);

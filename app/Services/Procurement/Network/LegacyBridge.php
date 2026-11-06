@@ -13,7 +13,6 @@ use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Repositories\Procurement\Network\OutboundOperationRepository;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Closure;
-use Illuminate\Support\Str;
 
 /**
  * Bounded legacy_bridge owner: ровно одна outbound operation на logical call
@@ -53,7 +52,7 @@ final readonly class LegacyBridge
             throw new \InvalidArgumentException('Legacy bridge deadline must be within 1..outbound.legacy_bridge.max_deadline_seconds.');
         }
         $checkpoint?->__invoke();
-        [$id, $token] = [self::uuid(), self::uuid()];
+        [$id, $token] = [ProcessUuid::random(), ProcessUuid::random()];
         $handle = $this->transaction->run(fn (): OutboundOperationHandle => $this->operations->open(
             $id, $token, $kind, $platformId, $callerCode, $policyHash,
             $controlScopeKeys, min($this->policy->bridgeLeaseSeconds, $deadlineSeconds), $deadlineSeconds,
@@ -84,10 +83,5 @@ final readonly class LegacyBridge
     public function expireStale(int $limit = 100): int
     {
         return $this->transaction->run(fn (): int => $this->operations->expireStale($limit));
-    }
-
-    private static function uuid(): ProcessUuid
-    {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
     }
 }

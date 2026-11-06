@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Acquisition;
 
 use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Telemetry\LogChannel;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Repositories\Procurement\Crawler\RefreshRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
-use Illuminate\Support\Facades\Log;
 
 /** The database schedule is the durable authority; the minute timer only wakes this producer. */
 final readonly class AcquisitionTick
@@ -35,7 +35,7 @@ final readonly class AcquisitionTick
                 $this->recovery->due($profile);
             } catch (\InvalidArgumentException $failure) {
                 // A bad profile is visible and cannot prevent other profiles from making progress.
-                Log::warning('Acquisition profile requires correction.', ['profile_id' => $profile->id,
+                LogChannel::Procurement->warning('Acquisition profile requires correction.', ['profile_id' => $profile->id,
                     'profile_version' => $profile->profile_version, 'reason' => $failure->getMessage()]);
             }
         }, 100);

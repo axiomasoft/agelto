@@ -117,67 +117,77 @@ final readonly class GoldBuilder
             return $this->rejected("профиль отклонён: {$e->getMessage()}");
         }
 
-        $spreadsheet = IOFactory::load($sourcePath);
-        $evaluations = [];
-        $failedConditions = [];
-
-        foreach ($profile->estimates as $estimate) {
-            $sheet = $spreadsheet->getSheetByName($estimate->sheet);
-
-            if ($sheet === null) {
-                $evaluations[] = null;
-                $failedConditions[] = "лист «{$estimate->sheet}» не найден";
-
-                continue;
-            }
-
-            $result = $this->gate->evaluate($sheet, $estimate);
-            $evaluations[] = $result;
-
-            if (! $result['passed']) {
-                $flags = [];
-
-                foreach (['a', 'b', 'c', 'd'] as $letter) {
-                    if (! $result["condition_{$letter}"]) {
-                        $flags[] = $letter;
-                    }
-                }
-
-                $failedConditions[] = "estimate {$estimate->ordinal}: провалены условия ".implode(',', $flags);
-            }
-        }
-
-        $validEvaluations = array_values(array_filter($evaluations));
-        $allPassed = $evaluations !== [] && count($validEvaluations) === count($evaluations)
-            && array_reduce($validEvaluations, static fn (bool $carry, array $r): bool => $carry && $r['passed'], true);
-
-        if (! $allPassed) {
-            return $this->downgraded(implode('; ', $failedConditions), count($profile->estimates));
+        try {
+            $spreadsheet = IOFactory::load($sourcePath);
+        } catch (Throwable $e) {
+            return $this->rejected("не удалось прочитать книгу: {$e->getMessage()}");
         }
 
         try {
-            $gold = $this->goldPayload($this->sheetMapper->toGold($spreadsheet, $profile));
-        } catch (ValidationException $e) {
-            $errors = [];
+            $evaluations = [];
+            $failedConditions = [];
 
-            foreach (Arr::flatten($e->errors()) as $error) {
-                if (is_string($error)) {
-                    $errors[] = $error;
+            foreach ($profile->estimates as $estimate) {
+                $sheet = $spreadsheet->getSheetByName($estimate->sheet);
+
+                if ($sheet === null) {
+                    $evaluations[] = null;
+                    $failedConditions[] = "лист «{$estimate->sheet}» не найден";
+
+                    continue;
+                }
+
+                $result = $this->gate->evaluate($sheet, $estimate);
+                $evaluations[] = $result;
+
+                if (! $result['passed']) {
+                    $flags = [];
+
+                    foreach (['a', 'b', 'c', 'd'] as $letter) {
+                        if (! $result["condition_{$letter}"]) {
+                            $flags[] = $letter;
+                        }
+                    }
+
+                    $failedConditions[] = "estimate {$estimate->ordinal}: провалены условия ".implode(',', $flags);
                 }
             }
 
-            return $this->downgraded('GoldValidator: '.implode('; ', $errors), count($profile->estimates));
-        }
+            $validEvaluations = array_values(array_filter($evaluations));
+            $allPassed = $evaluations !== [] && count($validEvaluations) === count($evaluations)
+                && array_reduce($validEvaluations, static fn (bool $carry, array $r): bool => $carry && $r['passed'], true);
 
-        return [
-            'action' => 'built',
-            'gold' => $gold,
-            'rows' => $this->countRows($gold),
-            'estimates' => count($gold['estimates']),
-            'arithmetic_ratio' => $this->simpleAverage($validEvaluations, 'arithmetic_match_ratio'),
-            'unmapped' => [],
-            'reason' => null,
-        ];
+            if (! $allPassed) {
+                return $this->downgraded(implode('; ', $failedConditions), count($profile->estimates));
+            }
+
+            try {
+                $gold = $this->goldPayload($this->sheetMapper->toGold($spreadsheet, $profile));
+            } catch (ValidationException $e) {
+                $errors = [];
+
+                foreach (Arr::flatten($e->errors()) as $error) {
+                    if (is_string($error)) {
+                        $errors[] = $error;
+                    }
+                }
+
+                return $this->downgraded('GoldValidator: '.implode('; ', $errors), count($profile->estimates));
+            }
+
+            return [
+                'action' => 'built',
+                'gold' => $gold,
+                'rows' => $this->countRows($gold),
+                'estimates' => count($gold['estimates']),
+                'arithmetic_ratio' => $this->simpleAverage($validEvaluations, 'arithmetic_match_ratio'),
+                'unmapped' => [],
+                'reason' => null,
+            ];
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+        }
     }
 
     /**

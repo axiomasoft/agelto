@@ -10,16 +10,13 @@ use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
 use App\Enums\Procurement\DetailSnapshotStatus;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * Разбор вкладки `common-info` карточки закупки ЕИС в {@see CommonInfoData}.
  * Только HTML → DTO, без записи в БД (это
  * `CommonInfoProcessor`). Устойчив к отсутствию отдельных блоков вёрстки — блок отсутствует →
- * соответствующее поле/список остаётся `null`/пустым, парсер не падает. Раскладка полей — не
- * `dt`/`dd` (снято ошибочно `research/10` §3.7), а плоские пары
- * `section.blockInfo__section > span.section__title` + `span.section__info`.
+ * соответствующее поле/список остаётся `null`/пустым, парсер не падает.
  */
 final readonly class CommonInfoParser
 {
@@ -42,17 +39,18 @@ final readonly class CommonInfoParser
         try {
             $crawler = new Crawler($html);
 
-            $ikz = $this->parseIkz($crawler);
-            $etp = $this->parseEtp($crawler);
-            $contactPerson = $this->parseContactPerson($crawler);
+            $ikz = CardDomHelper::parseIkz($crawler, self::TERM_IKZ, self::IKZ_LENGTH);
+            $etp = CardDomHelper::parseEtp($crawler, self::TERM_ETP_NAME, self::TERM_ETP_URL);
+            $contactPerson = CardDomHelper::parseContactPerson($crawler, self::TERM_CONTACT_NAME, self::TERM_CONTACT_EMAIL);
             $financingRows = $this->parseFinancingRows($crawler);
             $items = $this->parseItems($crawler);
 
             $this->warnIfBlockInfoSuppressed($crawler, $ikz, $etp, $contactPerson, $financingRows, $items);
 
             return new CommonInfoSnapshot(
-                status: $this->hasCompleteCommonInfoContainer(
+                status: CardDomHelper::hasCompleteCommonInfoContainer(
                     crawler: $crawler,
+                    financingTerm: self::TERM_FINANCING_TOTAL,
                     parsedFinancingRows: count($financingRows),
                     parsedItems: count($items),
                 )
@@ -84,7 +82,7 @@ final readonly class CommonInfoParser
             if ($strict) {
                 throw $exception;
             }
-            Log::warning('Разбор вкладки common-info провалился целиком; snapshot failed', [
+            CardDomHelper::logWarning('Разбор вкладки common-info провалился целиком; snapshot failed', [
                 'exception' => $exception->getMessage(),
             ]);
 
@@ -95,117 +93,13 @@ final readonly class CommonInfoParser
         }
     }
 
-    private function hasCompleteCommonInfoContainer(Crawler $crawler, int $parsedFinancingRows, int $parsedItems): bool
-    {
-        $itemTable = $crawler->filter('div#positionKTRU table.tableBlock');
-        $itemRows = $this->itemRows($itemTable);
-        $expectedItems = $this->expectedItemCount($itemTable);
-        $financingTable = $this->titleSection($crawler, self::TERM_FINANCING_TOTAL)?->filter('table.tableBlock')->first();
-        $financingHeaders = $financingTable?->filter('tr.tableBlock__row th')->each(static fn (Crawler $th): string => trim($th->text())) ?? [];
-        $expectedFinancingRows = count(array_filter(
-            $financingHeaders,
-            fn (string $header): bool => $this->parseFiscalYear($header) !== null,
-        ));
-        $financingDataRows = $financingTable?->filter('tr')->reduce(static fn (Crawler $tr): bool => $tr->filter('th')->count() === 0)->count() ?? 0;
-
-        if ($crawler->filter('section.blockInfo__section')->count() === 0
-            || $itemTable->count() === 0
-            || $itemRows->count() !== $parsedItems
-            || $expectedItems === null
-            || $expectedItems !== $parsedItems
-            || $financingTable === null
-            || $financingDataRows !== 1
-            || $expectedFinancingRows !== $parsedFinancingRows) {
-            Log::warning('Вкладка common-info не подтверждает полный snapshot', [
-                'block_sections' => $crawler->filter('section.blockInfo__section')->count(),
-                'item_tables' => $itemTable->count(),
-                'item_rows' => $itemRows->count(),
-                'parsed_items' => $parsedItems,
-                'expected_items' => $expectedItems,
-                'financing_tables' => $financingTable?->count() ?? 0,
-                'financing_data_rows' => $financingDataRows,
-                'expected_financing_rows' => $expectedFinancingRows,
-                'parsed_financing_rows' => $parsedFinancingRows,
-            ]);
-
-            return false;
-        }
-
-        return true;
-    }
-
     /**
-     * @return array{ikz_year?: int, ikz_customer_code?: string, ikz_plan_number?: string, ikz_plangraph_number?: string, ikz_okpd_class?: string, ikz_okpd_subclass?: string, ikz_okpd_group?: string, ikz_kvr?: string}
-     */
-    private function parseIkz(Crawler $crawler): array
-    {
-        $ikz = $this->readDefinitionValue($crawler, self::TERM_IKZ);
-
-        if ($ikz === null || strlen($ikz) !== self::IKZ_LENGTH) {
-            return [];
-        }
-
-        return [
-            'ikz_year' => (int) substr($ikz, 0, 2),
-            'ikz_customer_code' => substr($ikz, 2, 20),
-            'ikz_plan_number' => substr($ikz, 22, 4),
-            'ikz_plangraph_number' => substr($ikz, 26, 3),
-            'ikz_okpd_class' => substr($ikz, 29, 2),
-            'ikz_okpd_subclass' => substr($ikz, 31, 1),
-            'ikz_okpd_group' => substr($ikz, 32, 1),
-            'ikz_kvr' => substr($ikz, 33, 3),
-        ];
-    }
-
-    /**
-     * Имя и адрес площадки живут в ДВУХ раздельных `section` (не в одном `dd` со ссылкой, как
-     * предполагала старая раскладка) — имя всегда простой текст, адрес — ссылка внутри
-     * `section__info`.
-     *
-     * @return array{name?: string, url?: string}
-     */
-    private function parseEtp(Crawler $crawler): array
-    {
-        $name = $this->readDefinitionValue($crawler, self::TERM_ETP_NAME);
-
-        $urlSection = $this->titleSection($crawler, self::TERM_ETP_URL);
-        $urlInfo = $urlSection !== null ? $this->infoNode($urlSection) : null;
-        $link = $urlInfo?->filter('a');
-        $url = $link !== null && $link->count() > 0 ? $link->attr('href') : null;
-
-        return array_filter([
-            'name' => $name,
-            'url' => $url,
-        ], static fn (?string $value): bool => $value !== null);
-    }
-
-    /**
-     * @return array{name?: string, email?: string}
-     */
-    private function parseContactPerson(Crawler $crawler): array
-    {
-        $name = $this->readDefinitionValue($crawler, self::TERM_CONTACT_NAME);
-        $email = $this->readDefinitionValue($crawler, self::TERM_CONTACT_EMAIL);
-
-        return array_filter([
-            'name' => $name,
-            'email' => $email,
-        ], static fn (?string $value): bool => $value !== null);
-    }
-
-    /**
-     * Раскладка «год — колонка, а не строка»: заголовки таблицы («На 2025 год, ₽», …, «Всего, ₽»)
-     * и ровно одна строка значений в том же порядке колонок. Транспонируем в список строк по
-     * году. Колонка «Всего» — производная (пропускается). Колонка «Последующие годы» не несёт
-     * дискретного года — `FinancingRowData::fiscalYear` в контракте DTO не `nullable`
-     * (форма DTO вне Scope item'а), поэтому этот бакет сейчас не заполняется (см. Pending Work).
-     *
      * @return list<FinancingRowData>
      */
     private function parseFinancingRows(Crawler $crawler): array
     {
         try {
-            $section = $this->titleSection($crawler, self::TERM_FINANCING_TOTAL);
+            $section = CardDomHelper::titleSection($crawler, self::TERM_FINANCING_TOTAL);
 
             if ($section === null) {
                 return [];
@@ -229,13 +123,13 @@ final readonly class CommonInfoParser
             $rows = [];
 
             foreach ($headers as $index => $header) {
-                $year = $this->parseFiscalYear($header);
+                $year = CardDomHelper::parseFiscalYear($header);
 
                 if ($year === null) {
                     continue;
                 }
 
-                $amount = $this->normalizeAmount($values[$index] ?? '');
+                $amount = CardDomHelper::normalizeAmount($values[$index] ?? '');
 
                 if ($amount === null) {
                     continue;
@@ -250,17 +144,7 @@ final readonly class CommonInfoParser
         }
     }
 
-    private function parseFiscalYear(string $header): ?int
-    {
-        return preg_match('/(\d{4})\s*год/u', $header, $matches) === 1 ? (int) $matches[1] : null;
-    }
-
     /**
-     * positionNumber — устойчивый ключ upsert. Когда служебная первая ячейка пуста,
-     * номер определяется порядком позиций, без раскрываемых truInfo-строк заказчика.
-     * Повреждённая строка позиции остаётся в исходном порядке: пропуск выявляет проверка
-     * полноты и заявленный источником итог, а не скрытая перенумерация оставшихся строк.
-     *
      * @return list<PurchaseItemRowData>
      */
     private function parseItems(Crawler $crawler): array
@@ -274,7 +158,7 @@ final readonly class CommonInfoParser
 
             $items = [];
 
-            $this->itemRows($table)->each(function (Crawler $tr, int $index) use (&$items): void {
+            CardDomHelper::itemRows($table)->each(static function (Crawler $tr, int $index) use (&$items): void {
                 $cells = $tr->children('td');
 
                 if ($cells->count() < 7) {
@@ -282,19 +166,19 @@ final readonly class CommonInfoParser
                 }
 
                 $positionNumber = trim($cells->eq(0)->text());
-                [$okpd2Code, $ktruCode] = $this->splitClassifierCode(trim($cells->eq(1)->text()));
+                [$okpd2Code, $ktruCode] = CardDomHelper::splitClassifierCode(trim($cells->eq(1)->text()));
 
                 $items[] = new PurchaseItemRowData(
                     positionNumber: $positionNumber !== '' && ctype_digit($positionNumber) ? (int) $positionNumber : $index + 1,
                     name: trim($cells->eq(2)->text()),
                     characteristics: null,
-                    classifierScheme: $this->classifierScheme(okpd2Code: $okpd2Code, ktruCode: $ktruCode),
+                    classifierScheme: CardDomHelper::classifierScheme(okpd2Code: $okpd2Code, ktruCode: $ktruCode),
                     classifierCodeOkpd2: $okpd2Code,
                     classifierCodeKtru: $ktruCode,
                     unit: trim($cells->eq(3)->text()) ?: null,
-                    quantity: $this->normalizeAmount(trim($cells->eq(4)->text())),
-                    unitPrice: $this->normalizeAmount(trim($cells->eq(5)->text())),
-                    totalCost: $this->normalizeAmount(trim($cells->eq(6)->text())),
+                    quantity: CardDomHelper::normalizeAmount(trim($cells->eq(4)->text())),
+                    unitPrice: CardDomHelper::normalizeAmount(trim($cells->eq(5)->text())),
+                    totalCost: CardDomHelper::normalizeAmount(trim($cells->eq(6)->text())),
                 );
             });
 
@@ -304,154 +188,7 @@ final readonly class CommonInfoParser
         }
     }
 
-    private function itemRows(Crawler $table): Crawler
-    {
-        if ($table->count() === 0) {
-            return $table;
-        }
-
-        return $table->children('tbody')->children('tr')->reduce(static function (Crawler $row): bool {
-            if (preg_match('/(?:^|\s)truInfo_\d+(?:\s|$)/', (string) $row->attr('class')) === 1) {
-                return false;
-            }
-
-            if ($row->children()->count() === 0) {
-                return false;
-            }
-
-            $cells = $row->children('td');
-
-            // A dangling empty spacer is produced when the source's nested hidden rows are repaired.
-            return ! ($cells->count() === 1
-                && trim($cells->text()) === ''
-                && preg_match('/(?:^|\s)pt-0(?:\s|$)/', (string) $cells->attr('class')) === 1);
-        });
-    }
-
-    private function expectedItemCount(Crawler $tables): ?int
-    {
-        if ($tables->count() === 0) {
-            return null;
-        }
-
-        $totals = $tables->children('tfoot')->filter('.tableBlock__resultTitle');
-
-        if ($totals->count() !== $tables->count()) {
-            return null;
-        }
-
-        $expected = 0;
-
-        foreach ($totals as $node) {
-            if (preg_match('/^Итого\s*\((\d+)\s+запис(?:ь|и|ей)\)\s*:/u', trim($node->textContent), $match) !== 1) {
-                return null;
-            }
-
-            $expected += (int) $match[1];
-        }
-
-        return $expected;
-    }
-
     /**
-     * `classifier_scheme` — `NOT NULL text` (`2026_07_04_100015_create_prc_items_table.php`),
-     * поэтому при отсутствии обоих кодов пишем явное `unknown`, а не вводящее в заблуждение
-     * `ktru` без реального КТРУ-кода.
-     */
-    private function classifierScheme(?string $okpd2Code, ?string $ktruCode): string
-    {
-        return match (true) {
-            $okpd2Code !== null => 'okpd2',
-            $ktruCode !== null => 'ktru',
-            default => 'unknown',
-        };
-    }
-
-    /**
-     * Снятая карточка несёт в ячейке РОВНО один код, не пару «ОКПД2 / КТРУ» через слэш (это
-     * предполагала старая раскладка, `research/10` §3.7 её не сверял). КТРУ отличим по
-     * дефис-суффиксу поверх префикса ОКПД2 (`database/factories/Reference/KtruFactory.php` —
-     * `##.##.##.###-#####`); без дефиса ячейка несёт голый код ОКПД2.
-     *
-     * @return array{0: ?string, 1: ?string} [ОКПД2, КТРУ]
-     */
-    private function splitClassifierCode(string $rawCode): array
-    {
-        if ($rawCode === '') {
-            return [null, null];
-        }
-
-        if (! str_contains($rawCode, '-')) {
-            return [$rawCode, null];
-        }
-
-        $okpd2Prefix = strstr($rawCode, '-', before_needle: true);
-
-        return [$okpd2Prefix !== false && $okpd2Prefix !== '' ? $okpd2Prefix : null, $rawCode];
-    }
-
-    private function normalizeAmount(string $rawAmount): ?string
-    {
-        if ($rawAmount === '') {
-            return null;
-        }
-
-        $normalized = preg_replace('/[\s\x{00A0}]+/u', '', $rawAmount);
-        $normalized = str_replace(',', '.', (string) $normalized);
-
-        return is_numeric($normalized) ? $normalized : null;
-    }
-
-    private function readDefinitionValue(Crawler $crawler, string $term): ?string
-    {
-        $section = $this->titleSection($crawler, $term);
-        $info = $section !== null ? $this->infoNode($section) : null;
-
-        if ($info === null) {
-            return null;
-        }
-
-        $value = trim($info->text());
-
-        return $value !== '' ? $value : null;
-    }
-
-    /**
-     * Общий поиск раздела по заголовку: ищет
-     * `span.section__title` с точным текстом `$term` и возвращает ближайший `section`-предок.
-     */
-    private function titleSection(Crawler $crawler, string $term): ?Crawler
-    {
-        try {
-            $title = $crawler
-                ->filter('span.section__title')
-                ->reduce(static fn (Crawler $span): bool => trim($span->text()) === $term);
-
-            if ($title->count() === 0) {
-                return null;
-            }
-
-            $section = $title->ancestors()->first();
-
-            return $section->count() > 0 ? $section : null;
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private function infoNode(Crawler $section): ?Crawler
-    {
-        $info = $section->filter('span.section__info')->first();
-
-        return $info->count() > 0 ? $info : null;
-    }
-
-    /**
-     * Тихий отказ (`research/10-p4-remediation.md` §3.7, Д-7): страница несёт блоки
-     * `blockInfo__section`, а не распознано вообще ни одного поля/строки — признак
-     * разошедшейся вёрстки, обязан быть виден в логе (легитимное отсутствие ОТДЕЛЬНЫХ
-     * блоков — штатный случай, докблок класса, — здесь не срабатывает: порог именно «ничего»).
-     *
      * @param  array<string, int|string>  $ikz
      * @param  array<string, string>  $etp
      * @param  array<string, string>  $contactPerson
@@ -464,12 +201,6 @@ final readonly class CommonInfoParser
             return;
         }
 
-        $sections = $crawler->filter('section.blockInfo__section')->count();
-
-        if ($sections > 0) {
-            Log::warning('На вкладке common-info есть блоки blockInfo, но не распознано ни одного поля', [
-                'sections' => $sections,
-            ]);
-        }
+        CardDomHelper::warnIfBlockInfoSuppressed($crawler, 'На вкладке common-info есть блоки blockInfo, но не распознано ни одного поля');
     }
 }

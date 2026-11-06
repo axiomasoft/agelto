@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Support\Telemetry\SafeJsonLogProcessor;
 use App\Support\Telemetry\SafeLogChannelTap;
 use Monolog\Formatter\JsonFormatter;
@@ -172,6 +174,97 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
             'tap' => [SafeLogChannelTap::class],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Доменные и ранжированные системные каналы
+        |----------------------------------------------------------------------
+        |
+        | Базовый канал ('single' / 'daily' -> laravel.log) принимает только обычные
+        | прикладные события. Специализированные подсистемы пишут в изолированные файлы,
+        | а деградации (warning) и инциденты (error..emergency) дополнительно агрегируются
+        | в ранжированные каналы 'system_warnings' и 'system_errors'.
+        */
+
+        'process' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/process.log'),
+            'level' => env('LOG_PROCESS_LEVEL', env('LOG_LEVEL', 'info')),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+            'tap' => [SafeLogChannelTap::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
+        ],
+
+        'network' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/network.log'),
+            'level' => env('LOG_NETWORK_LEVEL', env('LOG_LEVEL', 'info')),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+            'tap' => [SafeLogChannelTap::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
+        ],
+
+        'platforms' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/platforms.log'),
+            'level' => env('LOG_PLATFORMS_LEVEL', env('LOG_LEVEL', 'warning')),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+            'tap' => [SafeLogChannelTap::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
+        ],
+
+        'procurement' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/procurement.log'),
+            'level' => env('LOG_PROCUREMENT_LEVEL', env('LOG_LEVEL', 'info')),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+            'tap' => [SafeLogChannelTap::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
+        ],
+
+        'storage' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/storage.log'),
+            'level' => env('LOG_STORAGE_LEVEL', env('LOG_LEVEL', 'warning')),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+            'tap' => [SafeLogChannelTap::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
+        ],
+
+        'alerts' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/alerts.log'),
+            'level' => env('LOG_ALERTS_LEVEL', env('LOG_LEVEL', 'warning')),
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+            'tap' => [SafeLogChannelTap::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
+        ],
+
+        'system_warnings' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/system-warnings.log'),
+            'level' => 'warning',
+            'days' => env('LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+            'tap' => [SafeLogChannelTap::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
+        ],
+
+        'system_errors' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/system-errors.log'),
+            'level' => 'error',
+            'days' => env('LOG_DAILY_DAYS', 30),
+            'replace_placeholders' => true,
+            'tap' => [SafeLogChannelTap::class],
+            'processors' => [SafeJsonLogProcessor::class, PsrLogMessageProcessor::class],
         ],
 
         'null' => [

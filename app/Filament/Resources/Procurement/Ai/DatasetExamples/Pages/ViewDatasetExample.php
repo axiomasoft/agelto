@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Ai\DatasetExamples\Pages;
 
 use App\Dto\Procurement\Gold\GoldDocumentView;

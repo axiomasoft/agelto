@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Document\DocumentHead;
 use App\Dto\Procurement\Document\DownloadResult;
 use App\Dto\Procurement\Document\SourceDocumentMetadata;
 use App\Dto\Procurement\Document\StorageReservationRequest;
+use App\Dto\Procurement\Document\VerifiedArtifact;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Enums\Procurement\Document\DocumentStatus;
@@ -55,6 +57,65 @@ beforeEach(function (): void {
     $this->artisan('process:sync-documents')->assertSuccessful();
 });
 
+function auditDocAcquireBlob(ProcessUuid $domain, string $bytes, ?string $verifiedAgeInterval = null): BlobReference
+{
+    $uploaded = DocumentStorageFixtures::upload(bytes: $bytes, domain: $domain);
+    $blob = app(ProcessTransaction::class)->run(function () use ($domain, $uploaded): BlobReference {
+        app(StorageCapacityRepository::class)->lockDomains([$domain]);
+
+        return app(ArtifactRepository::class)->acquireLocked($uploaded);
+    });
+    if ($verifiedAgeInterval !== null) {
+        DB::table('prc_document_blobs')->where('id', $blob->id->value)->update([
+            'verified_at' => DB::raw("clock_timestamp() - interval '{$verifiedAgeInterval}'"),
+        ]);
+    }
+
+    return $blob;
+}
+
+function auditDocReserveAndPut(StorageReservationRequest $reservation, string $bytes, ?ProcessUuid $tmpDomain = null): VerifiedArtifact
+{
+    app(ProcessTransaction::class)->run(function () use ($reservation): void {
+        $capacity = app(StorageCapacityRepository::class);
+        $capacity->lockDomains([$reservation->domainId]);
+        expect($capacity->reserveLocked($reservation))->toBeTrue();
+    });
+    $tmp = DocumentStorageFixtures::reservation(
+        $tmpDomain ?? DocumentStorageFixtures::domain(prefix: 'tmp'),
+        max($reservation->byteUpperBound, strlen($bytes)),
+        'p31_tmp',
+    );
+    $stream = fopen('php://memory', 'w+b');
+    assert(is_resource($stream));
+    fwrite($stream, $bytes);
+    rewind($stream);
+    try {
+        return app(BlobStore::class)->put($reservation, $stream, $tmp);
+    } finally {
+        fclose($stream);
+    }
+}
+
+/** @param array<string, string> $entries */
+function auditDocMakeZipBytes(array $entries): string
+{
+    $tmp = tempnam(sys_get_temp_dir(), 'audit_zip_');
+    if ($tmp === false) {
+        throw new RuntimeException('Не удалось создать временный ZIP.');
+    }
+    $zip = new ZipArchive;
+    $zip->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+    foreach ($entries as $name => $content) {
+        $zip->addFromString($name, $content);
+    }
+    $zip->close();
+    $bytes = (string) file_get_contents($tmp);
+    @unlink($tmp);
+
+    return $bytes;
+}
+
 test('DownloadFinalizer переводит активный manual-retry download intent в terminal, когда input ссылается на исходный intentId', function (): void {
     FinalizeFixtures::authority([StageCode::Download]);
     $document = Document::factory()->create();
@@ -100,18 +161,7 @@ test('DownloadFinalizer переводит активный manual-retry downloa
         workId: $work->value,
         attemptId: $lease->attemptId,
     );
-    app(ProcessTransaction::class)->run(function () use ($reservation): void {
-        $capacity = app(StorageCapacityRepository::class);
-        $capacity->lockDomains([$reservation->domainId]);
-        $capacity->reserveLocked($reservation);
-    });
-    $tmp = DocumentStorageFixtures::reservation(DocumentStorageFixtures::domain(prefix: 'tmp'), strlen($bytes), 'p31_tmp');
-    $stream = fopen('php://memory', 'w+b');
-    assert(is_resource($stream));
-    fwrite($stream, $bytes);
-    rewind($stream);
-    $artifact = app(BlobStore::class)->put($reservation, $stream, $tmp);
-    fclose($stream);
+    $artifact = auditDocReserveAndPut($reservation, $bytes);
 
     $result = new DownloadResult(
         head: new DocumentHead(documentId: $document->id, generation: 1, versionId: null),
@@ -130,15 +180,7 @@ test('DownloadFinalizer переводит активный manual-retry downloa
 
 test('DocumentStorageReconciler удаляет unreferenced blobs старше grace-окна, а DocumentFeeder пропускает удалённые документы', function (): void {
     $domain = DocumentStorageFixtures::domain();
-    $uploaded = DocumentStorageFixtures::upload(bytes: 'unreferenced-bytes', domain: $domain);
-    $blob = app(ProcessTransaction::class)->run(function () use ($domain, $uploaded) {
-        app(StorageCapacityRepository::class)->lockDomains([$domain]);
-
-        return app(ArtifactRepository::class)->acquireLocked($uploaded);
-    });
-    DB::table('prc_document_blobs')->where('id', $blob->id->value)->update([
-        'verified_at' => DB::raw("clock_timestamp() - interval '20 minutes'"),
-    ]);
+    $blob = auditDocAcquireBlob($domain, 'unreferenced-bytes', '20 minutes');
 
     expect(app(ArtifactRepository::class)->unreferencedCandidates(900, 25))->toHaveCount(1);
     app(DocumentStorageReconciler::class)->reconcile();
@@ -337,29 +379,13 @@ test('ArtifactRepository::unreferencedCandidates и DocumentStorageReconciler п
 
     // Создаём 25 старых unreferenced блобов, удерживаемых in-flight writing резервацией на repair.
     for ($i = 0; $i < 25; $i++) {
-        $uploaded = DocumentStorageFixtures::upload(bytes: 'pinned-blob-'.$i, domain: $domain);
-        $blob = app(ProcessTransaction::class)->run(function () use ($domain, $uploaded) {
-            app(StorageCapacityRepository::class)->lockDomains([$domain]);
-
-            return app(ArtifactRepository::class)->acquireLocked($uploaded);
-        });
-        DB::table('prc_document_blobs')->where('id', $blob->id->value)->update([
-            'verified_at' => DB::raw("clock_timestamp() - interval '30 minutes'"),
-        ]);
+        $blob = auditDocAcquireBlob($domain, 'pinned-blob-'.$i, '30 minutes');
         expect(app(ArtifactRepository::class)->beginRepair($blob))->toBeTrue();
         $pinnedIds[] = $blob->id->value;
     }
 
     // 26-й блоб моложе всех 25 удерживаемых, но старше grace-окна и не удерживается резервациями.
-    $eligibleUpload = DocumentStorageFixtures::upload(bytes: 'eligible-blob-26', domain: $domain);
-    $eligibleBlob = app(ProcessTransaction::class)->run(function () use ($domain, $eligibleUpload) {
-        app(StorageCapacityRepository::class)->lockDomains([$domain]);
-
-        return app(ArtifactRepository::class)->acquireLocked($eligibleUpload);
-    });
-    DB::table('prc_document_blobs')->where('id', $eligibleBlob->id->value)->update([
-        'verified_at' => DB::raw("clock_timestamp() - interval '20 minutes'"),
-    ]);
+    $eligibleBlob = auditDocAcquireBlob($domain, 'eligible-blob-26', '20 minutes');
 
     $candidates = app(ArtifactRepository::class)->unreferencedCandidates(900, 25);
     expect($candidates)->toHaveCount(1)
@@ -373,7 +399,6 @@ test('ArtifactRepository::unreferencedCandidates и DocumentStorageReconciler п
 test('DocumentStorageReconciler восстанавливает и очищает прерванную запись файла с мёртвым PID, завершает прерванный repair канонического блоба и чистит резервации закрытых outbound-операций', function (): void {
     $domain = DocumentStorageFixtures::domain(capacity: 500_000);
     $workspace = app(PrepareWorkspace::class);
-    $blobs = app(BlobStore::class);
     $reconciler = app(DocumentStorageReconciler::class);
     $capacity = app(StorageCapacityRepository::class);
 
@@ -434,12 +459,7 @@ test('DocumentStorageReconciler восстанавливает и очищает
     );
 
     // 2. Прерванный repair канонического блоба с валидными байтами на диске и мёртвым PID в .repair-owner переводится в transferred без удаления блоба.
-    $canonicalUpload = DocumentStorageFixtures::upload(bytes: 'canonical-repair-bytes', domain: $domain);
-    $canonicalBlob = app(ProcessTransaction::class)->run(function () use ($domain, $canonicalUpload) {
-        app(StorageCapacityRepository::class)->lockDomains([$domain]);
-
-        return app(ArtifactRepository::class)->acquireLocked($canonicalUpload);
-    });
+    $canonicalBlob = auditDocAcquireBlob($domain, 'canonical-repair-bytes');
     expect(app(ArtifactRepository::class)->beginRepair($canonicalBlob))->toBeTrue();
     $workspace->recordRepairWriter($canonicalBlob);
     file_put_contents(
@@ -463,17 +483,7 @@ test('DocumentStorageReconciler восстанавливает и очищает
         disk: 'local',
         operationId: $opHandle->id,
     );
-    $tmp = DocumentStorageFixtures::reservation(DocumentStorageFixtures::domain(prefix: 'tmp'), 32, 'p31_tmp');
-    app(ProcessTransaction::class)->run(function () use ($capacity, $opReservation): void {
-        $capacity->lockDomains([$opReservation->domainId]);
-        $capacity->reserveLocked($opReservation);
-    });
-    $stream = fopen('php://memory', 'w+b');
-    assert(is_resource($stream));
-    fwrite($stream, 'operation-owned-bytes');
-    rewind($stream);
-    $blobs->put($opReservation, $stream, $tmp);
-    fclose($stream);
+    auditDocReserveAndPut($opReservation, 'operation-owned-bytes');
 
     $reconciler->reconcile();
 
@@ -493,7 +503,6 @@ test('невосстановимые repair и ошибка первого об�
     $temporaryDomain = DocumentStorageFixtures::domain(prefix: 'tmp');
     $capacity = app(StorageCapacityRepository::class);
     $artifacts = app(ArtifactRepository::class);
-    $blobs = app(BlobStore::class);
     $disk = Storage::disk('local');
     $repairs = [];
     $charged = 0;
@@ -508,20 +517,7 @@ test('невосстановимые repair и ошибка первого об�
             phase: StoragePhase::Download,
             disk: 'local',
         );
-        app(ProcessTransaction::class)->run(function () use ($capacity, $reservation): void {
-            $capacity->lockDomains([$reservation->domainId]);
-            expect($capacity->reserveLocked($reservation))->toBeTrue();
-        });
-        $temporary = DocumentStorageFixtures::reservation($temporaryDomain, strlen($bytes), 'p31_tmp');
-        $stream = fopen('php://memory', 'w+b');
-        assert(is_resource($stream));
-        fwrite($stream, $bytes);
-        rewind($stream);
-        try {
-            $artifact = $blobs->put($reservation, $stream, $temporary);
-        } finally {
-            fclose($stream);
-        }
+        $artifact = auditDocReserveAndPut($reservation, $bytes, $temporaryDomain);
         $blob = app(ProcessTransaction::class)->run(function () use ($capacity, $artifacts, $artifact) {
             $capacity->lockDomains([$artifact->reservation->domainId]);
 
@@ -574,26 +570,11 @@ test('DocumentStorageReconciler изолирует сбой удаления о�
     Storage::extend('failing_audit_driver', static fn () => throw new RuntimeException('Simulated storage driver outage'));
 
     $domain = DocumentStorageFixtures::domain(capacity: 500_000);
-    $brokenUpload = DocumentStorageFixtures::upload(bytes: 'broken-blob', domain: $domain);
-    $healthyUpload = DocumentStorageFixtures::upload(bytes: 'healthy-blob', domain: $domain);
-
-    $brokenBlob = app(ProcessTransaction::class)->run(function () use ($domain, $brokenUpload) {
-        app(StorageCapacityRepository::class)->lockDomains([$domain]);
-
-        return app(ArtifactRepository::class)->acquireLocked($brokenUpload);
-    });
-    $healthyBlob = app(ProcessTransaction::class)->run(function () use ($domain, $healthyUpload) {
-        app(StorageCapacityRepository::class)->lockDomains([$domain]);
-
-        return app(ArtifactRepository::class)->acquireLocked($healthyUpload);
-    });
+    $brokenBlob = auditDocAcquireBlob($domain, 'broken-blob', '30 minutes');
+    $healthyBlob = auditDocAcquireBlob($domain, 'healthy-blob', '20 minutes');
 
     DB::table('prc_document_blobs')->where('id', $brokenBlob->id->value)->update([
         'disk' => 'failing_audit_disk',
-        'verified_at' => DB::raw("clock_timestamp() - interval '30 minutes'"),
-    ]);
-    DB::table('prc_document_blobs')->where('id', $healthyBlob->id->value)->update([
-        'verified_at' => DB::raw("clock_timestamp() - interval '20 minutes'"),
     ]);
 
     $deleted = app(DocumentStorageReconciler::class)->reconcile();
@@ -665,28 +646,11 @@ test('ArchiveStrategy учитывает кумулятивный бюджет �
         'ai.prepare.archive.max_files' => 3,
     ]);
 
-    $makeZipBytes = static function (array $entries): string {
-        $tmp = tempnam(sys_get_temp_dir(), 'audit_zip_');
-        if ($tmp === false) {
-            throw new RuntimeException('Не удалось создать временный ZIP.');
-        }
-        $zip = new ZipArchive;
-        $zip->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-        foreach ($entries as $name => $content) {
-            $zip->addFromString($name, $content);
-        }
-        $zip->close();
-        $bytes = (string) file_get_contents($tmp);
-        @unlink($tmp);
-
-        return $bytes;
-    };
-
-    $nestedZipBytes = $makeZipBytes([
+    $nestedZipBytes = auditDocMakeZipBytes([
         'inner-1.txt' => 'first nested payload',
         'inner-2.txt' => 'second nested payload',
     ]);
-    $rootZipBytes = $makeZipBytes([
+    $rootZipBytes = auditDocMakeZipBytes([
         'outer.txt' => 'outer sibling payload',
         'nested.zip' => $nestedZipBytes,
     ]);
@@ -722,7 +686,7 @@ test('ArchiveStrategy учитывает кумулятивный бюджет �
 
     // 2. XLSX с запрещённой декларацией <!DOCTYPE / <!ENTITY терминально отклоняется без вызова LibreOffice.
     Process::fake();
-    $maliciousXlsxBytes = $makeZipBytes([
+    $maliciousXlsxBytes = auditDocMakeZipBytes([
         '[Content_Types].xml' => '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>',
         'xl/worksheets/sheet1.xml' => '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE worksheet [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><worksheet/>',
     ]);

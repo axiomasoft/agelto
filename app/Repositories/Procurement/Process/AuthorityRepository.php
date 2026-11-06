@@ -4,30 +4,18 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Process;
 
-use App\Dto\Procurement\Process\AdmissionGroupSnapshot;
-use App\Dto\Procurement\Process\AnalysisSubjects;
 use App\Dto\Procurement\Process\AuthoritySnapshot;
 use App\Dto\Procurement\Process\CapacityAuthority;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ControlSnapshot;
-use App\Dto\Procurement\Process\ExtractionWindowInput;
 use App\Dto\Procurement\Process\HandlerAuthoritySnapshot;
 use App\Dto\Procurement\Process\LockedSubject;
-use App\Dto\Procurement\Process\PrepareInput;
 use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\PublicationInput;
-use App\Dto\Procurement\Process\ScopeDefinition;
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Dto\Procurement\Process\SubjectAuthoritySnapshot;
-use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\SubjectLockSnapshot;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\AuthorityGap;
 use App\Enums\Procurement\Process\CapacityKind;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\HandlerEligibility;
 use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
@@ -38,12 +26,7 @@ use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\SubjectLockResolver;
 
 /**
- * Authority pre-read и полный lock prefix. Pre-read без locks
- * собирает AuthoritySnapshot: control closure, executing handler authority, все required lanes,
- * subject rows и active admission group. lockPrefix берёт tiers строго по порядку: control scopes
- * FOR SHARE (sorted scope_key) → handler authority FOR SHARE → весь capacity set FOR UPDATE
- * (sorted id) → subjects FOR UPDATE (sorted table, PK) → work FOR UPDATE [SKIP LOCKED]. Более ранний
- * tier после work не берётся: изменившийся состав — rollback и reload, а не поздний lock.
+ * Authority pre-read и полный lock prefix.
  */
 final readonly class AuthorityRepository
 {
@@ -52,13 +35,9 @@ final readonly class AuthorityRepository
         private ProcessPolicy $policy,
         private StageRegistry $registry,
         private SubjectLockResolver $resolver,
+        private ?SubjectRowLoader $loader = null,
     ) {}
 
-    /**
-     * Handler version, чью eligibility authority держит recovery: executing version последнего
-     * attempt (то, что реально выполнялось) либо, если attempt не было или нужна текущая версия
-     * кода, версия registry. Процесс без registry binding восстанавливает по версии attempt.
-     */
     public function recoveryHandlerVersion(WorkId $workId, StageCode $stage, bool $preferAttempt): ?string
     {
         $attempt = LedgerRow::one(
@@ -70,10 +49,6 @@ final readonly class AuthorityRepository
         return $preferAttempt ? ($attempt ?? $registered) : ($registered ?? $attempt);
     }
 
-    /**
-     * Pre-read для recovery и управляющих мутаций: handler version выбирается по recoveryHandlerVersion,
-     * поэтому процесс без handler registration (reconcile daemon, оператор) тоже видит authority.
-     */
     public function readRecoverySnapshot(WorkId $workId, bool $executing): AuthoritySnapshot|AuthorityGap
     {
         $row = LedgerRow::one('SELECT stage FROM prc_process_work WHERE id = ?', [$workId->value->value]);
@@ -84,10 +59,6 @@ final readonly class AuthorityRepository
         return $this->readAuthoritySnapshot($workId, $this->recoveryHandlerVersion($workId, StageCode::from($row->string('stage')), $executing));
     }
 
-    /**
-     * Unlocked pre-read; никогда не grant. Каждый факт повторно проверяется под locks.
-     * $executingVersion — явная handler version (recovery); по умолчанию версия registry.
-     */
     public function readAuthoritySnapshot(WorkId $workId, ?string $executingVersion = null): AuthoritySnapshot|AuthorityGap
     {
         $work = LedgerRow::one(
@@ -105,56 +76,21 @@ final readonly class AuthorityRepository
             return AuthorityGap::HandlerUnregistered;
         }
         $input = $this->codec->decodeInput(new VersionedPayload($work->string('input_payload'), $work->int('input_schema_version')));
-
-        $scopeKeys = array_map(static fn (ScopeDefinition $scope): string => $scope->key, $this->policy->workScopes($code, $work->string('cohort_key')));
-        sort($scopeKeys, SORT_STRING);
-        $controls = LedgerRow::all(
-            'SELECT id, scope_key, desired_mode, control_version FROM prc_control_scopes
-             WHERE scope_key IN ('.LedgerRow::placeholders(count($scopeKeys)).') ORDER BY scope_key COLLATE "C"',
-            $scopeKeys,
-        );
-        if (count($controls) !== count($scopeKeys)) {
-            return AuthorityGap::ScopesMissing;
+        $controls = $this->loader()->readControlSnapshots($code, $work->string('cohort_key'));
+        if ($controls instanceof AuthorityGap) {
+            return $controls;
         }
-
-        $handler = LedgerRow::one(
-            'SELECT id, state, version FROM prc_process_handler_holds WHERE stage = ? AND handler_version = ?',
-            [$code->value, $handlerVersion],
-        );
-        if ($handler === null) {
-            return AuthorityGap::HandlerAuthorityMissing;
+        $handler = $this->loader()->readHandlerSnapshot($code, $handlerVersion);
+        if (! $handler instanceof HandlerAuthoritySnapshot) {
+            return $handler;
         }
-
-        $laneKeys = $this->policy->requiredLanes($code);
-        $lanes = LedgerRow::all(
-            'SELECT id FROM prc_process_lanes WHERE lane_key IN ('.LedgerRow::placeholders(count($laneKeys)).') ORDER BY id',
-            $laneKeys,
-        );
-        if (count($lanes) !== count($laneKeys)) {
-            return AuthorityGap::LanesMissing;
+        $laneIds = $this->loader()->readLaneIds($code);
+        if ($laneIds instanceof AuthorityGap) {
+            return $laneIds;
         }
-        $laneIds = array_map(static fn (LedgerRow $lane): string => $lane->string('id'), $lanes);
-
-        $documentId = null;
-        if ($input instanceof PrepareInput || $input instanceof ScreeningInput) {
-            $documentId = LedgerRow::one('SELECT document_id FROM prc_document_versions WHERE id=?', [$input->documentVersionId])?->int('document_id');
-            if ($documentId === null) {
-                return AuthorityGap::SubjectMissing;
-            }
-        }
-        $analysis = $this->analysisSubjects($input);
-        if (($input instanceof ExtractionWindowInput || $input instanceof PublicationInput) && $analysis === null) {
-            return AuthorityGap::SubjectMissing;
-        }
-        $subjects = [];
-        foreach ($this->resolver->subjects($input, $documentId, $analysis) as $subject) {
-            $headColumn = self::headColumn($subject->kind);
-            $row = LedgerRow::one('SELECT '.$headColumn.' FROM '.$subject->kind->value.' WHERE id = ?', [self::subjectId($subject)]);
-            if ($row === null) {
-                return AuthorityGap::SubjectMissing;
-            }
-            $parent = $subject->kind === SubjectKind::DocumentVersion && $documentId !== null ? new SubjectKey(SubjectKind::Document, $documentId) : null;
-            $subjects[] = new SubjectAuthoritySnapshot($subject, $parent, $row->int('head_generation'), null, null);
+        $subjects = $this->loader()->readSubjectSnapshots($input);
+        if (! $subjects instanceof SubjectLockSnapshot) {
+            return $subjects;
         }
 
         return new AuthoritySnapshot(
@@ -162,113 +98,37 @@ final readonly class AuthorityRepository
             input: $input,
             inputRevision: $work->int('input_revision'),
             inputHash: new ContentHash($work->string('input_hash')),
-            controls: array_map(static fn (LedgerRow $row): ControlSnapshot => new ControlSnapshot(
-                new ProcessUuid($row->string('id')),
-                $row->string('scope_key'),
-                ControlMode::from($row->string('desired_mode')),
-                $row->int('control_version'),
-            ), $controls),
-            handler: new HandlerAuthoritySnapshot(
-                new ProcessUuid($handler->string('id')),
-                $code,
-                $handlerVersion,
-                HandlerEligibility::from($handler->string('state')),
-                $handler->int('version'),
-            ),
-            capacity: [...array_map(static fn (string $id): CapacityAuthority => new CapacityAuthority(CapacityKind::Lane, new ProcessUuid($id)), $laneIds),
-                ...$this->analysisStorage($workId, $code)],
-            subjects: new SubjectLockSnapshot($subjects),
-            admissionGroup: $this->activeGroup($workId, $laneIds),
+            controls: $controls,
+            handler: $handler,
+            capacity: [
+                ...array_map(static fn (string $id): CapacityAuthority => new CapacityAuthority(CapacityKind::Lane, new ProcessUuid($id)), $laneIds),
+                ...$this->loader()->analysisStorage($workId, $code),
+            ],
+            subjects: $subjects,
+            admissionGroup: $this->loader()->activeGroup($workId, $laneIds),
             providerOperations: [],
         );
     }
 
     /**
-     * Полный prefix в одной уже открытой ProcessTransaction. Admission/reconciler используют SKIP
-     * LOCKED только на финальном work lock; claim конкретной доставки ждёт work lock.
-     * Admission дополнительно фиксирует eligibility authorities всех выбранных пар ДО capacity.
-     *
      * @param  list<AuthoritySnapshot>  $eligibilitySnapshots
-     * @param  list<ProcessUuid>  $storageDomains  Additional output domains known before locking.
+     * @param  list<ProcessUuid>  $storageDomains
      */
     public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork, array $eligibilitySnapshots = [], ?PublicationLocks $publication = null, array $storageDomains = []): LockedPrefix|PrefixFailure
     {
         CallerTransaction::require('Process lock prefix');
 
-        // Tier 1: control closure FOR SHARE, sorted scope_key (byte order, как setMode) — параллельные
-        // grants совместимы, pause сериализуется.
-        $expectedControls = [];
-        $expectedHandlers = [];
-        $capacity = [];
-        foreach ([$snapshot, ...$eligibilitySnapshots] as $authority) {
-            foreach ($authority->controls as $scope) {
-                $expectedControls[$scope->scopeKey] = $scope->id->value;
-            }
-            $expectedHandlers[$authority->handler->id->value] = $authority->handler;
-            foreach ($authority->capacity as $member) {
-                $capacity[$member->key()] = $member;
-            }
+        $tier1 = $this->loader()->lockControlAndHandlerTiers([$snapshot, ...$eligibilitySnapshots]);
+        if ($tier1 instanceof PrefixFailure) {
+            return $tier1;
         }
-        ksort($expectedControls, SORT_STRING);
-        $controlIds = array_values($expectedControls);
-        $controls = LedgerRow::all(
-            'SELECT id, scope_key, desired_mode FROM prc_control_scopes
-             WHERE id IN ('.LedgerRow::placeholders(count($controlIds)).') ORDER BY scope_key COLLATE "C" FOR SHARE',
-            $controlIds,
-        );
-        $lockedKeys = array_map(static fn (LedgerRow $row): string => $row->string('scope_key'), $controls);
-        $expectedKeys = array_keys($expectedControls);
-        if ($lockedKeys !== $expectedKeys) {
-            return PrefixFailure::SnapshotChanged;
-        }
-        $enabled = array_filter($controls, static fn (LedgerRow $row): bool => $row->string('desired_mode') === ControlMode::Enabled->value);
-        $enabledKeys = array_values(array_map(static fn (LedgerRow $row): string => $row->string('scope_key'), $enabled));
+        $enabledKeys = $tier1['enabledKeys'];
+        $healthyIds = $tier1['healthyIds'];
+        $capacity = $tier1['capacity'];
 
-        // Tier 1b: materialized handler-version eligibility FOR SHARE.
-        $handlerIds = array_keys($expectedHandlers);
-        $handlers = LedgerRow::all(
-            'SELECT id, state FROM prc_process_handler_holds WHERE id IN ('.LedgerRow::placeholders(count($handlerIds)).')
-             ORDER BY stage COLLATE "C", handler_version COLLATE "C" FOR SHARE',
-            $handlerIds,
-        );
-        if (count($handlers) !== count($handlerIds)) {
-            return PrefixFailure::SnapshotChanged;
-        }
-        $healthyIds = array_values(array_map(
-            static fn (LedgerRow $row): string => $row->string('id'),
-            array_filter($handlers, static fn (LedgerRow $row): bool => $row->string('state') === HandlerEligibility::Healthy->value),
-        ));
-
-        // Tier 2: весь capacity set одним sorted FOR UPDATE; COUNT reservations только после locks.
-        $laneIds = array_map(static fn (CapacityAuthority $member): string => $member->id->value,
-            array_values(array_filter($capacity, static fn (CapacityAuthority $member): bool => $member->kind === CapacityKind::Lane)));
-        sort($laneIds, SORT_STRING);
-        $in = LedgerRow::placeholders(count($laneIds));
-        $laneRows = LedgerRow::all(
-            "SELECT id, lane_key, parent_lane_id, max_outstanding, max_running,
-                    fairness_cursor::text AS fairness_cursor, fairness_cursor_schema_version
-             FROM prc_process_lanes WHERE id IN ({$in}) ORDER BY id FOR UPDATE",
-            $laneIds,
-        );
-        if (count($laneRows) !== count($laneIds)) {
-            return PrefixFailure::SnapshotChanged;
-        }
-        $counts = [];
-        foreach (LedgerRow::all(
-            "SELECT lane_id, count(*) AS outstanding, count(*) FILTER (WHERE state = 'running') AS running
-             FROM prc_process_reservations WHERE lane_id IN ({$in}) GROUP BY lane_id",
-            $laneIds,
-        ) as $count) {
-            $counts[$count->string('lane_id')] = [$count->int('outstanding'), $count->int('running')];
-        }
-        $lanes = [];
-        foreach ($laneRows as $row) {
-            [$outstanding, $running] = $counts[$row->string('id')] ?? [0, 0];
-            $lanes[$row->string('lane_key')] = new LockedLane(
-                $row->string('id'), $row->string('lane_key'), $row->nullableString('parent_lane_id'),
-                $row->int('max_outstanding'), $row->int('max_running'), $outstanding, $running,
-                $row->string('fairness_cursor'), $row->int('fairness_cursor_schema_version'),
-            );
+        $lanes = $this->loader()->lockLaneTier($capacity);
+        if ($lanes instanceof PrefixFailure) {
+            return $lanes;
         }
 
         foreach ($capacity as $member) {
@@ -276,9 +136,8 @@ final readonly class AuthorityRepository
                 $storageDomains[] = $member->id;
             }
         }
-        $this->lockStorageDomains($storageDomains);
+        $this->loader()->lockStorageDomains($storageDomains);
 
-        // Tier 3: полный subject set FOR UPDATE в порядке (table key, PK) снимка; heads сверяются.
         $publication?->lockIdentities();
         $subjects = $this->lockSubjects($snapshot);
         if ($subjects instanceof PrefixFailure) {
@@ -286,9 +145,8 @@ final readonly class AuthorityRepository
         }
         $publication?->lockSubjects();
 
-        // Tier 4: work — последний lock prefix.
         $work = LedgerRow::one(
-            "SELECT state, reason_code, cohort_key, platform_id, origin_run_id, input_revision, encode(input_hash, 'hex') AS input_hash,
+            "SELECT state, reason_code, cohort_key, platform_id, origin_run_id, priority, input_revision, encode(input_hash, 'hex') AS input_hash,
                     intent_id, generation, owner_token, item_failures, dispatch_generation, transition_seq,
                     checkpoint::text AS checkpoint, checkpoint_schema_version, checkpoint_seq,
                     COALESCE(dispatch_claim_until <= clock_timestamp(), false) AS claim_expired,
@@ -338,111 +196,24 @@ final readonly class AuthorityRepository
         );
     }
 
-    /**
-     * Subject tier отдельно (checkpoint — subset prefix без controls/lanes): полный
-     * subject set FOR UPDATE в порядке снимка, heads сверяются; mutable subject не берётся SHARE.
-     *
-     * @return array<string, LockedSubject>|PrefixFailure keyed by SubjectKey::key()
-     */
+    /** @return array<string, LockedSubject>|PrefixFailure keyed by SubjectKey::key() */
     public function lockSubjects(AuthoritySnapshot $snapshot): array|PrefixFailure
     {
-        CallerTransaction::require('Process subject locks');
-        $subjects = [];
-        foreach ($snapshot->subjects->subjects as $expected) {
-            $revision = $expected->subject->kind === SubjectKind::CrawlBlock ? 'input_revision' : 'NULL::bigint';
-            $headColumn = self::headColumn($expected->subject->kind);
-            $currentVersion = $expected->subject->kind === SubjectKind::Document ? 'current_version_id' : 'NULL::bigint';
-            $extra = match ($expected->subject->kind) {
-                SubjectKind::DocumentVersion => "analysis_generation,current_analysis_run_id,
-                    (SELECT r.expected_document_head_generation FROM prc_analysis_runs r WHERE r.id=current_analysis_run_id) AS expected_document_head_generation,
-                    (SELECT encode(r.recipe_hash,'hex') FROM prc_analysis_runs r WHERE r.id=current_analysis_run_id) AS current_recipe_hex,
-                    (SELECT encode(r.representation_hash,'hex') FROM prc_analysis_runs r WHERE r.id=current_analysis_run_id) AS current_representation_hex",
-                SubjectKind::AnalysisRun => "encode(recipe_hash,'hex') AS recipe_hex,expected_document_head_generation,expected_analysis_generation",
-                default => 'NULL::bigint AS analysis_generation',
-            };
-            $row = LedgerRow::one(
-                "SELECT {$headColumn}, {$revision} AS input_revision, {$currentVersion} AS current_version_id,{$extra} FROM {$expected->subject->kind->value} WHERE id = ? FOR UPDATE",
-                [self::subjectId($expected->subject)],
-            );
-            if ($row === null || $row->int('head_generation') !== $expected->headGeneration) {
-                return PrefixFailure::SnapshotChanged;
-            }
-            $kind = $expected->subject->kind;
-            $currentRun = $kind === SubjectKind::DocumentVersion ? $row->nullableString('current_analysis_run_id') : null;
-            $subjects[$expected->subject->key()] = new LockedSubject($expected->subject, $row->int('head_generation'), $row->nullableInt('input_revision'), $row->nullableInt('current_version_id'),
-                $kind === SubjectKind::DocumentVersion ? $row->int('analysis_generation') : null,
-                $currentRun === null ? null : new ProcessUuid($currentRun),
-                $kind === SubjectKind::AnalysisRun ? new ContentHash($row->string('recipe_hex')) : null,
-                in_array($kind, [SubjectKind::AnalysisRun, SubjectKind::DocumentVersion], true) ? $row->nullableInt('expected_document_head_generation') : null,
-                $kind === SubjectKind::AnalysisRun ? $row->int('expected_analysis_generation') : null,
-                ($hash = $row->nullableString('current_recipe_hex')) === null ? null : new ContentHash($hash),
-                ($hash = $row->nullableString('current_representation_hex')) === null ? null : new ContentHash($hash));
-        }
-
-        if ($snapshot->input instanceof PrepareInput || $snapshot->input instanceof ScreeningInput) {
-            $version = LedgerRow::one('SELECT v.document_id,d.current_version_id FROM prc_document_versions v JOIN prc_documents d ON d.id=v.document_id WHERE v.id=?', [$snapshot->input->documentVersionId]);
-            $parent = null;
-            foreach ($snapshot->subjects->subjects as $s) {
-                if ($s->subject->kind === SubjectKind::Document) {
-                    $parent = self::subjectId($s->subject);
-                }
-            }
-            if ($version === null || $version->int('document_id') !== $parent) {
-                return PrefixFailure::SnapshotChanged;
-            }
-
-        }
-
-        if ($snapshot->input instanceof ExtractionWindowInput || $snapshot->input instanceof PublicationInput) {
-            $current = $this->analysisSubjects($snapshot->input);
-            if ($current === null) {
-                return PrefixFailure::SnapshotChanged;
-            }
-            $keys = array_map(static fn (SubjectKey $s): string => $s->key(), $this->resolver->subjects($snapshot->input, analysis: $current));
-            $expectedKeys = array_keys($subjects);
-            sort($keys);
-            sort($expectedKeys);
-            if ($keys !== $expectedKeys) {
-                return PrefixFailure::SnapshotChanged;
-            }
-        }
-
-        return $subjects;
+        return $this->loader()->lockSubjects($snapshot);
     }
 
     public static function headColumn(SubjectKind $kind): string
     {
-        return match ($kind) {
-            SubjectKind::DocumentVersion, SubjectKind::AnalysisWindow => '1::bigint AS head_generation',
-            SubjectKind::AnalysisRun => 'generation AS head_generation',
-            default => 'head_generation',
-        };
+        return SubjectRowLoader::headColumn($kind);
     }
 
-    private function analysisSubjects(WorkInput $input): ?AnalysisSubjects
-    {
-        if (! $input instanceof ExtractionWindowInput && ! $input instanceof PublicationInput) {
-            return null;
-        }
-        $window = $input instanceof ExtractionWindowInput;
-        $row = LedgerRow::one('SELECT v.document_id,v.id AS version_id,r.id AS run_id,'.($window ? 'w.id' : 'NULL::uuid').
-            ' AS window_id FROM prc_analysis_runs r JOIN prc_document_versions v ON v.id=r.document_version_id '.
-            ($window ? 'JOIN prc_analysis_windows w ON w.run_id=r.id ' : '').'WHERE r.id=?'.($window ? ' AND w.window_key=?' : ''),
-            [$input->analysisRunId->value, ...($window ? [$input->windowKey] : [])]);
-
-        return $row === null ? null : new AnalysisSubjects($row->int('document_id'), $row->int('version_id'),
-            new ProcessUuid($row->string('run_id')), ($id = $row->nullableString('window_id')) === null ? null : new ProcessUuid($id));
-    }
-
-    /**
-     * Exact membership: active group текущей delivery содержит ровно required lane set стадии,
-     * его hash, work/stage identity и единое состояние members. Corruption не чинится молча.
-     */
     public function exactMembership(AuthoritySnapshot $snapshot, LockedPrefix $prefix, string $groupState): bool
     {
         $group = $prefix->group;
-        $laneIds = array_map(static fn (CapacityAuthority $authority): string => $authority->id->value,
-            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $authority): bool => $authority->kind === CapacityKind::Lane)));
+        $laneIds = array_map(
+            static fn (CapacityAuthority $authority): string => $authority->id->value,
+            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $authority): bool => $authority->kind === CapacityKind::Lane)),
+        );
         sort($laneIds, SORT_STRING);
 
         $expectedStage = $snapshot->handler->stage->value;
@@ -462,81 +233,29 @@ final readonly class AuthorityRepository
             && ($groupState !== 'admitted' || $group->nullableString('attempt_id') === null);
     }
 
-    /** The checkpoint subset still takes every output domain before subjects/work. */
     public function lockCheckpointStorage(AuthoritySnapshot $snapshot): void
     {
-        $this->lockStorageDomains(array_map(static fn (CapacityAuthority $member): ProcessUuid => $member->id,
-            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $member): bool => $member->kind === CapacityKind::Storage))));
+        $this->loader()->lockStorageDomains(array_map(
+            static fn (CapacityAuthority $member): ProcessUuid => $member->id,
+            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $member): bool => $member->kind === CapacityKind::Storage)),
+        ));
     }
 
     public function sameAnalysisStorage(AuthoritySnapshot $snapshot): bool
     {
-        $expected = array_map(static fn (CapacityAuthority $member): string => $member->key(),
-            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $member): bool => $member->kind === CapacityKind::Storage)));
-        $actual = array_map(static fn (CapacityAuthority $member): string => $member->key(), $this->analysisStorage($snapshot->workId, $snapshot->handler->stage));
+        $expected = array_map(
+            static fn (CapacityAuthority $member): string => $member->key(),
+            array_values(array_filter($snapshot->capacity, static fn (CapacityAuthority $member): bool => $member->kind === CapacityKind::Storage)),
+        );
+        $actual = array_map(static fn (CapacityAuthority $member): string => $member->key(), $this->loader()->analysisStorage($snapshot->workId, $snapshot->handler->stage));
         sort($expected, SORT_STRING);
         sort($actual, SORT_STRING);
 
         return $actual === $expected;
     }
 
-    /** @return list<CapacityAuthority> */
-    private function analysisStorage(WorkId $work, StageCode $stage): array
+    private function loader(): SubjectRowLoader
     {
-        $required = $this->resolver->requiresAnalysisStorageLocks($stage);
-        if (! $required) {
-            return [];
-        }
-
-        return array_map(static fn (LedgerRow $row): CapacityAuthority => new CapacityAuthority(CapacityKind::Storage, new ProcessUuid($row->string('domain_id'))),
-            LedgerRow::all('SELECT DISTINCT domain_id FROM prc_storage_reservations WHERE work_id=? ORDER BY domain_id', [$work->value->value]));
-    }
-
-    /** @param list<ProcessUuid> $domains */
-    private function lockStorageDomains(array $domains): void
-    {
-        $ids = array_values(array_unique(array_map(static fn (ProcessUuid $id): string => $id->value, $domains)));
-        sort($ids, SORT_STRING);
-        foreach ($ids as $id) {
-            if (LedgerRow::one('SELECT id FROM prc_storage_domains WHERE id=? FOR UPDATE', [$id]) === null) {
-                throw new \LogicException('Missing declared storage capacity authority.');
-            }
-        }
-    }
-
-    /** @param list<string> $laneIds */
-    private function activeGroup(WorkId $workId, array $laneIds): ?AdmissionGroupSnapshot
-    {
-        $group = LedgerRow::one(
-            "SELECT id, dispatch_generation, version, encode(required_lane_set_hash, 'hex') AS lane_set_hash, attempt_id
-             FROM prc_admission_groups WHERE work_id = ? AND state <> 'released'",
-            [$workId->value->value],
-        );
-        if ($group === null) {
-            return null;
-        }
-        $members = array_map(
-            static fn (LedgerRow $row): string => $row->string('lane_id'),
-            LedgerRow::all('SELECT lane_id FROM prc_process_reservations WHERE admission_group_id = ? ORDER BY lane_id', [$group->string('id')]),
-        );
-        // Неполный или чужой member set — не снимок, а corruption: его фиксирует locked membership check.
-        if ($members === [] || array_diff($members, $laneIds) !== []) {
-            return null;
-        }
-        $attemptId = $group->nullableString('attempt_id');
-
-        return new AdmissionGroupSnapshot(
-            new ProcessUuid($group->string('id')),
-            $group->int('dispatch_generation'),
-            $group->int('version'),
-            new ContentHash($group->string('lane_set_hash')),
-            array_map(static fn (string $id): ProcessUuid => new ProcessUuid($id), $members),
-            $attemptId === null ? null : new ProcessUuid($attemptId),
-        );
-    }
-
-    private static function subjectId(SubjectKey $subject): int|string
-    {
-        return is_int($subject->id) ? $subject->id : $subject->id->value;
+        return $this->loader ?? new SubjectRowLoader($this->resolver, $this->policy);
     }
 }

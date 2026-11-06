@@ -124,7 +124,7 @@ final readonly class OcrConverter
             return null;
         }
 
-        $firstLine = trim(strtok(trim($result->output()), "\n") ?: '');
+        $firstLine = trim(explode("\n", trim($result->output()), 2)[0]);
 
         return $firstLine !== '' ? $firstLine : null;
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Crawler\Proxies;
 
 use App\Filament\Resources\Procurement\Crawler\Proxies\Pages\CreateProxy;

@@ -129,14 +129,15 @@ final readonly class EisListingSource implements ListingSource, ResponseValidato
                 return $invalid(AssessmentReason::Overflow, $count);
             }
             $parser = new EisSummaryParser(new EisSourceClock($this->policy->sourceTimezone->getName()));
+            $day = (new \DateTimeImmutable($cursor->day))->format('d.m.Y');
+            $dateColumn = $cursor->dateField === 'publish' ? 'Дата размещения' : 'Дата обновления';
             $summaries = [];
             foreach ($rows as $row) {
                 $context?->tick();
                 $summary = $parser->parse($row);
-                $dateValue = $row[$cursor->dateField === 'publish' ? 'Дата размещения' : 'Дата обновления'];
-                $day = (new \DateTimeImmutable($cursor->day))->format('d.m.Y');
+                $dateValue = $row[$dateColumn];
                 $price = explode('.', $summary->initialPrice ?? '');
-                $cents = (int) $price[0] * 100 + (int) str_pad($price[1] ?? '', 2, '0');
+                $cents = (int) $price[0] * 100 + (int) substr(str_pad($price[1] ?? '', 2, '0'), 0, 2);
                 if (! str_starts_with(trim($dateValue), $day) || $cents < $cursor->lowCents || $cents > $cursor->highCents
                     || ! $filter->acceptsStage($summary->sourceStage)) {
                     return $invalid(AssessmentReason::FilterMismatch, $count);

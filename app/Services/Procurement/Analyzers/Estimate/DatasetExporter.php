@@ -27,7 +27,7 @@ use RuntimeException;
  */
 final readonly class DatasetExporter
 {
-    private const EXPORTER_VERSION = 2;
+    private const int EXPORTER_VERSION = 2;
 
     public function __construct(
         private DatasetExampleReadRepository $examples,
@@ -63,72 +63,68 @@ final readonly class DatasetExporter
         $bySplit = [];
         $byRepresentationKind = [];
 
-        foreach ($this->examples->exportableSft($task, $sources) as $example) {
-            /** @var DatasetExample $example */
-            $rowSplit = $this->splitOf($example, $holdoutCodes);
+        try {
+            foreach ($this->examples->exportableSft($task, $sources) as $example) {
+                /** @var DatasetExample $example */
+                $rowSplit = $this->splitOf($example, $holdoutCodes);
 
-            if ($split !== 'all' && $rowSplit !== $split) {
-                continue;
-            }
-
-            $resolved = $this->inputBuilder->resolveInput($example->documentVersion);
-
-            if (isset($resolved['skip'])) {
-                $skipped[$resolved['skip']] = ($skipped[$resolved['skip']] ?? 0) + 1;
-
-                continue;
-            }
-
-            $estimates = $this->goldEstimates($example);
-
-            foreach ($estimates as $estimate) {
-                $ordinal = $this->nullableOrdinal($estimate['ordinal'] ?? null);
-                $estimateNumber = $this->nullableEstimateNumber($estimate['estimate_number'] ?? null);
-                $rows = $estimate['rows'] ?? [];
-
-                if (! is_array($rows)) {
-                    throw new RuntimeException('Gold-смета содержит невалидный список строк.');
+                if ($split !== 'all' && $rowSplit !== $split) {
+                    continue;
                 }
 
-                $line = [
-                    'messages' => [
-                        ['role' => 'system', 'content' => $composed->systemPart],
-                        ['role' => 'user', 'content' => $this->inputBuilder->userTurn(
-                            $resolved['text'],
-                            $ordinal,
-                            $estimateNumber,
-                        )],
-                        ['role' => 'assistant', 'content' => json_encode([
-                            'rows' => $rows,
-                            'incomplete_items' => [],
-                        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)],
-                    ],
-                    'meta' => $this->rowMeta($example, $rowSplit, $resolved['representation_kind']->value),
-                ];
+                $resolved = $this->inputBuilder->resolveInput($example->documentVersion);
 
-                fwrite($stream, json_encode($line, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)."\n");
-                $count++;
-                $bySource[$example->source] = ($bySource[$example->source] ?? 0) + 1;
-                $bySplit[$rowSplit] = ($bySplit[$rowSplit] ?? 0) + 1;
-                $byRepresentationKind[$resolved['representation_kind']->value] = ($byRepresentationKind[$resolved['representation_kind']->value] ?? 0) + 1;
+                if (isset($resolved['skip'])) {
+                    $skipped[$resolved['skip']] = ($skipped[$resolved['skip']] ?? 0) + 1;
+
+                    continue;
+                }
+
+                $estimates = $this->goldEstimates($example);
+                $repKind = $resolved['representation_kind']->value;
+
+                foreach ($estimates as $estimate) {
+                    $ordinal = $this->nullableOrdinal($estimate['ordinal'] ?? null);
+                    $estimateNumber = $this->nullableEstimateNumber($estimate['estimate_number'] ?? null);
+                    $rows = $estimate['rows'] ?? [];
+
+                    if (! is_array($rows)) {
+                        throw new RuntimeException('Gold-смета содержит невалидный список строк.');
+                    }
+
+                    $line = [
+                        'messages' => [
+                            ['role' => 'system', 'content' => $composed->systemPart],
+                            ['role' => 'user', 'content' => $this->inputBuilder->userTurn(
+                                $resolved['text'],
+                                $ordinal,
+                                $estimateNumber,
+                            )],
+                            ['role' => 'assistant', 'content' => json_encode([
+                                'rows' => $rows,
+                                'incomplete_items' => [],
+                            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)],
+                        ],
+                        'meta' => $this->rowMeta($example, $rowSplit, $repKind),
+                    ];
+
+                    $this->appendExportLine($stream, $line, $example->source, $rowSplit, $repKind, $count, $bySource, $bySplit, $byRepresentationKind);
+                }
             }
+
+            rewind($stream);
+        } catch (\Throwable $e) {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+
+            throw $e;
         }
 
-        rewind($stream);
-
-        /** @var array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>} $summary */
-        $summary = [
-            'examples' => $count,
-            'skipped' => array_filter($skipped),
-            'by_source' => $bySource,
-            'by_split' => $bySplit,
-            'by_representation_kind' => $byRepresentationKind,
-            'prompt_version_set' => $composed->promptVersionSet,
-            'rules_hash' => $composed->rulesHash,
-            'warnings' => $warnings,
+        return [
+            $this->buildSummary($count, $skipped, $bySource, $bySplit, $byRepresentationKind, $composed->promptVersionSet, $composed->rulesHash, $warnings),
+            $stream,
         ];
-
-        return [$summary, $stream];
     }
 
     /**
@@ -150,68 +146,120 @@ final readonly class DatasetExporter
         $bySplit = [];
         $byRepresentationKind = [];
 
-        foreach ($this->examples->exportableDpo($task, $sources) as $example) {
-            /** @var DatasetExample $example */
-            /** @var Analysis|null $analysis */
-            $analysis = $example->analysis;
+        try {
+            foreach ($this->examples->exportableDpo($task, $sources) as $example) {
+                /** @var DatasetExample $example */
+                /** @var Analysis|null $analysis */
+                $analysis = $example->analysis;
 
-            if ($analysis === null || $analysis->parent_analysis_id === null) {
-                $skipped['no_parent_analysis'] = ($skipped['no_parent_analysis'] ?? 0) + 1;
+                if ($analysis === null || $analysis->parent_analysis_id === null) {
+                    $skipped['no_parent_analysis'] = ($skipped['no_parent_analysis'] ?? 0) + 1;
 
-                continue;
+                    continue;
+                }
+
+                $parent = $this->analyses->parentOf($analysis);
+
+                if ($parent === null || $parent->result === null) {
+                    $skipped['parent_result_empty'] = ($skipped['parent_result_empty'] ?? 0) + 1;
+
+                    continue;
+                }
+
+                $rowSplit = $this->splitOf($example, $holdoutCodes);
+
+                if ($split !== 'all' && $rowSplit !== $split) {
+                    continue;
+                }
+
+                $resolved = $this->inputBuilder->resolveInput($example->documentVersion);
+
+                if (isset($resolved['skip'])) {
+                    $skipped[$resolved['skip']] = ($skipped[$resolved['skip']] ?? 0) + 1;
+
+                    continue;
+                }
+
+                $repKind = $resolved['representation_kind']->value;
+                $chosen = json_encode($example->gold?->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+                $rejected = json_encode($parent->result->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+                $userPart = $this->inputBuilder->userTurn($resolved['text'], null, null);
+
+                $line = $this->dpoRow($dpoSchema, $composed->systemPart, $userPart, $chosen, $rejected);
+                $line['meta'] = $this->rowMeta($example, $rowSplit, $repKind);
+
+                $this->appendExportLine($stream, $line, $example->source, $rowSplit, $repKind, $count, $bySource, $bySplit, $byRepresentationKind);
             }
 
-            $parent = $this->analyses->parentOf($analysis);
-
-            if ($parent === null || $parent->result === null) {
-                $skipped['parent_result_empty'] = ($skipped['parent_result_empty'] ?? 0) + 1;
-
-                continue;
+            rewind($stream);
+        } catch (\Throwable $e) {
+            if (is_resource($stream)) {
+                fclose($stream);
             }
 
-            $rowSplit = $this->splitOf($example, $holdoutCodes);
-
-            if ($split !== 'all' && $rowSplit !== $split) {
-                continue;
-            }
-
-            $resolved = $this->inputBuilder->resolveInput($example->documentVersion);
-
-            if (isset($resolved['skip'])) {
-                $skipped[$resolved['skip']] = ($skipped[$resolved['skip']] ?? 0) + 1;
-
-                continue;
-            }
-
-            $chosen = json_encode($example->gold?->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-            $rejected = json_encode($parent->result->get('estimates') ?? [], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-            $userPart = $this->inputBuilder->userTurn($resolved['text'], null, null);
-
-            $line = $this->dpoRow($dpoSchema, $composed->systemPart, $userPart, $chosen, $rejected);
-            $line['meta'] = $this->rowMeta($example, $rowSplit, $resolved['representation_kind']->value);
-
-            fwrite($stream, json_encode($line, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)."\n");
-            $count++;
-            $bySource[$example->source] = ($bySource[$example->source] ?? 0) + 1;
-            $bySplit[$rowSplit] = ($bySplit[$rowSplit] ?? 0) + 1;
-            $byRepresentationKind[$resolved['representation_kind']->value] = ($byRepresentationKind[$resolved['representation_kind']->value] ?? 0) + 1;
+            throw $e;
         }
 
-        rewind($stream);
+        return [
+            $this->buildSummary($count, $skipped, $bySource, $bySplit, $byRepresentationKind, $composed->promptVersionSet, $composed->rulesHash, $warnings),
+            $stream,
+        ];
+    }
 
-        /** @var array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>} $summary */
-        $summary = [
+    /**
+     * @param  resource  $stream
+     * @param  array<string, mixed>  $line
+     * @param  array<string, int>  $bySource
+     * @param  array<string, int>  $bySplit
+     * @param  array<string, int>  $byRepresentationKind
+     */
+    private function appendExportLine(
+        $stream,
+        array $line,
+        string $source,
+        string $rowSplit,
+        string $repKind,
+        int &$count,
+        array &$bySource,
+        array &$bySplit,
+        array &$byRepresentationKind,
+    ): void {
+        fwrite($stream, json_encode($line, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)."\n");
+        $count++;
+        $bySource[$source] = ($bySource[$source] ?? 0) + 1;
+        $bySplit[$rowSplit] = ($bySplit[$rowSplit] ?? 0) + 1;
+        $byRepresentationKind[$repKind] = ($byRepresentationKind[$repKind] ?? 0) + 1;
+    }
+
+    /**
+     * @param  array<string, int>  $skipped
+     * @param  array<string, int>  $bySource
+     * @param  array<string, int>  $bySplit
+     * @param  array<string, int>  $byRepresentationKind
+     * @param  array<string, int>  $promptVersionSet
+     * @param  list<string>  $warnings
+     * @return array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>}
+     */
+    private function buildSummary(
+        int $count,
+        array $skipped,
+        array $bySource,
+        array $bySplit,
+        array $byRepresentationKind,
+        array $promptVersionSet,
+        string $rulesHash,
+        array $warnings,
+    ): array {
+        return [
             'examples' => $count,
             'skipped' => array_filter($skipped),
             'by_source' => $bySource,
             'by_split' => $bySplit,
             'by_representation_kind' => $byRepresentationKind,
-            'prompt_version_set' => $composed->promptVersionSet,
-            'rules_hash' => $composed->rulesHash,
+            'prompt_version_set' => $promptVersionSet,
+            'rules_hash' => $rulesHash,
             'warnings' => $warnings,
         ];
-
-        return [$summary, $stream];
     }
 
     /**

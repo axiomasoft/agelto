@@ -23,6 +23,23 @@ use Illuminate\Support\Facades\DB;
 /** Reference acquisition and deletion share the storage capacity authority. No object I/O here. */
 final readonly class ArtifactRepository
 {
+    private const string UNREFERENCED_BLOB_PREDICATE = "NOT EXISTS (SELECT 1 FROM prc_storage_reservations s WHERE s.disk = b.disk AND s.object_key = b.object_key AND s.status = 'writing')
+              AND NOT EXISTS (
+                  SELECT 1 FROM prc_storage_reservations s
+                  JOIN prc_process_work w ON w.id = s.work_id
+                  WHERE s.disk = b.disk AND s.object_key = b.object_key
+                    AND w.state NOT IN ('succeeded', 'failed_item', 'cancelled', 'superseded')
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM prc_storage_reservations s
+                  JOIN prc_outbound_operations o ON o.id = s.operation_id
+                  WHERE s.disk = b.disk AND s.object_key = b.object_key
+                    AND o.state = 'open'
+              )
+              AND NOT EXISTS (SELECT 1 FROM prc_document_versions v WHERE v.blob_id = b.id)
+              AND NOT EXISTS (SELECT 1 FROM prc_document_representations r WHERE r.blob_id = b.id)
+              AND NOT EXISTS (SELECT 1 FROM prc_analysis_chunks c WHERE c.output_ref->>'disk' = b.disk AND c.output_ref->>'key' = b.object_key)";
+
     public function __construct(private StorageCapacityRepository $capacity, private ProcessTransaction $transactions) {}
 
     /** Caller holds all capacity domains BEFORE subjects/work; transfer and reference commit in its tx. */
@@ -301,22 +318,7 @@ final readonly class ArtifactRepository
 
         $rows = LedgerRow::all("SELECT b.*, b.verified_at::text AS verified_at_cursor, encode(b.content_hash, 'hex') AS hash FROM prc_document_blobs b
             WHERE b.verified_at <= clock_timestamp() - (? * interval '1 second')
-              AND NOT EXISTS (SELECT 1 FROM prc_storage_reservations s WHERE s.disk = b.disk AND s.object_key = b.object_key AND s.status = 'writing')
-              AND NOT EXISTS (
-                  SELECT 1 FROM prc_storage_reservations s
-                  JOIN prc_process_work w ON w.id = s.work_id
-                  WHERE s.disk = b.disk AND s.object_key = b.object_key
-                    AND w.state NOT IN ('succeeded', 'failed_item', 'cancelled', 'superseded')
-              )
-              AND NOT EXISTS (
-                  SELECT 1 FROM prc_storage_reservations s
-                  JOIN prc_outbound_operations o ON o.id = s.operation_id
-                  WHERE s.disk = b.disk AND s.object_key = b.object_key
-                    AND o.state = 'open'
-              )
-              AND NOT EXISTS (SELECT 1 FROM prc_document_versions v WHERE v.blob_id = b.id)
-              AND NOT EXISTS (SELECT 1 FROM prc_document_representations r WHERE r.blob_id = b.id)
-              AND NOT EXISTS (SELECT 1 FROM prc_analysis_chunks c WHERE c.output_ref->>'disk' = b.disk AND c.output_ref->>'key' = b.object_key)"
+              AND ".self::UNREFERENCED_BLOB_PREDICATE
             .$cursorClause.' ORDER BY b.verified_at, b.id LIMIT ?', $bindings);
 
         return array_map(static fn (LedgerRow $row): UnreferencedBlobCandidate => new UnreferencedBlobCandidate(
@@ -342,19 +344,10 @@ final readonly class ArtifactRepository
 
     private function referenced(BlobReference $blob): bool
     {
-        return DB::table('prc_storage_reservations')->where('disk', $blob->disk)->where('object_key', $blob->objectKey)
-            ->where('status', 'writing')->exists()
-            || DB::table('prc_storage_reservations as r')
-                ->join('prc_process_work as w', 'w.id', '=', 'r.work_id')
-                ->where('r.disk', $blob->disk)->where('r.object_key', $blob->objectKey)
-                ->whereNotIn('w.state', ['succeeded', 'failed_item', 'cancelled', 'superseded'])->exists()
-            || DB::table('prc_storage_reservations as r')
-                ->join('prc_outbound_operations as o', 'o.id', '=', 'r.operation_id')
-                ->where('r.disk', $blob->disk)->where('r.object_key', $blob->objectKey)
-                ->where('o.state', 'open')->exists()
-            || DB::table('prc_document_versions')->where('blob_id', $blob->id->value)->exists()
-            || DB::table('prc_document_representations')->where('blob_id', $blob->id->value)->exists()
-            || DB::table('prc_analysis_chunks')->whereRaw("output_ref->>'disk'=? AND output_ref->>'key'=?", [$blob->disk, $blob->objectKey])->exists();
+        return LedgerRow::one(
+            'SELECT 1 FROM (SELECT ?::uuid AS id, ?::text AS disk, ?::text AS object_key) b WHERE NOT ('.self::UNREFERENCED_BLOB_PREDICATE.')',
+            [$blob->id->value, $blob->disk, $blob->objectKey],
+        ) !== null;
     }
 
     private static function reference(LedgerRow $row): BlobReference

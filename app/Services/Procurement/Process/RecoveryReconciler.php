@@ -18,7 +18,6 @@ use App\Repositories\Procurement\Process\RecoveryRepository;
 use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
 use Illuminate\Container\Attributes\Singleton;
-use Illuminate\Support\Str;
 
 /**
  * Единственный recovery owner: expired running и expired/paused
@@ -189,7 +188,10 @@ final class RecoveryReconciler
     public function recoverBlockedProvider(): int
     {
         $recovered = 0;
-        foreach ([...$this->recovery->blockedProvider(self::BATCH, $this->blockedProviderCursor), ...$this->recovery->cancelledProvider(self::BATCH, $this->cancelledProviderCursor)] as $workId) {
+        $blocked = $this->recovery->blockedProvider(self::BATCH, $this->blockedProviderCursor);
+        $remaining = self::BATCH - count($blocked);
+        $cancelled = $remaining > 0 ? $this->recovery->cancelledProvider($remaining, $this->cancelledProviderCursor) : [];
+        foreach ([...$blocked, ...$cancelled] as $workId) {
             $recovered += $this->isolated('recover_blocked_provider', $workId, function () use ($workId): int {
                 $pinned = $this->recovery->pinnedPlan($workId);
                 $plan = $pinned['plan'] ?? null;
@@ -266,7 +268,10 @@ final class RecoveryReconciler
                 continue;
             }
             if ($outcome === RecoveryOutcome::Corrupt) {
-                $this->openMembershipIncident($snapshot, $ids);
+                $this->transaction->run(fn () => $this->incidents->openMembershipIncident(
+                    $snapshot->workId, 'work:'.$snapshot->workId->value->value, 'recovery',
+                    $ids['incident'], $ids['incident_event'], $ids['incident_projection'],
+                ));
 
                 return 0;
             }
@@ -275,20 +280,6 @@ final class RecoveryReconciler
         }
 
         return 0;
-    }
-
-    /** @param array<string, ProcessUuid> $ids */
-    private function openMembershipIncident(AuthoritySnapshot $snapshot, array $ids): void
-    {
-        $this->transaction->run(fn (): ProcessUuid => $this->incidents->open(
-            fingerprint: ContentHash::of('admission-membership:v1:'.$snapshot->workId->value->value),
-            scopeKey: 'work:'.$snapshot->workId->value->value,
-            kind: 'admission_membership_mismatch',
-            evidence: ['work_id' => $snapshot->workId->value->value],
-            incidentId: $ids['incident'],
-            eventId: $ids['incident_event'],
-            projectionMessageId: $ids['incident_projection'],
-        ));
     }
 
     private function openProviderLinkageIncident(WorkId $work): void
@@ -312,7 +303,7 @@ final class RecoveryReconciler
     {
         $ids = [];
         foreach (['event', 'projection', 'feed', 'wake', 'incident', 'incident_event', 'incident_projection'] as $name) {
-            $ids[$name] = new ProcessUuid(Str::lower((string) Str::uuid()));
+            $ids[$name] = ProcessUuid::random();
         }
 
         return $ids;

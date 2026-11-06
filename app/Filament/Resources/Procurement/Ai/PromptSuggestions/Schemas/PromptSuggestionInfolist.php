@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Ai\PromptSuggestions\Schemas;
 
 use App\Enums\Procurement\Ai\PromptSuggestionKind;

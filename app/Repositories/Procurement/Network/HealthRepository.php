@@ -19,6 +19,7 @@ use App\Enums\Procurement\Network\HealthSignal;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\TargetAvailability;
+use App\Enums\Telemetry\LogChannel;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Network\HealthPolicy;
@@ -27,7 +28,6 @@ use App\Services\Procurement\Network\RequestClassifier;
 use App\Services\Procurement\Network\RetryPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /** One factual completion transaction: health subset -> request -> observation/dedup/release.
  * No work publication. Immutable authorization IDs/epochs permit late evidence after ownership loss.
@@ -60,8 +60,8 @@ final readonly class HealthRepository
             }
             $snapshot = new HealthSnapshot($scope, $row->string('id'), CircuitState::from($row->string('state')), $row->int('health_epoch'),
                 $scope === HealthScope::Target ? 0 : $row->int('consecutive_failures'), $row->int('recent_openings'), $row->nullableString('reason_code'),
-                self::date($row->nullableString('open_until')), self::date($row->nullableString('stable_since')),
-                $row->nullableString('probe_token'), self::date($row->nullableString('probe_until')),
+                NetworkAuthorityRepository::nullableInstant($row->nullableString('open_until')), NetworkAuthorityRepository::nullableInstant($row->nullableString('stable_since')),
+                $row->nullableString('probe_token'), NetworkAuthorityRepository::nullableInstant($row->nullableString('probe_until')),
                 $scope === HealthScope::Target ? TargetAvailability::from($row->string('availability')) : null);
             $rows[$snapshot->key()] = $snapshot;
         }
@@ -201,7 +201,7 @@ final readonly class HealthRepository
             }
 
             if ($result->metrics !== null) {
-                Log::info('Crawler outbound attempt', [
+                LogChannel::Network->info('Crawler outbound attempt', [
                     'request_id' => $requestId->value, 'route_id' => $identity->string('route_id'), 'target_id' => $identity->string('target_id'),
                     'reason' => $result->curlCode === 28 ? 'network_timeout' : $classification->reason,
                     'http_status' => $result->failure === null ? $result->head?->status : null,
@@ -246,11 +246,6 @@ final readonly class HealthRepository
 
     public static function now(): \DateTimeImmutable
     {
-        return new \DateTimeImmutable(LedgerRow::one('SELECT clock_timestamp()::text AS t')?->string('t') ?? throw new \LogicException('DB clock unavailable.'));
-    }
-
-    private static function date(?string $value): ?\DateTimeImmutable
-    {
-        return $value === null ? null : new \DateTimeImmutable($value);
+        return NetworkAuthorityRepository::nowInstant();
     }
 }

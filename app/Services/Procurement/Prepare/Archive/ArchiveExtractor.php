@@ -197,11 +197,10 @@ final readonly class ArchiveExtractor
             throw new RuntimeException("не удалось создать временный файл entry: {$targetPath}");
         }
         $bytes = 0;
-        $hash = hash_init('sha256');
         try {
             $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run(
                 $command,
-                function (string $type, string $buffer) use ($output, $entry, $budget, &$totalBytes, &$bytes, $hash): void {
+                function (string $type, string $buffer) use ($output, $entry, $budget, &$totalBytes, &$bytes): void {
                     if ($type !== 'out') {
                         return;
                     }
@@ -210,7 +209,6 @@ final readonly class ArchiveExtractor
                     if ($bytes > $entry->declaredSize || $bytes > $budget->maxEntryBytes || $totalBytes > $budget->maxTotalBytes) {
                         throw new ArchiveValidationException('фактические байты записи архива превысили бюджет');
                     }
-                    hash_update($hash, $buffer);
                     if (fwrite($output, $buffer) !== strlen($buffer)) {
                         throw new RuntimeException('не удалось записать временный файл entry');
                     }

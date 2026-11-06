@@ -41,8 +41,8 @@ final readonly class RequestRepository
             throw new \InvalidArgumentException('Invalid opaque operation owner.');
         }
         $account = $this->finance->lockAccount($plan->context->account, $plan->pricing->currency);
-        $period = $this->finance->lockPeriod($periodId, $plan->context->account, $plan->pricing->currency);
-        if (! $period->bool('current') || strtotime($plan->pricing->validUntil) <= time()) {
+        $period = $this->finance->lockPeriod($periodId, $plan->context->account, $plan->pricing->currency, $plan->pricing->validUntil);
+        if (! $period->bool('current') || ! $period->bool('pricing_current')) {
             throw new OperationDenied('pricing_or_period_expired');
         }
         $requestId = $this->prepareLocked($plan, $ids->logicalRequestId);
@@ -160,9 +160,10 @@ final readonly class RequestRepository
                 $row->nullableString('resolved_model_version'), $row->nullableString('finish_reason')), $row->nullableString('wire_hex'));
     }
 
-    public function lock(ProviderCall $expected): ProviderCall
+    /** @param-out ProviderRow $lockedAccount */
+    public function lock(ProviderCall $expected, ?ProviderRow &$lockedAccount = null): ProviderCall
     {
-        $this->finance->lockAccount($expected->context->account, $expected->currency);
+        $lockedAccount = $this->finance->lockAccount($expected->context->account, $expected->currency);
         $this->finance->lockPeriod($expected->periodId, $expected->context->account, $expected->currency);
         ProviderRow::one('SELECT logical_request_id FROM llm_provider_requests WHERE logical_request_id=? FOR UPDATE', [$expected->authorization->logicalRequestId]);
         ProviderRow::one('SELECT physical_call_id FROM llm_provider_calls WHERE physical_call_id=? FOR UPDATE', [$expected->authorization->physicalCallId]);
@@ -177,7 +178,8 @@ final readonly class RequestRepository
     /** Financial half of joint-send; caller owns the full consumer prefix and network atomicity. */
     public function claimFinancialLocked(AuthorizedProviderOperation $authorization, ?string $wireFingerprint = null): bool
     {
-        $call = $this->lock($this->get($authorization->physicalCallId));
+        $account = null;
+        $call = $this->lock($this->get($authorization->physicalCallId), $account);
         if ($call->authorization != $authorization || $call->claimed || $call->requestState !== 'sending' || $call->outcome === 'not_sent'
             || $call->wireFingerprint !== $wireFingerprint) {
             return false;
@@ -187,7 +189,6 @@ final readonly class RequestRepository
         if ($reservation === null || $reservation->string('state') !== 'reserved' || ! $reservation->bool('pricing_current')) {
             throw new OperationDenied('pricing_or_reservation_expired');
         }
-        $account = $this->finance->lockAccount($call->context->account, $call->currency);
         $this->finance->assertSendEligible($account, $call->upperBound, alreadyReserved: true);
 
         return DB::update("UPDATE llm_provider_calls c SET send_claimed_at=clock_timestamp()

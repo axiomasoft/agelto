@@ -62,57 +62,17 @@ final class ProcessPayloadCodec
 
     public function encodeInput(WorkInput $input): VersionedPayload
     {
-        $fields = match (true) {
-            $input instanceof ListingInput => ['stage' => StageCode::Listing->value,
-                'crawl_block_id' => $input->crawlBlockId->value,
-                'filter_hash' => $input->filterHash->hex,
-                'access_policy_hash' => $input->accessPolicyHash->hex,
-                'adapter_version' => $input->adapterVersion,
-                'cursor_version' => $input->cursorVersion,
-            ],
-            $input instanceof DetailInput => ['stage' => StageCode::Detail->value,
-                'procurement_id' => $input->procurementId,
-                'intent_id' => $input->intentId->value,
-                'expected_head_generation' => $input->expectedHeadGeneration,
-                'semantic_policy_hash' => $input->semanticPolicyHash->hex,
-                'access_policy_hash' => $input->accessPolicyHash->hex,
-                'adapter_version' => $input->adapterVersion,
-            ],
-            $input instanceof StatusRefreshInput => ['stage' => StageCode::StatusRefresh->value,
-                'procurement_id' => $input->procurementId,
-                'cycle_seq' => $input->cycleSeq,
-                'status_policy_hash' => $input->statusPolicyHash->hex,
-                'adapter_version' => $input->adapterVersion,
-            ],
-            $input instanceof DownloadInput => ['stage' => StageCode::Download->value,
-                'document_id' => $input->documentId,
-                'acquisition_intent_id' => $input->acquisitionIntentId->value,
-                'expected_document_head_generation' => $input->expectedDocumentHeadGeneration,
-                'access_policy_hash' => $input->accessPolicyHash->hex,
-            ],
-            $input instanceof PrepareInput => ['stage' => StageCode::Prepare->value,
-                'document_version_id' => $input->documentVersionId,
-                'preparation_recipe_hash' => $input->preparationRecipeHash->hex,
-            ],
-            $input instanceof ScreeningInput => ['stage' => StageCode::Screening->value,
-                'document_version_id' => $input->documentVersionId,
-                'representation_hash' => $input->representationHash->hex,
-                'screening_recipe_hash' => $input->screeningRecipeHash->hex,
-            ],
-            $input instanceof ExtractionWindowInput => ['stage' => StageCode::Extraction->value,
-                'analysis_run_id' => $input->analysisRunId->value,
-                'window_key' => $input->windowKey,
-                'recipe_hash' => $input->recipeHash->hex,
-            ],
-            $input instanceof PublicationInput => ['stage' => StageCode::Publication->value,
-                'analysis_run_id' => $input->analysisRunId->value,
-                'recipe_hash' => $input->recipeHash->hex,
-                'result_generation' => $input->resultGeneration,
-            ],
+        return $this->payload(match (true) {
+            $input instanceof ListingInput => ['stage' => StageCode::Listing->value, 'crawl_block_id' => $input->crawlBlockId->value, 'filter_hash' => $input->filterHash->hex, 'access_policy_hash' => $input->accessPolicyHash->hex, 'adapter_version' => $input->adapterVersion, 'cursor_version' => $input->cursorVersion],
+            $input instanceof DetailInput => ['stage' => StageCode::Detail->value, 'procurement_id' => $input->procurementId, 'intent_id' => $input->intentId->value, 'expected_head_generation' => $input->expectedHeadGeneration, 'semantic_policy_hash' => $input->semanticPolicyHash->hex, 'access_policy_hash' => $input->accessPolicyHash->hex, 'adapter_version' => $input->adapterVersion],
+            $input instanceof StatusRefreshInput => ['stage' => StageCode::StatusRefresh->value, 'procurement_id' => $input->procurementId, 'cycle_seq' => $input->cycleSeq, 'status_policy_hash' => $input->statusPolicyHash->hex, 'adapter_version' => $input->adapterVersion],
+            $input instanceof DownloadInput => ['stage' => StageCode::Download->value, 'document_id' => $input->documentId, 'acquisition_intent_id' => $input->acquisitionIntentId->value, 'expected_document_head_generation' => $input->expectedDocumentHeadGeneration, 'access_policy_hash' => $input->accessPolicyHash->hex],
+            $input instanceof PrepareInput => ['stage' => StageCode::Prepare->value, 'document_version_id' => $input->documentVersionId, 'preparation_recipe_hash' => $input->preparationRecipeHash->hex],
+            $input instanceof ScreeningInput => ['stage' => StageCode::Screening->value, 'document_version_id' => $input->documentVersionId, 'representation_hash' => $input->representationHash->hex, 'screening_recipe_hash' => $input->screeningRecipeHash->hex],
+            $input instanceof ExtractionWindowInput => ['stage' => StageCode::Extraction->value, 'analysis_run_id' => $input->analysisRunId->value, 'window_key' => $input->windowKey, 'recipe_hash' => $input->recipeHash->hex],
+            $input instanceof PublicationInput => ['stage' => StageCode::Publication->value, 'analysis_run_id' => $input->analysisRunId->value, 'recipe_hash' => $input->recipeHash->hex, 'result_generation' => $input->resultGeneration],
             default => throw new \InvalidArgumentException('Unknown WorkInput variant.'),
-        };
-
-        return $this->payload($fields);
+        });
     }
 
     public function decodeInput(VersionedPayload $payload): WorkInput
@@ -131,52 +91,14 @@ final class ProcessPayloadCodec
         });
 
         return match ($stage) {
-            StageCode::Listing => new ListingInput(
-                crawlBlockId: new ProcessUuid($reader->string('crawl_block_id')),
-                filterHash: new ContentHash($reader->string('filter_hash')),
-                accessPolicyHash: new ContentHash($reader->string('access_policy_hash')),
-                adapterVersion: $reader->string('adapter_version'),
-                cursorVersion: $reader->integer('cursor_version'),
-            ),
-            StageCode::Detail => new DetailInput(
-                procurementId: $reader->integer('procurement_id'),
-                intentId: new ProcessUuid($reader->string('intent_id')),
-                expectedHeadGeneration: $reader->integer('expected_head_generation'),
-                semanticPolicyHash: new ContentHash($reader->string('semantic_policy_hash')),
-                accessPolicyHash: new ContentHash($reader->string('access_policy_hash')),
-                adapterVersion: $reader->string('adapter_version'),
-            ),
-            StageCode::StatusRefresh => new StatusRefreshInput(
-                procurementId: $reader->integer('procurement_id'),
-                cycleSeq: $reader->integer('cycle_seq'),
-                statusPolicyHash: new ContentHash($reader->string('status_policy_hash')),
-                adapterVersion: $reader->string('adapter_version'),
-            ),
-            StageCode::Download => new DownloadInput(
-                documentId: $reader->integer('document_id'),
-                acquisitionIntentId: new ProcessUuid($reader->string('acquisition_intent_id')),
-                expectedDocumentHeadGeneration: $reader->integer('expected_document_head_generation'),
-                accessPolicyHash: new ContentHash($reader->string('access_policy_hash')),
-            ),
-            StageCode::Prepare => new PrepareInput(
-                documentVersionId: $reader->integer('document_version_id'),
-                preparationRecipeHash: new ContentHash($reader->string('preparation_recipe_hash')),
-            ),
-            StageCode::Screening => new ScreeningInput(
-                documentVersionId: $reader->integer('document_version_id'),
-                representationHash: new ContentHash($reader->string('representation_hash')),
-                screeningRecipeHash: new ContentHash($reader->string('screening_recipe_hash')),
-            ),
-            StageCode::Extraction => new ExtractionWindowInput(
-                analysisRunId: new ProcessUuid($reader->string('analysis_run_id')),
-                windowKey: $reader->string('window_key'),
-                recipeHash: new ContentHash($reader->string('recipe_hash')),
-            ),
-            StageCode::Publication => new PublicationInput(
-                analysisRunId: new ProcessUuid($reader->string('analysis_run_id')),
-                recipeHash: new ContentHash($reader->string('recipe_hash')),
-                resultGeneration: $reader->integer('result_generation'),
-            ),
+            StageCode::Listing => new ListingInput($this->uuid($reader, 'crawl_block_id'), $this->hash($reader, 'filter_hash'), $this->hash($reader, 'access_policy_hash'), $reader->string('adapter_version'), $reader->integer('cursor_version')),
+            StageCode::Detail => new DetailInput($reader->integer('procurement_id'), $this->uuid($reader, 'intent_id'), $reader->integer('expected_head_generation'), $this->hash($reader, 'semantic_policy_hash'), $this->hash($reader, 'access_policy_hash'), $reader->string('adapter_version')),
+            StageCode::StatusRefresh => new StatusRefreshInput($reader->integer('procurement_id'), $reader->integer('cycle_seq'), $this->hash($reader, 'status_policy_hash'), $reader->string('adapter_version')),
+            StageCode::Download => new DownloadInput($reader->integer('document_id'), $this->uuid($reader, 'acquisition_intent_id'), $reader->integer('expected_document_head_generation'), $this->hash($reader, 'access_policy_hash')),
+            StageCode::Prepare => new PrepareInput($reader->integer('document_version_id'), $this->hash($reader, 'preparation_recipe_hash')),
+            StageCode::Screening => new ScreeningInput($reader->integer('document_version_id'), $this->hash($reader, 'representation_hash'), $this->hash($reader, 'screening_recipe_hash')),
+            StageCode::Extraction => new ExtractionWindowInput($this->uuid($reader, 'analysis_run_id'), $reader->string('window_key'), $this->hash($reader, 'recipe_hash')),
+            StageCode::Publication => new PublicationInput($this->uuid($reader, 'analysis_run_id'), $this->hash($reader, 'recipe_hash'), $reader->integer('result_generation')),
         };
     }
 
@@ -283,11 +205,7 @@ final class ProcessPayloadCodec
     /** Typed feeder_wake payload: только parent lane key, без work IDs и payload. */
     public function encodeFeederWake(string $laneKey): VersionedPayload
     {
-        if (preg_match('/^[a-z_]+(\.[a-z_]+)?$/D', $laneKey) !== 1) {
-            throw new \InvalidArgumentException('Feeder wake requires a canonical lane key.');
-        }
-
-        return $this->payload(['lane_key' => $laneKey]);
+        return $this->payload(['lane_key' => self::checkLaneKey($laneKey)]);
     }
 
     /** Strict обратный разбор work_wake: неизвестные ключи, stage и схема отвергаются, не угадываются. */
@@ -297,9 +215,9 @@ final class ProcessPayloadCodec
         $reader->keys(['work_id', 'dispatch_generation', 'message_id', 'queue_schema_version', 'stage']);
 
         return new WorkWake(
-            workId: new WorkId(new ProcessUuid($reader->string('work_id'))),
+            workId: new WorkId($this->uuid($reader, 'work_id')),
             dispatchGeneration: new DeliveryGeneration($reader->integer('dispatch_generation')),
-            messageId: new ProcessUuid($reader->string('message_id')),
+            messageId: $this->uuid($reader, 'message_id'),
             queueSchemaVersion: $reader->integer('queue_schema_version'),
             stage: $this->stage($reader->string('stage')),
         );
@@ -310,12 +228,8 @@ final class ProcessPayloadCodec
     {
         $reader = $this->required($payload);
         $reader->keys(['lane_key']);
-        $laneKey = $reader->string('lane_key');
-        if (preg_match('/^[a-z_]+(\.[a-z_]+)?$/D', $laneKey) !== 1) {
-            throw new \InvalidArgumentException('Feeder wake requires a canonical lane key.');
-        }
 
-        return $laneKey;
+        return self::checkLaneKey($reader->string('lane_key'));
     }
 
     /** Projection payload (`project:<event_id>`): только event_id, источником факта остаётся ledger event. */
@@ -324,7 +238,26 @@ final class ProcessPayloadCodec
         $reader = $this->required($payload);
         $reader->keys(['event_id']);
 
-        return new ProcessUuid($reader->string('event_id'));
+        return $this->uuid($reader, 'event_id');
+    }
+
+    private function uuid(PayloadReader $reader, string $key): ProcessUuid
+    {
+        return new ProcessUuid($reader->string($key));
+    }
+
+    private function hash(PayloadReader $reader, string $key): ContentHash
+    {
+        return new ContentHash($reader->string($key));
+    }
+
+    private static function checkLaneKey(string $laneKey): string
+    {
+        if (preg_match('/^[a-z_]+(\.[a-z_]+)?$/D', $laneKey) !== 1) {
+            throw new \InvalidArgumentException('Feeder wake requires a canonical lane key.');
+        }
+
+        return $laneKey;
     }
 
     /** @param array<string, mixed> $fields */
@@ -466,12 +399,12 @@ final class ProcessPayloadCodec
 
         return new ProviderRecoveryPlan(
             mode: ProviderRecoveryMode::tryFrom($reader->string('mode')) ?? throw new \InvalidArgumentException('Unknown provider recovery mode.'),
-            logicalRequestId: new ProcessUuid($reader->string('logical_request_id')),
-            physicalCallId: new ProcessUuid($reader->string('physical_call_id')),
+            logicalRequestId: $this->uuid($reader, 'logical_request_id'),
+            physicalCallId: $this->uuid($reader, 'physical_call_id'),
             purpose: ProviderOperationPurpose::tryFrom($reader->string('purpose')) ?? throw new \InvalidArgumentException('Unknown provider purpose.'),
             receipt: $receipt,
-            expectedInputHash: new ContentHash($reader->string('expected_input_hash')),
-            recipeHash: new ContentHash($reader->string('recipe_hash')),
+            expectedInputHash: $this->hash($reader, 'expected_input_hash'),
+            recipeHash: $this->hash($reader, 'recipe_hash'),
             requestEpoch: $reader->integer('request_epoch'),
             planVersion: $reader->integer('plan_version'),
         );

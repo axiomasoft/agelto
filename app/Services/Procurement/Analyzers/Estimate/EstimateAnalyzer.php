@@ -215,13 +215,17 @@ final readonly class EstimateAnalyzer implements DocumentAnalyzer, SupportsResul
     /** @return numeric-string */
     private function decimal(?string $value): string
     {
-        $value ??= '0';
+        if ($value === null) {
+            return '0';
+        }
 
-        if (! is_numeric($value)) {
+        $normalized = DecimalNormalizer::normalize($value);
+
+        if ($normalized === null) {
             throw new \UnexpectedValueException("Expected decimal value, got {$value}.");
         }
 
-        return $value;
+        return $normalized;
     }
 
     /**

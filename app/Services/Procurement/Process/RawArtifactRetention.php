@@ -51,7 +51,10 @@ final readonly class RawArtifactRetention
         try {
             return $operation();
         } finally {
-            DB::select('SELECT pg_advisory_unlock(317, hashtext(?))', [$key]);
+            try {
+                DB::select('SELECT pg_advisory_unlock(317, hashtext(?))', [$key]);
+            } catch (\Throwable) {
+            }
         }
     }
 }

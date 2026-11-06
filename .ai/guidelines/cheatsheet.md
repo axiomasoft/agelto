@@ -31,5 +31,8 @@
 ## 4. Fast Verification & Diagnostic Tricks
 
 - **Isolated rig lifecycle**: `make core-test-up` → `make core-quality` → `make core-test-file TEST_FILE=tests/Feature/...` or suite targets (`make core-test-execution`, `core-test-concurrency`, `core-test-network`, `core-test-platforms`, `core-test-acquisition`, `core-test-documents`, `core-test-ai`, `core-test-observability`, `core-test-install`, `core-test-regression`).
-- **Source hash sync**: if editing a file tracked in `tests/Fixtures/ProcessCore/manifest.json['source_classes']`, update its SHA-256 in `manifest.json` before running `make core-quality` / `make core-test-regression`.
+- **Source hash & architecture sync**:
+  - If editing a file tracked in `tests/Fixtures/ProcessCore/manifest.json` (`source_classes`, `migrations`, `contract_fixtures`, `files`), update its SHA-256 in `manifest.json` (and `tests/Support/ProcessCore/schema-inventory.json` for migrations) before running `make core-quality` / `make core-test-regression`.
+  - If editing prompts or gold fixtures in `tests/Fixtures/ProcessCore/runtime-inputs.json`, sync their SHA-256 there.
+  - If adding/removing classes under `App\{Enums,Exceptions,Dto,Repositories}\Procurement` or core namespaces, check `DomainLayoutTest.php` and `CoreKnowsNoDocumentTypeTest.php`.
 - **CLI diagnostics**: `php artisan process:status --platform=eis`, `php artisan process:diagnose <uuid>`, `php artisan process:control {pause|resume|cancel-run|cancel-work|retry-work|retry-failed-item|reconcile-unknown}`.

@@ -6,6 +6,7 @@ namespace App\Repositories\Procurement\Process;
 
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\OperatorCommandStatus;
 use App\Support\SecretRedactor;
@@ -18,6 +19,25 @@ use App\Support\SecretRedactor;
 final readonly class IncidentRepository
 {
     public function __construct(private TransitionRepository $transitions) {}
+
+    public function openMembershipIncident(
+        WorkId $workId,
+        string $scopeKey,
+        string $reason,
+        ?ProcessUuid $incidentId = null,
+        ?ProcessUuid $eventId = null,
+        ?ProcessUuid $messageId = null,
+    ): void {
+        $this->open(
+            fingerprint: ContentHash::of('admission-membership:v1:'.$workId->value->value),
+            scopeKey: $scopeKey,
+            kind: 'admission_membership_mismatch',
+            evidence: ['work_id' => $workId->value->value, 'reason' => $reason],
+            incidentId: $incidentId ?? ProcessUuid::random(),
+            eventId: $eventId ?? ProcessUuid::random(),
+            projectionMessageId: $messageId ?? ProcessUuid::random(),
+        );
+    }
 
     /** @param array<string, int|string> $evidence */
     public function open(

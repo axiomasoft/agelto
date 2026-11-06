@@ -47,18 +47,17 @@ final readonly class PromptCanonReader
      */
     public function findPathByKey(string $key): ?string
     {
-        $matches = array_values(array_filter(
-            $this->discoverPaths(),
-            fn (array $entry): bool => $this->parseFile($entry['path'], $entry['is_domain_root'])['key'] === $key,
-        ));
-
-        if (count($matches) > 1) {
-            $paths = array_map(static fn (array $entry): string => $entry['path'], $matches);
-
+        $paths = [];
+        foreach ($this->discoverPaths() as $entry) {
+            if ($this->parseFile($entry['path'], $entry['is_domain_root'])['key'] === $key) {
+                $paths[] = $entry['path'];
+            }
+        }
+        if (count($paths) > 1) {
             throw new RuntimeException("Ключ промта «{$key}» встречается больше одного раза в объединённом пространстве корней канона: ".implode(', ', $paths));
         }
 
-        return $matches[0]['path'] ?? null;
+        return $paths[0] ?? null;
     }
 
     /**

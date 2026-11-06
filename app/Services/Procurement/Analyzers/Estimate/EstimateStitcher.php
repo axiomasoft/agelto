@@ -93,8 +93,14 @@ final readonly class EstimateStitcher
         foreach ($rows as $row) {
             $path = match ($row->row_type) {
                 RowType::SectionHeader => [$row->name],
-                RowType::SubsectionHeader => array_values(array_filter([$currentSection, $row->name])),
-                default => array_values(array_filter([$currentSection, $currentSubsection])),
+                RowType::SubsectionHeader => [
+                    ...($currentSection !== null && $currentSection !== '' ? [$currentSection] : []),
+                    ...($row->name !== '' ? [$row->name] : []),
+                ],
+                default => [
+                    ...($currentSection !== null && $currentSection !== '' ? [$currentSection] : []),
+                    ...($currentSubsection !== null && $currentSubsection !== '' ? [$currentSubsection] : []),
+                ],
             };
 
             if ($row->row_type === RowType::SectionHeader) {

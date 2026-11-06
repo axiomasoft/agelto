@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Storage;
 
+use App\Enums\Telemetry\LogChannel;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -84,7 +84,7 @@ final readonly class FileLocationResolver
 
         foreach ($fallbackDisks as $fallbackDisk) {
             if (Storage::disk($fallbackDisk)->exists($path)) {
-                Log::warning('Резолвер адреса: объект найден в фолбэк-цепочке дисков', [
+                LogChannel::Storage->warning('Резолвер адреса: объект найден в фолбэк-цепочке дисков', [
                     'carrier' => $carrier,
                     'record_id' => $recordId,
                     'recorded_disk' => $disk,

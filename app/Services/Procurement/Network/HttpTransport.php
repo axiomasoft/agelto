@@ -23,6 +23,7 @@ use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Enums\Procurement\Network\TransportFailure;
+use App\Enums\Telemetry\LogChannel;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
 use App\Exceptions\Procurement\Network\ResponseDecodeFailed;
 use App\Exceptions\Procurement\Network\ResponseLimitExceeded;
@@ -39,7 +40,6 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException as ClientRequestException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Psr\Http\Message\ResponseInterface;
 
@@ -202,7 +202,7 @@ final readonly class HttpTransport
             try {
                 $sink->close();
             } catch (\Throwable $cleanupError) {
-                Log::warning('Outbound sink close failed during transport cleanup.', [
+                LogChannel::Network->warning('Outbound sink close failed during transport cleanup.', [
                     'physical_request_id' => $plan->physicalRequestId->value,
                     'error_class' => $cleanupError::class,
                 ]);
@@ -210,13 +210,13 @@ final readonly class HttpTransport
             if ($artifactKey !== null && ! $keepArtifact) {
                 try {
                     if (! Storage::disk('local')->delete($artifactKey)) {
-                        Log::warning('Outbound staged artifact delete returned false during transport cleanup.', [
+                        LogChannel::Network->warning('Outbound staged artifact delete returned false during transport cleanup.', [
                             'physical_request_id' => $plan->physicalRequestId->value,
                             'artifact_key' => $artifactKey,
                         ]);
                     }
                 } catch (\Throwable $cleanupError) {
-                    Log::warning('Outbound staged artifact delete failed during transport cleanup.', [
+                    LogChannel::Network->warning('Outbound staged artifact delete failed during transport cleanup.', [
                         'physical_request_id' => $plan->physicalRequestId->value,
                         'artifact_key' => $artifactKey,
                         'error_class' => $cleanupError::class,

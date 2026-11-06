@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Ai\PromptSuggestions;
 
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\Pages\ListPromptSuggestions;

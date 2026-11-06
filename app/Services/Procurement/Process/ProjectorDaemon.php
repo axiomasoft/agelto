@@ -14,7 +14,6 @@ use App\Enums\Procurement\Process\ProjectionApplyStatus;
 use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
-use Illuminate\Support\Str;
 
 /**
  * Projector daemon: tick 1 s, claim-ит ТОЛЬКО kind projection по
@@ -50,7 +49,7 @@ final class ProjectorDaemon implements ProcessDaemon
             $this->projector->ensureStates();
             $this->statesEnsured = true;
         }
-        $token = self::uuid();
+        $token = ProcessUuid::random();
         /** @var list<ClaimedOutboxMessage> $messages */
         $messages = $this->transaction->run(fn (): array => $this->outbox->claim(OutboxKind::Projection, $token, $this->policy->projectBatch, $this->policy->projectClaimSeconds));
         $acknowledged = 0;
@@ -115,7 +114,7 @@ final class ProjectorDaemon implements ProcessDaemon
     private function quarantine(ClaimedOutboxMessage $message, string $reason, ?ProcessUuid $eventId): void
     {
         $code = OutboxRepository::QUARANTINE_PREFIX.'projection_'.$reason;
-        $ids = [self::uuid(), self::uuid(), self::uuid()];
+        $ids = [ProcessUuid::random(), ProcessUuid::random(), ProcessUuid::random()];
         ProcessLog::quarantined($code, ['message_id' => $message->messageId->value]);
         $this->transaction->run(function () use ($message, $code, $reason, $eventId, $ids): void {
             $this->outbox->quarantine($message, $code, $this->projection->quarantineRetrySeconds);
@@ -135,17 +134,10 @@ final class ProjectorDaemon implements ProcessDaemon
     private function release(array $messages): void
     {
         try {
-            foreach ($messages as $message) {
-                $this->outbox->releaseClaim($message, 'projection_apply_failed');
-            }
+            $this->outbox->releaseClaims($messages, 'projection_apply_failed');
         } catch (\Throwable $failure) {
             // Claim истечёт сам; вторичный сбой не должен скрывать исходную причину tick.
             ProcessLog::daemonError('project', 'release_claim_failed', $failure);
         }
-    }
-
-    private static function uuid(): ProcessUuid
-    {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
     }
 }

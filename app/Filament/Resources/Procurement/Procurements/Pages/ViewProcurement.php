@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filament\Resources\Procurement\Procurements\Pages;
 
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;

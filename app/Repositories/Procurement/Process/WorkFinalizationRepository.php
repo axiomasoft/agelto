@@ -28,10 +28,8 @@ use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\ProviderRecoveryMode;
-use App\Enums\Procurement\Process\RunWorkRelation;
 use App\Enums\Procurement\Process\WorkState;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\SubjectLockResolver;
@@ -309,18 +307,12 @@ final readonly class WorkFinalizationRepository
         if ($successors === []) {
             return;
         }
-        $runs = LedgerRow::all(
-            'SELECT rw.run_id, rw.accounting_role, r.cancel_requested_at IS NOT NULL AS cancelled
-             FROM prc_process_run_work rw JOIN prc_process_runs r ON r.id = rw.run_id
-             WHERE rw.work_id = ? ORDER BY rw.run_id FOR UPDATE OF r',
-            [$workId->value->value],
-        );
-        $codec = new ProcessPayloadCodec;
+        $runs = $this->works->lockRunLinks($workId);
         foreach ($successors as $index => $input) {
-            $identity = $codec->encodeInput($input)->json;
+            $identity = new WorkIdentity($input);
             $existing = LedgerRow::one(
                 "SELECT id, work_identity = ?::jsonb AS same FROM prc_process_work WHERE work_key = decode(?, 'hex')",
-                [$identity, (new WorkIdentity($input))->key()->hex],
+                [$identity->payload()->json, $identity->key()->hex],
             );
             if ($existing !== null && ! $existing->bool('same')) {
                 throw new \LogicException('Successor work_key collides with a different immutable identity.');
@@ -340,18 +332,14 @@ final readonly class WorkFinalizationRepository
                     priority: 100,
                     eventId: $successor['event'],
                     projectionMessageId: $successor['projection'],
+                    identity: $identity,
                 );
             }
             foreach ($runs as $run) {
                 if ($run->bool('cancelled') && $run->string('accounting_role') === 'required') {
                     continue;
                 }
-                DB::insert(
-                    'INSERT INTO prc_process_run_work (run_id, work_id, relation, accounting_role) VALUES (?, ?, ?, ?)
-                     ON CONFLICT (run_id, work_id) DO UPDATE SET accounting_role = CASE
-                       WHEN EXCLUDED.accounting_role = \'required\' THEN \'required\' ELSE prc_process_run_work.accounting_role END',
-                    [$run->string('run_id'), $successorId->value->value, RunWorkRelation::Discovered->value, $run->string('accounting_role')],
-                );
+                $this->works->upsertDiscoveredRunLink($run->string('run_id'), $successorId, $run->string('accounting_role'));
             }
         }
     }

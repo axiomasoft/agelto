@@ -100,18 +100,7 @@ final readonly class ScreeningHandler implements StageHandler
         } catch (AnalysisSendDenied $denied) {
             return $this->sendPolicy->outcome($denied, $progress);
         } catch (OperationDenied $denied) {
-            return match ($denied->getMessage()) {
-                'provider_budget' => new StageDeferred(DeferralReason::ProviderBudget, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))),
-                'no_route' => new StageDeferred(DeferralReason::NoRoute, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))),
-                'provider_send_not_sent' => new StageDeferred(DeferralReason::ProviderUnavailable, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))),
-                'provider_unavailable' => new StageDeferred(DeferralReason::ProviderUnavailable, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds'))),
-                'slice_exhausted' => new StagePartial($progress, new MissingParts(['slice_exhausted'])),
-                'paused' => new StageBlocked(BlockedReason::Paused),
-                'handler_hold' => new StageBlocked(BlockedReason::HandlerHold),
-                'provider_error_review', 'physical_attempt_budget_exhausted', 'account_unknown_hold', 'account_exposure_hold' => new StageBlocked(BlockedReason::PolicyReview),
-                'provider_result_unknown' => new StageBlocked(BlockedReason::ProviderResultUnknown),
-                default => new StageBlocked(BlockedReason::InvalidRecipeConfiguration),
-            };
+            return $this->sendPolicy->deniedOutcome($denied, $progress);
         } catch (\InvalidArgumentException) {
             return new StageBlocked(BlockedReason::InvalidRecipeConfiguration);
         }

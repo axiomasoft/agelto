@@ -14,27 +14,23 @@ use App\Dto\Procurement\Ai\ScreeningProgress;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\MissingParts;
 use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\RetryAt;
 use App\Dto\Procurement\Process\StageBlocked;
-use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\StagePartial;
 use App\Enums\Llm\StructuredDisposition;
 use App\Enums\Llm\TaskPurpose;
 use App\Enums\Procurement\Process\BlockedReason;
-use App\Enums\Procurement\Process\DeferralReason;
 use App\Exceptions\Llm\OperationDenied;
 use App\Exceptions\Procurement\Ai\AnalysisSendDenied;
 use App\Services\Llm\Execution\StructuredCallExecutor;
 use App\Services\Llm\Validation\StructuredTaskValidator;
-use App\Services\Procurement\Process\Contracts\ProcessClock;
 
 /** A bounded part of the screening work, with its own pinned task/identity/reask budget. */
 final readonly class DiscoveryStep
 {
     public function __construct(private AnalysisGeneration $generation, private StructuredTaskValidator $validator,
         private StructuredCallExecutor $executor, private AnalysisAssetRecovery $assets,
-        private AnalysisSendPolicy $sendPolicy, private ProcessClock $clock) {}
+        private AnalysisSendPolicy $sendPolicy) {}
 
     public function execute(AnalysisRunSnapshot $run, ScreeningProgress $progress, ExecutionContext $execution): StageOutcome
     {
@@ -58,26 +54,7 @@ final readonly class DiscoveryStep
         } catch (AnalysisSendDenied $denied) {
             return $this->sendPolicy->outcome($denied, $progress);
         } catch (OperationDenied $denied) {
-            $reason = match ($denied->getMessage()) {
-                'provider_budget' => DeferralReason::ProviderBudget,
-                'no_route' => DeferralReason::NoRoute,
-                'provider_send_not_sent', 'provider_unavailable' => DeferralReason::ProviderUnavailable,
-                default => null,
-            };
-            if ($reason !== null) {
-                return new StageDeferred($reason, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds')));
-            }
-            if ($denied->getMessage() === 'slice_exhausted') {
-                return new StagePartial($progress, new MissingParts(['discovery']));
-            }
-
-            return new StageBlocked(match ($denied->getMessage()) {
-                'paused' => BlockedReason::Paused,
-                'handler_hold' => BlockedReason::HandlerHold,
-                'provider_result_unknown' => BlockedReason::ProviderResultUnknown,
-                'provider_error_review', 'physical_attempt_budget_exhausted', 'account_unknown_hold', 'account_exposure_hold' => BlockedReason::PolicyReview,
-                default => BlockedReason::InvalidRecipeConfiguration,
-            });
+            return $this->sendPolicy->deniedOutcome($denied, $progress, 'discovery');
         } catch (\InvalidArgumentException) {
             return new StageBlocked(BlockedReason::InvalidRecipeConfiguration);
         }

@@ -31,6 +31,7 @@ use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Network\TransportFailure;
+use App\Enums\Telemetry\LogChannel;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
 use App\Exceptions\Procurement\Network\TransportInterrupted;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
@@ -42,14 +43,17 @@ use App\Services\Procurement\Network\Contracts\OutboundAttemptGate;
 use App\Services\Procurement\Network\Contracts\OutboundRouteSelector;
 use GuzzleHttp\Psr7\Uri;
 use GuzzleHttp\Psr7\UriResolver;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 /** Sole physical-attempt loop for Process, bounded probes and surviving legacy callers. */
 final readonly class OutboundExecutor
 {
-    public function __construct(private HttpTransport $transport, private NetworkPermitRepository $permits, private RetryPolicy $retryPolicy = new RetryPolicy) {}
+    public function __construct(
+        private HttpTransport $transport,
+        private NetworkPermitRepository $permits,
+        private OutboundPolicy $policy,
+        private RetryPolicy $retryPolicy = new RetryPolicy,
+    ) {}
 
     /** Authorization API for the financial owner: reserves once, never claims or sends/retries. */
     public function reserveProviderSend(OutboundRequestPlan $plan, ExecutionContext $context, OutboundRouteSelector $routes,
@@ -74,7 +78,7 @@ final readonly class OutboundExecutor
         if (! $ticket instanceof NetworkDemandTicket) {
             return $ticket;
         }
-        $waitUntil = hrtime(true) + (new OutboundPolicy(app('config')))->maxInlineWaitSeconds * 1_000_000_000;
+        $waitUntil = hrtime(true) + $this->policy->maxInlineWaitSeconds * 1_000_000_000;
         try {
             do {
                 $context->tick();
@@ -173,7 +177,7 @@ final readonly class OutboundExecutor
                     return $this->deferred(NetworkDeferralReason::SliceExhausted, 1);
                 }
                 $physical = new OutboundRequestPlan(
-                    $sends === 0 ? $plan->physicalRequestId : new ProcessUuid((string) Str::uuid()),
+                    $sends === 0 ? $plan->physicalRequestId : ProcessUuid::random(),
                     $targetId, $plan->method, $url, $plan->profile, $plan->trafficClass, $plan->idempotency, $plan->bodyHash, $plan->sendLimit, $plan->adapterClaim,
                 );
                 $authorized = $gate->authorize($physical, $context, new RetryRoutePreference($tried, $current, $preferUntried, $plan->profile->distinctRoutes));
@@ -299,14 +303,14 @@ final readonly class OutboundExecutor
                         $artifact = $result->response->body->artifact;
                         try {
                             if (! Storage::disk($artifact->disk)->delete($artifact->key)) {
-                                Log::warning('Outbound binary artifact delete returned false after attempt.', [
+                                LogChannel::Network->warning('Outbound binary artifact delete returned false after attempt.', [
                                     'physical_request_id' => $physical->physicalRequestId->value,
                                     'disk' => $artifact->disk,
                                     'artifact_key' => $artifact->key,
                                 ]);
                             }
                         } catch (\Throwable $cleanupError) {
-                            Log::warning('Outbound binary artifact delete failed after attempt.', [
+                            LogChannel::Network->warning('Outbound binary artifact delete failed after attempt.', [
                                 'physical_request_id' => $physical->physicalRequestId->value,
                                 'disk' => $artifact->disk,
                                 'artifact_key' => $artifact->key,
@@ -317,7 +321,8 @@ final readonly class OutboundExecutor
                 }
             }
             if ($attempt < $maxAttempts && ! $preferUntried) {
-                $delay = random_int(0, $plan->profile->delaysMs[$attempt - 1]);
+                $delays = $plan->profile->delaysMs;
+                $delay = random_int(0, $delays[$attempt - 1] ?? (end($delays) ?: 0));
                 if (! $context->canStart(new Duration($delay + $plan->profile->totalSeconds * 1000))) {
                     return $this->deferred(NetworkDeferralReason::SliceExhausted, 1);
                 }

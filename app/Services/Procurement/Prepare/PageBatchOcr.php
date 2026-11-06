@@ -27,7 +27,7 @@ final readonly class PageBatchOcr implements PdfPreparationTools
         // Recipe carries actual tool identities; changing tools requires a new preparation recipe.
         $versions = [];
         foreach ([['qpdf', '--version'], ['ocrmypdf', '--version'], ['tesseract', '--version'], ['pdftotext', '-v'], ['pdfinfo', '-v']] as $command) {
-            $versions[] = strtok(trim($this->process->run($command, $directory, $execution, $deadline, $this->policy->tmpBytes, includeStderr: true)), "\n") ?: '';
+            $versions[] = explode("\n", trim($this->process->run($command, $directory, $execution, $deadline, $this->policy->tmpBytes, includeStderr: true)), 2)[0];
         }
         $actual = implode(' ', $versions);
         if ($actual !== $this->policy->toolsVersion) {

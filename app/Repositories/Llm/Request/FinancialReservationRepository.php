@@ -40,13 +40,13 @@ final class FinancialReservationRepository
         DB::transaction(function () use ($account, $currency, $threshold, $hardExposure, $actor, $reason): void {
             DB::insert('INSERT INTO llm_budget_accounts(account_id,currency,unknown_count_threshold,hard_exposure_cap,policy_actor,policy_reason)
                 VALUES (?,?,?,?,?,?) ON CONFLICT DO NOTHING', [$account, $currency, $threshold, $hardExposure, $actor, $reason]);
-            $this->lockAccount($account, $currency);
-            DB::update('UPDATE llm_budget_accounts SET unknown_count_threshold=?,hard_exposure_cap=?,policy_version=policy_version+1,policy_actor=?,policy_reason=?
-                WHERE account_id=? AND currency=?', [$threshold, $hardExposure, $actor, $reason, $account, $currency]);
-            $policy = $this->lockAccount($account, $currency);
+            $locked = $this->lockAccount($account, $currency);
+            $version = $locked->int('policy_version') + 1;
+            DB::update('UPDATE llm_budget_accounts SET unknown_count_threshold=?,hard_exposure_cap=?,policy_version=?,policy_actor=?,policy_reason=?
+                WHERE account_id=? AND currency=?', [$threshold, $hardExposure, $version, $actor, $reason, $account, $currency]);
             DB::insert("INSERT INTO llm_financial_actions(id,account_id,currency,action,actor,reason,details,details_schema_version)
                 VALUES (?,?,?,'policy_change',?,?,?::jsonb,1)", [(string) Str::uuid(), $account, $currency, $actor, $reason,
-                CanonicalJson::encode(['version' => $policy->int('policy_version'), 'unknown_threshold' => $threshold, 'hard_exposure_cap' => $hardExposure, 'automatic_resend_unknown' => false])]);
+                CanonicalJson::encode(['version' => $version, 'unknown_threshold' => $threshold, 'hard_exposure_cap' => $hardExposure, 'automatic_resend_unknown' => false])]);
         });
     }
 
@@ -85,10 +85,12 @@ final class FinancialReservationRepository
             ?? throw new OperationDenied('account_policy_missing');
     }
 
-    public function lockPeriod(string $id, string $account, string $currency): ProviderRow
+    public function lockPeriod(string $id, string $account, string $currency, ?string $pricingValidUntil = null): ProviderRow
     {
-        return ProviderRow::one('SELECT *, period_start<=clock_timestamp() AND period_end>clock_timestamp() AS current FROM llm_budget_periods WHERE id=? AND account_id=? AND currency=? FOR UPDATE', [$id, $account, $currency])
-            ?? throw new OperationDenied('budget_period_missing');
+        return ProviderRow::one(
+            'SELECT *, period_start<=clock_timestamp() AND period_end>clock_timestamp() AS current, (?::timestamptz IS NULL OR ?::timestamptz > clock_timestamp()) AS pricing_current FROM llm_budget_periods WHERE id=? AND account_id=? AND currency=? FOR UPDATE',
+            [$pricingValidUntil, $pricingValidUntil, $id, $account, $currency],
+        ) ?? throw new OperationDenied('budget_period_missing');
     }
 
     public function assertSendEligible(ProviderRow $account, string $newExposure, bool $alreadyReserved = false): void

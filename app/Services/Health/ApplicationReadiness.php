@@ -20,7 +20,7 @@ use Throwable;
 
 final readonly class ApplicationReadiness
 {
-    public const SchedulerHeartbeatKey = 'agelto:readiness:scheduler-heartbeat';
+    public const string SchedulerHeartbeatKey = 'agelto:readiness:scheduler-heartbeat';
 
     public function __construct(
         private ConnectionResolverInterface $database,
@@ -104,18 +104,9 @@ final readonly class ApplicationReadiness
     private function database(int $deadlineNs): ReadinessCheckResult
     {
         return $this->attempt(code: ReadinessCheckCode::Database, callback: function () use ($deadlineNs): void {
-            $connection = $this->database->connection();
-            if ($connection instanceof Connection && $connection->getDriverName() === 'pgsql') {
-                $connection->transaction(function () use ($connection, $deadlineNs): void {
-                    $ms = $this->remainingBudgetMs($deadlineNs);
-                    $connection->statement("SET LOCAL lock_timeout = {$ms}");
-                    $connection->statement("SET LOCAL statement_timeout = {$ms}");
-                    $connection->select(query: 'select 1');
-                });
-
-                return;
-            }
-            $connection->select(query: 'select 1');
+            $this->runWithPgTimeouts($deadlineNs, function (Connection $connection): void {
+                $connection->select(query: 'select 1');
+            });
         });
     }
 
@@ -153,9 +144,9 @@ final readonly class ApplicationReadiness
     {
         $path = 'health/readiness-'.bin2hex(random_bytes(16)).'.txt';
         $value = bin2hex(random_bytes(16));
-        $disk = self::nonEmptyStringConfig('readiness.storage.disk');
 
-        return $this->attempt(code: ReadinessCheckCode::Storage, callback: function () use ($disk, $path, $value, $deadlineNs): void {
+        return $this->attempt(code: ReadinessCheckCode::Storage, callback: function () use ($path, $value, $deadlineNs): void {
+            $disk = self::nonEmptyStringConfig('readiness.storage.disk');
             $filesystem = $this->filesystem->disk(name: $disk);
             $written = false;
 
@@ -168,7 +159,7 @@ final readonly class ApplicationReadiness
                     throw new \RuntimeException('storage round-trip mismatch');
                 }
             } finally {
-                if ($written && hrtime(true) < $deadlineNs) {
+                if ($written) {
                     try {
                         $filesystem->delete(paths: $path);
                     } catch (Throwable) {
@@ -181,23 +172,11 @@ final readonly class ApplicationReadiness
     private function releaseState(int $deadlineNs): ReadinessCheckResult
     {
         return $this->attempt(code: ReadinessCheckCode::ReleaseState, callback: function () use ($deadlineNs): void {
-            $connection = $this->database->connection();
-            $verify = function (): void {
+            $this->runWithPgTimeouts($deadlineNs, function (): void {
                 if (! $this->releaseState->baseDataIsReady() || ! $this->releaseState->initialAdminIsReady()) {
                     throw new \RuntimeException('base data or initial administrator is not ready');
                 }
-            };
-            if ($connection instanceof Connection && $connection->getDriverName() === 'pgsql') {
-                $connection->transaction(function () use ($connection, $deadlineNs, $verify): void {
-                    $ms = $this->remainingBudgetMs($deadlineNs);
-                    $connection->statement("SET LOCAL lock_timeout = {$ms}");
-                    $connection->statement("SET LOCAL statement_timeout = {$ms}");
-                    $verify();
-                });
-
-                return;
-            }
-            $verify();
+            });
         });
     }
 
@@ -246,10 +225,41 @@ final readonly class ApplicationReadiness
     private function processDaemons(int $deadlineNs): ReadinessCheckResult
     {
         return $this->attempt(code: ReadinessCheckCode::ProcessDaemons, callback: function () use ($deadlineNs): void {
-            if (hrtime(true) >= $deadlineNs || ! $this->daemons->ready()) {
-                throw new \RuntimeException('Process daemons are not ready');
+            if (hrtime(true) >= $deadlineNs) {
+                throw new \RuntimeException('Process daemons readiness deadline exceeded');
             }
+
+            $this->runWithPgTimeouts($deadlineNs, function (): void {
+                if (! $this->daemons->ready()) {
+                    throw new \RuntimeException('Process daemons are not ready');
+                }
+            });
         });
+    }
+
+    /**
+     * @param  callable(Connection): void  $callback
+     */
+    private function runWithPgTimeouts(int $deadlineNs, callable $callback): void
+    {
+        $connection = $this->database->connection();
+
+        if (! $connection instanceof Connection) {
+            throw new \RuntimeException('Database connection is unavailable');
+        }
+
+        if ($connection->getDriverName() === 'pgsql') {
+            $connection->transaction(function () use ($connection, $deadlineNs, $callback): void {
+                $ms = $this->remainingBudgetMs($deadlineNs);
+                $connection->statement("SET LOCAL lock_timeout = {$ms}");
+                $connection->statement("SET LOCAL statement_timeout = {$ms}");
+                $callback($connection);
+            });
+
+            return;
+        }
+
+        $callback($connection);
     }
 
     private function remainingBudgetMs(int $deadlineNs): int

@@ -8,7 +8,6 @@ use App\Dto\Procurement\Details\JournalEntryData;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Services\Platforms\Eis\EisSourceClock;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
@@ -57,7 +56,7 @@ final readonly class EventJournalParser
             if ($strict) {
                 throw $exception;
             }
-            Log::warning('Разбор вкладки event-journal провалился целиком, журнал пропущен', [
+            CardDomHelper::logWarning('Разбор вкладки event-journal провалился целиком, журнал пропущен', [
                 'exception' => $exception->getMessage(),
             ]);
 
@@ -76,7 +75,7 @@ final readonly class EventJournalParser
         $occurredAt = $this->parseDate(trim($cells->eq(0)->text()));
 
         if ($occurredAt === null) {
-            Log::warning('Строка вкладки event-journal с нераспознаваемой датой пропущена', [
+            CardDomHelper::logWarning('Строка вкладки event-journal с нераспознаваемой датой пропущена', [
                 'date' => trim($cells->eq(0)->text()),
             ]);
 
@@ -106,7 +105,7 @@ final readonly class EventJournalParser
         $timeZoneMarkers = $crawler->filter('span.timeZoneName')->count();
 
         if ($timeZoneMarkers > 0) {
-            Log::warning('На вкладке event-journal есть признаки таблицы событий, но не распознано ни одной записи', [
+            CardDomHelper::logWarning('На вкладке event-journal есть признаки таблицы событий, но не распознано ни одной записи', [
                 'timezone_markers' => $timeZoneMarkers,
             ]);
         }

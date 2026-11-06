@@ -87,7 +87,7 @@ final class Fixture extends Model
     /**
      * Единственный носитель контракта кода эталона: `<CLASS>-<FORMAT>-<FORM>-<NNN>`.
      */
-    public const CODE_PATTERN = '/^(EST|NEG)-(XLSX|XLS|PDF|GSFX|DOCX|JPG)-[A-Z0-9]{2,10}-[0-9]{3}$/';
+    public const string CODE_PATTERN = '/^(EST|NEG)-(XLSX|XLS|PDF|GSFX|DOCX|JPG)-[A-Z0-9]{2,10}-[0-9]{3}$/';
 
     protected function casts(): array
     {

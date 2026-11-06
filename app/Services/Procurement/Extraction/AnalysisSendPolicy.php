@@ -14,6 +14,7 @@ use App\Dto\Procurement\Process\StagePartial;
 use App\Enums\Llm\ProviderSendDenial;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\DeferralReason;
+use App\Exceptions\Llm\OperationDenied;
 use App\Exceptions\Procurement\Ai\AnalysisSendDenied;
 use App\Exceptions\Procurement\Process\LeaseLost;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
@@ -45,5 +46,29 @@ final readonly class AnalysisSendPolicy
             ProviderSendDenial::Revoked => throw new LeaseLost('Provider send ownership revoked.'),
             default => new StageBlocked(BlockedReason::InvalidRecipeConfiguration),
         };
+    }
+
+    public function deniedOutcome(OperationDenied $denied, StageCheckpoint $progress, string $sliceMissingPart = 'slice_exhausted'): StageOutcome
+    {
+        $reason = match ($denied->getMessage()) {
+            'provider_budget' => DeferralReason::ProviderBudget,
+            'no_route' => DeferralReason::NoRoute,
+            'provider_send_not_sent', 'provider_unavailable' => DeferralReason::ProviderUnavailable,
+            default => null,
+        };
+        if ($reason !== null) {
+            return new StageDeferred($reason, new RetryAt($this->clock->dbNow()->value->modify('+30 seconds')));
+        }
+        if ($denied->getMessage() === 'slice_exhausted') {
+            return new StagePartial($progress, new MissingParts([$sliceMissingPart]));
+        }
+
+        return new StageBlocked(match ($denied->getMessage()) {
+            'paused' => BlockedReason::Paused,
+            'handler_hold' => BlockedReason::HandlerHold,
+            'provider_result_unknown' => BlockedReason::ProviderResultUnknown,
+            'provider_error_review', 'physical_attempt_budget_exhausted', 'account_unknown_hold', 'account_exposure_hold' => BlockedReason::PolicyReview,
+            default => BlockedReason::InvalidRecipeConfiguration,
+        });
     }
 }

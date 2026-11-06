@@ -51,6 +51,7 @@ final class ArtifactResponseStream implements StreamInterface
         }
     }
 
+    /** @return resource|null */
     public function detach()
     {
         if ($this->closed) {

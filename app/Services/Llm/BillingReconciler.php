@@ -150,7 +150,7 @@ final readonly class BillingReconciler
         }
 
         try {
-            $header = fgetcsv($handle);
+            $header = fgetcsv($handle, escape: '\\');
 
             if ($header === false || $header === [null]) {
                 throw new BillingExportUnreadable("Выгрузка пуста — нет строки заголовка: {$exportPath}.");
@@ -162,7 +162,7 @@ final readonly class BillingReconciler
             $byDay = [];
             $rowNumber = 1;
 
-            while (($record = fgetcsv($handle)) !== false) {
+            while (($record = fgetcsv($handle, escape: '\\')) !== false) {
                 $rowNumber++;
                 if ($record === [null]) {
                     continue;

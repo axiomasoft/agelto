@@ -169,4 +169,38 @@ final readonly class NetworkAuthorityRepository
 
         return false;
     }
+
+    public static function nowMicros(): int
+    {
+        return LedgerRow::one('SELECT floor(extract(epoch FROM clock_timestamp()) * 1000000)::bigint AS now')?->int('now') ?? throw new \LogicException('DB clock unavailable.');
+    }
+
+    public static function nowInstant(): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable(LedgerRow::one('SELECT clock_timestamp()::text AS t')?->string('t') ?? throw new \LogicException('DB clock unavailable.'));
+    }
+
+    public static function micros(\DateTimeImmutable $at): int
+    {
+        return (int) $at->format('U') * 1_000_000 + (int) $at->format('u');
+    }
+
+    public static function instant(int $micros): \DateTimeImmutable
+    {
+        $seconds = intdiv($micros, 1_000_000);
+        $utc = new \DateTimeZone('UTC');
+        $instant = \DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%06d', $seconds, $micros - $seconds * 1_000_000), $utc);
+
+        return $instant === false ? throw new \LogicException('Invalid DB instant.') : $instant->setTimezone($utc);
+    }
+
+    public static function date(int $micros): string
+    {
+        return self::instant($micros)->format('Y-m-d H:i:s.uP');
+    }
+
+    public static function nullableInstant(?string $value): ?\DateTimeImmutable
+    {
+        return $value === null ? null : new \DateTimeImmutable($value);
+    }
 }

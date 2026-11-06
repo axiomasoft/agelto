@@ -307,8 +307,6 @@ final readonly class WorkMutationRepository
             $row->int('generation'), $actorId, ['reason' => $reason, 'command_id' => $commandId->value, 'successor_work_id' => $ids['work']->value],
         );
 
-        $priority = (LedgerRow::one('SELECT priority FROM prc_process_work WHERE id = ?', [$snapshot->workId->value->value])
-            ?? throw new \LogicException('Locked work row disappeared.'))->int('priority');
         $successor = new WorkId($ids['work']);
         $originRun = $work->nullableString('origin_run_id');
         $this->works->storeWork(
@@ -319,7 +317,7 @@ final readonly class WorkMutationRepository
             cohortKey: $work->string('cohort_key'),
             platformId: $work->nullableInt('platform_id'),
             originRunId: $originRun === null ? null : new ProcessUuid($originRun),
-            priority: $priority,
+            priority: $work->int('priority'),
             eventId: $ids['work_event'],
             projectionMessageId: $ids['work_projection'],
             identity: new WorkIdentity($input, $newIntent, $snapshot->workId),

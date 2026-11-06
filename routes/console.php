@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
+use App\Enums\Telemetry\LogChannel;
 use App\Services\Health\ApplicationReadiness;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
 
@@ -43,7 +45,7 @@ $hasTable = (static function (): Closure {
             return $exists;
         } catch (Throwable $exception) {
             $databaseAvailable = false;
-            Log::warning('Планировщик: БД недоступна, задачи, зависящие от таблиц, пропущены.', [
+            LogChannel::Alerts->warning('Планировщик: БД недоступна, задачи, зависящие от таблиц, пропущены.', [
                 'error_code' => 'scheduler_schema_unavailable',
                 'exception_class' => $exception::class,
             ]);

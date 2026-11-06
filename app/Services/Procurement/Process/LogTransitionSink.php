@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Process;
 
 use App\Dto\Procurement\Process\ProcessEventEnvelope;
+use App\Enums\Telemetry\LogChannel;
 use App\Services\Procurement\Process\Contracts\TransitionSink;
 use App\Support\Telemetry\TelemetrySanitizer;
-use Illuminate\Support\Facades\Log;
 
 /** Безопасный structured log accepted transition; envelope уже allowlisted, sanitizer — вторая защита. */
 final readonly class LogTransitionSink implements TransitionSink
@@ -16,6 +16,6 @@ final readonly class LogTransitionSink implements TransitionSink
 
     public function publish(ProcessEventEnvelope $envelope): void
     {
-        Log::info($envelope->event->value, $this->sanitizer->context($envelope->toArray()));
+        LogChannel::Process->info($envelope->event->value, $this->sanitizer->context($envelope->toArray()));
     }
 }

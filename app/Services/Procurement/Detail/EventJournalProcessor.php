@@ -6,9 +6,9 @@ namespace App\Services\Procurement\Detail;
 
 use App\Dto\Procurement\Details\JournalEntryData;
 use App\Enums\Procurement\ProcurementEventType;
+use App\Enums\Telemetry\LogChannel;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Дополняет prc_events датами переходов этапов из event-journal. Протоколы, awards и bids
@@ -34,7 +34,7 @@ final readonly class EventJournalProcessor
             if ($mapped === null) {
                 $skipped++;
 
-                Log::warning('Строка журнала событий не распознана и пропущена', [
+                LogChannel::Procurement->warning('Строка журнала событий не распознана и пропущена', [
                     'procurement_id' => $procurement->id,
                     'text' => $entry->rawText,
                 ]);
@@ -63,7 +63,7 @@ final readonly class EventJournalProcessor
         }
 
         if ($skipped > 0) {
-            Log::warning('Журнал событий: часть строк не распознана', [
+            LogChannel::Procurement->warning('Журнал событий: часть строк не распознана', [
                 'procurement_id' => $procurement->id,
                 'skipped' => $skipped,
                 'total' => count($entries),

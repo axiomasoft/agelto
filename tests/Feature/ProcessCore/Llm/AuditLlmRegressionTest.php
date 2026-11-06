@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
 use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Procurement\Ai\RowRange;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\PublicationInput;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\SubjectKey;
@@ -68,9 +69,74 @@ use Tests\Support\ProcessCore\ScreeningRuntimeFixtures;
 
 pest()->group('analysis-execution', 'provider-financial-ledger');
 
+/** @param list<UsageRow> $dailyRows */
+function auditUsageSource(array $dailyRows = [], ?UsageRow $summaryRow = null, string $asOf = '2026-03-02'): UsageSource
+{
+    return new class($dailyRows, $summaryRow, $asOf) implements UsageSource
+    {
+        /** @param list<UsageRow> $dailyRows */
+        public function __construct(
+            private array $dailyRows,
+            private ?UsageRow $summaryRow,
+            private string $asOf,
+        ) {}
+
+        public function usage(UsageQuery $query): UsageReport
+        {
+            $rows = $query->byDay ? $this->dailyRows : ($this->summaryRow === null ? [] : [$this->summaryRow]);
+
+            return new UsageReport(
+                rows: $rows,
+                signature: new UsageSignature('audit', 'audit', 0, null, null, CarbonImmutable::parse($this->asOf)),
+                beyondHorizon: false,
+            );
+        }
+    };
+}
+
+function auditCacheProviderFixtures(WireFixture $server): ProviderSendFixtures
+{
+    $f = new ProviderSendFixtures($server, operationFactory: function (ProviderOperationPlan $base, string $origin): array {
+        $client = new GeminiAssetClient($origin);
+        $caps = AssetFixtures::capabilities($base->context);
+        $prefix = AssetFixtures::prefix($base);
+        $plan = AssetFixtures::plan($base, OperationPurpose::CacheCreate, $prefix->key->hash);
+
+        return [$plan, $client->createCache($plan, $caps, $prefix, 2048, 10, 1000, 3600)];
+    });
+    app(ReceiptPolicies::class)->register('fixture-provider', new AssetFixtures);
+    $server->respond(
+        parse_url($f->wire->endpoint, PHP_URL_PATH),
+        json_encode(AssetFixtures::envelope('cache'), JSON_THROW_ON_ERROR),
+        headers: ['Content-Type' => 'application/json'],
+        method: 'POST',
+    );
+
+    return $f;
+}
+
+/** @return array{AuthorizedProviderOperation, string, string, string} */
+function auditPrepareRaceReceipt(string $period, string $seed): array
+{
+    $requests = app(RequestRepository::class);
+    $op = DB::transaction(fn () => $requests->authorize(FinancialFixtures::genericPlan($seed), ProcessUuid::random()->value, 1, $period));
+    FinancialFixtures::claim($op);
+    DB::transaction(fn () => $requests->interruptLocked($requests->get($op->physicalCallId)));
+    $call = $requests->get($op->physicalCallId);
+    expect(app(ReceiptStore::class)->inspect($call))->toBeNull();
+    $verified = app(ReceiptStore::class)->put($call, 200, FinancialFixtures::body());
+
+    return [
+        $op,
+        var_export(base64_encode(serialize($verified)), true),
+        var_export($op->physicalCallId, true),
+        var_export(ProcessUuid::random()->value, true),
+    ];
+}
+
 test('ScreeningFinalizer переводит активный screening intent версии документа в terminal при публикации результата', function (): void {
     [$work, $lease, $window, $period] = ScreeningRuntimeFixtures::work();
-    $intentId = LedgerFixtures::uuid();
+    $intentId = ProcessUuid::random();
     app(ProcessTransaction::class)->run(function () use ($window, $intentId): void {
         app(WorkStoreRepository::class)->storeIntent(
             id: $intentId,
@@ -97,51 +163,20 @@ test('ScreeningFinalizer переводит активный screening intent в
 });
 
 test('BillingReconciler считает микродоллары через bcmath без float-дрейфа и отвергает отрицательные или нечисловые суммы', function (): void {
-    $usageSource = new class implements UsageSource
-    {
-        public function usage(UsageQuery $query): UsageReport
-        {
-            return new UsageReport(
-                rows: [],
-                signature: new UsageSignature(
-                    sourceId: 'audit',
-                    label: 'audit',
-                    lagSeconds: 0,
-                    horizonMonths: null,
-                    horizonFrom: null,
-                    asOf: CarbonImmutable::parse('2026-03-02'),
-                ),
-                beyondHorizon: false,
-            );
-        }
-    };
-    $reconciler = new BillingReconciler($usageSource);
+    $reconciler = new BillingReconciler(auditUsageSource());
     $tmp = tempnam(sys_get_temp_dir(), 'billing_audit_');
     assert(is_string($tmp));
+    $from = CarbonImmutable::parse('2026-03-01');
+    $to = CarbonImmutable::parse('2026-03-02');
 
     try {
-        // 19.99 * 1_000_000 в float даёт 19989999.999999996, через bcmath — ровно 19_990_000.
         file_put_contents($tmp, "date,cost,currency\n2026-03-01,19.99,USD\n");
-        $report = $reconciler->reconcile(
-            CarbonImmutable::parse('2026-03-01'),
-            CarbonImmutable::parse('2026-03-02'),
-            $tmp,
-        );
-        expect($report->exportedTotalMicros)->toBe(19_990_000);
+        expect($reconciler->reconcile($from, $to, $tmp)->exportedTotalMicros)->toBe(19_990_000);
 
-        file_put_contents($tmp, "date,cost,currency\n2026-03-01,-0.01,USD\n");
-        expect(fn () => $reconciler->reconcile(
-            CarbonImmutable::parse('2026-03-01'),
-            CarbonImmutable::parse('2026-03-02'),
-            $tmp,
-        ))->toThrow(BillingExportUnreadable::class);
-
-        file_put_contents($tmp, "date,cost,currency\n2026-03-01,not-a-number,USD\n");
-        expect(fn () => $reconciler->reconcile(
-            CarbonImmutable::parse('2026-03-01'),
-            CarbonImmutable::parse('2026-03-02'),
-            $tmp,
-        ))->toThrow(BillingExportUnreadable::class);
+        foreach (["date,cost,currency\n2026-03-01,-0.01,USD\n", "date,cost,currency\n2026-03-01,not-a-number,USD\n"] as $csv) {
+            file_put_contents($tmp, $csv);
+            expect(fn () => $reconciler->reconcile($from, $to, $tmp))->toThrow(BillingExportUnreadable::class);
+        }
     } finally {
         @unlink($tmp);
     }
@@ -150,46 +185,31 @@ test('BillingReconciler считает микродоллары через bcmat
 test('ExtractionSemanticValidator округляет произведение quantity * unit_price по коммерческому правилу HALF_UP до 2 знаков, а EstimatePublisher блокирует публикацию без планов извлечения', function (): void {
     $task = (new ExtractionContract)->task(new RowRange(0, 2), 1, ['p0:r0' => 0, 'p0:r1' => 0]);
     $validator = app(StructuredTaskValidator::class);
+    $basePayload = json_decode(AiFixtures::raw(), true, flags: JSON_THROW_ON_ERROR);
 
-    // 1.5 * 0.01 = 0.015 -> HALF_UP = 0.02 (принимается), а усечение 0.01 отвергается с кодом totals_arithmetic.
-    $payloadHalfUp = json_decode(AiFixtures::raw(), true, flags: JSON_THROW_ON_ERROR);
-    $payloadHalfUp['rows'][0]['row']['quantity'] = '1.5';
-    $payloadHalfUp['rows'][0]['row']['unit_price_curr'] = '0.01';
-    $payloadHalfUp['rows'][0]['row']['total_price_curr'] = '0.02';
-    $accepted = $validator->validate($task, json_encode($payloadHalfUp, JSON_THROW_ON_ERROR), 'STOP');
-    expect($accepted->disposition)->toBe(StructuredDisposition::Accepted);
+    $validateRow = static function (string $qty, string $unit, string $total) use ($validator, $task, $basePayload) {
+        $payload = $basePayload;
+        $payload['rows'][0]['row']['quantity'] = $qty;
+        $payload['rows'][0]['row']['unit_price_curr'] = $unit;
+        $payload['rows'][0]['row']['total_price_curr'] = $total;
 
-    $payloadTruncated = $payloadHalfUp;
-    $payloadTruncated['rows'][0]['row']['total_price_curr'] = '0.01';
-    $rejected = $validator->validate($task, json_encode($payloadTruncated, JSON_THROW_ON_ERROR), 'STOP');
+        return $validator->validate($task, json_encode($payload, JSON_THROW_ON_ERROR), 'STOP');
+    };
+
+    expect($validateRow('1.5', '0.01', '0.02')->disposition)->toBe(StructuredDisposition::Accepted);
+
+    $rejected = $validateRow('1.5', '0.01', '0.01');
     expect($rejected->disposition)->toBe(StructuredDisposition::InvalidSemantics)
-        ->and($rejected->errors)->toContain('totals_arithmetic');
+        ->and($rejected->errors)->toContain('totals_arithmetic')
+        ->and($validateRow('0.333333', '3.00', '1.00')->disposition)->toBe(StructuredDisposition::Accepted)
+        ->and($validateRow('-1.5', '0.01', '-0.02')->disposition)->toBe(StructuredDisposition::Accepted);
 
-    // Высокая точность 0.333333 * 3.00 = 0.999999 -> HALF_UP = 1.00.
-    $payloadHighPrecision = $payloadHalfUp;
-    $payloadHighPrecision['rows'][0]['row']['quantity'] = '0.333333';
-    $payloadHighPrecision['rows'][0]['row']['unit_price_curr'] = '3.00';
-    $payloadHighPrecision['rows'][0]['row']['total_price_curr'] = '1.00';
-    expect($validator->validate($task, json_encode($payloadHighPrecision, JSON_THROW_ON_ERROR), 'STOP')->disposition)
-        ->toBe(StructuredDisposition::Accepted);
-
-    // Отрицательная полусумма -1.5 * 0.01 = -0.015 -> HALF_UP по модулю = -0.02.
-    $payloadNegative = $payloadHalfUp;
-    $payloadNegative['rows'][0]['row']['quantity'] = '-1.5';
-    $payloadNegative['rows'][0]['row']['unit_price_curr'] = '0.01';
-    $payloadNegative['rows'][0]['row']['total_price_curr'] = '-0.02';
-    expect($validator->validate($task, json_encode($payloadNegative, JSON_THROW_ON_ERROR), 'STOP')->disposition)
-        ->toBe(StructuredDisposition::Accepted);
-
-    // EstimatePublisher::estimates() блокирует публикацию при пустом списке планов извлечения.
     FinancialFixtures::reset();
     $window = AiFixtures::window(sealPlan: false);
-    DB::table('prc_analysis_runs')
-        ->where('id', $window->run->id->value)
-        ->update([
-            'declared_coverage' => json_encode(['estimates' => []], JSON_THROW_ON_ERROR),
-            'declared_coverage_schema_version' => 1,
-        ]);
+    DB::table('prc_analysis_runs')->where('id', $window->run->id->value)->update([
+        'declared_coverage' => json_encode(['estimates' => []], JSON_THROW_ON_ERROR),
+        'declared_coverage_schema_version' => 1,
+    ]);
     $pubInput = new PublicationInput($window->run->id, $window->run->recipe->hash, $window->run->generation);
 
     try {
@@ -211,12 +231,17 @@ test('ReceiptStore синхронизирует файл и цепочку ди�
     expect($verified->status)->toBe(200)
         ->and($verified->hash)->toHaveLength(64);
 
-    // До записи receipt_hash в БД inspect повторно проверяет и синхронизирует объект на диске.
+    // syncDurablePath не обходит родительские директории при корне '/' или несовпадающем префиксе соседнего каталога.
+    $syncMethod = new ReflectionMethod(ReceiptStore::class, 'syncDurablePath');
+    $disk = Storage::disk($call->receiptDisk);
+    $filePath = $disk->path($call->receiptUploadKey);
+    $syncMethod->invoke($store, '/', $filePath);
+    $syncMethod->invoke($store, rtrim($disk->path(''), DIRECTORY_SEPARATOR).'-sibling', $filePath);
+
     $inspected = $store->inspect($call);
     expect($inspected->hash)->toBe($verified->hash)
         ->and($inspected->status)->toBe(200);
 
-    // После принятия в БД отсутствие закреплённого объекта на диске вызывает ReceiptUnavailable.
     DB::transaction(fn () => app(RequestRepository::class)->acceptReceiptLocked($verified));
     $acceptedCall = app(RequestRepository::class)->get($operation->physicalCallId);
     Storage::disk($acceptedCall->receiptDisk)->delete($acceptedCall->receiptUploadKey);
@@ -226,23 +251,8 @@ test('ReceiptStore синхронизирует файл и цепочку ди�
 test('StructuredCallExecutor освобождает claim ассета при отказе claimSend (not_sent) и переводит вызов в unknown при необработанном исключении транспорта после claimSend', function (): void {
     $server = new WireFixture;
     try {
-        $f = new ProviderSendFixtures($server, operationFactory: function (ProviderOperationPlan $base, string $origin): array {
-            $client = new GeminiAssetClient($origin);
-            $caps = AssetFixtures::capabilities($base->context);
-            $prefix = AssetFixtures::prefix($base);
-            $plan = AssetFixtures::plan($base, OperationPurpose::CacheCreate, $prefix->key->hash);
+        $f = auditCacheProviderFixtures($server);
 
-            return [$plan, $client->createCache($plan, $caps, $prefix, 2048, 10, 1000, 3600)];
-        });
-        app(ReceiptPolicies::class)->register('fixture-provider', new AssetFixtures);
-        $server->respond(
-            parse_url($f->wire->endpoint, PHP_URL_PATH),
-            json_encode(AssetFixtures::envelope('cache'), JSON_THROW_ON_ERROR),
-            headers: ['Content-Type' => 'application/json'],
-            method: 'POST',
-        );
-
-        // 1. Seam 1: пауза контрола блокирует claimSend, но после истечения и восстановления следующий вызов сразу перехватывает creation_token без ожидания 120с.
         ExecutionFixtures::setMode('system', ControlMode::Paused);
         $denied = app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, $f->gate());
         expect($denied)->toBeInstanceOf(SendClaimResult::class)
@@ -260,7 +270,6 @@ test('StructuredCallExecutor освобождает claim ассета при о
             ->and($succeeded->status)->toBe(200)
             ->and(app(AssetRepository::class)->findCache($f->wire->assetKey)?->usable())->toBeTrue();
 
-        // 2. Seam 2: необработанное исключение (\Exception / \Error) внутри sendOnce после успешного claimSend переводит запрос в unknown и сохраняет резерв бюджета.
         app()->instance(StageRegistry::class, new StageRegistry);
         $gen = new ProviderSendFixtures($server);
         $throwingGate = new class($gen->operation->physicalCallId) implements ProviderSendGate
@@ -302,19 +311,8 @@ test('StructuredCallExecutor освобождает claim ассета при о
 
 test('конкурентные RequestLedger::replay и RequestRepository::acceptReceipt сериализуются на блокировке вызова в обоих порядках коммита', function (): void {
     $period = FinancialFixtures::reset();
-    $requests = app(RequestRepository::class);
 
-    // Сценарий А: replay проверил inspect()==null до появления файла, но acceptReceipt захватывает блокировку строки в БД первым и фиксирует receipt -> ждущий RequestRepository::replay получает отказ replay_requires_unresolved_missing_receipt.
-    $opA = DB::transaction(fn () => $requests->authorize(FinancialFixtures::genericPlan('race-capture-first'), LedgerFixtures::uuid()->value, 1, $period));
-    FinancialFixtures::claim($opA);
-    DB::transaction(fn () => $requests->interruptLocked($requests->get($opA->physicalCallId)));
-    $callA = $requests->get($opA->physicalCallId);
-    expect(app(ReceiptStore::class)->inspect($callA))->toBeNull();
-    $verifiedA = app(ReceiptStore::class)->put($callA, 200, FinancialFixtures::body());
-    $serializedVerifiedA = var_export(base64_encode(serialize($verifiedA)), true);
-    $callIdA = var_export($opA->physicalCallId, true);
-    $cmdA = var_export(LedgerFixtures::uuid()->value, true);
-
+    [$opA, $serializedVerifiedA, $callIdA, $cmdA] = auditPrepareRaceReceipt($period, 'race-capture-first');
     $resA = ConcurrentTransactions::concurrently([
         'winner' => 'return \\Tests\\Support\\ProcessCore\\FinalizeFixtures::holdUntilWaiter(function () { '
             .'$verified = unserialize(base64_decode('.$serializedVerifiedA.')); '
@@ -329,17 +327,7 @@ test('конкурентные RequestLedger::replay и RequestRepository::accep
         ->and($resA['waiter']['status'])->toBe('replay_requires_unresolved_missing_receipt')
         ->and(DB::table('llm_budget_reservations')->where('id', $opA->reservationId)->value('settled_amount'))->toBe('0.00200001');
 
-    // Сценарий Б: RequestRepository::replay захватывает блокировку первым (после inspect()==null вне транзакции) -> ждущий acceptReceiptLocked после него штатно рассчитывает исходный вызов.
-    $opB = DB::transaction(fn () => $requests->authorize(FinancialFixtures::genericPlan('race-replay-first'), LedgerFixtures::uuid()->value, 1, $period));
-    FinancialFixtures::claim($opB);
-    DB::transaction(fn () => $requests->interruptLocked($requests->get($opB->physicalCallId)));
-    $callB = $requests->get($opB->physicalCallId);
-    expect(app(ReceiptStore::class)->inspect($callB))->toBeNull();
-    $verifiedB = app(ReceiptStore::class)->put($callB, 200, FinancialFixtures::body());
-    $serializedVerifiedB = var_export(base64_encode(serialize($verifiedB)), true);
-    $callIdB = var_export($opB->physicalCallId, true);
-    $cmdB = var_export(LedgerFixtures::uuid()->value, true);
-
+    [$opB, $serializedVerifiedB, $callIdB, $cmdB] = auditPrepareRaceReceipt($period, 'race-replay-first');
     $resB = ConcurrentTransactions::concurrently([
         'winner' => 'return \\Tests\\Support\\ProcessCore\\FinalizeFixtures::holdUntilWaiter(function () { '
             .'$call = app(\\App\\Repositories\\Llm\\Request\\RequestRepository::class)->get('.$callIdB.'); '
@@ -359,35 +347,15 @@ test('конкурентные RequestLedger::replay и RequestRepository::accep
 test('BillingReconciler и ai:cost-reconcile ловят взаимокомпенсирующиеся дневные расхождения, отвергают экспоненциальную запись, дублирующиеся алиасы колонок, лишние поля, невалидные даты и переполнение int', function (): void {
     $day1 = CarbonImmutable::parse('2026-03-01');
     $day2 = CarbonImmutable::parse('2026-03-02');
-    $usageSource = new class($day1, $day2) implements UsageSource
-    {
-        public function __construct(private CarbonImmutable $d1, private CarbonImmutable $d2) {}
-
-        public function usage(UsageQuery $query): UsageReport
-        {
-            $rows = $query->byDay
-                ? [
-                    new UsageRow($this->d1, null, null, null, 10, 100, 0, 50, 100_000_000),
-                    new UsageRow($this->d2, null, null, null, 10, 100, 0, 50, 100_000_000),
-                ]
-                : [
-                    new UsageRow(null, null, null, null, 20, 200, 0, 100, 200_000_000),
-                ];
-
-            return new UsageReport(
-                rows: $rows,
-                signature: new UsageSignature(
-                    sourceId: 'audit',
-                    label: 'audit',
-                    lagSeconds: 0,
-                    horizonMonths: null,
-                    horizonFrom: null,
-                    asOf: CarbonImmutable::parse('2026-03-03'),
-                ),
-                beyondHorizon: false,
-            );
-        }
-    };
+    $day3 = CarbonImmutable::parse('2026-03-03');
+    $usageSource = auditUsageSource(
+        [
+            new UsageRow($day1, null, null, null, 10, 100, 0, 50, 100_000_000),
+            new UsageRow($day2, null, null, null, 10, 100, 0, 50, 100_000_000),
+        ],
+        new UsageRow(null, null, null, null, 20, 200, 0, 100, 200_000_000),
+        '2026-03-03',
+    );
 
     $reconciler = new BillingReconciler($usageSource);
     app()->instance(BillingReconciler::class, $reconciler);
@@ -396,9 +364,8 @@ test('BillingReconciler и ai:cost-reconcile ловят взаимокомпен
     assert(is_string($tmp));
 
     try {
-        // 1. AG-32: день 1 (+90%: 190 против 100 USD), день 2 (-90%: 10 против 100 USD), суммарная дельта 0%, но дневной порог 5% превышен.
         file_put_contents($tmp, "date,cost,currency\n2026-03-01,190.00,USD\n2026-03-02,10.00,USD\n");
-        $report = $reconciler->reconcile($day1, CarbonImmutable::parse('2026-03-03'), $tmp, 5.0);
+        $report = $reconciler->reconcile($day1, $day3, $tmp, 5.0);
         expect($report->deltaPercent)->toBe(0.0)
             ->and($report->totalExceedsThreshold)->toBeFalse()
             ->and($report->dailyExceedsThreshold)->toBeTrue()
@@ -414,49 +381,23 @@ test('BillingReconciler и ai:cost-reconcile ловят взаимокомпен
             '--fail-on-breach' => true,
         ])->assertExitCode(ConsoleCommand::FAILURE);
 
-        // 2. Суб-микродолларовое значение 0.0000005 округляется HALF_UP до 1 микродоллара.
         file_put_contents($tmp, "date,cost,currency\n2026-03-01,0.0000005,USD\n");
-        $subMicro = $reconciler->reconcile($day1, CarbonImmutable::parse('2026-03-03'), $tmp, 5.0);
-        expect($subMicro->exportedTotalMicros)->toBe(1);
+        expect($reconciler->reconcile($day1, $day3, $tmp, 5.0)->exportedTotalMicros)->toBe(1);
 
-        // 3. AG-33: экспоненциальная нотация (1e3) и переполнение при сложении отвергаются.
-        file_put_contents($tmp, "date,cost,currency\n2026-03-01,1e3,USD\n");
-        expect(fn () => $reconciler->reconcile($day1, CarbonImmutable::parse('2026-03-03'), $tmp))
-            ->toThrow(BillingExportUnreadable::class);
-
-        $overflowLines = ['date,cost,currency'];
-        for ($i = 0; $i < 10; $i++) {
-            $overflowLines[] = '2026-03-01,999999999999.99,USD';
+        $overflowLines = array_merge(['date,cost,currency'], array_fill(0, 10, '2026-03-01,999999999999.99,USD'));
+        foreach ([
+            [$day1, $day3, "date,cost,currency\n2026-03-01,1e3,USD\n"],
+            [$day1, $day3, implode("\n", $overflowLines)."\n"],
+            [$day1, $day3, "date,day,cost\n2026-03-01,2026-03-01,1.00\n"],
+            [$day1, $day3, "date,cost,amount\n2026-03-01,1.00,1.00\n"],
+            [$day1, $day3, "date,cost,currency\n2026-03-01,1.00,USD,unexpected_extra\n"],
+            [CarbonImmutable::parse('2026-02-01'), CarbonImmutable::parse('2026-03-05'), "date,cost,currency\n2026-02-30,1.00,USD\n"],
+            [CarbonImmutable::parse('2026-02-01'), CarbonImmutable::parse('2026-03-05'), "date,cost,currency\n2026-3-1,1.00,USD\n"],
+            [$day2, $day1, "date,cost,currency\n2026-03-01,1.00,USD\n"],
+        ] as [$from, $to, $csv]) {
+            file_put_contents($tmp, $csv);
+            expect(fn () => $reconciler->reconcile($from, $to, $tmp))->toThrow(BillingExportUnreadable::class);
         }
-        file_put_contents($tmp, implode("\n", $overflowLines)."\n");
-        expect(fn () => $reconciler->reconcile($day1, CarbonImmutable::parse('2026-03-03'), $tmp))
-            ->toThrow(BillingExportUnreadable::class);
-
-        // 4. AG-34: конфликтующие алиасы заголовков (date+day, cost+amount) и лишние колонки в строке данных отвергаются.
-        file_put_contents($tmp, "date,day,cost\n2026-03-01,2026-03-01,1.00\n");
-        expect(fn () => $reconciler->reconcile($day1, CarbonImmutable::parse('2026-03-03'), $tmp))
-            ->toThrow(BillingExportUnreadable::class);
-
-        file_put_contents($tmp, "date,cost,amount\n2026-03-01,1.00,1.00\n");
-        expect(fn () => $reconciler->reconcile($day1, CarbonImmutable::parse('2026-03-03'), $tmp))
-            ->toThrow(BillingExportUnreadable::class);
-
-        file_put_contents($tmp, "date,cost,currency\n2026-03-01,1.00,USD,unexpected_extra\n");
-        expect(fn () => $reconciler->reconcile($day1, CarbonImmutable::parse('2026-03-03'), $tmp))
-            ->toThrow(BillingExportUnreadable::class);
-
-        // 5. AG-35: несуществующая календарная дата (2026-02-30), неполный формат (2026-3-1) и период from >= to отвергаются.
-        file_put_contents($tmp, "date,cost,currency\n2026-02-30,1.00,USD\n");
-        expect(fn () => $reconciler->reconcile(CarbonImmutable::parse('2026-02-01'), CarbonImmutable::parse('2026-03-05'), $tmp))
-            ->toThrow(BillingExportUnreadable::class);
-
-        file_put_contents($tmp, "date,cost,currency\n2026-3-1,1.00,USD\n");
-        expect(fn () => $reconciler->reconcile(CarbonImmutable::parse('2026-02-01'), CarbonImmutable::parse('2026-03-05'), $tmp))
-            ->toThrow(BillingExportUnreadable::class);
-
-        file_put_contents($tmp, "date,cost,currency\n2026-03-01,1.00,USD\n");
-        expect(fn () => $reconciler->reconcile($day2, $day1, $tmp))
-            ->toThrow(BillingExportUnreadable::class);
 
         $this->artisan('ai:cost-reconcile', [
             '--from' => '2026-02-30',
@@ -472,21 +413,7 @@ test('AssetRepository::claim оценивает истечение expires_at п
     $server = new WireFixture;
     try {
         AssetFixtures::clearAssets();
-        $f = new ProviderSendFixtures($server, operationFactory: function (ProviderOperationPlan $base, string $origin): array {
-            $client = new GeminiAssetClient($origin);
-            $caps = AssetFixtures::capabilities($base->context);
-            $prefix = AssetFixtures::prefix($base);
-            $plan = AssetFixtures::plan($base, OperationPurpose::CacheCreate, $prefix->key->hash);
-
-            return [$plan, $client->createCache($plan, $caps, $prefix, 2048, 10, 1000, 3600)];
-        });
-        app(ReceiptPolicies::class)->register('fixture-provider', new AssetFixtures);
-        $server->respond(
-            parse_url($f->wire->endpoint, PHP_URL_PATH),
-            json_encode(AssetFixtures::envelope('cache'), JSON_THROW_ON_ERROR),
-            headers: ['Content-Type' => 'application/json'],
-            method: 'POST',
-        );
+        $f = auditCacheProviderFixtures($server);
 
         $outcome = app(StructuredCallExecutor::class)->execute($f->operation, $f->wire, $f->gate());
         expect($outcome)->toBeInstanceOf(ProviderTransportOutcome::class)
@@ -499,60 +426,32 @@ test('AssetRepository::claim оценивает истечение expires_at п
 
         $makeCall = static function () use ($f, $cacheKey, $requests): array {
             $plan = new ProviderOperationPlan(
-                new RequestIdentity(
-                    $f->plan->identity->recipeHash,
-                    $cacheKey->hash,
-                    OperationPurpose::CacheCreate,
-                    0,
-                    LedgerFixtures::uuid()->value,
-                ),
+                new RequestIdentity($f->plan->identity->recipeHash, $cacheKey->hash, OperationPurpose::CacheCreate, 0, ProcessUuid::random()->value),
                 $f->plan->context,
                 $f->plan->pricing,
                 $f->plan->consumerCorrelationId,
             );
             $wire = new ProviderWireRequest(
-                operation: $plan,
-                method: $f->wire->method,
-                endpoint: $f->wire->endpoint,
-                allowedOrigin: $f->wire->allowedOrigin,
-                body: $f->wire->body,
-                contentType: $f->wire->contentType,
-                headers: $f->wire->headers,
-                assetKey: $f->wire->assetKey,
-                capabilities: $f->wire->capabilities,
+                $plan, $f->wire->method, $f->wire->endpoint, $f->wire->allowedOrigin, $f->wire->body,
+                $f->wire->contentType, $f->wire->headers, $f->wire->assetKey, $f->wire->capabilities,
             );
-            $op = DB::transaction(fn () => $requests->authorize(
-                $plan,
-                LedgerFixtures::uuid()->value,
-                1,
-                $f->period,
-                wire: $wire,
-            ));
+            $op = DB::transaction(fn () => $requests->authorize($plan, ProcessUuid::random()->value, 1, $f->period, wire: $wire));
 
             return [$op, $requests->get($op->physicalCallId)];
         };
 
         [$nextOp, $nextCall] = $makeCall();
 
-        // 1. При expires_at > clock_timestamp() активный кэш отклоняет повторный claim.
-        DB::table('llm_context_caches')->update([
-            'expires_at' => DB::raw("clock_timestamp() + interval '60 seconds'"),
-        ]);
+        DB::table('llm_context_caches')->update(['expires_at' => DB::raw("clock_timestamp() + interval '60 seconds'")]);
         expect(fn () => DB::transaction(fn () => $assets->claim($cacheKey, $nextCall)))
             ->toThrow(OperationDenied::class, 'asset_single_flight_or_unknown');
 
-        // 2. При expires_at <= clock_timestamp() и завершённом предыдущем вызове claim перехватывает creation_token.
-        DB::table('llm_context_caches')->update([
-            'expires_at' => DB::raw("clock_timestamp() - interval '1 second'"),
-        ]);
+        DB::table('llm_context_caches')->update(['expires_at' => DB::raw("clock_timestamp() - interval '1 second'")]);
         DB::transaction(fn () => $assets->claim($cacheKey, $nextCall));
         expect(DB::table('llm_context_caches')->value('creation_token'))->toBe($nextOp->physicalCallId);
 
-        // 3. Даже при истёкшем expires_at незавершённый (sending) вызов не может быть перехвачен другим вызовом.
         [, $thirdCall] = $makeCall();
-        DB::table('llm_context_caches')->update([
-            'expires_at' => DB::raw("clock_timestamp() - interval '10 seconds'"),
-        ]);
+        DB::table('llm_context_caches')->update(['expires_at' => DB::raw("clock_timestamp() - interval '10 seconds'")]);
         expect(fn () => DB::transaction(fn () => $assets->claim($cacheKey, $thirdCall)))
             ->toThrow(OperationDenied::class, 'asset_single_flight_or_unknown');
     } finally {

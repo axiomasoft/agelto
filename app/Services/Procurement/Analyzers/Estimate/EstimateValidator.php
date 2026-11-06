@@ -228,7 +228,10 @@ final readonly class EstimateValidator
                 continue;
             }
 
-            // row_type === Subtotal
+            if ($row->row_type !== RowType::Subtotal) {
+                continue;
+            }
+
             if ($row->total_price_curr === null) {
                 continue;
             }
@@ -317,12 +320,16 @@ final readonly class EstimateValidator
     /** @return numeric-string */
     private function decimal(?string $value): string
     {
-        $value ??= '0';
+        if ($value === null) {
+            return '0';
+        }
 
-        if (! is_numeric($value)) {
+        $normalized = DecimalNormalizer::normalize($value);
+
+        if ($normalized === null) {
             throw new \UnexpectedValueException("Expected decimal value, got {$value}.");
         }
 
-        return $value;
+        return $normalized;
     }
 }

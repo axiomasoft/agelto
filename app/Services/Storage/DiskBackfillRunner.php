@@ -214,11 +214,14 @@ final readonly class DiskBackfillRunner
             throw new RuntimeException("Не удалось открыть поток {$disk}:{$path} для хэширования");
         }
 
-        $context = hash_init('sha256');
-        hash_update_stream($context, $stream);
-        fclose($stream);
+        try {
+            $context = hash_init('sha256');
+            hash_update_stream($context, $stream);
 
-        return hash_final($context);
+            return hash_final($context);
+        } finally {
+            fclose($stream);
+        }
     }
 
     private function streamCopy(string $sourceDisk, string $targetDisk, string $path): void
@@ -229,7 +232,12 @@ final readonly class DiskBackfillRunner
             throw new RuntimeException("Не удалось открыть поток {$sourceDisk}:{$path} для копирования");
         }
 
-        Storage::disk($targetDisk)->writeStream($path, $stream);
-        fclose($stream);
+        try {
+            if (Storage::disk($targetDisk)->writeStream($path, $stream) === false) {
+                throw new RuntimeException("Не удалось записать поток на целевой диск {$targetDisk}:{$path}");
+            }
+        } finally {
+            @fclose($stream);
+        }
     }
 }

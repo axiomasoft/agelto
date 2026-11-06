@@ -6,7 +6,6 @@ namespace App\Services\Procurement\Process;
 
 use App\Dto\Procurement\Process\AuthoritySnapshot;
 use App\Dto\Procurement\Process\CompletionResult;
-use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\HandlerFaultEvidence;
 use App\Dto\Procurement\Process\ProcessEventEnvelope;
@@ -33,7 +32,6 @@ use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\WorkFinalizationRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use Illuminate\Support\Facades\Context;
-use Illuminate\Support\Str;
 
 /**
  * Единственная точка guarded завершения attempt. finish
@@ -106,14 +104,14 @@ final readonly class WorkFinalizer
     {
         $ids = [];
         foreach (['event', 'projection', 'feed', 'incident', 'incident_event', 'incident_projection', 'membership', 'membership_event', 'membership_projection'] as $name) {
-            $ids[$name] = self::uuid();
+            $ids[$name] = ProcessUuid::random();
         }
         /** @var array<int, array{work: ProcessUuid, event: ProcessUuid, projection: ProcessUuid}> $pool */
         $pool = [];
         // Successor IDs выдаются по индексу один раз: повтор той же tx переиспользует их.
         /** @var \Closure(int): array{work: ProcessUuid, event: ProcessUuid, projection: ProcessUuid} $successorIds */
         $successorIds = static function (int $index) use (&$pool): array {
-            return $pool[$index] ??= ['work' => self::uuid(), 'event' => self::uuid(), 'projection' => self::uuid()];
+            return $pool[$index] ??= ['work' => ProcessUuid::random(), 'event' => ProcessUuid::random(), 'projection' => ProcessUuid::random()];
         };
         for ($reload = 0; $reload < self::MAX_RELOADS; $reload++) {
             $snapshot = $this->authority->readAuthoritySnapshot($lease->workId);
@@ -134,7 +132,10 @@ final readonly class WorkFinalizer
             );
             if ($result instanceof CompletionResult) {
                 if ($corrupt && $result->status === CompletionStatus::InvariantViolation) {
-                    $this->openMembershipIncident($snapshot, $lease, $ids);
+                    $this->transaction->run(fn () => $this->incidents->openMembershipIncident(
+                        $snapshot->workId, 'work:'.$snapshot->workId->value->value, 'finalize',
+                        $ids['membership'], $ids['membership_event'], $ids['membership_projection'],
+                    ));
                 }
                 $this->publishCommitted($lease, $result, $ids['event'], $accepted);
 
@@ -195,24 +196,5 @@ final readonly class WorkFinalizer
         }
 
         return null;
-    }
-
-    /** @param array<string, ProcessUuid> $ids */
-    private function openMembershipIncident(AuthoritySnapshot $snapshot, ExecutionLease $lease, array $ids): void
-    {
-        $this->transaction->run(fn (): ProcessUuid => $this->incidents->open(
-            fingerprint: ContentHash::of('admission-membership:v1:'.$snapshot->workId->value->value),
-            scopeKey: 'work:'.$snapshot->workId->value->value,
-            kind: 'admission_membership_mismatch',
-            evidence: ['work_id' => $snapshot->workId->value->value, 'generation' => $lease->generation],
-            incidentId: $ids['membership'],
-            eventId: $ids['membership_event'],
-            projectionMessageId: $ids['membership_projection'],
-        ));
-    }
-
-    private static function uuid(): ProcessUuid
-    {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
     }
 }

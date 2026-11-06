@@ -7,9 +7,11 @@ use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\DeliveryEnvelope;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\LockedSubject;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\StageFailedItem;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\CompletionStatus;
 use App\Enums\Procurement\Process\ControlMode;
@@ -50,7 +52,63 @@ use Tests\Support\ProcessCore\LedgerFixtures;
 
 pest()->group('work-controls-and-fences', 'claim-recovery-and-invariants', 'delivery-and-daemon-lifecycle');
 
+function auditStoreIntent(
+    ProcessUuid $id,
+    StageCode $stage,
+    SubjectKey $subject,
+    IntentState $state,
+    int $cycleSeq = 1,
+    string $seed = 'intent',
+): void {
+    app(WorkStoreRepository::class)->storeIntent(
+        id: $id,
+        intentKey: LedgerFixtures::hash($seed.':'.$id->value),
+        stage: $stage,
+        subject: $subject,
+        semanticPolicyHash: LedgerFixtures::hash('sem:'.$seed),
+        accessPolicyHash: LedgerFixtures::hash('acc:'.$seed),
+        cycleSeq: $cycleSeq,
+        expectedHeadGeneration: 1,
+        state: $state,
+    );
+}
+
+function auditDeliveryEnvelope(WorkId $work): DeliveryEnvelope
+{
+    app(WorkFeeder::class)->tick('acquisition');
+
+    return DeliveryEnvelope::fromScalars(
+        $work->value->value,
+        ExecutionFixtures::delivery($work)->value,
+        ProcessUuid::random()->value,
+        1,
+    );
+}
+
+function auditArmSnapshotSqlFailure(string $sqlState, string $message): void
+{
+    $claimed = false;
+    $armed = true;
+    DB::beforeExecuting(function (string $query, array $bindings) use (&$armed, &$claimed, $sqlState, $message): void {
+        if (str_contains($query, 'INSERT INTO prc_process_attempts')) {
+            $claimed = true;
+
+            return;
+        }
+        if (! $armed || ! $claimed || ! str_contains($query, 'SELECT stage, cohort_key, input_revision')) {
+            return;
+        }
+        $armed = false;
+        $driver = new PDOException($message);
+        $driver->errorInfo = [$sqlState, 7, $message];
+
+        throw new QueryException('pgsql', $query, $bindings, $driver);
+    });
+}
+
 test('CancelWork очищает checkpoint для running работы с уже разрешённым provider plan, но сохраняет его для blocked(provider_result_unknown)', function (): void {
+    expect(ProcessUuid::random()->value)->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/');
+
     FinalizeFixtures::authority([StageCode::Listing]);
     $resolver = FixtureProviderRecoveryResolver::install();
 
@@ -77,30 +135,9 @@ test('IntentRepository::activateNextLocked пропускает pending intent �
     $validIntent = LedgerFixtures::uuid();
 
     app(ProcessTransaction::class)->run(function () use ($version, $orphanIntent, $validIntent): void {
-        $store = app(WorkStoreRepository::class);
         $subject = new SubjectKey(SubjectKind::DocumentVersion, $version->id);
-        $store->storeIntent(
-            id: $orphanIntent,
-            intentKey: LedgerFixtures::hash('orphan:'.$orphanIntent->value),
-            stage: StageCode::Screening,
-            subject: $subject,
-            semanticPolicyHash: LedgerFixtures::hash('sem'),
-            accessPolicyHash: LedgerFixtures::hash('acc'),
-            cycleSeq: 1,
-            expectedHeadGeneration: 1,
-            state: IntentState::Pending,
-        );
-        $store->storeIntent(
-            id: $validIntent,
-            intentKey: LedgerFixtures::hash('valid:'.$validIntent->value),
-            stage: StageCode::Screening,
-            subject: $subject,
-            semanticPolicyHash: LedgerFixtures::hash('sem2'),
-            accessPolicyHash: LedgerFixtures::hash('acc2'),
-            cycleSeq: 2,
-            expectedHeadGeneration: 1,
-            state: IntentState::Pending,
-        );
+        auditStoreIntent($orphanIntent, StageCode::Screening, $subject, IntentState::Pending, 1, 'orphan');
+        auditStoreIntent($validIntent, StageCode::Screening, $subject, IntentState::Pending, 2, 'valid');
     });
 
     DB::table('prc_operation_intents')->where('id', $orphanIntent->value)->update([
@@ -134,19 +171,9 @@ test('StageFailedItem освобождает active intent и восстанав
     DB::table('prc_documents')->where('id', $document->id)->update(['current_version_id' => $version->id]);
 
     $intentId = LedgerFixtures::uuid();
-    app(ProcessTransaction::class)->run(function () use ($document, $intentId): void {
-        app(WorkStoreRepository::class)->storeIntent(
-            id: $intentId,
-            intentKey: LedgerFixtures::hash('dl-intent:'.$intentId->value),
-            stage: StageCode::Download,
-            subject: new SubjectKey(SubjectKind::Document, $document->id),
-            semanticPolicyHash: LedgerFixtures::hash('sem-dl'),
-            accessPolicyHash: LedgerFixtures::hash('access'),
-            cycleSeq: 1,
-            expectedHeadGeneration: 1,
-            state: IntentState::Active,
-        );
-    });
+    app(ProcessTransaction::class)->run(
+        fn () => auditStoreIntent($intentId, StageCode::Download, new SubjectKey(SubjectKind::Document, $document->id), IntentState::Active, 1, 'dl-intent'),
+    );
 
     $work = LedgerFixtures::storeWork(
         input: LedgerFixtures::downloadInput($document->id, $intentId),
@@ -179,7 +206,9 @@ test('FeederDaemon отправляет в карантин feeder_wake с не�
     $tick = app(FeederDaemon::class)->tick();
     expect($tick->errorCode)->toBe('outbox_quarantined')
         ->and(DB::table('prc_process_outbox')->where('message_id', $messageId)->value('last_error_code'))
-        ->toBe('quarantined_schema_unsupported');
+        ->toBe('quarantined_schema_unsupported')
+        ->and(DB::table('prc_process_incidents')->where('kind', 'outbox_quarantine')->count())
+        ->toBe(1);
 
     $work = ExecutionFixtures::listingWork();
     $lease = FinalizeFixtures::running($work);
@@ -221,8 +250,7 @@ test('SubjectLockResolver::ownerSubject находит владельца при
         $verSubject->key() => new LockedSubject($verSubject, 1, null),
     ];
 
-    $owner = $resolver->ownerSubject(StageCode::Screening, $locked);
-    expect($owner->subject)->toEqual($verSubject);
+    expect($resolver->ownerSubject(StageCode::Screening, $locked)->subject)->toEqual($verSubject);
 
     FinalizeFixtures::authority([StageCode::Listing]);
     $platform = Platform::factory()->create(['code' => 'eis-cohort-norm']);
@@ -235,13 +263,12 @@ test('SubjectLockResolver::ownerSubject находит владельца при
         'cohort_key' => 'platform:'.$platform->id,
     ]);
 
-    $correlation = app(RunReadRepository::class)->correlationFor($work);
-    expect($correlation['cohort_key'] ?? null)->toBe('platform:eis-cohort-norm');
+    expect(app(RunReadRepository::class)->correlationFor($work)['cohort_key'] ?? null)->toBe('platform:eis-cohort-norm');
 });
 
 test('RecoveryRepository::controlPredicate строится по активным паузам без DISTINCT-скана prc_process_work, а курсоры RecoveryReconciler обходят застрявшую голову батча', function (): void {
     FinalizeFixtures::authority([StageCode::Listing]);
-    $resolver = FixtureProviderRecoveryResolver::install();
+    FixtureProviderRecoveryResolver::install();
     $repo = app(RecoveryRepository::class);
 
     $work = ExecutionFixtures::listingWork();
@@ -260,11 +287,9 @@ test('RecoveryRepository::controlPredicate строится по активны�
 
     ExecutionFixtures::setMode('system', ControlMode::Enabled);
 
-    // Создаём 51 заблокированную по paused запись: первые 50 с неподдерживаемой input_schema_version=2 (голова очереди), 51-я валидная.
     $poisons = [];
     for ($i = 0; $i < 50; $i++) {
-        $poison = ExecutionFixtures::listingWork();
-        $poisons[] = $poison->value->value;
+        $poisons[] = ExecutionFixtures::listingWork()->value->value;
     }
     $tail = ExecutionFixtures::listingWork();
 
@@ -282,11 +307,17 @@ test('RecoveryRepository::controlPredicate строится по активны�
 
     $reconciler = app(RecoveryReconciler::class);
     expect($reconciler->releaseBlocked())->toBe(0)
-        ->and(ExecutionFixtures::work($tail)->state)->toBe('blocked');
-
-    // Второй вызов того же экземпляра продвигает курсор за первые 50 застрявших записей и освобождает 51-ю запись.
-    expect($reconciler->releaseBlocked())->toBe(1)
+        ->and(ExecutionFixtures::work($tail)->state)->toBe('blocked')
+        ->and($reconciler->releaseBlocked())->toBe(1)
         ->and(ExecutionFixtures::work($tail)->state)->toBe('ready');
+
+    // Когда в blockedProvider выбраны все 50 элементов батча, cancelledProvider не вызывается сверх лимита 50.
+    DB::table('prc_process_work')->whereIn('id', $poisons)->update([
+        'state' => 'blocked',
+        'reason_code' => 'provider_result_unknown',
+        'provider_recovery_due_at' => '2000-01-01 00:00:00+00',
+    ]);
+    expect($reconciler->recoverBlockedProvider())->toBe(0);
 });
 
 test('RecoveryReconciler::sweepHandlerFaults изолирует сбойную запись в батче, фиксируя здоровые проверки и пробрасывая ошибку после батча', function (): void {
@@ -300,7 +331,6 @@ test('RecoveryReconciler::sweepHandlerFaults изолирует сбойную �
     $downloadFault = LedgerFixtures::storeWork(LedgerFixtures::downloadInput($document->id, LedgerFixtures::uuid()));
     $finalizer->finishHandlerFault(FinalizeFixtures::running($downloadFault), FinalizeFixtures::fault('good-hold'));
 
-    // Удаляем authority-строку для listing, чтобы первая проверка выбросила LogicException, но download должен пройти в своей транзакции.
     DB::delete("DELETE FROM prc_process_handler_holds WHERE stage = 'listing'");
 
     expect(fn () => app(RecoveryReconciler::class)->sweepHandlerFaults())->toThrow(LogicException::class)
@@ -331,32 +361,8 @@ test('WorkRunner классифицирует транзиентный сбой 
     app(StageRegistry::class)->bindHandler(StageCode::Listing, $handler);
 
     $work = ExecutionFixtures::listingWork();
-    app(WorkFeeder::class)->tick('acquisition');
-    $envelope = DeliveryEnvelope::fromScalars(
-        $work->value->value,
-        ExecutionFixtures::delivery($work)->value,
-        LedgerFixtures::uuid()->value,
-        1,
-    );
-
-    // 1. Транзиентный сбой БД на readAuthoritySnapshot (после успешного claim) возвращает DependencyUnavailable, оставляет running и не вызывает handler.
-    $claimed = false;
-    $armed = true;
-    DB::beforeExecuting(function (string $query, array $bindings) use (&$armed, &$claimed): void {
-        if (str_contains($query, 'INSERT INTO prc_process_attempts')) {
-            $claimed = true;
-
-            return;
-        }
-        if (! $armed || ! $claimed || ! str_contains($query, 'SELECT stage, cohort_key, input_revision')) {
-            return;
-        }
-        $armed = false;
-        $driver = new PDOException('simulated snapshot disconnect');
-        $driver->errorInfo = ['08006', 7, 'simulated snapshot disconnect'];
-
-        throw new QueryException('pgsql', $query, $bindings, $driver);
-    });
+    $envelope = auditDeliveryEnvelope($work);
+    auditArmSnapshotSqlFailure('08006', 'simulated snapshot disconnect');
 
     expect(app(WorkRunner::class)->runDelivery($envelope))->toBe(DeliveryOutcome::DependencyUnavailable)
         ->and($handler->calls)->toBe(0)
@@ -364,51 +370,20 @@ test('WorkRunner классифицирует транзиентный сбой 
         ->and(DB::table('prc_process_attempts')->where('work_id', $work->value->value)->whereNull('finished_at')->count())->toBe(1)
         ->and(DB::table('prc_process_attempts')->where('work_id', $work->value->value)->whereNotNull('fault_signature')->count())->toBe(0);
 
-    // 2. Нетранзиентная SQL ошибка на том же шаге bootstrap пробрасывается видимо.
     $work2 = ExecutionFixtures::listingWork();
-    app(WorkFeeder::class)->tick('acquisition');
-    $envelope2 = DeliveryEnvelope::fromScalars(
-        $work2->value->value,
-        ExecutionFixtures::delivery($work2)->value,
-        LedgerFixtures::uuid()->value,
-        1,
-    );
-    $claimedFatal = false;
-    $armedFatal = true;
-    DB::beforeExecuting(function (string $query, array $bindings) use (&$armedFatal, &$claimedFatal): void {
-        if (str_contains($query, 'INSERT INTO prc_process_attempts')) {
-            $claimedFatal = true;
+    $envelope2 = auditDeliveryEnvelope($work2);
+    auditArmSnapshotSqlFailure('42P01', 'simulated fatal sql');
 
-            return;
-        }
-        if (! $armedFatal || ! $claimedFatal || ! str_contains($query, 'SELECT stage, cohort_key, input_revision')) {
-            return;
-        }
-        $armedFatal = false;
-        $driver = new PDOException('simulated fatal sql');
-        $driver->errorInfo = ['42P01', 7, 'simulated fatal sql'];
-
-        throw new QueryException('pgsql', $query, $bindings, $driver);
-    });
     expect(fn () => app(WorkRunner::class)->runDelivery($envelope2))->toThrow(QueryException::class)
         ->and($handler->calls)->toBe(0);
 
-    // 3. WorkRunner задаёт RetryAt через 30–35 s; finalizer отдельно добавляет до 10% остатка.
-    DB::table('prc_process_reservations')
-        ->whereIn('work_id', [$work->value->value, $work2->value->value])
-        ->delete();
-    DB::table('prc_process_work')
-        ->whereIn('id', [$work->value->value, $work2->value->value])
+    DB::table('prc_process_reservations')->whereIn('work_id', [$work->value->value, $work2->value->value])->delete();
+    DB::table('prc_process_work')->whereIn('id', [$work->value->value, $work2->value->value])
         ->update(['state' => 'succeeded', 'lease_until' => null, 'owner_token' => null]);
+
     $handler->throwStorageUnavailable = true;
     $work3 = ExecutionFixtures::listingWork();
-    app(WorkFeeder::class)->tick('acquisition');
-    $envelope3 = DeliveryEnvelope::fromScalars(
-        $work3->value->value,
-        ExecutionFixtures::delivery($work3)->value,
-        LedgerFixtures::uuid()->value,
-        1,
-    );
+    $envelope3 = auditDeliveryEnvelope($work3);
     $observeDeferral = true;
     $retryAt = null;
     $beforeFinalizeAt = null;
@@ -421,7 +396,6 @@ test('WorkRunner классифицирует транзиентный сбой 
             || ($bindings[11] ?? null) !== $work3->value->value) {
             return;
         }
-
         $retryAt = $bindings[2];
         $beforeFinalizeAt = DB::selectOne('SELECT clock_timestamp()::text AS now')->now;
     });
@@ -432,8 +406,7 @@ test('WorkRunner классифицирует транзиентный сбой 
         $observeDeferral = false;
     }
 
-    expect($retryAt)->not->toBeNull()
-        ->and($beforeFinalizeAt)->not->toBeNull();
+    expect($retryAt)->not->toBeNull()->and($beforeFinalizeAt)->not->toBeNull();
     $deferral = DB::selectOne(
         'SELECT extract(epoch FROM ?::timestamptz - ?::timestamptz) AS retry_in,
                 due_at >= ?::timestamptz AS respects_retry_at,
@@ -463,15 +436,8 @@ test('WorkRunner::finalize сопоставляет LostOwnership с LeaseLost �
     };
     app(StageRegistry::class)->bindHandler(StageCode::Listing, $handler);
 
-    // 1. Потеря владения во время исполнения handler (CancelWork увеличивает generation до finalize) -> DeliveryOutcome::LeaseLost.
     $lostWork = ExecutionFixtures::listingWork();
-    app(WorkFeeder::class)->tick('acquisition');
-    $lostEnvelope = DeliveryEnvelope::fromScalars(
-        $lostWork->value->value,
-        ExecutionFixtures::delivery($lostWork)->value,
-        LedgerFixtures::uuid()->value,
-        1,
-    );
+    $lostEnvelope = auditDeliveryEnvelope($lostWork);
     $handler->effect = static function () use ($lostWork): void {
         expect(app(CancelWork::class)->execute($lostWork, 'cancel during execution')->status)
             ->toBe(WorkMutationStatus::Applied);
@@ -480,16 +446,9 @@ test('WorkRunner::finalize сопоставляет LostOwnership с LeaseLost �
     expect(app(WorkRunner::class)->runDelivery($lostEnvelope))->toBe(DeliveryOutcome::LeaseLost)
         ->and(ExecutionFixtures::work($lostWork)->state)->toBe('cancelled');
 
-    // 2. Нарушение инварианта финализации (расхождение membership резерваций группы) -> логирует warning и возвращает DeliveryOutcome::Rejected.
     Log::spy();
     $corruptWork = ExecutionFixtures::listingWork();
-    app(WorkFeeder::class)->tick('acquisition');
-    $corruptEnvelope = DeliveryEnvelope::fromScalars(
-        $corruptWork->value->value,
-        ExecutionFixtures::delivery($corruptWork)->value,
-        LedgerFixtures::uuid()->value,
-        1,
-    );
+    $corruptEnvelope = auditDeliveryEnvelope($corruptWork);
     $handler->effect = static function () use ($corruptWork): void {
         DB::table('prc_process_reservations')->where('work_id', $corruptWork->value->value)->limit(1)->delete();
     };

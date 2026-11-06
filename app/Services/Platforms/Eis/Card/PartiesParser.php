@@ -8,7 +8,6 @@ use App\Dto\Organization\OrganizationIdentifierData;
 use App\Dto\Procurement\Details\OrganizationData;
 use App\Dto\Procurement\Details\PartyData;
 use App\Enums\Organization\ProcurementPartyRole;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\DomCrawler\Crawler;
 
 /**
@@ -56,7 +55,7 @@ final readonly class PartiesParser
             if ($strict) {
                 throw $exception;
             }
-            Log::warning('Вкладка common-info не содержит подтверждённый полный набор сторон.');
+            CardDomHelper::logWarning('Вкладка common-info не содержит подтверждённый полный набор сторон.');
 
             return false;
         }
@@ -210,7 +209,7 @@ final readonly class PartiesParser
 
     private function normalize(string $value): string
     {
-        return trim(preg_replace('/[\s\x{00a0}]+/u', ' ', $value) ?? $value);
+        return CardDomHelper::normalizeWhitespace($value);
     }
 
     /** @phpstan-assert true $condition */
@@ -233,7 +232,7 @@ final readonly class PartiesParser
         $role = self::ROLE_MAP[$roleText] ?? null;
 
         if ($role === null) {
-            Log::warning('Неизвестная роль организации на вкладке common-info пропущена', ['role' => $roleText]);
+            CardDomHelper::logWarning('Неизвестная роль организации на вкладке common-info пропущена', ['role' => $roleText]);
 
             return null;
         }

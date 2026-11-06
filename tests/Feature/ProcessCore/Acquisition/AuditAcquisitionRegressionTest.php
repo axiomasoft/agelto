@@ -13,6 +13,7 @@ use App\Dto\Procurement\Acquisition\ListingTask;
 use App\Dto\Procurement\Platform\CursorEnvelope;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DetailInput;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Platform\AssessmentReason;
@@ -36,6 +37,27 @@ use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
 
 pest()->group('acquisition-operations', 'platform-adapter-contracts');
+
+function auditAcqStoreDetailIntent(
+    int $procurementId,
+    ProcessUuid $intentId,
+    string $keyPrefix,
+    int $cycleSeq,
+    int $expectedHeadGeneration = 1,
+    IntentState $state = IntentState::Terminal,
+): void {
+    app(WorkStoreRepository::class)->storeIntent(
+        id: $intentId,
+        intentKey: LedgerFixtures::hash($keyPrefix.':'.$intentId->value),
+        stage: StageCode::Detail,
+        subject: new SubjectKey(SubjectKind::Procurement, $procurementId),
+        semanticPolicyHash: LedgerFixtures::hash('sem'),
+        accessPolicyHash: LedgerFixtures::hash('acc'),
+        cycleSeq: $cycleSeq,
+        expectedHeadGeneration: $expectedHeadGeneration,
+        state: $state,
+    );
+}
 
 test('EisSearchFilter отвергает priceTo меньше priceFrom и принимает равные границы цены', function (): void {
     expect(fn () => EisSearchFilter::validateAndCreate([
@@ -89,19 +111,7 @@ test('RefreshRepository::reconcile находит просроченный next_
     $run = LedgerFixtures::crawlBlock()['run'];
 
     app(ProcessTransaction::class)->run(function () use ($procurement, $olderIntent, $newerFailedIntent, $run): void {
-        $store = app(WorkStoreRepository::class);
-        $subject = new SubjectKey(SubjectKind::Procurement, $procurement->id);
-        $store->storeIntent(
-            id: $olderIntent,
-            intentKey: LedgerFixtures::hash('detail-1:'.$olderIntent->value),
-            stage: StageCode::Detail,
-            subject: $subject,
-            semanticPolicyHash: LedgerFixtures::hash('sem'),
-            accessPolicyHash: LedgerFixtures::hash('acc'),
-            cycleSeq: 1,
-            expectedHeadGeneration: 1,
-            state: IntentState::Terminal,
-        );
+        auditAcqStoreDetailIntent($procurement->id, $olderIntent, 'detail-1', 1);
         $work1 = LedgerFixtures::storeWork(
             input: LedgerFixtures::detailInput($procurement->id, $olderIntent),
             intentId: $olderIntent,
@@ -109,17 +119,7 @@ test('RefreshRepository::reconcile находит просроченный next_
         );
         DB::table('prc_process_work')->where('id', $work1->value->value)->update(['state' => 'succeeded']);
 
-        $store->storeIntent(
-            id: $newerFailedIntent,
-            intentKey: LedgerFixtures::hash('detail-2:'.$newerFailedIntent->value),
-            stage: StageCode::Detail,
-            subject: $subject,
-            semanticPolicyHash: LedgerFixtures::hash('sem'),
-            accessPolicyHash: LedgerFixtures::hash('acc'),
-            cycleSeq: 2,
-            expectedHeadGeneration: 1,
-            state: IntentState::Terminal,
-        );
+        auditAcqStoreDetailIntent($procurement->id, $newerFailedIntent, 'detail-2', 2);
     });
 
     DB::table('prc_operation_intents')->where('id', $olderIntent->value)->update([
@@ -192,16 +192,13 @@ test('DetailSnapshotRepository::request изолирует запрос по int
         locator: new CursorEnvelope('eis.card', 1, 'card-v2'),
     );
     app(ProcessTransaction::class)->run(function () use ($procurement, $intentB, $listingRun, $refB): void {
-        app(WorkStoreRepository::class)->storeIntent(
-            id: $intentB,
-            intentKey: LedgerFixtures::hash('detail-b:'.$intentB->value),
-            stage: StageCode::Detail,
-            subject: new SubjectKey(SubjectKind::Procurement, $procurement->id),
-            semanticPolicyHash: LedgerFixtures::hash('semantic'),
-            accessPolicyHash: LedgerFixtures::hash('access'),
-            cycleSeq: 2,
-            expectedHeadGeneration: $procurement->head_generation,
-            state: IntentState::Active,
+        auditAcqStoreDetailIntent(
+            $procurement->id,
+            $intentB,
+            'detail-b',
+            2,
+            $procurement->head_generation,
+            IntentState::Active,
         );
         app(ListingStoreRepository::class)->receipt(
             $listingRun['input'],
@@ -302,12 +299,8 @@ test('ListingStoreRepository проецирует ListingDetailReference в prc_
     );
 
     app(ProcessTransaction::class)->run(function () use ($procurement, $olderIntent, $newerIntent, $olderInput, $newerInput, $olderRef, $newerRef): void {
-        $works = app(WorkStoreRepository::class);
-        $subject = new SubjectKey(SubjectKind::Procurement, $procurement->id);
-        $works->storeIntent($olderIntent, LedgerFixtures::hash('old:'.$olderIntent->value), StageCode::Detail, $subject,
-            ContentHash::of('sem'), ContentHash::of('acc'), 2, 1, IntentState::Terminal);
-        $works->storeIntent($newerIntent, LedgerFixtures::hash('new:'.$newerIntent->value), StageCode::Detail, $subject,
-            ContentHash::of('sem'), ContentHash::of('acc'), 3, 2, IntentState::Active);
+        auditAcqStoreDetailIntent($procurement->id, $olderIntent, 'old', 2, 1, IntentState::Terminal);
+        auditAcqStoreDetailIntent($procurement->id, $newerIntent, 'new', 3, 2, IntentState::Active);
 
         $listings = app(ListingStoreRepository::class);
         $listings->receipt(

@@ -17,7 +17,7 @@ final readonly class ToolchainProbe
     /**
      * @var array<string, list<string>>
      */
-    private const VERSION_ARGS = [
+    private const array VERSION_ARGS = [
         'soffice_bin' => ['--version'],
         'sevenzip_bin' => ['i'],
         'unar_bin' => ['-v'],
@@ -57,7 +57,7 @@ final readonly class ToolchainProbe
         }
 
         $output = trim($result->output()) !== '' ? $result->output() : $result->errorOutput();
-        $firstLine = trim(strtok(trim($output), "\n") ?: '');
+        $firstLine = trim(explode("\n", trim($output), 2)[0]);
 
         return ['bin' => $bin, 'found' => true, 'version' => $firstLine !== '' ? $firstLine : null];
     }

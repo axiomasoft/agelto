@@ -11,7 +11,7 @@
 - Start with 1–2 relevant files and `.ai/guidelines/cheatsheet.md`. Expand context only for an unresolved term, a cross-layer change, or conflicting rules. Preserve unrelated worktree changes.
 - Native Planner owns plan state; archived Task Layout v2 plans (`plans/archive/**`) are historical provenance only — never run archived plan lifecycle commands.
 - Run verification via the isolated `agelto_core_test` harness (`docs/dev/runbooks/process-test-rig.md`): `make core-quality`, `make core-test-file TEST_FILE=...`, and `make core-test-*`. Never reset dev/shared DB, run live crawling, call paid LLM APIs, or weaken guards/assertions.
-- Sync SHA-256 in `tests/Fixtures/ProcessCore/manifest.json['source_classes']` whenever a tracked source file changes. Keep test names in Russian describing behavior without `T26`/`P1.x` plan bindings.
+- Sync SHA-256 in `tests/Fixtures/ProcessCore/manifest.json` (`source_classes`, `migrations`, `contract_fixtures`, `files`) and `tests/Fixtures/ProcessCore/runtime-inputs.json` whenever a tracked file changes; check `DomainLayoutTest` and `CoreKnowsNoDocumentTypeTest` when adding/removing core classes. Keep test names in Russian describing behavior without `T26`/`P1.x` plan bindings.
 
 ## Architecture Invariants (Quick Reference)
 

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Enums\Telemetry\LogChannel;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Алерты пайплайна отправляются одним агрегированным Telegram-сообщением через Bot API.
@@ -78,7 +78,7 @@ final readonly class PipelineAlert
         $chatId = config('services.telegram.chat_id');
 
         if (! is_string($token) || $token === '' || ! is_string($chatId) || $chatId === '') {
-            Log::warning('PipelineAlert: Telegram канал не настроен, алерт отправлен в лог', ['message' => $message]);
+            LogChannel::Alerts->warning('PipelineAlert: Telegram канал не настроен, алерт отправлен в лог', ['message' => $message]);
 
             return true;
         }
@@ -93,14 +93,14 @@ final readonly class PipelineAlert
                 ]);
 
             if (! $response->successful()) {
-                Log::error('PipelineAlert: не удалось отправить уведомление', ['message' => $message]);
+                LogChannel::Alerts->error('PipelineAlert: не удалось отправить уведомление', ['message' => $message]);
 
                 return false;
             }
 
             return true;
         } catch (\Throwable) {
-            Log::error('PipelineAlert: не удалось отправить уведомление', ['message' => $message]);
+            LogChannel::Alerts->error('PipelineAlert: не удалось отправить уведомление', ['message' => $message]);
 
             return false;
         }

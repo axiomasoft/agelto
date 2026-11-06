@@ -38,7 +38,7 @@ final class Protocol extends Model
     /** @use HasFactory<ProtocolFactory> */
     use HasFactory;
 
-    public const UPDATED_AT = null;
+    public const ?string UPDATED_AT = null;
 
     protected function casts(): array
     {

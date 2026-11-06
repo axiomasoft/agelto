@@ -77,12 +77,20 @@ final readonly class EstimateToContractMapper
 
     /**
      * @param  Collection<int, Total>  $totals
+     * @param  array<int, true>  $visited
      * @return list<TotalLine>
      */
-    private function totalsTree(Collection $totals, ?int $parentId = null): array
+    private function totalsTree(Collection $totals, ?int $parentId = null, array $visited = []): array
     {
+        if ($parentId !== null && isset($visited[$parentId])) {
+            return [];
+        }
+
+        $nextVisited = $parentId !== null ? $visited + [$parentId => true] : $visited;
+
         return array_values($totals
             ->where('parent_id', $parentId)
+            ->reject(static fn (Total $total): bool => isset($nextVisited[$total->id]))
             ->sortBy('position')
             ->map(fn (Total $total): TotalLine => new TotalLine(
                 label: $total->label,
@@ -90,7 +98,7 @@ final readonly class EstimateToContractMapper
                 kind: $total->kind,
                 chapter_number: $total->chapter_number,
                 rate: $total->rate === null ? null : (string) $total->rate,
-                children: $this->totalsTree($totals, $total->id),
+                children: $this->totalsTree($totals, $total->id, $nextVisited),
             ))
             ->values()
             ->all());
@@ -171,9 +179,15 @@ final readonly class EstimateToContractMapper
     private function breadcrumb(Collection $sectionsById, int $sectionId): array
     {
         $path = [];
+        $visited = [];
         $current = $sectionsById->get($sectionId);
 
         while ($current !== null) {
+            if (isset($visited[$current->id])) {
+                break;
+            }
+
+            $visited[$current->id] = true;
             array_unshift($path, $current->title);
             $current = $current->parent_id === null ? null : $sectionsById->get($current->parent_id);
         }

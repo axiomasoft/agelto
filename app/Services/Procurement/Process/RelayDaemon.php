@@ -16,7 +16,6 @@ use App\Repositories\Procurement\Process\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
 use App\Services\Procurement\Process\Contracts\WorkWakePublisher;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Str;
 
 /**
  * Outbox relay: claim-ит ТОЛЬКО kind work_wake по token CAS в короткой tx, публикует
@@ -53,7 +52,7 @@ final class RelayDaemon implements ProcessDaemon
 
     public function tick(): DaemonTick
     {
-        $token = self::uuid();
+        $token = ProcessUuid::random();
         /** @var list<ClaimedOutboxMessage> $messages */
         $messages = $this->transaction->run(fn (): array => $this->outbox->claim(OutboxKind::WorkWake, $token, $this->policy->relayBatch, $this->policy->relayClaimSeconds));
         $published = 0;
@@ -125,7 +124,7 @@ final class RelayDaemon implements ProcessDaemon
 
     private function quarantine(ClaimedOutboxMessage $message, string $code): void
     {
-        $ids = [self::uuid(), self::uuid(), self::uuid()];
+        $ids = [ProcessUuid::random(), ProcessUuid::random(), ProcessUuid::random()];
         ProcessLog::quarantined($code, ['message_id' => $message->messageId->value]);
         $this->transaction->run(function () use ($message, $code, $ids): void {
             $this->outbox->quarantine($message, $code, self::QUARANTINE_RETRY_SECONDS);
@@ -145,19 +144,12 @@ final class RelayDaemon implements ProcessDaemon
     private function release(array $messages, string $code): void
     {
         try {
-            foreach ($messages as $message) {
-                $this->outbox->releaseClaim($message, $code);
-            }
+            $this->outbox->releaseClaims($messages, $code);
         } catch (QueryException $exception) {
             // Claim истечёт сам; transient DB здесь не должна маскировать исходную причину publish.
             if (! DatabaseFailureClassifier::isTransient($exception)) {
                 throw $exception;
             }
         }
-    }
-
-    private static function uuid(): ProcessUuid
-    {
-        return new ProcessUuid(Str::lower((string) Str::uuid()));
     }
 }

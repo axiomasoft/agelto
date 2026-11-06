@@ -10,11 +10,11 @@
 
 - Flat `app/**`, no modules: `Procurement` (`prc_*`: process core, network, acquisition, documents, estimates, AI), `Reference` (`ref_*`), `Organization` (`org_*`), `Llm` (`llm_*`: provider-agnostic ledger, execution, cache and schema), `Platforms/<Code>` (platform-specific adapters across layers; existing table names stay unchanged).
 - Process execution: `Services/Procurement/Process/**`, `Repositories/Procurement/Process/**`, `ExecuteWorkJob` (delivery-only wakeup), and 4 daemons (`relay`, `reconcile`, `feed`, `project`). Stage handlers (`Listing`, `Detail`, `StatusRefresh`, `Download`, `Prepare`, `Screening`, `Extraction`, `Publication`) run under lease + `SubjectLockResolver` prefix fencing and commit via `WorkFinalizer`.
-- Общие DTO, модели и резолверы не содержат полей и веток конкретной площадки. Внешние идентификаторы организаций передаются как `(platformCode, type, value)`; их разбор и форматы принадлежат адаптеру в `Services/Platforms/<Code>/`. Текущие legacy зависимости ограничены сокращаемым architecture baseline до owning cutovers.
-- Outbound network & TLS: all source/provider calls go through `OutboundExecutor` / `ScheduledAttemptGate` / `AnalysisProviderSendGate` with `ProxyResolver` (`ProxyScope`) and separate route/target/route-target/adapter health. `SourceTlsTrust` (`crawler.tls.bundles`) is the sole TLS-trust holder; `verify => false` is forbidden.
+- Общие DTO, модели и резолверы не содержат полей и веток конкретной площадки. Внешние идентификаторы организаций передаются как `(platformCode, type, value)`; их разбор и форматы принадлежат адаптеру в `Services/Platforms/<Code>/`. Зависимости ограничены постоянными ролями в `Tests\Support\Architecture\PlatformSourceRules`.
+- Outbound network & TLS: all source/provider calls go through `OutboundExecutor` / `ScheduledAttemptGate` / `AnalysisProviderSendGate` with `ProxyResolver` (`ProxyScope`) and separate route/target/route-target/adapter health. `SourceTlsTrust` (`outbound.http.tls_bundles`) is the sole TLS-trust holder; `verify => false` is forbidden.
 - Controllers handle HTTP only; Actions/Services own short mutations and transactions; repositories access persistence. Crawling, document preparation and AI never run in HTTP.
 - A file in `app/<Layer>/<Domain>/` has one subdomain directory; only domain-core and cross-subdomain files may be at its root (`tests/Unit/Architecture/DomainLayoutTest.php`).
-- `Platforms/<Code>` uses matching roots in Services/Dto/Enums/Models/Filament, factories and seeders. Service subdirectories: Card, Csv, Listing, Status, Documents, Filters, Validators, Diagnostics, Persistence; one level only (`PlatformsDomainLayoutTest` + `tests/Unit/Architecture/platforms-dependency-baseline.php`).
+- `Platforms/<Code>` uses matching roots in Services/Dto/Enums/Models/Filament, factories and seeders. Service subdirectories: Card, Csv, Listing, Status, Documents, Filters, Validators, Diagnostics, Persistence; one level only (`PlatformsDomainLayoutTest` + `PlatformsBaselineOriginTest`).
 
 ## Runtime
 
@@ -38,7 +38,7 @@ Use the technical names below in identifiers; business terms are fine in UI/comm
 - `Procurement` → `$procurement`: procurement (`head_generation`); `Document` / `DocumentVersion` → `$document` / `$documentVersion`: procurement document (`head_generation`) and immutable version bytes.
 - `Estimate` → `$estimate`: parsed estimate DTO/model; never use `Smeta` in identifiers. `Lot` / `PurchaseItem` is not `Estimate\Item`.
 - `Proxy` → `$proxy`: outbound node. Obtain it only through `ProxyResolver`; `ProxyScope` names request purpose. Route (`prc_route_health`), target (`prc_target_health`), pair (`prc_route_target_health`), and adapter (`prc_adapter_health`) health are separate.
-- Crawler filters are typed DTOs resolved by registry through `crawler.filters`; an unmapped registry fails, never falls back silently. `SourceTlsTrust` is the sole TLS-trust holder (`verify => false` is forbidden).
+- Crawler filters are typed DTOs declared on each platform's `PlatformDefinition::acquisitionProfile` (`AcquisitionProfileDescriptor`) and restored via `ListingFilterCodec`; an unmapped filter fails, never falls back silently. `SourceTlsTrust` (`outbound.http.tls_bundles`) is the sole TLS-trust holder (`verify => false` is forbidden).
 
 ## AI & LLM Ledger terms
 

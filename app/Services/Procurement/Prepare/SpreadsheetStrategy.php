@@ -106,7 +106,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
     private function withinToolLimits(DocumentVersion $version, string $localInput): bool
     {
-        if (! $this->xlsxResourceGuard->accepts(path: $localInput, extension: $version->extension)) {
+        if (! $this->xlsxResourceGuard->accepts(path: $localInput, extension: $version->extension, checkXmlEntities: false)) {
             return false;
         }
 
@@ -215,7 +215,12 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
     private function countRows(string $path, string $extension): int
     {
         $reader = $extension === 'xls' ? new XlsReader : new XlsxReader;
-        $info = $reader->listWorksheetInfo($path);
+
+        try {
+            $info = $reader->listWorksheetInfo($path);
+        } catch (\Throwable) {
+            return PHP_INT_MAX;
+        }
 
         return array_sum(array_column($info, 'totalRows'));
     }
