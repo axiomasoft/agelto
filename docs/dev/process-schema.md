@@ -194,6 +194,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_11_02_100000_create_prc_analysis_tables.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_11_02_100001_create_llm_request_ledger.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_11_02_100002_create_llm_assets.php` | create | P3.12 | Canonical files/cache identity and fenced physical creation ownership; no paid runtime activation. |
+| `2026_11_07_100000_add_llm_send_eligibility_indexes.php` | create | P3.17 | Forward send-eligibility indexes for period reservation state and unknown logical request state. |
 
 ### Legacy lifecycle
 
@@ -1435,6 +1436,7 @@ Indexes:
 - `CREATE UNIQUE INDEX llm_provider_requests_command_id_key ON public.llm_provider_requests USING btree (command_id)`
 - `CREATE UNIQUE INDEX llm_provider_requests_logical_key_key ON public.llm_provider_requests USING btree (logical_key)`
 - `CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)`
+- `CREATE INDEX llm_provider_requests_unknown_state_idx ON public.llm_provider_requests USING btree (logical_request_id) WHERE (state = ANY (ARRAY['unknown'::text, 'abandoned_unknown'::text]))`
 
 #### llm_budget_periods
 
@@ -1495,6 +1497,7 @@ Constraints:
 Indexes:
 - `CREATE UNIQUE INDEX llm_budget_reservations_id_operation_id_key ON public.llm_budget_reservations USING btree (id, operation_id)`
 - `CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)`
+- `CREATE INDEX llm_budget_reservations_period_state_idx ON public.llm_budget_reservations USING btree (period_id, state)`
 - `CREATE UNIQUE INDEX llm_budget_reservations_pkey ON public.llm_budget_reservations USING btree (id)`
 
 #### llm_provider_calls
@@ -5672,6 +5675,7 @@ Indexes:
 - `llm_provider_requests_command_id_key`: `CREATE UNIQUE INDEX llm_provider_requests_command_id_key ON public.llm_provider_requests USING btree (command_id)`
 - `llm_provider_requests_logical_key_key`: `CREATE UNIQUE INDEX llm_provider_requests_logical_key_key ON public.llm_provider_requests USING btree (logical_key)`
 - `llm_provider_requests_pkey`: `CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)`
+- `llm_provider_requests_unknown_state_idx`: `CREATE INDEX llm_provider_requests_unknown_state_idx ON public.llm_provider_requests USING btree (logical_request_id) WHERE (state = ANY (ARRAY['unknown'::text, 'abandoned_unknown'::text]))`
 
 #### llm_provider_calls
 
@@ -5783,6 +5787,7 @@ Constraints:
 Indexes:
 - `llm_budget_reservations_id_operation_id_key`: `CREATE UNIQUE INDEX llm_budget_reservations_id_operation_id_key ON public.llm_budget_reservations USING btree (id, operation_id)`
 - `llm_budget_reservations_operation_id_key`: `CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)`
+- `llm_budget_reservations_period_state_idx`: `CREATE INDEX llm_budget_reservations_period_state_idx ON public.llm_budget_reservations USING btree (period_id, state)`
 - `llm_budget_reservations_pkey`: `CREATE UNIQUE INDEX llm_budget_reservations_pkey ON public.llm_budget_reservations USING btree (id)`
 
 #### prc_analysis_llm_requests

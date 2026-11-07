@@ -49,6 +49,17 @@ rg -q 'make test:junit' "$ci_workflow"
 rg -q 'make test:coverage' "$ci_workflow"
 [[ $(rg -c 'make bootstrap MODE=dev ENV_FILE=\.env\.example' "$ci_workflow") -eq 4 ]]
 rg -q -- '--critical-file app/Services/Procurement/Proxy/ProxyResolver.php' "$ci_workflow"
+python3 - <<'PY'
+import json
+import re
+from pathlib import Path
+
+ci_text = Path('.github/workflows/ci.yml').read_text(encoding='utf-8')
+ci_files = re.findall(r'--critical-file\s+([^\s\\]+)', ci_text)
+budget_files = json.loads(Path('tests/performance-budget.json').read_text(encoding='utf-8'))['coverage']['critical_files']
+if ci_files != budget_files:
+    raise SystemExit(f'CI critical files {ci_files} do not match performance-budget.json {budget_files}')
+PY
 rg -q 'clean-install-e2e\.sh' "$ci_workflow"
 rg -q 'E2E_ARTIFACT_DIR: .ci-artifacts' "$ci_workflow"
 rg -q 'E2E_ARTIFACT_DIR' docker/tests/clean-install-e2e.sh
@@ -58,7 +69,7 @@ rg -q 'playwright-report/\*\*' "$ci_workflow"
 rg -q 'test-results/\*\*' "$ci_workflow"
 [[ $(rg -c 'run: make vendor:sync' "$ci_workflow") -eq 2 ]]
 rg -q 'make image:build' "$ci_workflow"
-rg -q 'docker build -t agelto/postgres:' "$ci_workflow"
+rg -q 'docker build --build-arg SOURCE_SHA=\$\{\{ github\.sha \}\} -t agelto/postgres:' "$ci_workflow"
 rg -q 'composer audit --locked' "$ci_workflow"
 rg -q 'pnpm audit --audit-level=high' "$ci_workflow"
 [[ $(rg -c 'aquasecurity/trivy-action@[0-9a-f]{40}' "$ci_workflow") -eq 5 ]]

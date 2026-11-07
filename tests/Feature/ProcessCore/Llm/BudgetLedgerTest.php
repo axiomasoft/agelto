@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Llm\Requests\PinnedLlmContext;
 use App\Dto\Llm\Requests\PricingSnapshot;
+use App\Dto\Llm\Requests\RequestIdentity;
 use App\Enums\Llm\OperationPurpose;
 use App\Exceptions\Llm\OperationDenied;
 use App\Repositories\Llm\Request\FinancialReservationRepository;
@@ -182,4 +183,126 @@ test('physical retry budget durable и новая доставка или plan �
         ->and(DB::table('llm_provider_calls')->count())->toBe(3)
         ->and(DB::table('llm_budget_reservations')->where('state', 'settled')->count())->toBe(3)
         ->and(DB::table('llm_budget_periods')->value('reserved'))->toBe('0.00000000');
+});
+
+test('индексы допуска к отправке присутствуют в каталоге PostgreSQL, EXPLAIN (FORMAT JSON) валиден на мультиаккаунтном корпусе, а инварианты assertSendEligible сохраняются', function (): void {
+    $indexes = collect(DB::select(
+        "SELECT tablename, indexname, indexdef
+         FROM pg_indexes
+         WHERE schemaname = 'public'
+           AND indexname IN ('llm_budget_reservations_period_state_idx', 'llm_provider_requests_unknown_state_idx')
+         ORDER BY indexname",
+    ))->keyBy('indexname');
+
+    expect($indexes->keys()->all())->toBe([
+        'llm_budget_reservations_period_state_idx',
+        'llm_provider_requests_unknown_state_idx',
+    ])
+        ->and($indexes['llm_budget_reservations_period_state_idx']->tablename)->toBe('llm_budget_reservations')
+        ->and($indexes['llm_budget_reservations_period_state_idx']->indexdef)->toContain('(period_id, state)')
+        ->and($indexes['llm_provider_requests_unknown_state_idx']->tablename)->toBe('llm_provider_requests')
+        ->and($indexes['llm_provider_requests_unknown_state_idx']->indexdef)->toContain('(logical_request_id)')
+        ->and($indexes['llm_provider_requests_unknown_state_idx']->indexdef)->toContain('abandoned_unknown');
+
+    $finance = app(FinancialReservationRepository::class);
+    $requests = app(RequestRepository::class);
+
+    $finance->configureAccount('fixture-account', 'USD', 2, '0.02000000', 'fixture-operator', 'multi-period corpus policy');
+    $secondPeriod = $finance->openPeriod('fixture-account', 'USD', '2027-01-01T00:00:00Z', '2028-01-01T00:00:00Z', '100');
+
+    $finance->configureAccount('secondary-account', 'USD', 2, '0.02000000', 'fixture-operator', 'isolated secondary account');
+    $secondaryPeriod = $finance->openPeriod('secondary-account', 'USD', '2026-01-01T00:00:00Z', '2027-01-01T00:00:00Z', '100');
+    $secondaryContext = new PinnedLlmContext('fixture-provider', 'secondary-account', 'fixture-api/1', 'fixture-model', 'route/1', ['max_output_tokens' => 4096], []);
+
+    // Заполняем историю завершённых вызовов на основном аккаунте и unknown-вызовов на вторичном аккаунте.
+    for ($i = 0; $i < 4; $i++) {
+        $settledOp = DB::transaction(fn () => $requests->authorize(
+            FinancialFixtures::genericPlan('corpus-settled-'.$i),
+            LedgerFixtures::uuid()->value,
+            1,
+            $this->period,
+        ));
+        FinancialFixtures::claim($settledOp);
+        app(RequestLedger::class)->capture($requests->get($settledOp->physicalCallId), 200, FinancialFixtures::body());
+    }
+
+    for ($i = 0; $i < 2; $i++) {
+        $secPlan = new ProviderOperationPlan(
+            new RequestIdentity(hash('sha256', 'fixture-recipe'), hash('sha256', 'sec-unknown-'.$i), OperationPurpose::Generate, 0, '11111111-1111-4111-8111-111111111111'),
+            $secondaryContext,
+            FinancialFixtures::pricing(),
+            'fixture:sec-'.$i,
+        );
+        $secOp = DB::transaction(fn () => $requests->authorize($secPlan, LedgerFixtures::uuid()->value, 1, $secondaryPeriod));
+        FinancialFixtures::claim($secOp);
+        DB::transaction(fn () => $requests->interruptLocked($requests->get($secOp->physicalCallId)));
+    }
+
+    // Создаём 1 unknown и 1 активный резерв на основном аккаунте (суммарный exposure = 2 * 0.00709600 = 0.01419200 <= 0.02000000).
+    $unknownOp = DB::transaction(fn () => $requests->authorize(
+        FinancialFixtures::genericPlan('corpus-primary-unknown'),
+        LedgerFixtures::uuid()->value,
+        1,
+        $this->period,
+    ));
+    FinancialFixtures::claim($unknownOp);
+    DB::transaction(fn () => $requests->interruptLocked($requests->get($unknownOp->physicalCallId)));
+
+    $reservedOp = DB::transaction(fn () => $requests->authorize(
+        FinancialFixtures::genericPlan('corpus-primary-reserved'),
+        LedgerFixtures::uuid()->value,
+        1,
+        $this->period,
+    ));
+
+    DB::statement('ANALYZE llm_budget_accounts, llm_budget_periods, llm_budget_reservations, llm_provider_requests, llm_provider_calls');
+
+    $unknownExplain = json_decode(
+        (string) DB::selectOne(
+            "EXPLAIN (FORMAT JSON) SELECT count(DISTINCT q.logical_request_id) AS count FROM llm_provider_requests q
+             JOIN llm_provider_calls c ON c.logical_request_id=q.logical_request_id
+             JOIN llm_budget_reservations r ON r.id=c.reservation_id JOIN llm_budget_periods p ON p.id=r.period_id
+             WHERE p.account_id=? AND p.currency=? AND q.state IN ('unknown','abandoned_unknown')",
+            ['fixture-account', 'USD'],
+        )->{'QUERY PLAN'},
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+    $exposureExplain = json_decode(
+        (string) DB::selectOne(
+            "EXPLAIN (FORMAT JSON) SELECT COALESCE(sum(r.upper_bound),0) AS amount FROM llm_budget_reservations r
+             JOIN llm_budget_periods p ON p.id=r.period_id JOIN llm_provider_calls c ON c.physical_call_id=r.operation_id
+             JOIN llm_provider_requests q ON q.logical_request_id=c.logical_request_id
+             WHERE p.account_id=? AND p.currency=? AND (r.state='reserved' OR (c.usage_status='unknown' AND q.state IN ('unknown','abandoned_unknown')))",
+            ['fixture-account', 'USD'],
+        )->{'QUERY PLAN'},
+        true,
+        flags: JSON_THROW_ON_ERROR,
+    );
+
+    expect($unknownExplain[0]['Plan']['Node Type'] ?? null)->toBeString()
+        ->and($unknownExplain[0]['Plan']['Total Cost'] ?? -1)->toBeGreaterThanOrEqual(0)
+        ->and($exposureExplain[0]['Plan']['Node Type'] ?? null)->toBeString()
+        ->and($exposureExplain[0]['Plan']['Total Cost'] ?? -1)->toBeGreaterThanOrEqual(0)
+        ->and($secondPeriod)->toBeUuid();
+
+    // Третий резерв на основном аккаунте превышает hard_exposure_cap (3 * 0.00709600 = 0.02128800 > 0.02000000).
+    expect(fn () => DB::transaction(fn () => $requests->authorize(
+        FinancialFixtures::genericPlan('corpus-primary-over-cap'),
+        LedgerFixtures::uuid()->value,
+        1,
+        $this->period,
+    )))->toThrow(OperationDenied::class, 'account_exposure_hold');
+
+    // Переводим существующий резерв в unknown (теперь 2 unknown >= threshold 2) и проверяем блокировку по count threshold.
+    FinancialFixtures::claim($reservedOp);
+    DB::transaction(fn () => $requests->interruptLocked($requests->get($reservedOp->physicalCallId)));
+    $finance->configureAccount('fixture-account', 'USD', 2, '1.00000000', 'fixture-operator', 'raise cap to isolate unknown threshold');
+
+    expect(fn () => DB::transaction(fn () => $requests->authorize(
+        FinancialFixtures::genericPlan('corpus-primary-unknown-threshold'),
+        LedgerFixtures::uuid()->value,
+        1,
+        $this->period,
+    )))->toThrow(OperationDenied::class, 'account_unknown_hold');
 });

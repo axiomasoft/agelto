@@ -248,29 +248,69 @@ final readonly class HttpTransport
         $route = $network->route->binding;
         $budget = new TransferBudget($profile->maxEntityBytes, $profile->maxEntityBytes);
         $sink = new BoundedSink($profile->maxEntityBytes, fn () => $context->tick(), $budget);
-        $downloaded = 0;
+        $wireBytes = 0;
+        $wireMeasured = false;
+        $curlCode = 0;
+        /** @var array<string, int|float>|null $curlStats */
+        $curlStats = null;
         $curl = self::pinnedCurlOptions($host, $port, $ip, $profile->lowSpeedSeconds, $route);
         $trust = $this->verifiedTlsOptions($host);
         $request = (new PendingRequest)->setClient(new Client(['handler' => new PinnedCurlHandler]))->withOptions([
             ...self::baseTransportOptions($route, $profile->connectSeconds, $profile->totalSeconds, $sink, $curl),
             'decode_content' => false, 'headers' => ['Content-Type' => 'application/json', 'Content-Length' => (string) strlen($wire->body),
                 'Expect' => '', 'Accept-Encoding' => 'identity', 'x-goog-api-key' => $apiKey],
-            'progress' => function (int $total, int $received) use ($context, $budget, &$downloaded): void {
+            'progress' => function (int $total, int $received) use ($context, $budget, &$wireBytes, &$wireMeasured): void {
+                /** @var int $wireBytes */
+                $delta = max(0, $received - $wireBytes);
+                $wireBytes = max($wireBytes, $received);
+                if ($received > 0) {
+                    $wireMeasured = true;
+                }
                 $context->tick();
-                $budget->wire(max(0, $received - $downloaded));
-                $downloaded = max($downloaded, $received);
+                $budget->wire($delta);
             },
             'on_headers' => static function (ResponseInterface $response): void {
                 if (self::headersByteLength($response) > 65_536 || ! in_array(strtolower($response->getHeaderLine('Content-Encoding')), ['', 'identity'], true)) {
                     throw new \RuntimeException('Unsupported or oversized provider response headers.');
                 }
+            },
+            'on_stats' => static function (TransferStats $stats) use (&$curlCode, &$wireBytes, &$wireMeasured, &$curlStats, $budget): void {
+                /** @var int $wireBytes */
+                $errorData = $stats->getHandlerErrorData();
+                $curlCode = is_int($errorData) && $errorData >= 0 ? $errorData : 0;
+                $metrics = TransportMetrics::fromCurlStats($stats->getHandlerStats());
+                $size = (int) $metrics->values['size_download'];
+                $delta = max(0, $size - $wireBytes);
+                $wireBytes = max($wireBytes, $size);
+                $values = $metrics->values;
+                $values['size_download'] = $wireBytes;
+                $curlStats = $values;
+                $wireMeasured = true;
+                $budget->wire($delta);
             }, ...$trust]);
 
         return new PreparedProviderTransport($request, $wire, $physical, $latestStartNs, $sink, function () use ($context, $profile): bool {
             $context->tick();
 
             return $context->canStart(Duration::seconds($profile->totalSeconds));
-        }, usesProxy: $route->proxy() !== '');
+        }, usesProxy: $route->proxy() !== '', telemetry: static function () use (&$wireBytes, &$wireMeasured, &$curlCode, &$curlStats, $sink): array {
+            /**
+             * @var int $wireBytes
+             * @var bool $wireMeasured
+             * @var int $curlCode
+             * @var array<string, int|float>|null $curlStats
+             */
+            $entityBytes = $sink->bytes();
+            $observedWireBytes = max($wireBytes, $entityBytes);
+
+            return [
+                'wire_bytes' => $observedWireBytes,
+                'entity_bytes' => $entityBytes,
+                'wire_measured' => $wireMeasured || $observedWireBytes > 0,
+                'curl_code' => $curlCode,
+                'stats' => $curlStats,
+            ];
+        });
     }
 
     /** @return array<int, mixed> */

@@ -22,12 +22,13 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
-      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_root_password
+      AWS_ACCESS_KEY_ID: ${MINIO_APP_USER:-agelto_app}
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
     secrets:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     networks:
       - agelto_network
 
@@ -74,11 +75,13 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       CACHE_STORE: ${CACHE_STORE:-redis}
+      READINESS_SCHEDULER_CACHE_STORE: ${READINESS_SCHEDULER_CACHE_STORE:-readiness}
       SESSION_DRIVER: ${SESSION_DRIVER:-redis}
+      SESSION_CONNECTION: ${SESSION_CONNECTION:-session}
       QUEUE_CONNECTION: ${QUEUE_CONNECTION:-redis}
       FILESYSTEM_DISK: s3
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-agelto}
-      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_root_password
+      AWS_ACCESS_KEY_ID: ${MINIO_APP_USER:-agelto_app}
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
       AWS_DEFAULT_REGION: us-east-1
       AWS_BUCKET: ${MINIO_BUCKET:-agelto}
       AWS_ENDPOINT: http://minio:9000
@@ -89,7 +92,7 @@ services:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -126,7 +129,7 @@ services:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     depends_on:
       app: { condition: service_healthy }
       postgres: { condition: service_healthy }
@@ -162,7 +165,7 @@ services:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     depends_on:
       app: { condition: service_healthy }
       postgres: { condition: service_healthy }
@@ -193,7 +196,7 @@ services:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     depends_on:
       app: { condition: service_healthy }
       postgres: { condition: service_healthy }
@@ -390,3 +393,5 @@ secrets:
     file: ./local/secrets/redis_acl
   minio_root_password:
     file: ./local/secrets/minio_root_password
+  minio_app_password:
+    file: ./local/secrets/minio_app_password

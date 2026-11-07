@@ -7,7 +7,7 @@
 - **PHP:** `8.5` (`serversideup/php:8.5-fpm-nginx`, `pcntl`, `intl`, `bcmath`, `pdo_pgsql`, `pgsql`, `redis 6.3.0`, `gd`)
 - **Framework & Admin UI:** Laravel 12, Filament v4, Livewire v3, Horizon v5, Pulse, AzGuard (`local/vendors/azguard`, закреплённый в `docker/private-vendors.lock.json`)
 - **Frontend & Docs:** Node.js `24`, `pnpm` (`--frozen-lockfile --ignore-scripts`), Vite 6, Tailwind CSS v4, VitePress
-- **Инфраструктура:** PostgreSQL `17` (`pg_partman`, `pg_stat_statements`), Redis `7` (`ACL`, `AOF everysec`, `noeviction`), MinIO (`S3`), изолированный Python-супервизор конвертации (`tool_supervisor.py`: LibreOffice, qpdf, Ghostscript, Poppler, Tesseract OCR, 7zip/unar)
+- **Инфраструктура:** PostgreSQL `17` (`agelto/postgres:<IMAGE_TAG>`, `pg_partman`, `pg_stat_statements`), 3 изолированных контура Redis `7` (`redis` с `noeviction` и `AOF everysec` для очередей/Horizon/атомарных блокировок/heartbeat планировщика, `redis-cache` с `allkeys-lru` для кэша, `redis-session` с `noeviction` и `AOF everysec` для сессий), MinIO (`S3`, runtime работает под ограниченной учётной записью `MINIO_APP_USER` / `minio_app_password`), изолированный Python-супервизор конвертации (`tool_supervisor.py` + `bwrap`: qpdf, Ghostscript, Poppler, Tesseract OCR)
 
 ## Доменная архитектура (`app/**`)
 
@@ -21,16 +21,16 @@
 
 ## Process Core
 
-Оркестрация обработки закупок построена на таблицах `prc_work_items`, `prc_work_executions`, `prc_outbox_events`, `prc_execution_leases` и доставляется единственным джобом `ExecuteWorkJob`:
+Оркестрация обработки закупок построена на таблицах `prc_process_work`, `prc_process_attempts`, `prc_process_outbox`, `prc_operation_intents`, `prc_process_runs`, `prc_process_daemon_heartbeats` и доставляется единственным джобом `ExecuteWorkJob`:
 
-- **8 стадий (`Stage`):** `listing` → `detail` → `status_refresh` → `download` → `prepare` → `screening` → `extraction` → `publication`.
+- **8 стадий (`StageCode`) как направленный граф пайплайна:** `listing` → `detail` (и независимый периодический `status_refresh` по тендеру) → `download` → `prepare` → `screening` → `extraction` → `publication`. Активная стадия Process `prepare` принимает только PDF-документы (`PrepareHandler` → `PdfPreparationTools` / `PageBatchOcr` / `BoundedToolProcess` под `tool_supervisor.py`); отдельные стратегии (`LibreOfficeConverter`, `OcrConverter`, `ArchiveStrategy`, `SpreadsheetStrategy`, `GsfxStrategy`) существуют вне PDF-границы допуска Process Core.
 - **4 фоновых демона (`process:daemon`):**
-  - `relay` — публикация зафиксированных событий из `prc_outbox_events` в очереди Horizon;
-  - `reconcile` — возврат просроченных leases, карантин и сверка незавершённых исполнений;
-  - `feed` — плановая подача регулярных работ (`listing`, `status_refresh`);
-  - `project` — проекция результатов в витрины чтения.
+  - `relay` — публикация зафиксированных событий из `prc_process_outbox` (`work_wake`) в очереди Horizon;
+  - `reconcile` — возврат просроченных leases (`prc_process_attempts`), карантин и сверка незавершённых исполнений (`RecoveryReconciler`);
+  - `feed` — плановая подача регулярных работ (`listing`, `status_refresh`) и обработка `feeder_wake`;
+  - `project` — проекция событий из `prc_process_outbox` (`projection`) и `prc_process_transitions` в витрины чтения.
 - **Ключевые инварианты безопасности:**
-  - Запрет любых сетевых HTTP-вызовов и объектного I/O (`S3`/MinIO) внутри открытых транзакций БД (`OutboundExecutor::sendOnce()`).
+  - Запрет любых сетевых HTTP-вызовов и объектного I/O (`S3`/MinIO) внутри открытых транзакций БД (`OutboundExecutor::execute()`, `HttpTransport::sendOnce()`, `AnalysisProviderSendGate`, `PreparedProviderTransport::sendOnce()`, `ReceiptStore`).
   - Привязка исходящих соединений к проверенным публичным IP (`UrlPolicy` + `HttpTransport` DNS pinning) и строгий TLS-трест (`SourceTlsTrust`; `verify => false` запрещён).
   - Канонический порядок блокировок и сверка времени владения lease через `clock_timestamp()`.
 
@@ -42,17 +42,28 @@
 make vendor:sync
 make bootstrap MODE=dev ENV_FILE=.env.example
 make dev:up
-make readiness
+make readiness:check
 ```
 
 ### 2. Изолированный тестовый стенд Process Core (`agelto_core_test`)
 
-Проверка качества и функциональные тесты выполняются в изолированном контуре `agelto_core_test` (`docs/dev/runbooks/process-test-rig.md`), не затрагивающем рабочую БД разработки:
+Проверка качества и функциональные тесты выполняются в изолированном контуре `agelto_core_test` (`docs/dev/runbooks/process-test-rig.md`), не затрагивающем рабочую БД разработки. Точечный запуск `make core-test-file` требует поднятого стенда (`make core-test-up`) и готовой изолированной схемы (`make core-test-reset`, сам `core-test-file` сброс схемы не выполняет):
 
 ```bash
+make core-test-up
+make core-test-reset
 make core-quality
 make core-test-unit
-make core-test-feature
+make core-test-install
+make core-test-execution
+make core-test-acquisition
+make core-test-documents
+make core-test-ai
+make core-test-network
+make core-test-observability
+make core-test-platforms
+make core-test-concurrency
+make core-test-regression
 make core-test-file TEST_FILE=tests/Feature/Health/ApplicationReadinessTest.php
 ```
 
@@ -66,17 +77,20 @@ make test:coverage
 
 ### 3. Production выкладка и восстановление (`docker-compose.prod.yml`)
 
-Production использует исключительно заранее собранные неизменяемые образы `agelto/app:<IMAGE_TAG>` и `agelto/doctor:<IMAGE_TAG>` (без bind-mount исходного кода и `vendor` и без сборки приложения на хосте) и файловые секреты в `local/secrets/`:
+Production использует исключительно заранее собранные неизменяемые образы `agelto/app:<IMAGE_TAG>`, `agelto/doctor:<IMAGE_TAG>` и `agelto/postgres:<IMAGE_TAG>` (без bind-mount исходного кода и `vendor` и без сборки приложения на хосте) и файловые секреты в `local/secrets/`:
 
 ```bash
 # Предварительная проверка конфигурации и секретов без мутации Docker
-make prod:preflight ENV_FILE=.env.production IMAGE_TAG=<tag> COMPOSE_PROJECT_NAME=agelto_prod
+make infra:preflight MODE=prod-runtime ENV_FILE=.env.production IMAGE_TAG=<tag> COMPOSE_PROJECT_NAME=agelto_prod
 
 # Продвижение проверенной пары образов (проверяет совпадение org.opencontainers.image.revision и io.agelto.vendor-lock-sha)
 make prod:image:promote ENV_FILE=.env.production IMAGE_TAG=<tag> COMPOSE_PROJECT_NAME=agelto_prod
 
 # Выкладка и автоматическая проверка готовности (app:readiness --format=agent)
 make prod:deploy:image ENV_FILE=.env.production IMAGE_TAG=<tag> COMPOSE_PROJECT_NAME=agelto_prod
+
+# Отдельная проверка готовности production-контура
+make prod:readiness ENV_FILE=.env.production IMAGE_TAG=<tag> COMPOSE_PROJECT_NAME=agelto_prod
 ```
 
 ## Опасные операции и границы безопасности

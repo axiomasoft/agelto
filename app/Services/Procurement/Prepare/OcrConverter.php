@@ -19,6 +19,18 @@ use RuntimeException;
  */
 final readonly class OcrConverter
 {
+    private const array ALLOWED_ENV = [
+        'PATH',
+        'LANG',
+        'LC_ALL',
+        'LC_CTYPE',
+        'LD_LIBRARY_PATH',
+        'TESSDATA_PREFIX',
+        'FONTCONFIG_PATH',
+        'SOURCE_DATE_EPOCH',
+        'TZ',
+    ];
+
     /**
      * Сколько страниц PDF зондируется на текстовый слой — тот же канон, что в инвентаре корпуса
      * (`artifacts/corpus_inventory.py::inspect_pdf`): первые три страницы.
@@ -39,6 +51,7 @@ final readonly class OcrConverter
             remainingChainSeconds: $this->operationTimeoutSeconds('tesseract_version') + $this->operationTimeoutSeconds('pdf_page_count'),
             deadlineAt: $deadlineAt,
         ))
+            ->env($this->sanitizedEnv(dirname($outputPdfPath)))
             ->run([
                 $this->configString('ai.tools.ocrmypdf_bin'),
                 '--language', $this->languages(),
@@ -70,6 +83,7 @@ final readonly class OcrConverter
                 + $this->operationTimeoutSeconds('pdf_page_count'),
             deadlineAt: $deadlineAt,
         ))
+            ->env($this->sanitizedEnv(dirname($pdfPath)))
             ->run([
                 $this->configString('ai.tools.pdftotext_bin'),
                 '-f', '1',
@@ -95,6 +109,7 @@ final readonly class OcrConverter
             remainingChainSeconds: 0,
             deadlineAt: $deadlineAt,
         ))
+            ->env($this->sanitizedEnv(dirname($pdfPath)))
             ->run([$this->configString('ai.tools.pdfinfo_bin'), $pdfPath]);
 
         if ($result->failed()) {
@@ -118,6 +133,7 @@ final readonly class OcrConverter
             remainingChainSeconds: $this->operationTimeoutSeconds('pdf_page_count'),
             deadlineAt: $deadlineAt,
         ))
+            ->env($this->sanitizedEnv(sys_get_temp_dir()))
             ->run([$this->configString('ai.tools.tesseract_bin'), '--version']);
 
         if ($result->failed()) {
@@ -132,6 +148,28 @@ final readonly class OcrConverter
     public function languages(): string
     {
         return $this->configString('ai.tools.ocr_languages', 'rus+eng');
+    }
+
+    /** @return array<string, string|false> */
+    private function sanitizedEnv(string $tmpDir): array
+    {
+        $env = [];
+        foreach (array_keys(getenv() + $_ENV + $_SERVER) as $key) {
+            if (is_string($key) && $key !== '') {
+                $env[$key] = false;
+            }
+        }
+        foreach (self::ALLOWED_ENV as $key) {
+            $value = getenv($key);
+            if (is_string($value) && $value !== '') {
+                $env[$key] = $value;
+            }
+        }
+        $env['TMPDIR'] = $tmpDir;
+        $env['HOME'] = $tmpDir;
+        $env['OMP_THREAD_LIMIT'] = '1';
+
+        return $env;
     }
 
     private function timeoutSeconds(): int

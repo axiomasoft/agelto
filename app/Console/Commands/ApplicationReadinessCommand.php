@@ -11,7 +11,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
 #[Description('Run active application readiness checks')]
-#[Signature('app:readiness {--format=agent : agent or json} {--only= : Comma-separated readiness check codes}')]
+#[Signature('app:readiness {--format=agent : agent or json} {--only= : Comma-separated readiness check codes} {--isolated : Run readiness probe in a hard-bounded child process}')]
 final class ApplicationReadinessCommand extends Command
 {
     public function handle(ApplicationReadiness $readiness): int
@@ -39,7 +39,9 @@ final class ApplicationReadinessCommand extends Command
             }
         }
 
-        $results = $only === null ? $readiness->check() : $readiness->check($only);
+        $results = (bool) $this->option(key: 'isolated')
+            ? $readiness->checkIsolated($only)
+            : ($only === null ? $readiness->check() : $readiness->check($only));
         $payload = array_map(fn ($result): array => $result->toArray(), $results);
 
         $this->line(json_encode($payload, JSON_THROW_ON_ERROR));

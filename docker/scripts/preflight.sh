@@ -73,14 +73,14 @@ pass VENDOR_LOCK 'private vendor pin is present, clean, and matches its manifest
 parsed=$(mktemp)
 trap 'rm -f "$parsed"' EXIT
 awk '/^[[:space:]]*($|#)/ { next } !/^[A-Za-z_][A-Za-z0-9_]*=/ { exit 1 } { print $0 }' "$env_file" >"$parsed" || fail ENV_SCHEMA 'use KEY=value lines without shell syntax' 12
-for key in APP_NAME APP_ENV APP_DEBUG DB_DATABASE DB_USERNAME APP_PORT PGSQL_PORT REDIS_PORT MINIO_PORT MINIO_CONSOLE_PORT APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY MINIO_ROOT_PASSWORD; do
+for key in APP_NAME APP_ENV APP_DEBUG DB_DATABASE DB_USERNAME APP_PORT PGSQL_PORT REDIS_PORT MINIO_PORT MINIO_CONSOLE_PORT APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY MINIO_ROOT_PASSWORD MINIO_APP_PASSWORD; do
     count=$(grep -c "^${key}=" "$parsed" || true)
     (( count <= 1 )) || fail ENV_DUPLICATE "keep exactly one $key entry" 12
 done
 for key in APP_NAME APP_ENV APP_DEBUG DB_DATABASE DB_USERNAME; do
     grep -q "^${key}=" "$parsed" || fail ENV_SCHEMA "add required non-secret key: $key" 12
 done
-for key in APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY MINIO_ROOT_PASSWORD; do
+for key in APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY MINIO_ROOT_PASSWORD MINIO_APP_PASSWORD; do
     value=$(awk -F= -v wanted="$key" '$1 == wanted { sub(/^[^=]*=/, ""); print; exit }' "$parsed")
     [[ -z "$value" || "$value" == null ]] || fail ENV_SECRET "move $key from the env file into local/secrets" 12
 done
@@ -110,8 +110,11 @@ while IFS= read -r secret; do
     (( (8#$mode_bits & 077) == 0 )) || fail SECRET_PERMISSION "restrict secret file permissions: $secret" 13
 done < "$root_dir/docker/secrets.contract"
 grep -q 'file: ./local/secrets/app_key' "$root_dir/$compose_file" || fail SECRET_GRANT 'declare Compose file-secret grants' 13
+grep -q 'file: ./local/secrets/minio_app_password' "$root_dir/$compose_file" || fail SECRET_GRANT 'declare minio_app_password Compose file-secret grant' 13
 grep -q 'POSTGRES_PASSWORD_FILE: /run/secrets/db_password' "$root_dir/$compose_file" || fail SECRET_GRANT 'grant db_password through its file path' 13
 grep -q 'MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password' "$root_dir/$compose_file" || fail SECRET_GRANT 'grant minio_root_password through its file path' 13
+grep -q 'AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password' "$root_dir/$compose_file" || fail SECRET_GRANT 'grant minio_app_password through its file path' 13
+! grep -q 'AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_root_password' "$root_dir/$compose_file" || fail SECRET_GRANT 'do not grant minio_root_password as AWS_SECRET_ACCESS_KEY_FILE' 13
 pass SECRET_CONTRACT 'secret files and Compose grants are private and complete'
 
 env_value() { awk -F= -v wanted="$1" '$1 == wanted { sub(/^[^=]*=/, ""); print; exit }' "$env_file"; }

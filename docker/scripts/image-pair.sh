@@ -55,11 +55,23 @@ build_image() {
     [ "$(docker image inspect --format '{{ index .Config.Labels "io.agelto.vendor-lock-sha" }}' "$image")" = "$vendor_lock_sha" ]
 }
 
+build_postgres_image() {
+    local image="$1"
+    docker build \
+        --build-arg "SOURCE_SHA=$source_sha" \
+        --tag "$image" \
+        --file "$root/docker/postgres/Dockerfile" \
+        "$root/docker/postgres"
+    [ "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")" = "$source_sha" ]
+}
+
 image_prefix="${registry:+$registry/}agelto"
 app_image="$image_prefix/app:$tag"
 doctor_image="$image_prefix/doctor:$tag"
+postgres_image="$image_prefix/postgres:$tag"
 build_image application "$app_image"
 build_image doctor "$doctor_image"
+build_postgres_image "$postgres_image"
 
 docker run --rm --entrypoint sh "$app_image" -c 'test ! -d vendor/pestphp && test ! -d vendor/laravel/doctor'
 docker run --rm --entrypoint sh "$doctor_image" -c 'test -d vendor/pestphp && test -d vendor/laravel/doctor'
@@ -67,12 +79,15 @@ docker run --rm --entrypoint sh "$doctor_image" -c 'test -d vendor/pestphp && te
 if "$publish"; then
     docker push "$app_image"
     docker push "$doctor_image"
+    docker push "$postgres_image"
 
-    docker image rm "$app_image" "$doctor_image" >/dev/null
+    docker image rm "$app_image" "$doctor_image" "$postgres_image" >/dev/null
     docker pull "$app_image" >/dev/null
     docker pull "$doctor_image" >/dev/null
+    docker pull "$postgres_image" >/dev/null
     docker run --rm --entrypoint sh "$app_image" -c 'test ! -d vendor/pestphp && test ! -d vendor/laravel/doctor'
     docker run --rm --entrypoint sh "$doctor_image" -c 'test -d vendor/pestphp && test -d vendor/laravel/doctor'
+    [ "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$postgres_image")" = "$source_sha" ]
 fi
 
-printf 'Image pair ready: %s %s\n' "$app_image" "$doctor_image"
+printf 'Image pair ready: %s %s %s\n' "$app_image" "$doctor_image" "$postgres_image"

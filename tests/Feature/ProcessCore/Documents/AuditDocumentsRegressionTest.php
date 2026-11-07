@@ -19,6 +19,7 @@ use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
+use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Exceptions\Procurement\Prepare\ToolFailed;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -32,10 +33,14 @@ use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentStorageReconciler;
 use App\Services\Procurement\Document\PrepareWorkspace;
 use App\Services\Procurement\Document\StoredDocumentWriter;
+use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
 use App\Services\Procurement\Prepare\ArchiveStrategy;
 use App\Services\Procurement\Prepare\BoundedToolProcess;
+use App\Services\Procurement\Prepare\LibreOfficeConverter;
+use App\Services\Procurement\Prepare\OcrConverter;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use App\Services\Procurement\Process\ProcessTransaction;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
@@ -708,4 +713,156 @@ test('ArchiveStrategy учитывает кумулятивный бюджет �
         ->and($xlsxDoc->unprocessable_reason)->toBe(UnprocessableReason::UnreadableFormat);
 
     Process::assertNothingRan();
+});
+
+test('BoundedToolProcess изолирует конвертер через Landlock и Seccomp-BPF и защищает протокол подтверждения остановки от подделки receipt дочерним процессом', function (): void {
+    $dir = storage_path('app/testing/tool-sandbox-'.bin2hex(random_bytes(6)));
+    $siblingDir = storage_path('app/testing/tool-sibling-'.bin2hex(random_bytes(6)));
+    mkdir($dir, 0700, true);
+    mkdir($siblingDir, 0700, true);
+    $siblingSecret = $siblingDir.'/secret.txt';
+    file_put_contents($siblingSecret, 'sibling-workspace-secret');
+    $escapeTmpFile = sys_get_temp_dir().'/escape-probe-'.bin2hex(random_bytes(6));
+
+    try {
+        $tool = new BoundedToolProcess;
+
+        // 1-3. Проверка запрета чтения /run, .env*, соседнего workspace, записи вне $dir и любых TCP/UDP/Unix сокетов.
+        $probeOutput = $tool->run(
+            [
+                'python3',
+                '-c',
+                'import errno, json, os, socket, sys
+sibling_file, escape_tmp, env_example = sys.argv[1], sys.argv[2], sys.argv[3]
+results = {}
+def check_denied(name, fn):
+    try:
+        fn()
+        results[name] = "allowed"
+    except PermissionError as e:
+        results[name] = "eacces" if e.errno == errno.EACCES else f"perm_{e.errno}"
+    except OSError as e:
+        results[name] = f"oserror_{e.errno}"
+
+check_denied("read_run", lambda: os.listdir("/run"))
+check_denied("read_env", lambda: open(env_example, "rb").read(16))
+check_denied("read_sibling_file", lambda: open(sibling_file, "rb").read())
+check_denied("list_sibling_dir", lambda: os.listdir(os.path.dirname(sibling_file)))
+check_denied("write_outside_tmp", lambda: open(escape_tmp, "wb").write(b"x"))
+check_denied("write_sibling", lambda: open(sibling_file + ".pwn", "wb").write(b"x"))
+check_denied("tcp_socket", lambda: socket.socket(socket.AF_INET, socket.SOCK_STREAM))
+check_denied("udp_socket", lambda: socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
+check_denied("ipv6_socket", lambda: socket.socket(socket.AF_INET6, socket.SOCK_STREAM))
+check_denied("unix_connect", lambda: socket.socket(socket.AF_UNIX, socket.SOCK_STREAM).connect("/run/NonExistent.sock"))
+check_denied("unix_bind", lambda: socket.socket(socket.AF_UNIX, socket.SOCK_STREAM).bind(os.path.join(os.getcwd(), "test.sock")))
+
+a, b = socket.socketpair()
+a.close()
+b.close()
+results["socketpair"] = "ok"
+print(json.dumps(results))',
+                $siblingSecret,
+                $escapeTmpFile,
+                base_path('.env.example'),
+            ],
+            $dir,
+            ToolContext::make(),
+            hrtime(true) / 1e9 + 10,
+        );
+
+        $probes = json_decode(trim($probeOutput), true, flags: JSON_THROW_ON_ERROR);
+        expect($probes)->toBe([
+            'read_run' => 'eacces',
+            'read_env' => 'eacces',
+            'read_sibling_file' => 'eacces',
+            'list_sibling_dir' => 'eacces',
+            'write_outside_tmp' => 'eacces',
+            'write_sibling' => 'eacces',
+            'tcp_socket' => 'eacces',
+            'udp_socket' => 'eacces',
+            'ipv6_socket' => 'eacces',
+            'unix_connect' => 'eacces',
+            'unix_bind' => 'eacces',
+            'socketpair' => 'ok',
+        ])->and(file_exists($escapeTmpFile))->toBeFalse();
+
+        // 4a. Попытка подделать receipt и удалить .active перед ненулевым выходом перезаписывается supervisor-ом с настоящим кодом выхода.
+        $forgedExitCaught = null;
+        try {
+            $tool->run(
+                [
+                    'python3',
+                    '-c',
+                    'import glob, json, os, sys
+for active in glob.glob(os.path.join(os.getcwd(), "*.active")):
+    receipt = active[:-7]
+    os.unlink(active)
+    with open(receipt, "w") as f:
+        json.dump({"stopped": True, "exit": 0, "reason": None, "pgid": os.getpid()}, f)
+sys.exit(17)',
+                ],
+                $dir,
+                ToolContext::make(),
+                hrtime(true) / 1e9 + 10,
+            );
+        } catch (ToolFailed $e) {
+            $forgedExitCaught = $e;
+        }
+        expect($forgedExitCaught)->toBeInstanceOf(ToolFailed::class)
+            ->and($forgedExitCaught?->exitCode)->toBe(17);
+
+        // 4b. Если дочерний процесс подделывает receipt без секретного токена, удаляет .active и убивает supervisor до финальной записи, BoundedToolProcess отвергает подделку.
+        $unconfirmedCaught = null;
+        try {
+            $tool->run(
+                [
+                    'python3',
+                    '-c',
+                    'import glob, json, os, signal, sys
+for active in glob.glob(os.path.join(os.getcwd(), "*.active")):
+    receipt = active[:-7]
+    os.unlink(active)
+    with open(receipt, "w") as f:
+        json.dump({"stopped": True, "exit": 0, "reason": None, "pgid": os.getpid()}, f)
+        f.flush()
+os.kill(os.getppid(), signal.SIGKILL)
+sys.exit(0)',
+                ],
+                $dir,
+                ToolContext::make(),
+                hrtime(true) / 1e9 + 10,
+            );
+        } catch (ToolCleanupUnconfirmed $e) {
+            $unconfirmedCaught = $e;
+        }
+        expect($unconfirmedCaught)->toBeInstanceOf(ToolCleanupUnconfirmed::class);
+
+        // 5. Legacy-конвертеры очищают секреты окружения при запуске Process.
+        $prevAppKey = getenv('APP_KEY');
+        putenv('APP_KEY=base64:secret-audit-key');
+        try {
+            Process::fake([
+                '*' => Process::result(output: "tesseract 5.5.0\n"),
+            ]);
+            app(LibreOfficeConverter::class)->version();
+            app(OcrConverter::class)->tesseractVersion();
+            try {
+                app(ArchiveExtractor::class)->listEntries($dir.'/missing.7z', '7z');
+            } catch (Throwable) {
+            }
+
+            Process::assertRan(fn (PendingProcess $process): bool => ($process->environment['APP_KEY'] ?? null) === false
+                && ($process->environment['OMP_THREAD_LIMIT'] ?? null) === '1');
+        } finally {
+            if ($prevAppKey === false) {
+                putenv('APP_KEY');
+            } else {
+                putenv('APP_KEY='.$prevAppKey);
+            }
+        }
+    } finally {
+        @unlink($escapeTmpFile);
+        File::deleteDirectory($dir);
+        File::deleteDirectory($siblingDir);
+    }
 });

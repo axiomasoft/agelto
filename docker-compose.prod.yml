@@ -8,11 +8,13 @@ services:
     mem_limit: 512m
     cpus: 1.0
     pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
     secrets:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
@@ -27,13 +29,17 @@ services:
       DB_PASSWORD_FILE: /run/secrets/db_password
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_CACHE_HOST: redis-cache
+      REDIS_SESSION_HOST: redis-session
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       CACHE_STORE: redis
+      READINESS_SCHEDULER_CACHE_STORE: readiness
       SESSION_DRIVER: redis
+      SESSION_CONNECTION: session
       QUEUE_CONNECTION: redis
       FILESYSTEM_DISK: s3
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-agelto}
-      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_root_password
+      AWS_ACCESS_KEY_ID: ${MINIO_APP_USER:-agelto_app}
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
       AWS_DEFAULT_REGION: us-east-1
       AWS_BUCKET: ${MINIO_BUCKET:-agelto}
       AWS_ENDPOINT: http://minio:9000
@@ -55,6 +61,8 @@ services:
     mem_limit: 1g
     cpus: 2.0
     pids_limit: 256
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - app_storage:/var/www/html/storage
     ports:
@@ -64,7 +72,7 @@ services:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     environment: &prod_env
       APP_ENV: production
       APP_DEBUG: "false"
@@ -76,14 +84,18 @@ services:
       DB_DATABASE: ${DB_DATABASE}
       DB_USERNAME: ${DB_USERNAME}
       CACHE_STORE: redis
+      READINESS_SCHEDULER_CACHE_STORE: readiness
       SESSION_DRIVER: redis
+      SESSION_CONNECTION: session
       QUEUE_CONNECTION: redis
       LOG_CHANNEL: json
       LOG_LEVEL: ${LOG_LEVEL:-warning}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_CACHE_HOST: redis-cache
+      REDIS_SESSION_HOST: redis-session
       FILESYSTEM_DISK: s3
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-agelto}
+      AWS_ACCESS_KEY_ID: ${MINIO_APP_USER:-agelto_app}
       AWS_DEFAULT_REGION: us-east-1
       AWS_BUCKET: ${MINIO_BUCKET:-agelto}
       AWS_ENDPOINT: http://minio:9000
@@ -94,10 +106,12 @@ services:
       APP_KEY_FILE: /run/secrets/app_key
       DB_PASSWORD_FILE: /run/secrets/db_password
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
-      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_root_password
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+      redis-cache: { condition: service_healthy }
+      redis-session: { condition: service_healthy }
       minio: { condition: service_healthy }
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/up >/dev/null || exit 1"]
@@ -130,6 +144,8 @@ services:
     # (`shm_size`/`CHROME_BIN`, Фаза 8 — Playwright/Chromium ещё не подключены, D14 запрещает
     # рефакторинг вне ТЗ item'а); независимо обоснованный `shm_size` для `postgres` — ниже.
     shm_size: '2gb'
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - app_storage:/var/www/html/storage
     command: ["php", "artisan", "horizon"]
@@ -137,7 +153,7 @@ services:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     healthcheck:
       test: ["CMD-SHELL", "php artisan horizon:status 2>/dev/null | grep -qiE 'running' || exit 1"]
       interval: 30s
@@ -162,6 +178,8 @@ services:
     mem_limit: 512m
     cpus: 1.0
     pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - app_storage:/var/www/html/storage
     command: ["php", "artisan", "schedule:work"]
@@ -169,7 +187,7 @@ services:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f '[a]rtisan schedule:work' >/dev/null && php artisan app:readiness --only=scheduler >/dev/null || exit 1"]
       interval: 30s
@@ -194,6 +212,8 @@ services:
     mem_limit: 512m
     cpus: 1.0
     pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
     entrypoint: ["/usr/local/bin/docker-php-serversideup-entrypoint"]
     command: ["php", "artisan", "process:daemon", "relay"]
     volumes:
@@ -203,7 +223,7 @@ services:
       - app_key
       - db_password
       - redis_password
-      - minio_root_password
+      - minio_app_password
     depends_on:
       app: { condition: service_healthy }
       postgres: { condition: service_healthy }
@@ -249,10 +269,7 @@ services:
       start_period: 40s
 
   postgres:
-    build:
-      context: ./docker/postgres
-      dockerfile: Dockerfile
-    image: agelto_postgres:17-partman
+    image: agelto/postgres:${IMAGE_TAG:?IMAGE_TAG is required}
     restart: unless-stopped
     mem_limit: 4g
     cpus: 2.0
@@ -323,6 +340,49 @@ services:
       - agelto_network
     logging: *default_logging
 
+  redis-cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 128
+    command: ["redis-server", "--aclfile", "/run/secrets/redis_acl", "--save", "", "--appendonly", "no", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - ./docker/redis/entrypoint.sh:/usr/local/bin/agelto-redis-entrypoint:ro
+    secrets:
+      - redis_acl
+    entrypoint: ["/usr/local/bin/agelto-redis-entrypoint"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "--user", "health", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+    logging: *default_logging
+
+  redis-session:
+    image: redis:7-alpine
+    restart: unless-stopped
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    command: ["redis-server", "--aclfile", "/run/secrets/redis_acl", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "256mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_session_data:/data
+      - ./docker/redis/entrypoint.sh:/usr/local/bin/agelto-redis-entrypoint:ro
+    secrets:
+      - redis_acl
+    entrypoint: ["/usr/local/bin/agelto-redis-entrypoint"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "--user", "health", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agelto_network
+    logging: *default_logging
+
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
     restart: unless-stopped
@@ -356,6 +416,7 @@ networks:
 volumes:
   pgsql_data:
   redis_data:
+  redis_session_data:
   minio_data:
   app_storage:
 
@@ -370,3 +431,5 @@ secrets:
     file: ./local/secrets/redis_acl
   minio_root_password:
     file: ./local/secrets/minio_root_password
+  minio_app_password:
+    file: ./local/secrets/minio_app_password

@@ -34,6 +34,8 @@ final class RecoveryReconciler
 {
     public const int BATCH = 50;
 
+    public const int CANCELLED_PROVIDER_QUOTA = 25;
+
     /** Snapshot менялся на каждой попытке: work остаётся durable, следующий tick повторит. */
     private const int MAX_RELOADS = 3;
 
@@ -188,9 +190,8 @@ final class RecoveryReconciler
     public function recoverBlockedProvider(): int
     {
         $recovered = 0;
-        $blocked = $this->recovery->blockedProvider(self::BATCH, $this->blockedProviderCursor);
-        $remaining = self::BATCH - count($blocked);
-        $cancelled = $remaining > 0 ? $this->recovery->cancelledProvider($remaining, $this->cancelledProviderCursor) : [];
+        $cancelled = $this->recovery->cancelledProvider(self::CANCELLED_PROVIDER_QUOTA, $this->cancelledProviderCursor);
+        $blocked = $this->recovery->blockedProvider(self::BATCH - count($cancelled), $this->blockedProviderCursor);
         foreach ([...$blocked, ...$cancelled] as $workId) {
             $recovered += $this->isolated('recover_blocked_provider', $workId, function () use ($workId): int {
                 $pinned = $this->recovery->pinnedPlan($workId);

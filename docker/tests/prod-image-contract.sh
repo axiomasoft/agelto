@@ -35,6 +35,9 @@ APP_DEBUG=false
 EOF
 docker compose --project-directory "$root_dir" --project-name agelto_p1_image_contract --env-file "$temp_dir/.env" -f "$compose_file" config > "$temp_dir/compose.yml"
 grep -F 'image: agelto/app:contract-tag' "$temp_dir/compose.yml" | wc -l | grep -qx '7'
+grep -F 'image: agelto/postgres:contract-tag' "$temp_dir/compose.yml" | wc -l | grep -qx '1'
+! grep -Eq '^[[:space:]]+build:' "$compose_file"
+grep -F 'no-new-privileges:true' "$temp_dir/compose.yml" | wc -l | grep -qx '7'
 
 sentinel="P1_IMAGE_SECRET_$RANDOM$RANDOM"
 image="agelto-contract:$stage-$RANDOM"

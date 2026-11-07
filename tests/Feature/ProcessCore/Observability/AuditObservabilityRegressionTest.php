@@ -2,25 +2,35 @@
 
 declare(strict_types=1);
 
+use App\Dto\Procurement\Document\BlobReference;
+use App\Dto\Procurement\Document\DocumentHead;
+use App\Dto\Procurement\Document\DocumentRevision;
+use App\Dto\Procurement\Document\SourceDocumentMetadata;
 use App\Dto\Procurement\Platform\PlatformCode;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Health\ReadinessCheckCode;
 use App\Enums\Procurement\Process\ControlMode;
 use App\Enums\Procurement\Process\OperatorCommandStatus;
+use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Telemetry\LogChannel;
 use App\Guards\Admin\Policies\EstimatePolicy;
 use App\Guards\Admin\Policies\FixturePolicy;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Http\Middleware\AssignTraceId;
 use App\Models\Procurement\Ai\Fixture;
+use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Estimate\Estimate;
 use App\Models\User;
 use App\Notifications\PipelineAlert;
+use App\Repositories\Procurement\Document\DocumentVersionRepository;
+use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Repositories\Procurement\Process\ControlRepository;
 use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
 use App\Services\Health\ApplicationReadiness;
 use App\Services\Procurement\Process\MetricProjector;
+use App\Services\Procurement\Process\ProcessDiagnosticsInspector;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\WorkFinalizer;
 use App\Services\Reference\ClassifierImporter;
@@ -30,6 +40,9 @@ use App\Support\Telemetry\SafeLogChannelTap;
 use App\Support\Telemetry\SentrySanitizer;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Database\ConnectionResolverInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Context;
@@ -37,6 +50,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
+use Laravel\Horizon\Contracts\SupervisorRepository;
 use Monolog\Logger;
 use Monolog\Processor\PsrLogMessageProcessor;
 use Sentry\Event as SentryEvent;
@@ -47,6 +61,8 @@ use Sentry\Stacktrace;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\HttpFoundation\Response;
+use Tests\Support\ProcessCore\DocumentStorageFixtures;
+use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
 
@@ -325,4 +341,321 @@ test('PipelineAlert ставит дедупликационный ключ в к
         ->and($readGlob("{$logRoot}/system-errors*.log"))->toContain('process-incident-marker')
         ->and($readGlob("{$logRoot}/laravel*.log"))->not->toContain('platform-dom-drift-marker')
         ->and($readGlob("{$logRoot}/laravel*.log"))->not->toContain('process-incident-marker');
+});
+
+test('ApplicationReadiness пропускает delete в finally при истечении дедлайна во время записи в хранилище и до подключения к БД', function (): void {
+    config()->set('readiness.storage.disk', 's3');
+
+    $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('put')
+        ->once()
+        ->andReturnUsing(static function (): bool {
+            usleep(25_000);
+
+            return true;
+        });
+    $disk->shouldNotReceive('get');
+    $disk->shouldNotReceive('delete');
+
+    $filesystemFactory = Mockery::mock(FilesystemFactory::class);
+    $filesystemFactory->shouldReceive('disk')->with('s3')->andReturn($disk);
+    $this->instance(FilesystemFactory::class, $filesystemFactory);
+
+    $readiness = app(ApplicationReadiness::class);
+    $results = $readiness->check([ReadinessCheckCode::Storage], hrtime(true) + 5_000_000);
+
+    expect($results)->toHaveCount(1)
+        ->and($results[0]->code)->toBe(ReadinessCheckCode::Storage)
+        ->and($results[0]->passed)->toBeFalse()
+        ->and($results[0]->message)->toBe('unavailable');
+
+    $storageMethod = new ReflectionMethod($readiness, 'storage');
+    $expiredStorage = $storageMethod->invoke($readiness, hrtime(true) - 1_000_000);
+    expect($expiredStorage->passed)->toBeFalse()
+        ->and($expiredStorage->message)->toBe('unavailable');
+
+    $dbResolver = Mockery::mock(ConnectionResolverInterface::class);
+    $dbResolver->shouldNotReceive('connection');
+    $this->instance(ConnectionResolverInterface::class, $dbResolver);
+    $readinessWithMockDb = app(ApplicationReadiness::class);
+    $pgMethod = new ReflectionMethod($readinessWithMockDb, 'runWithPgTimeouts');
+    expect(fn () => $pgMethod->invoke($readinessWithMockDb, hrtime(true) - 1_000_000, static function (): void {}))
+        ->toThrow(RuntimeException::class, 'Database readiness deadline exceeded');
+});
+
+test('ApplicationReadiness::checkIsolated жёстко ограничивает зависший процесс пробы по времени, зачищает группу процессов и поддерживает --isolated', function (): void {
+    $pidFile = tempnam(sys_get_temp_dir(), 'readiness_iso_');
+    assert(is_string($pidFile));
+
+    try {
+        $script = sprintf(
+            'if (function_exists("pcntl_signal")) { pcntl_signal(SIGTERM, SIG_IGN); } '
+            .'$child = proc_open([PHP_BINARY, "-r", "if (function_exists(\"pcntl_signal\")) { pcntl_signal(SIGTERM, SIG_IGN); } sleep(30);"], [], $pipes); '
+            .'$st = proc_get_status($child); '
+            .'file_put_contents(%s, getmypid()."\n".$st["pid"]); '
+            .'sleep(30);',
+            var_export($pidFile, true),
+        );
+
+        $startedNs = hrtime(true);
+        $results = app(ApplicationReadiness::class)->checkIsolated(
+            only: [ReadinessCheckCode::Database, ReadinessCheckCode::Storage],
+            timeoutSeconds: 0.3,
+            commandOverride: [PHP_BINARY, '-r', $script],
+        );
+        $elapsedSeconds = (hrtime(true) - $startedNs) / 1_000_000_000;
+
+        $pids = array_values(array_filter(
+            array_map('intval', explode("\n", trim((string) file_get_contents($pidFile)))),
+            static fn (int $pid): bool => $pid > 0,
+        ));
+
+        expect($elapsedSeconds)->toBeLessThan(2.0)
+            ->and($results)->toHaveCount(2)
+            ->and($results[0]->toArray())->toBe(['code' => 'database', 'passed' => false, 'message' => 'unavailable'])
+            ->and($results[1]->toArray())->toBe(['code' => 'storage', 'passed' => false, 'message' => 'unavailable'])
+            ->and($pids)->toHaveCount(2);
+
+        foreach ($pids as $pid) {
+            $status = @file_get_contents("/proc/{$pid}/status");
+            $isDeadOrZombie = ! is_dir("/proc/{$pid}") || (is_string($status) && preg_match('/^State:\s+Z\b/m', $status) === 1);
+            expect($isDeadOrZombie)->toBeTrue();
+        }
+        expect(is_dir("/proc/{$pids[0]}"))->toBeFalse();
+    } finally {
+        @unlink($pidFile);
+    }
+
+    $this->artisan('app:readiness', [
+        '--only' => 'database',
+        '--format' => 'json',
+        '--isolated' => true,
+    ])->assertExitCode(0);
+});
+
+test('ProcessDiagnosticsInspector проверяет покрытие очередей и прогресс всех 8 стадий по connection+queue и часам БД', function (): void {
+    config()->set('process.diagnostic_thresholds.analysis_stuck_minutes', 30);
+
+    ExecutionFixtures::listingWork();
+    ExecutionFixtures::detailWork();
+    ExecutionFixtures::statusWork();
+
+    $document = Document::factory()->create();
+    $downloadWorkId = LedgerFixtures::uuid();
+    DB::table('prc_process_work')->insert([
+        'id' => $downloadWorkId->value,
+        'stage' => StageCode::Download->value,
+        'work_key' => DB::raw("decode('".LedgerFixtures::hash('download-paused:'.$downloadWorkId->value)->hex."', 'hex')"),
+        'work_identity' => '{}',
+        'work_identity_schema_version' => 1,
+        'input_revision' => 1,
+        'input_hash' => DB::raw("decode('".LedgerFixtures::hash('download-input')->hex."', 'hex')"),
+        'input_payload' => '{}',
+        'input_schema_version' => 1,
+        'state' => 'blocked',
+        'reason_code' => 'paused',
+        'cohort_key' => 'manual',
+        'document_id' => $document->id,
+        'created_at' => DB::raw('clock_timestamp()'),
+        'updated_at' => DB::raw('clock_timestamp()'),
+    ]);
+
+    $domain = DocumentStorageFixtures::domain();
+    $blobId = LedgerFixtures::uuid();
+    $artifactHash = LedgerFixtures::hash('screening-doc-version');
+    $blobRef = new BlobReference($blobId, $domain, $artifactHash, 'local', 'objects/'.$artifactHash->hex, 16);
+    $revision = app(ProcessTransaction::class)->run(function () use ($document, $domain, $blobRef): DocumentRevision {
+        app(StorageCapacityRepository::class)->lockDomains([$domain]);
+        DB::insert("INSERT INTO prc_document_blobs(id,storage_domain_id,content_hash,disk,object_key,size_bytes,verified_at,deletion_generation) VALUES (?,?,decode(?,'hex'),?,?,?,clock_timestamp(),0)", [
+            $blobRef->id->value,
+            $domain->value,
+            $blobRef->hash->hex,
+            $blobRef->disk,
+            $blobRef->objectKey,
+            $blobRef->sizeBytes,
+        ]);
+
+        return app(DocumentVersionRepository::class)->observeBlobLocked(
+            new DocumentHead($document->id, 1, null),
+            $blobRef,
+            new SourceDocumentMetadata('fixture.pdf', 'application/pdf'),
+        );
+    });
+    $screeningWorkId = new WorkId(LedgerFixtures::uuid());
+    DB::table('prc_process_work')->insert([
+        'id' => $screeningWorkId->value->value,
+        'stage' => StageCode::Screening->value,
+        'work_key' => DB::raw("decode('".LedgerFixtures::hash('screening-stalled:'.$screeningWorkId->value->value)->hex."', 'hex')"),
+        'work_identity' => '{}',
+        'work_identity_schema_version' => 1,
+        'input_revision' => 1,
+        'input_hash' => DB::raw("decode('".LedgerFixtures::hash('screening-input')->hex."', 'hex')"),
+        'input_payload' => '{}',
+        'input_schema_version' => 1,
+        'state' => 'ready',
+        'cohort_key' => 'manual',
+        'document_version_id' => $revision->id,
+        'created_at' => DB::raw("clock_timestamp() - interval '45 minutes'"),
+        'updated_at' => DB::raw("clock_timestamp() - interval '45 minutes'"),
+    ]);
+
+    $supervisors = Mockery::mock(SupervisorRepository::class);
+    $supervisors->shouldReceive('all')->andReturn([
+        (object) [
+            'name' => 'master:supervisor-process-listing',
+            'status' => 'running',
+            'options' => ['connection' => 'process_long', 'queue' => 'process-listing'],
+            'processes' => ['process_long:process-listing' => 3],
+        ],
+        (object) [
+            'name' => 'master:supervisor-process-acquisition',
+            'status' => 'running',
+            'options' => ['connection' => 'process_short', 'queue' => 'process-acquisition'],
+            'processes' => ['process_short:process-acquisition' => 0],
+        ],
+        (object) [
+            'name' => 'master:supervisor-process-download',
+            'status' => 'running',
+            'options' => ['connection' => 'process_download', 'queue' => 'process-download'],
+            'processes' => ['process_download:process-download' => 2],
+        ],
+        (object) [
+            'name' => 'master:supervisor-process-prepare',
+            'status' => 'paused',
+            'options' => ['connection' => 'process_long', 'queue' => 'process-prepare'],
+            'processes' => ['process_long:process-prepare' => 2],
+        ],
+        (object) [
+            'name' => 'master:supervisor-process-ai',
+            'status' => 'running',
+            'options' => ['connection' => 'process_ai', 'queue' => 'process-ai'],
+            'processes' => ['process_ai:process-ai' => 4],
+        ],
+        (object) [
+            'name' => 'master:supervisor-process-publication',
+            'status' => 'running',
+            'options' => ['connection' => 'process_short', 'queue' => 'process-publication'],
+            'processes' => ['process_short:process-publication' => 1],
+        ],
+    ]);
+    $this->instance(SupervisorRepository::class, $supervisors);
+
+    $inspector = app(ProcessDiagnosticsInspector::class);
+    $report = $inspector->inspectStageQueues();
+
+    expect(array_keys($report))->toBe([
+        'listing', 'detail', 'status_refresh', 'download', 'prepare', 'screening', 'extraction', 'publication',
+    ])
+        ->and($report['listing']['status'])->toBe('active_backlog')
+        ->and($report['listing']['has_active_consumer'])->toBeTrue()
+        ->and($report['listing']['eligible_backlog'])->toBe(1)
+        ->and($report['detail']['status'])->toBe('unconsumed_queue')
+        ->and($report['detail']['has_active_consumer'])->toBeFalse()
+        ->and($report['detail']['connection'])->toBe('process_short')
+        ->and($report['detail']['queue'])->toBe('process-acquisition')
+        ->and($report['status_refresh']['status'])->toBe('unconsumed_queue')
+        ->and($report['status_refresh']['has_active_consumer'])->toBeFalse()
+        ->and($report['download']['status'])->toBe('paused')
+        ->and($report['download']['paused_count'])->toBe(1)
+        ->and($report['download']['eligible_backlog'])->toBe(0)
+        ->and($report['prepare']['status'])->toBe('no_work')
+        ->and($report['prepare']['has_active_consumer'])->toBeFalse()
+        ->and($report['screening']['status'])->toBe('stalled_progress')
+        ->and($report['screening']['oldest_eligible_age_seconds'])->toBeGreaterThanOrEqual(2700)
+        ->and($report['extraction']['status'])->toBe('no_work')
+        ->and($report['extraction']['has_active_consumer'])->toBeTrue()
+        ->and($report['publication']['status'])->toBe('no_work')
+        ->and($report['publication']['has_active_consumer'])->toBeTrue();
+
+    $findings = $inspector->stageQueueCoverage();
+    expect($findings)
+        ->toHaveKey('stage_queue_detail')
+        ->toHaveKey('stage_queue_status_refresh')
+        ->toHaveKey('stage_queue_prepare')
+        ->toHaveKey('stage_stalled_screening')
+        ->not->toHaveKey('stage_queue_listing')
+        ->not->toHaveKey('stage_queue_extraction')
+        ->not->toHaveKey('stage_queue_publication')
+        ->and($findings['stage_queue_detail'])->toContain('process_short:process-acquisition')
+        ->and($findings['stage_queue_prepare'])->toContain('process_long:process-prepare')
+        ->and($findings['stage_stalled_screening'])->toContain('process_ai:process-ai');
+
+    DB::table('prc_process_transitions')->insert([
+        'event_id' => LedgerFixtures::uuid()->value,
+        'entity_kind' => 'work',
+        'work_id' => $screeningWorkId->value->value,
+        'entity_seq' => 99,
+        'previous_state' => 'running',
+        'new_state' => 'succeeded',
+        'actor_kind' => 'worker',
+        'occurred_at' => DB::raw('clock_timestamp()'),
+        'schema_version' => 1,
+    ]);
+
+    $afterProgress = $inspector->inspectStageQueues();
+    expect($afterProgress['screening']['status'])->toBe('active_backlog')
+        ->and($inspector->stageQueueCoverage())->not->toHaveKey('stage_stalled_screening');
+});
+
+test('readme.md содержит актуальные таблицы Process Core, методы транспорта и существующие цели Makefile', function (): void {
+    $readme = (string) file_get_contents(base_path('readme.md'));
+
+    foreach ([
+        'prc_work_items',
+        'prc_work_executions',
+        'prc_outbox_events',
+        'prc_execution_leases',
+        'OutboundExecutor::sendOnce',
+        'make core-test-feature',
+        'make prod:preflight',
+    ] as $forbidden) {
+        expect($readme)->not->toContain($forbidden);
+    }
+
+    expect($readme)->not->toMatch('/\bmake\s+readiness\b(?!:)/')
+        ->and($readme)->toContain(
+            'prc_process_work',
+            'prc_process_attempts',
+            'prc_process_outbox',
+            'prc_operation_intents',
+            'prc_process_runs',
+            'prc_process_daemon_heartbeats',
+            'OutboundExecutor::execute()',
+            'HttpTransport::sendOnce()',
+            'AnalysisProviderSendGate',
+            'make readiness:check',
+            'make prod:readiness',
+            'make infra:preflight',
+            'make core-test-up',
+            'make core-test-reset',
+        );
+
+    $rootMakefile = (string) file_get_contents(base_path('Makefile'));
+    $dockerMakefile = (string) file_get_contents(base_path('docker/Makefile'));
+    $definedTargets = [];
+
+    if (preg_match('/^CORE_TARGETS\s*:=\s*(.+)$/m', $rootMakefile, $coreMatch) === 1) {
+        foreach (preg_split('/\s+/', trim($coreMatch[1])) ?: [] as $target) {
+            if ($target !== '') {
+                $definedTargets[$target] = true;
+            }
+        }
+    }
+
+    if (preg_match_all('/^([a-z0-9\\\\:_-]+):/m', $dockerMakefile, $dockerMatches) > 0) {
+        foreach ($dockerMatches[1] as $rawTarget) {
+            $definedTargets[str_replace('\\:', ':', $rawTarget)] = true;
+        }
+    }
+
+    preg_match_all('/\bmake\s+([a-z0-9:_-]+)(?=\s|$|`)/m', $readme, $readmeMakeMatches);
+    $referencedTargets = array_values(array_unique(array_filter(
+        $readmeMakeMatches[1],
+        static fn (string $t): bool => $t !== 'and' && ! str_contains($t, '<'),
+    )));
+
+    expect($referencedTargets)->not->toBeEmpty();
+    foreach ($referencedTargets as $target) {
+        expect($definedTargets)->toHaveKey($target);
+    }
 });

@@ -16,6 +16,7 @@ use App\Dto\Procurement\Network\ResponseEnvelope;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Network\TransportMetrics;
 use App\Dto\Procurement\Platform\RequestProfile;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\Duration;
@@ -250,8 +251,9 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
             || $this->mapping->physical($physicalCallId)->workId->value->value !== $this->context->lease()->workId->value->value) {
             throw new \InvalidArgumentException('Transport outcome belongs to a different physical operation.');
         }
-        $bytes = strlen($outcome->body() ?? '');
-        $response = $outcome->status === null ? null : new ResponseEnvelope($outcome->status, $outcome->headers, new DecodedTextBody('', 'UTF-8'), $bytes, $bytes);
+        $wireBytes = $outcome->wireBytes;
+        $entityBytes = $outcome->entityBytes;
+        $response = $outcome->status === null ? null : new ResponseEnvelope($outcome->status, $outcome->headers, new DecodedTextBody('', 'UTF-8'), $wireBytes, $entityBytes);
         $failure = match ($outcome->failure) {
             null => null,
             ProviderTransportFailure::Connection => TransportFailure::Connect,
@@ -261,7 +263,8 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
             ProviderTransportFailure::Truncated => TransportFailure::Truncated,
             ProviderTransportFailure::Interrupted, ProviderTransportFailure::Deadline => TransportFailure::Cancelled,
         };
-        $this->permits->record(new ProcessUuid($physicalCallId), new HttpAttemptResult($response, $failure, $bytes, $bytes));
+        $metrics = $outcome->stats === null ? null : TransportMetrics::fromCurlStats($outcome->stats);
+        $this->permits->record(new ProcessUuid($physicalCallId), new HttpAttemptResult($response, $failure, $wireBytes, $entityBytes, $outcome->curlCode, null, $metrics));
     }
 
     /** @return array<never, never> */

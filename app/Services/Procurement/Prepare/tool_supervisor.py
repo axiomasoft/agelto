@@ -10,7 +10,39 @@ import sys
 import time
 
 
+class LandlockRulesetAttr(ctypes.Structure):
+    _fields_ = [
+        ('handled_access_fs', ctypes.c_uint64),
+        ('handled_access_net', ctypes.c_uint64),
+    ]
+
+
+class LandlockPathBeneathAttr(ctypes.Structure):
+    _pack_ = 1
+    _fields_ = [
+        ('allowed_access', ctypes.c_uint64),
+        ('parent_fd', ctypes.c_int32),
+    ]
+
+
+class SockFilter(ctypes.Structure):
+    _fields_ = [
+        ('code', ctypes.c_uint16),
+        ('jt', ctypes.c_uint8),
+        ('jf', ctypes.c_uint8),
+        ('k', ctypes.c_uint32),
+    ]
+
+
+class SockFprog(ctypes.Structure):
+    _fields_ = [
+        ('len', ctypes.c_ushort),
+        ('filter', ctypes.POINTER(SockFilter)),
+    ]
+
+
 def main():
+    proof_token = os.environ.pop('_AGELTO_SUPERVISOR_TOKEN', None)
     max_procs = 64
     args = sys.argv[1:]
     pos = []
@@ -35,8 +67,11 @@ def main():
     receipt, seconds, ceiling, memory, cpu = pos
     command = args[idx:]
     seconds, ceiling, memory, cpu = float(seconds), int(ceiling), int(memory), int(cpu)
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.prctl.argtypes = [ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong]
+    libc.prctl.restype = ctypes.c_int
     # Linux subreaper: grandchildren are ours to reap, including tools whose leader exited.
-    if ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0) != 0:
+    if libc.prctl(36, 1, 0, 0, 0) != 0:
         raise RuntimeError("subreaper unavailable")
     stopped = False
     def stop(signum, frame):
@@ -44,6 +79,37 @@ def main():
         stopped = True
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
+    real_cwd = os.path.realpath(os.getcwd())
+    app_root = os.path.realpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..'))
+    forbidden_prefixes = (
+        '/run',
+        '/var/run',
+        '/tmp',
+        '/var/tmp',
+        os.path.join(app_root, 'storage'),
+        os.path.join(app_root, 'local', 'secrets'),
+        '/var/www/html/storage',
+        '/var/www/html/local/secrets',
+    )
+    def is_within(path, prefix):
+        return path == prefix or path.startswith(prefix.rstrip('/') + '/')
+    ro_input_files = []
+    for arg in command:
+        if not arg or arg.startswith('-'):
+            continue
+        try:
+            real_arg = os.path.realpath(arg)
+        except OSError:
+            continue
+        if not os.path.isfile(real_arg) or is_within(real_arg, real_cwd):
+            continue
+        base_name = os.path.basename(real_arg)
+        if base_name == '.env' or base_name.startswith('.env.'):
+            continue
+        if any(is_within(real_arg, prefix) for prefix in forbidden_prefixes):
+            continue
+        if real_arg not in ro_input_files:
+            ro_input_files.append(real_arg)
     def limits():
         resource.setrlimit(resource.RLIMIT_AS, (memory, memory))
         resource.setrlimit(resource.RLIMIT_CPU, (cpu, cpu))
@@ -56,6 +122,95 @@ def main():
                 resource.setrlimit(resource.RLIMIT_NOFILE, (target_nofile, target_nofile))
         except (OSError, ValueError):
             pass
+        if libc.prctl(38, 1, 0, 0, 0) != 0:
+            raise OSError('no_new_privs_unavailable')
+        abi = libc.syscall(444, ctypes.c_void_p(None), ctypes.c_size_t(0), ctypes.c_uint32(1))
+        if abi < 1:
+            raise OSError('landlock_unavailable')
+        fs_mask = (1 << 13) - 1 if abi == 1 else ((1 << 14) - 1 if abi == 2 else (1 << 15) - 1)
+        net_mask = 3 if abi >= 4 else 0
+        attr = LandlockRulesetAttr(fs_mask, net_mask)
+        attr_size = ctypes.sizeof(attr) if abi >= 4 else 8
+        ruleset_fd = libc.syscall(444, ctypes.byref(attr), ctypes.c_size_t(attr_size), ctypes.c_uint32(0))
+        if ruleset_fd < 0:
+            raise OSError('landlock_ruleset_failed')
+        o_path = getattr(os, 'O_PATH', 0o10000000)
+        file_mask = ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 14)) & fs_mask
+        ro_dir_mask = ((1 << 0) | (1 << 2) | (1 << 3)) & fs_mask
+        ro_file_mask = ((1 << 0) | (1 << 2)) & fs_mask
+        def add_landlock_path(path, access):
+            if not os.path.exists(path):
+                return
+            try:
+                fd = os.open(path, o_path | os.O_CLOEXEC)
+            except OSError:
+                return
+            try:
+                eff = access if os.path.isdir(path) else (access & file_mask)
+                if eff == 0:
+                    return
+                rule = LandlockPathBeneathAttr(eff, fd)
+                if libc.syscall(445, ctypes.c_int(ruleset_fd), ctypes.c_int(1), ctypes.byref(rule), ctypes.c_uint32(0)) != 0:
+                    raise OSError('landlock_rule_failed')
+            finally:
+                os.close(fd)
+        try:
+            for rw_path in (real_cwd, '/dev/null', '/dev/zero', '/dev/urandom', '/dev/random', '/dev/shm'):
+                add_landlock_path(rw_path, fs_mask)
+            for sys_path in ('/usr', '/bin', '/sbin', '/lib', '/lib32', '/lib64', '/etc', '/proc', '/sys', '/var/cache', '/var/lib'):
+                add_landlock_path(sys_path, ro_dir_mask)
+            for ro_file in ro_input_files:
+                add_landlock_path(ro_file, ro_file_mask)
+            if libc.syscall(446, ctypes.c_int(ruleset_fd), ctypes.c_uint32(0)) != 0:
+                raise OSError('landlock_restrict_failed')
+        finally:
+            os.close(ruleset_fd)
+        insns = (SockFilter * 11)(
+            SockFilter(0x20, 0, 0, 4),
+            SockFilter(0x15, 0, 7, 0xc000003e),
+            SockFilter(0x20, 0, 0, 0),
+            SockFilter(0x15, 5, 0, 42),
+            SockFilter(0x15, 4, 0, 49),
+            SockFilter(0x15, 0, 4, 41),
+            SockFilter(0x20, 0, 0, 16),
+            SockFilter(0x15, 1, 0, 2),
+            SockFilter(0x15, 0, 1, 10),
+            SockFilter(0x06, 0, 0, 0x0005000d),
+            SockFilter(0x06, 0, 0, 0x7fff0000),
+        )
+        prog = SockFprog(len(insns), insns)
+        if libc.prctl(22, 2, ctypes.addressof(prog), 0, 0) != 0:
+            raise OSError('seccomp_unavailable')
+    def write_receipt(stopped_ok, exit_code, stop_reason, group_id):
+        payload = {
+            'stopped': stopped_ok,
+            'exit': exit_code,
+            'reason': stop_reason,
+            'pgid': group_id,
+        }
+        if proof_token is not None:
+            payload['token'] = proof_token
+        tmp_receipt = receipt + '.new'
+        try:
+            os.unlink(tmp_receipt)
+        except FileNotFoundError:
+            pass
+        with open(tmp_receipt, 'w') as f:
+            json.dump(payload, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_receipt, receipt)
+        active_path = receipt + '.active'
+        if stopped_ok:
+            try:
+                os.unlink(active_path)
+            except FileNotFoundError:
+                pass
+        else:
+            with open(active_path, 'w') as f:
+                f.write('supervised')
+                f.flush()
+                os.fsync(f.fileno())
     def workspace_size():
         total = 0
         for base, dirs, files in os.walk(os.getcwd()):
@@ -83,11 +238,9 @@ def main():
     reason = None
     with open(output, 'xb') as out, open(errors, 'xb') as err:
         try:
-            child = subprocess.Popen(command, stdout=out, stderr=err, start_new_session=True, preexec_fn=limits, env=child_env)
+            child = subprocess.Popen(command, stdout=out, stderr=err, close_fds=True, start_new_session=True, preexec_fn=limits, env=child_env)
         except OSError:
-            with open(receipt, 'x') as f:
-                json.dump({'stopped': True, 'exit': 127, 'reason': 'converter_unavailable', 'pgid': None}, f)
-            os.unlink(receipt + '.active')
+            write_receipt(True, 127, 'converter_unavailable', None)
             return 0
         pgid = child.pid
         def group_alive():
@@ -249,13 +402,7 @@ def main():
             if reason is None and workspace_size() > ceiling:
                 reason = 'tmp_limit'
             clean = not group_alive() and not descendants()
-            with open(receipt + '.new', 'x') as f:
-                json.dump({'stopped': clean, 'exit': child_exit if child_exit is not None else child.returncode, 'reason': reason, 'pgid': pgid}, f)
-                f.flush()
-                os.fsync(f.fileno())
-            os.rename(receipt + '.new', receipt)
-            if clean:
-                os.unlink(receipt + '.active')
+            write_receipt(clean, child_exit if child_exit is not None else child.returncode, reason, pgid)
     return 0
 
 

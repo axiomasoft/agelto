@@ -21,10 +21,15 @@ expect_fail() {
 bash -n "$script"
 matrix=$("$script" check)
 app_consumers='app,horizon,scheduler,process-relay,process-reconciler,process-feeder,process-projector,doctor'
-for credential in APP DB REDIS MINIO; do
-    suffix=''
-    case "$credential" in DB) suffix=',postgres' ;; REDIS) suffix=',redis' ;; MINIO) suffix=',minio' ;; esac
-    grep -Fx "$credential:$app_consumers$suffix" <<<"$matrix" >/dev/null || fail "$credential dependency matrix differs from production services"
+for credential in APP DB REDIS MINIO MINIO_ROOT; do
+    expected="$app_consumers"
+    case "$credential" in
+        DB) expected="$app_consumers,postgres" ;;
+        REDIS) expected="$app_consumers,redis,redis-cache,redis-session" ;;
+        MINIO) expected="$app_consumers" ;;
+        MINIO_ROOT) expected='minio' ;;
+    esac
+    grep -Fx "$credential:$expected" <<<"$matrix" >/dev/null || fail "$credential dependency matrix differs from production services"
 done
 
 fixture_root=$(mktemp -d)
@@ -48,7 +53,7 @@ EOF
 chmod 0700 "$adapter"
 
 lock="$fixture_root/shared.lock"
-for credential in APP DB REDIS MINIO; do
+for credential in APP DB REDIS MINIO MINIO_ROOT; do
     export ROTATION_LOG="$fixture_root/$credential.log"
     state="$fixture_root/$credential.state"
     "$script" fixture --credential "$credential" --before-file "$before" --next-file "$next" \
@@ -88,5 +93,6 @@ expect_fail 'rotation lock contention' "$script" fixture --credential APP --befo
 flock -u 8
 
 expect_fail 'live apply' "$script" apply
-! rg -n -- 'eval|\|\| true|password|token|printf.*(before_file|next_file)|cat.*(before_file|next_file)' "$script" >/dev/null
+grep -Fq 'minio_app_password' "$script" || fail 'rotation script must declare minio_app_password'
+! rg -n -- 'eval|\|\| true|SENTINEL|token|printf.*(before_file|next_file)|cat.*(before_file|next_file)' "$script" >/dev/null
 printf 'Secret rotation contract passed\n'

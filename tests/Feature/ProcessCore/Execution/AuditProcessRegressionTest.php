@@ -11,6 +11,7 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\StageFailedItem;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\CompletionStatus;
@@ -48,6 +49,7 @@ use Illuminate\Support\Facades\Log;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FixtureProviderRecoveryResolver;
+use Tests\Support\ProcessCore\FixtureStageCheckpoint;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
 pest()->group('work-controls-and-fences', 'claim-recovery-and-invariants', 'delivery-and-daemon-lifecycle');
@@ -268,7 +270,7 @@ test('SubjectLockResolver::ownerSubject находит владельца при
 
 test('RecoveryRepository::controlPredicate строится по активным паузам без DISTINCT-скана prc_process_work, а курсоры RecoveryReconciler обходят застрявшую голову батча', function (): void {
     FinalizeFixtures::authority([StageCode::Listing]);
-    FixtureProviderRecoveryResolver::install();
+    $resolver = FixtureProviderRecoveryResolver::install();
     $repo = app(RecoveryRepository::class);
 
     $work = ExecutionFixtures::listingWork();
@@ -311,13 +313,86 @@ test('RecoveryRepository::controlPredicate строится по активны�
         ->and($reconciler->releaseBlocked())->toBe(1)
         ->and(ExecutionFixtures::work($tail)->state)->toBe('ready');
 
-    // Когда в blockedProvider выбраны все 50 элементов батча, cancelledProvider не вызывается сверх лимита 50.
+    // Гарантированная квота cancelledProvider (25) и blockedProvider (50 - count(cancelled)) в рамках 50 кандидатов на тик.
+    $codec = app(StageRegistry::class)->payloadCodec();
+    $poisonPayload = $codec->encodeCheckpoint(new WorkCheckpointEnvelope(
+        new FixtureStageCheckpoint(0),
+        FixtureProviderRecoveryResolver::plan(ProviderRecoveryMode::BlockedUnknown, LedgerFixtures::hash('poison-plan')),
+    ));
     DB::table('prc_process_work')->whereIn('id', $poisons)->update([
         'state' => 'blocked',
         'reason_code' => 'provider_result_unknown',
         'provider_recovery_due_at' => '2000-01-01 00:00:00+00',
+        'checkpoint' => $poisonPayload->json,
+        'checkpoint_schema_version' => $poisonPayload->schemaVersion,
+        'checkpoint_seq' => 1,
     ]);
-    expect($reconciler->recoverBlockedProvider())->toBe(0);
+
+    $tailUnknown = FixtureProviderRecoveryResolver::plan(ProviderRecoveryMode::BlockedUnknown, FinalizeFixtures::inputHash($tail));
+    $tailPayload = $codec->encodeCheckpoint(new WorkCheckpointEnvelope(new FixtureStageCheckpoint(0), $tailUnknown));
+    DB::table('prc_process_work')->where('id', $tail->value->value)->update([
+        'state' => 'blocked',
+        'reason_code' => 'provider_result_unknown',
+        'provider_recovery_due_at' => '2000-01-01 00:01:00+00',
+        'checkpoint' => $tailPayload->json,
+        'checkpoint_schema_version' => $tailPayload->schemaVersion,
+        'checkpoint_seq' => 1,
+    ]);
+    $resolver->finding($tail, FixtureProviderRecoveryResolver::resolved($tailUnknown, ProviderRecoveryMode::ResumeFromReceipt));
+
+    $cancelledPoisons = [];
+    for ($i = 0; $i < RecoveryReconciler::CANCELLED_PROVIDER_QUOTA; $i++) {
+        $cancelledPoisons[] = ExecutionFixtures::listingWork()->value->value;
+    }
+    DB::table('prc_process_work')->whereIn('id', $cancelledPoisons)->update([
+        'state' => 'cancelled',
+        'reason_code' => 'cancelled',
+        'input_schema_version' => 2,
+        'updated_at' => '2000-01-01 00:00:00+00',
+        'checkpoint' => $poisonPayload->json,
+        'checkpoint_schema_version' => $poisonPayload->schemaVersion,
+        'checkpoint_seq' => 1,
+    ]);
+
+    $cancelledHealthy = ExecutionFixtures::listingWork();
+    $cancelledUnknown = FixtureProviderRecoveryResolver::plan(ProviderRecoveryMode::BlockedUnknown, FinalizeFixtures::inputHash($cancelledHealthy));
+    $cancelledPayload = $codec->encodeCheckpoint(new WorkCheckpointEnvelope(new FixtureStageCheckpoint(0), $cancelledUnknown));
+    DB::table('prc_process_work')->where('id', $cancelledHealthy->value->value)->update([
+        'state' => 'cancelled',
+        'reason_code' => 'cancelled',
+        'updated_at' => '2000-01-01 00:01:00+00',
+        'checkpoint' => $cancelledPayload->json,
+        'checkpoint_schema_version' => $cancelledPayload->schemaVersion,
+        'checkpoint_seq' => 1,
+    ]);
+    $resolver->finding($cancelledHealthy, FixtureProviderRecoveryResolver::resolved($cancelledUnknown, ProviderRecoveryMode::ResumeFromReceipt));
+
+    $tickInspected = [];
+    $resolver->afterInspect = static function (WorkId $id) use (&$tickInspected): void {
+        $tickInspected[] = $id->value->value;
+    };
+
+    expect($reconciler->recoverBlockedProvider())->toBe(0)
+        ->and($tickInspected)->toHaveCount(RecoveryReconciler::BATCH)
+        ->and(array_unique($tickInspected))->toHaveCount(RecoveryReconciler::BATCH)
+        ->and(array_intersect($tickInspected, $cancelledPoisons))->toHaveCount(RecoveryReconciler::CANCELLED_PROVIDER_QUOTA)
+        ->and(array_intersect($tickInspected, $poisons))->toHaveCount(RecoveryReconciler::BATCH - RecoveryReconciler::CANCELLED_PROVIDER_QUOTA);
+
+    $tickInspected = [];
+    expect($reconciler->recoverBlockedProvider())->toBe(1)
+        ->and($tickInspected)->toHaveCount(RecoveryReconciler::BATCH)
+        ->and(array_unique($tickInspected))->toHaveCount(RecoveryReconciler::BATCH)
+        ->and($tickInspected)->toContain($cancelledHealthy->value->value)
+        ->and(DB::table('prc_process_work')->where('id', $cancelledHealthy->value->value)->value('checkpoint'))->toBeNull()
+        ->and($resolver->settlements)->toBe([$cancelledUnknown->physicalCallId->value.':resume_from_receipt']);
+
+    $tickInspected = [];
+    expect($reconciler->recoverBlockedProvider())->toBe(1)
+        ->and($tickInspected)->toHaveCount(RecoveryReconciler::BATCH)
+        ->and(array_unique($tickInspected))->toHaveCount(RecoveryReconciler::BATCH)
+        ->and($tickInspected)->toContain($tail->value->value)
+        ->and(ExecutionFixtures::work($tail)->state)->toBe('ready')
+        ->and($resolver->settlements)->toHaveCount(2);
 });
 
 test('RecoveryReconciler::sweepHandlerFaults изолирует сбойную запись в батче, фиксируя здоровые проверки и пробрасывая ошибку после батча', function (): void {

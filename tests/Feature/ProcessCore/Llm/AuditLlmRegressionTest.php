@@ -3,14 +3,24 @@
 declare(strict_types=1);
 
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
+use App\Dto\Llm\Requests\ProviderCall;
 use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Procurement\Ai\RowRange;
+use App\Dto\Procurement\Network\HttpRouteBinding;
+use App\Dto\Procurement\Network\NetworkRouteSelection;
+use App\Dto\Procurement\Network\OutboundRequestPlan;
+use App\Dto\Procurement\Network\RetryRoutePreference;
+use App\Dto\Procurement\Network\SelectedNetworkRoute;
+use App\Dto\Procurement\Process\DbInstant;
+use App\Dto\Procurement\Process\Duration;
+use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\PublicationInput;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ProviderSendDenial;
+use App\Enums\Llm\ProviderTransportFailure;
 use App\Enums\Llm\StructuredDisposition;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\ControlMode;
@@ -22,6 +32,7 @@ use App\Exceptions\Llm\OperationDenied;
 use App\Exceptions\Llm\ReceiptUnavailable;
 use App\Exceptions\Procurement\Process\PublicationBlocked;
 use App\Repositories\Llm\Cache\AssetRepository;
+use App\Repositories\Llm\Request\FinancialReservationRepository;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Llm\BillingReconciler;
@@ -40,10 +51,15 @@ use App\Services\Llm\Execution\ReceiptStore;
 use App\Services\Llm\Execution\SendClaimResult;
 use App\Services\Llm\Execution\StructuredCallExecutor;
 use App\Services\Llm\Providers\GeminiAssetClient;
+use App\Services\Llm\Providers\GeminiGenerateContentClient;
 use App\Services\Llm\Validation\StructuredTaskValidator;
 use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
+use App\Services\Procurement\Extraction\AnalysisProviderSendGate;
 use App\Services\Procurement\Extraction\EstimatePublisher;
 use App\Services\Procurement\Extraction\ExtractionContract;
+use App\Services\Procurement\Network\Contracts\OutboundRouteSelector;
+use App\Services\Procurement\Process\Contracts\LeaseKeeper;
+use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\ExecutionContextFactory;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\RecoveryReconciler;
@@ -56,6 +72,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Console\Command\Command as ConsoleCommand;
+use Symfony\Component\Yaml\Yaml;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\AiFixtures;
 use Tests\Support\ProcessCore\AssetFixtures;
@@ -454,6 +471,442 @@ test('AssetRepository::claim оценивает истечение expires_at п
         DB::table('llm_context_caches')->update(['expires_at' => DB::raw("clock_timestamp() - interval '10 seconds'")]);
         expect(fn () => DB::transaction(fn () => $assets->claim($cacheKey, $thirdCall)))
             ->toThrow(OperationDenied::class, 'asset_single_flight_or_unknown');
+    } finally {
+        $server->stop();
+    }
+});
+
+test('FinancialReservationRepository требует активную транзакцию и проверяет идентичность резерва и состояние при расчёте и сверке по квитанции', function (): void {
+    $period = FinancialFixtures::reset();
+    expect(DB::connection()->transactionLevel())->toBe(0);
+
+    $finance = app(FinancialReservationRepository::class);
+    $requests = app(RequestRepository::class);
+    [, , , , $operation] = FinancialFixtures::authorized($period);
+    $call = $requests->get($operation->physicalCallId);
+    $accountRow = DB::transaction(fn () => $finance->lockAccount($call->context->account, $call->currency));
+    expect(DB::connection()->transactionLevel())->toBe(0);
+
+    expect(fn () => $finance->lockAccount($call->context->account, $call->currency))
+        ->toThrow(LogicException::class, 'Financial operation requires caller transaction.')
+        ->and(fn () => $finance->lockPeriod($period, $call->context->account, $call->currency))
+        ->toThrow(LogicException::class, 'Financial operation requires caller transaction.')
+        ->and(fn () => $finance->assertSendEligible($accountRow, '0.00100000'))
+        ->toThrow(LogicException::class, 'Financial operation requires caller transaction.')
+        ->and(fn () => $finance->settleLocked($call, '0.00200001'))
+        ->toThrow(LogicException::class, 'Financial operation requires caller transaction.');
+
+    $withMismatch = static fn (ProviderCall $base, ?string $physicalCallId = null, ?string $periodId = null, ?string $upperBound = null): ProviderCall => new ProviderCall(
+        new AuthorizedProviderOperation(
+            $base->authorization->logicalRequestId,
+            $physicalCallId ?? $base->authorization->physicalCallId,
+            $base->authorization->requestEpoch,
+            $base->authorization->sendAuthorizationToken,
+            $base->authorization->ownerAttemptId,
+            $base->authorization->ownerWorkGeneration,
+            $base->authorization->reservationId,
+        ),
+        $base->purpose,
+        $base->recipeHash,
+        $base->inputHash,
+        $base->context,
+        $base->currency,
+        $periodId ?? $base->periodId,
+        $upperBound ?? $base->upperBound,
+        $base->requestState,
+        $base->claimed,
+        $base->receiptId,
+        $base->receiptDisk,
+        $base->receiptUploadKey,
+        $base->receiptHash,
+        $base->outcome,
+        $base->recordedAssessment,
+        $base->wireFingerprint,
+    );
+
+    foreach ([
+        $withMismatch($call, physicalCallId: ProcessUuid::random()->value),
+        $withMismatch($call, periodId: ProcessUuid::random()->value),
+        $withMismatch($call, upperBound: '0.00999999'),
+    ] as $mismatchedBefore) {
+        expect(fn () => DB::transaction(fn () => $finance->settleLocked($mismatchedBefore, '0.00200001')))
+            ->toThrow(OperationDenied::class, 'reservation_identity_mismatch');
+    }
+
+    expect(DB::table('llm_budget_periods')->where('id', $period)->value('reserved'))->toBe($call->upperBound)
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('spent'))->toBe('0.00000000')
+        ->and(DB::table('llm_budget_reservations')->where('id', $operation->reservationId)->value('state'))->toBe('reserved');
+
+    DB::transaction(function () use ($finance, $call): void {
+        $finance->lockAccount($call->context->account, $call->currency);
+        $finance->lockPeriod($call->periodId, $call->context->account, $call->currency);
+        $finance->settleLocked($call, '0.00200001');
+    });
+
+    expect(DB::table('llm_budget_reservations')->where('id', $operation->reservationId)->value('state'))->toBe('settled')
+        ->and(DB::table('llm_budget_reservations')->where('id', $operation->reservationId)->value('settled_amount'))->toBe('0.00200001')
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('reserved'))->toBe('0.00000000')
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('spent'))->toBe('0.00200001');
+
+    DB::transaction(function () use ($finance, $call): void {
+        $finance->lockAccount($call->context->account, $call->currency);
+        $finance->lockPeriod($call->periodId, $call->context->account, $call->currency);
+        $finance->settleLocked($call, '0.00200001');
+    });
+
+    expect(DB::table('llm_budget_periods')->where('id', $period)->value('reserved'))->toBe('0.00000000')
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('spent'))->toBe('0.00200001');
+
+    foreach ([
+        $withMismatch($call, physicalCallId: ProcessUuid::random()->value),
+        $withMismatch($call, periodId: ProcessUuid::random()->value),
+        $withMismatch($call, upperBound: '0.00999999'),
+    ] as $mismatchedAfter) {
+        expect(fn () => DB::transaction(fn () => $finance->settleLocked($mismatchedAfter, '0.00200001')))
+            ->toThrow(OperationDenied::class, 'reservation_identity_mismatch');
+    }
+
+    expect(fn () => DB::transaction(fn () => $finance->settleLocked($call, '0.00100000', hash('sha256', 'unbacked-receipt'))))
+        ->toThrow(OperationDenied::class, 'settlement_conflict');
+
+    expect(DB::table('llm_budget_periods')->where('id', $period)->value('reserved'))->toBe('0.00000000')
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('spent'))->toBe('0.00200001')
+        ->and(DB::table('llm_budget_reservations')->where('id', $operation->reservationId)->value('settled_amount'))->toBe('0.00200001')
+        ->and(DB::table('llm_financial_actions')->where('physical_call_id', $operation->physicalCallId)->count())->toBe(0);
+
+    [, , , , $op2] = FinancialFixtures::authorized($period);
+    FinancialFixtures::claim($op2);
+    DB::transaction(fn () => $requests->interruptLocked($requests->get($op2->physicalCallId)));
+    $call2 = $requests->get($op2->physicalCallId);
+    $requests->abandon($call2, 'audit-operator', 'conservative close', conservativelySettle: true);
+
+    expect(DB::table('llm_budget_reservations')->where('id', $op2->reservationId)->value('settled_amount'))->toBe($call2->upperBound)
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('reserved'))->toBe('0.00000000')
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('spent'))->toBe(bcadd('0.00200001', $call2->upperBound, 8));
+
+    $receiptHash = hash('sha256', 'verified-late-receipt');
+    DB::transaction(function () use ($finance, $call2, $receiptHash): void {
+        $finance->lockAccount($call2->context->account, $call2->currency);
+        $finance->lockPeriod($call2->periodId, $call2->context->account, $call2->currency);
+        $finance->settleLocked($call2, '0.00150000', $receiptHash);
+    });
+
+    expect(DB::table('llm_budget_reservations')->where('id', $op2->reservationId)->value('settled_amount'))->toBe('0.00150000')
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('reserved'))->toBe('0.00000000')
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('spent'))->toBe('0.00350001')
+        ->and(DB::table('llm_financial_actions')->where('physical_call_id', $op2->physicalCallId)->where('action', 'receipt_reconciliation')->count())->toBe(1);
+
+    DB::transaction(function () use ($finance, $call2, $receiptHash): void {
+        $finance->lockAccount($call2->context->account, $call2->currency);
+        $finance->lockPeriod($call2->periodId, $call2->context->account, $call2->currency);
+        $finance->settleLocked($call2, '0.00150000', $receiptHash);
+    });
+
+    expect(DB::table('llm_budget_reservations')->where('id', $op2->reservationId)->value('settled_amount'))->toBe('0.00150000')
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('reserved'))->toBe('0.00000000')
+        ->and(DB::table('llm_budget_periods')->where('id', $period)->value('spent'))->toBe('0.00350001')
+        ->and(DB::table('llm_financial_actions')->where('physical_call_id', $op2->physicalCallId)->where('action', 'receipt_reconciliation')->count())->toBe(1);
+});
+
+test('ReceiptStore проверяет атомарный контракт локального хранилища квитанций вне транзакции и общую топологию тома app_storage', function (): void {
+    app()->instance(StageRegistry::class, new StageRegistry);
+    FinancialFixtures::reset();
+    $store = app(ReceiptStore::class);
+
+    $store->verifyStorageContract('local');
+    $probeFiles = glob(Storage::disk('local')->path('llm/receipts/.probe-*')) ?: [];
+    expect($probeFiles)->toBe([]);
+
+    expect(fn () => DB::transaction(fn () => $store->verifyStorageContract('local')))
+        ->toThrow(LogicException::class, 'Receipt object I/O is forbidden inside DB transactions.');
+
+    $rawCompose = file_get_contents(base_path('docker-compose.prod.yml'));
+    assert(is_string($rawCompose));
+    $sanitizedCompose = preg_replace('/\$\{[^}]+\}/', 'placeholder', $rawCompose);
+    assert(is_string($sanitizedCompose));
+    $compose = Yaml::parse($sanitizedCompose);
+    assert(is_array($compose));
+
+    ReceiptStore::verifySharedTopology($compose);
+
+    $withoutReconciler = $compose;
+    $withoutReconciler['services']['process-reconciler']['volumes'] = [];
+    expect(fn () => ReceiptStore::verifySharedTopology($withoutReconciler))
+        ->toThrow(ReceiptUnavailable::class);
+
+    $withoutHorizon = $compose;
+    $withoutHorizon['services']['horizon']['volumes'] = [];
+    expect(fn () => ReceiptStore::verifySharedTopology($withoutHorizon))
+        ->toThrow(ReceiptUnavailable::class);
+});
+
+test('HttpTransport и AnalysisProviderSendGate сохраняют раздельные счётчики wire и entity байт и метрики cURL без подмены через strlen тела ответа', function (): void {
+    $server = new WireFixture;
+    $withPath = static fn (string $path): Closure => static function (ProviderOperationPlan $base, string $origin) use ($path): array {
+        $compiled = (new GeminiGenerateContentClient($origin))->compile($base);
+        $wire = new ProviderWireRequest(
+            $base,
+            $compiled->method,
+            $origin.$path,
+            $compiled->allowedOrigin,
+            $compiled->body,
+            $compiled->contentType,
+            $compiled->headers,
+            $compiled->assetKey,
+            $compiled->capabilities,
+        );
+
+        return [$base, $wire];
+    };
+
+    $newFixture = static function (?Closure $operationFactory = null) use ($server): ProviderSendFixtures {
+        app()->instance(StageRegistry::class, new StageRegistry);
+
+        return new ProviderSendFixtures($server, operationFactory: $operationFactory);
+    };
+
+    try {
+        // 1. Успешный транспорт фиксирует реальные wireBytes, entityBytes, wireMeasured и cURL-метрики в prc_request_attempts и prc_observations.
+        $fSuccess = $newFixture();
+        $expectedBytes = strlen(FinancialFixtures::body());
+        $outcome = app(StructuredCallExecutor::class)->execute($fSuccess->operation, $fSuccess->wire, $fSuccess->gate());
+        expect($outcome)->toBeInstanceOf(ProviderTransportOutcome::class)
+            ->and($outcome->physicalCallId)->toBe($fSuccess->operation->physicalCallId)
+            ->and($outcome->status)->toBe(200)
+            ->and($outcome->failure)->toBeNull()
+            ->and($outcome->wireBytes)->toBe($expectedBytes)
+            ->and($outcome->entityBytes)->toBe($expectedBytes)
+            ->and($outcome->wireMeasured)->toBeTrue()
+            ->and($outcome->curlCode)->toBe(0)
+            ->and($outcome->stats)->toBeArray()
+            ->and($outcome->stats['http_code'] ?? null)->toBe(200)
+            ->and($outcome->stats['size_download'] ?? null)->toBe($expectedBytes)
+            ->and($outcome->__debugInfo())->toMatchArray([
+                'physical_call_id' => $fSuccess->operation->physicalCallId,
+                'status' => 200,
+                'failure' => null,
+                'wire_bytes' => $expectedBytes,
+                'entity_bytes' => $expectedBytes,
+                'wire_measured' => true,
+            ]);
+
+        $attempt = DB::table('prc_request_attempts')->where('request_id', $fSuccess->operation->physicalCallId)->sole();
+        $obsDetails = json_decode((string) DB::table('prc_observations')->where('request_id', $fSuccess->operation->physicalCallId)->value('details'), true, flags: JSON_THROW_ON_ERROR);
+        expect($attempt->outcome)->toBe('response')
+            ->and((int) $attempt->status)->toBe(200)
+            ->and((int) $attempt->bytes)->toBe($expectedBytes)
+            ->and($obsDetails['transport']['size_download'] ?? null)->toBe($expectedBytes)
+            ->and($obsDetails['transport']['http_code'] ?? null)->toBe(200)
+            ->and($obsDetails['transport']['errno'] ?? null)->toBe(0);
+
+        // 2. AnalysisProviderSendGate::recordTransportOutcome никогда не подменяет счётчики через strlen(body).
+        $fDistinct = $newFixture();
+        $gateDistinct = $fDistinct->gate();
+        $claimDistinct = $gateDistinct->claimSend($fDistinct->operation, $fDistinct->wire);
+        expect($claimDistinct->transport)->not->toBeNull();
+        $syntheticOutcome = new ProviderTransportOutcome(
+            physicalCallId: $fDistinct->operation->physicalCallId,
+            status: 200,
+            body: str_repeat('X', 120),
+            failure: null,
+            headers: ['content-type' => ['application/json']],
+            wireBytes: 7,
+            entityBytes: 5,
+            wireMeasured: true,
+            curlCode: 0,
+            stats: ['http_code' => 200, 'size_download' => 7],
+        );
+        $gateDistinct->recordTransportOutcome($fDistinct->operation->physicalCallId, $syntheticOutcome);
+        $distinctAttempt = DB::table('prc_request_attempts')->where('request_id', $fDistinct->operation->physicalCallId)->sole();
+        $distinctObs = json_decode((string) DB::table('prc_observations')->where('request_id', $fDistinct->operation->physicalCallId)->value('details'), true, flags: JSON_THROW_ON_ERROR);
+        expect((int) $distinctAttempt->bytes)->toBe(5)
+            ->and($distinctObs['transport']['size_download'] ?? null)->toBe(7);
+
+        // 3a. Обрыв частично переданного тела (/truncated) сохраняет принятые байты без превращения ответа в квитанцию или not_sent.
+        $fTruncated = $newFixture($withPath('/truncated'));
+        $truncatedOutcome = app(StructuredCallExecutor::class)->execute($fTruncated->operation, $fTruncated->wire, $fTruncated->gate());
+        $partialLen = strlen('Привет');
+        expect($truncatedOutcome)->toBeInstanceOf(ProviderTransportOutcome::class)
+            ->and($truncatedOutcome->status)->toBeNull()
+            ->and($truncatedOutcome->body())->toBeNull()
+            ->and($truncatedOutcome->failure)->toBe(ProviderTransportFailure::Truncated)
+            ->and($truncatedOutcome->wireBytes)->toBe($partialLen)
+            ->and($truncatedOutcome->entityBytes)->toBe($partialLen)
+            ->and($truncatedOutcome->wireMeasured)->toBeTrue()
+            ->and($truncatedOutcome->curlCode)->toBe(18);
+        $truncAttempt = DB::table('prc_request_attempts')->where('request_id', $fTruncated->operation->physicalCallId)->sole();
+        $truncObs = json_decode((string) DB::table('prc_observations')->where('request_id', $fTruncated->operation->physicalCallId)->value('details'), true, flags: JSON_THROW_ON_ERROR);
+        $truncCall = app(RequestRepository::class)->get($fTruncated->operation->physicalCallId);
+        expect($truncAttempt->outcome)->toBe('truncated')
+            ->and((int) $truncAttempt->bytes)->toBe($partialLen)
+            ->and($truncObs['transport']['size_download'] ?? null)->toBe($partialLen)
+            ->and($truncObs['transport']['errno'] ?? null)->toBe(18)
+            ->and($truncCall->requestState)->toBe('unknown')
+            ->and($truncCall->outcome)->toBe('unknown')
+            ->and($truncCall->receiptHash)->toBeNull()
+            ->and(DB::table('llm_budget_reservations')->where('id', $fTruncated->operation->reservationId)->value('state'))->toBe('reserved');
+
+        // 3b. Отклонение чанка по лимиту BoundedSink (/large) сохраняет только принятые sink entityBytes без отвергнутого чанка.
+        $fLimit = $newFixture($withPath('/large'));
+        $limitOutcome = app(StructuredCallExecutor::class)->execute($fLimit->operation, $fLimit->wire, $fLimit->gate());
+        expect($limitOutcome)->toBeInstanceOf(ProviderTransportOutcome::class)
+            ->and($limitOutcome->status)->toBeNull()
+            ->and($limitOutcome->body())->toBeNull()
+            ->and($limitOutcome->failure)->toBe(ProviderTransportFailure::Truncated)
+            ->and($limitOutcome->wireMeasured)->toBeTrue()
+            ->and($limitOutcome->entityBytes)->toBeGreaterThan(0)
+            ->and($limitOutcome->entityBytes)->toBeLessThanOrEqual(65_536)
+            ->and($limitOutcome->wireBytes)->toBeGreaterThanOrEqual($limitOutcome->entityBytes);
+        $limitAttempt = DB::table('prc_request_attempts')->where('request_id', $fLimit->operation->physicalCallId)->sole();
+        expect($limitAttempt->outcome)->toBe('truncated')
+            ->and((int) $limitAttempt->bytes)->toBe($limitOutcome->entityBytes)
+            ->and(app(RequestRepository::class)->get($fLimit->operation->physicalCallId)->requestState)->toBe('unknown');
+
+        // 3c. Отмена (потеря lease в progress после получения части тела) сохраняет накопленные wireBytes и entityBytes.
+        $fCancel = $newFixture($withPath('/body-partial-stall'));
+        $cancelContext = new ExecutionContext(
+            lease: $fCancel->lease,
+            keeper: app(LeaseKeeper::class),
+            clock: app(ProcessClock::class),
+            slice: Duration::seconds(60),
+            leaseDuration: Duration::seconds(60),
+            heartbeatInterval: Duration::seconds(1),
+            finalizationReserve: Duration::seconds(5),
+            leaseSafety: Duration::seconds(5),
+        );
+        $cancelGate = ProviderSendFixtures::gateFor($fCancel->lease, $fCancel->run, $fCancel->target, $fCancel->route, $fCancel->profile, $server, $cancelContext);
+        $cancelClaim = $cancelGate->claimSend($fCancel->operation, $fCancel->wire);
+        expect($cancelClaim->transport)->not->toBeNull();
+        $cancelContext->tick();
+        FinalizeFixtures::revoke($fCancel->work, true);
+        $cancelOutcome = $cancelClaim->transport->sendOnce($fCancel->wire);
+        $cancelGate->recordTransportOutcome($fCancel->operation->physicalCallId, $cancelOutcome);
+        expect($cancelOutcome->status)->toBeNull()
+            ->and($cancelOutcome->body())->toBeNull()
+            ->and($cancelOutcome->failure)->toBe(ProviderTransportFailure::Interrupted)
+            ->and($cancelOutcome->wireBytes)->toBe(12_415)
+            ->and($cancelOutcome->entityBytes)->toBe(12_415)
+            ->and($cancelOutcome->wireMeasured)->toBeTrue();
+        $cancelAttempt = DB::table('prc_request_attempts')->where('request_id', $fCancel->operation->physicalCallId)->sole();
+        expect($cancelAttempt->outcome)->toBe('cancelled')
+            ->and((int) $cancelAttempt->bytes)->toBe(12_415);
+
+        // 4a. Истечение deadline до старта HTTP-вызова возвращает 0 байт, wireMeasured === false и stats === null.
+        $fDeadline = $newFixture();
+        $baseClock = app(ProcessClock::class);
+        $offsetNs = 0;
+        $deadlineClock = new class($baseClock, $offsetNs) implements ProcessClock
+        {
+            public function __construct(private ProcessClock $inner, public int &$offsetNs) {}
+
+            public function dbNow(): DbInstant
+            {
+                return $this->inner->dbNow();
+            }
+
+            public function monotonicNs(): int
+            {
+                return $this->inner->monotonicNs() + $this->offsetNs;
+            }
+
+            public function sleep(Duration $duration): void
+            {
+                $this->inner->sleep($duration);
+            }
+        };
+        $deadlineContext = new ExecutionContext(
+            lease: $fDeadline->lease,
+            keeper: app(LeaseKeeper::class),
+            clock: $deadlineClock,
+            slice: Duration::seconds(60),
+            leaseDuration: Duration::seconds(180),
+            heartbeatInterval: Duration::seconds(60),
+            finalizationReserve: Duration::seconds(5),
+            leaseSafety: Duration::seconds(5),
+        );
+        $deadlineGate = ProviderSendFixtures::gateFor($fDeadline->lease, $fDeadline->run, $fDeadline->target, $fDeadline->route, $fDeadline->profile, $server, $deadlineContext);
+        $deadlineClaim = $deadlineGate->claimSend($fDeadline->operation, $fDeadline->wire);
+        expect($deadlineClaim->transport)->not->toBeNull();
+        $offsetNs = 52_000_000_000;
+        $deadlineOutcome = $deadlineClaim->transport->sendOnce($fDeadline->wire);
+        $deadlineGate->recordTransportOutcome($fDeadline->operation->physicalCallId, $deadlineOutcome);
+        expect($deadlineOutcome->status)->toBeNull()
+            ->and($deadlineOutcome->body())->toBeNull()
+            ->and($deadlineOutcome->failure)->toBe(ProviderTransportFailure::Deadline)
+            ->and($deadlineOutcome->wireBytes)->toBe(0)
+            ->and($deadlineOutcome->entityBytes)->toBe(0)
+            ->and($deadlineOutcome->wireMeasured)->toBeFalse()
+            ->and($deadlineOutcome->stats)->toBeNull();
+        $deadlineAttempt = DB::table('prc_request_attempts')->where('request_id', $fDeadline->operation->physicalCallId)->sole();
+        $deadlineObs = json_decode((string) DB::table('prc_observations')->where('request_id', $fDeadline->operation->physicalCallId)->value('details'), true, flags: JSON_THROW_ON_ERROR);
+        expect($deadlineAttempt->outcome)->toBe('cancelled')
+            ->and((int) $deadlineAttempt->bytes)->toBe(0)
+            ->and($deadlineObs['transport'])->toBeNull();
+
+        // 4b. Таймаут до получения тела (/stall) записывает 0 байт и сохраняет вызов в unknown с активным резервом.
+        $fTimeout = $newFixture($withPath('/stall'));
+        $timeoutOutcome = app(StructuredCallExecutor::class)->execute($fTimeout->operation, $fTimeout->wire, $fTimeout->gate());
+        expect($timeoutOutcome)->toBeInstanceOf(ProviderTransportOutcome::class)
+            ->and($timeoutOutcome->status)->toBeNull()
+            ->and($timeoutOutcome->body())->toBeNull()
+            ->and($timeoutOutcome->failure)->toBe(ProviderTransportFailure::Timeout)
+            ->and($timeoutOutcome->wireBytes)->toBe(0)
+            ->and($timeoutOutcome->entityBytes)->toBe(0)
+            ->and($timeoutOutcome->wireMeasured)->toBeTrue()
+            ->and($timeoutOutcome->curlCode)->toBe(28);
+        $timeoutAttempt = DB::table('prc_request_attempts')->where('request_id', $fTimeout->operation->physicalCallId)->sole();
+        $timeoutObs = json_decode((string) DB::table('prc_observations')->where('request_id', $fTimeout->operation->physicalCallId)->value('details'), true, flags: JSON_THROW_ON_ERROR);
+        $timeoutCall = app(RequestRepository::class)->get($fTimeout->operation->physicalCallId);
+        expect($timeoutAttempt->outcome)->toBe('timeout')
+            ->and((int) $timeoutAttempt->bytes)->toBe(0)
+            ->and($timeoutObs['transport']['size_download'] ?? null)->toBe(0)
+            ->and($timeoutObs['transport']['errno'] ?? null)->toBe(28)
+            ->and($timeoutCall->requestState)->toBe('unknown')
+            ->and($timeoutCall->outcome)->toBe('unknown')
+            ->and(DB::table('llm_budget_reservations')->where('id', $fTimeout->operation->reservationId)->value('state'))->toBe('reserved');
+
+        // 4c. Ошибка подключения к прокси фиксирует ProxyConnect с 0 байт и удерживает резерв в состоянии unknown.
+        $fProxy = $newFixture();
+        $proxySelector = new class($fProxy->route) implements OutboundRouteSelector
+        {
+            public function __construct(private ProcessUuid $route) {}
+
+            public function select(OutboundRequestPlan $plan, RetryRoutePreference $preference): SelectedNetworkRoute
+            {
+                return new SelectedNetworkRoute(
+                    new NetworkRouteSelection($this->route),
+                    new HttpRouteBinding($this->route, 'http://127.0.0.1:1'),
+                );
+            }
+        };
+        $proxyGate = app()->make(AnalysisProviderSendGate::class, [
+            'context' => app(ExecutionContextFactory::class)->open($fProxy->lease),
+            'runId' => $fProxy->run,
+            'target' => $fProxy->target,
+            'profile' => $fProxy->profile,
+            'urlPolicy' => $server->policy(),
+            'routes' => $proxySelector,
+            'apiKey' => 'fixture-only-key',
+        ]);
+        $proxyOutcome = app(StructuredCallExecutor::class)->execute($fProxy->operation, $fProxy->wire, $proxyGate);
+        expect($proxyOutcome)->toBeInstanceOf(ProviderTransportOutcome::class)
+            ->and($proxyOutcome->status)->toBeNull()
+            ->and($proxyOutcome->body())->toBeNull()
+            ->and($proxyOutcome->failure)->toBe(ProviderTransportFailure::ProxyConnect)
+            ->and($proxyOutcome->wireBytes)->toBe(0)
+            ->and($proxyOutcome->entityBytes)->toBe(0)
+            ->and($proxyOutcome->wireMeasured)->toBeTrue()
+            ->and($proxyOutcome->curlCode)->toBe(7);
+        $proxyAttempt = DB::table('prc_request_attempts')->where('request_id', $fProxy->operation->physicalCallId)->sole();
+        $proxyObs = json_decode((string) DB::table('prc_observations')->where('request_id', $fProxy->operation->physicalCallId)->value('details'), true, flags: JSON_THROW_ON_ERROR);
+        $proxyCall = app(RequestRepository::class)->get($fProxy->operation->physicalCallId);
+        expect($proxyAttempt->outcome)->toBe('proxy_connect')
+            ->and((int) $proxyAttempt->bytes)->toBe(0)
+            ->and($proxyObs['transport']['size_download'] ?? null)->toBe(0)
+            ->and($proxyObs['transport']['errno'] ?? null)->toBe(7)
+            ->and($proxyCall->requestState)->toBe('unknown')
+            ->and($proxyCall->outcome)->toBe('unknown')
+            ->and(DB::table('llm_budget_reservations')->where('id', $fProxy->operation->reservationId)->value('state'))->toBe('reserved');
     } finally {
         $server->stop();
     }

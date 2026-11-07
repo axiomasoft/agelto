@@ -40,15 +40,21 @@ compose=(
 if [[ "$deploy_class" == 'image-promotion' ]]; then
     docker pull "agelto/app:$IMAGE_TAG"
     docker pull "agelto/doctor:$IMAGE_TAG"
+    docker pull "agelto/postgres:$IMAGE_TAG"
     app_labels=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}}' "agelto/app:$IMAGE_TAG")
     doctor_labels=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}}' "agelto/doctor:$IMAGE_TAG")
-    if [[ -n "$app_labels" || -n "$doctor_labels" || -n "${EXPECTED_SOURCE_SHA:-}" ]]; then
+    postgres_revision=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "agelto/postgres:$IMAGE_TAG")
+    if [[ -n "$app_labels" || -n "$doctor_labels" || -n "$postgres_revision" || -n "${EXPECTED_SOURCE_SHA:-}" ]]; then
         if [[ -z "$app_labels" || "$app_labels" != *:* || "${app_labels#:}" != "$app_labels" || "${app_labels%:}" != "$app_labels" ]]; then
             echo "Image agelto/app:$IMAGE_TAG is missing required revision or vendor-lock labels" >&2
             exit 2
         fi
         if [[ "$app_labels" != "$doctor_labels" ]]; then
             echo "Image pair agelto/app:$IMAGE_TAG and agelto/doctor:$IMAGE_TAG label mismatch" >&2
+            exit 2
+        fi
+        if [[ -z "$postgres_revision" || "$postgres_revision" != "${app_labels%%:*}" ]]; then
+            echo "Image agelto/postgres:$IMAGE_TAG revision label mismatch" >&2
             exit 2
         fi
         if [[ -n "${EXPECTED_SOURCE_SHA:-}" && "${app_labels%%:*}" != "$EXPECTED_SOURCE_SHA" ]]; then

@@ -31,6 +31,7 @@ declare -A allowed_names=(
     [redis_password]=1
     [redis_acl]=1
     [minio_root_password]=1
+    [minio_app_password]=1
     [admin_initial_password]=1
 )
 declare -A declared_names=()

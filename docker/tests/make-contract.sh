@@ -66,6 +66,8 @@ for target in prod:deploy:code prod:deploy:php-deps prod:deploy:frontend prod:de
 done
 grep -F 'pull app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
 grep -Fx 'pull agelto/app:contract-tag' "$log_file" >/dev/null
+grep -Fx 'pull agelto/doctor:contract-tag' "$log_file" >/dev/null
+grep -Fx 'pull agelto/postgres:contract-tag' "$log_file" >/dev/null
 grep -F 'up -d --no-build --remove-orphans app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
 if grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"; then
     echo 'Contract failed: a production release target built, tore down, or used latest' >&2
@@ -77,10 +79,11 @@ for target in prod:infra:up prod:app:up prod:storage:init prod:workers:up prod:r
     run_make "$target" ENV_FILE=.env.example IMAGE_TAG=contract-tag COMPOSE_PROJECT_NAME=agelto_contract
 done
 run_make prod:admin:create ENV_FILE=.env.example IMAGE_TAG=contract-tag COMPOSE_PROJECT_NAME=agelto_contract PASSWORD_FILE="$temp_dir/initial-admin-password"
-grep -F 'build postgres' "$log_file" >/dev/null
-grep -F 'up -d --no-build --wait postgres redis minio' "$log_file" >/dev/null
+! grep -F 'build postgres' "$log_file" >/dev/null
+grep -F 'up -d --no-build --wait postgres redis redis-cache redis-session minio' "$log_file" >/dev/null
 grep -F 'up -d --no-build --wait app' "$log_file" >/dev/null
-grep -F 'exec -T app sh -ec mc alias set agelto-bootstrap' "$log_file" >/dev/null
+grep -F 'run --rm --no-deps --entrypoint sh -e MINIO_ROOT_USER' "$log_file" >/dev/null
+grep -F 'mc alias set agelto-bootstrap' "$log_file" >/dev/null
 grep -F 'AWS_SECRET_ACCESS_KEY_FILE' "$log_file" >/dev/null
 grep -F 'up -d --no-build --wait horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
 grep -F '"${compose[@]}" up -d --wait app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$root_dir/docker/tests/clean-install-e2e.sh" >/dev/null

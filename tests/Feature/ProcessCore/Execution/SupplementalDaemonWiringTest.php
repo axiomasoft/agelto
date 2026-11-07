@@ -26,10 +26,33 @@ test('dev и prod разрешают четыре core daemon services на об
     expect(array_values(array_filter(array_keys($services), fn (string $name): bool => str_starts_with($name, 'process-'))))
         ->toBe(array_keys($roles))
         ->and($app['image'])->toBe($image)
+        ->and($app['secrets'])->toBe(['app_key', 'db_password', 'redis_password', 'minio_app_password'])
+        ->and($app['environment']['AWS_SECRET_ACCESS_KEY_FILE'])->toBe('/run/secrets/minio_app_password')
+        ->and($services['doctor']['secrets'])->toBe($app['secrets'])
+        ->and($services['horizon']['secrets'])->toBe($app['secrets'])
+        ->and($services['scheduler']['secrets'])->toBe($app['secrets'])
+        ->and($services['minio']['secrets'])->toBe(['minio_root_password'])
         ->and(array_map(fn (DaemonKind $kind): string => $kind->value, DaemonKind::activeKinds()))->toBe(array_values($roles));
+
+    if ($file === 'docker-compose.prod.yml') {
+        expect($services['postgres']['image'])->toBe('agelto/postgres:daemon-contract')
+            ->and($services['postgres'])->not->toHaveKey('build')
+            ->and($services)->toHaveKeys(['redis', 'redis-cache', 'redis-session'])
+            ->and($app['environment']['REDIS_CACHE_HOST'])->toBe('redis-cache')
+            ->and($app['environment']['REDIS_SESSION_HOST'])->toBe('redis-session')
+            ->and($app['environment']['SESSION_CONNECTION'])->toBe('session')
+            ->and($app['environment']['READINESS_SCHEDULER_CACHE_STORE'])->toBe('readiness')
+            ->and($app['security_opt'])->toBe(['no-new-privileges:true'])
+            ->and($services['doctor']['security_opt'])->toBe(['no-new-privileges:true'])
+            ->and($services['horizon']['security_opt'])->toBe(['no-new-privileges:true'])
+            ->and($services['scheduler']['security_opt'])->toBe(['no-new-privileges:true']);
+    }
 
     foreach ($roles as $serviceName => $role) {
         $service = $services[$serviceName];
+        if ($file === 'docker-compose.prod.yml') {
+            expect($service['security_opt'])->toBe(['no-new-privileges:true']);
+        }
         expect($service['image'])->toBe($app['image'])
             ->and($service['command'])->toBe(['php', 'artisan', 'process:daemon', $role])
             ->and($service['entrypoint'])->toBe(['/usr/local/bin/docker-php-serversideup-entrypoint'])

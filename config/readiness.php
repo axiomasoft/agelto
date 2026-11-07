@@ -13,5 +13,6 @@ return [
     'scheduler' => [
         'ttl_minutes' => 10,
         'max_age_minutes' => 2,
+        'store' => env('READINESS_SCHEDULER_CACHE_STORE'),
     ],
 ];

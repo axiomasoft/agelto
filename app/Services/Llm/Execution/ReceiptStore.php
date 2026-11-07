@@ -131,6 +131,94 @@ final readonly class ReceiptStore
         }
     }
 
+    public function verifyStorageContract(string $diskName = 'local'): void
+    {
+        $this->outsideTransaction();
+        $disk = Storage::disk($diskName);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
+            throw new ReceiptUnavailable('Receipt disk requires atomic create-if-absent support.');
+        }
+        $probeId = bin2hex(random_bytes(16));
+        $dir = 'llm/receipts';
+        $key = $dir.'/.probe-'.$probeId;
+        $temp1 = null;
+        $temp2 = null;
+        $targetPath = null;
+        try {
+            if (! $disk->makeDirectory($dir)) {
+                throw new ReceiptUnavailable('Receipt directory unavailable.');
+            }
+            $targetPath = $disk->path($key);
+            $temp1 = tempnam(dirname($targetPath), '.probe-tmp-');
+            if ($temp1 === false) {
+                throw new ReceiptUnavailable('Receipt spool unavailable.');
+            }
+            $payload1 = CanonicalJson::encode(['probe' => $probeId, 'seq' => 1]);
+            $stream1 = fopen($temp1, 'wb');
+            if ($stream1 === false) {
+                throw new ReceiptUnavailable('Receipt spool unavailable.');
+            }
+            try {
+                if (fwrite($stream1, $payload1) !== strlen($payload1) || ! fflush($stream1) || ! fsync($stream1)) {
+                    throw new ReceiptUnavailable('Receipt durable write unconfirmed.');
+                }
+            } finally {
+                fclose($stream1);
+            }
+            if (! @link($temp1, $targetPath) || ! is_file($targetPath)) {
+                throw new ReceiptUnavailable('Receipt immutable publish failed.');
+            }
+
+            $temp2 = tempnam(dirname($targetPath), '.probe-tmp-');
+            if ($temp2 === false) {
+                throw new ReceiptUnavailable('Receipt spool unavailable.');
+            }
+            $payload2 = CanonicalJson::encode(['probe' => $probeId, 'seq' => 2]);
+            $stream2 = fopen($temp2, 'wb');
+            if ($stream2 === false) {
+                throw new ReceiptUnavailable('Receipt spool unavailable.');
+            }
+            try {
+                if (fwrite($stream2, $payload2) !== strlen($payload2) || ! fflush($stream2) || ! fsync($stream2)) {
+                    throw new ReceiptUnavailable('Receipt durable write unconfirmed.');
+                }
+            } finally {
+                fclose($stream2);
+            }
+            if (@link($temp2, $targetPath) !== false || file_get_contents($targetPath) !== $payload1) {
+                throw new ReceiptUnavailable('Receipt disk violated create-if-absent immutability.');
+            }
+
+            $this->syncDurablePath($disk->path(''), $targetPath);
+        } finally {
+            foreach ([$temp1, $temp2, $targetPath] as $cleanupPath) {
+                if (is_string($cleanupPath) && is_file($cleanupPath)) {
+                    @unlink($cleanupPath);
+                }
+            }
+        }
+    }
+
+    /** @param array<string, mixed> $composeConfig */
+    public static function verifySharedTopology(array $composeConfig): void
+    {
+        $volumes = $composeConfig['volumes'] ?? null;
+        if (! is_array($volumes) || (! is_array($volumes['app_storage'] ?? null) && ! array_key_exists('app_storage', $volumes))) {
+            throw new ReceiptUnavailable('Receipt storage requires shared single-host app_storage volume across app, horizon and process-reconciler.');
+        }
+        $services = $composeConfig['services'] ?? [];
+        if (! is_array($services)) {
+            throw new ReceiptUnavailable('Receipt storage requires shared single-host app_storage volume across app, horizon and process-reconciler.');
+        }
+        foreach (['app', 'horizon', 'process-reconciler'] as $service) {
+            $serviceConfig = $services[$service] ?? null;
+            $serviceVolumes = is_array($serviceConfig) ? ($serviceConfig['volumes'] ?? null) : null;
+            if (! is_array($serviceVolumes) || ! in_array('app_storage:/var/www/html/storage', $serviceVolumes, true)) {
+                throw new ReceiptUnavailable('Receipt storage requires shared single-host app_storage volume across app, horizon and process-reconciler.');
+            }
+        }
+    }
+
     private function outsideTransaction(): void
     {
         if (DB::connection()->transactionLevel() !== 0) {

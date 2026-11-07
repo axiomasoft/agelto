@@ -87,6 +87,8 @@ final class FinancialReservationRepository
 
     public function lockPeriod(string $id, string $account, string $currency, ?string $pricingValidUntil = null): ProviderRow
     {
+        self::requireTransaction();
+
         return ProviderRow::one(
             'SELECT *, period_start<=clock_timestamp() AND period_end>clock_timestamp() AS current, (?::timestamptz IS NULL OR ?::timestamptz > clock_timestamp()) AS pricing_current FROM llm_budget_periods WHERE id=? AND account_id=? AND currency=? FOR UPDATE',
             [$pricingValidUntil, $pricingValidUntil, $id, $account, $currency],
@@ -95,6 +97,7 @@ final class FinancialReservationRepository
 
     public function assertSendEligible(ProviderRow $account, string $newExposure, bool $alreadyReserved = false): void
     {
+        self::requireTransaction();
         $newExposure = FinancialAmount::normalize($newExposure);
         $bindings = [$account->string('account_id'), $account->string('currency')];
         $unknown = ProviderRow::one("SELECT count(DISTINCT q.logical_request_id) AS count FROM llm_provider_requests q
@@ -122,8 +125,13 @@ final class FinancialReservationRepository
         if (bccomp($amount, '0', 8) < 0 || bccomp($amount, $call->upperBound, 8) > 0) {
             throw new OperationDenied('usage_exceeds_reserved_bound');
         }
-        $row = ProviderRow::one('SELECT state,settled_amount FROM llm_budget_reservations WHERE id=? FOR UPDATE', [$call->authorization->reservationId])
+        $row = ProviderRow::one('SELECT state,settled_amount,operation_id,period_id,upper_bound FROM llm_budget_reservations WHERE id=? FOR UPDATE', [$call->authorization->reservationId])
             ?? throw new \LogicException('Missing reservation.');
+        if ($row->string('operation_id') !== $call->authorization->physicalCallId
+            || $row->string('period_id') !== $call->periodId
+            || bccomp($row->decimal('upper_bound'), $call->upperBound, 8) !== 0) {
+            throw new OperationDenied('reservation_identity_mismatch');
+        }
         if ($row->string('state') === 'settled') {
             if (bccomp($row->decimal('settled_amount'), $amount, 8) !== 0) {
                 if ($verifiedReceiptHash === null || preg_match('/^[a-f0-9]{64}$/D', $verifiedReceiptHash) !== 1
@@ -141,6 +149,9 @@ final class FinancialReservationRepository
             }
 
             return;
+        }
+        if ($row->string('state') !== 'reserved') {
+            throw new OperationDenied('invalid_reservation_state');
         }
         DB::update('UPDATE llm_budget_periods SET reserved=reserved-?,spent=spent+? WHERE id=?', [$call->upperBound, $amount, $call->periodId]);
         DB::update("UPDATE llm_budget_reservations SET state='settled',settled_amount=? WHERE id=?", [$amount, $call->authorization->reservationId]);

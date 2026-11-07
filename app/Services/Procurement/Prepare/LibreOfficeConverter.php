@@ -18,12 +18,25 @@ use RuntimeException;
  */
 final readonly class LibreOfficeConverter
 {
+    private const array ALLOWED_ENV = [
+        'PATH',
+        'LANG',
+        'LC_ALL',
+        'LC_CTYPE',
+        'LD_LIBRARY_PATH',
+        'TESSDATA_PREFIX',
+        'FONTCONFIG_PATH',
+        'SOURCE_DATE_EPOCH',
+        'TZ',
+    ];
+
     public function toPdf(string $inputPath, string $outputDir): string
     {
         $profileDir = PipelineTemporaryFile::createDirectory(prefix: 'soffice_profile_');
 
         try {
             $result = Process::timeout($this->integerConfig('ai.tools.default_timeout_seconds'))
+                ->env($this->sanitizedEnv($profileDir))
                 ->run([
                     $this->stringConfig('ai.tools.soffice_bin'),
                     '--headless',
@@ -52,6 +65,7 @@ final readonly class LibreOfficeConverter
     public function version(): ?string
     {
         $result = Process::timeout($this->integerConfig('ai.tools.default_timeout_seconds'))
+            ->env($this->sanitizedEnv(sys_get_temp_dir()))
             ->run([$this->stringConfig('ai.tools.soffice_bin'), '--version']);
 
         if ($result->failed()) {
@@ -61,6 +75,28 @@ final readonly class LibreOfficeConverter
         $firstLine = trim(explode("\n", trim($result->output()), 2)[0]);
 
         return $firstLine !== '' ? $firstLine : null;
+    }
+
+    /** @return array<string, string|false> */
+    private function sanitizedEnv(string $tmpDir): array
+    {
+        $env = [];
+        foreach (array_keys(getenv() + $_ENV + $_SERVER) as $key) {
+            if (is_string($key) && $key !== '') {
+                $env[$key] = false;
+            }
+        }
+        foreach (self::ALLOWED_ENV as $key) {
+            $value = getenv($key);
+            if (is_string($value) && $value !== '') {
+                $env[$key] = $value;
+            }
+        }
+        $env['TMPDIR'] = $tmpDir;
+        $env['HOME'] = $tmpDir;
+        $env['OMP_THREAD_LIMIT'] = '1';
+
+        return $env;
     }
 
     private function integerConfig(string $key): int

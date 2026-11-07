@@ -201,24 +201,60 @@ final readonly class ListingStoreRepository
         }
     }
 
-    public function backfillDetailReferences(): int
+    /**
+     * @return array{processed: int, inserted: int, next_block_id: ?ProcessUuid, next_ordinal: int, done: bool}
+     */
+    public function backfillDetailReferences(?ProcessUuid $afterBlockId = null, int $afterOrdinal = 0, int $limit = 500): array
     {
         CallerTransaction::require('Listing detail reference backfill');
-        $rows = LedgerRow::all(
-            "SELECT d.value AS reference
-             FROM prc_crawl_blocks b,
-                  LATERAL jsonb_array_elements_text(COALESCE(b.terminal_proof->'details', '[]'::jsonb)) d(value)
-             WHERE b.terminal_proof IS NOT NULL
-             ORDER BY b.id",
-        );
+        if ($limit < 1 || $limit > 5000 || $afterOrdinal < 0 || ($afterBlockId === null && $afterOrdinal > 0)) {
+            throw new \InvalidArgumentException('Invalid listing detail reference backfill cursor or limit.');
+        }
+
+        $rows = $afterBlockId === null
+            ? LedgerRow::all(
+                "SELECT b.id AS block_id, d.ordinal::int AS ordinal, d.value AS reference
+                 FROM prc_crawl_blocks b,
+                      LATERAL jsonb_array_elements_text(COALESCE(b.terminal_proof->'details', '[]'::jsonb)) WITH ORDINALITY AS d(value, ordinal)
+                 WHERE b.terminal_proof IS NOT NULL
+                 ORDER BY b.id ASC, d.ordinal ASC
+                 LIMIT ?",
+                [$limit + 1],
+            )
+            : LedgerRow::all(
+                "SELECT b.id AS block_id, d.ordinal::int AS ordinal, d.value AS reference
+                 FROM prc_crawl_blocks b,
+                      LATERAL jsonb_array_elements_text(COALESCE(b.terminal_proof->'details', '[]'::jsonb)) WITH ORDINALITY AS d(value, ordinal)
+                 WHERE b.terminal_proof IS NOT NULL
+                   AND (b.id > ?::uuid OR (b.id = ?::uuid AND d.ordinal > ?))
+                 ORDER BY b.id ASC, d.ordinal ASC
+                 LIMIT ?",
+                [$afterBlockId->value, $afterBlockId->value, $afterOrdinal, $limit + 1],
+            );
+
+        $hasMore = count($rows) > $limit;
+        $batch = array_slice($rows, 0, $limit);
+        $processed = 0;
         $inserted = 0;
-        foreach ($rows as $row) {
+        $nextBlockId = $afterBlockId;
+        $nextOrdinal = $afterOrdinal;
+
+        foreach ($batch as $row) {
+            $processed++;
             if ($this->storeDetailReference(ListingDetailReference::fromJson($row->string('reference')))) {
                 $inserted++;
             }
+            $nextBlockId = new ProcessUuid($row->string('block_id'));
+            $nextOrdinal = $row->int('ordinal');
         }
 
-        return $inserted;
+        return [
+            'processed' => $processed,
+            'inserted' => $inserted,
+            'next_block_id' => $nextBlockId,
+            'next_ordinal' => $nextOrdinal,
+            'done' => ! $hasMore,
+        ];
     }
 
     private function storeDetailReference(ListingDetailReference $reference): bool

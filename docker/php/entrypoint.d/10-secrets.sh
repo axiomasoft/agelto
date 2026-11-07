@@ -18,17 +18,24 @@ if [ "${APP_ENV:-}" = "production" ]; then
             exit 1
         fi
     done
+    if [ "${AWS_SECRET_ACCESS_KEY_FILE:-}" = "/run/secrets/minio_root_password" ]; then
+        echo "minio_root_password is forbidden for application runtime; use minio_app_password" >&2
+        exit 1
+    fi
 fi
 
 runtime_dir=/run/agelto-secrets
 install -d -m 0700 -o www-data -g www-data "$runtime_dir"
 
-for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD AWS_SECRET_ACCESS_KEY; do
+for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD REDIS_CACHE_PASSWORD REDIS_SESSION_PASSWORD AWS_SECRET_ACCESS_KEY MINIO_APP_PASSWORD; do
     case "$secret_var" in
         APP_KEY) file_path="${APP_KEY_FILE:-}" ;;
         DB_PASSWORD) file_path="${DB_PASSWORD_FILE:-}" ;;
         REDIS_PASSWORD) file_path="${REDIS_PASSWORD_FILE:-}" ;;
+        REDIS_CACHE_PASSWORD) file_path="${REDIS_CACHE_PASSWORD_FILE:-}" ;;
+        REDIS_SESSION_PASSWORD) file_path="${REDIS_SESSION_PASSWORD_FILE:-}" ;;
         AWS_SECRET_ACCESS_KEY) file_path="${AWS_SECRET_ACCESS_KEY_FILE:-}" ;;
+        MINIO_APP_PASSWORD) file_path="${MINIO_APP_PASSWORD_FILE:-}" ;;
     esac
 
     [ -n "$file_path" ] || continue

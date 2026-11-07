@@ -32,6 +32,7 @@ use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\DetailFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
@@ -322,7 +323,173 @@ test('ListingStoreRepository проецирует ListingDetailReference в prc_
     // Проверяем backfillDetailReferences() для исторических блоков, у которых ещё нет строки :reference в prc_detail_snapshots.
     DB::table('prc_detail_snapshots')->where('part_key', $newerIntent->value.':reference')->delete();
     expect($listings->detailReference($newerIntent))->toBeNull();
-    expect($listings->backfillDetailReferences())->toBe(1)
-        ->and($listings->backfillDetailReferences())->toBe(0)
+    $firstBackfill = $listings->backfillDetailReferences();
+    expect($firstBackfill['processed'])->toBe(2)
+        ->and($firstBackfill['inserted'])->toBe(1)
+        ->and($firstBackfill['next_block_id']?->value)->toBe($olderInput->crawlBlockId->value)
+        ->and($firstBackfill['next_ordinal'])->toBe(1)
+        ->and($firstBackfill['done'])->toBeTrue();
+    $secondBackfill = $listings->backfillDetailReferences();
+    expect($secondBackfill['processed'])->toBe(2)
+        ->and($secondBackfill['inserted'])->toBe(0)
+        ->and($secondBackfill['next_block_id']?->value)->toBe($olderInput->crawlBlockId->value)
+        ->and($secondBackfill['next_ordinal'])->toBe(1)
+        ->and($secondBackfill['done'])->toBeTrue()
         ->and($listings->detailReference($newerIntent)?->locator?->serializedPayload)->toBe('new-cursor');
+});
+
+test('ListingStoreRepository::backfillDetailReferences пагинирует массив details внутри одного и нескольких блоков по составному курсору, требует транзакцию и откатывает батч при конфликте неизменности', function (): void {
+    $outsideTx = ConcurrentTransactions::execute(<<<'PHP'
+try {
+    app(\App\Repositories\Procurement\Crawler\ListingStoreRepository::class)->backfillDetailReferences();
+
+    return ['thrown' => false, 'level' => \Illuminate\Support\Facades\DB::connection()->transactionLevel()];
+} catch (\LogicException $e) {
+    return [
+        'thrown' => true,
+        'message' => $e->getMessage(),
+        'level' => \Illuminate\Support\Facades\DB::connection()->transactionLevel(),
+    ];
+}
+PHP);
+    expect($outsideTx)->toBe([
+        'thrown' => true,
+        'message' => 'Listing detail reference backfill must run inside the caller ledger transaction.',
+        'level' => 0,
+    ]);
+
+    $listings = app(ListingStoreRepository::class);
+    $someBlockId = LedgerFixtures::uuid();
+    expect(fn () => $listings->backfillDetailReferences(null, 0, 0))
+        ->toThrow(InvalidArgumentException::class, 'Invalid listing detail reference backfill cursor or limit.')
+        ->and(fn () => $listings->backfillDetailReferences(null, 0, 5001))
+        ->toThrow(InvalidArgumentException::class, 'Invalid listing detail reference backfill cursor or limit.')
+        ->and(fn () => $listings->backfillDetailReferences($someBlockId, -1, 10))
+        ->toThrow(InvalidArgumentException::class, 'Invalid listing detail reference backfill cursor or limit.')
+        ->and(fn () => $listings->backfillDetailReferences(null, 1, 10))
+        ->toThrow(InvalidArgumentException::class, 'Invalid listing detail reference backfill cursor or limit.');
+
+    $fixture = DetailFixtures::work(value: 'backfill-cursor-pagination');
+    $procurement = $fixture['p'];
+    DB::table('prc_operation_intents')->where('id', $fixture['input']->intentId->value)->update(['state' => 'terminal']);
+
+    $runA = ListingFixtures::run(from: '2026-01-01', registry: $procurement->registry);
+    $runB = ListingFixtures::run(from: '2026-01-02', registry: $procurement->registry);
+    $runEmpty = ListingFixtures::run(from: '2026-01-03', registry: $procurement->registry);
+
+    $inputs = [$runA['input'], $runB['input'], $runEmpty['input']];
+    usort($inputs, static fn ($left, $right): int => strcmp($left->crawlBlockId->value, $right->crawlBlockId->value));
+    [$firstBlock, $emptyBlock, $secondBlock] = $inputs;
+
+    $intents = [
+        LedgerFixtures::uuid(),
+        LedgerFixtures::uuid(),
+        LedgerFixtures::uuid(),
+        LedgerFixtures::uuid(),
+        LedgerFixtures::uuid(),
+    ];
+    $refs = [];
+    foreach ($intents as $idx => $intentId) {
+        $seq = $idx + 1;
+        $refs[] = new ListingDetailReference(
+            intentId: $intentId,
+            procurementId: $procurement->id,
+            fingerprint: ContentHash::of('fp-'.$seq),
+            sourceRevision: 'rev-'.$seq,
+            locator: new CursorEnvelope('eis.card', 1, 'cursor-'.$seq),
+        );
+    }
+
+    app(ProcessTransaction::class)->run(function () use ($procurement, $intents, $firstBlock, $emptyBlock, $secondBlock, $refs, $listings): void {
+        foreach ($intents as $idx => $intentId) {
+            auditAcqStoreDetailIntent($procurement->id, $intentId, 'bf-'.$idx, $idx + 1, $idx + 1, IntentState::Terminal);
+        }
+
+        // Первый блок содержит 3 ссылки (> limit = 2), средний — пустой массив details, третий — 2 ссылки.
+        $listings->receipt(
+            $firstBlock,
+            new ListingReceipt(ContentHash::of('ids-1'), [ContentHash::of('obs-1')], 'complete', details: [$refs[0], $refs[1], $refs[2]]),
+        );
+        $listings->receipt(
+            $emptyBlock,
+            new ListingReceipt(ContentHash::of('ids-empty'), [], 'complete', details: []),
+        );
+        $listings->receipt(
+            $secondBlock,
+            new ListingReceipt(ContentHash::of('ids-2'), [ContentHash::of('obs-2')], 'complete', details: [$refs[3], $refs[4]]),
+        );
+    });
+
+    // Удаляем все материализованные :reference снимки, чтобы протестировать чистый пошаговый backfill по 2 ссылки за батч.
+    DB::table('prc_detail_snapshots')->where('procurement_id', $procurement->id)->where('part_key', 'like', '%:reference')->delete();
+    foreach ($intents as $intentId) {
+        expect($listings->detailReference($intentId))->toBeNull();
+    }
+
+    // Батч 1: берёт первые 2 ссылки из firstBlock (ordinal 1 и 2), хвост firstBlock (ordinal 3) остаётся на следующий батч.
+    $batch1 = app(ProcessTransaction::class)->run(fn (): array => $listings->backfillDetailReferences(null, 0, 2));
+    expect($batch1['processed'])->toBe(2)
+        ->and($batch1['inserted'])->toBe(2)
+        ->and($batch1['next_block_id']?->value)->toBe($firstBlock->crawlBlockId->value)
+        ->and($batch1['next_ordinal'])->toBe(2)
+        ->and($batch1['done'])->toBeFalse()
+        ->and($listings->detailReference($intents[0])?->locator?->serializedPayload)->toBe('cursor-1')
+        ->and($listings->detailReference($intents[1])?->locator?->serializedPayload)->toBe('cursor-2')
+        ->and($listings->detailReference($intents[2]))->toBeNull();
+
+    // Повтор батча 1 до сохранения курсора (inserted === 0 при processed === 2) всё равно двигает курсор и возвращает done: false.
+    $replayBatch1 = app(ProcessTransaction::class)->run(fn (): array => $listings->backfillDetailReferences(null, 0, 2));
+    expect($replayBatch1['processed'])->toBe(2)
+        ->and($replayBatch1['inserted'])->toBe(0)
+        ->and($replayBatch1['next_block_id']?->value)->toBe($firstBlock->crawlBlockId->value)
+        ->and($replayBatch1['next_ordinal'])->toBe(2)
+        ->and($replayBatch1['done'])->toBeFalse();
+
+    // Батч 2: добирает хвост firstBlock (ordinal 3), пропускает пустой emptyBlock и берёт первую ссылку secondBlock (ordinal 1).
+    $batch2 = app(ProcessTransaction::class)->run(
+        fn (): array => $listings->backfillDetailReferences($batch1['next_block_id'], $batch1['next_ordinal'], 2),
+    );
+    expect($batch2['processed'])->toBe(2)
+        ->and($batch2['inserted'])->toBe(2)
+        ->and($batch2['next_block_id']?->value)->toBe($secondBlock->crawlBlockId->value)
+        ->and($batch2['next_ordinal'])->toBe(1)
+        ->and($batch2['done'])->toBeFalse()
+        ->and($listings->detailReference($intents[2])?->locator?->serializedPayload)->toBe('cursor-3')
+        ->and($listings->detailReference($intents[3])?->locator?->serializedPayload)->toBe('cursor-4')
+        ->and($listings->detailReference($intents[4]))->toBeNull();
+
+    // Батч 3: добирает оставшуюся 5-ю ссылку из secondBlock (ordinal 2) и сообщает done: true.
+    $batch3 = app(ProcessTransaction::class)->run(
+        fn (): array => $listings->backfillDetailReferences($batch2['next_block_id'], $batch2['next_ordinal'], 2),
+    );
+    expect($batch3['processed'])->toBe(1)
+        ->and($batch3['inserted'])->toBe(1)
+        ->and($batch3['next_block_id']?->value)->toBe($secondBlock->crawlBlockId->value)
+        ->and($batch3['next_ordinal'])->toBe(2)
+        ->and($batch3['done'])->toBeTrue()
+        ->and($listings->detailReference($intents[4])?->locator?->serializedPayload)->toBe('cursor-5');
+
+    // Вызов после финального курсора возвращает пустой результат и сохраняет курсор.
+    $afterEnd = app(ProcessTransaction::class)->run(
+        fn (): array => $listings->backfillDetailReferences($batch3['next_block_id'], $batch3['next_ordinal'], 2),
+    );
+    expect($afterEnd['processed'])->toBe(0)
+        ->and($afterEnd['inserted'])->toBe(0)
+        ->and($afterEnd['next_block_id']?->value)->toBe($secondBlock->crawlBlockId->value)
+        ->and($afterEnd['next_ordinal'])->toBe(2)
+        ->and($afterEnd['done'])->toBeTrue();
+
+    // Проверяем атомарный откат батча при конфликте неизменности во второй ссылке батча.
+    DB::table('prc_detail_snapshots')
+        ->where('part_key', $intents[0]->value.':reference')
+        ->delete();
+    DB::table('prc_detail_snapshots')
+        ->where('part_key', $intents[1]->value.':reference')
+        ->update(['source_version' => 'tampered-revision']);
+
+    expect(fn () => app(ProcessTransaction::class)->run(fn (): array => $listings->backfillDetailReferences(null, 0, 2)))
+        ->toThrow(LogicException::class, 'Immutable listing detail reference conflict.');
+
+    // Вставка первой ссылки из того же батча должна быть откачена вместе с транзакцией батча.
+    expect($listings->detailReference($intents[0]))->toBeNull();
 });

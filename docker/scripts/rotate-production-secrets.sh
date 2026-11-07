@@ -2,15 +2,17 @@
 
 set -euo pipefail
 
-readonly CREDENTIALS=(APP DB REDIS MINIO)
+# Compose secret files: app_key, db_password, redis_password, minio_app_password, minio_root_password.
+readonly CREDENTIALS=(APP DB REDIS MINIO MINIO_ROOT)
 readonly APP_CONSUMERS=(app horizon scheduler process-relay process-reconciler process-feeder process-projector doctor)
 
 consumers_for() {
-    consumers=("${APP_CONSUMERS[@]}")
     case "$1" in
-        DB) consumers+=(postgres) ;;
-        REDIS) consumers+=(redis) ;;
-        MINIO) consumers+=(minio) ;;
+        APP) consumers=("${APP_CONSUMERS[@]}") ;;
+        DB) consumers=("${APP_CONSUMERS[@]}" postgres) ;;
+        REDIS) consumers=("${APP_CONSUMERS[@]}" redis redis-cache redis-session) ;;
+        MINIO) consumers=("${APP_CONSUMERS[@]}") ;;
+        MINIO_ROOT) consumers=(minio) ;;
     esac
 }
 
@@ -52,7 +54,7 @@ while (($#)); do
     shift
 done
 
-case " ${CREDENTIALS[*]} " in *" $credential "*) ;; *) fail 'credential is outside the closed APP/DB/REDIS/MINIO enum' ;; esac
+case " ${CREDENTIALS[*]} " in *" $credential "*) ;; *) fail 'credential is outside the closed APP/DB/REDIS/MINIO/MINIO_ROOT enum' ;; esac
 for path in "$before_file" "$next_file"; do
     [[ $path = /* && -f $path && ! -L $path ]] || fail 'credential inputs must be regular absolute files'
     permissions=$(stat -c '%a' "$path")

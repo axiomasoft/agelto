@@ -14,6 +14,18 @@ use ZipArchive;
 /** Adapter metadata/byte stream only: security policy lives in ArchiveEntryValidator. */
 final readonly class ArchiveExtractor
 {
+    private const array ALLOWED_ENV = [
+        'PATH',
+        'LANG',
+        'LC_ALL',
+        'LC_CTYPE',
+        'LD_LIBRARY_PATH',
+        'TESSDATA_PREFIX',
+        'FONTCONFIG_PATH',
+        'SOURCE_DATE_EPOCH',
+        'TZ',
+    ];
+
     /** @return list<ArchiveEntry> */
     public function listEntries(string $archivePath, string $format, ?float $deadlineAt = null): array
     {
@@ -109,15 +121,17 @@ final readonly class ArchiveExtractor
     /** @return list<ArchiveEntry> */
     private function listSevenZip(string $archivePath, ?float $deadlineAt): array
     {
-        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run([
-            $this->configString('ai.tools.sevenzip_bin'),
-            'l',
-            '-slt',
-            '-y',
-            '-p',
-            '--',
-            $archivePath,
-        ]);
+        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))
+            ->env($this->sanitizedEnv(dirname($archivePath)))
+            ->run([
+                $this->configString('ai.tools.sevenzip_bin'),
+                'l',
+                '-slt',
+                '-y',
+                '-p',
+                '--',
+                $archivePath,
+            ]);
         if ($result->failed()) {
             $this->rejectByOutput($result);
         }
@@ -198,22 +212,24 @@ final readonly class ArchiveExtractor
         }
         $bytes = 0;
         try {
-            $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run(
-                $command,
-                function (string $type, string $buffer) use ($output, $entry, $budget, &$totalBytes, &$bytes): void {
-                    if ($type !== 'out') {
-                        return;
-                    }
-                    $bytes += strlen($buffer);
-                    $totalBytes += strlen($buffer);
-                    if ($bytes > $entry->declaredSize || $bytes > $budget->maxEntryBytes || $totalBytes > $budget->maxTotalBytes) {
-                        throw new ArchiveValidationException('фактические байты записи архива превысили бюджет');
-                    }
-                    if (fwrite($output, $buffer) !== strlen($buffer)) {
-                        throw new RuntimeException('не удалось записать временный файл entry');
-                    }
-                },
-            );
+            $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))
+                ->env($this->sanitizedEnv(dirname($targetPath)))
+                ->run(
+                    $command,
+                    function (string $type, string $buffer) use ($output, $entry, $budget, &$totalBytes, &$bytes): void {
+                        if ($type !== 'out') {
+                            return;
+                        }
+                        $bytes += strlen($buffer);
+                        $totalBytes += strlen($buffer);
+                        if ($bytes > $entry->declaredSize || $bytes > $budget->maxEntryBytes || $totalBytes > $budget->maxTotalBytes) {
+                            throw new ArchiveValidationException('фактические байты записи архива превысили бюджет');
+                        }
+                        if (fwrite($output, $buffer) !== strlen($buffer)) {
+                            throw new RuntimeException('не удалось записать временный файл entry');
+                        }
+                    },
+                );
             if ($result->failed()) {
                 $this->rejectByOutput($result);
             }
@@ -231,7 +247,9 @@ final readonly class ArchiveExtractor
     /** @return list<ArchiveEntry> */
     private function listRar(string $archivePath, ?float $deadlineAt): array
     {
-        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))->run(['lsar', '-json', $archivePath]);
+        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))
+            ->env($this->sanitizedEnv(dirname($archivePath)))
+            ->run(['lsar', '-json', $archivePath]);
         $decoded = json_decode($result->output(), true);
         if ($result->failed() || ! is_array($decoded) || ! is_array($decoded['lsarContents'] ?? null)) {
             $this->rejectByOutput($result);
@@ -338,6 +356,28 @@ final readonly class ArchiveExtractor
     private function persistenceReserveSeconds(): int
     {
         return $this->nonNegativeInt(config('documents.format_tools.persistence_seconds', 120), 'archive persistence reserve');
+    }
+
+    /** @return array<string, string|false> */
+    private function sanitizedEnv(string $tmpDir): array
+    {
+        $env = [];
+        foreach (array_keys(getenv() + $_ENV + $_SERVER) as $key) {
+            if (is_string($key) && $key !== '') {
+                $env[$key] = false;
+            }
+        }
+        foreach (self::ALLOWED_ENV as $key) {
+            $value = getenv($key);
+            if (is_string($value) && $value !== '') {
+                $env[$key] = $value;
+            }
+        }
+        $env['TMPDIR'] = $tmpDir;
+        $env['HOME'] = $tmpDir;
+        $env['OMP_THREAD_LIMIT'] = '1';
+
+        return $env;
     }
 
     private function configString(string $key): string

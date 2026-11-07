@@ -1013,6 +1013,13 @@
       "reason": "Canonical files/cache identity and fenced physical creation ownership; no paid runtime activation.",
       "original_sha256": "78546482936443aa195b72f62958c7ac2319143712bc11e438bfb2747e39f457",
       "before_polish_sha256": "78546482936443aa195b72f62958c7ac2319143712bc11e438bfb2747e39f457"
+    },
+    {
+      "path": "database/migrations/2026_11_07_100000_add_llm_send_eligibility_indexes.php",
+      "sha256": "66cb4b388f80d55048b69dab3c98a955d1eb07b5edd4e0318dc11c8a5c661ec6",
+      "action": "create",
+      "owner_item": "P3.17",
+      "reason": "Forward send-eligibility indexes for period reservation state and unknown logical request state."
     }
   ],
   "baseline": {
@@ -23027,6 +23034,12 @@
             "indexname": "llm_provider_requests_pkey",
             "schemaname": "public",
             "tablename": "llm_provider_requests"
+          },
+          {
+            "indexdef": "CREATE INDEX llm_provider_requests_unknown_state_idx ON public.llm_provider_requests USING btree (logical_request_id) WHERE (state = ANY (ARRAY['unknown'::text, 'abandoned_unknown'::text]))",
+            "indexname": "llm_provider_requests_unknown_state_idx",
+            "schemaname": "public",
+            "tablename": "llm_provider_requests"
           }
         ],
         "owner": "P3.9",
@@ -23784,6 +23797,12 @@
           {
             "indexdef": "CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)",
             "indexname": "llm_budget_reservations_operation_id_key",
+            "schemaname": "public",
+            "tablename": "llm_budget_reservations"
+          },
+          {
+            "indexdef": "CREATE INDEX llm_budget_reservations_period_state_idx ON public.llm_budget_reservations USING btree (period_id, state)",
+            "indexname": "llm_budget_reservations_period_state_idx",
             "schemaname": "public",
             "tablename": "llm_budget_reservations"
           },
@@ -28797,7 +28816,8 @@
       "indexes": [
         "CREATE UNIQUE INDEX llm_provider_requests_command_id_key ON public.llm_provider_requests USING btree (command_id)",
         "CREATE UNIQUE INDEX llm_provider_requests_logical_key_key ON public.llm_provider_requests USING btree (logical_key)",
-        "CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)"
+        "CREATE UNIQUE INDEX llm_provider_requests_pkey ON public.llm_provider_requests USING btree (logical_request_id)",
+        "CREATE INDEX llm_provider_requests_unknown_state_idx ON public.llm_provider_requests USING btree (logical_request_id) WHERE (state = ANY (ARRAY['unknown'::text, 'abandoned_unknown'::text]))"
       ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },
@@ -28943,6 +28963,7 @@
       "indexes": [
         "CREATE UNIQUE INDEX llm_budget_reservations_id_operation_id_key ON public.llm_budget_reservations USING btree (id, operation_id)",
         "CREATE UNIQUE INDEX llm_budget_reservations_operation_id_key ON public.llm_budget_reservations USING btree (operation_id)",
+        "CREATE INDEX llm_budget_reservations_period_state_idx ON public.llm_budget_reservations USING btree (period_id, state)",
         "CREATE UNIQUE INDEX llm_budget_reservations_pkey ON public.llm_budget_reservations USING btree (id)"
       ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
