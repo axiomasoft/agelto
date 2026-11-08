@@ -114,7 +114,7 @@ test('сид аудита создаёт отдельный профиль об�
         ->and($audit->filter->sortField)->toBe(ListingSortField::Published)
         ->and($audit->filter->sortAscending)->toBeTrue()
         ->and($audit->filter->stageCompleted)->toBeTrue()
-        ->and($audit->filter->okpd2Codes)->toBe(['43'])
+        ->and($audit->filter->okpd2Codes)->toBe(['41', '42', '43'])
         ->and($audit->filter->priceFrom)->toBe(100_000)
         ->and($audit->filter->priceTo)->toBeNull()
         ->and($annual->refresh()->getRawOriginal())->toBe($annualBefore)

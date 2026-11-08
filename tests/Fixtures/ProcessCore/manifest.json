@@ -4517,7 +4517,7 @@
         },
         {
             "path": "tests/Feature/Seeders/EisAuditSeederTest.php",
-            "sha256": "77c60748b1fcfe0df7e4fa566973807af498ec5532e515cf8be11b0d820404db",
+            "sha256": "271bd77de1867a79644c302eb47b420892f1628ba3c33ffd71e9f1c12aca6d41",
             "scenarios": [
                 "сид прокси декодирует реквизиты и привязывает маршрут для всех стадий ЕИС",
                 "повторный сид обновляет пароль существующего прокси без дубля",
@@ -4533,7 +4533,7 @@
         },
         {
             "path": "tests/Feature/Seeders/EisSeedersTest.php",
-            "sha256": "841f38ea3aaa840e1ecc7563c122185aafa99d3954b76ad4123b8882a225bf9f",
+            "sha256": "c6f6ccbb654bded72e9e3aabff689044a534a54aec7a8a0129b91b11ab59729b",
             "scenarios": [
                 "сид заводит площадку ЕИС и реестр fz44 с настройками карточки",
                 "повторный прогон сида площадки идемпотентен — без дублей и ротации UUID реестра",
