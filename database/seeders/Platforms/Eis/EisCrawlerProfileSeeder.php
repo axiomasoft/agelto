@@ -72,7 +72,7 @@ final class EisCrawlerProfileSeeder extends Seeder
                 'listing_kind' => AcquisitionKind::Archive,
                 'filter' => new EisSearchFilter(
                     stageCompleted: true,
-                    priceTo: 1_000_000_000_000,
+                    priceFrom: 100_000,
                     okpd2Codes: ['43'],
                     publishedFrom: CarbonImmutable::parse('2025-01-01'),
                     publishedTo: CarbonImmutable::parse('2025-12-31'),
@@ -94,7 +94,7 @@ final class EisCrawlerProfileSeeder extends Seeder
                 'listing_kind' => AcquisitionKind::Archive,
                 'filter' => new EisSearchFilter(
                     stageCompleted: true,
-                    priceTo: 1_000_000_000_000,
+                    priceFrom: 100_000,
                     okpd2Codes: ['43'],
                     publishedFrom: CarbonImmutable::parse('2026-01-01'),
                     publishedTo: CarbonImmutable::parse('2026-12-31'),
@@ -115,7 +115,7 @@ final class EisCrawlerProfileSeeder extends Seeder
             [
                 'listing_kind' => AcquisitionKind::Fresh,
                 'filter' => new EisSearchFilter(
-                    priceTo: 1_000_000_000_000,
+                    priceFrom: 100_000,
                     okpd2Codes: ['43'],
                     sortField: ListingSortField::Updated,
                     sortAscending: false,

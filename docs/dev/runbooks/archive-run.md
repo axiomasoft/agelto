@@ -79,7 +79,7 @@ flowchart TD
    - Локально **не запускайте** `php artisan process:sync-analysis` и дополнительно держите на паузе контрольные скоупы `documents:platform:eis` (или `documents:stage:screening` и `documents:stage:extraction` через [`process-controls.md`](process-controls.md)).
 4. **Проверка привязки прокси-маршрута и потолка цены**:
    - `EisCrawlerProxySeeder` создаёт прокси-маршрут и привязывает его к профилям `eis.audit` и `default` (обеспечивая маршрутизацию через VDS для `listing`, `detail`, `status_refresh` и `download`).
-   - В `EisProfilePreparer` при `priceTo = null` в фильтре по умолчанию подставляется верхняя граница `1_000_000_000` (1 млрд руб.). Во всех боевых профилях `EisCrawlerProfileSeeder` и `EisAuditSeeder` явно задан потолок `'priceTo' => 1_000_000_000_000` (1 трлн руб.), чтобы не терялись закупки свыше 1 млрд руб.
+   - Во всех боевых профилях `EisCrawlerProfileSeeder` и `EisAuditSeeder` задана нижняя граница `'priceFrom' => 100_000` (от 100 тыс. руб.) и `'priceTo' => null` (без верхнего потолка цены). При `priceTo = null` (`EisListingCursor::UNBOUNDED_HIGH_CENTS`) `EisListingSource` не отправляет `priceToGeneral` в ЕИС и не ограничивает НМЦК сверху (включая правую ветку `[mid, ∞)` при ценовом делении `split()`).
 
 ## Fix: пошаговый сценарий локального тестирования (по итерациям)
 

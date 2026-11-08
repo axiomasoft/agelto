@@ -4517,7 +4517,7 @@
         },
         {
             "path": "tests/Feature/Seeders/EisAuditSeederTest.php",
-            "sha256": "a0f26bcd78e40e3eb18899b2bbfbd8c9df0750ddfc7fe9594b1a7f0f1ac9bb54",
+            "sha256": "77c60748b1fcfe0df7e4fa566973807af498ec5532e515cf8be11b0d820404db",
             "scenarios": [
                 "сид прокси декодирует реквизиты и привязывает маршрут для всех стадий ЕИС",
                 "повторный сид обновляет пароль существующего прокси без дубля",
@@ -4533,7 +4533,7 @@
         },
         {
             "path": "tests/Feature/Seeders/EisSeedersTest.php",
-            "sha256": "bfdf46619a78f1f818d55c76a33aeecac632d8510dd8a67853300106bb16a7f3",
+            "sha256": "841f38ea3aaa840e1ecc7563c122185aafa99d3954b76ad4123b8882a225bf9f",
             "scenarios": [
                 "сид заводит площадку ЕИС и реестр fz44 с настройками карточки",
                 "повторный прогон сида площадки идемпотентен — без дублей и ротации UUID реестра",
@@ -6790,7 +6790,7 @@
         {
             "path": "database/seeders/Platforms/Eis/EisAuditSeeder.php",
             "fqcn": "Database\\Seeders\\Platforms\\Eis\\EisAuditSeeder",
-            "sha256": "5fa370d0322fbbb53025360265fff1ca69b04f4b5f35bbf967e4a703ae5067e8",
+            "sha256": "c1cc8b103f99a025deb5c1ad906ea2832c1c22da4d5ed5b65286325062efed9a",
             "original_path": "database/seeders/Procurement/EisJanuary2025AuditSeeder.php",
             "original_sha256": "6d3b7fe000dc1e5ba12dae1086f1713ac35a187353c23e8721481430d07b0cee",
             "original_fqcn": "Database\\Seeders\\Procurement\\EisJanuary2025AuditSeeder",

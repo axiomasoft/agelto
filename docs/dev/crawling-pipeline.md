@@ -105,7 +105,7 @@ sequenceDiagram
 ```
 
 - **Лимит глубины ЕИС**: площадка отдаёт по 500 записей на страницу; при превышении 12 страниц (6 000 строк) за один календарный день `ListingFinalizer` автоматически делит ценовой диапазон `[priceFrom, priceTo]` пополам (до минимального шага `1 000 ₽`), создавая дочерние блоки `prc_crawl_blocks`.
-- **Потолок цены по умолчанию**: в `EisProfilePreparer` при `priceTo = null` в фильтре подставляется `1_000_000_000` (1 млрд ₽). Чтобы включать закупки свыше 1 млрд ₽, в JSON-фильтре профиля явно указывается `'priceTo' => 1_000_000_000_000` (1 трлн ₽, как в `EisCrawlerProfileSeeder` и `EisAuditSeeder`).
+- **Нижняя граница цены и отсутствие верхнего потолка**: в боевых профилях (`EisCrawlerProfileSeeder` и `EisAuditSeeder`) задана нижняя граница `priceFrom = 100_000` (от 100 тыс. ₽) и `priceTo = null` (без верхнего потолка). При `priceTo = null` курсор `EisListingCursor` получает маркер открытой верхней границы (`UNBOUNDED_HIGH_CENTS = 100_000_000_000`), а `EisListingSource` не передаёт `priceToGeneral` в URL запроса и не ограничивает цену сверху (в том числе в правой ветке `[mid, ∞)` при ценовом дроблении `split()`).
 
 ## 4. Детальный разбор карточки (`DetailHandler`) и отслеживание изменений
 
@@ -163,7 +163,7 @@ sequenceDiagram
   - Неизвестные ключи фильтра отвергаются валидацией до сохранения и до отправки запроса.
 - **Сиды площадки (`database/seeders/Platforms/Eis/`)**:
   - `EisPlatformSeeder`: создаёт площадку `eis` (`ЕИС Закупки`).
-  - `EisCrawlerProfileSeeder`: создаёт боевые профили `ЕИС 44-ФЗ — архив 2025 (завершённые)`, `ЕИС 44-ФЗ — архив 2026 (завершённые)` (`mode = archive`, `sortBy = PUBLISH_DATE`, `priceTo = 1_000_000_000_000`) и `ЕИС 44-ФЗ — свежий поток` (`mode = fresh`, `sortBy = UPDATE_DATE`, `priceTo = 1_000_000_000_000`).
+  - `EisCrawlerProfileSeeder`: создаёт боевые профили `ЕИС 44-ФЗ — архив 2025 (завершённые)`, `ЕИС 44-ФЗ — архив 2026 (завершённые)` (`mode = archive`, `sortBy = PUBLISH_DATE`, `priceFrom = 100_000`, `priceTo = null`) и `ЕИС 44-ФЗ — свежий поток` (`mode = fresh`, `sortBy = UPDATE_DATE`, `priceFrom = 100_000`, `priceTo = null`).
   - `EisCrawlerProxySeeder` и `EisAuditSeeder`: настраивают VDS-прокси и универсальный профиль для контрольного аудита.
 
 ## 8. Особенности разбора HTML карточки и известные нюансы

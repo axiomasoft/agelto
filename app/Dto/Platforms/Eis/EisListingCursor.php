@@ -10,6 +10,8 @@ use App\Dto\Procurement\Process\ContentHash;
 /** Prices are integer kopecks, endpoints inclusive. Only this adapter decodes the payload. */
 final readonly class EisListingCursor
 {
+    public const int UNBOUNDED_HIGH_CENTS = 100_000_000_000;
+
     public function __construct(
         public string $day, public string $dateField, public int $lowCents, public int $highCents,
         public ContentHash $filterHash, public int $firstRow = 1, public int $depth = 0, public int $blockSize = 500,

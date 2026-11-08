@@ -35,9 +35,6 @@ final class EisAuditSeeder extends Seeder
             Proxy::query()->where('service', EisCrawlerProxySeeder::SERVICE)->sole();
 
             $filter = clone $source->filter;
-            // The default RUB 1bn ceiling excluded one procurement in the live audit.
-            // Independent unbounded source totals must still confirm this wider bound.
-            $filter->priceTo = 1_000_000_000_000;
 
             $crawler->fill([
                 'listing_kind' => $source->listing_kind,

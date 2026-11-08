@@ -115,7 +115,8 @@ test('сид аудита создаёт отдельный профиль об�
         ->and($audit->filter->sortAscending)->toBeTrue()
         ->and($audit->filter->stageCompleted)->toBeTrue()
         ->and($audit->filter->okpd2Codes)->toBe(['43'])
-        ->and($audit->filter->priceTo)->toBe(1_000_000_000_000)
+        ->and($audit->filter->priceFrom)->toBe(100_000)
+        ->and($audit->filter->priceTo)->toBeNull()
         ->and($annual->refresh()->getRawOriginal())->toBe($annualBefore)
         ->and(Crawler::query()->count())->toBe(4)
         ->and(Crawler::query()->where('listing_kind', AcquisitionKind::Fresh)->sole()->is_active)->toBeFalse();

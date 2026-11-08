@@ -188,6 +188,15 @@ test('decimal overlap сохраняет midpoint и bounded split оставл�
     ] as $limited) {
         expect($limited->children)->toBe([])->and($limited->incompleteReason)->toBe(AssessmentReason::Overflow);
     }
+    $unbounded = new EisListingCursor('2026-10-31', 'publish', 10000000, EisListingCursor::UNBOUNDED_HIGH_CENTS, $filter->fingerprint());
+    [$unboundedLeft, $unboundedRight] = (new EisListingPartitioner)->split($unbounded->envelope(), 1)->children;
+    $eis = adapterResultFixtureEis();
+    parse_str((string) parse_url($eis->plan(new ListingRequest('fz44', $filter, $unboundedLeft))->url->reveal(), PHP_URL_QUERY), $leftQuery);
+    parse_str((string) parse_url($eis->plan(new ListingRequest('fz44', $filter, $unboundedRight))->url->reveal(), PHP_URL_QUERY), $rightQuery);
+    expect($leftQuery)->toHaveKey('priceFromGeneral', '100000.00')->toHaveKey('priceToGeneral', '500050000.00')
+        ->and($rightQuery)->toHaveKey('priceFromGeneral', '500050000.00')->not->toHaveKey('priceToGeneral');
+    $aboveOneBillion = str_replace('1250000,50', '2500000000,50', adapterResultFixtureCsv());
+    expect($eis->parse(new ListingRequest('fz44', $filter, $unboundedRight), adapterResultFixtureResponse($aboveOneBillion))->assessment->usable())->toBeTrue();
 });
 
 test('повтор cap boundary и неприменённый date/price filter не дают terminal proof', function (): void {

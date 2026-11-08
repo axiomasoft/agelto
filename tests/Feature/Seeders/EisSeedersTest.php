@@ -76,20 +76,23 @@ test('сид заводит два профиля обхода — архивн�
     expect($archive2025->is_active)->toBeTrue()
         ->and($archive2025->route_profile_id)->toBeNull()
         ->and($archive2025->filter->stageCompleted)->toBeTrue()
-        ->and($archive2025->filter->priceTo)->toBe(1_000_000_000_000)
+        ->and($archive2025->filter->priceFrom)->toBe(100_000)
+        ->and($archive2025->filter->priceTo)->toBeNull()
         ->and(Schema::hasColumn('prc_crawlers', 'execution_lane'))->toBeFalse();
 
     $archive2026 = $crawlers['ЕИС 44-ФЗ — архив 2026 (завершённые)'];
     expect($archive2026->is_active)->toBeTrue()
         ->and($archive2026->route_profile_id)->toBeNull()
         ->and($archive2026->filter->stageCompleted)->toBeTrue()
-        ->and($archive2026->filter->priceTo)->toBe(1_000_000_000_000);
+        ->and($archive2026->filter->priceFrom)->toBe(100_000)
+        ->and($archive2026->filter->priceTo)->toBeNull();
 
     $fresh = $crawlers['ЕИС 44-ФЗ — свежий поток'];
     expect($fresh->is_active)->toBeFalse()
         ->and($fresh->route_profile_id)->toBeNull()
         ->and($fresh->filter->okpd2Codes)->toBe(['43'])
-        ->and($fresh->filter->priceTo)->toBe(1_000_000_000_000)
+        ->and($fresh->filter->priceFrom)->toBe(100_000)
+        ->and($fresh->filter->priceTo)->toBeNull()
         ->and($fresh->schedule)->toBe('*/30 * * * *');
 });
 
@@ -182,11 +185,12 @@ test('архивный профиль из сида даёт ожидаемый 
 
     expect($query)
         ->toHaveKey('pc', 'on')
-        ->toHaveKey('priceToGeneral', '1000000000000.00')
+        ->toHaveKey('priceFromGeneral', '100000.00')
         ->toHaveKey('registryNumberCsv', 'on')
         ->toHaveKey('publishDateCsv', 'on')
         ->toHaveKey('lastDateChangeCsv', 'on')
         ->toHaveKey('fz44', 'on')
+        ->and($query)->not->toHaveKey('priceToGeneral')
         ->and($query)->not->toHaveKey('af');
 });
 
