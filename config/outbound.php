@@ -55,7 +55,10 @@ return [
     // Non-procurement provider catalogs only. Platform targets come from platforms.definitions.
     'catalog_providers' => [],
 
-    'routing' => ['default_profile' => 'default', 'provider_profile' => 'llm'],
+    'routing' => [
+        'default_profile' => env('OUTBOUND_DEFAULT_ROUTE_PROFILE', 'default'),
+        'provider_profile' => env('OUTBOUND_PROVIDER_ROUTE_PROFILE', 'llm'),
+    ],
 
     'http' => [
         'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '

@@ -171,8 +171,10 @@ sequenceDiagram
   - Стадия `download` (`RuntimeDownloadHandler`) использует профиль `default`.
 - **Раздельное здоровье маршрутов и целей**:
   - Состояние сети хранится раздельно в `prc_route_health` (здоровье самого прокси), `prc_target_health` (состояние целевого эндпоинта `eis.HtmlSearch` / `eis.HtmlCard` / `eis.FileDownload`), `prc_route_target_health` (связка маршрут + цель) и `prc_adapter_health`.
-- **Обход локального VPN (Amnezia VPN `amn0`)**:
-  - При локальном запуске на машине с активным Amnezia VPN (`amn0`) для прямого обращения контейнеров и Playwright к российскому VDS-прокси на хосте прописывается маршрут `/32` к IP VDS через физический LAN-шлюз (`sudo ip route replace <VDS_IP>/32 via <LAN_GW> dev <LAN_IF>`, см. [`runbooks/archive-run.md`](runbooks/archive-run.md)).
+- **Обход локального VPN через конфиг и настройки (`LOCAL_VPN_BYPASS_ENABLED` + `OUTBOUND_PROXY_UNIX_SOCKET`)**:
+  - На рабочей станции с активным VPN (`amn0`, `tun_*` / `sing-box` strict route) в локальном `.env` включаются `LOCAL_VPN_BYPASS_ENABLED=true` и `OUTBOUND_PROXY_UNIX_SOCKET=/var/www/html/storage/logs/vpn-bypass.sock`.
+  - При `make dev:up` (или `make dev:vpn-bypass`) скрипт `docker/scripts/dev-vpn-bypass.sh` автоматически прописывает постоянный маршрут `/32` и правило приоритета `100` в NetworkManager к IP прокси из `PLAYWRIGHT_MCP_PROXY_SERVER` через физический LAN-шлюз, а также поднимает контейнер-мост `agelto_dev-vpn-bypass` (`--network host`), через Unix-сокет которого `PinnedCurlHandler` отправляет трафик к прокси строго в обход любого локального VPN.
+  - На продакшене (`LOCAL_VPN_BYPASS_ENABLED=false`, `OUTBOUND_PROXY_UNIX_SOCKET=` пусто) этот механизм полностью отключён, и `PinnedCurlHandler` работает в штатном режиме напрямую.
 - **TLS доверие (`SourceTlsTrust`)**:
   - Площадка `zakupki.gov.ru` использует сертификаты НУЦ Минцифры РФ (`docker/php/certs/russian-trusted-ca.pem`). `SourceTlsTrust` подключает этот CA-бандл только для целевых хостов из `config('outbound.http.tls_bundles')`. Использование `verify => false` запрещено.
 
@@ -180,7 +182,7 @@ sequenceDiagram
 
 - **`EisSearchFilter`** (`app/Dto/Platforms/Eis/EisSearchFilter.php`):
   - Хранится в `prc_crawlers.filter` (`jsonb`) и декодируется через `ListingFilterCodec` согласно `EisDefinition::acquisitionProfile()`.
-  - Поддерживает этапы (`stages`: `CA`, `PA`, `PC`, `NP`), цену (`priceFrom`, `priceTo`), поисковую строку (`searchString`, `morphology`), коды ОКПД2 (`okpd2Codes`), регионы заказчика (`customerRegions`), слова-исключения (`excludeWords`) и сортировку (`sortBy`: `PUBLISH_DATE` или `UPDATE_DATE`).
+  - Поддерживает этапы (`stageApplications`, `stageCommission`, `stageCompleted`, `stageCancelled`), цену (`priceFrom`, `priceTo`), окно дат публикации (`publishedFrom`, `publishedTo`), поисковую строку (`searchString`, `morphology`), коды ОКПД2 (`okpd2Codes`) и сортировку (`sortField`: `Published` / `Updated`, `sortAscending`), охватывая закупки **по всей России** (без региональных ограничений).
   - Неизвестные ключи фильтра отвергаются валидацией до сохранения и до отправки запроса.
 - **Сиды площадки (`database/seeders/Platforms/Eis/`)**:
   - `EisPlatformSeeder`: создаёт площадку `eis` (`ЕИС Закупки`).

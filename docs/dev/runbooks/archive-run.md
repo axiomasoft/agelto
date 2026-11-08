@@ -60,18 +60,15 @@ flowchart TD
 
 ## Triage (предварительная проверка перед стартом)
 
-1. **Прямой маршрут до российского VDS в обход локального VPN (`amn0`)**:
-   - В `.env` задан `PLAYWRIGHT_MCP_PROXY_SERVER=http://user:pass@<VDS_IP>:3128`.
-   - Если на рабочей станции запущена Amnezia VPN (`amn0` перехватывает `0.0.0.0/1` и `128.0.0.0/1`), добавьте на хосте статический маршрут `/32` к IP вашего VDS через физический роутер локальной сети (либо добавьте `<VDS_IP>/32` в исключения раздельного туннелирования Amnezia VPN):
-     ```bash
-     # Узнать физический шлюз LAN (например, 192.168.31.1 dev enp3s0)
-     ip route show | grep default
-     # Направить трафик к VDS напрямую мимо amn0
-     sudo ip route replace <VDS_IP>/32 via <LAN_GW> dev <LAN_IF>
-     # Проверить, что маршрут идёт через физический интерфейс, а не amn0
-     ip route get <VDS_IP>
+1. **Автоматический обход локального VPN через `.env` (`LOCAL_VPN_BYPASS_ENABLED`)**:
+   - В локальном `.env` задаются:
+     ```dotenv
+     PLAYWRIGHT_MCP_PROXY_SERVER=http://user:pass@<VDS_IP>:3128
+     LOCAL_VPN_BYPASS_ENABLED=true
+     OUTBOUND_PROXY_UNIX_SOCKET=/var/www/html/storage/logs/vpn-bypass.sock
      ```
-   - Благодаря этому и Docker-контейнеры (`app`, `horizon`), и браузер Playwright на хосте обращаются к VDS напрямую без двойного туннелирования.
+   - При запуске `make dev:up` или `make dev:vpn-bypass` скрипт `docker/scripts/dev-vpn-bypass.sh` автоматически настраивает в NetworkManager маршрут `<VDS_IP>/32` и правило приоритета `100` в таблицу `main` мимо `amn0` и `tun_*` (`table 2022`), а также запускает `agelto_dev-vpn-bypass` (`--network host`), чтобы контейнеры `app`/`horizon` обращались к прокси через Unix-сокет без перехвата трафика локальным VPN.
+   - На продакшене (`LOCAL_VPN_BYPASS_ENABLED=false`, `OUTBOUND_PROXY_UNIX_SOCKET=` пусто) этот локальный мост не используется, и всё работает штатно.
 2. **Доверие TLS Минцифры РФ**:
    - Контейнер содержит бандл `docker/php/certs/russian-trusted-ca.pem` (`SourceTlsTrust`, настройка `outbound.http.tls_bundles.eis`); отключение проверки сертификата (`verify => false`) в коде запрещено.
 3. **Защита от случайного списания средств за AI локально**:
@@ -127,7 +124,7 @@ docker compose up -d horizon process-relay process-reconciler process-feeder pro
    ```
    Каждый закрытый день в `prc_crawl_blocks` должен перейти в `status = 'complete'` с заполненным `terminal_proof` (`pass_1_digest === pass_2_digest`).
 4. **Сверка через Playwright**:
-   - Откройте `zakupki.gov.ru` через Playwright (с тем же прокси `PLAYWRIGHT_MCP_PROXY_SERVER`) и выставите идентичные фильтры профиля (`fz44`, регионы заказчика Москва `5277335` и МО `5277327`, ОКПД2 `41, 42, 43` (`okpd2Ids=8873919,8873920,8873921&okpd2IdsWithNested=on`), этап `PC`, слова-исключения `капитальн`, `ремонт`, `сметн`, `проектно-изыск`, `инженерн`, диапазон дат размещения).
+   - Откройте `zakupki.gov.ru` через Playwright (с тем же прокси `PLAYWRIGHT_MCP_PROXY_SERVER`) и выставите идентичные фильтры профиля (`fz44`, вся Россия без фильтра по регионам, ОКПД2 `41, 42, 43` (`okpd2Ids=8873919,8873920,8873921&okpd2IdsWithNested=on`), этап `PC` (`pc=on`), цена от `100 000 ₽` без верхнего потолка, диапазон дат размещения).
    - *Примечание по UI ЕИС*: в веб-интерфейсе ЕИС чекбокс `#okpd2IdsWithNested` («Искать с учетом вложенных») по умолчанию снят для ОКПД2 — перед открытием дерева в браузере его нужно отметить вручную, тогда как в коде `EisListingFilter::query()` параметр `okpd2IdsWithNested=on` передаётся всегда автоматически.
    - Сравните итоговое число результатов на сайте ЕИС с `SELECT count(*) FROM prc_procurements;` в базе.
    - Убедитесь, что в `prc_operation_intents` для всех найденных закупок созданы интенты `stage = 'detail'`, ожидающие снятия паузы.
