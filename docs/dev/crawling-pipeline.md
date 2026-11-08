@@ -60,23 +60,44 @@ flowchart TD
     DF -->|"новые/обновлённые prc_document_versions"| DocFeed
 ```
 
-## 2. Три режима сбора и схема работы на продакшене
+## 2. Два контура сбора: первичный архив и главный продакшен-поток (`UPDATE_DATE`)
 
-Система поддерживает три вида прогонов (`App\Enums\Procurement\Process\AcquisitionKind`), которые закрывают
-как первоначальное наполнение базы за прошлые периоды, так и непрерывное отслеживание всех изменений:
+В боевой эксплуатации процессы делятся на **первичный контур наполнения/отладки** и **главный постоянный продакшен-контур**:
 
-1. **Исторический архив за предыдущий год (`AcquisitionKind::Archive`, например `2025-01-01` .. `2025-12-31`)**:
-   - Запускается через `php artisan process:run --crawler=<id> --from=2025-01-01 --to=2025-12-31`.
+### Контур 1. Первичный архивный сбор (для начального наполнения базы и тестирования)
+1. **Исторический архив за 2025 год (`AcquisitionKind::Archive`, `2025-01-01` .. `2025-12-31`)**:
+   - Запускается через `php artisan process:run <crawler_id> --kind=archive --from=2025-01-01 --to=2025-12-31`.
    - Использует фильтр по дате размещения (`publishDateFrom` / `publishDateTo`, `sortBy = PUBLISH_DATE`).
    - `EisListingPartitioner` нарезает диапазон на **1-дневные блоки** (`prc_crawl_blocks`, максимум 400 дней за один вызов).
-   - Когда все дневные блоки получают `status = 'complete'`, прогон `prc_crawl_runs` переходит в `completed` и останавливается.
-2. **Архив за текущий год (`AcquisitionKind::Archive`, `2026-01-01` .. текущая закрытая дата)**:
-   - Запускается вторым шагом после завершения архива 2025 года по той же схеме двухпроходной верификации каждого дня.
-3. **Непрерывный поток актуальных и обновлённых закупок (`AcquisitionKind::Fresh` и `AcquisitionKind::Delta` + `status_refresh`)**:
-   - Управляется минутным планировщиком [`runbooks/acquisition-scheduler.md`](runbooks/acquisition-scheduler.md) (`php artisan process:schedule-acquisition`).
-   - **`Fresh`** проверяет окно `today - 1 day .. today` по дате публикации (`publishDateFrom/To`), подхватывая только что опубликованные закупки.
-   - **`Delta`** проверяет окно по дате обновления (`updateDateFrom/To`, `sortBy = UPDATE_DATE`), подхватывая любые существующие закупки, в которых заказчик изменил извещение, документацию или статус.
-   - **`status_refresh` и 24-часовой повторный `detail`** (`RefreshRepository::due()`) опрашивают уже известные закупки по полю `prc_procurements.next_status_due_at`.
+   - Когда все дневные блоки получают `status = 'complete'`, прогон `prc_process_runs` закрывает `discovery_outcome = 'complete'` и останавливается.
+2. **Архив за 2026 год (`AcquisitionKind::Archive`, `2026-01-01` .. текущая закрытая дата)**:
+   - Запускается вторым шагом по той же схеме двухпроходной верификации каждого дня.
+   - После локальной репетиции, отлова всех краевых случаев парсинга и выборочной проверки смет снимается дамп БД (`pg_dump`), который разворачивается на продакшен-сервер, чтобы продакшен стартовал с уже готовой базой за 2025–2026 гг.
+
+### Контур 2. Главный постоянный продакшен-процесс (`ЕИС 44-ФЗ — свежий поток`, `sortBy = UPDATE_DATE` по убыванию)
+- Управляется минутным планировщиком [`runbooks/acquisition-scheduler.md`](runbooks/acquisition-scheduler.md) (`php artisan process:schedule-acquisition`) и профилем `ЕИС 44-ФЗ — свежий поток` (`stages: ['CA', 'PA', 'PC', 'NP']`, `sortBy = UPDATE_DATE`, `sortDirection = desc`, `priceFrom = 100_000`, `priceTo = null`, `okpd2Codes = ['41', '42', '43']`).
+- **Жизненный цикл закупки и бизнес-триггер**:
+  1. **Появление новой закупки (`Подача заявок` / `CA`)**: как только закупка публикуется на ЕИС, у неё выставляется дата обновления, и профиль `UPDATE_DATE` мгновенно её подхватывает, создавая карточку и запуская `detail`.
+  2. **Заблаговременный разбор смет**: если в документации закупки есть сметы, конвейер `download` → `prepare` → `screening` → `extraction` → `publication` разбирает их сразу, пока закупка ещё идёт.
+  3. **Отслеживание смены статусов до завершения (`PA` → `PC`)**: при любом изменении извещения, добавлении разъяснений/протоколов или смене этапа на ЕИС обновляется дата обновления (`updatedAt`), а параллельно `status_refresh` (`RefreshRepository::due()`) опрашивает активные закупки по `next_status_due_at`.
+  4. **Бизнес-триггер завершения**: как только закупка переходит в статус **завершена (`completed`)** и у неё **есть распознанные сметы (`prc_estimates`)**, это событие служит триггером для запуска следующего бизнес-процесса (поиск поставщиков и коммерческая проработка).
+
+### Защита от повторного парсинга при частом опросе (3 уровня дедупликации и watermark)
+При частом запуске профиля `UPDATE_DATE` (например, каждые 5–30 минут) система **не перепарсивает** уже обработанные карточки повторно благодаря трёхуровневому механизму:
+
+1. **Учёт расписания и времени запуска/завершения (`prc_acquisition_schedules` + `prc_process_runs`)**:
+   - `prc_acquisition_schedules` хранит `cron_expression` и `next_due_at`.
+   - `AcquisitionScheduler::due()` блокирует строку расписания (`FOR UPDATE`) и коалесцирует пропущенные тики (`while ($next <= $now)`), не плодя дублирующиеся прогоны, если предыдущий ещё шёл.
+   - Каждый прогон в `prc_process_runs` фиксирует время старта (`created_at`), закрытия (`discovery_closed_at`) и итог (`discovery_outcome = complete | partial`).
+2. **Водяной знак покрытия дат (`ListingCoverageRepository`)**:
+   - Перед каждым запуском `ListingCoverageRepository::forCrawler()` вычисляет по завершённым блокам `prc_crawl_blocks` (`terminal_proof->>'outcome' = 'complete'`) непрерывный закрытый горизонт `verifiedThrough` и верхнюю границу `observedThrough`.
+   - Для `Delta` окно следующего прогона строится через `ListingCoverage::resumeFrom($verifiedOrigin)` от `max(verifiedThrough, observedThrough)` до `today`, поэтому уже закрытые прошлые дни повторно не запрашиваются.
+3. **Дедупликация на уровне строки и интента (`snapshot_hash` → `intent_key` → `work_key`)**:
+   - Когда прогон заново читает текущий открытый день (`today`), а новых закупок или изменений на ЕИС за последние 5 минут не появилось:
+     - `SnapshotFinalizer::persistLocked()` сверяет хэш снимка `$latest?->snapshot_hash === $hash`: если поля и `updatedAt` не изменились, новая ревизия `prc_revisions` **не создаётся** и `head_generation` **не увеличивается**;
+     - `ListingFinalizer::detailIntent()` строит детерминированный ключ `intent_key = sha256(detail | procurementId | updatedAt | fingerprint | semanticHash | accessPolicyHash)` со вставкой `ON CONFLICT (intent_key) DO NOTHING`;
+     - `WorkFinalizationRepository::storeSuccessors()` проверяет `prc_process_work` по `work_key` (`if ($existing === null)`).
+   - В результате при отсутствии изменений на ЕИС создаётся **0 новых задач `detail`** и выполняется **0 повторных HTTP-запросов** к карточкам закупок.
 
 ## 3. Двухпроходная стабильность листинга и ценовое дробление (`ListingHandler` / `ListingFinalizer`)
 
