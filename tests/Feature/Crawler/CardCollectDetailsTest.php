@@ -62,3 +62,18 @@ test('typed EIS unknown procedure fails before acquiring a network request', fun
     expect(fn () => D::source($outbound)->fetch($bad, ContractRuntime::context()))->toThrow(InvalidArgumentException::class)
         ->and($outbound->plans)->toBe([]);
 });
+
+test('supplier-results со всеми отклонёнными заявками по п. 4 ч. 1 ст. 52 44-ФЗ завершается как CompleteEmpty', function (): void {
+    $bodies = D::bodies();
+    $bodies['supplier-results'] = str_replace(
+        'По окончании срока подачи заявок подана только одна заявка на участие в закупке (п. 1 ч. 1 ст. 52 Закона № 44-ФЗ)',
+        'По результатам рассмотрения заявок на участие в закупке все поданные заявки отклонены (п. 4 ч. 1 ст. 52 Закона № 44-ФЗ)',
+        $bodies['supplier-results'],
+    );
+    $outbound = D::outbound($bodies);
+    $result = D::source($outbound)->fetch(D::request(), ContractRuntime::context());
+    expect($result)->toBeInstanceOf(DetailFetched::class)
+        ->and($result->snapshot->complete())->toBeTrue();
+    $part = array_values(array_filter($result->snapshot->parts, fn ($p) => $p->name === 'results'))[0];
+    expect($part->completeness)->toBe(Completeness::CompleteEmpty);
+});

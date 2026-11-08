@@ -13,7 +13,7 @@ Read 1–2 relevant sources first; expand only for an unresolved term, a cross-l
 |---|---|
 | Lock order, stage queues, table map, fast CLI tricks | `.ai/guidelines/cheatsheet.md` |
 | Process core, admission, recovery, network, storage, AI | `docs/dev/process-core.md`, skill `procurement-pipeline-dev` |
-| Crawling, discovery, document & estimate workflow | `docs/workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md` |
+| Crawling, discovery, document & estimate workflow | `docs/workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md`, `docs/dev/crawling-pipeline.md`, `docs/dev/runbooks/archive-run.md` |
 | Domain terms, layers, schema | `docs/dev/{architecture,database}.md`, `.ai/guidelines/glossary.md` |
 | Estimate extraction, windows, chunks, publication | skill `estimate-extraction-dev`, `docs/dev/ai/estimate-extraction.md` |
 | LLM ledger, send gate, receipts, assets, pricing | skill `llm-layer-dev`, `docs/dev/llm-providers.md` |

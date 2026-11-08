@@ -154,7 +154,8 @@ final readonly class DownloadHandler implements StageHandler
 
                 $published = true;
 
-                return new StageSucceeded(new DownloadResult($head, $artifact, new SourceDocumentMetadata($plan->filename, $mime,
+                return new StageSucceeded(new DownloadResult($head, $artifact, new SourceDocumentMetadata(
+                    $this->filename($plan->filename, $response->header('Content-Disposition')), $mime,
                     $response->header('ETag'), $lastModified === false ? null : $lastModified)));
             }
             throw new \LogicException('Signed reference refresh exceeded its bound.');
@@ -173,6 +174,23 @@ final readonly class DownloadHandler implements StageHandler
             }
             // Successful staged original remains charged until guarded transfer or orphan GC.
         }
+    }
+
+    private function filename(string $fallback, ?string $disposition): string
+    {
+        if ($disposition === null || $disposition === '') {
+            return $fallback;
+        }
+        $raw = preg_match('/filename\*\s*=\s*UTF-8\'\'([^;\r\n]+)/i', $disposition, $m) === 1
+            ? rawurldecode(trim($m[1], " \t\"'"))
+            : (preg_match('/filename\s*=\s*"([^"\r\n]+)"/i', $disposition, $m) === 1
+                || preg_match('/filename\s*=\s*([^;\s\r\n]+)/i', $disposition, $m) === 1
+                ? rawurldecode(trim($m[1], " \t\"'")) : '');
+        $candidate = basename(str_replace('\\', '/', trim($raw)));
+
+        return $candidate !== '' && ! str_contains($candidate, "\0") && strlen($candidate) <= 255
+            && mb_check_encoding($candidate, 'UTF-8') && pathinfo($candidate, PATHINFO_EXTENSION) !== ''
+            ? $candidate : $fallback;
     }
 
     private function removeBinary(BinaryBodyArtifact $body): bool

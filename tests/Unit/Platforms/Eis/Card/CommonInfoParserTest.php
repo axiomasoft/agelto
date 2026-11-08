@@ -281,3 +281,73 @@ test('повреждённая строка позиции не становит
 
     expect(app(CommonInfoParser::class)->parse($html)->status)->toBe(DetailSnapshotStatus::Incomplete);
 });
+
+test('parse разбирает 6-колоночную таблицу неопределённого объёма с пагинацией positionKTRU', function () {
+    $html = preg_replace(
+        '#<div class="container" id="positionKTRU">.*?</body>#s',
+        <<<'HTML'
+        <div class="container" id="positionKTRU">
+          <table class="blockInfo__table tableBlock">
+            <thead>
+              <tr class="tableBlock__row">
+                <th class="tableBlock__col tableBlock__col_header"></th>
+                <th class="tableBlock__col tableBlock__col_header">Код позиции</th>
+                <th class="tableBlock__col tableBlock__col_header">Наименование товара, работы, услуги</th>
+                <th class="tableBlock__col tableBlock__col_header">Ед. измерения</th>
+                <th class="tableBlock__col tableBlock__col_header">Начальная цена за единицу товара, работы, услуги</th>
+                <th class="tableBlock__col tableBlock__col_header">Стоимость, &#8381;</th>
+              </tr>
+            </thead>
+            <tbody class="tableBlock__body">
+              <tr class="tableBlock__row">
+                <td class="tableBlock__col"></td>
+                <td class="tableBlock__col">43.22.12.140</td>
+                <td class="tableBlock__col">Работы по монтажу систем отопления</td>
+                <td class="tableBlock__col">Условная единица</td>
+                <td class="tableBlock__col tableBlock__col_right">1 250,00</td>
+                <td class="tableBlock__col tableBlock__col_right">0,00</td>
+              </tr>
+              <tr class="truInfo_ tableBlock__row" style="display: none">
+                <td class="tableBlock__col pt-0"></td>
+              </tr>
+              <tr class="tableBlock__row">
+                <td class="tableBlock__col"></td>
+                <td class="tableBlock__col">43.21.10.110</td>
+                <td class="tableBlock__col">Работы электромонтажные</td>
+                <td class="tableBlock__col">Условная единица</td>
+                <td class="tableBlock__col tableBlock__col_right">980,50</td>
+                <td class="tableBlock__col tableBlock__col_right">0,00</td>
+              </tr>
+            </tbody>
+            <tfoot class="tableBlock__foot">
+              <tr class="tableBlock__row">
+                <td colspan="6" class="tableBlock__col tableBlock__col_right">
+                  <span class="tableBlock__resultTitle">Начальная сумма цен единиц товара, работы, услуги (31 записей):</span>
+                  <span class="cost">2 230,50 &#8381;</span>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+          <div id="truRecordsPerPageContainerId1">
+            <div class="select select-text select-record-per-page--number" data-selected-value="2">2</div>
+          </div>
+        </div>
+        </div>
+        </body>
+        HTML,
+        commonInfoFixtureHtml(),
+        limit: 1,
+    );
+
+    $snapshot = app(CommonInfoParser::class)->parse($html);
+
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Complete)
+        ->and($snapshot->commonInfo->items)->toHaveCount(2)
+        ->and($snapshot->commonInfo->items[0]->classifierCodeOkpd2)->toBe('43.21.10.110')
+        ->and($snapshot->commonInfo->items[0]->positionNumber)->toBe(1)
+        ->and($snapshot->commonInfo->items[0]->quantity)->toBeNull()
+        ->and($snapshot->commonInfo->items[0]->unitPrice)->toBe('980.50')
+        ->and($snapshot->commonInfo->items[1]->classifierCodeOkpd2)->toBe('43.22.12.140')
+        ->and($snapshot->commonInfo->items[1]->positionNumber)->toBe(2)
+        ->and($snapshot->commonInfo->items[1]->unitPrice)->toBe('1250.00');
+});

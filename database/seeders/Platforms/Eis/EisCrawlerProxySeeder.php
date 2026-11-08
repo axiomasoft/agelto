@@ -7,6 +7,7 @@ namespace Database\Seeders\Platforms\Eis;
 use App\Dto\Procurement\Network\ProxyNodeConfiguration;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScopeDefinition;
+use App\Enums\Procurement\Network\NetworkChangeStatus;
 use App\Enums\Procurement\Process\ScopeKind;
 use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Proxy;
@@ -17,7 +18,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 use RuntimeException;
 
-/** Imports the local RU listing proxy without embedding credentials in source. */
+/** Imports the local RU proxy without embedding credentials in source. */
 final class EisCrawlerProxySeeder extends Seeder
 {
     public const string SERVICE = 'ЕИС — RU CSV audit';
@@ -48,7 +49,9 @@ final class EisCrawlerProxySeeder extends Seeder
             $configuration = new ProxyNodeConfiguration(
                 service: self::SERVICE, host: $parts['host'], port: $parts['port'],
                 username: isset($parts['user']) ? rawurldecode($parts['user']) : null,
-                country: 'RU', scopes: [ProxyScope::CrawlListing], secretRef: 'PLAYWRIGHT_MCP_PROXY_SERVER',
+                country: 'RU',
+                scopes: [ProxyScope::CrawlListing, ProxyScope::CrawlDetail, ProxyScope::DocumentDownload],
+                secretRef: 'PLAYWRIGHT_MCP_PROXY_SERVER',
                 enabled: $proxy?->route?->enabled ?? true,
             );
             // Explicit reseeding revokes the previous credential admission, including a
@@ -57,7 +60,18 @@ final class EisCrawlerProxySeeder extends Seeder
                 'proxy_catalog_install', new ProcessUuid((string) Str::uuid()),
                 new ProcessUuid((string) Str::uuid()));
             $routes = app(RouteRepository::class);
-            $routes->ensureProfile('eis.audit', $proxy->route_id);
+            foreach (['eis.audit', 'default'] as $key) {
+                $routes->ensureProfile($key, $proxy->route_id);
+                $profile = $routes->profile(null, $key);
+                if ($profile !== null && array_map(static fn ($b): string => $b->id->value, $routes->bindings($profile)) !== [$proxy->route_id]) {
+                    $result = $routes->updateProfile($key, 1, [$proxy->route_id], 0, 'proxy_catalog_install',
+                        new ProcessUuid((string) Str::uuid()), new ProcessUuid((string) Str::uuid()));
+                    if ($result->status === NetworkChangeStatus::VersionConflict) {
+                        $routes->updateProfile($key, $result->policyVersion, [$proxy->route_id], 0, 'proxy_catalog_install',
+                            new ProcessUuid((string) Str::uuid()), new ProcessUuid((string) Str::uuid()));
+                    }
+                }
+            }
         });
     }
 }

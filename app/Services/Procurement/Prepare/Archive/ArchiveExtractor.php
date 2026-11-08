@@ -260,16 +260,13 @@ final readonly class ArchiveExtractor
             if (! is_array($entry)) {
                 throw new ArchiveUnsupportedException('RAR metadata содержит не объект записи');
             }
-            $isDirectory = $entry['XADIsDirectory'] ?? false;
-            $isLink = $entry['XADIsLink'] ?? false;
-            $isEncrypted = $entry['XADIsEncrypted'] ?? false;
-            if (! is_bool($isDirectory) || ! is_bool($isLink) || ! is_bool($isEncrypted)) {
-                throw new ArchiveUnsupportedException('RAR metadata содержит невалидные флаги записи');
-            }
+            $isDirectory = $this->rarBool($entry['XADIsDirectory'] ?? false);
+            $isLink = $this->rarBool($entry['XADIsLink'] ?? false);
+            $isEncrypted = $this->rarBool($entry['XADIsEncrypted'] ?? false);
             $entries[] = new ArchiveEntry(
                 path: $this->requiredString($entry['XADFileName'] ?? null, 'RAR filename'),
-                declaredSize: $this->nonNegativeInt($entry['XADFileSize'] ?? null, 'RAR size'),
-                compressedSize: $this->nonNegativeInt($entry['XADCompressedSize'] ?? null, 'RAR compressed size'),
+                declaredSize: $this->nonNegativeInt($entry['XADFileSize'] ?? ($isDirectory ? 0 : null), 'RAR size'),
+                compressedSize: $this->nonNegativeInt($entry['XADCompressedSize'] ?? ($isDirectory ? 0 : null), 'RAR compressed size'),
                 isDirectory: $isDirectory,
                 isEncrypted: $isEncrypted,
                 type: $isLink ? 'symlink' : ($isDirectory ? 'directory' : 'file'),
@@ -277,6 +274,17 @@ final readonly class ArchiveExtractor
         }
 
         return $entries;
+    }
+
+    private function rarBool(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if ($value === 0 || $value === 1) {
+            return $value === 1;
+        }
+        throw new ArchiveUnsupportedException('RAR metadata содержит невалидные флаги записи');
     }
 
     /** @param resource $input */

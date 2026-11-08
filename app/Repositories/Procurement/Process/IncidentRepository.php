@@ -9,6 +9,7 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\OperatorCommandStatus;
+use App\Enums\Telemetry\LogChannel;
 use App\Support\SecretRedactor;
 
 /**
@@ -62,6 +63,7 @@ final readonly class IncidentRepository
         $id = new ProcessUuid($row->string('id'));
         if ($row->bool('inserted')) {
             $this->transitions->recordIncident($eventId, $projectionMessageId, $id, 1, null, 'open', $kind, ActorKind::System);
+            LogChannel::Process->error('process.incident_opened', ['incident_id' => $id->value, 'scope_key' => $scopeKey, 'kind' => $kind, 'evidence' => $evidence]);
         }
 
         return $id;

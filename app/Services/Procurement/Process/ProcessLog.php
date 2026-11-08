@@ -26,6 +26,19 @@ final class ProcessLog
         ]);
     }
 
+    public static function handlerFault(string $workId, string $stage, int $generation, string $faultSignature, \Throwable $failure): void
+    {
+        self::write('error', 'process.handler_fault', [
+            'work_id' => $workId,
+            'stage' => $stage,
+            'generation' => $generation,
+            'fault_signature' => $faultSignature,
+            'file' => basename($failure->getFile()),
+            'line' => $failure->getLine(),
+            ...self::failure($failure),
+        ]);
+    }
+
     /** Best-effort delivery_rejected: arrival counter диагностики, не durable work counter. */
     public static function deliveryRejected(string $workId, int $dispatchGeneration, ClaimStatus $reason): void
     {

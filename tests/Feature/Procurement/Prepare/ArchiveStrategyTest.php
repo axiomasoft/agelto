@@ -6,6 +6,7 @@ use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PreparationResult;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
 use App\Services\Procurement\Prepare\ArchiveStrategy;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
@@ -176,6 +177,37 @@ test('RAR adapter имеет runtime evidence без сфабрикованно�
 
     expect($result->successful())->toBeTrue($result->errorOutput())
         ->and($result->output().$result->errorOutput())->not->toBe('');
+});
+
+test('ArchiveExtractor::listEntries принимает числовые флаги 0 и 1 и директории без XADFileSize в выводе lsar -json', function () {
+    Process::fake([
+        '*' => Process::result(output: json_encode([
+            'lsarFormatVersion' => 2,
+            'lsarContents' => [
+                [
+                    'XADFileName' => 'Проект/06.3-41-25-СМ.pdf',
+                    'XADFileSize' => 2086696,
+                    'XADCompressedSize' => 1746654,
+                    'XADIsSolid' => 0,
+                ],
+                [
+                    'XADFileName' => 'Проект',
+                    'XADIsDirectory' => 1,
+                    'XADCompressedSize' => 0,
+                ],
+            ],
+        ], JSON_THROW_ON_ERROR)),
+    ]);
+
+    $entries = app(ArchiveExtractor::class)->listEntries('/tmp/fixture.rar', 'rar');
+
+    expect($entries)->toHaveCount(2)
+        ->and($entries[0]->path)->toBe('Проект/06.3-41-25-СМ.pdf')
+        ->and($entries[0]->isDirectory)->toBeFalse()
+        ->and($entries[0]->declaredSize)->toBe(2086696)
+        ->and($entries[1]->path)->toBe('Проект')
+        ->and($entries[1]->isDirectory)->toBeTrue()
+        ->and($entries[1]->declaredSize)->toBe(0);
 });
 
 test('повторный прогон 7z — дочерний документ не дублируется', function () {

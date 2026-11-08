@@ -170,3 +170,74 @@ test('missing document route profile даёт configuration hold без handler 
         PermitFixtures::clean();
     }
 });
+
+test('runtime download открывает canary probe когда target health находится в unknown', function (): void {
+    PermitFixtures::clean();
+    ExecutionFixtures::truncateLedger();
+    DocumentStorageFixtures::reset();
+    $wire = new WireFixture;
+    try {
+        $registry = CallerFixtures::platform($wire);
+        $routeId = DB::table('prc_network_routes')->sole()->id;
+        app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile(app(OutboundPolicy::class)->defaultRouteProfile, $routeId));
+        DB::table('prc_target_health')->update(['state' => 'unknown', 'availability' => 'unknown']);
+        DB::table('prc_route_target_health')->update(['state' => 'unknown']);
+        expect(DB::table('prc_target_health')->pluck('state')->unique()->all())->toBe(['unknown'])
+            ->and(DB::table('prc_route_target_health')->pluck('state')->unique()->all())->toBe(['unknown']);
+        app()->instance(RuntimeDownloadHandler::class, app()->makeWith(RuntimeDownloadHandler::class, ['urls' => $wire->policy()]));
+        app()->forgetInstance(StageRegistry::class);
+        $this->artisan('process:sync-documents')->assertSuccessful();
+        $procurement = Procurement::factory()->create(['platform_id' => $registry->platform_id, 'registry_id' => $registry->id]);
+        $ref = new DocumentReference(new SourceIdentity(new PlatformCode('eis'), new SourceIdentifierType($procurement->source_identity_type),
+            new SourceIdentifierValue($procurement->source_identity_value)), 'fixture', 'canary.pdf', $wire->url('/document'), new SourceDocumentKey('fixture:canary', 1));
+        DB::transaction(fn () => app(DocumentCatalogRepository::class)->upsertReference($procurement, $ref, ContentHash::of('access')));
+        $wire->respond('/document', "%PDF-1.4\ncanary\n%%EOF", headers: ['Content-Type' => 'application/pdf']);
+        expect(app(DocumentFeeder::class)->reconcile())->toBe(1);
+        $work = DB::table('prc_process_work')->where('stage', 'download')->sole();
+        expect(app(WorkFeeder::class)->tick('download'))->toBe(1);
+        (new ExecuteWorkJob($work->id, 1, LedgerFixtures::uuid()->value))->handle(app(WorkRunner::class));
+        expect(DB::table('prc_process_work')->where('id', $work->id)->value('state'))->toBe('succeeded')
+            ->and(DB::table('prc_outbound_operations')->where('caller_code', 'document.download_canary')->value('state'))->toBe('closed')
+            ->and(DB::table('prc_target_health')->whereIn('state', ['closed'])->count())->toBe(1);
+    } finally {
+        $wire->stop();
+        PermitFixtures::clean();
+    }
+});
+
+test('runtime download использует имя файла и расширение из заголовка Content-Disposition', function (): void {
+    PermitFixtures::clean();
+    ExecutionFixtures::truncateLedger();
+    DocumentStorageFixtures::reset();
+    $wire = new WireFixture;
+    try {
+        $registry = CallerFixtures::platform($wire);
+        $routeId = DB::table('prc_network_routes')->sole()->id;
+        app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile(app(OutboundPolicy::class)->defaultRouteProfile, $routeId));
+        app()->instance(RuntimeDownloadHandler::class, app()->makeWith(RuntimeDownloadHandler::class, ['urls' => $wire->policy()]));
+        app()->forgetInstance(StageRegistry::class);
+        $this->artisan('process:sync-documents')->assertSuccessful();
+        $procurement = Procurement::factory()->create(['platform_id' => $registry->platform_id, 'registry_id' => $registry->id]);
+        $ref = new DocumentReference(new SourceIdentity(new PlatformCode('eis'), new SourceIdentifierType($procurement->source_identity_type),
+            new SourceIdentifierValue($procurement->source_identity_value)), 'fixture',
+            'Электронный документ, полученный из внешней системы.pdf', $wire->url('/document'), new SourceDocumentKey('fixture:external-doc', 1));
+        DB::transaction(fn () => app(DocumentCatalogRepository::class)->upsertReference($procurement, $ref, ContentHash::of('access')));
+        $oleDoc = "\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1".str_repeat("\0", 512);
+        $encodedName = rawurlencode('Электронный документ, полученный из внешней системы.doc');
+        $wire->respond('/document', $oleDoc, headers: [
+            'Content-Type' => 'application/download',
+            'Content-Disposition' => "attachment; filename=\"{$encodedName}\"",
+        ]);
+        expect(app(DocumentFeeder::class)->reconcile())->toBe(1);
+        $work = DB::table('prc_process_work')->where('stage', 'download')->sole();
+        expect(app(WorkFeeder::class)->tick('download'))->toBe(1);
+        (new ExecuteWorkJob($work->id, 1, LedgerFixtures::uuid()->value))->handle(app(WorkRunner::class));
+        $version = DB::table('prc_document_versions')->sole();
+        expect(DB::table('prc_process_work')->where('id', $work->id)->value('state'))->toBe('succeeded')
+            ->and($version->filename)->toBe('Электронный документ, полученный из внешней системы.doc')
+            ->and($version->extension)->toBe('doc');
+    } finally {
+        $wire->stop();
+        PermitFixtures::clean();
+    }
+});

@@ -7,15 +7,14 @@ namespace Database\Seeders\Platforms\Eis;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Repositories\Procurement\Network\RouteRepository;
-use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-/** A separate January profile; does not overwrite the seeded annual profile. */
-final class EisJanuary2025AuditSeeder extends Seeder
+/** A separate audit profile; does not overwrite the seeded annual profile. */
+final class EisAuditSeeder extends Seeder
 {
-    public const string NAME = 'ЕИС 44-ФЗ — CSV аудит январь 2025 (завершённые, ОКПД2 43)';
+    public const string NAME = 'ЕИС 44-ФЗ — CSV аудит (завершённые, ОКПД2 43)';
 
     public function run(): void
     {
@@ -33,12 +32,10 @@ final class EisJanuary2025AuditSeeder extends Seeder
             }
 
             $this->call(EisCrawlerProxySeeder::class);
-            $proxy = Proxy::query()->where('service', EisCrawlerProxySeeder::SERVICE)->sole();
+            Proxy::query()->where('service', EisCrawlerProxySeeder::SERVICE)->sole();
 
             $filter = clone $source->filter;
-            $filter->publishedFrom = CarbonImmutable::parse('2025-01-01');
-            $filter->publishedTo = CarbonImmutable::parse('2025-01-31');
-            // The default RUB 1bn ceiling excluded one January procurement in the live audit.
+            // The default RUB 1bn ceiling excluded one procurement in the live audit.
             // Independent unbounded source totals must still confirm this wider bound.
             $filter->priceTo = 1_000_000_000_000;
 

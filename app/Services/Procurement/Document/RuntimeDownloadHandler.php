@@ -38,7 +38,7 @@ final readonly class RuntimeDownloadHandler implements StageHandler
         if (! $input instanceof DownloadInput) {
             throw new \InvalidArgumentException('Download input required.');
         }
-        $platform = LedgerRow::one('SELECT p.code FROM prc_documents d JOIN prc_platforms p ON p.id=d.platform_id WHERE d.id=?', [$input->documentId])
+        $platform = LedgerRow::one('SELECT p.id, p.code FROM prc_documents d JOIN prc_platforms p ON p.id=d.platform_id WHERE d.id=?', [$input->documentId])
             ?? throw new \LogicException('Missing document platform.');
         $definition = $this->platforms->get(new PlatformCode($platform->string('code')));
         if (! $definition->documents instanceof SupportedDocumentAccessCapability) {
@@ -64,7 +64,8 @@ final readonly class RuntimeDownloadHandler implements StageHandler
         }
         $outbound = new ExecutorPlatformOutbound(app(OutboundExecutor::class),
             app()->makeWith(ScheduledAttemptGate::class, ['routes' => $this->routes->outboundRoutes($routePolicy)]),
-            $this->urls ?? new UrlPolicy($origins), new TransferBudget($this->policy->maxBytes * 3, $this->policy->maxBytes * 3));
+            $this->urls ?? new UrlPolicy($origins), new TransferBudget($this->policy->maxBytes * 3, $this->policy->maxBytes * 3),
+            $routePolicy, $platform->int('id'));
 
         return app()->makeWith(DownloadHandler::class, ['access' => $access, 'outbound' => $outbound])->execute($input, $execution);
     }

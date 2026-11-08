@@ -14436,6 +14436,104 @@
       ],
       "reason": "Semantic test title and path rename; behavioral assertion retained.",
       "contract": "Exact executed-case identity transfer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
+        "name": "сид прокси декодирует реквизиты и разрешает только CSV листинг"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Seeders/EisAuditSeederTest.php",
+          "name": "сид прокси декодирует реквизиты и привязывает маршрут для всех стадий ЕИС"
+        }
+      ],
+      "reason": "Semantic test title and path rename; behavioral assertion retained.",
+      "contract": "Exact executed-case identity transfer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
+        "name": "повторный сид обновляет пароль существующего прокси без дубля"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Seeders/EisAuditSeederTest.php",
+          "name": "повторный сид обновляет пароль существующего прокси без дубля"
+        }
+      ],
+      "reason": "Semantic test title and path rename; behavioral assertion retained.",
+      "contract": "Exact executed-case identity transfer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
+        "name": "сид аудита создаёт отдельный январский CSV профиль с привязанным прокси"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Seeders/EisAuditSeederTest.php",
+          "name": "сид аудита создаёт отдельный профиль обхода с привязанным прокси"
+        }
+      ],
+      "reason": "Semantic test title and path rename; behavioral assertion retained.",
+      "contract": "Exact executed-case identity transfer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
+        "name": "повторный январский сид сохраняет идентификаторы и единственную привязку"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Seeders/EisAuditSeederTest.php",
+          "name": "повторный сид аудита сохраняет идентификаторы и единственную привязку"
+        }
+      ],
+      "reason": "Semantic test title and path rename; behavioral assertion retained.",
+      "contract": "Exact executed-case identity transfer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
+        "name": "активный прогон запрещает перезапись январского профиля"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Seeders/EisAuditSeederTest.php",
+          "name": "активный прогон запрещает перезапись профиля аудита"
+        }
+      ],
+      "reason": "Semantic test title and path rename; behavioral assertion retained.",
+      "contract": "Exact executed-case identity transfer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
+        "name": "сид прокси отвергает неподдерживаемую схему до записи в БД with data set \"dataset \"SOCKS5\"\""
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Seeders/EisAuditSeederTest.php",
+          "name": "сид прокси отвергает неподдерживаемую схему до записи в БД with data set \"dataset \"SOCKS5\"\""
+        }
+      ],
+      "reason": "Semantic test title and path rename; behavioral assertion retained.",
+      "contract": "Exact executed-case identity transfer."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Seeders/EisJanuary2025AuditSeederTest.php",
+        "name": "сид прокси отвергает неподдерживаемую схему до записи в БД with data set \"dataset \"HTTPS\"\""
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Seeders/EisAuditSeederTest.php",
+          "name": "сид прокси отвергает неподдерживаемую схему до записи в БД with data set \"dataset \"HTTPS\"\""
+        }
+      ],
+      "reason": "Semantic test title and path rename; behavioral assertion retained.",
+      "contract": "Exact executed-case identity transfer."
     }
   ]
 }

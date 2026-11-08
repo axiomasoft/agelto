@@ -109,7 +109,7 @@ final readonly class EisListingSource implements ListingSource, ResponseValidato
         $hash = ContentHash::of($body);
         $invalid = static fn (AssessmentReason $reason, int $rows = 0, ?FailureScope $failureScope = null): ListingPage => new ListingPage(
             new ProcurementSummaries([]), $rows, new ResponseAssessment(Completeness::Partial, $reason, $hash, failureScope: $failureScope), TerminalProof::None, null);
-        if ($response->status !== 200 || ! preg_match('~^(?:text/(?:csv|plain)|application/(?:csv|octet-stream))(?:;|$)~i', $response->header('content-type') ?? '') || $body === '') {
+        if ($response->status !== 200 || ! preg_match('~^(?:text/(?:csv|plain)|application/(?:csv|download|octet-stream))(?:;|$)~i', $response->header('content-type') ?? '') || $body === '') {
             return $invalid(AssessmentReason::InvalidResponse);
         }
         if (strlen($body) > $this->policy->endpoints->get('listing')->profile->maxTextBytes) {

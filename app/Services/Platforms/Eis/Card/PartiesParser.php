@@ -23,6 +23,8 @@ final readonly class PartiesParser
      */
     private const array ROLE_MAP = [
         'Заказчик' => ProcurementPartyRole::Customer,
+        'Организация, осуществляющая закупки в соответствии с частями 4, 4.3 или 4.4 статьи 15 Федерального закона № 44-ФЗ' => ProcurementPartyRole::Customer,
+        'Специализированная некоммерческая организация, которая осуществляет деятельность, направленную на обеспечение проведения капитального ремонта общего имущества в многоквартирных домах в соответствии с Постановлением № 615 (региональный оператор)' => ProcurementPartyRole::Customer,
         'Размещающая организация' => ProcurementPartyRole::Placer,
         'Уполномоченный орган' => ProcurementPartyRole::AuthorizedBody,
         'Уполномоченное учреждение' => ProcurementPartyRole::AuthorizedInstitution,
@@ -110,9 +112,13 @@ final readonly class PartiesParser
         });
 
         $allCodes = $this->customerCodes($crawler);
-        $this->requireComplete($allCodes !== []);
+        $unlinkedCustomerPlan = $role === ProcurementPartyRole::Customer
+            && $allCodes === []
+            && $customers === []
+            && $this->definition($crawler, 'Сведения о связи с позицией плана-графика') === 'Связь с позицией плана-графика не установлена';
+        $this->requireComplete($allCodes !== [] || $unlinkedCustomerPlan);
 
-        if ($role === ProcurementPartyRole::Customer) {
+        if ($role === ProcurementPartyRole::Customer && ! $unlinkedCustomerPlan) {
             $this->requireComplete(count($allCodes) === 1);
             $customerCode = $allCodes[0];
             $this->requireComplete($customers === [] || $customers === [$customerCode => $name]);
@@ -125,8 +131,9 @@ final readonly class PartiesParser
         $this->requireComplete($customerCodes === $allCodes);
 
         // truInfo is only a cross-check. Its names are not global organization identities.
-        $crawler->filter('tr[class*="truInfo_"] > td.tableBlock__col_header')->each(function (Crawler $cell) use ($customers): void {
-            $this->requireComplete(in_array($this->normalize($cell->text()), $customers, true));
+        $allowedCustomerNames = $unlinkedCustomerPlan ? [$name] : $customers;
+        $crawler->filter('tr[class*="truInfo_"] > td.tableBlock__col_header')->each(function (Crawler $cell) use ($allowedCustomerNames): void {
+            $this->requireComplete(in_array($this->normalize($cell->text()), $allowedCustomerNames, true));
         });
 
         $contactBlocks = $crawler->filter('.row.blockInfo')->reduce(fn (Crawler $block): bool => $block->filter('h2.blockInfo__title')->count() === 1
@@ -142,7 +149,7 @@ final readonly class PartiesParser
             addressRaw: $this->definition($contact, 'Место нахождения'),
             phone: $this->definition($contact, 'Номер контактного телефона'),
             email: $this->definition($contact, 'Адрес электронной почты'),
-            identifiers: $role === ProcurementPartyRole::Customer
+            identifiers: $role === ProcurementPartyRole::Customer && $allCodes !== []
                 ? [new OrganizationIdentifierData(platformCode: 'eis', type: 'organization_code', value: $code),
                     new OrganizationIdentifierData(platformCode: 'eis', type: 'customer_code', value: $allCodes[0])]
                 : [new OrganizationIdentifierData(platformCode: 'eis', type: 'organization_code', value: $code)],

@@ -10,9 +10,9 @@ use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Crawler\Proxy;
 use App\Repositories\Procurement\Network\RouteRepository;
+use Database\Seeders\Platforms\Eis\EisAuditSeeder;
 use Database\Seeders\Platforms\Eis\EisCrawlerProfileSeeder;
 use Database\Seeders\Platforms\Eis\EisCrawlerProxySeeder;
-use Database\Seeders\Platforms\Eis\EisJanuary2025AuditSeeder;
 use Database\Seeders\Platforms\Eis\EisPlatformSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -59,19 +59,21 @@ afterEach(function (): void {
     Queue::assertNothingPushed();
 });
 
-test('сид прокси декодирует реквизиты и разрешает только CSV листинг', function (): void {
+test('сид прокси декодирует реквизиты и привязывает маршрут для всех стадий ЕИС', function (): void {
     $this->seed(EisCrawlerProxySeeder::class);
 
     $proxy = Proxy::query()->sole();
+    $routes = app(RouteRepository::class);
 
     expect($proxy->host)->toBe('proxy.invalid')
         ->and($proxy->port)->toBe(8080)
         ->and($proxy->username)->toBe('audit@user')
-        ->and(app(RouteRepository::class)->bindings(app(RouteRepository::class)->profile(null, 'eis.audit'))[0]->credentials())->toBe('audit@user:p:ss+word')
+        ->and($routes->bindings($routes->profile(null, 'eis.audit'))[0]->credentials())->toBe('audit@user:p:ss+word')
+        ->and($routes->bindings($routes->profile(null, 'default'))[0]->id->value)->toBe($proxy->route_id)
         ->and($proxy->fresh()->load('route')->toJson())->not->toContain('p:ss+word')
         ->and($proxy->country)->toBe('RU')
         ->and($proxy->route->enabled)->toBeTrue()
-        ->and($proxy->scopes->all())->toBe([ProxyScope::CrawlListing]);
+        ->and($proxy->scopes->all())->toBe([ProxyScope::CrawlListing, ProxyScope::CrawlDetail, ProxyScope::DocumentDownload]);
 });
 
 test('повторный сид обновляет пароль существующего прокси без дубля', function (): void {
@@ -86,17 +88,17 @@ test('повторный сид обновляет пароль существу
     expect($proxy->id)->toBe($proxyId)
         ->and($proxy->route->credential_version)->toBe($version + 1)
         ->and(app(RouteRepository::class)->bindings(app(RouteRepository::class)->profile(null, 'eis.audit'))[0]->credentials())->toBe('audit@user:rotated:password')
-        ->and($proxy->scopes->all())->toBe([ProxyScope::CrawlListing]);
+        ->and($proxy->scopes->all())->toBe([ProxyScope::CrawlListing, ProxyScope::CrawlDetail, ProxyScope::DocumentDownload]);
 });
 
-test('сид аудита создаёт отдельный январский CSV профиль с привязанным прокси', function (): void {
+test('сид аудита создаёт отдельный профиль обхода с привязанным прокси', function (): void {
     $this->seed([EisPlatformSeeder::class, EisCrawlerProfileSeeder::class]);
-    $annual = Crawler::query()->where('listing_kind', AcquisitionKind::Archive)->sole();
+    $annual = Crawler::query()->where('name', 'ЕИС 44-ФЗ — архив 2025 (завершённые)')->sole();
     $annualBefore = $annual->getRawOriginal();
 
-    $this->seed(EisJanuary2025AuditSeeder::class);
+    $this->seed(EisAuditSeeder::class);
 
-    $audit = Crawler::query()->where('name', EisJanuary2025AuditSeeder::NAME)->sole();
+    $audit = Crawler::query()->where('name', EisAuditSeeder::NAME)->sole();
     $proxy = Proxy::query()->sole();
 
     expect($audit->id)->not->toBe($annual->id)
@@ -108,35 +110,35 @@ test('сид аудита создаёт отдельный январский C
         ->and($audit->route_profile_id)->not->toBeNull()
         ->and(array_values(app(RouteRepository::class)->bindings(new ProcessUuid($audit->route_profile_id)))[0]->id->value)->toBe($proxy->route_id)
         ->and($audit->filter->publishedFrom->toDateString())->toBe('2025-01-01')
-        ->and($audit->filter->publishedTo->toDateString())->toBe('2025-01-31')
+        ->and($audit->filter->publishedTo->toDateString())->toBe('2025-12-31')
         ->and($audit->filter->sortField)->toBe(ListingSortField::Published)
         ->and($audit->filter->sortAscending)->toBeTrue()
         ->and($audit->filter->stageCompleted)->toBeTrue()
         ->and($audit->filter->okpd2Codes)->toBe(['43'])
         ->and($audit->filter->priceTo)->toBe(1_000_000_000_000)
         ->and($annual->refresh()->getRawOriginal())->toBe($annualBefore)
-        ->and(Crawler::query()->count())->toBe(3)
+        ->and(Crawler::query()->count())->toBe(4)
         ->and(Crawler::query()->where('listing_kind', AcquisitionKind::Fresh)->sole()->is_active)->toBeFalse();
 });
 
-test('повторный январский сид сохраняет идентификаторы и единственную привязку', function (): void {
-    $this->seed([EisPlatformSeeder::class, EisCrawlerProfileSeeder::class, EisJanuary2025AuditSeeder::class]);
-    $crawlerId = Crawler::query()->where('name', EisJanuary2025AuditSeeder::NAME)->sole()->id;
+test('повторный сид аудита сохраняет идентификаторы и единственную привязку', function (): void {
+    $this->seed([EisPlatformSeeder::class, EisCrawlerProfileSeeder::class, EisAuditSeeder::class]);
+    $crawlerId = Crawler::query()->where('name', EisAuditSeeder::NAME)->sole()->id;
     $proxyId = Proxy::query()->sole()->id;
 
-    $this->seed(EisJanuary2025AuditSeeder::class);
+    $this->seed(EisAuditSeeder::class);
 
-    $audit = Crawler::query()->where('name', EisJanuary2025AuditSeeder::NAME)->sole();
+    $audit = Crawler::query()->where('name', EisAuditSeeder::NAME)->sole();
     expect($audit->id)->toBe($crawlerId)
         ->and(Proxy::query()->sole()->id)->toBe($proxyId)
         ->and(app(RouteRepository::class)->bindings(new ProcessUuid($audit->route_profile_id)))->toHaveCount(1)
         ->and(DB::table('prc_network_route_profile_members')->where('profile_id', $audit->route_profile_id)->count())->toBe(1)
-        ->and(Crawler::query()->count())->toBe(3);
+        ->and(Crawler::query()->count())->toBe(4);
 });
 
-test('активный прогон запрещает перезапись январского профиля', function (): void {
-    $this->seed([EisPlatformSeeder::class, EisCrawlerProfileSeeder::class, EisJanuary2025AuditSeeder::class]);
-    $audit = Crawler::query()->where('name', EisJanuary2025AuditSeeder::NAME)->sole();
+test('активный прогон запрещает перезапись профиля аудита', function (): void {
+    $this->seed([EisPlatformSeeder::class, EisCrawlerProfileSeeder::class, EisAuditSeeder::class]);
+    $audit = Crawler::query()->where('name', EisAuditSeeder::NAME)->sole();
     $filter = clone $audit->filter;
     $filter->priceTo = 12_000_000;
     $audit->update(['filter' => $filter]);
@@ -151,7 +153,7 @@ test('активный прогон запрещает перезапись ян
     FinalizeFixtures::running($work);
     setEisAuditProxyEnvironment('http://audit%40user:must-not-rotate@proxy.invalid:8080');
 
-    expect(fn () => $this->seed(EisJanuary2025AuditSeeder::class))
+    expect(fn () => $this->seed(EisAuditSeeder::class))
         ->toThrow(RuntimeException::class, 'Pause the audit run');
 
     expect($audit->refresh()->getRawOriginal())->toBe($before)

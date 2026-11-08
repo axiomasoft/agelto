@@ -164,3 +164,25 @@ test('gate не принимает произвольное подмножест
 
     expect($parser->authorizesReconciliation($html, array_slice($parties, 0, 1)))->toBeFalse();
 });
+
+test('региональный оператор капремонта по ПП РФ 615 без связи с планом-графиком разбирается как полный заказчик', function () {
+    $role615 = 'Специализированная некоммерческая организация, которая осуществляет деятельность, направленную на обеспечение проведения капитального ремонта общего имущества в многоквартирных домах в соответствии с Постановлением № 615 (региональный оператор)';
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/parties-january-8.html'));
+    $html = str_replace('Заказчик', $role615, $html);
+    $html = preg_replace(
+        '#<span class="section__title">Идентификационный код закупки \(ИКЗ\)</span>.*?</span>#su',
+        '<span class="section__title">Сведения о связи с позицией плана-графика</span><span class="section__info">Связь с позицией плана-графика не установлена</span>',
+        $html,
+    );
+
+    $parser = app(PartiesParser::class);
+    $parties = $parser->parse($html, strict: true);
+
+    expect($parser->authorizesReconciliation($html, $parties, strict: true))->toBeTrue()
+        ->and($parties)->toHaveCount(2)
+        ->and($parties[0]->role)->toBe(ProcurementPartyRole::Placer)
+        ->and($parties[1]->role)->toBe(ProcurementPartyRole::Customer)
+        ->and($parties[1]->organization->identifiers)->toHaveCount(1)
+        ->and($parties[1]->organization->identifiers[0]->type)->toBe('organization_code')
+        ->and($parties[1]->organization->identifiers[0]->value)->toBe('08696000222');
+});

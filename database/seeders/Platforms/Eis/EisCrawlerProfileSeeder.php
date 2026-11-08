@@ -21,7 +21,8 @@ final class EisCrawlerProfileSeeder extends Seeder
     {
         $registry = $this->resolveEisFz44Registry();
 
-        $this->seedArchiveProfile(registry: $registry);
+        $this->seedArchive2025Profile(registry: $registry);
+        $this->seedArchive2026Profile(registry: $registry);
         $this->seedFreshProfile(registry: $registry);
     }
 
@@ -63,7 +64,7 @@ final class EisCrawlerProfileSeeder extends Seeder
         return $registry;
     }
 
-    private function seedArchiveProfile(Registry $registry): void
+    private function seedArchive2025Profile(Registry $registry): void
     {
         Crawler::query()->updateOrCreate(
             ['registry_id' => $registry->id, 'name' => 'ЕИС 44-ФЗ — архив 2025 (завершённые)'],
@@ -71,9 +72,32 @@ final class EisCrawlerProfileSeeder extends Seeder
                 'listing_kind' => AcquisitionKind::Archive,
                 'filter' => new EisSearchFilter(
                     stageCompleted: true,
+                    priceTo: 1_000_000_000_000,
                     okpd2Codes: ['43'],
                     publishedFrom: CarbonImmutable::parse('2025-01-01'),
                     publishedTo: CarbonImmutable::parse('2025-12-31'),
+                    sortField: ListingSortField::Published,
+                    sortAscending: true,
+                ),
+                'schedule' => null,
+                'is_active' => true,
+                'route_profile_id' => null,
+            ],
+        );
+    }
+
+    private function seedArchive2026Profile(Registry $registry): void
+    {
+        Crawler::query()->updateOrCreate(
+            ['registry_id' => $registry->id, 'name' => 'ЕИС 44-ФЗ — архив 2026 (завершённые)'],
+            [
+                'listing_kind' => AcquisitionKind::Archive,
+                'filter' => new EisSearchFilter(
+                    stageCompleted: true,
+                    priceTo: 1_000_000_000_000,
+                    okpd2Codes: ['43'],
+                    publishedFrom: CarbonImmutable::parse('2026-01-01'),
+                    publishedTo: CarbonImmutable::parse('2026-12-31'),
                     sortField: ListingSortField::Published,
                     sortAscending: true,
                 ),
@@ -91,6 +115,7 @@ final class EisCrawlerProfileSeeder extends Seeder
             [
                 'listing_kind' => AcquisitionKind::Fresh,
                 'filter' => new EisSearchFilter(
+                    priceTo: 1_000_000_000_000,
                     okpd2Codes: ['43'],
                     sortField: ListingSortField::Updated,
                     sortAscending: false,

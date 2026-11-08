@@ -68,20 +68,28 @@ test('сид заводит два профиля обхода — архивн�
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
-    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('listing_kind');
+    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('name');
 
-    expect($crawlers)->toHaveCount(2);
+    expect($crawlers)->toHaveCount(3);
 
-    $archive = $crawlers[AcquisitionKind::Archive->value];
-    expect($archive->is_active)->toBeTrue()
-        ->and($archive->route_profile_id)->toBeNull()
-        ->and($archive->filter->stageCompleted)->toBeTrue()
+    $archive2025 = $crawlers['ЕИС 44-ФЗ — архив 2025 (завершённые)'];
+    expect($archive2025->is_active)->toBeTrue()
+        ->and($archive2025->route_profile_id)->toBeNull()
+        ->and($archive2025->filter->stageCompleted)->toBeTrue()
+        ->and($archive2025->filter->priceTo)->toBe(1_000_000_000_000)
         ->and(Schema::hasColumn('prc_crawlers', 'execution_lane'))->toBeFalse();
 
-    $fresh = $crawlers[AcquisitionKind::Fresh->value];
+    $archive2026 = $crawlers['ЕИС 44-ФЗ — архив 2026 (завершённые)'];
+    expect($archive2026->is_active)->toBeTrue()
+        ->and($archive2026->route_profile_id)->toBeNull()
+        ->and($archive2026->filter->stageCompleted)->toBeTrue()
+        ->and($archive2026->filter->priceTo)->toBe(1_000_000_000_000);
+
+    $fresh = $crawlers['ЕИС 44-ФЗ — свежий поток'];
     expect($fresh->is_active)->toBeFalse()
         ->and($fresh->route_profile_id)->toBeNull()
         ->and($fresh->filter->okpd2Codes)->toBe(['43'])
+        ->and($fresh->filter->priceTo)->toBe(1_000_000_000_000)
         ->and($fresh->schedule)->toBe('*/30 * * * *');
 });
 
@@ -91,10 +99,13 @@ test('сид заводит архивный профиль с окном дат
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
-    $archive = Crawler::query()->where('registry_id', $registry->id)->where('listing_kind', AcquisitionKind::Archive)->sole();
+    $archive2025 = Crawler::query()->where('registry_id', $registry->id)->where('name', 'ЕИС 44-ФЗ — архив 2025 (завершённые)')->sole();
+    $archive2026 = Crawler::query()->where('registry_id', $registry->id)->where('name', 'ЕИС 44-ФЗ — архив 2026 (завершённые)')->sole();
 
-    expect($archive->filter->archiveWindowFrom()?->toDateString())->toBe('2025-01-01')
-        ->and($archive->filter->archiveWindowTo()?->toDateString())->toBe('2025-12-31');
+    expect($archive2025->filter->archiveWindowFrom()?->toDateString())->toBe('2025-01-01')
+        ->and($archive2025->filter->archiveWindowTo()?->toDateString())->toBe('2025-12-31')
+        ->and($archive2026->filter->archiveWindowFrom()?->toDateString())->toBe('2026-01-01')
+        ->and($archive2026->filter->archiveWindowTo()?->toDateString())->toBe('2026-12-31');
 });
 
 /**
@@ -107,14 +118,14 @@ test('сид заводит профили с сортировкой выдач�
 
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
-    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('listing_kind');
+    $crawlers = Crawler::query()->where('registry_id', $registry->id)->get()->keyBy('name');
 
-    $archive = $crawlers[AcquisitionKind::Archive->value];
+    $archive = $crawlers['ЕИС 44-ФЗ — архив 2025 (завершённые)'];
     expect($archive->filter->sortField)->toBe(ListingSortField::Published)
         ->and($archive->filter->sortAscending)->toBeTrue()
         ->and(Schema::hasColumn('prc_crawlers', 'stop_policy'))->toBeFalse();
 
-    $fresh = $crawlers[AcquisitionKind::Fresh->value];
+    $fresh = $crawlers['ЕИС 44-ФЗ — свежий поток'];
     expect($fresh->filter->sortField)->toBe(ListingSortField::Updated)
         ->and($fresh->filter->sortAscending)->toBeFalse()
         ->and($fresh->listing_kind)->toBe(AcquisitionKind::Fresh);
@@ -128,7 +139,7 @@ test('повторный прогон сида профилей идемпоте
     $platform = Platform::query()->where('code', 'eis')->sole();
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
 
-    expect(Crawler::query()->where('registry_id', $registry->id)->count())->toBe(2);
+    expect(Crawler::query()->where('registry_id', $registry->id)->count())->toBe(3);
 });
 
 test('сид профилей без площадки eis бросает внятное исключение', function (): void {
@@ -152,7 +163,7 @@ test('сид профилей резолвит реестр fz44 СВОЕЙ пл
 
     $crawlers = Crawler::query()->where('registry_id', $eisRegistry->id)->get();
 
-    expect($crawlers)->toHaveCount(2);
+    expect($crawlers)->toHaveCount(3);
 });
 
 test('архивный профиль из сида даёт ожидаемый боевой URL выгрузки', function (): void {
@@ -164,13 +175,14 @@ test('архивный профиль из сида даёт ожидаемый 
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $archive = Crawler::query()
         ->where('registry_id', $registry->id)
-        ->where('listing_kind', AcquisitionKind::Archive)
+        ->where('name', 'ЕИС 44-ФЗ — архив 2025 (завершённые)')
         ->sole();
 
     $query = AcquisitionProfileFixtures::query($archive);
 
     expect($query)
         ->toHaveKey('pc', 'on')
+        ->toHaveKey('priceToGeneral', '1000000000000.00')
         ->toHaveKey('registryNumberCsv', 'on')
         ->toHaveKey('publishDateCsv', 'on')
         ->toHaveKey('lastDateChangeCsv', 'on')
@@ -187,7 +199,7 @@ test('сидовый архивный профиль не передаёт ок�
     $registry = Registry::query()->where('platform_id', $platform->id)->where('code', 'fz44')->sole();
     $archive = Crawler::query()
         ->where('registry_id', $registry->id)
-        ->where('listing_kind', AcquisitionKind::Archive)
+        ->where('name', 'ЕИС 44-ФЗ — архив 2025 (завершённые)')
         ->sole();
 
     $query = AcquisitionProfileFixtures::query($archive, AcquisitionKind::Delta, '2026-08-08');

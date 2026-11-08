@@ -79,7 +79,7 @@ final readonly class AcquisitionValidation
             $token = new ProcessUuid((string) Str::uuid());
             $probe = $this->tx->run(fn () => $this->operations->open(new ProcessUuid((string) Str::uuid()), $token,
                 OutboundOperationKind::Probe, $platformId, 'acquisition.contract_canary', $contract->fingerprint(),
-                $controls, $seconds, $seconds, probeToken: $token, parentAttemptId: $work->lease()->attemptId));
+                $controls, $seconds, max($seconds, 240), probeToken: $token, parentAttemptId: $work->lease()->attemptId));
             $owner = new OutboundExecutionContext($probe,
                 fn ($handle) => $this->tx->run(fn () => $this->operations->renew($handle, $seconds)), $work->tick(...), $seconds, 15);
             $selector = app()->makeWith(AdapterCanaryRouteSelector::class, ['context' => $owner, 'routes' => $routes]);
@@ -87,6 +87,11 @@ final readonly class AcquisitionValidation
         try {
             $claim = $this->tx->run(fn () => $this->adapters->admit($contract, $owner));
             if (! $claim instanceof AdapterValidationClaim) {
+                if ($probe === null && $claim instanceof TransportBlocked
+                    && in_array($this->adapters->find($contract)?->string('state'), ['validating', 'suspect'], true)) {
+                    return new StageDeferred(DeferralReason::CapacityWait, new RetryAt(new \DateTimeImmutable('+1 second')));
+                }
+
                 return $this->bridge->failure($claim instanceof TransportDeferred
                     ? new FetchDeferred($claim->reason, $claim->retryAt) : new FetchBlocked($claim->reason));
             }

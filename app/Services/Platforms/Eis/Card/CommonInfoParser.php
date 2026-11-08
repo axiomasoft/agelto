@@ -150,37 +150,87 @@ final readonly class CommonInfoParser
     private function parseItems(Crawler $crawler): array
     {
         try {
-            $table = $crawler->filter('div#positionKTRU table.tableBlock');
+            $table = CardDomHelper::itemTables($crawler);
 
             if ($table->count() === 0) {
                 return [];
             }
 
-            $items = [];
+            $headerCount = $table->first()->children('thead')->children('tr')->first()->children()->count();
+            $expectedColumns = match ($headerCount) {
+                5 => 5,
+                6 => 6,
+                default => 7,
+            };
+            $rows = [];
+            $hasExplicitPosition = false;
 
-            CardDomHelper::itemRows($table)->each(static function (Crawler $tr, int $index) use (&$items): void {
+            CardDomHelper::itemRows($table)->each(static function (Crawler $tr) use (&$rows, &$hasExplicitPosition, $expectedColumns): void {
                 $cells = $tr->children('td');
 
-                if ($cells->count() < 7) {
+                if ($cells->count() < $expectedColumns) {
                     return;
                 }
 
                 $positionNumber = trim($cells->eq(0)->text());
+                $explicitPosition = $positionNumber !== '' && ctype_digit($positionNumber) ? (int) $positionNumber : null;
+                $hasExplicitPosition = $hasExplicitPosition || $explicitPosition !== null;
                 [$okpd2Code, $ktruCode] = CardDomHelper::splitClassifierCode(trim($cells->eq(1)->text()));
 
-                $items[] = new PurchaseItemRowData(
-                    positionNumber: $positionNumber !== '' && ctype_digit($positionNumber) ? (int) $positionNumber : $index + 1,
-                    name: trim($cells->eq(2)->text()),
-                    characteristics: null,
-                    classifierScheme: CardDomHelper::classifierScheme(okpd2Code: $okpd2Code, ktruCode: $ktruCode),
-                    classifierCodeOkpd2: $okpd2Code,
-                    classifierCodeKtru: $ktruCode,
-                    unit: trim($cells->eq(3)->text()) ?: null,
-                    quantity: CardDomHelper::normalizeAmount(trim($cells->eq(4)->text())),
-                    unitPrice: CardDomHelper::normalizeAmount(trim($cells->eq(5)->text())),
-                    totalCost: CardDomHelper::normalizeAmount(trim($cells->eq(6)->text())),
-                );
+                $rows[] = [
+                    'explicitPosition' => $explicitPosition,
+                    'name' => trim($cells->eq(2)->text()),
+                    'scheme' => CardDomHelper::classifierScheme(okpd2Code: $okpd2Code, ktruCode: $ktruCode),
+                    'okpd2' => $okpd2Code,
+                    'ktru' => $ktruCode,
+                    'unit' => $expectedColumns === 5 ? null : (trim($cells->eq(3)->text()) ?: null),
+                    'quantity' => match ($expectedColumns) {
+                        5 => CardDomHelper::normalizeAmount(trim($cells->eq(3)->text())),
+                        6 => null,
+                        default => CardDomHelper::normalizeAmount(trim($cells->eq(4)->text())),
+                    },
+                    'unitPrice' => match ($expectedColumns) {
+                        5 => null,
+                        6 => CardDomHelper::normalizeAmount(trim($cells->eq(4)->text())),
+                        default => CardDomHelper::normalizeAmount(trim($cells->eq(5)->text())),
+                    },
+                    'totalCost' => CardDomHelper::normalizeAmount(trim($cells->eq($expectedColumns - 1)->text())),
+                ];
             });
+
+            if (! $hasExplicitPosition && count($rows) > 1) {
+                usort($rows, static fn (array $a, array $b): int => [
+                    $a['ktru'] ?? '',
+                    $a['okpd2'] ?? '',
+                    $a['name'],
+                    $a['totalCost'] ?? '',
+                    $a['unitPrice'] ?? '',
+                    $a['quantity'] ?? '',
+                ] <=> [
+                    $b['ktru'] ?? '',
+                    $b['okpd2'] ?? '',
+                    $b['name'],
+                    $b['totalCost'] ?? '',
+                    $b['unitPrice'] ?? '',
+                    $b['quantity'] ?? '',
+                ]);
+            }
+
+            $items = [];
+            foreach ($rows as $index => $row) {
+                $items[] = new PurchaseItemRowData(
+                    positionNumber: $row['explicitPosition'] ?? ($index + 1),
+                    name: $row['name'],
+                    characteristics: null,
+                    classifierScheme: $row['scheme'],
+                    classifierCodeOkpd2: $row['okpd2'],
+                    classifierCodeKtru: $row['ktru'],
+                    unit: $row['unit'],
+                    quantity: $row['quantity'],
+                    unitPrice: $row['unitPrice'],
+                    totalCost: $row['totalCost'],
+                );
+            }
 
             return $items;
         } catch (\Throwable) {

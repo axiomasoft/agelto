@@ -35,6 +35,35 @@ status: living
 3. `database`/`eloquent-accessors` — при миграциях/аксессорах моделей `prc_*`.
 4. `filament` — если меняется Filament-ресурс (и `docs-pr-checklist` напоминает про SOP-апдейт).
 
+## Локальная репетиция краулинга и пайплайна ЕИС (без платного AI)
+
+1. `.ai/guidelines/cheatsheet.md` (раздел 5) и
+   [Ранбук прогона архива и свежего потока ЕИС](../runbooks/archive-run.md) — пошаговая схема
+   подготовки окружения и итеративной верификации.
+2. **Подготовка без расхода бюджета LLM**: выполнить `BaseSeeder`, `EisCrawlerProxySeeder`,
+   `EisAuditSeeder`, затем `php artisan platform:sync-catalog` и
+   `php artisan process:sync-documents`. Команду `php artisan process:sync-analysis` локально
+   **не выполнять** (блокирует `screening`/`extraction`/`publication` на уровне отсутствия
+   `prc_process_handler_holds` и бюджетного периода `llm_budget_periods`).
+3. **Маршрутизация прокси**: убедиться, что у активного профиля `prc_crawlers` привязан
+   `route_profile_id` с маршрутом на российский VDS (`PLAYWRIGHT_MCP_PROXY_SERVER`), а при
+   включённом VPN на хосте (`amn0`) IP адрес VDS выведен напрямую через физический шлюз LAN.
+4. **Поэтапный прогон через `prc_control_scopes`**:
+   - Итерация 1 (`listing`): поставить на паузу `acquisition:stage:detail` и
+     `documents` (`php artisan process:control pause ...`), прогнать ограниченное окно
+     дат (`php artisan process:run <profile_id> --kind=archive --from=... --to=...`), дождаться двухпроходного
+     закрытия блоков (`prc_crawl_blocks.status = complete`) и сверить `COUNT(*)` в
+     `prc_procurements` с выдачей `zakupki.gov.ru` через Playwright по тем же фильтрам.
+   - Итерация 2 (`detail`): снять паузу с `acquisition:stage:detail` (оставив
+     `documents` или `documents:stage:prepare`/`documents:stage:screening` на паузе) и
+     проверить разбор 4 вкладок карточки + контрольный проход, запись в `prc_revisions`,
+     `prc_procurement_parties`, `prc_events`, `prc_documents` и `prc_document_versions`.
+   - Итерация 3 (`delta` и `status_refresh`): проверить отслеживание обновлений по
+     `sortBy = UPDATE_DATE` и регламентный опрос `php artisan process:schedule-acquisition`
+     (`next_status_due_at <= now()`).
+5. Все замеры, сверки и найденные расхождения фиксировать в локальной папке `/Audits/`
+   (в `.gitignore`).
+
 ## Комплексная/неоднозначная задача
 
 1. Native Planner — активный plan state и execution-input с текущим scope/authority.

@@ -73,7 +73,9 @@ final readonly class DownloadStorageRepository
     public function sends(ExecutionLease $lease): int
     {
         return LedgerRow::one('SELECT count(*) AS sends FROM prc_request_attempts r JOIN prc_network_demands d ON d.id=r.demand_id
-            WHERE d.attempt_id=? AND d.work_generation=?', [$lease->attemptId->value, $lease->generation])?->int('sends') ?? 0;
+            LEFT JOIN prc_outbound_operations o ON o.id=d.operation_id
+            WHERE (d.attempt_id=? AND d.work_generation=?) OR o.parent_attempt_id=?',
+            [$lease->attemptId->value, $lease->generation, $lease->attemptId->value])?->int('sends') ?? 0;
     }
 
     private function domain(string $key): ProcessUuid

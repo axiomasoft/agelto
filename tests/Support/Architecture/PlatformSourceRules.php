@@ -179,7 +179,7 @@ final class PlatformSourceRules
                 'App\\Repositories\\Procurement\\Network\\RouteRepository',
                 'App\Models\Procurement\Crawler\Proxy',
             ],
-            'database/seeders/Platforms/Eis/EisJanuary2025AuditSeeder.php' => [
+            'database/seeders/Platforms/Eis/EisAuditSeeder.php' => [
                 'App\\Repositories\\Procurement\\Network\\RouteRepository',
                 'App\Models\Procurement\Crawler\Crawler',
                 'App\Models\Procurement\Crawler\Proxy',

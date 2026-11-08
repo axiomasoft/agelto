@@ -99,6 +99,14 @@ final readonly class CardDomHelper
         return preg_match('/(\d{4})\s*год/u', $header, $matches) === 1 ? (int) $matches[1] : null;
     }
 
+    public static function itemTables(Crawler $crawler): Crawler
+    {
+        return $crawler->filter('div#positionKTRU table.tableBlock')
+            ->reduce(static fn (Crawler $table): bool => $table->ancestors()
+                ->reduce(static fn (Crawler $ancestor): bool => $ancestor->nodeName() === 'table')
+                ->count() === 0);
+    }
+
     public static function itemRows(Crawler $table): Crawler
     {
         if ($table->count() === 0) {
@@ -106,7 +114,7 @@ final readonly class CardDomHelper
         }
 
         return $table->children('tbody')->children('tr')->reduce(static function (Crawler $row): bool {
-            if (preg_match('/(?:^|\s)truInfo_\d+(?:\s|$)/', (string) $row->attr('class')) === 1) {
+            if (preg_match('/(?:^|\s)truInfo_\d*(?:\s|$)/', (string) $row->attr('class')) === 1) {
                 return false;
             }
 
@@ -134,14 +142,19 @@ final readonly class CardDomHelper
             return null;
         }
 
+        $pageSizeNode = $tables->first()->ancestors()->filter('div#positionKTRU')->filter('.select-record-per-page--number')->first();
+        $pageSize = $pageSizeNode->count() > 0
+            ? (int) ($pageSizeNode->attr('data-selected-value') ?: trim($pageSizeNode->text()))
+            : null;
         $expected = 0;
 
         foreach ($totals as $node) {
-            if (preg_match('/^Итого\s*\((\d+)\s+запис(?:ь|и|ей)\)\s*:/u', trim($node->textContent), $match) !== 1) {
+            if (preg_match('/^(?:Итого|Начальная\s+сумма\s+цен\s+единиц\s+товара,\s*работы,\s*услуги)\s*\((\d+)\s+запис(?:ь|и|ей)\)\s*:/u', self::normalizeWhitespace($node->textContent), $match) !== 1) {
                 return null;
             }
 
-            $expected += (int) $match[1];
+            $tableCount = (int) $match[1];
+            $expected += $pageSize !== null && $pageSize > 0 ? min($tableCount, $pageSize) : $tableCount;
         }
 
         return $expected;
@@ -153,7 +166,7 @@ final readonly class CardDomHelper
         int $parsedFinancingRows,
         int $parsedItems,
     ): bool {
-        $itemTable = $crawler->filter('div#positionKTRU table.tableBlock');
+        $itemTable = self::itemTables($crawler);
         $itemRows = self::itemRows($itemTable);
         $expectedItems = self::expectedItemCount($itemTable);
         $financingTable = self::titleSection($crawler, $financingTerm)?->filter('table.tableBlock')->first();

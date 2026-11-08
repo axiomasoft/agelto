@@ -48,6 +48,18 @@ final class StatusMappingSeeder extends Seeder
                     ],
                 );
             }
+
+            if ($registry->platform_id !== null) {
+                StatusMapping::query()->updateOrCreate(
+                    attributes: [
+                        'platform_id' => $registry->platform_id,
+                        'source_stage' => 'Определение поставщика завершено',
+                    ],
+                    values: [
+                        'canonical_status' => ProcurementStatus::Completed->value,
+                    ],
+                );
+            }
         }
     }
 

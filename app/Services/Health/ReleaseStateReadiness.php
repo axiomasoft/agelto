@@ -33,8 +33,9 @@ final readonly class ReleaseStateReadiness
             && Okpd2Node::query()->where('platform_id', $eis->id)->exists()
             && Crawler::query()->where('registry_id', $registry->id)->whereIn('name', [
                 'ЕИС 44-ФЗ — архив 2025 (завершённые)',
+                'ЕИС 44-ФЗ — архив 2026 (завершённые)',
                 'ЕИС 44-ФЗ — свежий поток',
-            ])->count() === 2
+            ])->count() === 3
             && StatusMapping::query()->where('registry_id', $registry->id)->count() === 5
             && $provider instanceof Provider
             && LlmRoute::query()->where('provider_id', $provider->id)->where('shadow', false)->count() === 11

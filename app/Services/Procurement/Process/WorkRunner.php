@@ -143,7 +143,11 @@ final readonly class WorkRunner
 
     private function finishFault(ExecutionContext $context, \Throwable $fault): DeliveryOutcome
     {
-        return $this->finalize(fn () => $this->finalizer->finishHandlerFault($context->lease(), HandlerFaultEvidence::fromThrowable($fault)));
+        $lease = $context->lease();
+        $evidence = HandlerFaultEvidence::fromThrowable($fault);
+        ProcessLog::handlerFault($lease->workId->value->value, $lease->stage->value, $lease->generation, $evidence->signature->hex, $fault);
+
+        return $this->finalize(fn () => $this->finalizer->finishHandlerFault($lease, $evidence));
     }
 
     /** @param \Closure(): CompletionResult $finalization */

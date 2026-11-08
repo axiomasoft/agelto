@@ -24,5 +24,5 @@
 
 - Cheat-sheet (locks, stages, queues, tables, CLI): `.ai/guidelines/cheatsheet.md`.
 - Process & architecture: `docs/dev/{process-core,architecture,database}.md`.
-- Workflows: `docs/workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md`.
+- Workflows & crawling rehearsal: `docs/workflow/{crawling-and-discovery,document-and-estimate-pipeline}.md`, `docs/dev/crawling-pipeline.md`, `docs/dev/runbooks/archive-run.md`.
 - Local skills: `.claude/skills/{procurement-pipeline-dev,estimate-extraction-dev,llm-layer-dev,prompt-engineering-agelto,project-map,testing-rules}/SKILL.md`.

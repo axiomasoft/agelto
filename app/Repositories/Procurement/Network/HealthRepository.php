@@ -195,11 +195,20 @@ final readonly class HealthRepository
                     $attrs['last_failure_at'] = $now->format('Y-m-d H:i:s.uP');
                 }
                 DB::table($row->scope->value)->where('id', $row->id)->update($attrs);
+                if ($mutation->state === CircuitState::Open && $row->state !== CircuitState::Open) {
+                    LogChannel::Network->warning('network.circuit_opened', ['scope' => $row->scope->value, 'route_id' => $identity->string('route_id'),
+                        'target_id' => $identity->string('target_id'), 'reason' => $mutation->reason, 'open_until' => $mutation->openUntil?->format('Y-m-d H:i:s.uP'),
+                        'consecutive_failures' => $mutation->consecutive, 'recent_openings' => $mutation->openings]);
+                }
             }
             if ($request->nullableString('demand_id') !== null) {
                 DB::update("UPDATE prc_network_permits SET state = 'released' WHERE demand_id = ? AND state = 'sent'", [$request->string('demand_id')]);
             }
-
+            if ($result->failure !== null) {
+                LogChannel::Network->warning('network.transport_failure', ['request_id' => $requestId->value, 'route_id' => $identity->string('route_id'),
+                    'target_id' => $identity->string('target_id'), 'failure' => $result->failure->value,
+                    'reason' => $result->curlCode === 28 ? 'network_timeout' : $classification->reason, 'curl_errno' => $result->curlCode]);
+            }
             if ($result->metrics !== null) {
                 LogChannel::Network->info('Crawler outbound attempt', [
                     'request_id' => $requestId->value, 'route_id' => $identity->string('route_id'), 'target_id' => $identity->string('target_id'),
