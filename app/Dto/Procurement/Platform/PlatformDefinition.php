@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Platform;
 
+use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 
 final readonly class PlatformDefinition
 {
+    /**
+     * @param  array<string, string>  $stageRouteProfiles
+     */
     public function __construct(
         public PlatformCode $code,
         public AdapterVersion $version,
@@ -23,7 +27,13 @@ final readonly class PlatformDefinition
         public ?ExtensionDescriptor $extension = null,
         public ?string $uiExtension = null,
         public ?AcquisitionProfileDescriptor $acquisitionProfile = null,
+        public array $stageRouteProfiles = [],
     ) {}
+
+    public function stageRouteProfileKey(StageCode $stage): ?string
+    {
+        return $this->stageRouteProfiles[$stage->value] ?? null;
+    }
 
     public function validateIdentity(string $registryCode, SourceIdentity $identity): void
     {

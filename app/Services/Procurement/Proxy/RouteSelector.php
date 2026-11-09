@@ -35,14 +35,16 @@ final readonly class RouteSelector implements OutboundRouteSelector
         }
         $now = HealthRepository::now();
         $eligible = [];
+        $withinBudget = [];
         $next = null;
+        $rateLimitNext = null;
         $probeDue = false;
         $credentialHold = false;
         foreach ($this->policy->bindings as $id => $binding) {
             if (! in_array($id, $preference->triedRouteIds, true) && count($preference->triedRouteIds) >= $preference->maxDistinctRoutes) {
                 continue;
             }
-            $route = LedgerRow::one('SELECT enabled, kind FROM prc_network_routes WHERE id = ?', [$id]);
+            $route = LedgerRow::one('SELECT enabled, kind, egress_id FROM prc_network_routes WHERE id = ?', [$id]);
             if ($route === null || ! $route->bool('enabled') || ($route->string('kind') === 'direct') !== ($binding->proxy() === '')) {
                 continue;
             }
@@ -89,8 +91,35 @@ final readonly class RouteSelector implements OutboundRouteSelector
                 $probeDue = true;
             }
             if ($ready) {
+                $budgetState = LedgerRow::one(
+                    "SELECT
+                        max(CASE WHEN b.not_before > clock_timestamp() THEN b.not_before ELSE NULL END)::text AS cooldown_until,
+                        max(CASE WHEN (b.tat - b.emission_interval_us * (b.burst - 1) * interval '1 microsecond') > clock_timestamp()
+                            THEN (b.tat - b.emission_interval_us * (b.burst - 1) * interval '1 microsecond') ELSE NULL END)::text AS slot_until,
+                        bool_or((
+                            SELECT count(*) FROM prc_network_permit_scopes s
+                            JOIN prc_network_permits p ON p.id = s.permit_id
+                            WHERE s.budget_id = b.id AND p.state IN ('reserved', 'sent') AND p.expires_at > clock_timestamp()
+                        ) >= b.max_inflight) AS inflight_full
+                    FROM prc_network_budgets b
+                    WHERE b.scope_key IN (?, ?)",
+                    [$plan->url->origin->routeScopeKey($id), $plan->url->origin->egressScopeKey($route->string('egress_id'))],
+                );
+                $cooldownUntil = $budgetState?->nullableString('cooldown_until');
+                if ($cooldownUntil !== null) {
+                    $cooldownInstant = new \DateTimeImmutable($cooldownUntil);
+                    $rateLimitNext = $rateLimitNext === null ? $cooldownInstant : min($rateLimitNext, $cooldownInstant);
+
+                    continue;
+                }
                 $eligible[$id] = $binding;
+                if ($budgetState?->nullableString('slot_until') === null && ! ($budgetState?->bool('inflight_full') ?? false)) {
+                    $withinBudget[$id] = true;
+                }
             }
+        }
+        if ($eligible === [] && $rateLimitNext !== null) {
+            return new TransportDeferred(NetworkDeferralReason::RateLimit, new RetryAt($rateLimitNext));
         }
         if ($eligible === [] && $credentialHold && ! $probeDue && $next === null) {
             return new TransportBlocked(NetworkBlockedReason::CredentialHold);
@@ -106,6 +135,16 @@ final readonly class RouteSelector implements OutboundRouteSelector
             }
         } elseif ($preference->currentRoute !== null && isset($eligible[$preference->currentRoute->value])) {
             $eligible = [$preference->currentRoute->value => $eligible[$preference->currentRoute->value]];
+        }
+        $budgetReady = array_intersect_key($eligible, $withinBudget);
+        if ($budgetReady !== []) {
+            $eligible = $budgetReady;
+        }
+        if ($this->policy->random && count($eligible) > 1) {
+            $keys = array_keys($eligible);
+            $chosen = $keys[random_int(0, count($keys) - 1)];
+
+            return new SelectedNetworkRoute(new NetworkRouteSelection($eligible[$chosen]->id, $this->policy->profileId, $eligible[$chosen]->credentialVersion), $eligible[$chosen]);
         }
         // Least-recent actual authorization, preserving explicit policy order on ties.
         $chosen = array_key_first($eligible);

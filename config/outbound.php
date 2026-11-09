@@ -17,6 +17,9 @@ return [
     // Route-origin внутри того же origin limit: 15/min, burst1, inflight1.
     'route_origin_budget' => ['rate_per_minute' => 15, 'burst' => 1, 'max_inflight' => 1],
 
+    // Egress-origin (общая квота одного внешнего IP при нескольких route с одинаковым egress_id).
+    'egress_origin_budget' => ['rate_per_minute' => 15, 'burst' => 1, 'max_inflight' => 1],
+
     // Probe использует те же origin slots; собственный scope ограничивает probe concurrency ≤ 1.
     'probe_budget' => ['rate_per_minute' => 15, 'burst' => 1, 'max_inflight' => 1],
 
@@ -72,6 +75,7 @@ return [
         'route_target_window_seconds' => 600, 'route_target_base_seconds' => 300, 'route_target_cap_seconds' => 3600,
         'stable_decay_seconds' => 600, 'corroboration_window_seconds' => 300,
         'origin_cooldown_seconds' => 900, 'probe_reserve_seconds' => 30,
+        'waf_cooldown_seconds' => 330,
     ],
     'adapter_health' => [
         'policy_version' => 1, 'distinct_inputs' => 3, 'window_seconds' => 300,

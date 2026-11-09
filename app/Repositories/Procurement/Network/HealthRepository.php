@@ -92,24 +92,75 @@ final readonly class HealthRepository
             ?? throw new \LogicException('No durable request authorization.');
 
         return $this->transaction->run(function () use ($identity, $requestId, $result, $maintenanceUntil): TransportDeferred|TransportBlocked|null {
-            $rows = $this->snapshots($identity->string('route_id'), $identity->string('target_id'), true);
+            $routeId = $identity->string('route_id');
+            $targetId = $identity->string('target_id');
+            $rows = $this->snapshots($routeId, $targetId, true);
             if ($rows === []) {
                 throw new \LogicException('Missing materialized health authority.');
             }
-            // Same tier7 order as grants: route/health -> target/health -> origin budget -> request/permit.
-            // In particular, no committed 429 receipt/release can precede its origin send fence.
-            $origin = null;
-            if ($result->head?->status === 429) {
+            $routeRow = LedgerRow::one('SELECT egress_id FROM prc_network_routes WHERE id = ?', [$routeId])
+                ?? throw new \LogicException('Missing network route.');
+            $targetRow = LedgerRow::one('SELECT canonical_origin, capability FROM prc_source_targets WHERE id = ?', [$targetId])
+                ?? throw new \LogicException('Missing source target.');
+            // Same tier7 order as grants: route/health -> target/health -> budgets (COLLATE "C") -> request/permit.
+            // In particular, no committed 429/403 receipt/release can precede its budget send fence.
+            $status = $result->head?->status;
+            $isRateLimited = $status === 429 || ($status === 403 && $targetRow->string('capability') !== 'download');
+            $budgets = [];
+            if ($isRateLimited) {
                 if ($identity->nullableString('origin_budget_id') !== null) {
                     // The authorized demand pins the actual origin even if its catalog target changes later.
-                    $origin = LedgerRow::one('SELECT id FROM prc_network_budgets WHERE id = ? FOR UPDATE', [$identity->string('origin_budget_id')]);
+                    $pinnedOrigin = LedgerRow::one('SELECT id, scope_key FROM prc_network_budgets WHERE id = ?', [$identity->string('origin_budget_id')])
+                        ?? throw new \LogicException('Missing origin budget.');
+                    $originScopeKey = $pinnedOrigin->string('scope_key');
+                    $originHex = substr($originScopeKey, strlen('origin:'));
                 } else {
-                    $target = LedgerRow::one('SELECT canonical_origin FROM prc_source_targets WHERE id = ?', [$identity->string('target_id')])
-                        ?? throw new \LogicException('Missing source target.');
-                    $origin = LedgerRow::one('SELECT id FROM prc_network_budgets WHERE scope_key = ? FOR UPDATE',
-                        [CanonicalOrigin::fromUrl($target->string('canonical_origin'))->budgetScopeKey()]);
+                    $canonicalOrigin = CanonicalOrigin::fromUrl($targetRow->string('canonical_origin'));
+                    $originScopeKey = $canonicalOrigin->budgetScopeKey();
+                    $originHex = $canonicalOrigin->hash()->hex;
                 }
-                if ($origin === null) {
+                $egressId = $routeRow->string('egress_id');
+                $routeScopeKey = 'route-origin:'.$routeId.':'.$originHex;
+                $egressScopeKey = 'egress-origin:'.$egressId.':'.$originHex;
+                $sharedEgress = LedgerRow::one(
+                    'SELECT (SELECT count(*) FROM prc_network_routes WHERE egress_id = ?) > 1
+                        OR EXISTS (SELECT 1 FROM prc_network_budgets WHERE scope_key = ?) AS active',
+                    [$egressId, $egressScopeKey],
+                )?->bool('active') ?? false;
+                $hasOtherHealthyRoute = LedgerRow::one(
+                    "SELECT EXISTS (
+                        SELECT 1 FROM prc_network_routes r
+                        LEFT JOIN prc_route_health rh ON rh.route_id = r.id
+                        LEFT JOIN prc_route_target_health rth ON rth.route_id = r.id AND rth.target_id = ?
+                        LEFT JOIN prc_network_budgets rb ON rb.scope_key = ('route-origin:' || r.id::text || ':' || ?)
+                        LEFT JOIN prc_network_budgets eb ON eb.scope_key = ('egress-origin:' || r.egress_id || ':' || ?)
+                        WHERE r.id <> ? AND r.egress_id <> ? AND r.enabled = true
+                          AND COALESCE(rh.state, 'closed') = 'closed'
+                          AND COALESCE(rth.state, 'closed') = 'closed'
+                          AND (rb.not_before IS NULL OR rb.not_before <= clock_timestamp())
+                          AND (eb.not_before IS NULL OR eb.not_before <= clock_timestamp())
+                    ) AS ok",
+                    [$targetId, $originHex, $originHex, $routeId, $egressId],
+                )?->bool('ok') ?? false;
+                $scopeKeys = [$routeScopeKey];
+                if ($sharedEgress) {
+                    $scopeKeys[] = $egressScopeKey;
+                }
+                if ($status === 429 && ! $hasOtherHealthyRoute) {
+                    $scopeKeys[] = $originScopeKey;
+                }
+                $budgets = LedgerRow::all(
+                    'SELECT id, scope_key FROM prc_network_budgets WHERE scope_key IN ('.LedgerRow::placeholders(count($scopeKeys)).') ORDER BY scope_key COLLATE "C" FOR UPDATE',
+                    $scopeKeys,
+                );
+                if ($budgets === []) {
+                    $fallbackOrigin = LedgerRow::one('SELECT id, scope_key FROM prc_network_budgets WHERE scope_key = ? FOR UPDATE', [$originScopeKey]);
+                    if ($fallbackOrigin === null) {
+                        throw new \LogicException('Missing origin budget.');
+                    }
+                    $budgets = [$fallbackOrigin];
+                } elseif ($status === 429 && ! $hasOtherHealthyRoute
+                    && ! in_array($originScopeKey, array_map(static fn (LedgerRow $b): string => $b->string('scope_key'), $budgets), true)) {
                     throw new \LogicException('Missing origin budget.');
                 }
             }
@@ -131,13 +182,20 @@ final readonly class HealthRepository
             $epochs = PermitEvidence::decode($request->string('epochs'), $request->int('epochs_schema_version'));
             $now = self::now();
             $quota = null;
-            if ($origin !== null) {
-                $retry = $this->retryPolicy->retryAfter($result->head->header('retry-after'), $now);
+            if ($budgets !== []) {
+                $retry = $this->retryPolicy->retryAfter(
+                    $result->head->header('retry-after'),
+                    $now,
+                    $status === 403 ? $this->policy->wafCooldown : null,
+                );
                 $quota = $retry === null ? new TransportBlocked(NetworkBlockedReason::PolicyReview)
                     : new TransportDeferred(NetworkDeferralReason::RateLimit, $retry);
                 if ($retry !== null) {
-                    DB::update('UPDATE prc_network_budgets SET not_before = greatest(not_before, ?::timestamptz), tat = greatest(tat, ?::timestamptz) WHERE id = ?',
-                        [$retry->value->format('Y-m-d H:i:s.uP'), $retry->value->format('Y-m-d H:i:s.uP'), $origin->string('id')]);
+                    $formattedRetry = $retry->value->format('Y-m-d H:i:s.uP');
+                    foreach ($budgets as $budgetRow) {
+                        DB::update('UPDATE prc_network_budgets SET not_before = greatest(not_before, ?::timestamptz), tat = greatest(tat, ?::timestamptz) WHERE id = ?',
+                            [$formattedRetry, $formattedRetry, $budgetRow->string('id')]);
+                    }
                 }
             }
             $stale = false;

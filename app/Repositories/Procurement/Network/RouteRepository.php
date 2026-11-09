@@ -31,12 +31,12 @@ final readonly class RouteRepository
 {
     public function __construct(private TransitionRepository $transitions) {}
 
-    public function createProxyRoute(string $key, ?string $secretRef, bool $enabled = true): string
+    public function createProxyRoute(string $key, ?string $secretRef, bool $enabled = true, ?string $egressId = null): string
     {
         CallerTransaction::require('Proxy route create');
         $id = Str::lower((string) Str::uuid());
         DB::insert("INSERT INTO prc_network_routes (id, route_key, kind, egress_id, enabled, secret_ref, credential_version)
-            VALUES (?, ?, 'proxy', ?, ?, ?, 1)", [$id, $key, $key, $enabled, $secretRef]);
+            VALUES (?, ?, 'proxy', ?, ?, ?, 1)", [$id, $key, $egressId ?? $key, $enabled, $secretRef]);
 
         return $id;
     }
@@ -47,8 +47,9 @@ final readonly class RouteRepository
     {
         CallerTransaction::require('Proxy configuration mutation');
         $system = $this->lockSystem();
+        $egressId = 'proxy:'.$configuration->host;
         if ($proxy === null) {
-            $route = $this->createProxyRoute('proxy:'.Str::uuid(), $configuration->secretRef, $configuration->enabled);
+            $route = $this->createProxyRoute('proxy:'.Str::uuid(), $configuration->secretRef, $configuration->enabled, $egressId);
             $proxy = new Proxy;
             $proxy->forceFill(['route_id' => $route]);
         } else {
@@ -58,7 +59,7 @@ final readonly class RouteRepository
             if ($node->string('host') !== $configuration->host || $node->int('port') !== $configuration->port) {
                 $oldRoute = $route;
                 DB::update("UPDATE prc_network_routes SET enabled = false, disabled_at = clock_timestamp(), disabled_reason = 'node_reconfigured' WHERE id = ?", [$oldRoute]);
-                $route = $this->createProxyRoute('proxy:'.Str::uuid(), $configuration->secretRef, $configuration->enabled);
+                $route = $this->createProxyRoute('proxy:'.Str::uuid(), $configuration->secretRef, $configuration->enabled, $egressId);
                 DB::update('UPDATE prc_network_route_profiles SET policy_version = policy_version + 1 WHERE id IN (SELECT profile_id FROM prc_network_route_profile_members WHERE route_id = ?)', [$oldRoute]);
                 DB::update('UPDATE prc_network_route_profile_members SET route_id = ? WHERE route_id = ?', [$route, $oldRoute]);
                 $proxy->forceFill(['route_id' => $route]);

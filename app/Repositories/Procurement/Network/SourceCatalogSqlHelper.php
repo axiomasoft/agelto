@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Procurement\Network;
 
 use App\Dto\Procurement\Network\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\CanonicalOrigin;
 use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
@@ -63,6 +64,7 @@ final readonly class SourceCatalogSqlHelper
             if ($target->adapterContract !== null) {
                 $adapters->ensure($target->adapterContract);
             }
+            $effectiveOriginBudget = self::effectiveOriginBudget($platformId, $catalog, $target->origin, $policy);
             $row = $rows[$key] ?? null;
             if ($row === null) {
                 $id = ProcessUuid::random()->value;
@@ -70,7 +72,7 @@ final readonly class SourceCatalogSqlHelper
                     'INSERT INTO prc_source_targets
                        (id, platform_id, provider_key, target_key, canonical_origin, capability, endpoint_policy, endpoint_policy_schema_version, policy_version)
                      VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?, 1)',
-                    [$id, $platformId, $providerKey, $key, $target->origin->value(), $target->capability, self::json($target->endpointPolicy($catalog->originBudget($target->origin, $policy->originBudget))), $target->endpointPolicySchemaVersion()],
+                    [$id, $platformId, $providerKey, $key, $target->origin->value(), $target->capability, self::json($target->endpointPolicy($effectiveOriginBudget)), $target->endpointPolicySchemaVersion()],
                 );
                 $active[$key] = $id;
                 $created++;
@@ -86,7 +88,7 @@ final readonly class SourceCatalogSqlHelper
                 continue;
             }
             $active[$key] = $row->string('id');
-            if (self::sameTarget($row, $target, $catalog->originBudget($target->origin, $policy->originBudget))) {
+            if (self::sameTarget($row, $target, $effectiveOriginBudget)) {
                 $unchanged++;
 
                 continue;
@@ -95,7 +97,7 @@ final readonly class SourceCatalogSqlHelper
                 'UPDATE prc_source_targets
                  SET canonical_origin = ?, capability = ?, endpoint_policy = ?::jsonb, endpoint_policy_schema_version = ?, policy_version = policy_version + 1
                  WHERE id = ?',
-                [$target->origin->value(), $target->capability, self::json($target->endpointPolicy($catalog->originBudget($target->origin, $policy->originBudget))), $target->endpointPolicySchemaVersion(), $row->string('id')],
+                [$target->origin->value(), $target->capability, self::json($target->endpointPolicy($effectiveOriginBudget)), $target->endpointPolicySchemaVersion(), $row->string('id')],
             );
             $updated++;
         }
@@ -121,8 +123,12 @@ final readonly class SourceCatalogSqlHelper
     public static function validateOriginDefaults(?int $platformId, SourceTargetDefinitions|ProviderTargetDefinitions $catalog, OutboundPolicy $policy): void
     {
         foreach ($catalog->origins() as $origin) {
-            $budget = $catalog->originBudget($origin, $policy->originBudget);
-            if (! $policy->withinBounds($budget)) {
+            $budget = self::effectiveOriginBudget($platformId, $catalog, $origin, $policy);
+            $routeBudget = $catalog->routeOriginBudget($origin, $policy->routeOriginBudget);
+            $egressBudget = $catalog->egressOriginBudget($origin);
+            if (! $policy->withinBounds($budget)
+                || ! $policy->withinBounds($routeBudget)
+                || ($egressBudget !== null && ! $policy->withinBounds($egressBudget))) {
                 throw new \InvalidArgumentException('Catalog origin budget is outside outbound.override_bounds: '.$origin->value());
             }
             foreach (LedgerRow::all(
@@ -137,18 +143,53 @@ final readonly class SourceCatalogSqlHelper
         }
     }
 
+    public static function effectiveOriginBudget(
+        ?int $platformId,
+        SourceTargetDefinitions|ProviderTargetDefinitions $catalog,
+        CanonicalOrigin $origin,
+        OutboundPolicy $policy,
+    ): OriginBudgetPolicy {
+        if ($catalog instanceof ProviderTargetDefinitions && ! $catalog->hasDeclaredOriginBudget($origin)) {
+            $existing = LedgerRow::one(
+                'SELECT endpoint_policy::text AS endpoint_policy FROM prc_source_targets WHERE canonical_origin = ? AND platform_id IS NOT NULL AND retired_at IS NULL ORDER BY id LIMIT 1',
+                [$origin->value()],
+            );
+            if ($existing !== null) {
+                $declared = json_decode($existing->string('endpoint_policy'), true, flags: JSON_THROW_ON_ERROR);
+                if (is_array($declared) && is_array($declared['origin_budget'] ?? null)) {
+                    return OriginBudgetPolicy::fromArray($declared['origin_budget']);
+                }
+            }
+        }
+
+        return $catalog->originBudget($origin, $policy->originBudget);
+    }
+
     /**
      * @param  list<string>  $routes
+     * @param  array<string, string>  $routeEgressIds  route_id -> egress_id
      * @return array<string, OriginBudgetPolicy>
      */
-    public static function declaredBudgets(SourceTargetDefinitions|ProviderTargetDefinitions $catalog, OutboundPolicy $policy, array $routes): array
-    {
+    public static function declaredBudgets(
+        SourceTargetDefinitions|ProviderTargetDefinitions $catalog,
+        OutboundPolicy $policy,
+        array $routes,
+        array $routeEgressIds = [],
+        ?int $platformId = null,
+    ): array {
+        $egressCounts = array_count_values($routeEgressIds);
         $budgets = [];
         foreach ($catalog->origins() as $origin) {
-            $budgets[$origin->budgetScopeKey()] = $catalog->originBudget($origin, $policy->originBudget);
+            $budgets[$origin->budgetScopeKey()] = self::effectiveOriginBudget($platformId, $catalog, $origin, $policy);
             $budgets[$origin->probeScopeKey()] = $policy->probeBudget;
+            $routeBudget = $catalog->routeOriginBudget($origin, $policy->routeOriginBudget);
+            $egressBudget = $catalog->egressOriginBudget($origin) ?? $routeBudget;
             foreach ($routes as $route) {
-                $budgets[$origin->routeScopeKey($route)] = $policy->routeOriginBudget;
+                $budgets[$origin->routeScopeKey($route)] = $routeBudget;
+                $egressId = $routeEgressIds[$route] ?? null;
+                if ($egressId !== null && ($egressCounts[$egressId] ?? 0) > 1) {
+                    $budgets[$origin->egressScopeKey($egressId)] = $egressBudget;
+                }
             }
         }
         ksort($budgets, SORT_STRING);

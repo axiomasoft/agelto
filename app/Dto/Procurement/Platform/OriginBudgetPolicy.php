@@ -32,6 +32,19 @@ final readonly class OriginBudgetPolicy
         return ['rate_per_minute' => $this->ratePerMinute, 'burst' => $this->burst, 'max_inflight' => $this->maxInflight];
     }
 
+    /** @param array<mixed> $data */
+    public static function fromArray(array $data): self
+    {
+        $rate = $data['rate_per_minute'] ?? null;
+        $burst = $data['burst'] ?? null;
+        $maxInflight = $data['max_inflight'] ?? null;
+        if (! is_int($rate) || ! is_int($burst) || ! is_int($maxInflight)) {
+            throw new \InvalidArgumentException('Budget fields must be integers.');
+        }
+
+        return new self($rate, $burst, $maxInflight);
+    }
+
     public function equals(self $other): bool
     {
         return $this->ratePerMinute === $other->ratePerMinute && $this->burst === $other->burst && $this->maxInflight === $other->maxInflight;

@@ -17,8 +17,8 @@ final readonly class RequestClassifier
     {
         $failure = $result->failure;
         $status = $result->head?->status;
-        if ($status === 429) {
-            return new HealthClassification(S::Ignored, S::Ignored, S::Ignored, $failure === null ? 'http_429' : $failure->value);
+        if ($status === 429 || $status === 403) {
+            return new HealthClassification(S::Ignored, S::Ignored, S::Ignored, $failure === null ? 'http_'.$status : $failure->value);
         }
         if ($route === RouteKind::Proxy && ($failure === F::ProxyAuth || $status === 407)) {
             return new HealthClassification(S::CredentialHold, S::Ignored, S::Ignored, 'credential_hold');

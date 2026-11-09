@@ -16,6 +16,8 @@ final readonly class OutboundPolicy
 {
     private const array ROOT_KEYS = ['policy_version', 'origin_budget', 'route_origin_budget', 'probe_budget', 'override_bounds', 'scheduling', 'direct_route', 'legacy_bridge', 'catalog_providers', 'routing', 'http', 'health', 'adapter_health'];
 
+    private const array OPTIONAL_ROOT_KEYS = ['egress_origin_budget'];
+
     private const array SCHEDULING_KEYS = ['max_inline_wait_seconds', 'max_pending_demands_per_origin', 'ticket_ttl_seconds', 'ticket_renew_seconds', 'permit_cleanup_reserve_seconds', 'status_capacity_percent'];
 
     public int $policyVersion;
@@ -23,6 +25,8 @@ final readonly class OutboundPolicy
     public OriginBudgetPolicy $originBudget;
 
     public OriginBudgetPolicy $routeOriginBudget;
+
+    public OriginBudgetPolicy $egressOriginBudget;
 
     public OriginBudgetPolicy $probeBudget;
 
@@ -61,7 +65,9 @@ final readonly class OutboundPolicy
     public function __construct(Repository $config)
     {
         $root = $config->get('outbound');
-        if (! is_array($root) || array_keys($root) !== self::ROOT_KEYS) {
+        if (! is_array($root)
+            || array_diff(self::ROOT_KEYS, array_keys($root)) !== []
+            || array_diff(array_keys($root), [...self::ROOT_KEYS, ...self::OPTIONAL_ROOT_KEYS]) !== []) {
             throw new \InvalidArgumentException('Invalid outbound policy: outbound');
         }
         new HealthPolicy($config);
@@ -81,12 +87,15 @@ final readonly class OutboundPolicy
         $this->policyVersion = self::positive($root['policy_version'], 'outbound.policy_version');
         $this->originBudget = self::budget($root['origin_budget'], 'outbound.origin_budget');
         $this->routeOriginBudget = self::budget($root['route_origin_budget'], 'outbound.route_origin_budget');
+        $this->egressOriginBudget = array_key_exists('egress_origin_budget', $root)
+            ? self::budget($root['egress_origin_budget'], 'outbound.egress_origin_budget')
+            : $this->routeOriginBudget;
         $this->probeBudget = self::budget($root['probe_budget'], 'outbound.probe_budget');
         if ($this->probeBudget->maxInflight !== 1) {
             throw new \InvalidArgumentException('Invalid outbound policy: outbound.probe_budget.max_inflight');
         }
         $this->overrideBounds = self::bounds($root['override_bounds']);
-        foreach (['origin_budget' => $this->originBudget, 'route_origin_budget' => $this->routeOriginBudget, 'probe_budget' => $this->probeBudget] as $key => $budget) {
+        foreach (['origin_budget' => $this->originBudget, 'route_origin_budget' => $this->routeOriginBudget, 'egress_origin_budget' => $this->egressOriginBudget, 'probe_budget' => $this->probeBudget] as $key => $budget) {
             if (! $this->withinBounds($budget)) {
                 throw new \InvalidArgumentException('Invalid outbound policy: outbound.'.$key.' outside outbound.override_bounds');
             }

@@ -8,6 +8,7 @@ use App\Dto\Procurement\Acquisition\AcquisitionConfiguration;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\PlatformDefinition;
 use App\Dto\Procurement\Platform\SupportedDetailCapability;
 use App\Dto\Procurement\Platform\SupportedListingCapability;
 use App\Dto\Procurement\Platform\SupportedListingPartitioningCapability;
@@ -55,7 +56,7 @@ final readonly class AcquisitionHandler implements StageHandler
         $run = LedgerRow::one('SELECT p.code, p.id AS platform_id, r.configuration_snapshot, r.configuration_schema_version
             FROM prc_process_work w JOIN prc_platforms p ON p.id=w.platform_id
             JOIN prc_process_runs r ON r.id=w.origin_run_id WHERE w.id=?', [$execution->lease()->workId->value->value]);
-        if ($run === null || ! in_array($run->int('configuration_schema_version'), [1, 2], true)) {
+        if ($run === null || ! in_array($run->int('configuration_schema_version'), [1, 2, 3], true)) {
             return new StageBlocked(BlockedReason::PolicyReview);
         }
         $definition = $this->platforms->get(new PlatformCode($run->string('code')));
@@ -64,11 +65,13 @@ final readonly class AcquisitionHandler implements StageHandler
         }
         $settings = AcquisitionConfiguration::decode(
             new VersionedPayload($run->string('configuration_snapshot'), $run->int('configuration_schema_version')));
-        $profileId = $settings->routeProfileId;
+        $profileId = $settings->routeProfileIdForStage($this->stage);
+        $expectedPolicyVersion = $settings->routePolicyVersionForStage($this->stage);
         $route = LedgerRow::one('SELECT policy_version FROM prc_network_route_profiles WHERE id=?', [$profileId->value]);
-        if ($route === null || $route->int('policy_version') !== $settings->routePolicyVersion) {
+        if ($route === null || $route->int('policy_version') !== $expectedPolicyVersion) {
             return new StageBlocked(BlockedReason::PolicyReview);
         }
+        $profileId = $this->resolveStageRouteProfileId($definition, $settings);
         $capability = match ($this->stage) {
             StageCode::Listing => $definition->listing,
             StageCode::Detail => $definition->detail,
@@ -127,5 +130,25 @@ final readonly class AcquisitionHandler implements StageHandler
 
                 return $handler->execute($input, $execution);
             });
+    }
+
+    private function resolveStageRouteProfileId(PlatformDefinition $definition, AcquisitionConfiguration $settings): ProcessUuid
+    {
+        $profileId = $settings->routeProfileIdForStage($this->stage);
+        if (! $settings->hasStageRouteProfile($this->stage)) {
+            $stageProfileKey = $definition->stageRouteProfileKey($this->stage);
+            if ($stageProfileKey !== null) {
+                $stageRoute = LedgerRow::one(
+                    'SELECT p.id FROM prc_network_route_profiles p
+                     WHERE p.profile_key = ? AND EXISTS (SELECT 1 FROM prc_network_route_profile_members m WHERE m.profile_id = p.id)',
+                    [$stageProfileKey],
+                );
+                if ($stageRoute !== null) {
+                    return new ProcessUuid($stageRoute->string('id'));
+                }
+            }
+        }
+
+        return $profileId;
     }
 }

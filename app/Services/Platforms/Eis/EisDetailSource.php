@@ -29,7 +29,9 @@ use App\Dto\Procurement\Platform\ResponseAssessment;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\RetryAt;
 use App\Enums\Procurement\Network\IdempotencyClass;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Platform\AssessmentReason;
 use App\Enums\Procurement\Platform\Completeness;
@@ -92,18 +94,11 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
             if ($plan === null) {
                 continue;
             }
-            $context->tick();
-            $outcome = $this->outbound->execute($plan, $context);
-            if ($outcome instanceof TransportDeferred) {
-                return new FetchDeferred($outcome->reason, $outcome->retryAt);
+            $response = $this->executePlan($plan, $tab, $request, $context);
+            if (! $response instanceof ResponseEnvelope) {
+                return $response;
             }
-            if ($outcome instanceof TransportBlocked) {
-                return new FetchBlocked($outcome->reason);
-            }
-            if (! $outcome instanceof TransportSucceeded) {
-                throw new \LogicException('Unknown transport outcome.');
-            }
-            $responses[$tab] = $outcome->response;
+            $responses[$tab] = $response;
         }
 
         return $this->parse($request, $responses);
@@ -122,18 +117,11 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
         }
         $responses = [];
         if ($plans[$part] !== null) {
-            $context->tick();
-            $outcome = $this->outbound->execute($plans[$part], $context);
-            if ($outcome instanceof TransportDeferred) {
-                return new FetchDeferred($outcome->reason, $outcome->retryAt);
+            $response = $this->executePlan($plans[$part], $part, $request, $context);
+            if (! $response instanceof ResponseEnvelope) {
+                return $response;
             }
-            if ($outcome instanceof TransportBlocked) {
-                return new FetchBlocked($outcome->reason);
-            }
-            if (! $outcome instanceof TransportSucceeded) {
-                throw new \LogicException('Unknown transport outcome.');
-            }
-            $responses[$part] = $outcome->response;
+            $responses[$part] = $response;
         }
         $outcome = $this->parse($request, $responses);
         if (! $outcome instanceof DetailFetched) {
@@ -150,6 +138,30 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
             $s->parties, $s->items, $s->financing, $s->documents,
             array_values(array_filter($s->parts, static fn (SnapshotPart $p): bool => in_array($p->name, $names, true))),
             $s->extension, $s->sourceRevision, $s->events, $s->results));
+    }
+
+    private function executePlan(OutboundRequestPlan $plan, string $tab, DetailRequest $request, ExecutionContext|OutboundExecutionContext $context): ResponseEnvelope|FetchDeferred|FetchBlocked
+    {
+        $context->tick();
+        $outcome = $this->outbound->execute($plan, $context);
+        if ($outcome instanceof TransportDeferred) {
+            return new FetchDeferred($outcome->reason, $outcome->retryAt);
+        }
+        if ($outcome instanceof TransportBlocked) {
+            return new FetchBlocked($outcome->reason);
+        }
+        if (! $outcome instanceof TransportSucceeded) {
+            throw new \LogicException('Unknown transport outcome.');
+        }
+        if (in_array($outcome->response->status, [403, 429], true)) {
+            CardDomHelper::logWarning('Карточка ЕИС временно недоступна из-за ограничения частоты запросов (WAF)', [
+                'reg_number' => $request->identity->value->value, 'tab' => $tab, 'http_status' => $outcome->response->status,
+            ]);
+
+            return new FetchDeferred(NetworkDeferralReason::RateLimit, new RetryAt(new \DateTimeImmutable('+60 seconds')));
+        }
+
+        return $outcome->response;
     }
 
     /** @param array<string,ResponseEnvelope> $responses */
@@ -219,6 +231,9 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
                         }
                         $stageNode = $dom->filter('.cardMainInfo__state');
                         $title = $titleNode->count() === 1 ? trim($titleNode->text()) : '';
+                        if ($title === '' && isset($common->items[0])) {
+                            $title = trim($common->items[0]->name);
+                        }
                         $stage = $stageNode->count() === 1 ? trim($stageNode->text()) : '';
                         $complete = $complete && $title !== '' && $stage !== '';
                         $count = 1;
@@ -256,6 +271,8 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
                         $failedReason = mb_strtolower(CardDomHelper::readDefinitionValue($dom, 'Основание признания торгов несостоявшимися') ?? '');
                         $noBidsExpected = str_contains($failedReason, 'не подано ни одной заявки')
                             || str_contains($failedReason, 'все поданные заявки отклонены')
+                            || str_contains($failedReason, 'заявка не соответствует требованиям')
+                            || str_contains($failedReason, 'признан уклонившимся')
                             || str_contains($failedReason, 'признаны уклонившимися')
                             || str_contains($failedReason, 'отказался от заключения контракта');
                         $complete = $results->protocol !== null && $rows === $count

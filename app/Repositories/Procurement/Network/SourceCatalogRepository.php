@@ -40,14 +40,30 @@ final readonly class SourceCatalogRepository
     public function initializeRoute(string $routeId, OutboundPolicy $policy): void
     {
         CallerTransaction::require('Route authority initialization');
+        $routeRow = LedgerRow::one('SELECT egress_id FROM prc_network_routes WHERE id = ?', [$routeId]);
+        $egressId = $routeRow?->string('egress_id');
+        $sharedEgress = $egressId !== null && LedgerRow::one('SELECT 1 AS shared FROM prc_network_routes WHERE egress_id = ? AND id <> ? LIMIT 1', [$egressId, $routeId]) !== null;
         $targets = [];
-        foreach (LedgerRow::all('SELECT id, canonical_origin FROM prc_source_targets WHERE retired_at IS NULL ORDER BY id') as $target) {
+        foreach (LedgerRow::all('SELECT id, canonical_origin, endpoint_policy::text AS endpoint_policy FROM prc_source_targets WHERE retired_at IS NULL ORDER BY id') as $target) {
             $targets[$target->string('id')] = $target->string('id');
             $origin = CanonicalOrigin::fromUrl($target->string('canonical_origin'));
+            $ep = json_decode($target->string('endpoint_policy'), true, flags: JSON_THROW_ON_ERROR);
+            $routeBudget = is_array($ep) && is_array($ep['route_origin_budget'] ?? null)
+                ? OriginBudgetPolicy::fromArray($ep['route_origin_budget'])
+                : $policy->routeOriginBudget;
             DB::insert('INSERT INTO prc_network_budgets (id, scope_key, emission_interval_us, burst, max_inflight, policy_version)
                 VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT (scope_key) DO NOTHING',
-                [ProcessUuid::random()->value, $origin->routeScopeKey($routeId), $policy->routeOriginBudget->emissionIntervalUs(),
-                    $policy->routeOriginBudget->burst, $policy->routeOriginBudget->maxInflight]);
+                [ProcessUuid::random()->value, $origin->routeScopeKey($routeId), $routeBudget->emissionIntervalUs(),
+                    $routeBudget->burst, $routeBudget->maxInflight]);
+            if ($sharedEgress) {
+                $egressBudget = is_array($ep) && is_array($ep['egress_origin_budget'] ?? null)
+                    ? OriginBudgetPolicy::fromArray($ep['egress_origin_budget'])
+                    : $routeBudget;
+                DB::insert('INSERT INTO prc_network_budgets (id, scope_key, emission_interval_us, burst, max_inflight, policy_version)
+                    VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT (scope_key) DO NOTHING',
+                    [ProcessUuid::random()->value, $origin->egressScopeKey($egressId), $egressBudget->emissionIntervalUs(),
+                        $egressBudget->burst, $egressBudget->maxInflight]);
+            }
         }
         SourceCatalogSqlHelper::ensureHealthRows($targets, [$routeId]);
     }
@@ -117,8 +133,15 @@ final readonly class SourceCatalogRepository
         SourceCatalogSqlHelper::validateOriginDefaults($platformId, $catalog, $policy);
 
         $synced = SourceCatalogSqlHelper::syncTargetRows($platformId, $providerKey, $catalog, $policy, $rows, $this->adapters);
-        $routes = array_map(static fn (LedgerRow $route): string => $route->string('id'), LedgerRow::all('SELECT id FROM prc_network_routes ORDER BY id'));
-        [$budgetsCreated, $drifted] = SourceCatalogSqlHelper::ensureBudgets(SourceCatalogSqlHelper::declaredBudgets($catalog, $policy, $routes));
+        $routeRows = LedgerRow::all('SELECT id, egress_id FROM prc_network_routes ORDER BY id');
+        $routes = array_map(static fn (LedgerRow $route): string => $route->string('id'), $routeRows);
+        $routeEgressIds = [];
+        foreach ($routeRows as $routeRow) {
+            $routeEgressIds[$routeRow->string('id')] = $routeRow->string('egress_id');
+        }
+        [$budgetsCreated, $drifted] = SourceCatalogSqlHelper::ensureBudgets(
+            SourceCatalogSqlHelper::declaredBudgets($catalog, $policy, $routes, $routeEgressIds, $platformId),
+        );
         $health = SourceCatalogSqlHelper::ensureHealthRows($synced['active'], $routes);
 
         $report = new CatalogSyncReport(

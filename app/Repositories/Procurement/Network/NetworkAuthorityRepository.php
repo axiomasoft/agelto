@@ -10,7 +10,9 @@ use App\Dto\Procurement\Network\NetworkRouteSelection;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\PermitEvidence;
 use App\Dto\Procurement\Network\TransportBlocked;
+use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\RequestProfile;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Network\DemandPurpose;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\RouteKind;
@@ -18,6 +20,7 @@ use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Network\OutboundPolicy;
 use App\Services\Procurement\Network\ProbeScheduler;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Tier7 order: profile, route, route health, route-target health, target, target health,
@@ -43,7 +46,7 @@ final readonly class NetworkAuthorityRepository
             }
             $policies['profile:'.$selection->profileId->value] = $profile->int('policy_version');
         }
-        $route = LedgerRow::one('SELECT kind, enabled, credential_version, independence_group FROM prc_network_routes WHERE id = ? FOR UPDATE', [$selection->routeId->value]);
+        $route = LedgerRow::one('SELECT kind, enabled, credential_version, independence_group, egress_id FROM prc_network_routes WHERE id = ? FOR UPDATE', [$selection->routeId->value]);
         if ($route === null || $route->int('credential_version') !== $selection->credentialVersion || ! $route->bool('enabled') || ($selection->profileId === null && $route->string('kind') !== 'direct')) {
             return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
         }
@@ -114,9 +117,36 @@ final readonly class NetworkAuthorityRepository
             }
         }
         $origin = $plan->url->origin;
-        $keys = [$origin->budgetScopeKey(), $origin->routeScopeKey($selection->routeId->value)];
+        $routeScope = $origin->routeScopeKey($selection->routeId->value);
+        $egressScope = $origin->egressScopeKey($route->string('egress_id'));
+        $keys = [$origin->budgetScopeKey(), $routeScope];
         if ($owner->purpose === DemandPurpose::Probe) {
             $keys[] = $origin->probeScopeKey();
+        }
+        $sharedEgress = LedgerRow::one('SELECT 1 AS shared FROM prc_network_routes WHERE egress_id = ? AND id <> ? LIMIT 1',
+            [$route->string('egress_id'), $selection->routeId->value]) !== null;
+        $hasEgressBudget = LedgerRow::one('SELECT 1 AS ok FROM prc_network_budgets WHERE scope_key = ? LIMIT 1', [$egressScope]) !== null;
+        if ($sharedEgress && ! $hasEgressBudget) {
+            $ep = json_decode($target->string('endpoint_policy'), true, flags: JSON_THROW_ON_ERROR);
+            if (is_array($ep) && is_array($ep['egress_origin_budget'] ?? null)) {
+                $eb = OriginBudgetPolicy::fromArray($ep['egress_origin_budget']);
+                DB::insert(
+                    'INSERT INTO prc_network_budgets (id, scope_key, emission_interval_us, burst, max_inflight, policy_version)
+                     VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT (scope_key) DO NOTHING',
+                    [ProcessUuid::random()->value, $egressScope, $eb->emissionIntervalUs(), $eb->burst, $eb->maxInflight],
+                );
+            } else {
+                DB::insert(
+                    'INSERT INTO prc_network_budgets (id, scope_key, emission_interval_us, burst, max_inflight, policy_version)
+                     SELECT ?, ?, emission_interval_us, burst, max_inflight, 1 FROM prc_network_budgets WHERE scope_key = ?
+                     ON CONFLICT (scope_key) DO NOTHING',
+                    [ProcessUuid::random()->value, $egressScope, $routeScope],
+                );
+            }
+            $hasEgressBudget = true;
+        }
+        if ($sharedEgress || $hasEgressBudget) {
+            $keys[] = $egressScope;
         }
         sort($keys, SORT_STRING);
         $rows = LedgerRow::all('SELECT id, scope_key, emission_interval_us, burst, max_inflight, policy_version,

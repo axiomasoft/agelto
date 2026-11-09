@@ -4,36 +4,50 @@ declare(strict_types=1);
 
 use App\Actions\Procurement\Process\RetryHandlerFaultedWork;
 use App\Dto\Platforms\Eis\EisListingCursor;
+use App\Dto\Platforms\Eis\EisListingFilter;
 use App\Dto\Platforms\Eis\EisListingPolicy;
 use App\Dto\Platforms\Eis\EisSearchFilter;
+use App\Dto\Procurement\Acquisition\AcquisitionConfiguration;
 use App\Dto\Procurement\Acquisition\DetailRequest;
 use App\Dto\Procurement\Acquisition\ListingDetailReference;
 use App\Dto\Procurement\Acquisition\ListingReceipt;
 use App\Dto\Procurement\Acquisition\ListingTask;
+use App\Dto\Procurement\Network\ProxyNodeConfiguration;
 use App\Dto\Procurement\Platform\CursorEnvelope;
+use App\Dto\Procurement\Platform\PlatformCode;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Platform\AssessmentReason;
+use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
 use App\Enums\Procurement\Process\WorkMutationStatus;
 use App\Models\Procurement\Procurement;
+use App\Models\User;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
+use App\Repositories\Procurement\Network\RouteRepository;
 use App\Repositories\Procurement\Process\ControlRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Platforms\Eis\EisListingPartitioner;
+use App\Services\Procurement\Acquisition\AcquisitionHandler;
+use App\Services\Procurement\Acquisition\AcquisitionProfiles;
+use App\Services\Procurement\Network\SourceCatalogSync;
+use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Tests\Support\Postgres\ConcurrentTransactions;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
 use Tests\Support\ProcessCore\DetailFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
 
@@ -492,4 +506,199 @@ PHP);
 
     // Вставка первой ссылки из того же батча должна быть откачена вместе с транзакцией батча.
     expect($listings->detailReference($intents[0]))->toBeNull();
+});
+
+test('конфигурация сбора поддерживает раздельные прокси-профили стадий listing detail и status_refresh с обратной совместимостью со схемами v1 и v2', function (): void {
+    PermitFixtures::clean();
+    $defaultRouteProfile = LedgerFixtures::uuid();
+    $listingRouteProfile = LedgerFixtures::uuid();
+    $detailRouteProfile = LedgerFixtures::uuid();
+    $filter = new EisListingFilter(['12345']);
+
+    // Проверяем схему v2 (обратная совместимость для уже созданных run)
+    $v2 = new AcquisitionConfiguration(
+        profileVersion: 1,
+        routeProfileId: $defaultRouteProfile,
+        routePolicyVersion: 1,
+        kind: AcquisitionKind::Archive,
+        initialFrom: new DateTimeImmutable('2025-01-01'),
+        through: new DateTimeImmutable('2025-01-31'),
+        requestedFrom: new DateTimeImmutable('2025-01-01'),
+        requestedThrough: new DateTimeImmutable('2025-01-31'),
+    );
+    $v2Payload = $v2->encode();
+    expect($v2Payload->schemaVersion)->toBe(2)
+        ->and($v2->stageRouteProfiles)->toBe([])
+        ->and($v2->routeProfileIdForStage(StageCode::Listing)->value)->toBe($defaultRouteProfile->value)
+        ->and($v2->routeProfileIdForStage(StageCode::Detail)->value)->toBe($defaultRouteProfile->value);
+
+    // Проверяем схему v3 с раздельными профилями стадий
+    $v3 = new AcquisitionConfiguration(
+        profileVersion: 1,
+        routeProfileId: $defaultRouteProfile,
+        routePolicyVersion: 1,
+        kind: AcquisitionKind::Archive,
+        initialFrom: new DateTimeImmutable('2025-01-01'),
+        through: new DateTimeImmutable('2025-01-31'),
+        requestedFrom: new DateTimeImmutable('2025-01-01'),
+        requestedThrough: new DateTimeImmutable('2025-01-31'),
+        stageRouteProfiles: [
+            'listing' => ['route_profile_id' => $listingRouteProfile, 'route_policy_version' => 1],
+            'detail' => ['route_profile_id' => $detailRouteProfile, 'route_policy_version' => 1],
+            'status_refresh' => ['route_profile_id' => $detailRouteProfile, 'route_policy_version' => 1],
+        ],
+    );
+    $v3Payload = $v3->encode();
+    expect($v3Payload->schemaVersion)->toBe(3);
+    $decodedV3 = AcquisitionConfiguration::decode($v3Payload);
+    expect($decodedV3->routeProfileIdForStage(StageCode::Listing)->value)->toBe($listingRouteProfile->value)
+        ->and($decodedV3->routeProfileIdForStage(StageCode::Detail)->value)->toBe($detailRouteProfile->value)
+        ->and($decodedV3->routeProfileIdForStage(StageCode::StatusRefresh)->value)->toBe($detailRouteProfile->value);
+
+    // Проверяем, что EisProfilePreparer и AcquisitionHandler резолвят наполненные профили eis-listing и eis-detail
+    $profile = AcquisitionProfileFixtures::create(AcquisitionKind::Archive);
+    $actor = User::factory()->create();
+    $routes = app(RouteRepository::class);
+    $tx = app(ProcessTransaction::class);
+    try {
+        $definition = app(PlatformRegistry::class)->get(new PlatformCode('eis'));
+        app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+
+        $pListing = $tx->run(fn () => $routes->storeProxy(
+            null, new ProxyNodeConfiguration(
+                service: 'stage-listing-proxy', host: '198.51.100.51', port: 8080,
+                username: null, country: 'RU', scopes: ['general'], secretRef: null, enabled: true,
+            ),
+            $actor->id, 'listing proxy', ProcessUuid::random(), ProcessUuid::random(),
+        ));
+        $pDetail = $tx->run(fn () => $routes->storeProxy(
+            null, new ProxyNodeConfiguration(
+                service: 'stage-detail-proxy', host: '198.51.100.52', port: 8080,
+                username: null, country: 'RU', scopes: ['general'], secretRef: null, enabled: true,
+            ),
+            $actor->id, 'detail proxy', ProcessUuid::random(), ProcessUuid::random(),
+        ));
+        $rListing = (string) $pListing->route_id;
+        $rDetail = (string) $pDetail->route_id;
+
+        $tx->run(fn () => $routes->ensureProfile('default', $rListing));
+        $tx->run(fn () => $routes->ensureProfile('eis-listing'));
+        $tx->run(fn () => $routes->ensureProfile('eis-detail'));
+
+        $listingProfRow = DB::table('prc_network_route_profiles')->where('profile_key', 'eis-listing')->sole();
+        $detailProfRow = DB::table('prc_network_route_profiles')->where('profile_key', 'eis-detail')->sole();
+        $defaultProfRow = DB::table('prc_network_route_profiles')->where('profile_key', 'default')->sole();
+
+        $tx->run(fn () => $routes->updateProfile('eis-listing', (int) $listingProfRow->policy_version, [$rListing], $actor->id, 'bind listing', ProcessUuid::random(), ProcessUuid::random()));
+        $tx->run(fn () => $routes->updateProfile('eis-detail', (int) $detailProfRow->policy_version, [$rDetail], $actor->id, 'bind detail', ProcessUuid::random(), ProcessUuid::random()));
+
+        $profile->update(['route_profile_id' => $defaultProfRow->id]);
+        $launch = app(AcquisitionProfiles::class)->prepare(
+            $profile, AcquisitionKind::Archive, new DateTimeImmutable('2025-01-01'), new DateTimeImmutable('2025-01-02'),
+        );
+        $decodedLaunch = AcquisitionConfiguration::decode($launch->configuration);
+        expect($launch->configuration->schemaVersion)->toBe(3)
+            ->and($decodedLaunch->routeProfileIdForStage(StageCode::Listing)->value)->toBe($listingProfRow->id)
+            ->and($decodedLaunch->routeProfileIdForStage(StageCode::Detail)->value)->toBe($detailProfRow->id)
+            ->and($decodedLaunch->routeProfileIdForStage(StageCode::StatusRefresh)->value)->toBe($detailProfRow->id);
+
+        // Для уже созданного прогона со схемой v2 AcquisitionHandler также резолвит наполненные профили стадий платформы
+        $handlerListing = app()->makeWith(AcquisitionHandler::class, ['stage' => StageCode::Listing]);
+        $handlerDetail = app()->makeWith(AcquisitionHandler::class, ['stage' => StageCode::Detail]);
+        $resolveMethod = new ReflectionMethod(AcquisitionHandler::class, 'resolveStageRouteProfileId');
+
+        expect($resolveMethod->invoke($handlerListing, $definition, $v2)->value)->toBe($listingProfRow->id)
+            ->and($resolveMethod->invoke($handlerDetail, $definition, $v2)->value)->toBe($detailProfRow->id);
+    } finally {
+        DB::table('prc_proxies')->whereIn('service', ['stage-listing-proxy', 'stage-detail-proxy'])->delete();
+        $profile->delete();
+        $actor->delete();
+        PermitFixtures::clean();
+    }
+});
+
+test('команда process:diagnose с флагом --proxy-budgets выводит бюджеты профили стадий и статистику запросов 403/429 по каждому прокси', function (): void {
+    PermitFixtures::clean();
+    $f = new PermitFixtures;
+    $ctx = $f->context();
+    $profile = AcquisitionProfileFixtures::create();
+    $actor = User::factory()->create();
+    $routes = app(RouteRepository::class);
+    $tx = app(ProcessTransaction::class);
+    try {
+        $definition = app(PlatformRegistry::class)->get(new PlatformCode('eis'));
+        app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        $origin = $definition->sourceTargets->origins()[0];
+        $targetId = (string) DB::table('prc_source_targets')
+            ->where('platform_id', $profile->registry->platform_id)
+            ->where('target_key', 'card')
+            ->value('id');
+
+        $p1 = $tx->run(fn () => $routes->storeProxy(
+            null, new ProxyNodeConfiguration(
+                service: 'diag-proxy-1', host: '198.51.100.61', port: 8081,
+                username: null, country: 'RU', scopes: ['general'], secretRef: null, enabled: true,
+            ),
+            $actor->id, 'diag proxy 1', ProcessUuid::random(), ProcessUuid::random(),
+        ));
+        $p2 = $tx->run(fn () => $routes->storeProxy(
+            null, new ProxyNodeConfiguration(
+                service: 'diag-proxy-2', host: '198.51.100.62', port: 8082,
+                username: null, country: 'RU', scopes: ['general'], secretRef: null, enabled: true,
+            ),
+            $actor->id, 'diag proxy 2', ProcessUuid::random(), ProcessUuid::random(),
+        ));
+        $r1 = (string) $p1->route_id;
+        $r2 = (string) $p2->route_id;
+        app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+
+        $tx->run(fn () => $routes->ensureProfile('eis-listing'));
+        $tx->run(fn () => $routes->ensureProfile('eis-detail'));
+        $listingProf = DB::table('prc_network_route_profiles')->where('profile_key', 'eis-listing')->sole();
+        $detailProf = DB::table('prc_network_route_profiles')->where('profile_key', 'eis-detail')->sole();
+        $tx->run(fn () => $routes->updateProfile('eis-listing', (int) $listingProf->policy_version, [$r1], $actor->id, 'bind listing', ProcessUuid::random(), ProcessUuid::random()));
+        $tx->run(fn () => $routes->updateProfile('eis-detail', (int) $detailProf->policy_version, [$r2], $actor->id, 'bind detail', ProcessUuid::random(), ProcessUuid::random()));
+
+        // Записываем запрос 200 на r1 и запрос 403 + cooldown на r2
+        $now = (new DateTimeImmutable)->format('Y-m-d H:i:s.uP');
+        $originBudgetId = (string) DB::table('prc_network_budgets')->where('scope_key', $origin->budgetScopeKey())->value('id');
+        foreach ([[$r1, 200, 1], [$r2, 403, 2]] as [$rid, $st, $seq]) {
+            $demandId = LedgerFixtures::uuid()->value;
+            $reqId = LedgerFixtures::uuid()->value;
+            DB::table('prc_network_demands')->insert([
+                'id' => $demandId, 'physical_request_id' => $reqId,
+                'operation_id' => $ctx->lease()->id->value, 'operation_generation' => 1, 'origin_budget_id' => $originBudgetId,
+                'route_id' => $rid, 'target_id' => $targetId, 'traffic_class' => 'detail', 'purpose' => 'ordinary',
+                'state' => 'granted', 'registered_at' => $now, 'renewed_at' => $now, 'expires_at' => $now,
+                'operation_deadline' => $ctx->lease()->deadlineAt,
+            ]);
+            DB::table('prc_request_attempts')->insert([
+                'request_id' => $reqId, 'demand_id' => $demandId, 'request_seq' => $seq,
+                'target_id' => $targetId, 'route_id' => $rid, 'started_at' => $now, 'sent_at' => $now,
+                'finished_at' => $now, 'phase' => 'finished', 'outcome' => 'response', 'status' => $st,
+                'epochs' => '{}', 'epochs_schema_version' => 1,
+            ]);
+        }
+        DB::table('prc_network_budgets')
+            ->where('scope_key', $origin->routeScopeKey($r2))
+            ->update(['not_before' => DB::raw("clock_timestamp() + interval '5 minutes'")]);
+
+        $exit = Artisan::call('process:diagnose', ['platform' => 'eis', '--proxy-budgets' => true]);
+        $output = Artisan::output();
+
+        expect($exit)->toBe(0)
+            ->and($output)->toContain('Стадия listing: профиль=eis-listing')
+            ->and($output)->toContain('Стадия detail: профиль=eis-detail')
+            ->and($output)->toContain('rate_per_minute=60, emission_interval_us=1000000, burst=2, max_inflight=10')
+            ->and($output)->toContain('198.51.100.61:8081')
+            ->and($output)->toContain('198.51.100.62:8082')
+            ->and($output)->toContain('10000000')
+            ->and($output)->toContain('укладывается в бюджет')
+            ->and($output)->toContain('cooldown до');
+    } finally {
+        DB::table('prc_proxies')->whereIn('service', ['diag-proxy-1', 'diag-proxy-2'])->delete();
+        $profile->delete();
+        $actor->delete();
+        PermitFixtures::clean();
+    }
 });

@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Network\BinaryBodyArtifact;
+use App\Dto\Procurement\Network\DecodedTextBody;
 use App\Dto\Procurement\Network\HealthSnapshot;
+use App\Dto\Procurement\Network\HttpAttemptResult;
+use App\Dto\Procurement\Network\HttpResponseHead;
 use App\Dto\Procurement\Network\HttpRouteBinding;
 use App\Dto\Procurement\Network\NetworkDemandTicket;
 use App\Dto\Procurement\Network\NetworkRouteSelection;
@@ -11,6 +14,8 @@ use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\ProxyNodeConfiguration;
 use App\Dto\Procurement\Network\ReservedProviderNetwork;
 use App\Dto\Procurement\Network\ResolvedUrl;
+use App\Dto\Procurement\Network\ResponseEnvelope;
+use App\Dto\Procurement\Network\RetryRoutePreference;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Network\ScheduledNetworkPermit;
 use App\Dto\Procurement\Network\SelectedNetworkRoute;
@@ -20,6 +25,7 @@ use App\Dto\Procurement\Network\TransportDeferred;
 use App\Dto\Procurement\Network\TransportOutcome;
 use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
+use App\Dto\Procurement\Platform\PlatformCode;
 use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
@@ -42,8 +48,11 @@ use App\Services\Procurement\Network\Contracts\OutboundAttemptGate;
 use App\Services\Procurement\Network\HttpTransport;
 use App\Services\Procurement\Network\NetworkReconcileCategory;
 use App\Services\Procurement\Network\OutboundExecutor;
+use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Network\UrlPolicy;
+use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Proxy\ProxyResolver;
 use App\Services\Procurement\SourceTlsTrust;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -53,6 +62,7 @@ use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\TransportFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\NetworkFixtures;
 use Tests\Support\ProcessCore\ToolContext;
 
 beforeEach(function (): void {
@@ -378,5 +388,202 @@ test('UrlPolicy отклоняет зарезервированные диапа
             ->toThrow(LogicException::class, 'Outbound I/O is forbidden inside a database transaction.');
     } finally {
         DB::rollBack();
+    }
+});
+
+test('платформенные бюджеты задают раздельные лимиты origin route-origin и egress-origin а маршруты с общим внешним IP не удваивают квоту', function (): void {
+    $hadEis = DB::table('prc_platforms')->where('code', 'eis')->exists();
+    NetworkFixtures::platform('eis');
+    $definition = app(PlatformRegistry::class)->get(new PlatformCode('eis'));
+    app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+    $origin = $definition->sourceTargets->origins()[0];
+    $originBudget = DB::table('prc_network_budgets')->where('scope_key', $origin->budgetScopeKey())->sole();
+    expect((int) $originBudget->emission_interval_us)->toBe(1_000_000)
+        ->and((int) $originBudget->burst)->toBe(2)
+        ->and((int) $originBudget->max_inflight)->toBe(10);
+
+    $actor = User::factory()->create();
+    $routes = app(RouteRepository::class);
+    $tx = app(ProcessTransaction::class);
+    try {
+        $p1 = $tx->run(fn () => $routes->storeProxy(
+            null, auditProxyConfig('shared-ip-1', '198.51.100.10', 8080),
+            $actor->id, 'proxy 1 on shared ip', ProcessUuid::random(), ProcessUuid::random(),
+        ));
+        $p2 = $tx->run(fn () => $routes->storeProxy(
+            null, auditProxyConfig('shared-ip-2', '198.51.100.10', 8081),
+            $actor->id, 'proxy 2 on shared ip', ProcessUuid::random(), ProcessUuid::random(),
+        ));
+        $r1 = (string) $p1->route_id;
+        $r2 = (string) $p2->route_id;
+        app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+
+        expect(DB::table('prc_network_routes')->where('id', $r1)->value('egress_id'))->toBe('proxy:198.51.100.10')
+            ->and(DB::table('prc_network_routes')->where('id', $r2)->value('egress_id'))->toBe('proxy:198.51.100.10');
+
+        $r1Budget = DB::table('prc_network_budgets')->where('scope_key', $origin->routeScopeKey($r1))->sole();
+        expect((int) $r1Budget->emission_interval_us)->toBe(10_000_000)
+            ->and((int) $r1Budget->burst)->toBe(1)
+            ->and((int) $r1Budget->max_inflight)->toBe(1);
+
+        // Проводим синхронизацию тестового таргета this->f с двумя маршрутами на одном egress_id
+        $testOrigin = $this->f->url->origin;
+        DB::table('prc_network_routes')->whereIn('id', [$r1, $r2])->update(['egress_id' => 'proxy:198.51.100.10']);
+        foreach ([$r1, $r2] as $rid) {
+            DB::table('prc_route_health')->updateOrInsert(['route_id' => $rid], [
+                'id' => LedgerFixtures::uuid()->value, 'state' => 'closed', 'health_epoch' => 1,
+                'state_version' => 1, 'recent_openings' => 0, 'consecutive_failures' => 0,
+            ]);
+            DB::table('prc_route_target_health')->updateOrInsert(['route_id' => $rid, 'target_id' => $this->f->target->value], [
+                'id' => LedgerFixtures::uuid()->value, 'state' => 'closed', 'health_epoch' => 1,
+                'state_version' => 1, 'recent_openings' => 0, 'consecutive_failures' => 0,
+            ]);
+            DB::table('prc_network_budgets')->updateOrInsert(['scope_key' => $testOrigin->routeScopeKey($rid)], [
+                'id' => LedgerFixtures::uuid()->value, 'emission_interval_us' => 10_000_000,
+                'burst' => 1, 'max_inflight' => 1, 'policy_version' => 1,
+            ]);
+        }
+
+        $tx->run(fn () => $routes->ensureProfile('shared-ip-pool'));
+        $profRow = DB::table('prc_network_route_profiles')->where('profile_key', 'shared-ip-pool')->sole();
+        $tx->run(fn () => $routes->updateProfile(
+            'shared-ip-pool', (int) $profRow->policy_version, [$r1, $r2],
+            $actor->id, 'bind shared ip pool', ProcessUuid::random(), ProcessUuid::random(),
+        ));
+        $profId = new ProcessUuid($profRow->id);
+
+        $ctx = $this->f->context();
+        $ticket1 = $this->f->repo->register($this->f->plan(), $ctx, new NetworkRouteSelection(new ProcessUuid($r1), $profId));
+        expect($ticket1)->toBeInstanceOf(NetworkDemandTicket::class);
+        $permit1 = $this->f->repo->reserve($ticket1, $ctx);
+        expect($permit1)->toBeInstanceOf(ScheduledNetworkPermit::class);
+
+        $egressBudget = DB::table('prc_network_budgets')->where('scope_key', $testOrigin->egressScopeKey('proxy:198.51.100.10'))->sole();
+        expect($egressBudget)->not->toBeNull()
+            ->and(DB::table('prc_network_permit_scopes')->where('permit_id', $permit1->id->value)->where('budget_id', $egressBudget->id)->exists())->toBeTrue();
+    } finally {
+        DB::table('prc_proxies')->whereIn('service', ['shared-ip-1', 'shared-ip-2'])->delete();
+        F::clean();
+        if (! $hadEis) {
+            DB::table('prc_platforms')->where('code', 'eis')->delete();
+        }
+        $actor->delete();
+    }
+});
+
+test('HTTP 403 и 429 переводят в cooldown только бюджет конкретного прокси-маршрута а RouteSelector выбирает здоровые прокси рандомно и возвращает RateLimit когда весь пул на паузе', function (): void {
+    DB::table('prc_network_budgets')->update(['emission_interval_us' => 1, 'max_inflight' => 4]);
+    $actor = User::factory()->create();
+    $routes = app(RouteRepository::class);
+    $tx = app(ProcessTransaction::class);
+    $testOrigin = $this->f->url->origin;
+
+    try {
+        $routeIds = [];
+        foreach ([1, 2, 3] as $idx) {
+            $proxy = $tx->run(fn () => $routes->storeProxy(
+                null, new ProxyNodeConfiguration(
+                    service: 'pool-proxy-'.$idx,
+                    host: '198.51.100.'.$idx,
+                    port: 8080 + $idx,
+                    username: null,
+                    country: 'RU',
+                    scopes: ['general'],
+                    secretRef: null,
+                    enabled: true,
+                ),
+                $actor->id, 'pool proxy '.$idx, ProcessUuid::random(), ProcessUuid::random(),
+            ));
+            $rid = (string) $proxy->route_id;
+            $routeIds[$idx] = $rid;
+            DB::table('prc_route_health')->updateOrInsert(['route_id' => $rid], [
+                'id' => LedgerFixtures::uuid()->value, 'state' => 'closed', 'health_epoch' => 1,
+                'state_version' => 1, 'recent_openings' => 0, 'consecutive_failures' => 0,
+            ]);
+            DB::table('prc_route_target_health')->updateOrInsert(['route_id' => $rid, 'target_id' => $this->f->target->value], [
+                'id' => LedgerFixtures::uuid()->value, 'state' => 'closed', 'health_epoch' => 1,
+                'state_version' => 1, 'recent_openings' => 0, 'consecutive_failures' => 0,
+            ]);
+            DB::table('prc_network_budgets')->updateOrInsert(['scope_key' => $testOrigin->routeScopeKey($rid)], [
+                'id' => LedgerFixtures::uuid()->value, 'emission_interval_us' => 1,
+                'burst' => 1, 'max_inflight' => 2, 'policy_version' => 1,
+            ]);
+        }
+
+        $tx->run(fn () => $routes->ensureProfile('eis-detail'));
+        $profileRow = DB::table('prc_network_route_profiles')->where('profile_key', 'eis-detail')->sole();
+        $tx->run(fn () => $routes->updateProfile(
+            'eis-detail', (int) $profileRow->policy_version, array_values($routeIds),
+            $actor->id, 'bind pool', ProcessUuid::random(), ProcessUuid::random(),
+        ));
+        $profileId = new ProcessUuid($profileRow->id);
+
+        // Запрос через первый прокси получает HTTP 403 (WAF без Retry-After)
+        $ctx1 = $this->f->context();
+        $ticket1 = $this->f->repo->register($this->f->plan(), $ctx1, new NetworkRouteSelection(new ProcessUuid($routeIds[1]), $profileId));
+        $permit1 = $this->f->repo->reserve($ticket1, $ctx1);
+        $this->f->repo->claimSend($permit1, $ctx1);
+        $forbiddenResult = new HttpAttemptResult(
+            new ResponseEnvelope(403, [], new DecodedTextBody('Forbidden', 'UTF-8'), 9, 9),
+            null, 9, 9, head: new HttpResponseHead(403, []),
+        );
+        $quota1 = $this->f->repo->record($permit1->ticket->plan->physicalRequestId, $forbiddenResult);
+
+        expect($quota1)->toBeInstanceOf(TransportDeferred::class)
+            ->and($quota1->reason)->toBe(NetworkDeferralReason::RateLimit)
+            ->and($quota1->retryAt->value->getTimestamp())->toBeGreaterThanOrEqual(time() + 325)
+            ->and(DB::table('prc_route_health')->where('route_id', $routeIds[1])->value('state'))->toBe('closed')
+            ->and((int) DB::table('prc_route_target_health')->where('route_id', $routeIds[1])->value('consecutive_failures'))->toBe(0)
+            ->and(DB::table('prc_network_budgets')->where('scope_key', $testOrigin->budgetScopeKey())->value('not_before'))->toBe('-infinity')
+            ->and(DB::table('prc_network_budgets')->where('scope_key', $testOrigin->routeScopeKey($routeIds[1]))->value('not_before'))->not->toBe('-infinity')
+            ->and(DB::table('prc_network_budgets')->where('scope_key', $testOrigin->routeScopeKey($routeIds[2]))->value('not_before'))->toBe('-infinity');
+
+        // RouteSelector через ProxyResolver::profile исключает route 1 (в cooldown) и рандомно распределяет между route 2 и route 3
+        $policy = app(ProxyResolver::class)->profile($profileId);
+        expect($policy->random)->toBeTrue();
+        $selector = app(ProxyResolver::class)->outboundRoutes($policy);
+        $selectedCounts = [$routeIds[1] => 0, $routeIds[2] => 0, $routeIds[3] => 0];
+        for ($i = 0; $i < 30; $i++) {
+            $sel = $selector->select($this->f->plan(), new RetryRoutePreference([], null, false, 3));
+            expect($sel)->toBeInstanceOf(SelectedNetworkRoute::class);
+            $selectedCounts[$sel->selection->routeId->value]++;
+        }
+        expect($selectedCounts[$routeIds[1]])->toBe(0)
+            ->and($selectedCounts[$routeIds[2]])->toBeGreaterThan(0)
+            ->and($selectedCounts[$routeIds[3]])->toBeGreaterThan(0);
+
+        // Запрос через второй прокси получает HTTP 429 с Retry-After: 120
+        $ctx2 = $this->f->context();
+        $ticket2 = $this->f->repo->register($this->f->plan(), $ctx2, new NetworkRouteSelection(new ProcessUuid($routeIds[2]), $profileId));
+        $permit2 = $this->f->repo->reserve($ticket2, $ctx2);
+        $this->f->repo->claimSend($permit2, $ctx2);
+        $rateLimitResult = new HttpAttemptResult(
+            new ResponseEnvelope(429, ['retry-after' => ['120']], new DecodedTextBody('Too Many Requests', 'UTF-8'), 17, 17),
+            null, 17, 17, head: new HttpResponseHead(429, ['retry-after' => ['120']]),
+        );
+        $quota2 = $this->f->repo->record($permit2->ticket->plan->physicalRequestId, $rateLimitResult);
+        expect($quota2)->toBeInstanceOf(TransportDeferred::class)
+            ->and(DB::table('prc_network_budgets')->where('scope_key', $testOrigin->budgetScopeKey())->value('not_before'))->toBe('-infinity');
+
+        // Теперь доступен только третий прокси
+        $selOnly3 = $selector->select($this->f->plan(), new RetryRoutePreference([], null, false, 3));
+        expect($selOnly3)->toBeInstanceOf(SelectedNetworkRoute::class)
+            ->and($selOnly3->selection->routeId->value)->toBe($routeIds[3]);
+
+        // Запрос через третий прокси тоже получает HTTP 403 — весь пул уходит в cooldown
+        $ctx3 = $this->f->context();
+        $ticket3 = $this->f->repo->register($this->f->plan(), $ctx3, new NetworkRouteSelection(new ProcessUuid($routeIds[3]), $profileId));
+        $permit3 = $this->f->repo->reserve($ticket3, $ctx3);
+        $this->f->repo->claimSend($permit3, $ctx3);
+        $this->f->repo->record($permit3->ticket->plan->physicalRequestId, $forbiddenResult);
+
+        // Когда все прокси в пуле на паузе, RouteSelector возвращает TransportDeferred(RateLimit, min(not_before))
+        $allPaused = $selector->select($this->f->plan(), new RetryRoutePreference([], null, false, 3));
+        expect($allPaused)->toBeInstanceOf(TransportDeferred::class)
+            ->and($allPaused->reason)->toBe(NetworkDeferralReason::RateLimit)
+            ->and($allPaused->retryAt->value)->toEqual($quota2->retryAt->value);
+    } finally {
+        DB::table('prc_proxies')->whereIn('service', ['pool-proxy-1', 'pool-proxy-2', 'pool-proxy-3'])->delete();
+        $actor->delete();
     }
 });

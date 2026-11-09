@@ -1680,7 +1680,7 @@
         },
         {
             "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-            "sha256": "6f4b810c472c9accc4fb9c34721216c142c4b30ea098a7696e4ef549eac5659f",
+            "sha256": "30a40eb066cb05bc65414a36bc14b2987844d6cf507fb76b83a82d31ce9c380a",
             "scenarios": [
                 "typed EIS card plans pin the requested identity in every tab URL without database writes",
                 "typed EIS optional supplier results use explicit NotApplicable and no physical send",
@@ -5275,7 +5275,7 @@
         },
         {
             "path": "tests/Unit/Platforms/Eis/Card/PartiesParserTest.php",
-            "sha256": "945420070141004d5d7a151064a1d57e90e85df4f0abff0a3472468c090c7f00",
+            "sha256": "4c1170495a5f95d03bb7b4af64d49239049be374e0322f914c0a3ddea47502f1",
             "scenarios": [
                 "реальная январская карточка различает заказчика и размещающую организацию",
                 "историческая усечённая fixture без организаций не разрешает удаление ролей",
@@ -6689,7 +6689,7 @@
         {
             "path": "app/Services/Platforms/Eis/Card/PartiesParser.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Card\\PartiesParser",
-            "sha256": "37047222f487a57a6799c2f91782dbd7aa7707ce230d069ca98d1550503c0449",
+            "sha256": "4cefc717b536177f641c7070ad13f3332e21605d9608c43dcc6e209bc11fdff5",
             "original_path": "app/Services/Procurement/Eis/Card/PartiesParser.php",
             "original_sha256": "1bf577b7eeea4a7792f26a92f6d63c96a58be2046fefc072e29566f00731cbd7",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\PartiesParser",

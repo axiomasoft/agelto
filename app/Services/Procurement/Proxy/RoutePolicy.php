@@ -14,7 +14,7 @@ final readonly class RoutePolicy
     public array $bindings;
 
     /** @param list<HttpRouteBinding> $bindings */
-    public function __construct(array $bindings, public ?ProcessUuid $profileId = null)
+    public function __construct(array $bindings, public ?ProcessUuid $profileId = null, public bool $random = false)
     {
         $indexed = [];
         foreach ($bindings as $binding) {

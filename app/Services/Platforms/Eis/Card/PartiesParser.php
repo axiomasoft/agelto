@@ -25,6 +25,7 @@ final readonly class PartiesParser
         'Заказчик' => ProcurementPartyRole::Customer,
         'Организация, осуществляющая закупки в соответствии с частями 4, 4.3 или 4.4 статьи 15 Федерального закона № 44-ФЗ' => ProcurementPartyRole::Customer,
         'Специализированная некоммерческая организация, которая осуществляет деятельность, направленную на обеспечение проведения капитального ремонта общего имущества в многоквартирных домах в соответствии с Постановлением № 615 (региональный оператор)' => ProcurementPartyRole::Customer,
+        'Организация, осуществляющая полномочия заказчика на осуществление закупок на основании соглашения в соответствии с частью 6 статьи 15 Федерального закона № 44-ФЗ' => ProcurementPartyRole::AuthorizedInstitution,
         'Размещающая организация' => ProcurementPartyRole::Placer,
         'Уполномоченный орган' => ProcurementPartyRole::AuthorizedBody,
         'Уполномоченное учреждение' => ProcurementPartyRole::AuthorizedInstitution,

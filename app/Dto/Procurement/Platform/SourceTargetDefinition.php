@@ -27,6 +27,8 @@ final readonly class SourceTargetDefinition
         public ?OriginBudgetPolicy $originBudget = null,
         public ?string $probeUrl = null,
         public ?AdapterContractRef $adapterContract = null,
+        public ?OriginBudgetPolicy $routeOriginBudget = null,
+        public ?OriginBudgetPolicy $egressOriginBudget = null,
     ) {
         if (preg_match('/^[a-z][a-z0-9_.:-]{0,95}$/D', $key) !== 1) {
             throw new \InvalidArgumentException('Invalid source target key.');
@@ -72,6 +74,12 @@ final readonly class SourceTargetDefinition
         }
         if ($this->adapterContract !== null) {
             $policy['adapter_contract'] = $this->adapterContract->toArray();
+        }
+        if ($this->routeOriginBudget !== null) {
+            $policy['route_origin_budget'] = $this->routeOriginBudget->toArray();
+        }
+        if ($this->egressOriginBudget !== null) {
+            $policy['egress_origin_budget'] = $this->egressOriginBudget->toArray();
         }
 
         return $policy;

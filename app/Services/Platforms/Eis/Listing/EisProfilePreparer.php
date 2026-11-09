@@ -63,12 +63,30 @@ final readonly class EisProfilePreparer implements AcquisitionProfilePreparer
         $start = $initial->setTimezone($this->policy->sourceTimezone)->format('Y-m-d');
         $finish = $end->setTimezone($this->policy->sourceTimezone)->format('Y-m-d');
         $route = $profile->route_profile_id === null
-            ? LedgerRow::one('SELECT id,policy_version FROM prc_network_route_profiles WHERE profile_key=?', [$this->outbound->defaultRouteProfile])
-            : LedgerRow::one('SELECT id,policy_version FROM prc_network_route_profiles WHERE id=?', [$profile->route_profile_id]);
+            ? LedgerRow::one('SELECT id,profile_key,policy_version FROM prc_network_route_profiles WHERE profile_key=?', [$this->outbound->defaultRouteProfile])
+            : LedgerRow::one('SELECT id,profile_key,policy_version FROM prc_network_route_profiles WHERE id=?', [$profile->route_profile_id]);
         if ($route === null) {
             throw new \InvalidArgumentException('Configured route profile is absent.');
         }
-        $access = ContentHash::of(json_encode([$route->string('id'), $route->int('policy_version')], JSON_THROW_ON_ERROR));
+        $stageProfiles = [];
+        if ($profile->route_profile_id === null || $route->string('profile_key') === $this->outbound->defaultRouteProfile) {
+            foreach ($this->policy->stageRouteProfiles as $stage => $profileKey) {
+                $stageRow = LedgerRow::one(
+                    'SELECT p.id, p.policy_version FROM prc_network_route_profiles p
+                     WHERE p.profile_key = ? AND EXISTS (SELECT 1 FROM prc_network_route_profile_members m WHERE m.profile_id = p.id)',
+                    [$profileKey],
+                );
+                if ($stageRow !== null) {
+                    $stageProfiles[$stage] = [
+                        'route_profile_id' => $stageRow->string('id'),
+                        'route_policy_version' => $stageRow->int('policy_version'),
+                    ];
+                }
+            }
+        }
+        $routeId = $stageProfiles['listing']['route_profile_id'] ?? $route->string('id');
+        $routeVersion = $stageProfiles['listing']['route_policy_version'] ?? $route->int('policy_version');
+        $access = ContentHash::of(json_encode([$routeId, $routeVersion], JSON_THROW_ON_ERROR));
         $partitioner = new EisListingPartitioner($this->policy->listing, $this->policy->sourceTimezone);
         $axis = $kind === AcquisitionKind::Delta ? 'update' : 'publish';
         $low = (string) ($filter->priceFrom ?? 0);
@@ -81,13 +99,23 @@ final readonly class EisProfilePreparer implements AcquisitionProfilePreparer
         }
         $plan = $partitioner->plan($typed, $start, $finish, $axis, $low, $high, $this->policy->blockSize);
         $version = $profile->profile_version;
+        $payloadData = [
+            'profile_version' => $version,
+            'route_profile_id' => $routeId,
+            'route_policy_version' => $routeVersion,
+            'kind' => $kind->value,
+            'initial_from' => $initial->format(DATE_ATOM),
+            'through' => $end->format(DATE_ATOM),
+            'requested_from' => $from?->format(DATE_ATOM),
+            'requested_through' => $through?->format(DATE_ATOM),
+        ];
+        if ($stageProfiles !== []) {
+            $payloadData['stage_route_profiles'] = $stageProfiles;
+        }
 
         return new AcquisitionLaunch($profile->id, $version, $registry->platform_id, $registry->id, $registry->code,
             $kind, '1', $partitioner->snapshot($typed), $access, $stream, $plan,
-            new VersionedPayload(json_encode(['profile_version' => $version, 'route_profile_id' => $route->string('id'),
-                'route_policy_version' => $route->int('policy_version'), 'kind' => $kind->value,
-                'initial_from' => $initial->format(DATE_ATOM), 'through' => $end->format(DATE_ATOM),
-                'requested_from' => $from?->format(DATE_ATOM), 'requested_through' => $through?->format(DATE_ATOM)], JSON_THROW_ON_ERROR), 2));
+            new VersionedPayload(json_encode($payloadData, JSON_THROW_ON_ERROR), $stageProfiles === [] ? 2 : 3));
     }
 
     public function recoveryPlan(ListingTask $task): ListingPlan

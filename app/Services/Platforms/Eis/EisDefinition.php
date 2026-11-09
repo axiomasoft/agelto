@@ -49,18 +49,22 @@ final readonly class EisDefinition implements PlatformDefinitionProvider
             };
             $targets[$endpoint->targetKey] = new SourceTargetDefinition($endpoint->targetKey, $capability,
                 CanonicalOrigin::fromUrl($endpoint->url), [$endpoint->profile],
+                originBudget: $this->policy->originBudget,
                 adapterContract: in_array($capability, ['listing', 'detail'], true)
-                    ? new AdapterContractRef('eis', $capability, '1', '1') : null);
+                    ? new AdapterContractRef('eis', $capability, '1', '1') : null,
+                routeOriginBudget: $this->policy->routeOriginBudget,
+                egressOriginBudget: $this->policy->egressOriginBudget);
         }
         $referenceUrl = $this->policy->referenceEndpoint;
         $hosts = $this->policy->documentHosts;
         $targets['okpd2'] = new SourceTargetDefinition('okpd2', 'reference_sync', CanonicalOrigin::fromUrl($referenceUrl), [
             new RequestProfile('eis.reference', 5, 10, 20, 2_097_152, 6_291_456, 3, 2, 2, [200], ResponseKind::Text, 'UTF-8', 1),
-        ]);
+        ], originBudget: $this->policy->originBudget, routeOriginBudget: $this->policy->routeOriginBudget, egressOriginBudget: $this->policy->egressOriginBudget);
         foreach ($hosts as $host) {
             $origin = CanonicalOrigin::of('https', $host);
             $key = 'document.'.substr($origin->hash()->hex, 0, 16);
-            $targets[$key] ??= new SourceTargetDefinition($key, 'download', $origin, [$this->policy->endpoints->get('document')->profile]);
+            $targets[$key] ??= new SourceTargetDefinition($key, 'download', $origin, [$this->policy->endpoints->get('document')->profile],
+                originBudget: $this->policy->originBudget, routeOriginBudget: $this->policy->routeOriginBudget, egressOriginBudget: $this->policy->egressOriginBudget);
         }
         $this->targets = new SourceTargetDefinitions('eis', array_values($targets));
     }
@@ -85,6 +89,7 @@ final readonly class EisDefinition implements PlatformDefinitionProvider
             uiExtension: EisUiExtension::class,
             acquisitionProfile: new AcquisitionProfileDescriptor(
                 EisSearchFilter::class, Listing\EisProfilePreparer::class, 'ОКПД2.'),
+            stageRouteProfiles: $this->policy->stageRouteProfiles,
         );
     }
 }

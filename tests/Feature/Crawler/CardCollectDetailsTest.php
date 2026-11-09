@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Acquisition\DetailFetched;
 use App\Dto\Procurement\Acquisition\DetailRequest;
+use App\Dto\Procurement\Acquisition\FetchDeferred;
+use App\Dto\Procurement\Network\DecodedTextBody;
+use App\Dto\Procurement\Network\ResponseEnvelope;
+use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Platform\CursorEnvelope;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Platform\Completeness;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Platforms\Contract\ContractRuntime;
@@ -63,17 +68,34 @@ test('typed EIS unknown procedure fails before acquiring a network request', fun
         ->and($outbound->plans)->toBe([]);
 });
 
-test('supplier-results со всеми отклонёнными заявками по п. 4 ч. 1 ст. 52 44-ФЗ завершается как CompleteEmpty', function (): void {
-    $bodies = D::bodies();
-    $bodies['supplier-results'] = str_replace(
-        'По окончании срока подачи заявок подана только одна заявка на участие в закупке (п. 1 ч. 1 ст. 52 Закона № 44-ФЗ)',
+test('supplier-results с отклонёнными или несоответствующими заявками по ч. 1 ст. 52 44-ФЗ завершается как CompleteEmpty', function (): void {
+    foreach ([
         'По результатам рассмотрения заявок на участие в закупке все поданные заявки отклонены (п. 4 ч. 1 ст. 52 Закона № 44-ФЗ)',
-        $bodies['supplier-results'],
-    );
-    $outbound = D::outbound($bodies);
-    $result = D::source($outbound)->fetch(D::request(), ContractRuntime::context());
-    expect($result)->toBeInstanceOf(DetailFetched::class)
-        ->and($result->snapshot->complete())->toBeTrue();
-    $part = array_values(array_filter($result->snapshot->parts, fn ($p) => $p->name === 'results'))[0];
-    expect($part->completeness)->toBe(Completeness::CompleteEmpty);
+        'По окончании срока подачи заявок подана только одна заявка на участие в закупке. Заявка не соответствует требованиям. (п. 1 и п. 4 ч. 1 ст. 52 Закона № 44-ФЗ)',
+    ] as $reason) {
+        $bodies = D::bodies();
+        $bodies['supplier-results'] = str_replace('По окончании срока подачи заявок подана только одна заявка на участие в закупке (п. 1 ч. 1 ст. 52 Закона № 44-ФЗ). Заявка соответствует требованиям', $reason, $bodies['supplier-results']);
+        $result = D::source(D::outbound($bodies))->fetch(D::request(), ContractRuntime::context());
+        $part = array_values(array_filter($result->snapshot->parts, fn ($p) => $p->name === 'results'))[0];
+        expect($result)->toBeInstanceOf(DetailFetched::class)->and($result->snapshot->complete())->toBeTrue()
+            ->and($part->completeness)->toBe(Completeness::CompleteEmpty);
+    }
+});
+
+test('common-info закупки по ч. 12 ст. 93 44-ФЗ без блока Объект закупки в шапке берёт наименование из позиции КТРУ', function (): void {
+    $bodies = D::bodies();
+    $bodies['common-info'] = str_replace('<div class="cardMainInfo__purchaseObject">Поставка оргтехники</div>', '', $bodies['common-info']);
+    $result = D::source(D::outbound($bodies))->fetch(D::request(), ContractRuntime::context());
+    $part = array_values(array_filter($result->snapshot->parts, fn ($p) => $p->name === 'attributes'))[0];
+    expect($result)->toBeInstanceOf(DetailFetched::class)->and($result->snapshot->title)->not->toBe('')
+        ->and($part->completeness)->toBe(Completeness::Complete);
+});
+
+test('карточка ЕИС при HTTP 403 или 429 от WAF возвращает отложенное получение RateLimit без поломки прогресса', function (): void {
+    foreach ([403, 429] as $status) {
+        $response = new ResponseEnvelope($status, ['content-type' => ['text/html']], new DecodedTextBody('Forbidden', 'UTF-8'), 9, 9);
+        $outbound = new RecordingOutbound([new TransportSucceeded($response)]);
+        $result = D::source($outbound)->fetchPart(D::request(), 'common-info', ContractRuntime::context());
+        expect($result)->toBeInstanceOf(FetchDeferred::class)->and($result->reason)->toBe(NetworkDeferralReason::RateLimit);
+    }
 });

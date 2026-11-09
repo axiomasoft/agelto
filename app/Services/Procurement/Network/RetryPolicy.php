@@ -19,7 +19,7 @@ final readonly class RetryPolicy
         }
     }
 
-    public function retryAfter(?string $header, \DateTimeImmutable $now): ?RetryAt
+    public function retryAfter(?string $header, \DateTimeImmutable $now, ?int $fallbackSeconds = null): ?RetryAt
     {
         $header = $header === null ? null : trim($header);
         if ($header !== null && preg_match('/^\d+$/D', $header)) {
@@ -41,7 +41,8 @@ final readonly class RetryPolicy
                 }
             }
         }
+        $defaultSeconds = $fallbackSeconds ?? $this->invalidRetryAfterSeconds;
 
-        return new RetryAt($now->modify('+'.$this->invalidRetryAfterSeconds.' seconds'));
+        return new RetryAt($now->modify('+'.$defaultSeconds.' seconds'));
     }
 }

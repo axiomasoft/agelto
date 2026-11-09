@@ -186,3 +186,18 @@ test('региональный оператор капремонта по ПП �
         ->and($parties[1]->organization->identifiers[0]->type)->toBe('organization_code')
         ->and($parties[1]->organization->identifiers[0]->value)->toBe('08696000222');
 });
+
+test('организация по части 6 статьи 15 44-ФЗ разбирается как уполномоченное учреждение с отдельным заказчиком лота', function () {
+    $roleCh6St15 = 'Организация, осуществляющая полномочия заказчика на осуществление закупок на основании соглашения в соответствии с частью 6 статьи 15 Федерального закона № 44-ФЗ';
+    $html = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Card/parties-january-3.html'));
+    $html = str_replace('Уполномоченное учреждение', $roleCh6St15, $html);
+
+    $parser = app(PartiesParser::class);
+    $parties = $parser->parse($html, strict: true);
+
+    expect($parser->authorizesReconciliation($html, $parties, strict: true))->toBeTrue()
+        ->and($parties)->toHaveCount(3)
+        ->and($parties[0]->role)->toBe(ProcurementPartyRole::Placer)
+        ->and($parties[1]->role)->toBe(ProcurementPartyRole::AuthorizedInstitution)
+        ->and($parties[2]->role)->toBe(ProcurementPartyRole::Customer);
+});

@@ -98,6 +98,10 @@ if [[ -n "$SOCKET_IN_CONTAINER" ]]; then
         --name "$RELAY_CONTAINER" \
         --restart unless-stopped \
         --network host \
+        --health-cmd "test -S /var/www/html/storage/logs/vpn-bypass.sock" \
+        --health-interval 10s \
+        --health-timeout 3s \
+        --health-retries 3 \
         --entrypoint php \
         -v "${ROOT_DIR}/storage/logs:/var/www/html/storage/logs" \
         "$APP_IMAGE" \

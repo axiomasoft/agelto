@@ -34,7 +34,7 @@ final readonly class ProxyResolver
                 throw new OutboundUnavailable(new TransportBlocked(NetworkBlockedReason::ConfigurationHold));
             }
 
-            return new RoutePolicy(bindings: $this->routes->bindings($profile), profileId: $profile);
+            return new RoutePolicy(bindings: $this->routes->bindings($profile), profileId: $profile, random: true);
         } catch (\Throwable $failure) {
             if (! DatabaseFailureClassifier::isTransient($failure)
                 && ! $failure instanceof DependencyUnavailable) {

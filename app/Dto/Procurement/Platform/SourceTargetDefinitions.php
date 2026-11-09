@@ -17,6 +17,12 @@ final readonly class SourceTargetDefinitions
     /** @var array<string, OriginBudgetPolicy> origin value → explicitly declared budget */
     private array $declaredBudgets;
 
+    /** @var array<string, OriginBudgetPolicy> origin value → explicitly declared per-route budget */
+    private array $declaredRouteBudgets;
+
+    /** @var array<string, OriginBudgetPolicy> origin value → explicitly declared per-egress budget */
+    private array $declaredEgressBudgets;
+
     /** @param list<SourceTargetDefinition> $targets */
     public function __construct(public string $platformCode, array $targets)
     {
@@ -25,6 +31,8 @@ final readonly class SourceTargetDefinitions
         }
         $byKey = [];
         $budgets = [];
+        $routeBudgets = [];
+        $egressBudgets = [];
         foreach ($targets as $target) {
             if ($target->adapterContract !== null && $target->adapterContract->platformCode !== $platformCode) {
                 throw new \InvalidArgumentException('Adapter contract belongs to another platform.');
@@ -33,18 +41,31 @@ final readonly class SourceTargetDefinitions
                 throw new \InvalidArgumentException('Duplicate source target key: '.$target->key);
             }
             $byKey[$target->key] = $target;
-            if ($target->originBudget === null) {
-                continue;
-            }
             $origin = $target->origin->value();
-            if (isset($budgets[$origin]) && ! $budgets[$origin]->equals($target->originBudget)) {
-                throw new \InvalidArgumentException('Conflicting origin budget defaults for '.$origin.' (target '.$target->key.')');
+            if ($target->originBudget !== null) {
+                if (isset($budgets[$origin]) && ! $budgets[$origin]->equals($target->originBudget)) {
+                    throw new \InvalidArgumentException('Conflicting origin budget defaults for '.$origin.' (target '.$target->key.')');
+                }
+                $budgets[$origin] = $target->originBudget;
             }
-            $budgets[$origin] = $target->originBudget;
+            if ($target->routeOriginBudget !== null) {
+                if (isset($routeBudgets[$origin]) && ! $routeBudgets[$origin]->equals($target->routeOriginBudget)) {
+                    throw new \InvalidArgumentException('Conflicting route-origin budget defaults for '.$origin.' (target '.$target->key.')');
+                }
+                $routeBudgets[$origin] = $target->routeOriginBudget;
+            }
+            if ($target->egressOriginBudget !== null) {
+                if (isset($egressBudgets[$origin]) && ! $egressBudgets[$origin]->equals($target->egressOriginBudget)) {
+                    throw new \InvalidArgumentException('Conflicting egress-origin budget defaults for '.$origin.' (target '.$target->key.')');
+                }
+                $egressBudgets[$origin] = $target->egressOriginBudget;
+            }
         }
         ksort($byKey, SORT_STRING);
         $this->targets = $byKey;
         $this->declaredBudgets = $budgets;
+        $this->declaredRouteBudgets = $routeBudgets;
+        $this->declaredEgressBudgets = $egressBudgets;
     }
 
     /**
@@ -67,5 +88,17 @@ final readonly class SourceTargetDefinitions
     public function originBudget(CanonicalOrigin $origin, OriginBudgetPolicy $default): OriginBudgetPolicy
     {
         return $this->declaredBudgets[$origin->value()] ?? $default;
+    }
+
+    /** Объявленный default для одного прокси/маршрута на origin либо общий default политики. */
+    public function routeOriginBudget(CanonicalOrigin $origin, OriginBudgetPolicy $default): OriginBudgetPolicy
+    {
+        return $this->declaredRouteBudgets[$origin->value()] ?? $default;
+    }
+
+    /** Объявленный default для одного внешнего IP (egress_id) на origin, если задан. */
+    public function egressOriginBudget(CanonicalOrigin $origin): ?OriginBudgetPolicy
+    {
+        return $this->declaredEgressBudgets[$origin->value()] ?? null;
     }
 }

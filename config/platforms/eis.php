@@ -29,6 +29,19 @@ return [
     'block_size' => 500,
     'document_access_resolver' => CatalogDocumentAccess::class,
     'source_timezone' => env('EIS_SOURCE_TIMEZONE', 'Europe/Moscow'),
+    'budgets' => [
+        // Общий потолок источника (масштабируется пулом прокси).
+        'origin_budget' => ['rate_per_minute' => 60, 'burst' => 2, 'max_inflight' => 10],
+        // Безопасный лимит одного прокси-маршрута под WAF ЕИС (6 req/min, burst=1, max_inflight=1).
+        'route_origin_budget' => ['rate_per_minute' => 6, 'burst' => 1, 'max_inflight' => 1],
+        // Лимит внешнего IP (egress_id), чтобы два маршрута с одним IP не удваивали квоту.
+        'egress_origin_budget' => ['rate_per_minute' => 6, 'burst' => 1, 'max_inflight' => 1],
+    ],
+    'stage_route_profiles' => [
+        'listing' => env('EIS_LISTING_ROUTE_PROFILE', 'eis-listing'),
+        'detail' => env('EIS_DETAIL_ROUTE_PROFILE', 'eis-detail'),
+        'status_refresh' => env('EIS_STATUS_ROUTE_PROFILE', 'eis-detail'),
+    ],
     'listing_bounds' => [
         'max_blocks' => 12,
         'min_interval_cents' => 100000,

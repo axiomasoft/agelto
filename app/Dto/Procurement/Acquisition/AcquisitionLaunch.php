@@ -30,7 +30,7 @@ final readonly class AcquisitionLaunch
             || $adapterVersion === '' || $configuration->json === null) {
             throw new \InvalidArgumentException('Invalid acquisition launch.');
         }
-        if ($configuration->schemaVersion === 2) {
+        if (in_array($configuration->schemaVersion, [2, 3], true)) {
             $settings = AcquisitionConfiguration::decode($configuration);
             // Recovery keeps the original execution settings while the allocation CAS
             // checks the current profile revision independently.

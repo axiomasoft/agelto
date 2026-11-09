@@ -77,6 +77,11 @@ final readonly class CanonicalOrigin
         return 'route-origin:'.$routeId.':'.$this->hash()->hex;
     }
 
+    public function egressScopeKey(string $egressId): string
+    {
+        return 'egress-origin:'.$egressId.':'.$this->hash()->hex;
+    }
+
     public function equals(self $other): bool
     {
         return $this->value() === $other->value();

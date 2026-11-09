@@ -6,6 +6,7 @@ namespace App\Dto\Platforms\Eis;
 
 use App\Dto\Procurement\Platform\EndpointCatalog;
 use App\Dto\Procurement\Platform\EndpointDefinition;
+use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\RequestProfile;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use DateTimeZone;
@@ -35,10 +36,19 @@ final readonly class EisPolicy
     /** @var list<string> */
     public array $documentHosts;
 
+    public ?OriginBudgetPolicy $originBudget;
+
+    public ?OriginBudgetPolicy $routeOriginBudget;
+
+    public ?OriginBudgetPolicy $egressOriginBudget;
+
+    /** @var array<string, string> */
+    public array $stageRouteProfiles;
+
     public function __construct(Repository $config)
     {
         $root = $config->get('platforms.eis');
-        $this->keys($root, ['block_size', 'source_timezone', 'endpoints', 'listing_bounds', 'document_access_resolver', 'okpd2', 'documents_allowed_hosts'], 'platforms.eis');
+        $this->keys($root, ['block_size', 'source_timezone', 'endpoints', 'listing_bounds', 'document_access_resolver', 'okpd2', 'documents_allowed_hosts'], 'platforms.eis', ['budgets', 'stage_route_profiles']);
         $reference = $root['okpd2'];
         $this->keys($reference, ['children_endpoint', 'root_external_id', 'root_level', 'max_requests'], 'platforms.eis.okpd2');
         foreach (['children_endpoint', 'root_external_id'] as $key) {
@@ -110,16 +120,57 @@ final readonly class EisPolicy
             }
         }
         $this->endpoints = new EndpointCatalog($catalog);
+        $budgets = $root['budgets'] ?? null;
+        if ($budgets !== null) {
+            $this->keys($budgets, [], 'platforms.eis.budgets', ['origin_budget', 'route_origin_budget', 'egress_origin_budget']);
+            $this->originBudget = isset($budgets['origin_budget']) ? $this->budget($budgets['origin_budget'], 'platforms.eis.budgets.origin_budget') : null;
+            $this->routeOriginBudget = isset($budgets['route_origin_budget']) ? $this->budget($budgets['route_origin_budget'], 'platforms.eis.budgets.route_origin_budget') : null;
+            $this->egressOriginBudget = isset($budgets['egress_origin_budget']) ? $this->budget($budgets['egress_origin_budget'], 'platforms.eis.budgets.egress_origin_budget') : null;
+        } else {
+            $this->originBudget = null;
+            $this->routeOriginBudget = null;
+            $this->egressOriginBudget = null;
+        }
+        $stageProfiles = $root['stage_route_profiles'] ?? [];
+        if (! is_array($stageProfiles) || array_diff(array_keys($stageProfiles), ['listing', 'detail', 'status_refresh']) !== []) {
+            throw new InvalidPlatformDefinition('platforms.eis.stage_route_profiles: expected map of listing/detail/status_refresh.');
+        }
+        $resolvedProfiles = [];
+        foreach ($stageProfiles as $stage => $profileKey) {
+            if (! is_string($stage) || ! is_string($profileKey) || preg_match('/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/D', $profileKey) !== 1) {
+                throw new InvalidPlatformDefinition('platforms.eis.stage_route_profiles.'.$stage.': expected valid route profile key.');
+            }
+            $resolvedProfiles[$stage] = $profileKey;
+        }
+        $this->stageRouteProfiles = $resolvedProfiles;
+    }
+
+    private function budget(mixed $value, string $path): OriginBudgetPolicy
+    {
+        $this->keys($value, ['rate_per_minute', 'burst', 'max_inflight'], $path);
+        foreach (['rate_per_minute', 'burst', 'max_inflight'] as $field) {
+            if (! is_int($value[$field]) || $value[$field] < 1) {
+                throw new InvalidPlatformDefinition($path.'.'.$field.': expected positive integer.');
+            }
+        }
+        try {
+            return new OriginBudgetPolicy($value['rate_per_minute'], $value['burst'], $value['max_inflight']);
+        } catch (\InvalidArgumentException $exception) {
+            throw new InvalidPlatformDefinition($path.': '.$exception->getMessage(), previous: $exception);
+        }
     }
 
     /**
      * @param  list<string>  $keys
+     * @param  list<string>  $optional
      *
      * @phpstan-assert array<string, mixed> $value
      */
-    private function keys(mixed $value, array $keys, string $path): void
+    private function keys(mixed $value, array $keys, string $path, array $optional = []): void
     {
-        if (! is_array($value) || count($value) !== count($keys) || array_diff($keys, array_keys($value)) !== []) {
+        if (! is_array($value)
+            || array_diff($keys, array_keys($value)) !== []
+            || array_diff(array_keys($value), [...$keys, ...$optional]) !== []) {
             throw new InvalidPlatformDefinition($path.': expected exactly '.implode(', ', $keys).'.');
         }
     }

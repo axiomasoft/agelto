@@ -164,7 +164,7 @@ final readonly class AcquisitionScheduler
 
     private static function requestFingerprint(VersionedPayload $configuration): ContentHash
     {
-        if ($configuration->schemaVersion === 2) {
+        if (in_array($configuration->schemaVersion, [2, 3], true)) {
             return AcquisitionConfiguration::decode($configuration)->requestFingerprint();
         }
         $fields = json_decode($configuration->json ?? throw new \InvalidArgumentException('Missing acquisition configuration.'), true, flags: JSON_THROW_ON_ERROR);
