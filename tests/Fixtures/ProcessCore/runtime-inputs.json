@@ -268,9 +268,9 @@
       }
     },
     "proxyma": {
-      "commit": "d564574e94ab6d854f498596c3a098a28d4e8529",
+      "commit": "23912e0d71ca79b3f3a9e26e3eaa4de46f4165f7",
       "packages": {
-        "packages/core": "57c93c1e62b6f7f8564cfa57ff79ede2c52a34b2fdaa9131b5c66929357d825d",
+        "packages/core": "c84a51ae1860ad1a75c9152d4cc37f6b7e785df3194c530a34140def62592cb6",
         "packages/filament": "f7b38627f081120bdaea6ca5d78189492ca0fee3ee1a1c87ac1239e195b74864"
       }
     }
