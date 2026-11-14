@@ -19,7 +19,10 @@ use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Document\DownloadPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\SubjectLockResolver;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Proxyma\Domain\Policy\TenantKey;
+use Proxyma\Infrastructure\Database\PackageSchema;
 
 final readonly class DownloadStorageRepository
 {
@@ -72,10 +75,26 @@ final readonly class DownloadStorageRepository
     /** Logical download and its one signed refresh share a finite physical-send ceiling. */
     public function sends(ExecutionLease $lease): int
     {
-        return LedgerRow::one('SELECT count(*) AS sends FROM prc_request_attempts r JOIN prc_network_demands d ON d.id=r.demand_id
+        $legacy = LedgerRow::one('SELECT count(*) AS sends FROM prc_request_attempts r JOIN prc_network_demands d ON d.id=r.demand_id
             LEFT JOIN prc_outbound_operations o ON o.id=d.operation_id
             WHERE (d.attempt_id=? AND d.work_generation=?) OR o.parent_attempt_id=?',
             [$lease->attemptId->value, $lease->generation, $lease->attemptId->value])?->int('sends') ?? 0;
+        $tables = PackageSchema::tables();
+        // До additive install legacy path не требует package tables. Архив не исчезает при cutover.
+        if (! DB::getSchemaBuilder()->hasTable($tables['attempts'])) {
+            return $legacy;
+        }
+
+        return LedgerRow::one("SELECT count(*) AS sends FROM (
+            SELECT r.request_id AS physical_id FROM prc_request_attempts r JOIN prc_network_demands d ON d.id=r.demand_id
+                LEFT JOIN prc_outbound_operations o ON o.id=d.operation_id
+                WHERE (d.attempt_id=? AND d.work_generation=?) OR o.parent_attempt_id=?
+            UNION
+            SELECT a.physical_attempt_id AS physical_id FROM {$tables['attempts']} a
+                JOIN {$tables['operations']} o ON o.id=a.operation_id AND o.tenant_key=a.tenant_key
+                WHERE a.tenant_key=? AND ((o.owner_type='process_attempt' AND o.owner_id=? AND o.owner_generation=?) OR o.parent_attempt_id=?)
+            ) facts", [$lease->attemptId->value, $lease->generation, $lease->attemptId->value,
+            TenantKey::SYSTEM, $lease->attemptId->value, $lease->generation, $lease->attemptId->value])?->int('sends') ?? 0;
     }
 
     private function domain(string $key): ProcessUuid

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore\Http;
 
-use App\Dto\Procurement\Network\HttpRouteBinding;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundOperationHandle;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
@@ -39,10 +38,5 @@ final class TransportFixtures
         $handle = new OutboundOperationHandle(LedgerFixtures::uuid(), OutboundOperationKind::Diagnostic, 1, LedgerFixtures::uuid(), $until, $until);
 
         return new OutboundExecutionContext($handle, $renew ?? fn ($handle) => $handle, $checkpoint, $seconds, 1);
-    }
-
-    public static function gate(?string $proxy = null): FixtureAttemptGate
-    {
-        return new FixtureAttemptGate([new HttpRouteBinding(LedgerFixtures::uuid(), $proxy)]);
     }
 }

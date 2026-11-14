@@ -4,35 +4,27 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Network\HttpRouteBinding;
-use App\Dto\Procurement\Network\NetworkRouteSelection;
+use App\Dto\Procurement\Acquisition\FetchDeferred;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\RetryRoutePreference;
 use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Network\SelectedNetworkRoute;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportDeferred;
 use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\MissingParts;
 use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\StagePartial;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Network\IdempotencyClass;
 use App\Enums\Procurement\Network\TrafficClass;
-use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\StageCode;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
-use App\Repositories\Procurement\Network\NetworkPermitRepository;
-use App\Services\Procurement\Network\Contracts\OutboundRouteSelector;
-use App\Services\Procurement\Network\OutboundExecutor;
-use App\Services\Procurement\Network\OutboundPolicy;
-use App\Services\Procurement\Network\ScheduledAttemptGate;
 use App\Services\Procurement\Network\UrlPolicy;
+use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\Contracts\StageHandler;
 use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Proxyma\CallerOutbound as OutboundExecutor;
 use App\Support\Telemetry\TelemetrySanitizer;
 use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Support\Facades\DB;
@@ -81,7 +73,7 @@ final readonly class AcceptanceRuntime implements StageHandler
         $supervisors = array_fill_keys(array_keys(config('horizon.defaults')), ['maxProcesses' => 0]);
         $supervisors['supervisor-process-ai'] = ['connection' => 'process_ai', 'queue' => ['process-ai'],
             'balance' => 'simple', 'maxProcesses' => 10, 'minProcesses' => 10, 'tries' => 1,
-            'timeout' => 28, 'memory' => 256, 'sleep' => 1, 'maxTime' => 900];
+            'timeout' => 40, 'memory' => 256, 'sleep' => 1, 'maxTime' => 900];
         config(['horizon.environments.testing' => $supervisors]);
         Queue::before(static function ($event) use ($spec): void {
             $payload = $event->job->payload();
@@ -105,9 +97,22 @@ final readonly class AcceptanceRuntime implements StageHandler
                     }
                 });
             }
-            if (str_contains($event->sql, 'INSERT INTO prc_request_attempts')) {
-                $work = DB::table('prc_network_demands')->where('physical_request_id', $event->bindings[0])->value('work_id');
-                DB::afterCommit(static fn () => self::barrier($spec['root'], 'sent-intent-before-wire', $work));
+            if (str_contains(strtolower($event->sql), 'insert into') && str_contains($event->sql, 'pxm_attempts')) {
+                $physicalAttemptId = $event->bindings[3] ?? null;
+                if (! is_string($physicalAttemptId)) {
+                    return;
+                }
+                DB::afterCommit(static function () use ($physicalAttemptId, $spec): void {
+                    $work = DB::table('pxm_attempts as attempt')
+                        ->join('pxm_operations as operation', 'operation.id', '=', 'attempt.operation_id')
+                        ->join('prc_process_attempts as process_attempt', static function ($join): void {
+                            $join->on(DB::raw('process_attempt.id::text'), '=', 'operation.owner_id');
+                        })
+                        ->where('attempt.physical_attempt_id', $physicalAttemptId)
+                        ->where('operation.owner_type', 'process_attempt')
+                        ->value('process_attempt.work_id');
+                    self::barrier($spec['root'], 'sent-intent-before-wire', is_string($work) ? $work : null);
+                });
             }
             if (str_contains($event->sql, 'INSERT INTO prc_process_transitions') && ($event->bindings[5] ?? null) === 'succeeded') {
                 self::barrier($spec['root'], 'finalize-before-commit', $event->bindings[2]);
@@ -135,39 +140,28 @@ final readonly class AcceptanceRuntime implements StageHandler
 
     private function run(WorkInput $input, ExecutionContext $execution): StageOutcome
     {
+        $work = $execution->lease()->workId->value->value;
+        ProxymaCallerFixtures::configure();
         $lease = $execution->lease();
-        $work = $lease->workId->value->value;
         $position = $lease->checkpoint?->stageProgress;
         $position = $position instanceof FixtureStageCheckpoint ? $position->position : 0;
         self::barrier($this->spec['root'], 'after-lease', $work);
         $url = new SafeUrl($this->spec['url']);
         $route = new ProcessUuid($this->spec['route']);
-        $selector = new class($route) implements OutboundRouteSelector
-        {
-            public function __construct(private ProcessUuid $route) {}
-
-            public function select(OutboundRequestPlan $plan, RetryRoutePreference $preference): SelectedNetworkRoute
-            {
-                return new SelectedNetworkRoute(new NetworkRouteSelection($this->route), new HttpRouteBinding($this->route));
-            }
-        };
         $platform = DB::table('prc_process_work')->where('id', $work)->soleValue('platform_id');
         $target = DB::table('prc_source_targets')->where('platform_id', $platform)->where('target_key', 'card')->soleValue('id');
         $plan = new OutboundRequestPlan(LedgerFixtures::uuid(), new ProcessUuid($target), 'GET', $url,
             TransportFixtures::profile(), TrafficClass::Detail, IdempotencyClass::ReadOnly);
-        $gate = new ScheduledAttemptGate(app(NetworkPermitRepository::class), $selector, app(OutboundPolicy::class));
+        $gate = ProxymaCallerFixtures::gate($route->value);
         self::barrier($this->spec['root'], 'before-send', $work);
         $outcome = app(OutboundExecutor::class)->execute($plan, $execution, $gate,
             new UrlPolicy([$url->origin], ['fixture.test' => ['127.0.0.1']]), new TransferBudget(65536, 65536));
         if ($outcome instanceof TransportDeferred) {
-            $reason = DeferralReason::tryFrom($outcome->reason->value)
-                ?? throw new \LogicException('Unexpected fixture dependency: '.$outcome->reason->value);
-
-            return new StageDeferred($reason, $outcome->retryAt);
+            return app(FetchOutcomeBridge::class)->failure(new FetchDeferred($outcome->reason, $outcome->retryAt));
         }
         if (! $outcome instanceof TransportSucceeded || $outcome->response->status !== 200) {
             throw new \RuntimeException('Acceptance local HTTP did not succeed: '.get_debug_type($outcome).' '.($outcome->reason->value ?? $outcome->response->status ?? 'unknown')
-                .' '.json_encode(DB::table('prc_request_attempts')->get(['outcome', 'status', 'phase']), JSON_THROW_ON_ERROR)
+                .' '.json_encode(DB::table('pxm_attempts')->get(['physical_attempt_id', 'status']), JSON_THROW_ON_ERROR)
                 .' '.json_encode(DB::table('prc_observations')->get(['reason_code']), JSON_THROW_ON_ERROR));
         }
         self::barrier($this->spec['root'], 'after-bytes', $work);
@@ -213,9 +207,9 @@ final readonly class AcceptanceRuntime implements StageHandler
         }
         config(['process.execution' => ['heartbeat_seconds' => 2, 'finalization_reserve_seconds' => 15, 'lease_safety_seconds' => 2],
             'process.daemons.relay.claim_seconds' => 3,
-            'process.stages.screening' => ['claim_visibility' => 30, 'slice' => 24, 'lease' => 34],
-            'process.stages.extraction' => ['claim_visibility' => 30, 'slice' => 24, 'lease' => 34],
-            'process.queues.screening.job_timeout' => 26, 'process.queues.extraction.job_timeout' => 26,
-            'horizon.defaults.supervisor-process-ai.timeout' => 28, 'queue.connections.process_ai.retry_after' => 30]);
+            'process.stages.screening' => ['claim_visibility' => 42, 'slice' => 36, 'lease' => 44],
+            'process.stages.extraction' => ['claim_visibility' => 42, 'slice' => 36, 'lease' => 44],
+            'process.queues.screening.job_timeout' => 38, 'process.queues.extraction.job_timeout' => 38,
+            'horizon.defaults.supervisor-process-ai.timeout' => 40, 'queue.connections.process_ai.retry_after' => 42]);
     }
 }

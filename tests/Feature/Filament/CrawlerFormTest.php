@@ -9,13 +9,11 @@ use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\CreateCrawler;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\EditCrawler;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\User;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Filament\Forms\Components\Select;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 
@@ -214,27 +212,4 @@ test('форма отклоняет профиль fz44 без выбранно�
         ->assertHasFormErrors(['filter.okpd2Codes']);
 
     expect(Crawler::query()->count())->toBe(0);
-});
-
-test('форма сначала сохраняет direct-профиль с привязкой, затем разрешает профильный режим', function (): void {
-    actingAs(crawlerFormOperator());
-    $registry = Registry::factory()->eis()->create(['code' => 'fz44']);
-    Okpd2Node::factory()->create(['platform_id' => $registry->platform_id, 'code' => '43']);
-    $proxy = Proxy::factory()->create();
-    $crawler = EisCrawlerFactory::new()->for($registry)->withProxies($proxy)->create();
-    $profileId = $crawler->route_profile_id;
-    Livewire::test(EditCrawler::class, ['record' => $crawler->getKey()])
-        ->fillForm(['route_profile_id' => null])->call('save')->assertHasNoFormErrors();
-    expect($crawler->refresh()->route_profile_id)->toBeNull()
-        ->and(DB::table('prc_network_route_profile_members')->where('profile_id', $profileId)->pluck('route_id')->all())->toBe([$proxy->route_id]);
-    Livewire::test(EditCrawler::class, ['record' => $crawler->getKey()])
-        ->fillForm(['route_profile_id' => $profileId])->call('save')->assertHasNoFormErrors();
-    expect($crawler->refresh()->route_profile_id)->toBe($profileId);
-});
-
-test('форма показывает привязки и страну только для профильного режима', function (): void {
-    actingAs(crawlerFormOperator());
-    // Canonical profile selector replaces per-crawler geo and many-to-many node controls.
-    Livewire::test(CreateCrawler::class)->assertFormFieldExists('route_profile_id')
-        ->assertFormFieldDoesNotExist('proxies')->assertFormFieldDoesNotExist('proxy_country')->assertFormFieldDoesNotExist('proxy_mode');
 });

@@ -10,13 +10,9 @@ use App\Dto\Procurement\Network\AdapterValidationCall;
 use App\Dto\Procurement\Network\BinaryBodyArtifact;
 use App\Dto\Procurement\Network\DecodedTextBody;
 use App\Dto\Procurement\Network\HttpRequestPayload;
-use App\Dto\Procurement\Network\HttpRouteBinding;
-use App\Dto\Procurement\Network\NetworkRouteSelection;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\ProbeClaim;
 use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\RetryRoutePreference;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportBlocked;
@@ -26,22 +22,26 @@ use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Platform\RequestProfile;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\RetryAt;
 use App\Enums\Procurement\Network\IdempotencyClass;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
-use App\Repositories\Procurement\Network\NetworkPermitRepository;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Process\DatabaseFailureClassifier;
 use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxy\ProxyResolver;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\CallerGate;
+use App\Services\Procurement\Proxyma\CallerOutbound;
+use App\Services\Procurement\Proxyma\CallerSendFacts;
+use App\Services\Procurement\Proxyma\ProfileBindings;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 use Closure;
 use GuzzleHttp\Psr7\Response;
 
@@ -50,12 +50,9 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
 {
     public function __construct(
         private LegacyBridge $bridge,
-        private OutboundExecutor $executor,
-        private NetworkPermitRepository $permits,
-        private ProxyResolver $routes,
-        private OutboundPolicy $policy,
+        private CallerOutbound $executor,
+        private ProfileResolver $routes,
         private SourceCatalogRepository $catalog,
-        private ProbeScheduler $probes,
         private AdapterHealthRepository $adapters,
         private ProcessTransaction $transaction,
         private ?UrlPolicy $urls = null,
@@ -90,11 +87,11 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
             $profile = RequestProfile::fromArray($encoded);
             $plan = new OutboundRequestPlan(ProcessUuid::random(), new ProcessUuid($target->string('id')), 'GET', $call->firstUrl,
                 $profile, $call->trafficClass, IdempotencyClass::ReadOnly);
-            $selection = $this->routes->outboundRoutes($call->routes)->select($plan,
-                new RetryRoutePreference([], null, false, $profile->distinctRoutes));
-            if ($selection instanceof TransportBlocked) {
-                throw new OutboundUnavailable($selection);
+            if (! CallerSendFacts::active()) {
+                throw new OutboundUnavailable(new TransportBlocked(NetworkBlockedReason::ConfigurationHold));
             }
+            $selection = CallerSendFacts::needsProbe($call->routes, $plan->targetId->value)
+                ? new TransportDeferred(NetworkDeferralReason::TargetCooldown, new RetryAt(new \DateTimeImmutable('+1 second'))) : null;
             $kind = $health->string('state') !== 'healthy' || $selection instanceof TransportDeferred
                 ? OutboundOperationKind::Probe : OutboundOperationKind::Diagnostic;
 
@@ -139,7 +136,7 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
         string $profileCode,
         SafeUrl $url,
         TrafficClass $trafficClass,
-        RoutePolicy $routePolicy,
+        ProfileBindings $routePolicy,
         array $controls,
         int $deadlineSeconds,
         string $method = 'GET',
@@ -194,69 +191,16 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
             $payload->body === null ? null : new ContentHash(hash('sha256', $payload->body)), $sendLimit, $context?->adapterClaim());
         $hash = new ContentHash(hash('sha256', json_encode($profile->toArray(), JSON_THROW_ON_ERROR)));
         $policy = $urlPolicy ?? $this->urls ?? new UrlPolicy([$url->origin]);
-        $selection = $this->routes->outboundRoutes($routePolicy)->select($plan,
-            new RetryRoutePreference([], null, false, $profile->distinctRoutes));
         if ($context !== null) {
-            $context->tick();
-            if ($context->lease()->kind === OutboundOperationKind::Probe) {
-                $canary = new OutboundRequestPlan($plan->physicalRequestId, $plan->targetId, $plan->method,
-                    $plan->url, $plan->profile, $plan->trafficClass, $plan->idempotency, $plan->bodyHash,
-                    min($plan->sendLimit ?? PHP_INT_MAX, $plan->profile->redirects + 1), $plan->adapterClaim);
-
-                return $this->executor->execute($canary, $context,
-                    new ScheduledAttemptGate($this->permits,
-                        new AdapterCanaryRouteSelector($context, $routePolicy, $this->probes, $this->routes), $this->policy),
-                    $policy, new TransferBudget($profile->maxEntityBytes, $profile->maxEntityBytes), $payload);
-            }
-
-            return $this->executor->execute($plan, $context,
-                new ScheduledAttemptGate($this->permits, $this->routes->outboundRoutes($routePolicy), $this->policy),
+            return $this->executor->execute($plan, $context, new CallerGate($routePolicy),
                 $policy, new TransferBudget($profile->maxEntityBytes, $profile->maxEntityBytes), $payload);
         }
-        if (($probeOnly || $selection instanceof TransportDeferred)
-            && $idempotency === IdempotencyClass::ReadOnly && in_array($method, ['GET', 'HEAD'], true)) {
-            // A real read-only input is the bounded canary. Ordinary backlog remains denied;
-            // the composite probe claim below is the only authority for the initial send.
-            foreach ($routePolicy->bindings as $binding) {
-                $result = $this->bridge->run($callerCode, $platformId, $controls, $deadlineSeconds, $hash,
-                    function (OutboundExecutionContext $context) use ($plan, $binding, $routePolicy, $policy, $payload, $profile): TransportOutcome {
-                        $claim = $this->probes->claim($plan, $context,
-                            new NetworkRouteSelection($binding->id, $routePolicy->profileId, $binding->credentialVersion));
-                        if (! $claim instanceof ProbeClaim) {
-                            return $claim;
-                        }
-                        $single = new OutboundRequestPlan($plan->physicalRequestId, $plan->targetId, $plan->method,
-                            $plan->url, $plan->profile, $plan->trafficClass, $plan->idempotency, $plan->bodyHash, 1, $plan->adapterClaim);
-
-                        return $this->executor->execute($single, $context,
-                            new ScheduledAttemptGate($this->permits, $this->routes->outboundRoutes(
-                                new RoutePolicy([$binding], $routePolicy->profileId), $claim), $this->policy),
-                            $policy, new TransferBudget($profile->maxEntityBytes, $profile->maxEntityBytes), $payload);
-                    }, $checkpoint, $providerKey, OutboundOperationKind::Probe);
-                if ($result instanceof TransportSucceeded) {
-                    return $result;
-                }
-                // A physical probe is bounded to one selected route per logical call. Failed
-                // claims have no demand, so another exact member may still be evaluated safely.
-                if (LedgerRow::one('SELECT request_id FROM prc_request_attempts WHERE request_id = ?', [$plan->physicalRequestId->value]) !== null) {
-                    return $result;
-                }
-            }
-
-            return $selection instanceof TransportDeferred || $selection instanceof TransportBlocked
-                ? $selection : new TransportBlocked(NetworkBlockedReason::OwnerLost);
-        }
-
-        if ($trafficClass !== TrafficClass::Diagnostic
-            && ! ($trafficClass === TrafficClass::ReferenceSync && $callerCode === 'legacy.reference_sync' && $providerKey === null)) {
-            return new TransportBlocked(NetworkBlockedReason::OwnerLost);
-        }
+        $probe = $probeOnly || CallerSendFacts::needsProbe($routePolicy, $plan->targetId->value);
 
         return $this->bridge->run($callerCode, $platformId, $controls, $deadlineSeconds, $hash,
-            fn (OutboundExecutionContext $context): TransportOutcome => $this->executor->execute(
-                $plan, $context, new ScheduledAttemptGate($this->permits, $this->routes->outboundRoutes($routePolicy), $this->policy),
-                $policy, new TransferBudget($profile->maxEntityBytes, $profile->maxEntityBytes), $payload),
-            $checkpoint, $providerKey, OutboundOperationKind::Diagnostic);
+            fn (OutboundExecutionContext $owner): TransportOutcome => $this->executor->execute($plan, $owner,
+                new CallerGate($routePolicy), $policy, new TransferBudget($profile->maxEntityBytes, $profile->maxEntityBytes), $payload),
+            $checkpoint, $providerKey, $probe ? OutboundOperationKind::Probe : OutboundOperationKind::Diagnostic);
     }
 
     /**
@@ -266,7 +210,7 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
      * @param  list<string>  $controls
      */
     public function request(string $callerCode, ?int $platformId, ?ProviderKey $providerKey, string $capability,
-        SafeUrl $url, TrafficClass $trafficClass, RoutePolicy $routePolicy, array $controls, int $deadlineSeconds,
+        SafeUrl $url, TrafficClass $trafficClass, ProfileBindings $routePolicy, array $controls, int $deadlineSeconds,
         string $method = 'GET', HttpRequestPayload $payload = new HttpRequestPayload,
         IdempotencyClass $idempotency = IdempotencyClass::ReadOnly, ?Closure $checkpoint = null, ?int $sendLimit = null, ?OutboundExecutionContext $context = null): \Illuminate\Http\Client\Response
     {
@@ -284,7 +228,7 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
 
     /** @param list<string> $controls */
     private function requestResponse(string $callerCode, ?int $platformId, ?ProviderKey $providerKey, string $capability,
-        SafeUrl $url, TrafficClass $trafficClass, RoutePolicy $routePolicy, array $controls, int $deadlineSeconds,
+        SafeUrl $url, TrafficClass $trafficClass, ProfileBindings $routePolicy, array $controls, int $deadlineSeconds,
         string $method, HttpRequestPayload $payload, IdempotencyClass $idempotency, ?Closure $checkpoint, ?int $sendLimit, ?OutboundExecutionContext $context): \Illuminate\Http\Client\Response
     {
         $target = $this->catalog->targetForCall($platformId, $providerKey?->value, $capability, $url->origin->value());
@@ -325,13 +269,8 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
     }
 
     /** Explicit configured direct egress only; no fallback from an unavailable profile. */
-    public function direct(): RoutePolicy
+    public function direct(): ProfileBindings
     {
-        $route = LedgerRow::one("SELECT id, credential_version FROM prc_network_routes WHERE route_key = ? AND kind = 'direct'", ['direct:'.$this->policy->directEgressId]);
-        if ($route === null) {
-            throw new \LogicException('Configured direct egress is not installed; run platform:sync-catalog.');
-        }
-
-        return new RoutePolicy([new HttpRouteBinding(new ProcessUuid($route->string('id')), credentialVersion: $route->int('credential_version'))]);
+        return $this->routes->profile();
     }
 }

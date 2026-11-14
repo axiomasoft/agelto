@@ -27,7 +27,7 @@ use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\ExecutionContextFactory;
 use App\Services\Procurement\Process\WorkFinalizer;
-use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxyma\ProfileResolver as ProxyResolver;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -35,10 +35,14 @@ use Tests\Support\Platforms\Eis\EisDetailFixtures;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
 use Tests\Support\ProcessCore\DetailFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\Http\AcquisitionWireFixture;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
+use Tests\Support\ProcessCore\ProxymaFixtures;
 
 beforeEach(function (): void {
     PermitFixtures::clean();
@@ -69,10 +73,10 @@ test('actual acquisition retains the last invalid CSV response bytes under its p
     }
     $this->fixture->fetchWork($this->fixture->listingRequest());
     $raw = RawArtifact::query()->whereNotIn('id', $this->rawBefore)->sole();
-    $request = DB::table('prc_request_attempts')->orderByDesc('request_seq')->first();
+    $request = PackageNetworkFacts::attempts()->orderByDesc('request_seq')->first();
     expect($raw->path)->toStartWith('raw/acquisition/'.$request->request_id.'/')
         ->and(Storage::disk('s3')->get($raw->path))->toBe($body)
-        ->and(DB::table('prc_request_attempts')->count())->toBe($status === 503 ? 3 : 1)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe($status === 503 ? 3 : 1)
         ->and(DB::table('prc_procurements')->count())->toBe(0)
         ->and(DB::table('prc_process_work')->where('state', 'succeeded')->count())->toBe(0);
 })->with([
@@ -91,7 +95,7 @@ test('an intermediate HTTP error followed by success retains only final decoded 
     $this->fixture->fetchWork($this->fixture->listingRequest());
     $raw = RawArtifact::query()->whereNotIn('id', $this->rawBefore)->sole();
     expect(Storage::disk('s3')->get($raw->path))->toBe($header)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(2)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(2)
         ->and($this->wire->receipts())->toHaveCount(2);
 });
 
@@ -131,8 +135,8 @@ test('actual EIS detail raw retention remains optional and gzip evidence uses ph
     $result = $this->fixture->fetch(EisDetailFixtures::request());
     expect($result->value)->toBeInstanceOf(DetailFetched::class)
         ->and($this->wire->receipts())->toHaveCount(4)
-        ->and(DB::table('prc_network_permits')->where('state', 'released')->count())->toBe(4)
-        ->and(array_unique(DB::table('prc_request_attempts')->pluck('route_id')->all()))->toHaveCount(1);
+        ->and(PackageNetworkFacts::permits()->where('state', 'released')->count())->toBe(4)
+        ->and(array_unique(PackageNetworkFacts::attempts()->pluck('route_id')->all()))->toHaveCount(1);
     $raw = RawArtifact::query()->whereNotIn('id', $this->rawBefore)->get();
     expect($raw)->toHaveCount($enabled ? 4 : 0);
     $decoded = [];
@@ -175,7 +179,7 @@ test('actual Process detail identity rejection persists matching assessed bytes 
         app(WorkFinalizer::class)->finish($context->lease(), $outcome);
         expect(DB::table('prc_process_work')->where('id', $f['work']->value->value)->value('item_failures'))->toBe(1)
             ->and(DB::table('prc_process_work')->where('id', $f['work']->value->value)->value('state'))->toBe('deferred')
-            ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
             ->and(DB::table('prc_eis_details')->count())->toBe(0);
     } finally {
         // This wire test commits fixture rows; remove only its own purchase after ledger cleanup.
@@ -213,7 +217,7 @@ test('actual rejection evidence storage failure after HTTP success is a dependen
         $disk->shouldReceive('put')->once()->andReturnFalse();
         Storage::shouldReceive('disk')->with('s3')->andReturn($disk);
         expect(fn () => $handler->execute($f['input'], $context))->toThrow(DependencyUnavailable::class)
-            ->and(DB::table('prc_request_attempts')->sole()->status)->toBe(200)
+            ->and(PackageNetworkFacts::attempts()->sole()->status)->toBe(200)
             ->and(DB::table('prc_observations')->where('reason_code', 'acquisition.handler_fault')->count())->toBe(0)
             ->and(DB::table('prc_adapter_health')->where('capability', 'detail')->value('state'))->toBe('healthy')
             ->and(DB::table('prc_process_work')->where('id', $f['work']->value->value)->value('state'))->toBe('running')
@@ -233,13 +237,16 @@ test('actual rejection evidence storage failure after HTTP success is a dependen
 test('actual acquisition response byte limit aborts HTTP without parser publication or a false empty proof', function (): void {
     config(['platforms.eis.endpoints.listing.profile.max_entity_bytes' => 64]);
     $definition = (new PlatformRegistry(config()))->get(new PlatformCode('eis'));
+    ProxymaFixtures::resetAuthority();
     app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+    HistoricalNetworkFixtures::synchronize();
+    ProxymaCallerFixtures::install($this->wire);
     $this->wire->respond('/csv', str_repeat('x', 1024), headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
     $result = app(AcquisitionDiagnostic::class)->fetch($definition, $this->fixture->registry->platform_id,
         $this->fixture->listingRequest(), app(ProxyResolver::class)->profile($this->fixture->routeProfile),
         ContentHash::of('byte-limit'), $this->wire->policy());
     expect($result->receipt)->toBeNull()->and($this->wire->receipts())->toHaveCount(1)
-        ->and(DB::table('prc_request_attempts')->sole()->outcome)->toBe('byte_limit')
+        ->and(PackageNetworkFacts::attempts()->sole()->outcome)->toBe('byte_limit')
         ->and(DB::table('prc_procurements')->count())->toBe(0)->and(DB::table('prc_crawl_blocks')->whereNotNull('terminal_proof')->count())->toBe(0);
 });
 
@@ -247,14 +254,17 @@ test('actual EIS card timeout retains numeric HTTP and byte phases without a raw
     config(['platforms.eis.endpoints.card.profile.total_seconds' => 1, 'platforms.eis.endpoints.card.profile.connect_seconds' => 1,
         'platforms.eis.endpoints.card.profile.low_speed_seconds' => 1]);
     $definition = (new PlatformRegistry(config()))->get(new PlatformCode('eis'));
+    ProxymaFixtures::resetAuthority();
     app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+    HistoricalNetworkFixtures::synchronize();
+    ProxymaCallerFixtures::install($this->wire);
     app()->instance(EisCardRoutes::class, new EisCardRoutes(['ea20' => [
         'common-info' => $this->wire->url($path.'?regNumber={regNumber}', true)->reveal(),
         'documents' => $this->wire->url('/documents?regNumber={regNumber}', true)->reveal(), 'event-journal' => null, 'supplier-results' => null,
     ]]));
     $result = app(AcquisitionDiagnostic::class)->fetch($definition, $this->fixture->registry->platform_id,
         EisDetailFixtures::request(), app(ProxyResolver::class)->profile($this->fixture->routeProfile), ContentHash::of('card-timeout'), $this->wire->policy());
-    $attempt = DB::table('prc_request_attempts')->sole();
+    $attempt = PackageNetworkFacts::attempts()->sole();
     expect($result->value)->toBeInstanceOf(FetchDeferred::class)
         ->and($attempt->status)->toBe($status)->and($attempt->bytes)->toBe($bytes)
         ->and($attempt->duration_ms)->toBeGreaterThanOrEqual(0)->and($attempt->finished_at)->not->toBeNull()

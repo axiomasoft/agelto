@@ -52,6 +52,19 @@ test('forbidden dependency reports exact file and import without a baseline bypa
         ->toBe(['forbidden dependency: '.$path.' -> '.$import]);
 });
 
+test('Proxyma profile integration разрешена preparer но запрещена fetch и parser', function (): void {
+    $import = 'App\Services\Procurement\Proxyma\ProfileResolver';
+    $source = '<?php use '.$import.';';
+    expect(PlatformSourceRules::dependencyViolations([
+        'app/Services/Platforms/Eis/Listing/EisProfilePreparer.php' => $source,
+    ]))->toBe([]);
+    foreach (['Csv/Parser.php', 'Listing/Fetcher.php'] as $path) {
+        $path = 'app/Services/Platforms/Eis/'.$path;
+        expect(PlatformSourceRules::dependencyViolations([$path => $source]))
+            ->toBe(['forbidden dependency: '.$path.' -> '.$import]);
+    }
+});
+
 test('scanner видит use absolute FQCN и оба варианта escaping class strings', function (): void {
     $import = 'App\Services\Procurement\Proxy\ProxyResolver';
     $path = 'app/Services/Platforms/JsonProcurement/Csv/Parser.php';

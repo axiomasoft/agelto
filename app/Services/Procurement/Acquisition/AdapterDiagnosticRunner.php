@@ -33,8 +33,8 @@ use App\Services\Procurement\Platform\Contracts\ListingFilterCodec;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\ProcessOperatorCommands;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
-use App\Services\Procurement\Proxy\ProxyResolver;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\ProfileBindings;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 
 final readonly class AdapterDiagnosticRunner
 {
@@ -45,7 +45,7 @@ final readonly class AdapterDiagnosticRunner
         private ProcessPayloadCodec $payloads,
         private ProcessOperatorCommands $operators,
         private DetailSnapshotRepository $details,
-        private ProxyResolver $routes,
+        private ProfileResolver $routes,
         private AcquisitionDiagnostic $diagnostic,
     ) {}
 
@@ -138,7 +138,7 @@ final readonly class AdapterDiagnosticRunner
     }
 
     /**
-     * @return array{0: ListingRequest, 1: RoutePolicy, 2: ContentHash}
+     * @return array{0: ListingRequest, 1: ProfileBindings, 2: ContentHash}
      */
     private function prepareListing(PlatformDefinition $definition, int $platformId, mixed $crawlerId): array
     {
@@ -163,7 +163,7 @@ final readonly class AdapterDiagnosticRunner
     }
 
     /**
-     * @return array{0: DetailRequest, 1: RoutePolicy, 2: ContentHash}
+     * @return array{0: DetailRequest, 1: ProfileBindings, 2: ContentHash}
      */
     private function prepareDetail(int $platformId, mixed $procurementId, bool $releaseInput, mixed $actorId, mixed $reason): array
     {

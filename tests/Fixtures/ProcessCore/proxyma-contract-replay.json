@@ -1,0 +1,373 @@
+{
+  "format": "proxyma-consumer-contract-replay/v1",
+  "source_revision": "6ad11f082cf9edee32f53887a407f49018755be1",
+  "scope": "Native package contracts executed in actual Agelto JUnit using disposable schemas of guarded agelto_test. Test-only environment adapters; no runtime copies.",
+  "files": [
+    {
+      "source": "packages/core/tests/Support/AuthorityFixtures.php",
+      "sha256": "00d523401240616089c50f0f4d4afffc70eba750461610c2cba5dfa40dae1117",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/AuthorityFixtures.php",
+      "replay_sha256": "43d15440251521f5bf63ed36a7e9e9fb7a2bc0afadea4f019e64a64fb3a63778"
+    },
+    {
+      "source": "packages/core/tests/Support/AuthorityWorker.php",
+      "sha256": "e243adc84608e4bfae978a441cfa72d0e5ae43bc9c789a16b17b7e82cc0bc4c3",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/AuthorityWorker.php",
+      "replay_sha256": "b66a07ddaee568603bbe050f158f7c3384c78341705d68030cca8c877bc8bd4a"
+    },
+    {
+      "source": "packages/core/tests/Support/CatalogTestCase.php",
+      "sha256": "f6096a1999111fad26479204b20c83583a2c6c04315317510ea90d8618c485fe",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/CatalogTestCase.php",
+      "replay_sha256": "4538fd58c89fe66322401e77a9041ad84c9b29e590638a80911936871118494d",
+      "before_final_acceptance_sha256": "8fcbd3fcdc9502e571dfbd04fd26f9a761834c07390edb975158654ed0e8ad4d"
+    },
+    {
+      "source": "packages/core/tests/Support/ClaimFixtures.php",
+      "sha256": "0e95701f4580943bb5a9dfe9c1ab7bca93fba2f7cd439f728226266bd1e2c8bd",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/ClaimFixtures.php",
+      "replay_sha256": "0e95701f4580943bb5a9dfe9c1ab7bca93fba2f7cd439f728226266bd1e2c8bd"
+    },
+    {
+      "source": "packages/core/tests/Support/ClaimWorker.php",
+      "sha256": "f67b147d74da803b4e0ee11ad225839b5ee337fbf4e91a1d2eb42167858b02fd",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/ClaimWorker.php",
+      "replay_sha256": "b820265920097a6ffcf8d0b731e4090373bfc6a668117e67d123e7407963ffd4"
+    },
+    {
+      "source": "packages/core/tests/Support/ConcurrentDemandWorker.php",
+      "sha256": "4cd481e6e0cad8b0ab2d147bb711498a321c99764f828a2873b6619ae267ba89",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/ConcurrentDemandWorker.php",
+      "replay_sha256": "249acea8bba8b0590f389a647f06a5a60b647aede06ea8cfcf46d83342092df3"
+    },
+    {
+      "source": "packages/core/tests/Support/ConcurrentPolicyWorker.php",
+      "sha256": "ca81a2e92f572627c10c9f5ebb4aa1d6e60d294b0d17c78b067fd50998b83eb9",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/ConcurrentPolicyWorker.php",
+      "replay_sha256": "3c8d1407713f2dfad29921f57a77b439e4fe94c206f417828ee53e98d9938def"
+    },
+    {
+      "source": "packages/core/tests/Support/DemandFixtures.php",
+      "sha256": "30dbadd6d0b74422bc02a0f8d2efec1eb010e1a406fabef7f4057d3c0e4a6396",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/DemandFixtures.php",
+      "replay_sha256": "30dbadd6d0b74422bc02a0f8d2efec1eb010e1a406fabef7f4057d3c0e4a6396"
+    },
+    {
+      "source": "packages/core/tests/Support/DestinationFixtures.php",
+      "sha256": "d8775f70b869e190cbf846470c6a45bb20728dfbbc1d4922775ce6b28fe72b39",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/DestinationFixtures.php",
+      "replay_sha256": "d8775f70b869e190cbf846470c6a45bb20728dfbbc1d4922775ce6b28fe72b39"
+    },
+    {
+      "source": "packages/core/tests/Support/HealthFixtures.php",
+      "sha256": "19c2d76e2132d2c0385a05d76ef7111a9ee35489b0c4523a2818a411a971ff43",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/HealthFixtures.php",
+      "replay_sha256": "19c2d76e2132d2c0385a05d76ef7111a9ee35489b0c4523a2818a411a971ff43"
+    },
+    {
+      "source": "packages/core/tests/Support/InMemoryTransactionCoordinator.php",
+      "sha256": "5ea8c3dfb79c55a9dca0882be8eff8f01ffbdb58a9c1be3eb1666eb683d73c91",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/InMemoryTransactionCoordinator.php",
+      "replay_sha256": "5ea8c3dfb79c55a9dca0882be8eff8f01ffbdb58a9c1be3eb1666eb683d73c91"
+    },
+    {
+      "source": "packages/core/tests/Support/PhysicalFixtures.php",
+      "sha256": "36e6b045927e74d05e45ead7fa4ce30c4ebc4d1e91f5cd07d257d0238a9e315b",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/PhysicalFixtures.php",
+      "replay_sha256": "61876c8b5b734e50b1a5606278bc536f16a88737de3aa466f7c6b17dafdc7685"
+    },
+    {
+      "source": "packages/core/tests/Support/PhysicalWorkerActions.php",
+      "sha256": "ca02a62af81b1126ffe0f44c45216605e9a3661a5edbaac5a8cbacbe0cdc270b",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/PhysicalWorkerActions.php",
+      "replay_sha256": "5edd8efa867c7b4a373f738c9e916d4454f1d052a4f6f91d4804170c78f48068"
+    },
+    {
+      "source": "packages/core/tests/Support/QuotaFixtures.php",
+      "sha256": "f949acf478b5778d74cea708e2f0ee83cc050d85fc6c60c102df97e9054b19b9",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/QuotaFixtures.php",
+      "replay_sha256": "f949acf478b5778d74cea708e2f0ee83cc050d85fc6c60c102df97e9054b19b9"
+    },
+    {
+      "source": "packages/core/tests/Support/QuotaWorker.php",
+      "sha256": "d739feccabeb6ce3f7d64dc23b215549177aa5268e3085b4ecf2bc508250ec35",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/QuotaWorker.php",
+      "replay_sha256": "898a513db627b327b6539ed1423aa18c2b7e2ab8fc752b6ded879daeff286704"
+    },
+    {
+      "source": "packages/core/tests/Support/RecoveryFixtures.php",
+      "sha256": "ae5b0829d700a09dd5ebb873fc65fd31cca4b6e07a3b20a821d997eedf5fdf8e",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/RecoveryFixtures.php",
+      "replay_sha256": "4bda1de451cf1ba892975e30aa465d4a4eb3560dd7ab46a07e06c6f92db271bd"
+    },
+    {
+      "source": "packages/core/tests/Support/RecoveryWorkerActions.php",
+      "sha256": "d6cb839fb17b28569ab29f818f995fdf8263799504ca088b8bec467093fa4025",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/RecoveryWorkerActions.php",
+      "replay_sha256": "d6cb839fb17b28569ab29f818f995fdf8263799504ca088b8bec467093fa4025"
+    },
+    {
+      "source": "packages/core/tests/Support/ReservationFixtures.php",
+      "sha256": "660e87f21a69e4706acec46041ca39c9a7e35b6eeebcfebfe2db2beb561f6d23",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/ReservationFixtures.php",
+      "replay_sha256": "660e87f21a69e4706acec46041ca39c9a7e35b6eeebcfebfe2db2beb561f6d23"
+    },
+    {
+      "source": "packages/core/tests/Support/ReservationWorker.php",
+      "sha256": "3315399fec99ae04e47ab2ae3cc361d6d8f5369b9003cccde6560ebf6eb70b15",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/ReservationWorker.php",
+      "replay_sha256": "4642f368af45e3fc95cf7851f25301bcb4fa92d86d05b82ed7d1f0a6b65228e3"
+    },
+    {
+      "source": "packages/core/tests/Support/ResponseFixtures.php",
+      "sha256": "c88d71eb13f5a6a6f8f89d79b2ef258fe805ecd8aab2657e5f23365f1ce6c553",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/ResponseFixtures.php",
+      "replay_sha256": "c88d71eb13f5a6a6f8f89d79b2ef258fe805ecd8aab2657e5f23365f1ce6c553"
+    },
+    {
+      "source": "packages/core/tests/Support/SelectionFixtures.php",
+      "sha256": "c751cef666e8a4e553cc614f5a421c01962f4acef6fc9d39cfc12e42ca90568d",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/SelectionFixtures.php",
+      "replay_sha256": "c751cef666e8a4e553cc614f5a421c01962f4acef6fc9d39cfc12e42ca90568d"
+    },
+    {
+      "source": "packages/core/tests/Support/TenantFixtures.php",
+      "sha256": "834c1521fbb551261b50f0a531f6eb287fc6df701eb8655b12070cd1bf83a5b5",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/TenantFixtures.php",
+      "replay_sha256": "834c1521fbb551261b50f0a531f6eb287fc6df701eb8655b12070cd1bf83a5b5"
+    },
+    {
+      "source": "packages/core/tests/Support/TransactionFixtures.php",
+      "sha256": "2bdb2c23cfa82831232f3df4dff9db6d331b178ddda82af5490c5cd7808d5811",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/TransactionFixtures.php",
+      "replay_sha256": "2bdb2c23cfa82831232f3df4dff9db6d331b178ddda82af5490c5cd7808d5811"
+    },
+    {
+      "source": "packages/core/tests/Contract/ExecutorPolicyTest.php",
+      "sha256": "a949da5f81b65cd5c3197c605391125f4211c0ca013094f1e3e63467a9e60082",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
+      "replay_sha256": "f2e77d798511fac2a602dd0027c8b00edd89cd30be45296dc39d54342eabf23a",
+      "before_final_acceptance_sha256": "54e878afcee153ca20f5d1440da4647fec6f0eb6c7721074150c191dfaec110f"
+    },
+    {
+      "source": "packages/core/tests/Contract/RedirectPolicyTest.php",
+      "sha256": "e234f6af0e0fbb3e1ef183fbc44a72ecdcb9700885ca6f3ef5cf3e53036cfaa2",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
+      "replay_sha256": "bd82f28674be474998703190c9db0ed12865ddcd0d86f2ee2bab04523d27bb35",
+      "before_final_acceptance_sha256": "7100c544d078de501124ecbdec4265c585d8b45a10a2b20c85571df5313a778f"
+    },
+    {
+      "source": "packages/core/tests/Contract/DestinationPolicyTest.php",
+      "sha256": "154641da948d978a7799fda411849200066eb32dfdbc58c288877aa07e270403",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+      "replay_sha256": "d3894176dc041de38cc4580d3b9fd43bf4c3a53c73920c14b18b0dd8b4946086"
+    },
+    {
+      "source": "packages/core/tests/Contract/TlsPolicyTest.php",
+      "sha256": "4116d4c51c897341305661bcb8816f00a454a5615186b742e861c39992f9f588",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php",
+      "replay_sha256": "569b43f73d586ea284b93b482a497d300ae0a9966cc7675146787bca3b20da78",
+      "before_final_acceptance_sha256": "eb4a5de738b70fa5485fdbf451d615036fa0317d7858ac3366486f93b80fb954"
+    },
+    {
+      "source": "packages/core/tests/Contract/DispatchDeadlineTest.php",
+      "sha256": "629d12cdae81e43f496b688964ab25328842fc7b52f3695f7cf8a0b7f5708884",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+      "replay_sha256": "f8bab6e2aaedb84607232dce4f551441e27e3f6d885515b294e32ae94b4b2b17",
+      "before_final_acceptance_sha256": "56897453975c0bdb7b4a4cd08aac764ed31a73fe4bc433a7d7cdfba433554281"
+    },
+    {
+      "source": "packages/core/tests/Contract/SealedWireTest.php",
+      "sha256": "33ccc0129948a8259f90ae75135ebaf071d6b8f50756a820f54afac44ce14be1",
+      "replay": "tests/Feature/ProcessCore/Network/ReplaySealedWireTest.php",
+      "replay_sha256": "d348d76b316537c05d00fc76e5e47e6e50c90dc546289ad1a93609f3d44b18fa",
+      "before_final_acceptance_sha256": "93f1a6b82d4ead6a3de7e95a5906403e1ab204a573bb8b48c3d23e8d70387767"
+    },
+    {
+      "source": "packages/core/tests/Contract/BoundedResponseTest.php",
+      "sha256": "35a3cc33f59d0783634494ded1a29e4dad4c7fe29fd322192e1bdefa325ea4bc",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+      "replay_sha256": "96ac397176ae419277b0f443ca4f6885685075bd5d35a1bd614bf3f15ccda4d5",
+      "before_final_acceptance_sha256": "525e0482ba5bffaf41c593447338e139948f57cd01a455a41c624442428b66f1"
+    },
+    {
+      "source": "packages/core/tests/Contract/SecretRotationTest.php",
+      "sha256": "4569b0e7ed105d4433213bbb2d47c4aca34e8594d71a6548a2eef97cbfc4733a",
+      "replay": "tests/Feature/ProcessCore/Network/ReplaySecretRotationTest.php",
+      "replay_sha256": "c3ee7d093717dbf47bf92195932726856e15899918159ab60d6042558d34d700",
+      "before_final_acceptance_sha256": "edc346cc18e8fd21c81af96d9390b291106eb86efa35b67b098de02a8fde3178"
+    },
+    {
+      "source": "packages/core/tests/Contract/SelectionQueryBudgetTest.php",
+      "sha256": "180bd768987eb40f561e5eaa3e9893cb0cf16f064056c74f7c69ad01fc41c9ca",
+      "replay": "tests/Feature/ProcessCore/Network/ReplaySelectionQueryBudgetTest.php",
+      "replay_sha256": "4dd2a23474258920aedb3cd8ed867e93a5e2f221e4dc09bd314bfca33ac3d78a",
+      "before_final_acceptance_sha256": "00fdecc33fd8986f823a20843383ea88d2bd186fddcc3de90a319931c7ade38e"
+    },
+    {
+      "source": "packages/core/tests/Contract/PhysicalTransportTest.php",
+      "sha256": "a900267a9dfdb59be86f486cb55697d9adfc95d73d533249c70bf0ddc604a1df",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php",
+      "replay_sha256": "ea5db4414c78e5c9fb5b7e6bf75966ebe7a0c41f3c3e6ba8f9f333e59be73f8c",
+      "before_final_acceptance_sha256": "aecda1a8974feb35142992bbf8a09d2a65e75f753cc8e8d5c549361700b156ac"
+    },
+    {
+      "source": "packages/core/tests/Integration/MultiScopeReservationTest.php",
+      "sha256": "a17db5627f5f594eccce57ac2c36f40bd5d4119ec84eeab16cb060ad56c22737",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php",
+      "replay_sha256": "d1c7c2f534817fc3891735522fdda1b29ba1089dbbb34847676566d1ef8546cd",
+      "before_final_acceptance_sha256": "692ad6afbf8b2c7f6bf40433c405ea1a8eeb2fc7d5d0be1e7871ef50069c4b34"
+    },
+    {
+      "source": "packages/core/tests/Integration/BoundedDemandTest.php",
+      "sha256": "6b1b226e431de8a5c97e140386832e20f2fb57c8bfc891b906fdc069e936107d",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php",
+      "replay_sha256": "ee8d179c613b42dcc894d74cdc393e727ecbca6449eda6ce51eb1f148e6f5d68",
+      "before_final_acceptance_sha256": "24a696e701a4e7288e18f1a89c48c6e5749b0ada2e06ed6d91d5131b6b7b5ff7"
+    },
+    {
+      "source": "packages/core/tests/Integration/QuotaWindowTest.php",
+      "sha256": "589a1851317b2c1ebdd03088cb599f0055046af3a87155e0319b457e399b8a4c",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayQuotaWindowTest.php",
+      "replay_sha256": "2cbf74b48b5bc466919a8606406e3b7389050cac19440393951ba0e5d4cdec18",
+      "before_final_acceptance_sha256": "02a71ac8a624fac4edbf64f3a5909259529c3056b998e3a2eaccaa3cf4c3c939"
+    },
+    {
+      "source": "packages/core/tests/Integration/RouteSelectionTest.php",
+      "sha256": "141d2c91943a8a8d1e1531c8343ba1ef75e4e28dbb588ca69c18efc0e02f8d74",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayRouteSelectionTest.php",
+      "replay_sha256": "97b114fb15a6447c6cf06f65e1c6f586318a7f5d009dae8514adb08d131a94cd",
+      "before_final_acceptance_sha256": "fe39adf230afb45151e233a7ae0f2115a2e3b394c9a8d2af134c68c84bf91678"
+    },
+    {
+      "source": "packages/core/tests/Integration/HealthProjectionTest.php",
+      "sha256": "f11151f4ac319896cc0ea3fce64c5bfcd22e55a02f242c772f7c5636597d7b22",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayHealthProjectionTest.php",
+      "replay_sha256": "3c13360c01d8c8b22e59517d915ec2654569d986cdaae3ae77680c5ecb50edb5",
+      "before_final_acceptance_sha256": "7da1e702f8014358a7ff862fc1cca7655c950d9320e27a74fd23d5f2cb0e1764"
+    },
+    {
+      "source": "packages/core/tests/Integration/CooldownSnapshotTest.php",
+      "sha256": "9c91cdc3ad4d65bed2b259d4e8892dffdbd857932b938c11c69951807ae4573a",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php",
+      "replay_sha256": "93799eb79ad9dbc02ee553a1629b5f0a2260f9e62854994170cd1927477ed155",
+      "before_final_acceptance_sha256": "65fd4fd054400445e6bd5dded54dda4f0d816a64ea8b323ad152a32944a0cfbe"
+    },
+    {
+      "source": "packages/core/tests/Integration/CatalogCommandTest.php",
+      "sha256": "db52ae535bdcc61b1fab20dc4571cce685d0048dc2e935532ab14ce665fbbcdb",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayCatalogCommandTest.php",
+      "replay_sha256": "19799b9ea7fc948c56dd6eee22ff787083d8cbf9cc81cc9556677184b60f5a10",
+      "before_final_acceptance_sha256": "6d8c4c3864e3e77f705121dd4e891ab30791c075d05b8cab1baaca739b21665b"
+    },
+    {
+      "source": "packages/core/tests/Concurrency/GcraReservationTest.php",
+      "sha256": "2045b4320c8a32f7299ea10557cc27feaa3255053b5dc32ee219e485b6be5057",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php",
+      "replay_sha256": "7b4cb6705a17e96fe7948d62ae606afd1934e212203f9fd75dd0340e1b62b9c9",
+      "before_final_acceptance_sha256": "8d087230aafcb51a3f1b1478261f843cdf77dcf1521a7de73f7370cb55b41ec2"
+    },
+    {
+      "source": "packages/core/tests/Concurrency/DemandFifoTest.php",
+      "sha256": "46ac176e62e3c3abd3063ba60aaef58004320c62a0939678119abc49de4ace47",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayDemandFifoTest.php",
+      "replay_sha256": "30a3f5c23886695ef3c5c41c6294c2a503bb1a4dabc202b1ea63d2bf293e5320",
+      "before_final_acceptance_sha256": "f84d97a1c939a1fcd2b035765b24223f6aa061ed9f0bfbcd6e189f21f96f0195"
+    },
+    {
+      "source": "packages/core/tests/Concurrency/ClaimSendFenceTest.php",
+      "sha256": "66a8209c43fc9978197a13cc3685c8baf3477ae48afc398badbb90598442238a",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayClaimSendFenceTest.php",
+      "replay_sha256": "edb9aed85d6561b9fefe2326cc77b1f184b1a1b771059af9428493a7fbb039fb",
+      "before_final_acceptance_sha256": "9217097d2bfacd19b433d72d6f731b2e3d62e021883f2c9e6dcb8d61ac62d758"
+    },
+    {
+      "source": "packages/core/tests/Concurrency/ProbeOwnershipTest.php",
+      "sha256": "5b36c105fc56c6271d89ba900a32014d2fb6a0aa972780edfe85f8f9b0d38d33",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayProbeOwnershipTest.php",
+      "replay_sha256": "239ddccb40703c6e4cb5b3253ed751faf9d7d852790ea703023ebece0d5ef49b",
+      "before_final_acceptance_sha256": "7a93368626c261530a57bb98acac0e5d7fca62b68215834cd43f365ff7099a7d"
+    },
+    {
+      "source": "packages/core/tests/Concurrency/HealthCompletionTest.php",
+      "sha256": "2c2805256df9cb3a629acd2263a9532bd09c87887403706281cf7787288c7205",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php",
+      "replay_sha256": "1d6967ed837790e4923f31a18e4b2bd642e8936a6d762ab065bf2881f785d87c",
+      "before_final_acceptance_sha256": "6cf809a15834b31aa96ac6986ccad9c8fbdb562d87c160f665c40bfed3364ec5"
+    },
+    {
+      "source": "packages/core/tests/Integration/RecoveryLifecycleTest.php",
+      "sha256": "37b963689edac038e74da9b78d7558b97d2b0e75a5c788909b72b0b769ae9e35",
+      "replay": "tests/Feature/ProcessCore/Network/ReplayRecoveryLifecycleTest.php",
+      "replay_sha256": "8f58abe1587705fe9a298cdfd21ac1560b37e9c5648e9e7d58ea30ac74727eca",
+      "before_final_acceptance_sha256": "b3393ee44bfb3a9f043a2b8fc374a5c04778e6b9855fc46c97bcd7e1268c61c3"
+    },
+    {
+      "source": "tests/Support/WireServer.php",
+      "sha256": "232390137f63522f097d50b3dde991a308ee6ca796c98aaa80628abd39bc0c30",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/WireServer.php",
+      "replay_sha256": "d3f6552fd58f26968240404cb5dc8d77c183cd586317883e424dbfa4e0cf6773"
+    },
+    {
+      "source": "tests/Support/ConcurrentWorkers.php",
+      "sha256": "e34b4fbe6808afdf1d3bc7f3174601101f25d22cae41b2673329d81a436bbbbb",
+      "replay": "tests/Support/ProcessCore/ProxymaReplay/ConcurrentWorkers.php",
+      "replay_sha256": "05866ad5bfb2268c39120383aa224066e4d39c89fb3a7155adaa808db12082a1"
+    },
+    {
+      "source": "tests/Fixtures/Http/wire.py",
+      "sha256": "f6eefdf7177366fef9f5881f0336d19e5d0499791e22f00e7340af2e0da47ae1",
+      "replay": "tests/Fixtures/ProcessCore/ProxymaReplay/Http/wire.py",
+      "replay_sha256": "f6eefdf7177366fef9f5881f0336d19e5d0499791e22f00e7340af2e0da47ae1"
+    },
+    {
+      "source": "tests/Fixtures/Http/certificates/proxy.pem",
+      "sha256": "b9276469a1b7a01244863ee05836ede78a8c353cb807480109b0d63152aa1a98",
+      "replay": "tests/Fixtures/ProcessCore/ProxymaReplay/Http/certificates/proxy.pem",
+      "replay_sha256": "b9276469a1b7a01244863ee05836ede78a8c353cb807480109b0d63152aa1a98"
+    },
+    {
+      "source": "tests/Fixtures/Http/certificates/ca.pem",
+      "sha256": "4fb8d89ed0264b60de464343dc7ba07a81ecbc73681a59b46e7755ce92445e3b",
+      "replay": "tests/Fixtures/ProcessCore/ProxymaReplay/Http/certificates/ca.pem",
+      "replay_sha256": "4fb8d89ed0264b60de464343dc7ba07a81ecbc73681a59b46e7755ce92445e3b"
+    },
+    {
+      "source": "tests/Fixtures/Http/certificates/wrong.pem",
+      "sha256": "6a487c78eab0ec8b10a9314beb24b0fac36b1f7021490db4d3d07bd58bb23191",
+      "replay": "tests/Fixtures/ProcessCore/ProxymaReplay/Http/certificates/wrong.pem",
+      "replay_sha256": "6a487c78eab0ec8b10a9314beb24b0fac36b1f7021490db4d3d07bd58bb23191"
+    },
+    {
+      "source": "tests/Fixtures/Http/certificates/origin.pem",
+      "sha256": "4519bd0d9b03b1dbfa0f6a0dc17897a60461a56035006025ca38393f7e863216",
+      "replay": "tests/Fixtures/ProcessCore/ProxymaReplay/Http/certificates/origin.pem",
+      "replay_sha256": "4519bd0d9b03b1dbfa0f6a0dc17897a60461a56035006025ca38393f7e863216"
+    },
+    {
+      "source": "tests/Fixtures/Http/certificates/fixture.key",
+      "sha256": "00f545ac96a03ec126f545eaaae90bb9df88a5932b1860c1e38dfd56ca6aeec6",
+      "replay": "tests/Fixtures/ProcessCore/ProxymaReplay/Http/certificates/fixture.key",
+      "replay_sha256": "00f545ac96a03ec126f545eaaae90bb9df88a5932b1860c1e38dfd56ca6aeec6"
+    },
+    {
+      "source": "tests/Fixtures/Http/certificates/expired.pem",
+      "sha256": "e858096e97cc51835ef6e9de895ee504c42c88f492081d3f6bab88137e56aa8e",
+      "replay": "tests/Fixtures/ProcessCore/ProxymaReplay/Http/certificates/expired.pem",
+      "replay_sha256": "e858096e97cc51835ef6e9de895ee504c42c88f492081d3f6bab88137e56aa8e"
+    },
+    {
+      "source": "tests/Fixtures/Http/certificates/untrusted.pem",
+      "sha256": "204d8e9e5024180a178ab15ebd6f89b4ea07f5fce8a316f4383afc9bb3993ec1",
+      "replay": "tests/Fixtures/ProcessCore/ProxymaReplay/Http/certificates/untrusted.pem",
+      "replay_sha256": "204d8e9e5024180a178ab15ebd6f89b4ea07f5fce8a316f4383afc9bb3993ec1"
+    },
+    {
+      "source": "scripts/test-fixture-cert.pem",
+      "sha256": "d02738e6b65d1b0af6a8b91ad318b6adde780ded14da37939d1f414d97f54b7c",
+      "replay": "tests/Fixtures/ProcessCore/ProxymaReplay/test-fixture-cert.pem",
+      "replay_sha256": "d02738e6b65d1b0af6a8b91ad318b6adde780ded14da37939d1f414d97f54b7c"
+    }
+  ],
+  "qualification": "Pending actual Agelto JUnit on the final coordinator candidate; source hashes are provenance, not execution evidence."
+}

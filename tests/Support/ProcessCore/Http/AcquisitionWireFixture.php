@@ -26,7 +26,6 @@ use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\StageCode;
 use App\Models\Procurement\Platform\Registry;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Platforms\Eis\EisListingPartitioner;
 use App\Services\Platforms\Eis\EisListingSource;
@@ -37,14 +36,15 @@ use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Platforms\Contract\RecordingOutbound;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 
 /** Real typed adapter, diagnostic owner, PostgreSQL permits and local HTTP/TLS. */
 final readonly class AcquisitionWireFixture
@@ -69,8 +69,9 @@ final readonly class AcquisitionWireFixture
         $this->registry = EisCrawlerFactory::new()->make()->registry
             ?? throw new \LogicException('Missing fixture registry.');
         app(SourceCatalogSync::class)->sync($this->definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
         $key = app(OutboundPolicy::class)->defaultRouteProfile;
-        app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile($key, $network->route->routeId->value));
+        HistoricalNetworkFixtures::profile($key, [$network->route->routeId->value]);
         $this->routeProfile = new ProcessUuid(DB::table('prc_network_route_profiles')->where('profile_key', $key)->sole()->id);
         $routes = [];
         foreach (['common-info', 'documents', 'event-journal', 'supplier-results'] as $tab) {
@@ -79,6 +80,7 @@ final readonly class AcquisitionWireFixture
         app()->instance(EisCardRoutes::class, new EisCardRoutes(['ea20' => $routes]));
         app()->instance(AcquisitionDiagnostic::class, app()->makeWith(AcquisitionDiagnostic::class, ['urls' => $wire->policy()]));
         CallerFixtures::healthReady();
+        ProxymaCallerFixtures::install($wire);
     }
 
     public function listingRequest(string $day = '2026-10-31'): ListingRequest
@@ -92,7 +94,7 @@ final readonly class AcquisitionWireFixture
     public function fetch(ListingRequest|DetailRequest $request): DiagnosticResponse
     {
         return app(AcquisitionDiagnostic::class)->fetch($this->definition, $this->registry->platform_id,
-            $request, app(ProxyResolver::class)->profile($this->routeProfile), ContentHash::of('fixture-input'), $this->wire->policy());
+            $request, app(ProfileResolver::class)->profile($this->routeProfile), ContentHash::of('fixture-input'), $this->wire->policy());
     }
 
     /** Ordinary Process owner, so physical retry checks do not rely on a one-send canary. */
@@ -119,7 +121,7 @@ final readonly class AcquisitionWireFixture
             new RecordingOutbound, $targetId);
 
         return app(AcquisitionValidation::class)->run($target->adapterContract,
-            $this->registry->platform_id, app(ProxyResolver::class)->profile($this->routeProfile), $source->plan($request),
+            $this->registry->platform_id, app(ProfileResolver::class)->profile($this->routeProfile), $source->plan($request),
             $this->wire->policy(), $context, function ($outbound) use ($targetId, $request, $context, $run) {
                 $source = new EisListingSource(new EisPolicy(config()), $outbound, $targetId);
                 $result = $source->fetch($request, $context);

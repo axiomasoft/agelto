@@ -7,7 +7,7 @@ namespace App\Enums\Procurement\Proxy;
 use Filament\Support\Contracts\HasLabel;
 
 /**
- * Точка исхода трафика, для которой резолвер прокси выдаёт узел (research/02 §1, §4).
+ * Исторические метаданные назначения. Доступ дают только membership и effective policy.
  */
 enum ProxyScope: string implements HasLabel
 {

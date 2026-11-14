@@ -189,7 +189,7 @@ final readonly class SubjectRowLoader
      * @param  array<string, CapacityAuthority>  $capacity
      * @return array<string, LockedLane>|PrefixFailure
      */
-    public function lockLaneTier(array $capacity): array|PrefixFailure
+    public function lockLaneTier(array $capacity, bool $readOnly = false): array|PrefixFailure
     {
         $laneIds = array_map(
             static fn (CapacityAuthority $member): string => $member->id->value,
@@ -197,10 +197,14 @@ final readonly class SubjectRowLoader
         );
         sort($laneIds, SORT_STRING);
         $in = LedgerRow::placeholders(count($laneIds));
+        // A running owner needs the exact current lane set, but does not mutate its
+        // capacity reservation. Shared locks retain the prefix fence against lane
+        // configuration changes while allowing independent admitted owners to validate.
+        $lock = $readOnly ? 'FOR SHARE' : 'FOR UPDATE';
         $laneRows = LedgerRow::all(
             "SELECT id, lane_key, parent_lane_id, max_outstanding, max_running,
                     fairness_cursor::text AS fairness_cursor, fairness_cursor_schema_version
-             FROM prc_process_lanes WHERE id IN ({$in}) ORDER BY id FOR UPDATE",
+             FROM prc_process_lanes WHERE id IN ({$in}) ORDER BY id {$lock}",
             $laneIds,
         );
         if (count($laneRows) !== count($laneIds)) {

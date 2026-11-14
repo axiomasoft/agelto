@@ -25,26 +25,6 @@ final readonly class SourceCatalogSqlHelper
     public const string TARGET_COLUMNS = 'id, platform_id, provider_key, target_key, canonical_origin, capability, endpoint_policy::text AS endpoint_policy,
         endpoint_policy_schema_version, policy_version, retired_at::text AS retired_at';
 
-    /** @return list<LedgerRow> */
-    public static function probeCandidates(?string $afterId, int $limit = 8): array
-    {
-        return LedgerRow::all("SELECT t.id, t.platform_id, t.provider_key, t.target_key,
-                t.endpoint_policy->>'probe_url' AS probe_url
-            FROM prc_source_targets t WHERE t.retired_at IS NULL AND t.endpoint_policy->>'probe_url' IS NOT NULL
-                AND (?::uuid IS NULL OR t.id > ?::uuid)
-                AND (EXISTS (SELECT 1 FROM prc_target_health h WHERE h.target_id = t.id AND h.state <> 'closed'
-                    AND (h.open_until IS NULL OR h.open_until <= clock_timestamp())
-                    AND (h.probe_until IS NULL OR h.probe_until <= clock_timestamp()))
-                    OR EXISTS (SELECT 1 FROM prc_route_target_health h WHERE h.target_id = t.id AND h.state <> 'closed'
-                        AND (h.open_until IS NULL OR h.open_until <= clock_timestamp())
-                        AND (h.probe_until IS NULL OR h.probe_until <= clock_timestamp()))
-                    OR EXISTS (SELECT 1 FROM prc_route_health h JOIN prc_route_target_health rt ON rt.route_id = h.route_id
-                        WHERE rt.target_id = t.id AND h.state <> 'closed'
-                        AND (h.open_until IS NULL OR h.open_until <= clock_timestamp())
-                        AND (h.probe_until IS NULL OR h.probe_until <= clock_timestamp())))
-            ORDER BY t.id LIMIT ?", [$afterId, $afterId, $limit]);
-    }
-
     /**
      * @param  array<string, LedgerRow>  $rows
      * @return array{created: int, updated: int, retired: int, unchanged: int, retiredDeclared: list<string>, active: array<string, string>}
@@ -163,107 +143,6 @@ final readonly class SourceCatalogSqlHelper
         }
 
         return $catalog->originBudget($origin, $policy->originBudget);
-    }
-
-    /**
-     * @param  list<string>  $routes
-     * @param  array<string, string>  $routeEgressIds  route_id -> egress_id
-     * @return array<string, OriginBudgetPolicy>
-     */
-    public static function declaredBudgets(
-        SourceTargetDefinitions|ProviderTargetDefinitions $catalog,
-        OutboundPolicy $policy,
-        array $routes,
-        array $routeEgressIds = [],
-        ?int $platformId = null,
-    ): array {
-        $egressCounts = array_count_values($routeEgressIds);
-        $budgets = [];
-        foreach ($catalog->origins() as $origin) {
-            $budgets[$origin->budgetScopeKey()] = self::effectiveOriginBudget($platformId, $catalog, $origin, $policy);
-            $budgets[$origin->probeScopeKey()] = $policy->probeBudget;
-            $routeBudget = $catalog->routeOriginBudget($origin, $policy->routeOriginBudget);
-            $egressBudget = $catalog->egressOriginBudget($origin) ?? $routeBudget;
-            foreach ($routes as $route) {
-                $budgets[$origin->routeScopeKey($route)] = $routeBudget;
-                $egressId = $routeEgressIds[$route] ?? null;
-                if ($egressId !== null && ($egressCounts[$egressId] ?? 0) > 1) {
-                    $budgets[$origin->egressScopeKey($egressId)] = $egressBudget;
-                }
-            }
-        }
-        ksort($budgets, SORT_STRING);
-
-        return $budgets;
-    }
-
-    /**
-     * @param  array<string, OriginBudgetPolicy>  $budgets
-     * @return array{0: int, 1: list<string>}
-     */
-    public static function ensureBudgets(array $budgets): array
-    {
-        if ($budgets === []) {
-            return [0, []];
-        }
-        $created = [];
-        foreach ($budgets as $scopeKey => $budget) {
-            $inserted = DB::select(
-                'INSERT INTO prc_network_budgets (id, scope_key, emission_interval_us, burst, max_inflight, policy_version)
-                 VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT (scope_key) DO NOTHING RETURNING id',
-                [ProcessUuid::random()->value, $scopeKey, $budget->emissionIntervalUs(), $budget->burst, $budget->maxInflight],
-            );
-            if ($inserted !== []) {
-                $created[$scopeKey] = true;
-            }
-        }
-        $keys = array_keys($budgets);
-        $drifted = [];
-        foreach (LedgerRow::all(
-            'SELECT scope_key, emission_interval_us, burst, max_inflight FROM prc_network_budgets
-             WHERE scope_key IN ('.LedgerRow::placeholders(count($keys)).') ORDER BY scope_key COLLATE "C"',
-            $keys,
-        ) as $row) {
-            $scopeKey = $row->string('scope_key');
-            if (! isset($created[$scopeKey]) && ! $budgets[$scopeKey]->matchesStored($row->int('emission_interval_us'), $row->int('burst'), $row->int('max_inflight'))) {
-                $drifted[] = $scopeKey;
-            }
-        }
-
-        return [count($created), $drifted];
-    }
-
-    /**
-     * @param  array<string, string>  $targets  key → id
-     * @param  list<string>  $routes
-     */
-    public static function ensureHealthRows(array $targets, array $routes): int
-    {
-        ksort($targets, SORT_STRING);
-        $created = 0;
-        foreach ($targets as $targetId) {
-            $created += count(DB::select(
-                "INSERT INTO prc_target_health (id, target_id, state, availability, health_epoch, state_version, recent_openings)
-                 VALUES (?, ?, 'unknown', 'unknown', 1, 1, 0) ON CONFLICT (target_id) DO NOTHING RETURNING id",
-                [ProcessUuid::random()->value, $targetId],
-            ));
-        }
-        foreach ($routes as $routeId) {
-            $created += count(DB::select(
-                "INSERT INTO prc_route_health (id, route_id, state, health_epoch, state_version, recent_openings, consecutive_failures)
-                 VALUES (?, ?, 'unknown', 1, 1, 0, 0) ON CONFLICT (route_id) DO NOTHING RETURNING id",
-                [ProcessUuid::random()->value, $routeId],
-            ));
-            foreach ($targets as $targetId) {
-                $created += count(DB::select(
-                    "INSERT INTO prc_route_target_health (id, route_id, target_id, state, health_epoch, state_version, recent_openings, consecutive_failures)
-                     VALUES (?, ?, ?, 'unknown', 1, 1, 0, 0) ON CONFLICT (route_id, target_id) DO NOTHING RETURNING id",
-                    [ProcessUuid::random()->value, $routeId, $targetId],
-                ));
-            }
-        }
-
-        return $created;
     }
 
     public static function lockSystemAuthority(): LedgerRow

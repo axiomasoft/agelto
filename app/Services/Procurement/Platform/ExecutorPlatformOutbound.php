@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Platform;
 
-use App\Dto\Procurement\Network\NetworkRouteSelection;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\ProbeClaim;
-use App\Dto\Procurement\Network\RetryRoutePreference;
-use App\Dto\Procurement\Network\SelectedNetworkRoute;
 use App\Dto\Procurement\Network\TransferBudget;
+use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
 use App\Dto\Procurement\Network\TransportOutcome;
 use App\Dto\Procurement\Network\TransportSucceeded;
@@ -19,32 +16,31 @@ use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\RetryAt;
 use App\Enums\Procurement\Network\IdempotencyClass;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\OutboundOperationKind;
-use App\Repositories\Procurement\Network\NetworkPermitRepository;
 use App\Repositories\Procurement\Network\OutboundOperationRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Services\Procurement\Network\Contracts\OutboundAttemptGate;
 use App\Services\Procurement\Network\NetworkOwnerFence;
-use App\Services\Procurement\Network\OutboundExecutor;
 use App\Services\Procurement\Network\OutboundPolicy;
-use App\Services\Procurement\Network\ProbeScheduler;
-use App\Services\Procurement\Network\ScheduledAttemptGate;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxy\ProxyResolver;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\CallerGate;
+use App\Services\Procurement\Proxyma\CallerOutbound;
+use App\Services\Procurement\Proxyma\CallerSendFacts;
+use App\Services\Procurement\Proxyma\ProfileBindings;
 use Illuminate\Support\Str;
+use Proxyma\Application\Authorization\AuthorizationDenied;
+use Proxyma\Domain\Admission\AdmissionRejected;
 
 final readonly class ExecutorPlatformOutbound implements PlatformOutbound
 {
     public function __construct(
-        private OutboundExecutor $executor,
-        private OutboundAttemptGate $gate,
+        private CallerOutbound $executor,
+        private CallerGate $gate,
         private UrlPolicy $urls,
         private TransferBudget $budget,
-        private ?RoutePolicy $routes = null,
+        private ?ProfileBindings $routes = null,
         private ?int $platformId = null,
     ) {}
 
@@ -54,9 +50,14 @@ final readonly class ExecutorPlatformOutbound implements PlatformOutbound
             || $plan->idempotency !== IdempotencyClass::ReadOnly || ! in_array($plan->method, ['GET', 'HEAD'], true)) {
             return $this->executor->execute($plan, $context, $this->gate, $this->urls, $this->budget);
         }
-        $resolver = app(ProxyResolver::class);
-        $preference = new RetryRoutePreference([], null, true, $plan->profile->distinctRoutes);
-        $selection = $resolver->outboundRoutes($this->routes)->select($plan, $preference);
+        $routes = $this->routes;
+        try {
+            ['routes' => $routes, 'profile' => $profile] = CallerSendFacts::probeRoutes($routes, $plan, $context);
+        } catch (AdmissionRejected|AuthorizationDenied|\DomainException) {
+            return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
+        }
+        $selection = CallerSendFacts::needsProbe($routes, $plan->targetId->value, $profile)
+            ? new TransportDeferred(NetworkDeferralReason::TargetCooldown, new RetryAt(new \DateTimeImmutable('+1 second'))) : null;
         if (! $selection instanceof TransportDeferred) {
             return $this->executor->execute($plan, $context, $this->gate, $this->urls, $this->budget);
         }
@@ -69,11 +70,9 @@ final readonly class ExecutorPlatformOutbound implements PlatformOutbound
         $controls = array_values(array_unique([...array_map(fn (ControlSnapshot $c): string => $c->scopeKey, $authority->controls), 'monitoring']));
         $tx = app(ProcessTransaction::class);
         $operations = app(OutboundOperationRepository::class);
-        $probes = app(ProbeScheduler::class);
-        $permits = app(NetworkPermitRepository::class);
         $policy = app(OutboundPolicy::class);
         $deadline = max($seconds, $plan->profile->totalSeconds + 60);
-        foreach ($this->routes->bindings as $binding) {
+        foreach ($routes->bindings as $binding) {
             $token = new ProcessUuid((string) Str::uuid());
             $probe = $tx->run(fn () => $operations->open(new ProcessUuid((string) Str::uuid()), $token,
                 OutboundOperationKind::Probe, $this->platformId, 'document.download_canary', $context->lease()->inputHash,
@@ -81,13 +80,9 @@ final readonly class ExecutorPlatformOutbound implements PlatformOutbound
             $owner = new OutboundExecutionContext($probe,
                 fn ($handle) => $tx->run(fn () => $operations->renew($handle, $seconds)), $context->tick(...), $seconds, 15);
             try {
-                $claim = $probes->claim($plan, $owner, new NetworkRouteSelection($binding->id, $this->routes->profileId, $binding->credentialVersion));
-                if (! $claim instanceof ProbeClaim) {
-                    continue;
-                }
                 $single = new OutboundRequestPlan($plan->physicalRequestId, $plan->targetId, $plan->method,
                     $plan->url, $plan->profile, $plan->trafficClass, $plan->idempotency, $plan->bodyHash, 1, $plan->adapterClaim);
-                $gate = new ScheduledAttemptGate($permits, $resolver->outboundRoutes(new RoutePolicy([$binding], $this->routes->profileId), $claim), $policy);
+                $gate = new CallerGate(new ProfileBindings([$binding], $routes->profileId));
                 $result = $this->executor->execute($single, $owner, $gate, $this->urls, $this->budget);
             } finally {
                 $tx->run(fn () => $operations->close($probe));
@@ -96,14 +91,14 @@ final readonly class ExecutorPlatformOutbound implements PlatformOutbound
                 return $result;
             }
             if (($plan->sendLimit === null || $plan->sendLimit > 1)
-                && $resolver->outboundRoutes($this->routes)->select($plan, $preference) instanceof SelectedNetworkRoute) {
+                && ! CallerSendFacts::needsProbe($routes, $plan->targetId->value, $profile)) {
                 $next = new OutboundRequestPlan(ProcessUuid::random(), $plan->targetId, $plan->method,
                     $plan->url, $plan->profile, $plan->trafficClass, $plan->idempotency, $plan->bodyHash,
                     $plan->sendLimit === null ? null : $plan->sendLimit - 1, $plan->adapterClaim);
 
                 return $this->executor->execute($next, $context, $this->gate, $this->urls, $this->budget);
             }
-            if (LedgerRow::one('SELECT request_id FROM prc_request_attempts WHERE request_id = ?', [$plan->physicalRequestId->value]) !== null) {
+            if (CallerSendFacts::operationSends($probe->id->value) > 0) {
                 return $result;
             }
         }

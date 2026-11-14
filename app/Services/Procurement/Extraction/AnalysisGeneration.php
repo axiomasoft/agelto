@@ -37,7 +37,6 @@ use App\Services\Llm\Execution\SendClaimResult;
 use App\Services\Llm\Execution\StructuredCallExecutor;
 use App\Services\Llm\Schema\CanonicalJson;
 use App\Services\Llm\Schema\ProviderSchemaCompiler;
-use App\Services\Procurement\Proxy\ProxyResolver;
 
 /** One explicit operation per subrange/reask; recovery never enters the authorization branch. */
 final readonly class AnalysisGeneration
@@ -50,7 +49,6 @@ final readonly class AnalysisGeneration
         private StructuredCallExecutor $executor,
         private AnalysisProviderConnections $connections,
         private SourceCatalogRepository $targets,
-        private ProxyResolver $routes,
         private AnalysisRepresentation $representation,
         private FinancialReservationRepository $finance,
     ) {}
@@ -181,7 +179,6 @@ final readonly class AnalysisGeneration
                 'target' => new ProcessUuid($target->string('id')),
                 'profile' => $connection->profile,
                 'urlPolicy' => $connection->urlPolicy,
-                'routes' => $this->routes->outboundRoutes(policy: $this->routes->profile(provider: true)),
                 'apiKey' => $connection->credential(),
             ],
         );

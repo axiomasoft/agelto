@@ -30,7 +30,7 @@ sudo make -f docker/Makefile repositories:prepare PROFILE=docker/host/production
 ```
 
 The reported fingerprint must be `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`. Enrol the
-two printed public keys separately in the corresponding GitHub repositories as **read-only deploy
+three printed public keys separately in the corresponding GitHub repositories as **read-only deploy
 keys**. Never select write access, substitute a personal key/token, or enable agent forwarding.
 
 After enrollment, run the resumable sync:
@@ -41,11 +41,13 @@ sudo make -f docker/Makefile repositories:sync PROFILE=docker/host/production-pr
 
 The helper refuses an unconfirmed enrollment, wrong GitHub host key, a wrong/decorated origin,
 anything dirty or untracked, a non-full SHA, and a branch checkout. It fetches the exact Agelto
-candidate detached at the profile SHA and the D19 AzGuard lock SHA only under
-`local/vendors/azguard`; then it reuses P2's vendor verifier. Its read-only test is a deliberately
-failing `git push --dry-run`, so it does not mutate either repository.
+candidate detached at the profile SHA and both Azguard/Proxyma commits from the strict v2
+lock under `local/vendors/{azguard,proxyma}`; then it reuses the vendor verifier. Each vendor
+provides two explicit Composer path packages, copied with `symlink:false`. Separate
+`github-agelto`, `github-azguard`, `github-proxyma` aliases use separate read-only keys.
+Its read-only test is a deliberately failing `git push --dry-run`, so it does not mutate repositories.
 
-Keep the public-key fingerprint, canonical origins and the two full SHAs in the redacted P12.2
+Keep the public-key fingerprint, canonical origins and all three full SHAs in the redacted P12.2
 evidence record. Never copy a private-key byte, `known_hosts` body or profile into that evidence.
 
 GitHub documents that a deploy key is repository-specific and multiple repositories require separate

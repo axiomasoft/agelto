@@ -14,6 +14,7 @@ use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\LedgerFixtures;
 
@@ -28,6 +29,7 @@ function adapterAdmissionFixture(): array
     app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($f->code, [
         new SourceTargetDefinition('card', 'detail', $f->url->origin, [$f->profile], adapterContract: $ref),
     ]));
+    HistoricalNetworkFixtures::synchronize();
 
     return [$f, $ref];
 }

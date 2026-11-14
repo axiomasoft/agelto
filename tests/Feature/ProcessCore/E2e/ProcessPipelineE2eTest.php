@@ -26,7 +26,6 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Pulse\Cards\ProcessPlatformHealthCard;
 use App\Repositories\Procurement\Crawler\RefreshRepository;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
 use App\Services\Llm\Execution\ReceiptPolicies;
@@ -53,7 +52,7 @@ use App\Services\Procurement\Process\RelayDaemon;
 use App\Services\Procurement\Process\StageQueueMap;
 use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\WorkRunner;
-use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxyma\ProfileResolver as ProxyResolver;
 use Carbon\CarbonImmutable;
 use Illuminate\Queue\Jobs\RedisJob;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +61,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use Proxyma\Infrastructure\Database\PackageSchema;
 use Symfony\Component\Process\Process;
 use Tests\Support\Doubles\Crawler\CardHtmlFixture;
 use Tests\Support\Platforms\Eis\EisDetailFixtures;
@@ -71,11 +71,14 @@ use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FinancialFixtures;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
+use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
 use Tests\Support\ProcessCore\Http\CallerFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\TransportFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 use Tests\Support\ProcessCore\ScreeningRuntimeFixtures;
 
 pest()->group('e2e');
@@ -158,6 +161,79 @@ function e2eDrainRedisQueues(): int
     return $dispatched;
 }
 
+/** @return array<string, mixed> */
+function e2eCapacityWaitDiagnostics(string $workDir, Process $horizon): array
+{
+    $table = static fn (string $name, array $columns): array => DB::getSchemaBuilder()->hasTable($name)
+        ? DB::table($name)->select($columns)->orderBy('id')->limit(32)->get()->map(static fn (object $row): array => (array) $row)->all()
+        : [];
+    $executionLogs = [];
+    foreach (file_exists($workDir.'/horizon-executions.jsonl') ? file($workDir.'/horizon-executions.jsonl', FILE_IGNORE_NEW_LINES) : [] as $line) {
+        $execution = json_decode($line, true);
+        if (! is_array($execution) || ! isset($execution['pid'])) {
+            continue;
+        }
+        foreach (glob(storage_path('framework/testing/runtime-'.$execution['pid'].'/logs/*.log')) ?: [] as $path) {
+            $lines = file($path, FILE_IGNORE_NEW_LINES) ?: [];
+            $executionLogs = [...$executionLogs, ...array_values(array_filter(array_slice($lines, -32), static fn (string $entry): bool => str_contains($entry, 'detail') || str_contains($entry, 'capacity_wait')))];
+        }
+    }
+    $packageTables = ['pxm_attempts', 'pxm_budgets', 'pxm_demand_scopes', 'pxm_demands', 'pxm_operations', 'pxm_permits'];
+    $hasPackageSnapshot = ! array_filter($packageTables, static fn (string $name): bool => ! DB::getSchemaBuilder()->hasTable($name));
+    $activeDemandOwners = $hasPackageSnapshot ? DB::select("SELECT d.id AS demand_id, d.sequence, d.state AS demand_state,
+            d.physical_attempt_id, d.deadline AS demand_deadline, d.expires_at, o.id AS operation_id, o.owner_type,
+            o.owner_id, o.owner_generation, o.status AS operation_status, o.deadline AS operation_deadline,
+            o.revoked_at, process_attempt.work_id, process_attempt.generation AS attempt_generation,
+            process_attempt.started_at AS attempt_started_at, process_attempt.finished_at AS attempt_finished_at,
+            process_attempt.terminal_kind, work.state AS work_state, work.generation AS work_generation,
+            EXISTS (SELECT 1 FROM pxm_permits permit WHERE permit.demand_id = d.id) AS has_permit
+            FROM pxm_demands d JOIN pxm_operations o ON o.id = d.operation_id
+            LEFT JOIN prc_process_attempts process_attempt ON o.owner_type = 'process_attempt' AND process_attempt.id::text = o.owner_id
+            LEFT JOIN prc_process_work work ON work.id = process_attempt.work_id
+            WHERE d.state = 'active' ORDER BY d.sequence LIMIT 100") : [];
+    $fifoPredecessors = $hasPackageSnapshot ? DB::select("SELECT candidate.id AS candidate_id, candidate.sequence AS candidate_sequence,
+            predecessor.id AS predecessor_id, predecessor.sequence AS predecessor_sequence,
+            predecessor.operation_id AS predecessor_operation_id, predecessor.expires_at AS predecessor_expires,
+            operation.deadline AS predecessor_operation_deadline
+            FROM pxm_demands candidate JOIN pxm_demands predecessor ON (predecessor.sequence, predecessor.id) < (candidate.sequence, candidate.id)
+            JOIN pxm_operations operation ON operation.id = predecessor.operation_id
+            WHERE candidate.state = 'active' AND predecessor.state = 'active' AND predecessor.physical_attempt_id IS NOT NULL
+                AND operation.status = 'active' AND operation.revoked_at IS NULL
+                AND least(predecessor.deadline, predecessor.expires_at, operation.deadline) > clock_timestamp()
+                AND EXISTS (SELECT 1 FROM pxm_demand_scopes candidate_scope JOIN pxm_demand_scopes predecessor_scope ON predecessor_scope.budget_id = candidate_scope.budget_id
+                    WHERE candidate_scope.demand_id = candidate.id AND predecessor_scope.demand_id = predecessor.id)
+            ORDER BY candidate.sequence DESC, predecessor.sequence LIMIT 100") : [];
+
+    return [
+        'detail_work' => $table('prc_process_work', ['id', 'stage', 'state', 'reason_code', 'generation', 'execution_attempts', 'transport_attempts', 'item_failures', 'infrastructure_interruptions', 'due_at', 'lease_until']),
+        'detail_attempts' => DB::table('prc_process_attempts as attempt')
+            ->join('prc_process_work as work', 'work.id', '=', 'attempt.work_id')
+            ->where('work.stage', 'detail')
+            ->select(['attempt.id', 'attempt.work_id', 'attempt.generation', 'attempt.terminal_kind', 'attempt.adapter_health_id', 'attempt.adapter_health_epoch', 'attempt.started_at', 'attempt.finished_at'])
+            ->orderByDesc('attempt.started_at')->limit(32)->get()->map(static fn (object $row): array => (array) $row)->all(),
+        'adapter_health' => $table('prc_adapter_health', ['id', 'capability', 'state', 'health_epoch', 'state_version', 'reason_code', DB::raw('(probe_token IS NOT NULL) AS has_probe_token'), 'probe_until', 'last_success_at', 'last_failure_at']),
+        'validation_owners' => DB::select("SELECT h.id AS health_id, h.health_epoch,
+            count(DISTINCT operation.id) FILTER (WHERE operation.state = 'open' AND operation.lease_until > clock_timestamp() AND operation.deadline_at > clock_timestamp()) AS active_probe_operations,
+            count(DISTINCT attempt.id) FILTER (WHERE attempt.finished_at IS NULL AND work.state = 'running' AND work.lease_until > clock_timestamp()) AS active_work_attempts
+            FROM prc_adapter_health h
+            LEFT JOIN prc_outbound_operations operation ON operation.adapter_health_id = h.id AND operation.adapter_health_epoch = h.health_epoch
+            LEFT JOIN prc_process_attempts attempt ON attempt.adapter_health_id = h.id AND attempt.adapter_health_epoch = h.health_epoch
+            LEFT JOIN prc_process_work work ON work.id = attempt.work_id AND work.generation = attempt.generation
+            GROUP BY h.id, h.health_epoch ORDER BY h.id"),
+        'package_budgets' => $table('pxm_budgets', ['id', 'tenant_key', 'scope_key', 'max_inflight', 'inflight', 'tat', 'send_tat', 'revision']),
+        'package_operations' => $table('pxm_operations', ['id', 'tenant_key', 'owner_type', 'owner_id', 'owner_generation', 'status', 'deadline', 'revoked_at', 'authorized_attempts', 'max_physical_attempts']),
+        'package_demands' => $table('pxm_demands', ['id', 'tenant_key', 'operation_id', 'purpose', 'state', 'sequence', 'physical_attempt_id', 'deadline']),
+        'package_permits' => $table('pxm_permits', ['id', 'tenant_key', 'operation_id', 'demand_id', 'state', 'not_before', 'expires_at', 'authorized_at', 'completed_at']),
+        'package_reservations' => $table('pxm_reservations', ['id', 'tenant_key', 'permit_id', 'budget_id', 'cost', 'state']),
+        'package_attempts' => $table('pxm_attempts', ['id', 'tenant_key', 'operation_id', 'permit_id', 'physical_attempt_id', 'status', 'authorized_at', 'completed_at']),
+        'active_demand_owners' => $activeDemandOwners,
+        'fifo_predecessors' => $fifoPredecessors,
+        'horizon_output' => preg_replace('#https?://\S+#', '<url>', $horizon->getOutput()),
+        'horizon_errors' => preg_replace('#https?://\S+#', '<url>', $horizon->getErrorOutput()),
+        'child_logs' => array_slice(array_values(array_unique($executionLogs)), -32),
+    ];
+}
+
 beforeEach(function (): void {
     PermitFixtures::clean();
     ExecutionFixtures::truncateLedger();
@@ -207,6 +283,7 @@ function processPipelineE2e(bool $horizon): Closure
         );
 
         app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
         $directRouteId = (string) DB::table('prc_network_routes')->where('kind', 'direct')->soleValue('id');
         $defaultProfileKey = app(OutboundPolicy::class)->defaultRouteProfile;
         $providerProfileKey = app(OutboundPolicy::class)->providerRouteProfile;
@@ -245,6 +322,7 @@ function processPipelineE2e(bool $horizon): Closure
                 [$providerProfile],
             ),
         ]));
+        HistoricalNetworkFixtures::synchronize();
 
         app(ReceiptPolicies::class)->register('fixture-provider', new GeminiAssetReceiptPolicy);
         $connections = new AnalysisProviderConnections;
@@ -266,6 +344,7 @@ function processPipelineE2e(bool $horizon): Closure
         }
         DB::table('prc_network_budgets')->update(['emission_interval_us' => 50_000]);
 
+        ProxymaCallerFixtures::install($wire);
         $cardRoutes = [];
         foreach (['common-info', 'documents', 'event-journal', 'supplier-results'] as $tab) {
             $cardRoutes[$tab] = $wire->url('/eis/card/'.$tab.'?regNumber={regNumber}', true)->reveal();
@@ -443,9 +522,27 @@ function processPipelineE2e(bool $horizon): Closure
         expect($procurement->title)->toBe('Капитальный ремонт кровли здания поликлиники')
             ->and($procurement->source_stage)->toBe('Подача заявок');
 
-        $document = DB::table('prc_documents')->where('procurement_id', $procurement->id)->sole();
+        $documents = DB::table('prc_documents')->where('procurement_id', $procurement->id);
+        if ($documents->count() !== 1) {
+            throw new RuntimeException('E2E document invariant diagnostics: '.json_encode(
+                e2eCapacityWaitDiagnostics($this->workDir, $this->pipelineHorizon),
+                JSON_THROW_ON_ERROR,
+            ));
+        }
+        $document = $documents->sole();
         expect($document->current_version_id)->not->toBeNull()
             ->and((int) $document->head_generation)->toBeGreaterThanOrEqual(1);
+
+        $tables = PackageSchema::tables();
+        $orphanedFifoHeads = DB::table($tables['demands'].' as demand')
+            ->join($tables['operations'].' as operation', 'operation.id', '=', 'demand.operation_id')
+            ->join('prc_process_attempts as attempt', DB::raw('attempt.id::text'), '=', 'operation.owner_id')
+            ->where('demand.state', 'active')->whereNotNull('demand.physical_attempt_id')
+            ->where('operation.owner_type', 'process_attempt')->where('operation.status', 'active')->whereNull('operation.revoked_at')
+            ->whereNotNull('attempt.finished_at')
+            ->whereRaw('least(demand.deadline, demand.expires_at, operation.deadline) > clock_timestamp()')
+            ->count();
+        expect($orphanedFifoHeads)->toBe(0);
 
         $version = DB::table('prc_document_versions')->where('id', $document->current_version_id)->sole();
         expect($version->published_analysis_run_id)->not->toBeNull();

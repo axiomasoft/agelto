@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Dto\Procurement\Network\HttpRequestPayload;
+use App\Dto\Procurement\Network\SafeUrl;
 use App\Enums\Telemetry\LogChannel;
+use App\Services\Procurement\Proxyma\TelegramOutbound;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 
 /**
  * Алерты пайплайна отправляются одним агрегированным Telegram-сообщением через Bot API.
@@ -84,21 +86,16 @@ final readonly class PipelineAlert
         }
 
         try {
-            $response = Http::timeout(10)
-                ->retry(times: 2, sleepMilliseconds: 500, throw: false)
-                ->post("https://api.telegram.org/bot{$token}/sendMessage", [
-                    'chat_id' => $chatId,
-                    'text' => $message,
-                    'parse_mode' => 'HTML',
-                ]);
-
-            if (! $response->successful()) {
-                LogChannel::Alerts->error('PipelineAlert: не удалось отправить уведомление', ['message' => $message]);
-
-                return false;
+            $apiUrl = config('services.telegram.api_url', 'https://api.telegram.org');
+            if (! is_string($apiUrl)) {
+                throw new \InvalidArgumentException('Invalid Telegram API origin.');
             }
 
-            return true;
+            return app(TelegramOutbound::class)->send(
+                new SafeUrl(rtrim($apiUrl, '/')."/bot{$token}/sendMessage"),
+                new HttpRequestPayload(['content-type' => 'application/json'], json_encode([
+                    'chat_id' => $chatId, 'text' => $message, 'parse_mode' => 'HTML',
+                ], JSON_THROW_ON_ERROR)));
         } catch (\Throwable) {
             LogChannel::Alerts->error('PipelineAlert: не удалось отправить уведомление', ['message' => $message]);
 

@@ -9,7 +9,6 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Logical source target площадки: canonical origin + capability + endpoint policy. Budget
@@ -25,7 +24,6 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int $policy_version
  * @property CarbonImmutable|null $retired_at
  * @property-read Platform $platform
- * @property-read TargetHealth|null $health
  */
 #[Table(name: 'prc_source_targets', keyType: 'string', incrementing: false, timestamps: false)]
 final class SourceTarget extends Model
@@ -34,12 +32,6 @@ final class SourceTarget extends Model
     public function platform(): BelongsTo
     {
         return $this->belongsTo(Platform::class, 'platform_id');
-    }
-
-    /** @return HasOne<TargetHealth, $this> */
-    public function health(): HasOne
-    {
-        return $this->hasOne(TargetHealth::class, 'target_id');
     }
 
     protected function casts(): array

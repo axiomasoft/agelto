@@ -36,6 +36,7 @@ use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FinancialFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 use Tests\Support\ProcessCore\ProviderSendFixtures;
 
 pest()->group('provider-asset-lifecycle', 'analysis-execution', 'provider-financial-ledger');
@@ -100,7 +101,7 @@ test('файл загружается настоящим multipart HTTP с со�
         ->and($file)->toBeInstanceOf(ProviderFileAsset::class)->and($file->usable())->toBeTrue()
         ->and(DB::table('llm_budget_reservations')->sole()->settled_amount)->toBe('0.00000000')
         ->and(DB::table('llm_provider_calls')->sole()->usage_schema_version)->toBe(1)
-        ->and(DB::table('prc_request_attempts')->sole()->request_id)->toBe($f->operation->physicalCallId);
+        ->and(PackageNetworkFacts::attempts()->sole()->request_id)->toBe($f->operation->physicalCallId);
     expect(fn () => (new GeminiAssetClient)->upload($f->plan, AssetFixtures::capabilities($f->plan->context), $file->key, 'changed bytes'))
         ->toThrow(OperationDenied::class);
 });

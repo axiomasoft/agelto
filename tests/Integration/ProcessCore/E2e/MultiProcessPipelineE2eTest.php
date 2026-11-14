@@ -28,7 +28,7 @@ pest()->group('e2e', 'daemon-reconciliation');
 beforeEach(function (): void {
     PermitFixtures::clean();
     ExecutionFixtures::truncateLedger();
-    DB::statement('TRUNCATE prc_procurements, prc_registries, prc_platforms, users, roles, model_has_roles CASCADE');
+    DB::statement('TRUNCATE prc_procurements, prc_registries, prc_platforms, users, azg_permissions, azg_role_grants, azg_permission_grants, azg_subject_revisions, azg_panel_state CASCADE');
     DocumentStorageFixtures::reset();
     Redis::connection()->flushdb();
     artisan('guard:sync-roles')->assertSuccessful();
@@ -37,7 +37,7 @@ beforeEach(function (): void {
 afterEach(function (): void {
     PermitFixtures::clean();
     ExecutionFixtures::truncateLedger();
-    DB::statement('TRUNCATE prc_procurements, prc_registries, prc_platforms, users, roles, model_has_roles CASCADE');
+    DB::statement('TRUNCATE prc_procurements, prc_registries, prc_platforms, users, azg_permissions, azg_role_grants, azg_permission_grants, azg_subject_revisions, azg_panel_state CASCADE');
     DocumentStorageFixtures::reset();
     Redis::connection()->flushdb();
 });

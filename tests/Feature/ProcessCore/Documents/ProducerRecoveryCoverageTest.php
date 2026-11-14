@@ -10,6 +10,7 @@ use App\Services\Procurement\Process\RecoveryReconciler;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DocumentFeederFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
 pest()->group('document-processing', 'admission-fairness');
@@ -30,7 +31,7 @@ test('document без source reference и bytes не создаёт intents work
     expect(app(DocumentFeeder::class)->reconcile())->toBe(0)
         ->and(DB::table('prc_operation_intents')->count())->toBe(0)
         ->and(DB::table('prc_process_work')->count())->toBe(0)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(0);
 });
 
 test('общий recovery после expired document attempt освобождает parent child без нового logical work', function (): void {

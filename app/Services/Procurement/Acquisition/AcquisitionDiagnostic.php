@@ -30,14 +30,14 @@ use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\Network\OutboundOperationRepository;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
-use App\Services\Procurement\Network\AdapterCanaryRouteSelector;
-use App\Services\Procurement\Network\OutboundExecutor;
-use App\Services\Procurement\Network\ScheduledAttemptGate;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Platform\Contracts\DetailSource;
 use App\Services\Procurement\Platform\Contracts\ListingSource;
 use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\CallerGate;
+use App\Services\Procurement\Proxyma\CallerOutbound;
+use App\Services\Procurement\Proxyma\CallerSendFacts;
+use App\Services\Procurement\Proxyma\ProfileBindings;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
@@ -45,11 +45,11 @@ use Illuminate\Support\Str;
 final readonly class AcquisitionDiagnostic
 {
     public function __construct(private AdapterHealthRepository $health, private OutboundOperationRepository $operations,
-        private ProcessTransaction $transactions, private OutboundExecutor $executor,
+        private ProcessTransaction $transactions, private CallerOutbound $executor,
         private AcquisitionArtifacts $artifacts, private SourceCatalogRepository $catalog, private ?UrlPolicy $urls = null) {}
 
     public function fetch(PlatformDefinition $definition, int $platformId, ListingRequest|DetailRequest $request,
-        RoutePolicy $routes, ContentHash $inputHash, ?UrlPolicy $urls = null): DiagnosticResponse
+        ProfileBindings $routes, ContentHash $inputHash, ?UrlPolicy $urls = null): DiagnosticResponse
     {
         $capability = $request instanceof ListingRequest ? $definition->listing : $definition->detail;
         if (! $capability instanceof SupportedListingCapability && ! $capability instanceof SupportedDetailCapability) {
@@ -76,8 +76,8 @@ final readonly class AcquisitionDiagnostic
                 throw new OutboundUnavailable($claim);
             }
             $owner->bindAdapter($claim);
-            $selector = app()->makeWith(AdapterCanaryRouteSelector::class, ['context' => $owner, 'routes' => $routes]);
-            $gate = app()->makeWith(ScheduledAttemptGate::class, ['routes' => $selector]);
+            $selector = $routes;
+            $gate = app()->makeWith(CallerGate::class, ['routes' => $selector]);
             $outbound = new AcquisitionPlatformOutbound($this->executor, $gate, $urls ?? $this->urls ?? new UrlPolicy($definition->sourceTargets->origins()),
                 new TransferBudget(134217728, 134217728), $owner, $owner, $this->artifacts);
             $source = AcquisitionSources::resolve(
@@ -102,6 +102,7 @@ final readonly class AcquisitionDiagnostic
                 throw $failure;
             }
             $requestsUsed = LedgerRow::one('SELECT count(*)::bigint AS total FROM prc_network_permits p JOIN prc_network_demands d ON d.id=p.demand_id WHERE d.operation_id=? AND p.authorized_at IS NOT NULL', [$handle->id->value])?->int('total') ?? 0;
+            $requestsUsed += CallerSendFacts::operationSends($handle->id->value);
             if ($owner->successfulRequestIds() === []) {
                 return new DiagnosticResponse($result, null, $requestsUsed);
             }

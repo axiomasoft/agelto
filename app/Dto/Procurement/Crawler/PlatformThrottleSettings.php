@@ -17,6 +17,7 @@ final class PlatformThrottleSettings extends Data
 
     public function __construct(
         public ?int $requestsPerMinuteBase = null,
+        /** @deprecated Историческое поле читается для совместимости; origin quota от числа маршрутов не зависит. */
         public ?int $requestsPerMinutePerProxy = null,
         public ?int $maxWaitSeconds = null,
         /** @var array<string, array<string, mixed>> */

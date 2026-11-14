@@ -15,3 +15,7 @@ AGELTO_REPOSITORY=CHANGE_ME_OWNER/CHANGE_ME_REPOSITORY
 AGELTO_CANDIDATE_SHA=CHANGE_ME_FULL_40_HEX_SHA
 AGELTO_CHECKOUT_DIR=/srv/agelto/repository
 GITHUB_ED25519_HOST_KEY=CHANGE_ME_GITHUB_ED25519_KEY
+
+# Vendor repository/SHA pins come only from docker/private-vendors.lock.json.
+# github-agelto, github-azguard and github-proxyma each use a distinct read-only key.
+# prepare prints public fingerprints; enrollment and production sync are operator steps.

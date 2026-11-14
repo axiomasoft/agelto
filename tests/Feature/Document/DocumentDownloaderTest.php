@@ -11,6 +11,7 @@ use Tests\Support\ProcessCore\DownloadFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 
 beforeEach(function (): void {
     PermitFixtures::clean();
@@ -42,5 +43,5 @@ test('новый downloader восстанавливает missing corrupt objec
         ->and(DB::table('prc_document_blobs')->count())->toBe(1)
         ->and(Storage::disk($version->disk)->get($version->storage_path))->toBe($bytes)
         ->and(DB::table('prc_process_work')->where('stage', 'download')->where('state', 'succeeded')->count())->toBe(2)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(2);
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(2);
 })->with([false, true]);

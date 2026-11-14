@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 use App\Dto\Procurement\Platform\PlatformCode;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Platform\PlatformUiResolver;
+use App\Services\Procurement\Proxyma\SettingsSections;
 use Cron\CronExpression;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -17,6 +18,7 @@ use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Model;
 use Throwable;
 
 final class CrawlerForm
@@ -61,12 +63,7 @@ final class CrawlerForm
                     Toggle::make('is_active')->label('Активно')->required(),
                 ])
                 ->columns(2),
-            Section::make('Сетевой маршрут')
-                ->schema([
-                    Select::make('route_profile_id')->label('Профиль маршрутов')
-                        ->relationship('routeProfile', 'profile_key')->searchable()->preload()->nullable()
-                        ->helperText('Пустое поле наследует настроенный профиль по умолчанию. Недоступный профиль останавливает отправку.'),
-                ]),
+            Section::make('Proxyma')->schema(fn (?Model $record): array => app(SettingsSections::class)->forRecord($record))->columnSpanFull(),
         ]);
     }
 

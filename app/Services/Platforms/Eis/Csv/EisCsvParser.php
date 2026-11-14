@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace App\Services\Platforms\Eis\Csv;
 
+use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Exceptions\Procurement\Crawler\SourceResponseLimitExceeded;
-use App\Services\Procurement\Network\BoundedResponseReader;
 
 /** Strict CSV records: quoted newlines and doubled quotes are data, never record boundaries. */
 final readonly class EisCsvParser
 {
+    private static function assertTime(?float $deadlineAt): void
+    {
+        if ($deadlineAt !== null && microtime(true) >= $deadlineAt) {
+            throw OutboundRequestDeadlineExceeded::forStage(stage: 'response-body');
+        }
+    }
+
     /** @return list<array<string, string>> */
     public function parse(string $body): array
     {
@@ -50,7 +57,7 @@ final readonly class EisCsvParser
             $malformed = 0;
 
             foreach ($this->records($stream, $deadlineAt, $maxFieldBytes, $tick) as $values) {
-                BoundedResponseReader::assertTime($deadlineAt);
+                self::assertTime($deadlineAt);
                 if (count($values) > 256) {
                     throw new SourceResponseLimitExceeded('CSV column count exceeds the resource limit.');
                 }
@@ -105,7 +112,7 @@ final readonly class EisCsvParser
         while (($char = fgetc($stream)) !== false) {
             if (++$bytes % 8192 === 0) {
                 $tick?->__invoke();
-                BoundedResponseReader::assertTime($deadlineAt);
+                self::assertTime($deadlineAt);
             }
             if (strlen($field) > $maxFieldBytes || count($fields) > 255) {
                 throw new SourceResponseLimitExceeded('CSV field or column count exceeds the configured limit.');

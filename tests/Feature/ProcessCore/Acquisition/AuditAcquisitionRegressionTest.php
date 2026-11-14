@@ -31,7 +31,6 @@ use App\Models\User;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Repositories\Procurement\Process\ControlRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Platforms\Eis\EisListingPartitioner;
@@ -44,12 +43,16 @@ use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Proxyma\Infrastructure\Database\PackageSchema;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
 use Tests\Support\ProcessCore\DetailFixtures;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
+use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
+use Tests\Support\ProcessCore\ProxymaUpgradeFixtures;
 
 pest()->group('acquisition-operations', 'platform-adapter-contracts');
 
@@ -563,6 +566,7 @@ test('конфигурация сбора поддерживает раздел�
     try {
         $definition = app(PlatformRegistry::class)->get(new PlatformCode('eis'));
         app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
 
         $pListing = $tx->run(fn () => $routes->storeProxy(
             null, new ProxyNodeConfiguration(
@@ -628,6 +632,7 @@ test('команда process:diagnose с флагом --proxy-budgets вывод
     try {
         $definition = app(PlatformRegistry::class)->get(new PlatformCode('eis'));
         app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
         $origin = $definition->sourceTargets->origins()[0];
         $targetId = (string) DB::table('prc_source_targets')
             ->where('platform_id', $profile->registry->platform_id)
@@ -651,6 +656,7 @@ test('команда process:diagnose с флагом --proxy-budgets вывод
         $r1 = (string) $p1->route_id;
         $r2 = (string) $p2->route_id;
         app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
 
         $tx->run(fn () => $routes->ensureProfile('eis-listing'));
         $tx->run(fn () => $routes->ensureProfile('eis-detail'));
@@ -659,42 +665,53 @@ test('команда process:diagnose с флагом --proxy-budgets вывод
         $tx->run(fn () => $routes->updateProfile('eis-listing', (int) $listingProf->policy_version, [$r1], $actor->id, 'bind listing', ProcessUuid::random(), ProcessUuid::random()));
         $tx->run(fn () => $routes->updateProfile('eis-detail', (int) $detailProf->policy_version, [$r2], $actor->id, 'bind detail', ProcessUuid::random(), ProcessUuid::random()));
 
-        // Записываем запрос 200 на r1 и запрос 403 + cooldown на r2
+        ProxymaUpgradeFixtures::package();
+        $tables = PackageSchema::tables();
+        DB::table($tables['targets'])->insert(['id' => $targetId, 'tenant_key' => 'system',
+            'target_key' => 'source:'.$targetId, 'canonical_origin' => $origin->value(), 'destination_policy_key' => 'default']);
+        DB::table($tables['route_profiles'])->insert(['id' => $detailProf->id, 'tenant_key' => 'system',
+            'profile_key' => 'eis-detail', 'strategy_key' => 'uniform_random']);
         $now = (new DateTimeImmutable)->format('Y-m-d H:i:s.uP');
-        $originBudgetId = (string) DB::table('prc_network_budgets')->where('scope_key', $origin->budgetScopeKey())->value('id');
-        foreach ([[$r1, 200, 1], [$r2, 403, 2]] as [$rid, $st, $seq]) {
-            $demandId = LedgerFixtures::uuid()->value;
-            $reqId = LedgerFixtures::uuid()->value;
-            DB::table('prc_network_demands')->insert([
-                'id' => $demandId, 'physical_request_id' => $reqId,
-                'operation_id' => $ctx->lease()->id->value, 'operation_generation' => 1, 'origin_budget_id' => $originBudgetId,
-                'route_id' => $rid, 'target_id' => $targetId, 'traffic_class' => 'detail', 'purpose' => 'ordinary',
-                'state' => 'granted', 'registered_at' => $now, 'renewed_at' => $now, 'expires_at' => $now,
-                'operation_deadline' => $ctx->lease()->deadlineAt,
-            ]);
-            DB::table('prc_request_attempts')->insert([
-                'request_id' => $reqId, 'demand_id' => $demandId, 'request_seq' => $seq,
-                'target_id' => $targetId, 'route_id' => $rid, 'started_at' => $now, 'sent_at' => $now,
-                'finished_at' => $now, 'phase' => 'finished', 'outcome' => 'response', 'status' => $st,
-                'epochs' => '{}', 'epochs_schema_version' => 1,
-            ]);
+        foreach ([[$r1, 200], [$r2, 403]] as [$rid, $status]) {
+            DB::table($tables['routes'])->insert(['id' => $rid, 'tenant_key' => 'system', 'route_key' => 'route:'.$rid,
+                'kind' => 'direct', 'egress_key' => 'nat:diagnostic']);
+            $operation = LedgerFixtures::uuid()->value;
+            $demand = LedgerFixtures::uuid()->value;
+            $permit = LedgerFixtures::uuid()->value;
+            $physical = LedgerFixtures::uuid()->value;
+            DB::table($tables['operations'])->insert(['id' => $operation, 'tenant_key' => 'system',
+                'profile_id' => $detailProf->id, 'target_id' => $targetId, 'owner_type' => 'outbound_operation',
+                'owner_id' => $ctx->lease()->id->value, 'owner_token' => $ctx->lease()->ownerToken->value,
+                'owner_generation' => 1, 'deadline' => DB::raw("clock_timestamp() + interval '1 minute'"), 'max_physical_attempts' => 1]);
+            DB::table($tables['demands'])->insert(['id' => $demand, 'tenant_key' => 'system',
+                'operation_id' => $operation, 'profile_id' => $detailProf->id, 'target_id' => $targetId,
+                'purpose' => 'normal', 'traffic_class' => 'detail', 'cost' => 1,
+                'deadline' => DB::raw("clock_timestamp() + interval '1 minute'")]);
+            DB::table($tables['permits'])->insert(['id' => $permit, 'tenant_key' => 'system', 'operation_id' => $operation,
+                'demand_id' => $demand, 'route_id' => $rid, 'target_id' => $targetId, 'physical_attempt_id' => $physical,
+                'wire_fingerprint' => str_repeat('a', 64), 'state' => 'completed', 'cost' => 1, 'not_before' => $now,
+                'expires_at' => DB::raw("clock_timestamp() + interval '1 minute'"), 'authorized_at' => $now,
+                'completed_at' => $now, 'claim_id' => LedgerFixtures::uuid()->value]);
+            DB::table($tables['attempts'])->insert(['id' => LedgerFixtures::uuid()->value, 'tenant_key' => 'system',
+                'operation_id' => $operation, 'permit_id' => $permit, 'physical_attempt_id' => $physical,
+                'wire_fingerprint' => str_repeat('a', 64), 'status' => 'completed', 'authorized_at' => $now,
+                'completed_at' => $now, 'snapshot' => '{}', 'result_summary' => json_encode(['status' => $status], JSON_THROW_ON_ERROR)]);
+            DB::table($tables['budgets'])->insert(['id' => LedgerFixtures::uuid()->value, 'tenant_key' => 'system',
+                'scope_key' => $origin->routeScopeKey($rid), 'emission_interval_us' => 1_000_000, 'burst' => 2,
+                'max_inflight' => 10, 'cooldown_until' => $status === 403 ? DB::raw("clock_timestamp() + interval '5 minutes'") : '-infinity']);
         }
-        DB::table('prc_network_budgets')
-            ->where('scope_key', $origin->routeScopeKey($r2))
-            ->update(['not_before' => DB::raw("clock_timestamp() + interval '5 minutes'")]);
+        $budgetsBefore = DB::table($tables['budgets'])->orderBy('id')->get()->all();
 
         $exit = Artisan::call('process:diagnose', ['platform' => 'eis', '--proxy-budgets' => true]);
         $output = Artisan::output();
 
         expect($exit)->toBe(0)
-            ->and($output)->toContain('Стадия listing: профиль=eis-listing')
-            ->and($output)->toContain('Стадия detail: профиль=eis-detail')
-            ->and($output)->toContain('rate_per_minute=60, emission_interval_us=1000000, burst=2, max_inflight=10')
-            ->and($output)->toContain('198.51.100.61:8081')
-            ->and($output)->toContain('198.51.100.62:8082')
-            ->and($output)->toContain('10000000')
-            ->and($output)->toContain('укладывается в бюджет')
-            ->and($output)->toContain('cooldown до');
+            ->and($output)->toContain('Network authority: Proxyma. Archive: explicit historical request reader.')
+            ->and($output)->toContain($origin->routeScopeKey($r1))
+            ->and($output)->toContain($origin->routeScopeKey($r2))
+            ->and($output)->toContain('1000000')
+            ->and(DB::table($tables['attempts'])->count())->toBe(2)
+            ->and(DB::table($tables['budgets'])->orderBy('id')->get()->all())->toEqual($budgetsBefore);
     } finally {
         DB::table('prc_proxies')->whereIn('service', ['diag-proxy-1', 'diag-proxy-2'])->delete();
         $profile->delete();

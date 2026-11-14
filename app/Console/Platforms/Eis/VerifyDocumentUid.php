@@ -13,7 +13,7 @@ use App\Services\Platforms\Eis\Card\DocumentsParser;
 use App\Services\Platforms\Eis\Card\EisCardUrlBuilder;
 use App\Services\Platforms\Eis\Diagnostics\DocumentUidHtmlParser;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
-use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -27,7 +27,7 @@ final class VerifyDocumentUid extends Command
     public function handle(
         EisCardUrlBuilder $urls,
         DocumentsParser $documents,
-        ProxyResolver $proxies,
+        ProfileResolver $proxies,
         LegacyOutbound $outbound,
         DocumentUidHtmlParser $parser = new DocumentUidHtmlParser,
     ): int {
@@ -158,7 +158,7 @@ final class VerifyDocumentUid extends Command
     }
 
     /** @return array{0: Response, 1: array{duration_ms: int, wait_ms: int, proxy_source: string|null}} */
-    private function request(Registry $registry, string $url, ProxyResolver $proxies, LegacyOutbound $outbound): array
+    private function request(Registry $registry, string $url, ProfileResolver $proxies, LegacyOutbound $outbound): array
     {
         $platform = $registry->platform()->firstOrFail();
         $startedAt = hrtime(true);

@@ -7,16 +7,12 @@ namespace Database\Factories\Platforms\Eis;
 use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Repositories\Procurement\Network\RouteRepository;
-use App\Services\Procurement\Network\OutboundPolicy;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Spatie\LaravelData\Data;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 
 /**
  * @extends Factory<Crawler>
@@ -67,34 +63,18 @@ final class EisCrawlerFactory extends Factory
     public function withoutProxy(): self
     {
         return $this->state(state: ['route_profile_id' => static function (): string {
-            $policy = app(OutboundPolicy::class);
-
-            return app(ProcessTransaction::class)->run(function () use ($policy): string {
-                $routes = app(RouteRepository::class);
-                $direct = $routes->ensureDirectRoute($policy->directEgressId, $policy->directIndependenceGroup);
-                $routes->ensureProfile('direct', $direct);
-
-                return $routes->profile(id: null, key: 'direct')->value;
-            });
+            return HistoricalNetworkFixtures::directProfile();
         }]);
     }
 
-    public function withProxies(Proxy ...$proxies): self
+    public function withProxies(object ...$proxies): self
     {
         if ($proxies === []) {
             throw new \InvalidArgumentException('Состоянию withProxies нужен хотя бы один узел.');
         }
 
         return $this->state(state: ['route_profile_id' => static function () use ($proxies): string {
-            return app(ProcessTransaction::class)->run(function () use ($proxies): string {
-                $id = (string) Str::uuid();
-                DB::table('prc_network_route_profiles')->insert(['id' => $id, 'profile_key' => 'fixture:'.$id, 'policy_version' => 1]);
-                foreach ($proxies as $proxy) {
-                    DB::table('prc_network_route_profile_members')->insert(['profile_id' => $id, 'route_id' => $proxy->route_id]);
-                }
-
-                return $id;
-            });
+            return app(ProcessTransaction::class)->run(static fn (): string => HistoricalNetworkFixtures::profileForProxies($proxies));
         }]);
     }
 }

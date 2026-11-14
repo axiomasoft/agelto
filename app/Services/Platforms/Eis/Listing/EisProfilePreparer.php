@@ -11,6 +11,7 @@ use App\Dto\Procurement\Acquisition\AcquisitionLaunch;
 use App\Dto\Procurement\Acquisition\ListingPlan;
 use App\Dto\Procurement\Acquisition\ListingTask;
 use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Enums\Procurement\Process\AcquisitionKind;
@@ -21,6 +22,7 @@ use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Platforms\Eis\EisListingPartitioner;
 use App\Services\Procurement\Acquisition\Contracts\AcquisitionProfilePreparer;
 use App\Services\Procurement\Network\OutboundPolicy;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 
 /** App integration role: reference catalogue reads precede the pure partition plan. */
 final readonly class EisProfilePreparer implements AcquisitionProfilePreparer
@@ -62,20 +64,14 @@ final readonly class EisProfilePreparer implements AcquisitionProfilePreparer
         $end = $through ?? ($kind === AcquisitionKind::Archive ? $filter->publishedTo?->toDateTimeImmutable() : null) ?? $now;
         $start = $initial->setTimezone($this->policy->sourceTimezone)->format('Y-m-d');
         $finish = $end->setTimezone($this->policy->sourceTimezone)->format('Y-m-d');
-        $route = $profile->route_profile_id === null
-            ? LedgerRow::one('SELECT id,profile_key,policy_version FROM prc_network_route_profiles WHERE profile_key=?', [$this->outbound->defaultRouteProfile])
-            : LedgerRow::one('SELECT id,profile_key,policy_version FROM prc_network_route_profiles WHERE id=?', [$profile->route_profile_id]);
+        $route = app(ProfileResolver::class)->snapshot($profile->route_profile_id === null ? null : new ProcessUuid($profile->route_profile_id));
         if ($route === null) {
             throw new \InvalidArgumentException('Configured route profile is absent.');
         }
         $stageProfiles = [];
         if ($profile->route_profile_id === null || $route->string('profile_key') === $this->outbound->defaultRouteProfile) {
             foreach ($this->policy->stageRouteProfiles as $stage => $profileKey) {
-                $stageRow = LedgerRow::one(
-                    'SELECT p.id, p.policy_version FROM prc_network_route_profiles p
-                     WHERE p.profile_key = ? AND EXISTS (SELECT 1 FROM prc_network_route_profile_members m WHERE m.profile_id = p.id)',
-                    [$profileKey],
-                );
+                $stageRow = app(ProfileResolver::class)->snapshot(key: $profileKey);
                 if ($stageRow !== null) {
                     $stageProfiles[$stage] = [
                         'route_profile_id' => $stageRow->string('id'),

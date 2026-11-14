@@ -195,6 +195,9 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_11_02_100001_create_llm_request_ledger.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_11_02_100002_create_llm_assets.php` | create | P3.12 | Canonical files/cache identity and fenced physical creation ownership; no paid runtime activation. |
 | `2026_11_07_100000_add_llm_send_eligibility_indexes.php` | create | P3.17 | Forward send-eligibility indexes for period reservation state and unknown logical request state. |
+| `2026_11_11_100000_create_prc_proxyma_adapter_links.php` | create | Proxyma:P9.2 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. |
+| `2026_11_11_100001_create_prc_proxyma_transfer_records.php` | create | Proxyma:P10.1 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. |
+| `2026_11_11_100002_add_prc_proxyma_cutover_fences.php` | alter | Proxyma:P10.2 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. |
 
 ### Legacy lifecycle
 
@@ -5925,6 +5928,196 @@ Constraints:
 Indexes:
 - `llm_context_caches_pkey`: `CREATE UNIQUE INDEX llm_context_caches_pkey ON public.llm_context_caches USING btree (id)`
 - `llm_context_caches_provider_id_account_id_api_surface_model_key`: `CREATE UNIQUE INDEX llm_context_caches_provider_id_account_id_api_surface_model_key ON public.llm_context_caches USING btree (provider_id, account_id, api_surface, model, system_hash, schema_tool_policy_hash, representation_hash, content_ordering_hash)`
+
+#### prc_proxyma_target_links
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| source_target_id | uuid / uuid | NO | uuid NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| source_revision | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_proxyma_target_links_pkey`: `PRIMARY KEY (source_target_id)`
+- `prc_proxyma_target_links_source_target_id_foreign`: `FOREIGN KEY (source_target_id) REFERENCES prc_source_targets(id)`
+- `prc_proxyma_target_links_valid`: `CHECK ((source_revision > 0))`
+- `prc_pxm_target_identity`: `UNIQUE (tenant_key, target_id)`
+
+Indexes:
+- `prc_proxyma_target_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_target_links_pkey ON public.prc_proxyma_target_links USING btree (source_target_id)`
+- `prc_pxm_target_identity`: `CREATE UNIQUE INDEX prc_pxm_target_identity ON public.prc_proxyma_target_links USING btree (tenant_key, target_id)`
+
+#### prc_proxyma_profile_links
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| source_profile_id | uuid / uuid | NO | uuid NOT NULL |
+| source_version | bigint / int8 | NO | bigint NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| profile_id | uuid / uuid | NO | uuid NOT NULL |
+| profile_version | bigint / int8 | NO | bigint NOT NULL |
+
+Constraints:
+- `prc_proxyma_profile_links_pkey`: `PRIMARY KEY (source_profile_id, source_version)`
+- `prc_proxyma_profile_links_source_profile_id_foreign`: `FOREIGN KEY (source_profile_id) REFERENCES prc_network_route_profiles(id)`
+- `prc_proxyma_profile_links_valid`: `CHECK (((source_version > 0) AND (profile_version > 0)))`
+- `prc_pxm_profile_identity`: `UNIQUE (tenant_key, profile_id, profile_version)`
+
+Indexes:
+- `prc_proxyma_profile_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_profile_links_pkey ON public.prc_proxyma_profile_links USING btree (source_profile_id, source_version)`
+- `prc_pxm_profile_identity`: `CREATE UNIQUE INDEX prc_pxm_profile_identity ON public.prc_proxyma_profile_links USING btree (tenant_key, profile_id, profile_version)`
+
+#### prc_proxyma_binding_links
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| crawler_id | bigint / int8 | NO | bigint NOT NULL |
+| slot | text / text | NO | text NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| binding_id | uuid / uuid | NO | uuid NOT NULL |
+
+Constraints:
+- `prc_proxyma_binding_links_crawler_id_foreign`: `FOREIGN KEY (crawler_id) REFERENCES prc_crawlers(id)`
+- `prc_proxyma_binding_links_pkey`: `PRIMARY KEY (crawler_id, slot)`
+- `prc_proxyma_binding_links_valid`: `CHECK ((slot = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'reference'::text, 'llm'::text])))`
+- `prc_pxm_binding_identity`: `UNIQUE (tenant_key, binding_id)`
+
+Indexes:
+- `prc_proxyma_binding_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_binding_links_pkey ON public.prc_proxyma_binding_links USING btree (crawler_id, slot)`
+- `prc_pxm_binding_identity`: `CREATE UNIQUE INDEX prc_pxm_binding_identity ON public.prc_proxyma_binding_links USING btree (tenant_key, binding_id)`
+
+#### prc_proxyma_owner_links
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| tenant_key | text / text | NO | text NOT NULL |
+| owner_type | text / text | NO | text NOT NULL |
+| owner_id | uuid / uuid | NO | uuid NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| parent_attempt_id | uuid / uuid | YES | uuid |
+
+Constraints:
+- `prc_proxyma_owner_links_parent_attempt_id_foreign`: `FOREIGN KEY (parent_attempt_id) REFERENCES prc_process_attempts(id)`
+- `prc_proxyma_owner_links_pkey`: `PRIMARY KEY (tenant_key, owner_type, owner_id, generation)`
+- `prc_proxyma_owner_links_valid`: `CHECK (((generation > 0) AND (owner_type = ANY (ARRAY['process_attempt'::text, 'outbound_operation'::text]))))`
+- `prc_pxm_owner_identity`: `UNIQUE (tenant_key, operation_id)`
+
+Indexes:
+- `prc_proxyma_owner_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_owner_links_pkey ON public.prc_proxyma_owner_links USING btree (tenant_key, owner_type, owner_id, generation)`
+- `prc_pxm_owner_identity`: `CREATE UNIQUE INDEX prc_pxm_owner_identity ON public.prc_proxyma_owner_links USING btree (tenant_key, operation_id)`
+
+#### prc_network_cutover_journals
+
+Owner: Services/Procurement/Proxyma; retention: journal.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| source_revision | text / text | NO | text NOT NULL |
+| target_revision | text / text | NO | text NOT NULL |
+| phase | text / text | NO | text NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| first_authorized_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
+| checkpoint | jsonb / jsonb | NO | jsonb DEFAULT '{}'::jsonb NOT NULL |
+
+Constraints:
+- `prc_network_cutover_journals_pkey`: `PRIMARY KEY (id)`
+- `prc_network_cutover_journals_valid`: `CHECK (((generation > 0) AND (phase = ANY (ARRAY['prepared'::text, 'draining'::text, 'verified'::text, 'switched'::text, 'accepted'::text]))))`
+- `prc_pxm_journal_identity`: `UNIQUE (source_revision, target_revision, generation)`
+
+Indexes:
+- `prc_network_cutover_journals_pkey`: `CREATE UNIQUE INDEX prc_network_cutover_journals_pkey ON public.prc_network_cutover_journals USING btree (id)`
+- `prc_pxm_journal_identity`: `CREATE UNIQUE INDEX prc_pxm_journal_identity ON public.prc_network_cutover_journals USING btree (source_revision, target_revision, generation)`
+
+#### prc_network_authorities
+
+Owner: Services/Procurement/Proxyma; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | text / text | NO | text NOT NULL |
+| authority | text / text | NO | text DEFAULT 'legacy'::text NOT NULL |
+| generation | bigint / int8 | NO | bigint NOT NULL |
+| cutover_id | uuid / uuid | YES | uuid |
+| paused | boolean / bool | NO | boolean DEFAULT false NOT NULL |
+| legacy_frozen | boolean / bool | NO | boolean DEFAULT false NOT NULL |
+
+Constraints:
+- `prc_network_authorities_cutover_id_foreign`: `FOREIGN KEY (cutover_id) REFERENCES prc_network_cutover_journals(id)`
+- `prc_network_authorities_pkey`: `PRIMARY KEY (id)`
+- `prc_network_authorities_valid`: `CHECK (((id = 'network'::text) AND (generation > 0) AND (authority = ANY (ARRAY['legacy'::text, 'proxyma'::text])) AND ((authority = 'legacy'::text) OR (cutover_id IS NOT NULL))))`
+
+Indexes:
+- `prc_network_authorities_pkey`: `CREATE UNIQUE INDEX prc_network_authorities_pkey ON public.prc_network_authorities USING btree (id)`
+
+#### prc_proxyma_endpoint_links
+
+Owner: Services/Procurement/Proxyma/Migration; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| proxy_id | bigint / int8 | NO | bigint NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| endpoint_id | uuid / uuid | NO | uuid NOT NULL |
+
+Constraints:
+- `prc_proxyma_endpoint_links_pkey`: `PRIMARY KEY (proxy_id)`
+- `prc_proxyma_endpoint_links_proxy_id_foreign`: `FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id)`
+- `prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique`: `UNIQUE (tenant_key, endpoint_id)`
+
+Indexes:
+- `prc_proxyma_endpoint_links_pkey`: `CREATE UNIQUE INDEX prc_proxyma_endpoint_links_pkey ON public.prc_proxyma_endpoint_links USING btree (proxy_id)`
+- `prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique`: `CREATE UNIQUE INDEX prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique ON public.prc_proxyma_endpoint_links USING btree (tenant_key, endpoint_id)`
+
+#### prc_proxyma_transfer_records
+
+Owner: Services/Procurement/Proxyma/Migration; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| target_table | text / text | NO | text NOT NULL |
+| target_key | text / text | NO | text NOT NULL |
+| cutover_id | uuid / uuid | NO | uuid NOT NULL |
+| identity | jsonb / jsonb | NO | jsonb NOT NULL |
+| imported | jsonb / jsonb | NO | jsonb NOT NULL |
+| checksum | character / bpchar | NO | character(64) NOT NULL |
+
+Constraints:
+- `prc_proxyma_transfer_records_check`: `CHECK (((checksum ~ '^[0-9a-f]{64}$'::text) AND (jsonb_typeof(identity) = 'object'::text) AND (jsonb_typeof(imported) = 'object'::text)))`
+- `prc_proxyma_transfer_records_cutover_id_foreign`: `FOREIGN KEY (cutover_id) REFERENCES prc_network_cutover_journals(id)`
+- `prc_proxyma_transfer_records_pkey`: `PRIMARY KEY (target_table, target_key)`
+
+Indexes:
+- `prc_proxyma_transfer_records_pkey`: `CREATE UNIQUE INDEX prc_proxyma_transfer_records_pkey ON public.prc_proxyma_transfer_records USING btree (target_table, target_key)`
+
+#### prc_proxyma_state_archive
+
+Owner: Services/Procurement/Proxyma/Migration; retention: authority.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| source_table | text / text | NO | text NOT NULL |
+| source_key | text / text | NO | text NOT NULL |
+| payload | jsonb / jsonb | NO | jsonb NOT NULL |
+| mapped_state | text / text | YES | text |
+| authorized_at | timestamp with time zone / timestamptz | YES | timestamp(0) with time zone |
+
+Constraints:
+- `prc_proxyma_state_archive_check`: `CHECK (((mapped_state IS NULL) OR ((mapped_state = ANY (ARRAY['cancelled_before_send'::text, 'expired_before_send'::text])) AND (authorized_at IS NULL)) OR ((mapped_state = ANY (ARRAY['completed'::text, 'unknown_after_authorization'::text])) AND (authorized_at IS NOT NULL))))`
+- `prc_proxyma_state_archive_pkey`: `PRIMARY KEY (source_table, source_key)`
+
+Indexes:
+- `prc_proxyma_state_archive_pkey`: `CREATE UNIQUE INDEX prc_proxyma_state_archive_pkey ON public.prc_proxyma_state_archive USING btree (source_table, source_key)`
 
 <!-- schema-inventory:end -->
 

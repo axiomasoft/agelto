@@ -44,7 +44,10 @@ SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Fea
                        "tests/Feature/ProcessCore/Platforms/PlatformUiRegistryTest.php"],
                "load": ["tests/Integration/ProcessCore/Load/LoadTest.php",
                         "tests/Integration/ProcessCore/Concurrency/AdmissionFairnessConcurrencyTest.php",
-                        "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"],
+                            "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php",
+                            "tests/Feature/ProcessCore/Network/ReplayDemandFifoTest.php",
+                            "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php",
+                            "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php"],
                "faults": ["tests/Integration/ProcessCore/Faults",
                           "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php",
                           "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
@@ -52,8 +55,11 @@ SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Fea
                           "tests/Integration/ProcessCore/Concurrency/FinalizeFenceConcurrencyTest.php",
                           "tests/Feature/ProcessCore/Execution/BlockedProviderRecoveryTest.php",
                           "tests/Feature/ProcessCore/Llm/ProviderRecoveryConcurrencyTest.php",
-                          "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php",
-                          "tests/Feature/ProcessCore/Network/NetworkDemandRecoveryTest.php",
+                          "tests/Feature/ProcessCore/Network/ReplayClaimSendFenceTest.php",
+                          "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+                          "tests/Feature/ProcessCore/Network/ReplaySealedWireTest.php",
+                          "tests/Feature/ProcessCore/Network/ReplayRecoveryLifecycleTest.php",
+                          "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php",
                           "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php",
                           "tests/Feature/ProcessCore/Observability/PostCommitSinksTest.php",
                           "tests/Feature/ProcessCore/Observability/ProjectionRetentionTest.php",
@@ -122,6 +128,12 @@ def validate_config(config):
                                 for part in source.relative_to(ROOT).parts), "credential/runtime bind")
         env = service.get("environment", {})
         if name in {"app", "horizon", "scheduler"}:
+            mounts = {m["target"]: m for m in service.get("volumes", [])}
+            for key in ("azguard", "proxyma"):
+                mount = mounts.get("/var/www/html/local/vendors/" + key, {})
+                require(mount.get("type") == "bind" and mount.get("read_only") is True
+                        and Path(mount.get("source", "")).resolve() == (RUNTIME_INPUTS / key).resolve(),
+                        "missing sanitized readonly vendor snapshot: " + key)
             required = {"APP_ENV": "testing", "PROCESS_CORE_TEST": "1", "DB_HOST": "core-postgres",
                         "DB_DATABASE": "agelto_test", "DB_USERNAME": "core_test", "DB_URL": "",
                         "REDIS_HOST": "core-redis", "REDIS_PREFIX": "agelto_core_test:",
@@ -334,48 +346,80 @@ def fixture_proof(folder):
     return proof
 
 
+def vendor_module():
+    spec = importlib.util.spec_from_file_location("vendor_manifest", ROOT / "docker/scripts/vendor_manifest.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def verify_snapshot(vendor, row, files):
+    require(vendor.is_dir() and not vendor.is_symlink(), "missing/unsafe dependency snapshot")
+    require(run(["git", "-C", vendor, "rev-parse", "HEAD"]).stdout.strip() == row["commit"],
+            "dependency Git anchor differs")
+    actual = {}
+    for path in vendor.rglob("*"):
+        relative = path.relative_to(vendor)
+        require(not path.is_symlink(), "snapshot contains a symlink")
+        if relative.parts[0] == ".git":
+            continue
+        if path.is_file():
+            actual[relative.as_posix()] = path.read_bytes()
+    require(actual == files, "exported dependency files differ or contain credentials")
+    config = run(["git", "-C", vendor, "config", "--local", "--name-only", "--list"]).stdout.splitlines()
+    require(set(config) <= {"core.repositoryformatversion", "core.filemode", "core.bare", "core.logallrefupdates",
+                           "core.sparsecheckout", "core.sparsecheckoutcone", "extensions.worktreeconfig",
+                           "remote.origin.url"}, "snapshot contains foreign Git configuration")
+    require(not (vendor / ".git/hooks").exists(), "snapshot contains Git hooks")
+    require(vendor_module().origin_matches(run(["git", "-C", vendor, "config", "--get", "remote.origin.url"]).stdout.strip(), row),
+            "snapshot origin differs")
+
+
 def prepare_metadata(folder):
-    """Export real shallow Git objects; never copy host config, hooks or credentials."""
-    verify_fixture_inputs()
-    manifest = json.loads((ROOT / "docker/private-vendors.lock.json").read_text())
-    checkout = ROOT / "local/vendors/azguard"
-    # This is the real read-only check, never vendor sync or a diagnostic fake.
+    """Export real shallow Git objects and only the exact allowlisted package payloads."""
+    inputs = verify_fixture_inputs()
+    module = vendor_module()
+    rows = module.load(ROOT / "docker/private-vendors.lock.json")
     run(["bash", ROOT / "docker/scripts/vendor-sync.sh", "--check"])
     head = run(["git", "rev-parse", "HEAD"]).stdout.strip()
-    expected = {"candidate_head": head, "dependency_commit": manifest["commit"],
-                "dependency_tree": run(["git", "-C", checkout, "rev-parse", manifest["commit"] + "^{tree}"]).stdout.strip()}
+    dependencies, payloads = {}, {}
+    for row in rows:
+        checkout = module.safe_checkout(ROOT, row)
+        files = module.package_files(checkout, row)
+        payloads[row["key"]] = files
+        dependencies[row["key"]] = {"commit": row["commit"], "packages": module.package_hashes(files, row)}
+    require(inputs.get("repositories") == dependencies, "runtime-input repository SHA/hashes differ from vendor lock")
+    expected = {"candidate_head": head, "dependencies": dependencies}
     require(not RUNTIME_INPUTS.is_symlink(), "runtime metadata root is a symlink")
     RUNTIME_INPUTS.mkdir(exist_ok=True)
     metadata = RUNTIME_INPUTS / "metadata.json"
     if metadata.exists():
-        require(json.loads(metadata.read_text()) == expected,
-                "stale runtime Git snapshot; remove it only after stopping the isolated runtime")
+        require(not metadata.is_symlink() and json.loads(metadata.read_text()) == expected,
+                "stale runtime Git snapshot; refresh only through the stopped isolated rig protocol")
     else:
-        # An incomplete export is rejected on the next call, rather than silently reused.
         candidate = RUNTIME_INPUTS / "candidate.git"
-        vendor = RUNTIME_INPUTS / "azguard"
-        require(not candidate.exists() and not vendor.exists(), "incomplete runtime Git snapshot")
+        require(not candidate.exists() and all(not (RUNTIME_INPUTS / r["key"]).exists() for r in rows),
+                "incomplete runtime Git snapshot")
         run(["git", "init", "--bare", "--template=", candidate])
         run(["git", "--git-dir", candidate, "fetch", "--no-tags", "--depth=1", "--no-write-fetch-head",
              ROOT, head + ":refs/heads/candidate"])
         run(["git", "--git-dir", candidate, "symbolic-ref", "HEAD", "refs/heads/candidate"])
-        run(["git", "init", "--template=", vendor])
-        run(["git", "-C", vendor, "fetch", "--no-tags", "--depth=1", "--no-write-fetch-head",
-             checkout, manifest["commit"] + ":refs/heads/pinned"])
-        run(["git", "-C", vendor, "sparse-checkout", "set", "--no-cone",
-             *["/" + package["path"] + "/" for package in manifest["packages"]]])
-        run(["git", "-C", vendor, "checkout", "--detach", manifest["commit"]])
-        repository = manifest["repository"]
-        run(["git", "-C", vendor, "config", "remote.origin.url",
-             f"https://{repository['host']}/{repository['path']}.git"])
+        for row in rows:
+            vendor = RUNTIME_INPUTS / row["key"]
+            run(["git", "init", "--template=", vendor])
+            run(["git", "-C", vendor, "fetch", "--no-tags", "--depth=1", "--no-write-fetch-head",
+                 ROOT / "local/vendors" / row["key"], row["commit"] + ":refs/heads/pinned"])
+            run(["git", "-C", vendor, "sparse-checkout", "set", "--no-cone",
+                 *["/" + p["path"] + "/" for p in row["packages"]]])
+            run(["git", "-C", vendor, "checkout", "--detach", row["commit"]])
+            run(["git", "-C", vendor, "config", "remote.origin.url",
+                 "https://github.com/" + row["repository"]["path"] + ".git"])
+            verify_snapshot(vendor, row, payloads[row["key"]])
         write_json(metadata, expected)
     require(run(["git", "--git-dir", RUNTIME_INPUTS / "candidate.git", "rev-parse", "HEAD"]).stdout.strip() == head,
             "candidate Git anchor differs")
-    require(run(["git", "-C", RUNTIME_INPUTS / "azguard", "rev-parse", "HEAD"]).stdout.strip() == manifest["commit"],
-            "dependency Git anchor differs")
-    require(not run(["git", "-C", RUNTIME_INPUTS / "azguard", "status", "--porcelain", "--untracked-files=all",
-                     "--", *[package["path"] for package in manifest["packages"]]]).stdout.strip(),
-            "exported dependency package differs")
+    for row in rows:
+        verify_snapshot(RUNTIME_INPUTS / row["key"], row, payloads[row["key"]])
     write_json(folder / "runtime-metadata.json", expected)
     return expected
 
@@ -739,6 +783,8 @@ def execute(command, name):
     try:
         if name == "load":
             result["width"] = load_width()  # Reject invalid input before reset or any mutation.
+        if name in {"install", "e2e", "faults", "load", "regression"} or command == "core-quality":
+            result["runtime"] = acceptance_runtime()
         if name in {"faults", "load", "reset", "install", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
             clock = install_clock()
             result["install_clock"] = clock
@@ -785,6 +831,49 @@ def execute(command, name):
     write_json(folder / "result.json", result)
     print(json.dumps({"exit": result["exit"], "evidence": str(folder.relative_to(ROOT))}))
     return result["exit"]
+
+
+def acceptance_runtime():
+    observed = identity()
+    configured = config_identity()["services"]
+    images = {service: inspect_json("image", configuration["image"])["Id"]
+              for service, configuration in configured.items() if service != "browser"}
+    for service, value in observed["services"].items():
+        expected = (inspect_json("image", configured[service]["image"])["Id"]
+                    if service == "browser" else images[service])
+        require(inspect_json("container", value["id"])["Image"] == expected,
+                "stale running acceptance image")
+    metadata = json.loads((RUNTIME_INPUTS / "metadata.json").read_text())
+    inputs = verify_fixture_inputs()
+    require(metadata["dependencies"] == inputs["repositories"], "stale acceptance runtime snapshot")
+    # Browser profile не участвует в общем runtime gates; созданный browser проверен выше.
+    app_image = images.get("app")
+    require(app_image and all(images[s] == app_image for s in ("horizon", "scheduler") if s in images),
+            "mixed worker/application images")
+    installed = compose("exec", "-T", "app", "php", "-r", r'''
+        $result = [];
+        foreach (['axiomasoft/proxyma', 'axiomasoft/proxyma-filament'] as $name) {
+            $base = '/var/www/html/vendor/'.$name;
+            if (!is_dir($base) || is_link($base)) { throw new RuntimeException('unsafe installed package'); }
+            $files = ['composer.json' => hash_file('sha256', $base.'/composer.json')];
+            foreach (['src', 'config', 'database', 'resources'] as $directory) {
+                if (!is_dir($base.'/'.$directory)) { continue; }
+                if (is_link($base.'/'.$directory)) { throw new RuntimeException('unsafe package directory'); }
+                foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(
+                    $base.'/'.$directory, FilesystemIterator::SKIP_DOTS)) as $file) {
+                    if ($file->isLink()) { throw new RuntimeException('unsafe package file'); }
+                    if ($file->isFile()) { $files[substr($file->getPathname(), strlen($base) + 1)] =
+                        hash_file('sha256', $file->getPathname()); }
+                }
+            }
+            ksort($files);
+            $result[$name] = $files;
+        }
+        echo json_encode($result, JSON_THROW_ON_ERROR);
+    ''')
+    return {"dependencies": metadata["dependencies"], "images": images,
+            "installed_packages": json.loads(installed.stdout),
+            "config_sha256": observed["config_sha256"]}
 
 
 if __name__ == "__main__":

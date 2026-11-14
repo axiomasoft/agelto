@@ -19,6 +19,7 @@ use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
 use App\Enums\Procurement\Network\DemandPurpose;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Repositories\Procurement\Process\LedgerRow;
+use App\Services\Procurement\Proxyma\CallerSendFacts;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -166,7 +167,9 @@ final readonly class AdapterHealthSqlHelper
                 "SELECT a.request_id FROM prc_request_attempts a JOIN prc_network_demands d ON d.id = a.demand_id
                  WHERE a.request_id = ? AND d.{$ownerColumn} = ? AND d.{$generationColumn} = ? AND a.finished_at IS NOT NULL",
                 [$id->value, $claim->ownerId->value, $context->lease()->generation],
-            ) === null) {
+            ) === null && ! CallerSendFacts::completed($id->value,
+                $claim->ownerKind === AdapterValidationOwnerKind::WorkAttempt ? 'process_attempt' : 'outbound_operation',
+                $claim->ownerId->value, $context->lease()->generation)) {
                 throw new \LogicException('Validation response belongs to another physical owner.');
             }
         }
@@ -201,12 +204,14 @@ final readonly class AdapterHealthSqlHelper
             'policy_version' => $policyVersion,
         ];
         $lastKey = array_key_last($requests) ?? throw new \LogicException('At least one physical request is required.');
+        // Package provenance уже проверена; legacy FK не может ссылаться на package attempt.
+        $legacyRequest = LedgerRow::one('SELECT request_id FROM prc_request_attempts WHERE request_id=?', [$requests[$lastKey]->value]);
         $inserted = DB::insert(
             "INSERT INTO prc_observations (observation_id, request_id, kind, reason_code, input_hash,
                 generation, epochs, epochs_schema_version, stale, details, details_schema_version, occurred_at)
              VALUES (?, ?, 'adapter_validation', ?, decode(?, 'hex'), ?, ?::jsonb, 1, ?, ?::jsonb, 1, ?)
              ON CONFLICT (observation_id) DO NOTHING",
-            [$claim->ownerId->value, $requests[$lastKey]->value,
+            [$claim->ownerId->value, $legacyRequest?->string('request_id'),
                 $inspection->checkCode, $input->hex, $context->lease()->generation, json_encode([$key => $claim->epoch], JSON_THROW_ON_ERROR),
                 $stale, json_encode($details, JSON_THROW_ON_ERROR), $now->format('Y-m-d H:i:s.uP')],
         );

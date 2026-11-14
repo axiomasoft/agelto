@@ -9,18 +9,20 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Models\Procurement\Crawler\Crawler;
+use App\Services\Procurement\Proxyma\ProfileBindings;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 
 /** Existing acquisition profiles point at canonical network route profiles. No proxy pivot owner. */
 final readonly class ProxyBindingResolver
 {
-    public function __construct(private ProxyResolver $routes) {}
+    public function __construct(private ProfileResolver $routes) {}
 
-    public function forCrawler(Crawler $crawler): RoutePolicy
+    public function forCrawler(Crawler $crawler): ProfileBindings
     {
         return $this->routes->profile($crawler->route_profile_id === null ? null : new ProcessUuid($crawler->route_profile_id));
     }
 
-    public function forProcurement(?int $procurementId): RoutePolicy
+    public function forProcurement(?int $procurementId): ProfileBindings
     {
         $crawlers = Crawler::query()
             ->join('prc_procurements', 'prc_procurements.registry_id', '=', 'prc_crawlers.registry_id')

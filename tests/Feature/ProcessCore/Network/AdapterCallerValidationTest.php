@@ -30,6 +30,7 @@ use Tests\Support\ProcessCore\Http\AcquisitionWireFixture;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 
 beforeEach(fn () => F::clean());
 afterEach(fn () => F::clean());
@@ -98,7 +99,7 @@ test('настоящая карточка проходит все вкладки
             ->and($details->value->snapshot->documents)->not->toBeEmpty()
             ->and($details->receipt->requestIds)->toHaveCount(4)
             ->and(DB::table('prc_outbound_operations')->count())->toBe(1)
-            ->and(DB::table('prc_network_permits')->where('state', 'released')->count())->toBe(4)
+            ->and(PackageNetworkFacts::permits()->where('state', 'released')->count())->toBe(4)
             ->and(DB::table('prc_adapter_health')->where('capability', 'detail')->sole()->state)->toBe('healthy')
             ->and($procurement->refresh()->getRawOriginal())->toBe($before);
     } finally {
@@ -138,7 +139,7 @@ test('process diagnose исполняет полный canary при acquisition
         $exit = Artisan::call('process:diagnose', ['platform' => 'eis', '--adapter' => 'detail', '--procurement-id' => (string) $procurement->id]);
         $this->assertSame(0, $exit, Artisan::output());
         expect($wire->receipts())->toHaveCount(4)
-            ->and(DB::table('prc_network_demands')->distinct()->pluck('traffic_class')->all())->toBe(['diagnostic'])
+            ->and(PackageNetworkFacts::demands()->distinct()->pluck('traffic_class')->all())->toBe(['diagnostic'])
             ->and(DB::table('prc_adapter_health')->where('capability', 'detail')->sole()->state)->toBe('healthy')
             ->and(DB::table('prc_control_scopes')->where('scope_key', 'acquisition')->value('desired_mode'))->toBe('paused')
             ->and(DB::table('prc_process_runs')->get()->toJson())->toBe($runsBefore)

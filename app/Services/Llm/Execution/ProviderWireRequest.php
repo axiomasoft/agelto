@@ -76,6 +76,16 @@ final readonly class ProviderWireRequest
     }
 
     /** @return array<string, string> */
+    public function preparedHeaders(#[\SensitiveParameter] string $apiKey): array
+    {
+        if ($apiKey === '' || preg_match('/[\r\n\x00]/', $apiKey) === 1) {
+            throw new \InvalidArgumentException('Invalid provider credential.');
+        }
+
+        return [...$this->headers, 'Content-Type' => $this->contentType, 'x-goog-api-key' => $apiKey];
+    }
+
+    /** @return array<string, string> */
     public function __debugInfo(): array
     {
         return ['fingerprint' => $this->fingerprint];

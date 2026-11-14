@@ -35,7 +35,8 @@ use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
-use Tests\Support\ProcessCore\Proxy\HealthFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
+use Tests\Support\ProcessCore\ProxymaFixtures;
 
 pest()->group('transport-and-work-budget', 'document-processing', 'document-storage-and-references');
 
@@ -60,8 +61,8 @@ test('два connection failures и success дают три физических
     expect($outcome)->toBeInstanceOf(StageSucceeded::class);
     $result = app(WorkFinalizer::class)->finish($context->lease(), $outcome);
     expect($result->state)->toBe(WorkState::Succeeded)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(3)
-        ->and(DB::table('prc_request_attempts')->where('outcome', 'response')->count())->toBe(1)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(3)
+        ->and(PackageNetworkFacts::attempts()->where('outcome', 'response')->count())->toBe(1)
         ->and(DB::table('prc_process_work')->where('id', $work->value->value)->value('item_failures'))->toBe(0)
         ->and($this->wire->receipts())->toHaveCount(3)
         ->and(DB::table('prc_document_versions')->count())->toBe(1)
@@ -74,7 +75,7 @@ test('truncated response и исчерпание retries откладывают 
     $outcome = $f->handler()->execute($input, $context);
     expect($outcome)->toBeInstanceOf(StageDeferred::class);
     expect(app(WorkFinalizer::class)->finish($context->lease(), $outcome)->state)->toBe(WorkState::Deferred)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(3)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(3)
         ->and(DB::table('prc_document_versions')->count())->toBe(0)
         ->and(DB::table('prc_process_work')->where('id', $work->value->value)->value('item_failures'))->toBe(0)
         ->and(DB::table('prc_storage_reservations')->whereNotIn('status', ['cleaned'])->count())->toBe(0);
@@ -144,6 +145,7 @@ test('source outage после bytes не отменяет готовый result
     [$input, $work, $context] = $f->running();
     $outcome = $f->handler()->execute($input, $context);
     $this->wire->stop();
+    ProxymaFixtures::resetAuthority();
     DB::table('prc_source_targets')->update(['retired_at' => DB::raw('clock_timestamp()')]);
     DB::table('prc_control_scopes')->where('scope_key', 'acquisition')->update(['desired_mode' => 'paused']);
     expect(app(WorkFinalizer::class)->finish($context->lease(), $outcome)->state)->toBe(WorkState::Succeeded);
@@ -160,7 +162,7 @@ test('signed reference обновляется один раз и повторн�
     expect($outcome)->toBeInstanceOf($success ? StageSucceeded::class : StageBlocked::class)
         ->and($f->access->refreshes)->toBe(1)
         ->and($this->wire->receipts())->toHaveCount(2)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(2);
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(2);
     app(WorkFinalizer::class)->finish($context->lease(), $outcome);
     expect(DB::table('prc_document_versions')->count())->toBe($success ? 1 : 0);
 })->with([true, false]);
@@ -172,7 +174,7 @@ test('две capacity reservations rollback вместе и отсутствие
     $outcome = $f->handler()->execute($input, $context);
     expect($outcome)->toBeInstanceOf(StageDeferred::class)
         ->and($this->wire->receipts())->toHaveCount(0)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(0)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(0)
         ->and(DB::table('prc_storage_reservations')->count())->toBe(0);
 });
 
@@ -220,27 +222,6 @@ test('два scheduler процесса выделяют один due intent б�
         ->and(DB::table('prc_operation_intents')->where('state', 'pending')->count())->toBe(1)
         ->and(DB::table('prc_documents')->where('id', $f->document->id)->value('acquisition_cycle_seq'))->toBe(2);
 });
-
-test('неработающий proxy меняется на разрешённый proxy а одиночный плохой route bounded без direct fallback', function (bool $alternate): void {
-    $this->wire->respond('/document', P32_PDF);
-    $f = new DownloadFixtures($this->wire);
-    $routes = new HealthFixtures($this->wire, $f->network);
-    $bad = $routes->proxy(1);
-    $bindings = [$bad];
-    if ($alternate) {
-        $bindings[] = $routes->proxy();
-    }
-    [$input, $work, $context] = $f->running();
-    $outcome = $f->handler($routes->gate($bindings))->execute($input, $context);
-    expect($outcome)->toBeInstanceOf($alternate ? StageSucceeded::class : StageDeferred::class);
-    app(WorkFinalizer::class)->finish($context->lease(), $outcome);
-    $requests = DB::table('prc_request_attempts')->orderBy('request_seq')->get();
-    expect($requests)->toHaveCount($alternate ? 2 : 3)
-        ->and($requests->first()->route_id)->toBe($bad->id->value)
-        ->and($requests->pluck('route_id')->unique()->count())->toBe($alternate ? 2 : 1)
-        ->and(DB::table('prc_process_work')->where('id', $work->value->value)->value('item_failures'))->toBe(0)
-        ->and(DB::table('prc_document_versions')->count())->toBe($alternate ? 1 : 0);
-})->with([true, false]);
 
 test('pause и handler hold до storage reservation сразу дают typed blocked без HTTP', function (bool $pause): void {
     $f = new DownloadFixtures($this->wire);

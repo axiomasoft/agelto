@@ -185,7 +185,18 @@
       "database/migrations/2026_10_08_100103_store_source_time_precision.php": "423c5b0cff5f8fb9fde8f78fd59833eafd0a44f3e5def1cbea1c9e4f572b5522",
       "database/migrations/2026_10_08_100104_catalog_raw_artifacts.php": "0d16e09c72d80ba20489da471fe81c7c61d0f6e74e0ac2e39593bbdb7b6c65ac",
       "database/migrations/2026_10_18_170000_add_eis_identity_to_org_organizations.php": "02b38af5253ef463032eb85c19b5a122f56d2d2a69091b2ae517c0dce678c381",
-      "database/migrations/2026_10_23_100000_create_org_organization_identifiers_table.php": "5a3321609cca1b6a2a98ce7f08f6316a4b60e4c65f49ba7da17315166bd941f3"
+      "database/migrations/2026_10_23_100000_create_org_organization_identifiers_table.php": "5a3321609cca1b6a2a98ce7f08f6316a4b60e4c65f49ba7da17315166bd941f3",
+      "database/migrations/2026_11_11_100000_create_prc_proxyma_adapter_links.php": "60601f5b771d7365e949d755b24f75eda4b9a570682ff61e60b2fcce5dd62610",
+      "app/Models/Procurement/Proxyma/BindingLink.php": "1e4b72c19c8474b803fca24b5ba7de9e45a1da25fa368200f2b02c360d7d19ea",
+      "app/Models/Procurement/Proxyma/CutoverJournal.php": "f1ed474c92aa9ff6921f7f52b58a917345c95674ed8ccd017b64230aec0159e1",
+      "app/Models/Procurement/Proxyma/NetworkAuthority.php": "832da158fcdfbdecc2d6d252bb082374568a5ae40681e84454f3d18842ccbf1b",
+      "app/Models/Procurement/Proxyma/OwnerLink.php": "51d5b62fccea5d763b1299d9f385f787a229c0273f44d117d124809b3d0baefc",
+      "app/Models/Procurement/Proxyma/ProfileLink.php": "17959a7c6dc0ef018c7c46dfdfe9189230ed5c4224f5b81c7e27fb249f636772",
+      "app/Models/Procurement/Proxyma/TargetLink.php": "1793484ae2e5e92378a64f3c44541791d5797e007a6f8437cba5cadae2b2bff1",
+      "app/Models/Procurement/Proxyma/EndpointLink.php": "a52ba6a12373452c2623f0fa65526aaf94ec73c9d9e7a94c6157c6e29e2ea9d1",
+      "app/Models/Procurement/Proxyma/StateArchive.php": "f61469240561255e88c7f6f4631fcdfec1dc9a03f0511818e337fb8190e9668f",
+      "app/Models/Procurement/Proxyma/TransferRecord.php": "f98139927c321c79e99f1813c8e288c679342b67ea2ac601717a444dceb04f3f",
+      "database/migrations/2026_11_11_100001_create_prc_proxyma_transfer_records.php": "e298deffbd8fb5c134da7728612b219686ec6f679694235f30df7478bcfb1a2f"
     },
     "note": "P4.3 evidence, not a P1.1 pass. All migration/model/partition-config input hashes matched before capture.",
     "amendments": [
@@ -391,6 +402,23 @@
       "schema_sha256": "44c676a6f73b7247bb28d53b10c2004a535a577fa3a7706f399d858123c3bfbd",
       "catalog_sha256": "c76f9fa8eb6951ef22974ef5c14e88d6e841d18a4d81b743650b0d55dc75d6d7",
       "note": "Canonical model/consumer/runtime cutover completed. Diagnostic capture is not acceptance or a clean install; two full isolated installs remain coordinator-owned."
+    },
+    "proxyma_adapter_schema": {
+      "item": "Proxyma:P9.2",
+      "kind": "forward_migration_declaration",
+      "note": "Additive Agelto link/selector/journal DDL. PostgreSQL catalog comparison remains the isolated conductor install check; this is not a captured install result."
+    },
+    "proxyma_transfer_schema": {
+      "item": "Proxyma:P10.1",
+      "kind": "isolated_forward_catalog_generation",
+      "source_revision": "f8828dc8d43fb14b8389daf10e1f81fd2e5ca62f",
+      "note": "Three new forward tables captured inside a rolled-back agelto_test transaction; no install acceptance claim."
+    },
+    "proxyma_runtime_removal": {
+      "item": "Proxyma:P10.3",
+      "ddl_changed": false,
+      "migration_compatibility": "Only 2026_07_04_100040 imports the historical Proxy; three additive migrations import explicit Legacy table carriers.",
+      "history": "Legacy network and request/FK tables retained read-only; physical removal deferred."
     }
   },
   "migrations": [
@@ -1020,6 +1048,30 @@
       "action": "create",
       "owner_item": "P3.17",
       "reason": "Forward send-eligibility indexes for period reservation state and unknown logical request state."
+    },
+    {
+      "path": "database/migrations/2026_11_11_100000_create_prc_proxyma_adapter_links.php",
+      "sha256": "95686223407ff2392f0d473afe5667db4ec8f80462cb5452efaf76c1e6cae642",
+      "action": "create",
+      "owner_item": "Proxyma:P9.2",
+      "reason": "P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained.",
+      "before_proxyma_runtime_removal_sha256": "60601f5b771d7365e949d755b24f75eda4b9a570682ff61e60b2fcce5dd62610"
+    },
+    {
+      "path": "database/migrations/2026_11_11_100001_create_prc_proxyma_transfer_records.php",
+      "sha256": "b4a98e952c757990f5e17a423f6429c1ca4bcf3eb099d52a98faf541a319dc49",
+      "action": "create",
+      "owner_item": "Proxyma:P10.1",
+      "reason": "P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained.",
+      "before_proxyma_runtime_removal_sha256": "e298deffbd8fb5c134da7728612b219686ec6f679694235f30df7478bcfb1a2f"
+    },
+    {
+      "path": "database/migrations/2026_11_11_100002_add_prc_proxyma_cutover_fences.php",
+      "sha256": "8f435062a161490282dc9d1b351492d7160c182c9fa690e4d0ceeff4bf8c7d6c",
+      "action": "alter",
+      "owner_item": "Proxyma:P10.2",
+      "reason": "P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained.",
+      "before_proxyma_runtime_removal_sha256": "d8ed66cf0b2ef548e92613119e1e7956ae5f2a86b749a844bbf4260efd4dd995"
     }
   ],
   "baseline": {
@@ -24629,6 +24681,865 @@
         ],
         "owner": "Services/Llm/Cache",
         "retention": "financial"
+      },
+      "prc_proxyma_target_links": {
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "source_target_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_proxyma_target_links",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "tenant_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_proxyma_target_links",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "target_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_proxyma_target_links",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "source_revision",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_proxyma_target_links",
+            "table_schema": "public",
+            "udt_name": "int8"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "PRIMARY KEY (source_target_id)",
+            "name": "prc_proxyma_target_links_pkey",
+            "schema": "public",
+            "table_name": "prc_proxyma_target_links",
+            "type": "p"
+          },
+          {
+            "definition": "FOREIGN KEY (source_target_id) REFERENCES prc_source_targets(id)",
+            "name": "prc_proxyma_target_links_source_target_id_foreign",
+            "schema": "public",
+            "table_name": "prc_proxyma_target_links",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK ((source_revision > 0))",
+            "name": "prc_proxyma_target_links_valid",
+            "schema": "public",
+            "table_name": "prc_proxyma_target_links",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (tenant_key, target_id)",
+            "name": "prc_pxm_target_identity",
+            "schema": "public",
+            "table_name": "prc_proxyma_target_links",
+            "type": "u"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_proxyma_target_links (\n    source_target_id uuid NOT NULL,\n    tenant_key text NOT NULL,\n    target_id uuid NOT NULL,\n    source_revision bigint NOT NULL,\n    CONSTRAINT prc_proxyma_target_links_valid CHECK ((source_revision > 0))\n);",
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_proxyma_target_links_pkey ON public.prc_proxyma_target_links USING btree (source_target_id)",
+            "indexname": "prc_proxyma_target_links_pkey",
+            "schemaname": "public",
+            "tablename": "prc_proxyma_target_links"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_pxm_target_identity ON public.prc_proxyma_target_links USING btree (tenant_key, target_id)",
+            "indexname": "prc_pxm_target_identity",
+            "schemaname": "public",
+            "tablename": "prc_proxyma_target_links"
+          }
+        ],
+        "owner": "Services/Procurement/Proxyma",
+        "retention": "authority"
+      },
+      "prc_proxyma_profile_links": {
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "source_profile_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_proxyma_profile_links",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "source_version",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_proxyma_profile_links",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "tenant_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_proxyma_profile_links",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "profile_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_proxyma_profile_links",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "profile_version",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_proxyma_profile_links",
+            "table_schema": "public",
+            "udt_name": "int8"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "PRIMARY KEY (source_profile_id, source_version)",
+            "name": "prc_proxyma_profile_links_pkey",
+            "schema": "public",
+            "table_name": "prc_proxyma_profile_links",
+            "type": "p"
+          },
+          {
+            "definition": "FOREIGN KEY (source_profile_id) REFERENCES prc_network_route_profiles(id)",
+            "name": "prc_proxyma_profile_links_source_profile_id_foreign",
+            "schema": "public",
+            "table_name": "prc_proxyma_profile_links",
+            "type": "f"
+          },
+          {
+            "definition": "CHECK (((source_version > 0) AND (profile_version > 0)))",
+            "name": "prc_proxyma_profile_links_valid",
+            "schema": "public",
+            "table_name": "prc_proxyma_profile_links",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (tenant_key, profile_id, profile_version)",
+            "name": "prc_pxm_profile_identity",
+            "schema": "public",
+            "table_name": "prc_proxyma_profile_links",
+            "type": "u"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_proxyma_profile_links (\n    source_profile_id uuid NOT NULL,\n    source_version bigint NOT NULL,\n    tenant_key text NOT NULL,\n    profile_id uuid NOT NULL,\n    profile_version bigint NOT NULL,\n    CONSTRAINT prc_proxyma_profile_links_valid CHECK (((source_version > 0) AND (profile_version > 0)))\n);",
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_proxyma_profile_links_pkey ON public.prc_proxyma_profile_links USING btree (source_profile_id, source_version)",
+            "indexname": "prc_proxyma_profile_links_pkey",
+            "schemaname": "public",
+            "tablename": "prc_proxyma_profile_links"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_pxm_profile_identity ON public.prc_proxyma_profile_links USING btree (tenant_key, profile_id, profile_version)",
+            "indexname": "prc_pxm_profile_identity",
+            "schemaname": "public",
+            "tablename": "prc_proxyma_profile_links"
+          }
+        ],
+        "owner": "Services/Procurement/Proxyma",
+        "retention": "authority"
+      },
+      "prc_proxyma_binding_links": {
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "crawler_id",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_proxyma_binding_links",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "slot",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_proxyma_binding_links",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "tenant_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_proxyma_binding_links",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "binding_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_proxyma_binding_links",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "FOREIGN KEY (crawler_id) REFERENCES prc_crawlers(id)",
+            "name": "prc_proxyma_binding_links_crawler_id_foreign",
+            "schema": "public",
+            "table_name": "prc_proxyma_binding_links",
+            "type": "f"
+          },
+          {
+            "definition": "PRIMARY KEY (crawler_id, slot)",
+            "name": "prc_proxyma_binding_links_pkey",
+            "schema": "public",
+            "table_name": "prc_proxyma_binding_links",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK ((slot = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'reference'::text, 'llm'::text])))",
+            "name": "prc_proxyma_binding_links_valid",
+            "schema": "public",
+            "table_name": "prc_proxyma_binding_links",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (tenant_key, binding_id)",
+            "name": "prc_pxm_binding_identity",
+            "schema": "public",
+            "table_name": "prc_proxyma_binding_links",
+            "type": "u"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_proxyma_binding_links (\n    crawler_id bigint NOT NULL,\n    slot text NOT NULL,\n    tenant_key text NOT NULL,\n    binding_id uuid NOT NULL,\n    CONSTRAINT prc_proxyma_binding_links_valid CHECK ((slot = ANY (ARRAY['listing'::text, 'detail'::text, 'status_refresh'::text, 'download'::text, 'reference'::text, 'llm'::text])))\n);",
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_proxyma_binding_links_pkey ON public.prc_proxyma_binding_links USING btree (crawler_id, slot)",
+            "indexname": "prc_proxyma_binding_links_pkey",
+            "schemaname": "public",
+            "tablename": "prc_proxyma_binding_links"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_pxm_binding_identity ON public.prc_proxyma_binding_links USING btree (tenant_key, binding_id)",
+            "indexname": "prc_pxm_binding_identity",
+            "schemaname": "public",
+            "tablename": "prc_proxyma_binding_links"
+          }
+        ],
+        "owner": "Services/Procurement/Proxyma",
+        "retention": "authority"
+      },
+      "prc_proxyma_owner_links": {
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "tenant_key",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_proxyma_owner_links",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "owner_type",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_proxyma_owner_links",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "owner_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_proxyma_owner_links",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_proxyma_owner_links",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "operation_id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_proxyma_owner_links",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "parent_attempt_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 6,
+            "table_name": "prc_proxyma_owner_links",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "FOREIGN KEY (parent_attempt_id) REFERENCES prc_process_attempts(id)",
+            "name": "prc_proxyma_owner_links_parent_attempt_id_foreign",
+            "schema": "public",
+            "table_name": "prc_proxyma_owner_links",
+            "type": "f"
+          },
+          {
+            "definition": "PRIMARY KEY (tenant_key, owner_type, owner_id, generation)",
+            "name": "prc_proxyma_owner_links_pkey",
+            "schema": "public",
+            "table_name": "prc_proxyma_owner_links",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK (((generation > 0) AND (owner_type = ANY (ARRAY['process_attempt'::text, 'outbound_operation'::text]))))",
+            "name": "prc_proxyma_owner_links_valid",
+            "schema": "public",
+            "table_name": "prc_proxyma_owner_links",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (tenant_key, operation_id)",
+            "name": "prc_pxm_owner_identity",
+            "schema": "public",
+            "table_name": "prc_proxyma_owner_links",
+            "type": "u"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_proxyma_owner_links (\n    tenant_key text NOT NULL,\n    owner_type text NOT NULL,\n    owner_id uuid NOT NULL,\n    generation bigint NOT NULL,\n    operation_id uuid NOT NULL,\n    parent_attempt_id uuid,\n    CONSTRAINT prc_proxyma_owner_links_valid CHECK (((generation > 0) AND (owner_type = ANY (ARRAY['process_attempt'::text, 'outbound_operation'::text]))))\n);",
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_proxyma_owner_links_pkey ON public.prc_proxyma_owner_links USING btree (tenant_key, owner_type, owner_id, generation)",
+            "indexname": "prc_proxyma_owner_links_pkey",
+            "schemaname": "public",
+            "tablename": "prc_proxyma_owner_links"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_pxm_owner_identity ON public.prc_proxyma_owner_links USING btree (tenant_key, operation_id)",
+            "indexname": "prc_pxm_owner_identity",
+            "schemaname": "public",
+            "tablename": "prc_proxyma_owner_links"
+          }
+        ],
+        "owner": "Services/Procurement/Proxyma",
+        "retention": "authority"
+      },
+      "prc_network_cutover_journals": {
+        "columns": [
+          {
+            "column_default": null,
+            "column_name": "id",
+            "data_type": "uuid",
+            "is_nullable": "NO",
+            "ordinal_position": 1,
+            "table_name": "prc_network_cutover_journals",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "source_revision",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 2,
+            "table_name": "prc_network_cutover_journals",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "target_revision",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 3,
+            "table_name": "prc_network_cutover_journals",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "phase",
+            "data_type": "text",
+            "is_nullable": "NO",
+            "ordinal_position": 4,
+            "table_name": "prc_network_cutover_journals",
+            "table_schema": "public",
+            "udt_name": "text"
+          },
+          {
+            "column_default": null,
+            "column_name": "generation",
+            "data_type": "bigint",
+            "is_nullable": "NO",
+            "ordinal_position": 5,
+            "table_name": "prc_network_cutover_journals",
+            "table_schema": "public",
+            "udt_name": "int8"
+          },
+          {
+            "column_default": null,
+            "column_name": "first_authorized_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 6,
+            "table_name": "prc_network_cutover_journals",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
+          },
+          {
+            "column_default": "'{}'::jsonb",
+            "column_name": "checkpoint",
+            "data_type": "jsonb",
+            "is_nullable": "NO",
+            "ordinal_position": 7,
+            "table_name": "prc_network_cutover_journals",
+            "table_schema": "public",
+            "udt_name": "jsonb"
+          }
+        ],
+        "constraints": [
+          {
+            "definition": "PRIMARY KEY (id)",
+            "name": "prc_network_cutover_journals_pkey",
+            "schema": "public",
+            "table_name": "prc_network_cutover_journals",
+            "type": "p"
+          },
+          {
+            "definition": "CHECK (((generation > 0) AND (phase = ANY (ARRAY['prepared'::text, 'draining'::text, 'verified'::text, 'switched'::text, 'accepted'::text]))))",
+            "name": "prc_network_cutover_journals_valid",
+            "schema": "public",
+            "table_name": "prc_network_cutover_journals",
+            "type": "c"
+          },
+          {
+            "definition": "UNIQUE (source_revision, target_revision, generation)",
+            "name": "prc_pxm_journal_identity",
+            "schema": "public",
+            "table_name": "prc_network_cutover_journals",
+            "type": "u"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_network_cutover_journals (\n    id uuid NOT NULL,\n    source_revision text NOT NULL,\n    target_revision text NOT NULL,\n    phase text NOT NULL,\n    generation bigint NOT NULL,\n    first_authorized_at timestamp(0) with time zone,\n    checkpoint jsonb DEFAULT '{}'::jsonb NOT NULL,\n    CONSTRAINT prc_network_cutover_journals_valid CHECK (((generation > 0) AND (phase = ANY (ARRAY['prepared'::text, 'draining'::text, 'verified'::text, 'switched'::text, 'accepted'::text]))))\n);",
+        "indexes": [
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_network_cutover_journals_pkey ON public.prc_network_cutover_journals USING btree (id)",
+            "indexname": "prc_network_cutover_journals_pkey",
+            "schemaname": "public",
+            "tablename": "prc_network_cutover_journals"
+          },
+          {
+            "indexdef": "CREATE UNIQUE INDEX prc_pxm_journal_identity ON public.prc_network_cutover_journals USING btree (source_revision, target_revision, generation)",
+            "indexname": "prc_pxm_journal_identity",
+            "schemaname": "public",
+            "tablename": "prc_network_cutover_journals"
+          }
+        ],
+        "owner": "Services/Procurement/Proxyma",
+        "retention": "journal"
+      },
+      "prc_network_authorities": {
+        "columns": [
+          {
+            "table_schema": "public",
+            "table_name": "prc_network_authorities",
+            "column_name": "id",
+            "ordinal_position": 1,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_network_authorities",
+            "column_name": "authority",
+            "ordinal_position": 2,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": "'legacy'::text"
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_network_authorities",
+            "column_name": "generation",
+            "ordinal_position": 3,
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_network_authorities",
+            "column_name": "cutover_id",
+            "ordinal_position": 4,
+            "data_type": "uuid",
+            "udt_name": "uuid",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_network_authorities",
+            "column_name": "paused",
+            "ordinal_position": 5,
+            "data_type": "boolean",
+            "udt_name": "bool",
+            "is_nullable": "NO",
+            "column_default": "false"
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_network_authorities",
+            "column_name": "legacy_frozen",
+            "ordinal_position": 6,
+            "data_type": "boolean",
+            "udt_name": "bool",
+            "is_nullable": "NO",
+            "column_default": "false"
+          }
+        ],
+        "constraints": [
+          {
+            "schema": "public",
+            "table_name": "prc_network_authorities",
+            "name": "prc_network_authorities_cutover_id_foreign",
+            "type": "f",
+            "definition": "FOREIGN KEY (cutover_id) REFERENCES prc_network_cutover_journals(id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_network_authorities",
+            "name": "prc_network_authorities_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_network_authorities",
+            "name": "prc_network_authorities_valid",
+            "type": "c",
+            "definition": "CHECK (((id = 'network'::text) AND (generation > 0) AND (authority = ANY (ARRAY['legacy'::text, 'proxyma'::text])) AND ((authority = 'legacy'::text) OR (cutover_id IS NOT NULL))))"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_network_authorities (\n    id text NOT NULL,\n    authority text DEFAULT 'legacy'::text NOT NULL,\n    generation bigint NOT NULL,\n    cutover_id uuid,\n    paused boolean DEFAULT false NOT NULL,\n    legacy_frozen boolean DEFAULT false NOT NULL,\n    CONSTRAINT prc_network_authorities_valid CHECK (((id = 'network'::text) AND (generation > 0) AND (authority = ANY (ARRAY['legacy'::text, 'proxyma'::text])) AND ((authority = 'legacy'::text) OR (cutover_id IS NOT NULL))))\n);",
+        "indexes": [
+          {
+            "schemaname": "public",
+            "tablename": "prc_network_authorities",
+            "indexname": "prc_network_authorities_pkey",
+            "indexdef": "CREATE UNIQUE INDEX prc_network_authorities_pkey ON public.prc_network_authorities USING btree (id)"
+          }
+        ],
+        "owner": "Services/Procurement/Proxyma",
+        "retention": "authority"
+      },
+      "prc_proxyma_endpoint_links": {
+        "owner": "Services/Procurement/Proxyma/Migration",
+        "retention": "authority",
+        "columns": [
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_endpoint_links",
+            "column_name": "proxy_id",
+            "ordinal_position": 1,
+            "data_type": "bigint",
+            "udt_name": "int8",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_endpoint_links",
+            "column_name": "tenant_key",
+            "ordinal_position": 2,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_endpoint_links",
+            "column_name": "endpoint_id",
+            "ordinal_position": 3,
+            "data_type": "uuid",
+            "udt_name": "uuid",
+            "is_nullable": "NO",
+            "column_default": null
+          }
+        ],
+        "constraints": [
+          {
+            "schema": "public",
+            "table_name": "prc_proxyma_endpoint_links",
+            "name": "prc_proxyma_endpoint_links_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (proxy_id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_proxyma_endpoint_links",
+            "name": "prc_proxyma_endpoint_links_proxy_id_foreign",
+            "type": "f",
+            "definition": "FOREIGN KEY (proxy_id) REFERENCES prc_proxies(id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_proxyma_endpoint_links",
+            "name": "prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique",
+            "type": "u",
+            "definition": "UNIQUE (tenant_key, endpoint_id)"
+          }
+        ],
+        "indexes": [
+          {
+            "schemaname": "public",
+            "tablename": "prc_proxyma_endpoint_links",
+            "indexname": "prc_proxyma_endpoint_links_pkey",
+            "indexdef": "CREATE UNIQUE INDEX prc_proxyma_endpoint_links_pkey ON public.prc_proxyma_endpoint_links USING btree (proxy_id)"
+          },
+          {
+            "schemaname": "public",
+            "tablename": "prc_proxyma_endpoint_links",
+            "indexname": "prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique",
+            "indexdef": "CREATE UNIQUE INDEX prc_proxyma_endpoint_links_tenant_key_endpoint_id_unique ON public.prc_proxyma_endpoint_links USING btree (tenant_key, endpoint_id)"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_proxyma_endpoint_links (\n    proxy_id bigint NOT NULL,\n    tenant_key text NOT NULL,\n    endpoint_id uuid NOT NULL\n);"
+      },
+      "prc_proxyma_transfer_records": {
+        "owner": "Services/Procurement/Proxyma/Migration",
+        "retention": "authority",
+        "columns": [
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_transfer_records",
+            "column_name": "target_table",
+            "ordinal_position": 1,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_transfer_records",
+            "column_name": "target_key",
+            "ordinal_position": 2,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_transfer_records",
+            "column_name": "cutover_id",
+            "ordinal_position": 3,
+            "data_type": "uuid",
+            "udt_name": "uuid",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_transfer_records",
+            "column_name": "identity",
+            "ordinal_position": 4,
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_transfer_records",
+            "column_name": "imported",
+            "ordinal_position": 5,
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_transfer_records",
+            "column_name": "checksum",
+            "ordinal_position": 6,
+            "data_type": "character",
+            "udt_name": "bpchar",
+            "is_nullable": "NO",
+            "column_default": null
+          }
+        ],
+        "constraints": [
+          {
+            "schema": "public",
+            "table_name": "prc_proxyma_transfer_records",
+            "name": "prc_proxyma_transfer_records_check",
+            "type": "c",
+            "definition": "CHECK (((checksum ~ '^[0-9a-f]{64}$'::text) AND (jsonb_typeof(identity) = 'object'::text) AND (jsonb_typeof(imported) = 'object'::text)))"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_proxyma_transfer_records",
+            "name": "prc_proxyma_transfer_records_cutover_id_foreign",
+            "type": "f",
+            "definition": "FOREIGN KEY (cutover_id) REFERENCES prc_network_cutover_journals(id)"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_proxyma_transfer_records",
+            "name": "prc_proxyma_transfer_records_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (target_table, target_key)"
+          }
+        ],
+        "indexes": [
+          {
+            "schemaname": "public",
+            "tablename": "prc_proxyma_transfer_records",
+            "indexname": "prc_proxyma_transfer_records_pkey",
+            "indexdef": "CREATE UNIQUE INDEX prc_proxyma_transfer_records_pkey ON public.prc_proxyma_transfer_records USING btree (target_table, target_key)"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_proxyma_transfer_records (\n    target_table text NOT NULL,\n    target_key text NOT NULL,\n    cutover_id uuid NOT NULL,\n    identity jsonb NOT NULL,\n    imported jsonb NOT NULL,\n    checksum character(64) NOT NULL,\n    CONSTRAINT prc_proxyma_transfer_records_check CHECK (((checksum ~ '^[0-9a-f]{64}$'::text) AND (jsonb_typeof(identity) = 'object'::text) AND (jsonb_typeof(imported) = 'object'::text)))\n);"
+      },
+      "prc_proxyma_state_archive": {
+        "owner": "Services/Procurement/Proxyma/Migration",
+        "retention": "authority",
+        "columns": [
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_state_archive",
+            "column_name": "source_table",
+            "ordinal_position": 1,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_state_archive",
+            "column_name": "source_key",
+            "ordinal_position": 2,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_state_archive",
+            "column_name": "payload",
+            "ordinal_position": 3,
+            "data_type": "jsonb",
+            "udt_name": "jsonb",
+            "is_nullable": "NO",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_state_archive",
+            "column_name": "mapped_state",
+            "ordinal_position": 4,
+            "data_type": "text",
+            "udt_name": "text",
+            "is_nullable": "YES",
+            "column_default": null
+          },
+          {
+            "table_schema": "public",
+            "table_name": "prc_proxyma_state_archive",
+            "column_name": "authorized_at",
+            "ordinal_position": 5,
+            "data_type": "timestamp with time zone",
+            "udt_name": "timestamptz",
+            "is_nullable": "YES",
+            "column_default": null
+          }
+        ],
+        "constraints": [
+          {
+            "schema": "public",
+            "table_name": "prc_proxyma_state_archive",
+            "name": "prc_proxyma_state_archive_check",
+            "type": "c",
+            "definition": "CHECK (((mapped_state IS NULL) OR ((mapped_state = ANY (ARRAY['cancelled_before_send'::text, 'expired_before_send'::text])) AND (authorized_at IS NULL)) OR ((mapped_state = ANY (ARRAY['completed'::text, 'unknown_after_authorization'::text])) AND (authorized_at IS NOT NULL))))"
+          },
+          {
+            "schema": "public",
+            "table_name": "prc_proxyma_state_archive",
+            "name": "prc_proxyma_state_archive_pkey",
+            "type": "p",
+            "definition": "PRIMARY KEY (source_table, source_key)"
+          }
+        ],
+        "indexes": [
+          {
+            "schemaname": "public",
+            "tablename": "prc_proxyma_state_archive",
+            "indexname": "prc_proxyma_state_archive_pkey",
+            "indexdef": "CREATE UNIQUE INDEX prc_proxyma_state_archive_pkey ON public.prc_proxyma_state_archive USING btree (source_table, source_key)"
+          }
+        ],
+        "definition": "CREATE TABLE public.prc_proxyma_state_archive (\n    source_table text NOT NULL,\n    source_key text NOT NULL,\n    payload jsonb NOT NULL,\n    mapped_state text,\n    authorized_at timestamp(0) with time zone,\n    CONSTRAINT prc_proxyma_state_archive_check CHECK (((mapped_state IS NULL) OR ((mapped_state = ANY (ARRAY['cancelled_before_send'::text, 'expired_before_send'::text])) AND (authorized_at IS NULL)) OR ((mapped_state = ANY (ARRAY['completed'::text, 'unknown_after_authorization'::text])) AND (authorized_at IS NOT NULL))))\n);"
       }
     }
   },

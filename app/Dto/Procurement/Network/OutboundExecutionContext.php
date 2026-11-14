@@ -82,6 +82,7 @@ final class OutboundExecutionContext
         return ! $this->lost && hrtime(true) + $needed->nanos() + 15_000_000_000 <= $this->deadlineNs;
     }
 
+    /** @throws OutboundOwnershipLost */
     public function tick(): void
     {
         $this->checkpoint?->__invoke();

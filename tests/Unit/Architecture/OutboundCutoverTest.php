@@ -58,7 +58,7 @@ test('acquisition callers не создают второй HTTP клиент и 
     $violations = [];
     foreach (['Services/Procurement', 'Services/Platforms'] as $directory) {
         foreach (File::allFiles(app_path($directory)) as $file) {
-            if ($file->getExtension() !== 'php' || in_array($file->getFilename(), ['HttpTransport.php', 'PinnedCurlHandler.php'], true)) {
+            if ($file->getExtension() !== 'php' || in_array($file->getFilename(), ['HttpTransport.php', 'PinnedCurlHandler.php', 'AgeltoPhysicalHttpTransport.php'], true)) {
                 continue;
             }
             $dependencies = PlatformSourceRules::inspect($file->getContents())['dependencies'];

@@ -201,34 +201,137 @@
         "target": "core-test-regression"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/CallerWireTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplaySealedWireTest.php",
         "group": "transport-and-work-budget",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/CallerWireTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
         "group": "transport-and-work-budget",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/CallerWireTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ProxymaCallerParityTest.php",
         "group": "transport-and-work-budget",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/CallerWireTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
         "group": "transport-and-work-budget",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/RouteHealthTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
         "group": "transport-and-work-budget",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/TerminalHttpEvidenceTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
         "group": "transport-and-work-budget",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthProjectionTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/RouteHealthTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/RouteHealthTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/RouteHealthTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/TerminalHttpEvidenceTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "group": "transport-and-work-budget",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/TerminalHttpEvidenceTest.php"
       }
     ],
     "T04": [
@@ -243,34 +346,130 @@
         "target": "core-test-regression"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
         "group": "network-route-policy",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/ProviderOwnershipTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
         "group": "network-route-policy",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
         "group": "network-route-policy",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ProxymaOwnerAdapterTest.php",
         "group": "network-route-policy",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ProviderOwnershipTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/RouteHealthTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayClaimSendFenceTest.php",
         "group": "network-route-policy",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ProviderOwnershipTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HealthReducerTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php",
         "group": "network-route-policy",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthProjectionTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/RouteHealthTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/RouteHealthTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/RouteHealthTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthProjectionTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HealthReducerTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php",
+        "group": "network-route-policy",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HealthReducerTest.php"
       }
     ],
     "T05": [
@@ -295,14 +494,46 @@
         "target": "core-test-regression"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php",
         "group": "network-admission-probes",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/ProbeOwnershipTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php",
         "group": "network-admission-probes",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "group": "network-admission-probes",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "group": "network-admission-probes",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "group": "network-admission-probes",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayProbeOwnershipTest.php",
+        "group": "network-admission-probes",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ProbeOwnershipTest.php"
       }
     ],
     "T06": [
@@ -337,14 +568,25 @@
         "target": "core-test-regression"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/ProbeOwnershipTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayProbeOwnershipTest.php",
         "group": "work-controls-and-fences",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ProbeOwnershipTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HealthReducerTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthProjectionTest.php",
         "group": "work-controls-and-fences",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HealthReducerTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php",
+        "group": "work-controls-and-fences",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HealthReducerTest.php"
       },
       {
         "file": "tests/Integration/ProcessCore/Concurrency/FinalizeFenceConcurrencyTest.php",
@@ -1127,14 +1369,60 @@
     ],
     "T21": [
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php",
         "group": "outbound-http-safety",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php",
         "group": "outbound-http-safety",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "group": "outbound-http-safety",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "group": "outbound-http-safety",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "group": "outbound-http-safety",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
+        "group": "outbound-http-safety",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
+        "group": "outbound-http-safety",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php",
+        "group": "outbound-http-safety",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
       }
     ],
     "T22": [
@@ -1311,19 +1599,67 @@
     ],
     "T23": [
       {
-        "file": "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php",
         "group": "quota-fair-queue",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php",
         "group": "quota-fair-queue",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php",
         "group": "quota-fair-queue",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDemandFifoTest.php",
+        "group": "quota-fair-queue",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php",
+        "group": "quota-fair-queue",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php",
+        "group": "quota-fair-queue",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayClaimSendFenceTest.php",
+        "group": "quota-fair-queue",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "group": "quota-fair-queue",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplaySealedWireTest.php",
+        "group": "quota-fair-queue",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php"
       }
     ],
     "T24": [
@@ -1350,14 +1686,60 @@
         "target": "core-test-regression"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php",
         "group": "execution-deadlines",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php",
         "group": "execution-deadlines",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "group": "execution-deadlines",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "group": "execution-deadlines",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "group": "execution-deadlines",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
+        "group": "execution-deadlines",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
+        "group": "execution-deadlines",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php",
+        "group": "execution-deadlines",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
       }
     ],
     "T26": [
@@ -1406,16 +1788,55 @@
     ],
     "T28": [
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php",
         "group": "response-bounds",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php",
+        "group": "response-bounds",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "group": "response-bounds",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "group": "response-bounds",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "group": "response-bounds",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
       }
     ],
     "T29": [
       {
-        "file": "tests/Feature/ProcessCore/Network/HealthReducerTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthProjectionTest.php",
         "group": "route-health",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HealthReducerTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php",
+        "group": "route-health",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HealthReducerTest.php"
       }
     ],
     "T30": [
@@ -1484,9 +1905,25 @@
     ],
     "T32": [
       {
-        "file": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
         "group": "legacy-ownership-cutover",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "group": "legacy-ownership-cutover",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
+        "group": "legacy-ownership-cutover",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php"
       },
       {
         "file": "tests/Feature/ProcessCore/Observability/FinalCutoverTest.php",
@@ -1523,14 +1960,46 @@
     ],
     "T34": [
       {
-        "file": "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php",
         "group": "bounded-network-demand",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php",
         "group": "bounded-network-demand",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php",
+        "group": "bounded-network-demand",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDemandFifoTest.php",
+        "group": "bounded-network-demand",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php",
+        "group": "bounded-network-demand",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php",
+        "group": "bounded-network-demand",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php"
       },
       {
         "file": "tests/Integration/ProcessCore/E2e/HorizonPipelineTest.php",
@@ -1595,14 +2064,39 @@
         "target": "core-test-regression"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php",
         "group": "provider-send-fencing",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php",
         "group": "provider-send-fencing",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayClaimSendFenceTest.php",
+        "group": "provider-send-fencing",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "group": "provider-send-fencing",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplaySealedWireTest.php",
+        "group": "provider-send-fencing",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php"
       },
       {
         "file": "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
@@ -1612,16 +2106,27 @@
     ],
     "T36": [
       {
-        "file": "tests/Feature/ProcessCore/Network/StatusCapacityQuotaTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayQuotaWindowTest.php",
         "group": "status-capacity-quota",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/StatusCapacityQuotaTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php",
+        "group": "status-capacity-quota",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/StatusCapacityQuotaTest.php"
       }
     ],
     "T37": [
       {
-        "file": "tests/Feature/ProcessCore/Network/NetworkReconcileCategoryTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayRecoveryLifecycleTest.php",
         "group": "network-demand-recovery",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/NetworkReconcileCategoryTest.php"
       },
       {
         "file": "tests/Feature/ProcessCore/Network/LegacyBridgeSchemaTest.php",
@@ -1629,9 +2134,18 @@
         "target": "core-test-regression"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/NetworkDemandRecoveryTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayRecoveryLifecycleTest.php",
         "group": "network-demand-recovery",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/NetworkDemandRecoveryTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php",
+        "group": "network-demand-recovery",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/NetworkDemandRecoveryTest.php"
       }
     ],
     "T38": [
@@ -1799,14 +2313,60 @@
     ],
     "T47": [
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpTransportTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php",
         "group": "response-decoding",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
       },
       {
-        "file": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php",
+        "file": "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php",
         "group": "response-decoding",
-        "target": "core-test-regression"
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "group": "response-decoding",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "group": "response-decoding",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "group": "response-decoding",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpTransportTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
+        "group": "response-decoding",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
+        "group": "response-decoding",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
+      },
+      {
+        "file": "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php",
+        "group": "response-decoding",
+        "target": "core-test-regression",
+        "group_mode": "contract_replay",
+        "replaces": "tests/Feature/ProcessCore/Network/HttpPolicyTest.php"
       },
       {
         "file": "tests/Feature/ProcessCore/Network/ResponseDecoderTest.php",
@@ -2174,7 +2734,7 @@
     },
     "tests/Feature/ProcessCore/Acquisition/WorkAdapterValidationTest.php": {
       "count": 11,
-      "names_sha256": "b4c08ba1d4f34b9e26fd8397a233dc614200275c241cc3b74298c4d95bb7276b"
+      "names_sha256": "e0d73637c50bba8eac980e242a39ed38750d2fd6bd66b1560cb22e186d93f07f"
     },
     "tests/Feature/ProcessCore/Acquisition/UnknownMappingConcurrencyTest.php": {
       "count": 1,
@@ -2197,8 +2757,8 @@
       "names_sha256": "358636229d7d42c84db52ff811d2460b3070f06dfc85262adfe0795293cb457a"
     },
     "tests/Feature/ProcessCore/Documents/DownloadRevalidationTest.php": {
-      "count": 22,
-      "names_sha256": "dfe54410a16884ef3c75bda29d8f8e370966e5fb88409991961fe203417e7dee"
+      "count": 20,
+      "names_sha256": "718e3e8110ed85b6946f1728965ad49a3db9ea43df9be984c754dd684f4b3605"
     },
     "tests/Feature/ProcessCore/Documents/DocumentAcceptanceTest.php": {
       "count": 9,
@@ -2209,8 +2769,8 @@
       "names_sha256": "54a3458ef80896c70e79d0de5e36a2cf3c201372e42006b9a23544e739d058b5"
     },
     "tests/Feature/ProcessCore/Documents/DocumentRuntimeTest.php": {
-      "count": 3,
-      "names_sha256": "242a0e7cf320e3bb5fa2cd83ee6dd909cfece33bf2a0f41f3c4fd8240d644065"
+      "count": 6,
+      "names_sha256": "3a9e9ebd56904b921dff6dea7d043a5b358056780031beab8c56e54a013ee378"
     },
     "tests/Feature/ProcessCore/Documents/DownloadPublicationFaultTest.php": {
       "count": 3,
@@ -2421,8 +2981,8 @@
       "names_sha256": "5ea2ddf1e355acd4c03904b20ef88cb40e98590e7aa2cfaf091e7b36dedd0c9e"
     },
     "tests/Feature/ProcessCore/Llm/BudgetLedgerTest.php": {
-      "count": 8,
-      "names_sha256": "952ce5dea0f3c6440fd139e8b7ccbb09873f918df1530928427dc016aebc9035"
+      "count": 9,
+      "names_sha256": "0782da4bb4f0aa2b58865b5f1ed4d1b52eed165ff382efe8de3434d76794a6e7"
     },
     "tests/Feature/ProcessCore/Network/AdapterAdmissionTest.php": {
       "count": 2,
@@ -2446,7 +3006,7 @@
     },
     "tests/Feature/ProcessCore/Network/AdapterSendFenceTest.php": {
       "count": 3,
-      "names_sha256": "fefc1562010c3ba6f5a99f698a24622cd3476594180f3c772a22cbbd7c85ce77"
+      "names_sha256": "d2c0cbdb4e6907506e4714a17e5a64742deb09f28fd16751d7f5a85e27e7806a"
     },
     "tests/Feature/ProcessCore/Network/CallerWireTest.php": {
       "count": 5,
@@ -2617,8 +3177,8 @@
       "names_sha256": "ac129857a4fe0bf57950034e80b9eaa68b709268e8393841a82f3c6a33c6080f"
     },
     "tests/Feature/ProcessCore/Platforms/SourceCatalogSyncTest.php": {
-      "count": 3,
-      "names_sha256": "e2a7144a337bb15db10f3b2b1c1833d1b4cde3f3b8dddc779107b8a509181db6"
+      "count": 2,
+      "names_sha256": "e9d0b2e2b8ba5012821ce52474020e57b229806a40262e1a6a4ed55f08071498"
     },
     "tests/Feature/ProcessCore/Platforms/PlatformUiRegistryTest.php": {
       "count": 3,
@@ -2677,8 +3237,16 @@
       "names_sha256": "4bc47cfdf96373633d47a39ae11d296a52512e9cde1b530ab53d6785f1a89105"
     },
     "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php": {
-      "count": 18,
-      "names_sha256": "6d2c11ecb6691b63803ac77bbd92c579125c5879461586674419e25b30696803"
+      "count": 29,
+      "names_sha256": "55ea3d2ee4211b44f32a43dcf09810a14a023a2c40d3dbe59836f845ebecf5b6"
+    },
+    "tests/Feature/ProcessCore/Documents/DownloadProxyFailoverTest.php": {
+      "count": 2,
+      "names_sha256": "a523f8422e38438206366a529a49eeed9d925d39ce4bdab87e1535bc0d6e7868"
+    },
+    "tests/Integration/ProcessCore/Concurrency/SourceCatalogRetirementTest.php": {
+      "count": 1,
+      "names_sha256": "61590195289891a8f2f371223cc52fc87fefac4f69f894c8c09c3956dafd69b0"
     },
     "tests/Integration/ProcessCore/Concurrency/CatalogConcurrencyTest.php": {
       "count": 1,
@@ -2733,8 +3301,8 @@
       "names_sha256": "3b16311a7cf27424a08dfa5ec79fd14cdca696da0147a8f6be1abc30e959532e"
     },
     "tests/Unit/Architecture/PlatformsDomainLayoutTest.php": {
-      "count": 11,
-      "names_sha256": "83fa9db5f789bb6bb8b203a9783ad5bfacb013d4c8c6d0fa69e20b3ee085127e"
+      "count": 12,
+      "names_sha256": "6bfbd5f58deb858dbe5b4149c04cbdf822e154cb8043e1ea80ccfa2f11a18bb8"
     },
     "tests/Unit/Architecture/ProcessCoreArchTest.php": {
       "count": 5,
@@ -2743,6 +3311,130 @@
     "tests/Unit/ProcessCore/SchemaContractTest.php": {
       "count": 10,
       "names_sha256": "befd652743f71174338db44b58b052836ad65b866679f0c0eac9a6fe81b12ae5"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaCallerParityTest.php": {
+      "count": 10,
+      "names_sha256": "259cd940caabf268f82112513c403f884d94a9d5dc0e6936de0e04350fa04688"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaCatalogAdapterTest.php": {
+      "count": 21,
+      "names_sha256": "e82ef8bc2eba1bd8d96b468529b83853ff3badb32bfdb340e77d6b756b556408"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaDataTransferTest.php": {
+      "count": 11,
+      "names_sha256": "7f821ddf9130814cfbb765e82f2b8e0c294a56ece71f5e79f310839a4cc2b949"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaOwnerAdapterTest.php": {
+      "count": 26,
+      "names_sha256": "49ead001ef255a429621903398e767ee4eaa10deac5139e592803fe1d45c6f2e"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaPopulatedUpgradeTest.php": {
+      "count": 2,
+      "names_sha256": "8fa4621277acc83f6aa373388d12bdcbc288172986798e4aa3ba9dcd6291b0bb"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaRollbackTest.php": {
+      "count": 4,
+      "names_sha256": "f1bbe54977ae8d15fccb307f8cb393999919bf7f52a10191b192d254483a2f2c"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaUiAuthorityTest.php": {
+      "count": 23,
+      "names_sha256": "fb0e53f1795a8c83d025a29c889b7947a06580bd88bae5fa192d2047c48ee257"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php": {
+      "count": 17,
+      "names_sha256": "8b8c320ebff936eaa9f555d5464998922da301d2817cbed6882667d86122fdcc"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php": {
+      "count": 5,
+      "names_sha256": "53810a33d9837b20a21a1ba7915ef03b86109bd62701dfed7d67b336cf923a25"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayCatalogCommandTest.php": {
+      "count": 9,
+      "names_sha256": "ce220a97a342ed038f4a4b31f60a91a9fb70c104dd337ae23bcb458ec38532d1"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayClaimSendFenceTest.php": {
+      "count": 6,
+      "names_sha256": "839036c552dd0ba992ded5258a26284acecec4616e937e9297da51c5b11cf76c"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php": {
+      "count": 13,
+      "names_sha256": "c223866cb1ac8952d9f50e9524ad8ee60f180c701a974864ba0936a14305769c"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayDemandFifoTest.php": {
+      "count": 4,
+      "names_sha256": "e6901f5b61ec75f392ed4256eceaa7181ec609897c1107290457a5716f3ba3f8"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php": {
+      "count": 21,
+      "names_sha256": "81d86c6a6c1607803d705c836591f453ae6a80eaa4ab2888cc7f649e30546dd4"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php": {
+      "count": 12,
+      "names_sha256": "31c6886cfa6cc694a8636c24da2afb566640a252b1d5d44f42de3e75d6ae8fc7"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php": {
+      "count": 33,
+      "names_sha256": "3a890aeacfb9e8d9e202683474ad7e60faacb400d28d3c6d962d6c928dfebdae"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php": {
+      "count": 5,
+      "names_sha256": "8d9835003daeda4752727bc909c928ece576978d67a7acc39171ea5ce7d58d7f"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php": {
+      "count": 5,
+      "names_sha256": "596db879406e256de4dfd28a13ec2ee584d0bef2c44cd5f21194aa90561027f3"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayHealthProjectionTest.php": {
+      "count": 31,
+      "names_sha256": "c0aba55ace838ce59ec9459514afcd747dc5eac37792a0a3d11901a4ca1d5ea4"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php": {
+      "count": 19,
+      "names_sha256": "206240f3e14966043a1882f3ef65f67d0513794724f412cbc1f677060888776c"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php": {
+      "count": 37,
+      "names_sha256": "beceaed6a6d8e8dad557eb3aed27934be6938854ea071b8b2ad99b4f1f84a79d"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayProbeOwnershipTest.php": {
+      "count": 15,
+      "names_sha256": "2d6a6b18cba7f510d8f74a1d0fea81ca4940f542bde5f281d499f4e5e66a4e98"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayQuotaWindowTest.php": {
+      "count": 25,
+      "names_sha256": "5cb35044845ede1d1cfeafdcaf4a6349b14fce337072a37ea028aaffbaa8c58c"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayRecoveryLifecycleTest.php": {
+      "count": 14,
+      "names_sha256": "fec07e20ae8322e612fe23b8872b8d951b64c55fe8584ec2064c5013263788a5"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php": {
+      "count": 6,
+      "names_sha256": "64865cb709964a62f43e99d44cb195596e80d63a5bbfadeb8ed2cd1ae0e32f8c"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayRouteSelectionTest.php": {
+      "count": 12,
+      "names_sha256": "1c622a8f12333811b245168124772ebd7b26d0c092e57d9c980c6eb6cc687c80"
+    },
+    "tests/Feature/ProcessCore/Network/ReplaySealedWireTest.php": {
+      "count": 34,
+      "names_sha256": "4f3d78025bda6afcc0ec9c1c2a31353e8ee84067f051460dd7fdc58a83ffe9d6"
+    },
+    "tests/Feature/ProcessCore/Network/ReplaySecretRotationTest.php": {
+      "count": 15,
+      "names_sha256": "691b6e68d7f0eb4a4e6c0c3db8d62e2aba0a6c00054d28219c9b94c2c7eaec74"
+    },
+    "tests/Feature/ProcessCore/Network/ReplaySelectionQueryBudgetTest.php": {
+      "count": 3,
+      "names_sha256": "2beaadd6a0597b8d758b4d13c1a417b5327f11cb66c1f6be45586d530faa7c26"
+    },
+    "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php": {
+      "count": 14,
+      "names_sha256": "8611ab618f58263040229f3ae230ed784476467cb4b8146aab7594e77e27f72f"
+    },
+    "tests/Integration/ProcessCore/Concurrency/ProxymaCutoverTest.php": {
+      "count": 12,
+      "names_sha256": "d2659387ee587ffbaa370935380155129028fb40e798f6b1d7526bb2d4698c6d"
     }
   },
   "gate_cases": {
@@ -2793,14 +3485,6 @@
         "count": 1,
         "names_sha256": "0972f7165164e56bb037c9e0e55c8d972d574e19a657404c4cf4c47ce7d4190e"
       },
-      "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php": {
-        "count": 26,
-        "names_sha256": "44d72669f30e5f2fb4f3dc5d3d53dc865b3ed1efa91dacbcce55c27bfc96b99b"
-      },
-      "tests/Feature/ProcessCore/Network/NetworkDemandRecoveryTest.php": {
-        "count": 6,
-        "names_sha256": "3341acd2d1c4c026e58dd4d24b7a0ca78df62c6e75626b365f8d6364c24bc7db"
-      },
       "tests/Feature/ProcessCore/Observability/PostCommitSinksTest.php": {
         "count": 9,
         "names_sha256": "3f6746fdf79ff7a67616bdc681bcba013ba5af8462e5efc1564ad72596716c61"
@@ -2822,8 +3506,8 @@
         "names_sha256": "0e128667dd3410f84ead39ba2a5100c0f53ba2aae9448ba9a374eb62b216b076"
       },
       "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php": {
-        "count": 18,
-        "names_sha256": "6d2c11ecb6691b63803ac77bbd92c579125c5879461586674419e25b30696803"
+        "count": 29,
+        "names_sha256": "55ea3d2ee4211b44f32a43dcf09810a14a023a2c40d3dbe59836f845ebecf5b6"
       },
       "tests/Integration/ProcessCore/Faults/RelayKillTest.php": {
         "count": 2,
@@ -2840,13 +3524,29 @@
       "tests/Integration/ProcessCore/Faults/PaidResponseKillTest.php": {
         "count": 2,
         "names_sha256": "09d81931093eb627bb6b93d144ff9596eb0123dcee030e216f59477013817b7b"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayClaimSendFenceTest.php": {
+        "count": 6,
+        "names_sha256": "839036c552dd0ba992ded5258a26284acecec4616e937e9297da51c5b11cf76c"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php": {
+        "count": 12,
+        "names_sha256": "31c6886cfa6cc694a8636c24da2afb566640a252b1d5d44f42de3e75d6ae8fc7"
+      },
+      "tests/Feature/ProcessCore/Network/ReplaySealedWireTest.php": {
+        "count": 34,
+        "names_sha256": "4f3d78025bda6afcc0ec9c1c2a31353e8ee84067f051460dd7fdc58a83ffe9d6"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayRecoveryLifecycleTest.php": {
+        "count": 14,
+        "names_sha256": "fec07e20ae8322e612fe23b8872b8d951b64c55fe8584ec2064c5013263788a5"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php": {
+        "count": 17,
+        "names_sha256": "8b8c320ebff936eaa9f555d5464998922da301d2817cbed6882667d86122fdcc"
       }
     },
     "V4": {
-      "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php": {
-        "count": 4,
-        "names_sha256": "a5a5cc4a867f637a5dae2ba7b34a26293f36df436cf0d31492f7539e0bf3b124"
-      },
       "tests/Integration/ProcessCore/Concurrency/AdmissionFairnessConcurrencyTest.php": {
         "count": 2,
         "names_sha256": "25a007d2ef3dbb16b5248c33d60929bc8dc1cf42f28fc0668736db57bed630bb"
@@ -2854,13 +3554,25 @@
       "tests/Integration/ProcessCore/Load/LoadTest.php": {
         "count": 1,
         "names_sha256": "2fa6d80c570bb52f4d6999313e77e8c8e3df36f5855c02abb27eff17bee6dabb"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php": {
+        "count": 17,
+        "names_sha256": "8b8c320ebff936eaa9f555d5464998922da301d2817cbed6882667d86122fdcc"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayDemandFifoTest.php": {
+        "count": 4,
+        "names_sha256": "e6901f5b61ec75f392ed4256eceaa7181ec609897c1107290457a5716f3ba3f8"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php": {
+        "count": 19,
+        "names_sha256": "206240f3e14966043a1882f3ef65f67d0513794724f412cbc1f677060888776c"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php": {
+        "count": 5,
+        "names_sha256": "8d9835003daeda4752727bc909c928ece576978d67a7acc39171ea5ce7d58d7f"
       }
     },
     "V5": {
-      "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php": {
-        "count": 4,
-        "names_sha256": "a5a5cc4a867f637a5dae2ba7b34a26293f36df436cf0d31492f7539e0bf3b124"
-      },
       "tests/Integration/ProcessCore/Concurrency/AdmissionFairnessConcurrencyTest.php": {
         "count": 2,
         "names_sha256": "25a007d2ef3dbb16b5248c33d60929bc8dc1cf42f28fc0668736db57bed630bb"
@@ -2868,12 +3580,28 @@
       "tests/Integration/ProcessCore/Load/LoadTest.php": {
         "count": 1,
         "names_sha256": "2fa6d80c570bb52f4d6999313e77e8c8e3df36f5855c02abb27eff17bee6dabb"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php": {
+        "count": 17,
+        "names_sha256": "8b8c320ebff936eaa9f555d5464998922da301d2817cbed6882667d86122fdcc"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayDemandFifoTest.php": {
+        "count": 4,
+        "names_sha256": "e6901f5b61ec75f392ed4256eceaa7181ec609897c1107290457a5716f3ba3f8"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php": {
+        "count": 19,
+        "names_sha256": "206240f3e14966043a1882f3ef65f67d0513794724f412cbc1f677060888776c"
+      },
+      "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php": {
+        "count": 5,
+        "names_sha256": "8d9835003daeda4752727bc909c928ece576978d67a7acc39171ea5ce7d58d7f"
       }
     }
   },
   "fixture_reuse": {
     "sha256": "61f2b0463acc5c12f454c227c48e17155f906ee41353b71c7cb371a953fdf058",
-    "without_report_contract_sha256": "0a439b219eb4eeefd66c5fce13408de26d3df050eb8ac7861dd2755c95f5b3fe"
+    "without_report_contract_sha256": "c0d569f4889246cd1d5fc5ab28cd8613f13a56ac4e9ea3a845c074abc7eb7aa8"
   },
   "scenario_group_names": {
     "T01": "ledger-authority",
@@ -2924,5 +3652,323 @@
     "T46": "platform-metrics-projection",
     "T47": "response-decoding",
     "T48": "platform-ui-boundary"
-  }
+  },
+  "replay_replacements": {
+    "tests/Feature/ProcessCore/Network/CallerWireTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__CallerWireTest.php.txt",
+      "source_sha256": "05110ff9c394666c3a00751ef0d0e56e96957197293c930a9295912a2bee85c0",
+      "original_cases": {
+        "count": 5,
+        "names_sha256": "615b8bc1fcb3c074761364d8072a76555fce2624c3c6e6d971fc9fcaf6978cf0"
+      },
+      "groups": [
+        "transport-and-work-budget"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplaySealedWireTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "tests/Feature/ProcessCore/Network/ProxymaCallerParityTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/LegacyOutboundClientTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__LegacyOutboundClientTest.php.txt",
+      "source_sha256": "8156474f3f66095eb2da75fcba5a5ef177dd1173efa8930d5d7983719b6b94b5",
+      "original_cases": {
+        "count": 11,
+        "names_sha256": "77a06be0c6f03cb2d6978a211beaad30684eecd4b53b45264655b600c02d808b"
+      },
+      "groups": [
+        "transport-and-work-budget",
+        "network-route-policy",
+        "legacy-ownership-cutover"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/HttpTransportTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__HttpTransportTest.php.txt",
+      "source_sha256": "2ff8102b0ccc77b89c9d23af2400a3ce47cf1c4dfc86db1e5256b1ca73bb47e4",
+      "original_cases": {
+        "count": 12,
+        "names_sha256": "7a83683a972d482b3ff2f887e91bca51217856d485d1881cbc6f8e4a68004416"
+      },
+      "groups": [
+        "transport-and-work-budget",
+        "network-route-policy",
+        "network-admission-probes",
+        "outbound-http-safety",
+        "execution-deadlines",
+        "response-bounds",
+        "response-decoding"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayPhysicalTransportTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayTlsPolicyTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayDestinationPolicyTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/HttpPolicyTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__HttpPolicyTest.php.txt",
+      "source_sha256": "91708467ad0be0fb585782a660c7c592360251fc4c8cde5fc961f02e7b91aa02",
+      "original_cases": {
+        "count": 14,
+        "names_sha256": "6e0db079e01cee3228184996af717469d3b9c31a9784ff61d36633c015685f1a"
+      },
+      "groups": [
+        "transport-and-work-budget",
+        "network-route-policy",
+        "outbound-http-safety",
+        "execution-deadlines",
+        "response-decoding"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayRedirectPolicyTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/RouteHealthTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__RouteHealthTest.php.txt",
+      "source_sha256": "cf988f1d89f48d86aa3db2e55d976e813c96a0563e83c3899b2cb299f036cf06",
+      "original_cases": {
+        "count": 8,
+        "names_sha256": "354f977f6e3ada7a1215edd55bb1b20356bb4da48ab8efa338fdca6662677449"
+      },
+      "groups": [
+        "transport-and-work-budget",
+        "network-route-policy"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayHealthProjectionTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayCooldownSnapshotTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/TerminalHttpEvidenceTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__TerminalHttpEvidenceTest.php.txt",
+      "source_sha256": "06f1c4c4fa52f20c7ed6c6534e26eed0e63986e3036f21202b05e533aa3f88c7",
+      "original_cases": {
+        "count": 2,
+        "names_sha256": "773e5cb60a9c82f0543b55f1cfde00f844a20237762e522e57ba30302e63271a"
+      },
+      "groups": [
+        "transport-and-work-budget"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayBoundedResponseTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/ProviderOwnershipTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__ProviderOwnershipTest.php.txt",
+      "source_sha256": "8429428e664472fc720bda4c646b66698f959b6063cc9ca9ddeb2e5b0d156d0f",
+      "original_cases": {
+        "count": 8,
+        "names_sha256": "ed4e9cdc8ce399d61741506a8e3ce2196dcb0badbf7bc4cf8af790b703edfbeb"
+      },
+      "groups": [
+        "network-route-policy"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ProxymaOwnerAdapterTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayClaimSendFenceTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/HealthReducerTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__HealthReducerTest.php.txt",
+      "source_sha256": "a75956bcb79f85e21abc95eab3cc041fbde009fd44e7b090d06d1e87f0489a8a",
+      "original_cases": {
+        "count": 23,
+        "names_sha256": "e4b111ea0570e2f89ccd495f6c2058d96d45b2833d13985cd0152e31870a5c7f"
+      },
+      "groups": [
+        "network-route-policy",
+        "work-controls-and-fences",
+        "route-health"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayHealthProjectionTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayHealthCompletionTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/ProbeOwnershipTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__ProbeOwnershipTest.php.txt",
+      "source_sha256": "cd20d8e89ce5a397cfc314767d6cd833ead2547617ee1d4be7f4be7b50d78ad0",
+      "original_cases": {
+        "count": 5,
+        "names_sha256": "5bdc82ed569ad0cb64cc8b6d26eda20e66fcde3436d906aeb5a198f33375b19b"
+      },
+      "groups": [
+        "network-admission-probes",
+        "work-controls-and-fences"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayProbeOwnershipTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/GcraConcurrencyTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__GcraConcurrencyTest.php.txt",
+      "source_sha256": "5541601c2050dd26d3a1e2c474e3378c0f1d58da92722e3f42018c02f04fc1fa",
+      "original_cases": {
+        "count": 2,
+        "names_sha256": "764a492f5127f2110a6bfd9a91fbfeff99c9aef7b3840ce714e9cca4d4c65e0e"
+      },
+      "groups": [
+        "quota-fair-queue",
+        "bounded-network-demand",
+        "provider-send-fencing"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/BoundedFifoDemandTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__BoundedFifoDemandTest.php.txt",
+      "source_sha256": "154d0f60414e6bcd36eb022a8058a65b418dc88e69f34e381b9d8d4bfcb858f7",
+      "original_cases": {
+        "count": 4,
+        "names_sha256": "a5a5cc4a867f637a5dae2ba7b34a26293f36df436cf0d31492f7539e0bf3b124"
+      },
+      "groups": [
+        "quota-fair-queue",
+        "bounded-network-demand"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayDemandFifoTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayGcraReservationTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/ClaimSendFenceTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__ClaimSendFenceTest.php.txt",
+      "source_sha256": "da6856c9c48e9a3c6ea53342b45dd1a8427b0920805f6fbecd2e3d31ac2ca205",
+      "original_cases": {
+        "count": 26,
+        "names_sha256": "44d72669f30e5f2fb4f3dc5d3d53dc865b3ed1efa91dacbcce55c27bfc96b99b"
+      },
+      "groups": [
+        "quota-fair-queue",
+        "provider-send-fencing"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayClaimSendFenceTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayDispatchDeadlineTest.php",
+        "tests/Feature/ProcessCore/Network/ReplaySealedWireTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/StatusCapacityQuotaTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__StatusCapacityQuotaTest.php.txt",
+      "source_sha256": "f6da508279f6dab2c178ea831b9d7681c985c9346832516dc84530601e0edde6",
+      "original_cases": {
+        "count": 3,
+        "names_sha256": "6617fe8bd6bfefc2da58ebcb994fb48096fd9de2ee302043769b63d7b76bc06f"
+      },
+      "groups": [
+        "status-capacity-quota"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayQuotaWindowTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayMultiScopeReservationTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/NetworkReconcileCategoryTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__NetworkReconcileCategoryTest.php.txt",
+      "source_sha256": "f8e86f662b7f85c2be4f2c3228b6f5a5ad5a62e323c9990ed3e12e580e68f6ff",
+      "original_cases": {
+        "count": 1,
+        "names_sha256": "b513a3f542562fa0665f82dadaa07ef2a7a05b5c72208afbd1f79772cb358d2a"
+      },
+      "groups": [
+        "network-demand-recovery"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayRecoveryLifecycleTest.php"
+      ]
+    },
+    "tests/Feature/ProcessCore/Network/NetworkDemandRecoveryTest.php": {
+      "archive": "tests/Fixtures/ProcessCore/RetiredNetwork/tests__Feature__ProcessCore__Network__NetworkDemandRecoveryTest.php.txt",
+      "source_sha256": "df4e6c7ce6ca7ce0202d62e16468bb1fd6f78cb2dc8499f1fe3fe1fea045a955",
+      "original_cases": {
+        "count": 6,
+        "names_sha256": "3341acd2d1c4c026e58dd4d24b7a0ca78df62c6e75626b365f8d6364c24bc7db"
+      },
+      "groups": [
+        "network-demand-recovery"
+      ],
+      "files": [
+        "tests/Feature/ProcessCore/Network/ReplayRecoveryLifecycleTest.php",
+        "tests/Feature/ProcessCore/Network/ReplayBoundedDemandTest.php"
+      ]
+    }
+  },
+  "integration_cases": {
+    "tests/Feature/ProcessCore/Network/DownloadSendAccountingTest.php": {
+      "count": 7,
+      "names_sha256": "835007b00cc40af45e49920a89716a3e6fed8d1f9bee038f7c62d2bbf0d21dc7"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaCallerParityTest.php": {
+      "count": 10,
+      "names_sha256": "259cd940caabf268f82112513c403f884d94a9d5dc0e6936de0e04350fa04688"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaCatalogAdapterTest.php": {
+      "count": 21,
+      "names_sha256": "e82ef8bc2eba1bd8d96b468529b83853ff3badb32bfdb340e77d6b756b556408"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaDataTransferTest.php": {
+      "count": 11,
+      "names_sha256": "7f821ddf9130814cfbb765e82f2b8e0c294a56ece71f5e79f310839a4cc2b949"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaOwnerAdapterTest.php": {
+      "count": 26,
+      "names_sha256": "49ead001ef255a429621903398e767ee4eaa10deac5139e592803fe1d45c6f2e"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaPopulatedUpgradeTest.php": {
+      "count": 2,
+      "names_sha256": "8fa4621277acc83f6aa373388d12bdcbc288172986798e4aa3ba9dcd6291b0bb"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaRollbackTest.php": {
+      "count": 4,
+      "names_sha256": "f1bbe54977ae8d15fccb307f8cb393999919bf7f52a10191b192d254483a2f2c"
+    },
+    "tests/Feature/ProcessCore/Network/ProxymaUiAuthorityTest.php": {
+      "count": 23,
+      "names_sha256": "fb0e53f1795a8c83d025a29c889b7947a06580bd88bae5fa192d2047c48ee257"
+    },
+    "tests/Integration/ProcessCore/Concurrency/ProxymaCutoverTest.php": {
+      "count": 12,
+      "names_sha256": "d2659387ee587ffbaa370935380155129028fb40e798f6b1d7526bb2d4698c6d"
+    },
+    "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php": {
+      "count": 29,
+      "names_sha256": "55ea3d2ee4211b44f32a43dcf09810a14a023a2c40d3dbe59836f845ebecf5b6"
+    },
+    "tests/Feature/ProcessCore/Documents/DownloadProxyFailoverTest.php": {
+      "count": 2,
+      "names_sha256": "a523f8422e38438206366a529a49eeed9d925d39ce4bdab87e1535bc0d6e7868"
+    },
+    "tests/Integration/ProcessCore/Concurrency/SourceCatalogRetirementTest.php": {
+      "count": 1,
+      "names_sha256": "61590195289891a8f2f371223cc52fc87fefac4f69f894c8c09c3956dafd69b0"
+    },
+    "tests/Feature/ProcessCore/Network/PackageNetworkFactsTest.php": {
+      "count": 1,
+      "names_sha256": "5acc2ec88fbc2331e839fad91df2f576d5efb15789ac9c4ce94dd6613b971e45"
+    },
+    "tests/Feature/ProcessCore/Documents/DocumentRuntimeTest.php": {
+      "count": 6,
+      "names_sha256": "3a9e9ebd56904b921dff6dea7d043a5b358056780031beab8c56e54a013ee378"
+    },
+    "tests/Unit/ProcessCore/ProxymaOwnershipBoundaryTest.php": {
+      "count": 19,
+      "names_sha256": "f92ffde646875bf655ec75c0270c29056fa597ea3c662c47acb3e5e378552090"
+    }
+  },
+  "installed_proxyma": true
 }

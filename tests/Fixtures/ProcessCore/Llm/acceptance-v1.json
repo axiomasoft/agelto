@@ -1,7 +1,7 @@
 {
   "format": "structured-ai-acceptance/v1",
   "captured_at": "2026-11-03",
-  "contract_hashes_refreshed_at": "2026-11-07",
+  "contract_hashes_refreshed_at": "2026-11-11",
   "provenance": "Synthetic orchestration contracts and existing legacy eval inventory; expectations hand-authored, hashes computed from versioned bytes; no paid model invocation or source-original verification. Current contract hashes refreshed after bounded receipt-envelope, recovery-batch and cancelled running-send receipt settlement fixes with their regression tests; original capture date and legacy eval inventory retained.",
   "quality": {
     "status": "not_measured",
@@ -50,7 +50,7 @@
   "inputs": [
     {
       "path": "docker/compose.core-test.yml",
-      "sha256": "08428fb40e87961c2fcd0ecbcf5aa25f489b082bd8da186d116ebe0221afa709",
+      "sha256": "997d12eb49bb43f4044c8d284eca9a7a7012be47cbd31002b9fb26a132dfbc46",
       "original_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111",
       "before_polish_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111"
     },
@@ -298,12 +298,14 @@
     },
     {
       "path": "app/Services/Procurement/Extraction/AnalysisGeneration.php",
-      "sha256": "c7ba0f37f37c8b8651714fd5bcad90489eda8826afeff0459509bf143b792134"
+      "sha256": "0670dfd6820a96da764f58dcb100b800c14cc30b70327004d365bcb961a12b98",
+      "before_proxyma_runtime_removal_sha256": "c7ba0f37f37c8b8651714fd5bcad90489eda8826afeff0459509bf143b792134"
     },
     {
       "path": "app/Services/Procurement/Extraction/AnalysisProviderSendGate.php",
-      "sha256": "e24b58475dd1b5fb5267799bbee25904cecfa36635cab91e9379f1780a2fbde9",
-      "original_sha256": "361f7df5c02a4b1fc1744cb79f9af69cd29f4ee75c29e479873b983a66f3a654"
+      "sha256": "22b2e35541bd8d3b27d402be6d68a433612700678393573a5170cedee7dc828e",
+      "original_sha256": "361f7df5c02a4b1fc1744cb79f9af69cd29f4ee75c29e479873b983a66f3a654",
+      "before_proxyma_runtime_removal_sha256": "1233bacea91e216fd189cd31a3b37cb818acd962a17a109971d02b256de150af"
     },
     {
       "path": "app/Services/Procurement/Extraction/ChunkCommitter.php",
@@ -322,8 +324,9 @@
     },
     {
       "path": "composer.lock",
-      "sha256": "6e1c28f93ab5d46ec852c7a6eec62f4d141d94799a1b870aaaaf314d2a80f35a",
-      "original_sha256": "e5981e6030590ce94182e8d364f1b6c0dfa9ed571e2642bc899a98e3435d912f"
+      "sha256": "ee193845e6decc7a88ed64c62da755ed66eca51439e28d502220ef3fc474d6cb",
+      "original_sha256": "e5981e6030590ce94182e8d364f1b6c0dfa9ed571e2642bc899a98e3435d912f",
+      "before_proxyma_runtime_removal_sha256": "261267132daf469821d596ae4a0a9ddd3f2c422800f7b40aec6727d80d4d5d05"
     },
     {
       "path": "estimates/eval-splits.json",
@@ -476,17 +479,19 @@
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-      "sha256": "feb0fd339e66a8fc8f6d73dcc5e3afea1ab5425767ee72db40e54c834c7a58ce",
+      "sha256": "fa549b22fd895d0d1611b756c3351d4683badfd91dfa12ec914ac7f1ab9be48f",
       "original_path": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
       "original_sha256": "7f9f5020f71bca605ea572604ce50caefbfd91042ad09e204fbfdb7c01f62978",
-      "before_polish_sha256": "b58dd27225daa2d481b3e7a077dfcd59387b70dd83c67f194551b5af08d5cb49"
+      "before_polish_sha256": "b58dd27225daa2d481b3e7a077dfcd59387b70dd83c67f194551b5af08d5cb49",
+      "before_proxyma_runtime_removal_sha256": "feb0fd339e66a8fc8f6d73dcc5e3afea1ab5425767ee72db40e54c834c7a58ce"
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/ExtractionWorkerKillTest.php",
-      "sha256": "548a8a68d398570274be2f5db7b1d10ec16fbcae99eed498fd06d9f17e19f59b",
+      "sha256": "bd2e97bc432f66c1a3bba32477725129cdb3021c382c84db7322419cfb484359",
       "original_path": "tests/Feature/ProcessCore/Llm/T15ExtractionWorkerKillTest.php",
       "original_sha256": "9b19257e0e9f1d4bb1ca9411654a90dad3861c663d35f260cdf9d7f8fc4e88bf",
-      "before_polish_sha256": "c00e49adcc3aea8007cc8eb81eb06bb586183ef8637b0cf251c15bf9ecd5d9ba"
+      "before_polish_sha256": "c00e49adcc3aea8007cc8eb81eb06bb586183ef8637b0cf251c15bf9ecd5d9ba",
+      "before_proxyma_runtime_removal_sha256": "548a8a68d398570274be2f5db7b1d10ec16fbcae99eed498fd06d9f17e19f59b"
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/ProviderRecoveryConcurrencyTest.php",
@@ -511,10 +516,11 @@
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/AssetContinuationTest.php",
-      "sha256": "ed5c6659f0bfeb0f6793f0b24130d80c9b3a135a737dc1157837ab7a43d06847",
+      "sha256": "955a751ac0352e4ded57c852eae1ab586570fd13341ed70622553b33e1d28f2f",
       "original_path": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
       "original_sha256": "a7b6702ec1ab72ff04a787cf98aa651bea9227e9c50cebb1cdda755efcdb25a5",
-      "before_polish_sha256": "f2503a152129a06628a3f7119d1dbc63e261a903fe5aa16258dc4be40576438e"
+      "before_polish_sha256": "f2503a152129a06628a3f7119d1dbc63e261a903fe5aa16258dc4be40576438e",
+      "before_proxyma_runtime_removal_sha256": "ed5c6659f0bfeb0f6793f0b24130d80c9b3a135a737dc1157837ab7a43d06847"
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/ExtractionFinalizationTest.php",
@@ -539,10 +545,11 @@
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
-      "sha256": "e99194d7d4e007c53d95a18b2e99082b7a24e443178b65a3e82a56e66bad8bc0",
+      "sha256": "e5a4e02de67ad2713a9fabb88bea8d7cc3b748f6d669f724a18f4fcf069a7def",
       "original_path": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
       "original_sha256": "46e77f62c780d331ce490c88dbc34b8abadff23dfbfe0e924f387bd95f4a1be3",
-      "before_polish_sha256": "ee495e95ec8cdc92f53f358a144838f536c02a96e48173bbac92382baea93961"
+      "before_polish_sha256": "ee495e95ec8cdc92f53f358a144838f536c02a96e48173bbac92382baea93961",
+      "before_proxyma_runtime_removal_sha256": "e99194d7d4e007c53d95a18b2e99082b7a24e443178b65a3e82a56e66bad8bc0"
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/BudgetLedgerTest.php",
@@ -569,14 +576,16 @@
     },
     {
       "path": "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
-      "sha256": "638a3c6e01ba9a755ba54754f58445985fa00902259f487ac970512c021de89a",
+      "sha256": "a5bf539b33c5c588fdce6c50bd212993354191f33f25c892ca733e06733fa8c7",
       "original_path": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
       "original_sha256": "3985807e1d3087565345db46f99eb544882881b9866ea032a5d214bb41badba6",
-      "before_polish_sha256": "53bfc714887ab48433f91153340129e3a5c8ec975335491560f32a0252e319d7"
+      "before_polish_sha256": "53bfc714887ab48433f91153340129e3a5c8ec975335491560f32a0252e319d7",
+      "before_proxyma_runtime_removal_sha256": "d8de427ff143cab96d651868ea7e2340179fca0e28c8e9013c6bf51d38f3faba"
     },
     {
       "path": "tests/Support/ProcessCore/StructuredChainFixtures.php",
-      "sha256": "b6114fd3662dea28517cb24169a63e119af538c17a2f3e611adc4ada0219102d"
+      "sha256": "07c84325ccc947bcd171a09d6532d5fcb4c89b8705b7dcdc180f8cbd1e168dab",
+      "before_proxyma_runtime_removal_sha256": "b6114fd3662dea28517cb24169a63e119af538c17a2f3e611adc4ada0219102d"
     }
   ],
   "eval_counts": {

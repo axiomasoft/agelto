@@ -38,14 +38,15 @@ use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Platform\Contracts\StatusSource;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\Contracts\StageHandler;
-use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxyma\BindingAdapter;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 use Illuminate\Support\Str;
 
 /** Per-work composition from the sole platform registry and the immutable run settings. */
 final readonly class AcquisitionHandler implements StageHandler
 {
     public function __construct(private StageCode $stage, private PlatformRegistry $platforms,
-        private AcquisitionValidation $validation, private ProxyResolver $routes,
+        private AcquisitionValidation $validation, private ProfileResolver $routes,
         private SourceCatalogRepository $catalog, private ?UrlPolicy $urls = null) {}
 
     public function execute(WorkInput $input, ExecutionContext $execution): StageOutcome
@@ -67,8 +68,9 @@ final readonly class AcquisitionHandler implements StageHandler
             new VersionedPayload($run->string('configuration_snapshot'), $run->int('configuration_schema_version')));
         $profileId = $settings->routeProfileIdForStage($this->stage);
         $expectedPolicyVersion = $settings->routePolicyVersionForStage($this->stage);
-        $route = LedgerRow::one('SELECT policy_version FROM prc_network_route_profiles WHERE id=?', [$profileId->value]);
-        if ($route === null || $route->int('policy_version') !== $expectedPolicyVersion) {
+        try {
+            app(BindingAdapter::class)->snapshotProfile($settings, $this->stage);
+        } catch (\DomainException) {
             return new StageBlocked(BlockedReason::PolicyReview);
         }
         $profileId = $this->resolveStageRouteProfileId($definition, $settings);
@@ -138,11 +140,7 @@ final readonly class AcquisitionHandler implements StageHandler
         if (! $settings->hasStageRouteProfile($this->stage)) {
             $stageProfileKey = $definition->stageRouteProfileKey($this->stage);
             if ($stageProfileKey !== null) {
-                $stageRoute = LedgerRow::one(
-                    'SELECT p.id FROM prc_network_route_profiles p
-                     WHERE p.profile_key = ? AND EXISTS (SELECT 1 FROM prc_network_route_profile_members m WHERE m.profile_id = p.id)',
-                    [$stageProfileKey],
-                );
+                $stageRoute = app(ProfileResolver::class)->snapshot(key: $stageProfileKey);
                 if ($stageRoute !== null) {
                     return new ProcessUuid($stageRoute->string('id'));
                 }

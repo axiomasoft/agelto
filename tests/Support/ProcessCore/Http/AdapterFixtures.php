@@ -17,9 +17,11 @@ use App\Enums\Procurement\Network\TrafficClass;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\ProfileBindings as RoutePolicy;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 
 /** A declared synthetic single-response parser contract, with real HTTP and canonical authority. */
 final class AdapterFixtures
@@ -43,7 +45,9 @@ final class AdapterFixtures
         app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($this->network->code, [
             new SourceTargetDefinition('card', 'detail', $this->network->url->origin, [$this->network->profile], adapterContract: $this->contract),
         ]));
+        HistoricalNetworkFixtures::synchronize();
         DB::table('prc_network_budgets')->update(['emission_interval_us' => 1000]);
+        ProxymaCallerFixtures::install($this->wire);
         $this->routes = new RoutePolicy([new HttpRouteBinding($this->network->route->routeId)]);
         $this->client = app()->makeWith(LegacyOutboundClient::class, ['urls' => $this->wire->policy()]);
     }

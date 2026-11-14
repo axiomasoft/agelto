@@ -27,6 +27,7 @@ use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FinancialFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 use Tests\Support\ProcessCore\ProviderSendFixtures;
 use Tests\Support\ProcessCore\StructuredChainFixtures;
 
@@ -67,8 +68,8 @@ test('business handler проходит actual wire receipt chunk publication с
         ->and($call->usage_status)->toBe('known')
         ->and(app(RequestRepository::class)->get($call->physical_call_id)->recordedAssessment?->usage?->uncachedInput)->toBe(80)
         ->and(app(RequestRepository::class)->get($call->physical_call_id)->recordedAssessment?->usage?->cachedInput)->toBe(20)
-        ->and(DB::table('prc_request_attempts')->sole()->request_id)->toBe($call->physical_call_id)
-        ->and(DB::table('prc_network_permits')->sole()->state)->toBe('released')
+        ->and(PackageNetworkFacts::attempts()->sole()->request_id)->toBe($call->physical_call_id)
+        ->and(PackageNetworkFacts::permits()->sole()->state)->toBe('released')
         ->and($reserve->state)->toBe('settled')
         ->and($reserve->settled_amount)->toBe($reserve->upper_bound)
         ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('spent'))->toBe($reserve->upper_bound)
@@ -106,7 +107,7 @@ test('durable actual HTTP receipt после потерянного chunk commit
     $f->publish();
     expect(DB::table('llm_provider_calls')->count())->toBe(1)
         ->and(DB::table('llm_budget_reservations')->count())->toBe(1)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
         ->and(DB::table('prc_analysis_chunks')->count())->toBe(1)
         ->and(DB::table('prc_estimates')->count())->toBe(1)
         ->and($this->server->receipts())->toHaveCount(1);
@@ -147,7 +148,7 @@ test('actual wire late put после committed blocked scan возобновл�
     expect($daemon->tick()->errorCode)->toBeNull()
         ->and(ExecutionFixtures::work($f->work)->state)->toBe('ready')
         ->and(ExecutionFixtures::work($f->work)->provider_recovery_due_at)->toBeNull();
-    DB::table('prc_network_routes')->update(['enabled' => false]);
+    DB::table('pxm_routes')->update(['enabled' => false, 'revision' => DB::raw('revision + 1')]);
     $lease = FinalizeFixtures::running($f->work);
     expect($lease->checkpoint?->providerRecoveryPlan->physicalCallId->value)->toBe($operation->physicalCallId);
     expect(app(WorkFinalizer::class)->finish($lease, $f->extract($lease))->state?->value)->toBe('ready');
@@ -159,7 +160,7 @@ test('actual wire late put после committed blocked scan возобновл�
         ->and(DB::table('llm_budget_reservations')->count())->toBe(1)
         ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('settled')
         ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('spent'))->toBe(DB::table('llm_budget_reservations')->sole()->upper_bound)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
         ->and($this->server->receipts())->toHaveCount(1);
 });
 

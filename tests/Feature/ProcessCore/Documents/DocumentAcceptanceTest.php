@@ -43,6 +43,7 @@ use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FixtureStagePayloadCodec;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 use Tests\Support\ProcessCore\PreparedFixtureAnalysisHandler;
 use Tests\Support\ProcessCore\PreparedFixturePublicationRepository;
 use Tests\Support\ProcessCore\StubPdfTools;
@@ -174,7 +175,7 @@ test('подготовленные bytes двух площадок и manual п�
             ->and(DB::table('prc_process_reservations')->count())->toBe(0);
     }
     expect(DB::table('prc_operation_intents')->where('id', $pending->id)->value('pending_reason'))->toBeNull()
-        ->and(DB::table('prc_request_attempts')->count())->toBe(0)
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(0)
         ->and(DB::table('prc_estimates')->count())->toBe(0)
         ->and(DB::table('prc_analysis_runs')->count())->toBe(1)
         ->and(app(DocumentFeeder::class)->reconcile())->toBe($boundary === 'new_head' ? 1 : 0);

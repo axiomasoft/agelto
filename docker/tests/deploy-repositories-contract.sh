@@ -47,30 +47,44 @@ cat > "$adapter" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 operation=$1
-identity=${2:-}
-printf '%s:%s\n' "$operation" "$identity" >> "${REPOSITORY_LOG:?}"
-[[ ${FAIL_OPERATION:-} != "$operation" ]] || exit 41
+shift
+printf '%s:%s\n' "$operation" "$*" >> "${REPOSITORY_LOG:?}"
 case "$operation" in
     keygen)
-        key=$3
+        identity=$1; key=$2
         printf 'fixture-private-%s\n' "$identity" > "$key"
         printf 'ssh-ed25519 fixture-public-%s\n' "$identity" > "$key.pub"
         ;;
-    validate-alias)
-        config=$3
-        grep -F "Host $identity" "$config" >/dev/null
-        grep -F 'IdentitiesOnly yes' "$config" >/dev/null
-        grep -F 'ForwardAgent no' "$config" >/dev/null
+    ssh)
+        config=$2
+        if [[ "$3" == -G ]]; then
+            [[ ${FAIL_OPERATION:-} != validate-alias ]] || exit 41
+            alias=$4
+            key=$(awk -v host="$alias" '$1 == "Host" { selected=($2 == host) } selected && $1 == "IdentityFile" { print $2 }' "$config")
+            printf 'stricthostkeychecking yes\nidentitiesonly yes\nidentityfile %s\nforwardagent no\n' "$key"
+        else
+            [[ ${FAIL_OPERATION:-} != verify-enrollment ]] || exit 41
+            echo 'successfully authenticated'; exit 1
+        fi
         ;;
-    verify-enrollment) ;;
-    checkout)
-        sha=$3
-        checkout=$4
-        mkdir -p "$checkout/.git"
-        printf '%s\n' "$identity" > "$checkout/.git/origin"
-        printf '%s\n' "$sha" > "$checkout/.git/HEAD.fixture"
-        ;;
-    verify-origin|verify-detached|verify-clean|verify-read-only) ;;
+    git)
+        repo=''
+        if [[ "$1" == -C ]]; then repo=$2; shift 2; fi
+        case "$1" in
+            clone) mkdir -p "$4/.git"; printf '%s\n' "$3" > "$4/.git/origin" ;;
+            remote) printf '%s\n' "$4" > "$repo/.git/origin" ;;
+            status) if [[ ${FAIL_OPERATION:-} == verify-clean ]]; then echo ' M dirty'; fi ;;
+            config)
+                if [[ ${FAIL_OPERATION:-} == verify-origin ]]; then echo 'https://github.com/other/repo.git'; else cat "$repo/.git/origin"; fi ;;
+            fetch) ;;
+            checkout) printf '%s\n' "$3" > "$repo/.git/HEAD.fixture" ;;
+            rev-parse)
+                if [[ ${FAIL_OPERATION:-} == verify-detached ]]; then echo '0000000000000000000000000000000000000000'; else cat "$repo/.git/HEAD.fixture"; fi ;;
+            symbolic-ref) exit 1 ;;
+            ls-remote) echo 'fixture HEAD' ;;
+            push) if [[ ${FAIL_OPERATION:-} == verify-read-only ]]; then exit 0; else exit 1; fi ;;
+            *) exit 90 ;;
+        esac ;;
     *) exit 90 ;;
 esac
 EOF
@@ -79,20 +93,23 @@ export REPOSITORY_LOG="$fixture_root/repository.log"
 simulation="$fixture_root/simulation"
 
 "$script" fixture --profile "$profile" --fixture-root "$simulation" --adapter "$adapter" >/dev/null
-grep -qx 'keygen:agelto' "$REPOSITORY_LOG"
-grep -qx 'keygen:azguard' "$REPOSITORY_LOG"
+grep -q '^keygen:agelto ' "$REPOSITORY_LOG"
+grep -q '^keygen:azguard ' "$REPOSITORY_LOG"
 [[ $(stat -c '%a' "$simulation/home/deploy/.ssh/agelto_deploy_ed25519") == 600 ]]
 [[ $(stat -c '%a' "$simulation/home/deploy/.ssh/agelto_deploy_ed25519.pub") == 644 ]]
 grep -F 'StrictHostKeyChecking yes' "$simulation/home/deploy/.ssh/config" >/dev/null
 grep -F 'axiomasoft/agelto' "$REPOSITORY_LOG" >/dev/null
-vendor_repository=$(python3 -c 'import json; print(json.load(open("docker/private-vendors.lock.json"))["repository"]["path"])')
+vendor_repository=$(python3 -c 'import json; print(json.load(open("docker/private-vendors.lock.json"))["repositories"][0]["repository"]["path"])')
+grep -q '^keygen:proxyma ' "$REPOSITORY_LOG"
+grep -F 'axiomasoft/proxyma.git' "$REPOSITORY_LOG" >/dev/null
+grep -F 'github-proxyma' "$simulation/home/deploy/.ssh/config" >/dev/null
 grep -F "$vendor_repository" "$REPOSITORY_LOG" >/dev/null || fail 'fixture did not reuse the D19 vendor manifest'
 first_key_hash=$(sha256sum "$simulation/home/deploy/.ssh/agelto_deploy_ed25519" | cut -d' ' -f1)
 "$script" fixture --profile "$profile" --fixture-root "$simulation" --adapter "$adapter" >/dev/null
-[[ $(grep -c '^keygen:' "$REPOSITORY_LOG") -eq 2 ]] || fail 'rerun overwrote existing key material'
+[[ $(grep -c '^keygen:' "$REPOSITORY_LOG") -eq 3 ]] || fail 'rerun overwrote existing key material'
 [[ $(sha256sum "$simulation/home/deploy/.ssh/agelto_deploy_ed25519" | cut -d' ' -f1) == "$first_key_hash" ]]
 
-for operation in verify-enrollment verify-origin verify-detached verify-clean verify-read-only; do
+for operation in validate-alias verify-enrollment verify-origin verify-detached verify-clean verify-read-only; do
     case_root="$fixture_root/fail-$operation"
     export REPOSITORY_LOG="$fixture_root/fail-$operation.log"
     expect_fail "$operation fixture" env FAIL_OPERATION="$operation" REPOSITORY_LOG="$REPOSITORY_LOG" \
@@ -119,7 +136,7 @@ rm "$simulation/home/deploy/.ssh/azguard_deploy_ed25519.pub"
 expect_fail 'incomplete key pair' "$script" fixture --profile "$profile" --fixture-root "$simulation" --adapter "$adapter"
 
 expect_fail 'sync without enrollment confirmation' "$script" sync --profile "$profile"
-! rg -n 'https?://|ssh://|git@github' "$REPOSITORY_LOG" >/dev/null
+! rg -n 'fixture-private-|token@|password=' "$REPOSITORY_LOG" >/dev/null
 grep -F 'multiple repositories require separate' "$root/docs/operators/production/repositories.md" >/dev/null
 
 printf 'Deploy repositories contract passed\n'

@@ -47,6 +47,7 @@ final class NetworkFixtures implements SourceCatalogProvider
     public static function open(): OutboundOperationHandle
     {
         app(SourceCatalogSync::class)->sync(self::catalog());
+        HistoricalNetworkFixtures::synchronize();
 
         return app(OutboundOperationRepository::class)->open(
             LedgerFixtures::uuid(), LedgerFixtures::uuid(), OutboundOperationKind::LegacyBridge,

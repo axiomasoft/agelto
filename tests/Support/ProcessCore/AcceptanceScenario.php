@@ -8,8 +8,10 @@ use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Network\NetworkPermitRepository;
+use App\Models\Procurement\Platform\Platform;
+use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Network\SourceCatalogSync;
+use App\Services\Procurement\Process\DaemonPolicy;
 use App\Services\Procurement\Process\FeederDaemon;
 use App\Services\Procurement\Process\ProjectorDaemon;
 use App\Services\Procurement\Process\RecoveryReconciler;
@@ -17,6 +19,8 @@ use App\Services\Procurement\Process\RelayDaemon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Redis;
+use Proxyma\Application\Recovery\Reconciler;
+use Proxyma\Domain\Policy\TenantKey;
 use Symfony\Component\Process\Process;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
@@ -44,8 +48,16 @@ final class AcceptanceScenario
         $this->wire = new WireFixture;
         $this->wire->respond('/ok', 'anchored fixture representation', headers: ['Content-Type' => 'text/plain']);
         $permits = new PermitFixtures($this->wire);
+        foreach (['aaa', 'bbb'] as $code) {
+            $this->preparePlatformCatalog($code);
+        }
+        HistoricalNetworkFixtures::synchronize();
+        foreach (['prc_route_health', 'prc_route_target_health', 'prc_target_health'] as $table) {
+            DB::table($table)->update(['state' => 'closed']);
+        }
         // Same actual GCRA+FIFO algorithm, measured test rate; no production throughput claim.
         DB::table('prc_network_budgets')->update(['emission_interval_us' => 20_000, 'max_inflight' => 2]);
+        ProxymaCallerFixtures::installAcceptanceProfile($this->wire);
         file_put_contents($this->root.'/acceptance.json', json_encode([
             'root' => $this->root, 'url' => $this->wire->url('/ok')->reveal(),
             'target' => $permits->target->value, 'route' => $permits->route->routeId->value,
@@ -72,20 +84,26 @@ final class AcceptanceScenario
             }
             $ids[] = $work->value->value;
         }
-        foreach (['aaa', 'bbb'] as $code) {
-            if (DB::table('prc_platforms')->where('code', $code)->exists()) {
-                app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($code, [
-                    new SourceTargetDefinition('card', 'detail', $this->wire->url('/ok')->origin,
-                        [TransportFixtures::profile()], new OriginBudgetPolicy(600, 1, 2)),
-                ]));
-            }
-        }
-        foreach (['prc_route_health', 'prc_route_target_health', 'prc_target_health'] as $table) {
-            DB::table($table)->update(['state' => 'closed']);
-        }
-        DB::table('prc_network_budgets')->update(['emission_interval_us' => 20_000, 'max_inflight' => 2]);
 
         return $ids;
+    }
+
+    private function preparePlatformCatalog(string $code): void
+    {
+        $platform = Platform::query()->firstOrCreate(['code' => $code], [
+            'name' => $code,
+            'base_url' => "https://{$code}.test",
+            'is_active' => false,
+            'is_public' => true,
+        ]);
+        Registry::query()->firstOrCreate(['platform_id' => $platform->id, 'code' => 'fixture'], [
+            'name' => 'Fixture',
+            'settings' => [],
+        ]);
+        app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($code, [
+            new SourceTargetDefinition('card', 'detail', $this->wire->url('/ok')->origin,
+                [TransportFixtures::profile()], new OriginBudgetPolicy(600, 1, 2)),
+        ]));
     }
 
     public function start(): void
@@ -120,11 +138,21 @@ final class AcceptanceScenario
         }
     }
 
-    public function drain(float $seconds = 90): void
+    public function drain(float $seconds = 90, ?DaemonPolicy $reconcilePolicy = null): void
     {
         $until = hrtime(true) + (int) ($seconds * 1_000_000_000);
+        $nextReconcileAt = 0;
         do {
-            $this->recover();
+            if ($reconcilePolicy === null) {
+                $this->recover();
+            }
+            if ($reconcilePolicy !== null && hrtime(true) >= $nextReconcileAt) {
+                $this->recover();
+                $nextReconcileAt = hrtime(true) + DaemonPolicy::jittered(
+                    $reconcilePolicy->reconcileTickSeconds,
+                    $reconcilePolicy->reconcileJitterPercent,
+                ) * 1_000_000;
+            }
             $this->tick();
             if (is_file($this->root.'/faults.jsonl')) {
                 throw new \RuntimeException((string) file_get_contents($this->root.'/faults.jsonl'));
@@ -168,7 +196,7 @@ final class AcceptanceScenario
     {
         app(RecoveryReconciler::class)->recoverExpiredRunning();
         app(RecoveryReconciler::class)->recoverAdmitted();
-        app(NetworkPermitRepository::class)->reap();
+        app(Reconciler::class)->run(TenantKey::system());
     }
 
     public function output(): string

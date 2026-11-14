@@ -36,6 +36,7 @@ use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FixtureAnalysisHandler;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 use Tests\Support\ProcessCore\PrepareFixtures;
 use Tests\Support\ProcessCore\StubPdfTools;
 
@@ -60,7 +61,7 @@ test('отключённые sources не мешают prepare verified bytes и
     expect($outcome)->toBeInstanceOf(StageSucceeded::class)
         ->and(DB::table('prc_process_work')->where('id', $f->work->value->value)->value('state'))->toBe('succeeded')
         ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBeNull()
-        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(0);
     Queue::assertNothingPushed();
 });
 
@@ -78,7 +79,7 @@ test('manual и две площадки получают одинаковый fi
     expect($handler->calls)->toBe(3)
         ->and(ExecutionFixtures::laneCounts('analysis'))->toBe(['outstanding' => 0, 'running' => 0])
         ->and(DB::table('prc_process_work')->where('state', 'succeeded')->count())->toBe(3)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(0);
 });
 
 test('standalone producer восстанавливает missing prepare один раз и не сбрасывает blocked или terminal history', function (): void {

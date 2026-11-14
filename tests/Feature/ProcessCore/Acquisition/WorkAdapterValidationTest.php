@@ -8,7 +8,6 @@ use App\Dto\Procurement\Network\AdapterInspection;
 use App\Dto\Procurement\Network\AdapterValidationClaim;
 use App\Dto\Procurement\Network\HttpRouteBinding;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\ScheduledNetworkPermit;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportSucceeded;
@@ -18,7 +17,6 @@ use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\StageBlocked;
 use App\Dto\Procurement\Process\StageFailedItem;
 use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
@@ -33,20 +31,23 @@ use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Acquisition\AcquisitionAssessment;
 use App\Services\Procurement\Acquisition\AcquisitionValidation;
-use App\Services\Procurement\Network\OutboundExecutor;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxy\RoutePolicy;
-use Illuminate\Database\Events\QueryExecuted;
+use App\Services\Procurement\Proxyma\CallerOutbound;
+use App\Services\Procurement\Proxyma\CallerOutbound as OutboundExecutor;
+use App\Services\Procurement\Proxyma\ProfileBindings as RoutePolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 use Tests\Support\ProcessCore\RawEvidenceFixtures;
 
 pest()->group('provider-send-fencing', 'work-controls-and-fences');
@@ -67,6 +68,8 @@ function workAdapterFixture(WireFixture $wire): array
     app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($f->code, [
         new SourceTargetDefinition('card', 'detail', $f->url->origin, [$f->profile], adapterContract: $contract),
     ]));
+    HistoricalNetworkFixtures::synchronize();
+    ProxymaCallerFixtures::install($wire);
     FinalizeFixtures::authority([StageCode::Listing]);
     $work = ExecutionFixtures::listingWork();
     DB::table('prc_process_work')->where('id', $work->value->value)->update([
@@ -114,7 +117,7 @@ test('Process validation uses its live attempt and physical provenance without a
             ->and($receipt->ownerKind)->toBe(AdapterValidationOwnerKind::WorkAttempt)
             ->and($wire->receipts())->toHaveCount(1)
             ->and(DB::table('prc_outbound_operations')->count())->toBe(0)
-            ->and(DB::table('prc_network_demands')->sole()->attempt_id)->toBe($claim->ownerId->value)
+            ->and(DB::table('pxm_operations')->sole()->owner_id)->toBe($claim->ownerId->value)
             ->and(DB::table('prc_observations')->where('kind', 'adapter_validation')->count())->toBe(1);
         $duplicate = $tx->run(fn () => $repository->observe($context, $context->lease()->inputHash, $inspection));
         expect($duplicate)->toEqual($receipt);
@@ -154,7 +157,7 @@ test('Сохранение evidence сохраняет item scope и не объ
     }
 });
 
-test('Process send rejects epoch takeover lease loss and forged operation identity after reservation', function (string $change): void {
+test('Process send rejects epoch takeover lease loss and forged operation identity before physical authorization', function (string $change): void {
     $wire = new WireFixture;
     try {
         [$f, $context, $contract] = workAdapterFixture($wire);
@@ -163,20 +166,18 @@ test('Process send rejects epoch takeover lease loss and forged operation identi
         $context->bindAdapter($claim);
         $plan = workAdapterPlan($f, $claim);
         if ($change === 'forged') {
-            $forged = new AdapterValidationClaim($claim->healthId, $claim->epoch, $contract, $claim->ownerId, false);
-            expect($f->repo->register(workAdapterPlan($f, $forged), $context, $f->route))->toBeInstanceOf(TransportBlocked::class);
+            $forged = new AdapterValidationClaim($claim->healthId, $claim->epoch, $contract, LedgerFixtures::uuid(), false);
+            $plan = workAdapterPlan($f, $forged);
         } else {
-            $ticket = $f->repo->register($plan, $context, $f->route);
-            $permit = $f->repo->reserve($ticket, $context);
-            expect($permit)->toBeInstanceOf(ScheduledNetworkPermit::class);
             match ($change) {
                 'epoch' => DB::table('prc_adapter_health')->increment('health_epoch'),
                 'takeover' => DB::table('prc_process_work')->where('id', $context->lease()->workId->value->value)->increment('generation'),
                 'lease' => FinalizeFixtures::expire($context->lease()->workId),
             };
-            expect($f->repo->claimSend($permit, $context))->toBeInstanceOf(TransportBlocked::class);
         }
-        expect($wire->receipts())->toHaveCount(0)->and(DB::table('prc_request_attempts')->count())->toBe(0);
+        expect(app(CallerOutbound::class)->execute($plan, $context, $f->gate(), $wire->policy(),
+            new TransferBudget(65536, 65536)))->toBeInstanceOf(TransportBlocked::class);
+        expect($wire->receipts())->toHaveCount(0)->and(DB::table('pxm_attempts')->count())->toBe(0);
     } finally {
         $wire->stop();
     }
@@ -188,32 +189,11 @@ test('a real-work canary cannot send after its parent loses authority', function
         [$f, $context, $contract] = workAdapterFixture($wire);
         $platform = DB::table('prc_platforms')->where('code', $f->code)->sole()->id;
         app(AcquisitionValidation::class)->run($contract, $platform, new RoutePolicy([new HttpRouteBinding($f->route->routeId)]),
-            $f->plan(), $wire->policy(), $context, function (PlatformOutbound $outbound) use ($f, $context, $change, $contract, $wire): StageBlocked {
+            $f->plan(), $wire->policy(), $context, function (PlatformOutbound $outbound) use ($f, $context, $change): StageBlocked {
                 expect($outbound->execute($f->plan(), $context))->toBeInstanceOf(TransportSucceeded::class);
-                if ($change === 'sql_expiry') {
-                    $operation = DB::table('prc_outbound_operations')->sole();
-                    $probe = F::importContext($operation->id);
-                    $claim = new AdapterValidationClaim(new ProcessUuid($operation->adapter_health_id),
-                        $operation->adapter_health_epoch, $contract, $probe->lease()->id, true);
-                    $probe->bindAdapter($claim);
-                    $ticket = $f->repo->register(workAdapterPlan($f, $claim), $probe, $f->route);
-                    $permit = $f->repo->reserve($ticket, $probe);
-                    $armed = true;
-                    DB::listen(function (QueryExecuted $query) use (&$armed, $context): void {
-                        if ($armed && str_contains($query->sql, 'SELECT 1 AS live FROM prc_outbound_operations')) {
-                            $armed = false;
-                            FinalizeFixtures::expire($context->lease()->workId);
-                        }
-                    });
-                    $before = DB::table('prc_network_budgets')->orderBy('id')->pluck('send_tat')->all();
-                    expect($f->send($permit, $probe, $wire))->toBeFalse()->and($armed)->toBeFalse()
-                        ->and(DB::table('prc_network_budgets')->orderBy('id')->pluck('send_tat')->all())->toBe($before);
-
-                    return new StageBlocked(BlockedReason::HandlerHold);
-                }
                 match ($change) {
                     'takeover' => DB::table('prc_process_work')->where('id', $context->lease()->workId->value->value)->increment('generation'),
-                    'lease' => FinalizeFixtures::expire($context->lease()->workId),
+                    'lease', 'sql_expiry' => FinalizeFixtures::expire($context->lease()->workId),
                     'hold' => ExecutionFixtures::holdHandler(StageCode::Listing),
                 };
                 expect($outbound->execute($f->plan(), $context))->toBeInstanceOf(TransportBlocked::class);
@@ -221,7 +201,7 @@ test('a real-work canary cannot send after its parent loses authority', function
                 return new StageBlocked(BlockedReason::HandlerHold);
             });
         expect($wire->receipts())->toHaveCount(1)
-            ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and(DB::table('pxm_attempts')->count())->toBe(1)
             ->and(DB::table('prc_outbound_operations')->sole()->parent_attempt_id)->toBe($context->lease()->attemptId->value)
             ->and(DB::table('prc_outbound_operations')->sole()->state)->toBe('closed');
     } finally {

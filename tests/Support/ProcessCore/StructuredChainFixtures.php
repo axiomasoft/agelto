@@ -18,7 +18,6 @@ use App\Dto\Procurement\Process\PublicationInput;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\WorkId;
 use App\Models\User;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Services\Llm\Execution\ReceiptPolicies;
 use App\Services\Llm\Providers\GeminiAssetReceiptPolicy;
 use App\Services\Procurement\Extraction\AnalysisProviderConnections;
@@ -30,6 +29,7 @@ use App\Services\Procurement\Process\ExecutionContextFactory;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
 use Tests\Support\ProcessCore\Http\TransportFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
 
@@ -58,6 +58,7 @@ final readonly class StructuredChainFixtures
         app(SourceCatalogSync::class)->syncProvider(new ProviderTargetDefinitions(new ProviderKey('fixture-provider'), [
             new SourceTargetDefinition('provider:fixture-provider:generate', 'provider', $origin, [$profile], new OriginBudgetPolicy(600, 1, 2)),
         ]));
+        HistoricalNetworkFixtures::synchronize();
         $route = DB::table('prc_network_routes')->where('kind', 'direct')->soleValue('id');
         app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile(app(OutboundPolicy::class)->providerRouteProfile, $route));
         $key = app(OutboundPolicy::class)->providerRouteProfile;
@@ -69,6 +70,7 @@ final readonly class StructuredChainFixtures
             DB::table($table)->update(['state' => 'closed']);
         }
         DB::table('prc_network_budgets')->update(['emission_interval_us' => 100_000]);
+        ProxymaProviderFixtures::installTarget(DB::table('prc_source_targets')->where('provider_key', 'fixture-provider')->sole()->id, $origin->value());
         $server->respond('/v1beta/models/fixture-model:generateContent', self::envelope(),
             headers: ['Content-Type' => 'application/json'], method: 'POST');
     }

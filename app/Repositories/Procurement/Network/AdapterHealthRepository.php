@@ -89,7 +89,8 @@ final readonly class AdapterHealthRepository
         $epoch = $row->int('health_epoch');
         $token = $row->nullableString('probe_token');
         $holder = AdapterHealthSqlHelper::activeProbeHolder($row->string('id'), $epoch, $token);
-        $now = HealthRepository::now();
+        $now = new \DateTimeImmutable((LedgerRow::one('SELECT clock_timestamp()::text AS now')
+            ?? throw new \LogicException('Database clock is unavailable.'))->string('now'));
         $wait = static fn (): TransportDeferred => new TransportDeferred(
             NetworkDeferralReason::CapacityWait,
             new RetryAt($now->modify('+1 second')),
@@ -148,7 +149,8 @@ final readonly class AdapterHealthRepository
             return AdapterHealthSqlHelper::verifyDuplicateObservation($previous, $claim, $input, $inspection, $requests);
         }
         $current = AdapterHealthSqlHelper::findActiveContractTarget($row->int('platform_id'), $claim->contract);
-        $now = HealthRepository::now();
+        $now = new \DateTimeImmutable((LedgerRow::one('SELECT clock_timestamp()::text AS now')
+            ?? throw new \LogicException('Database clock is unavailable.'))->string('now'));
         $stale = AdapterHealthSqlHelper::isStaleObservation($current, $owner, $claim, $row, $context, $now);
         AdapterHealthSqlHelper::assertRequestProvenance($claim, $context, $requests);
         $key = $claim->epochKey();

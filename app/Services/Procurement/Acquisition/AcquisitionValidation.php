@@ -13,7 +13,6 @@ use App\Dto\Procurement\Network\AdapterInspection;
 use App\Dto\Procurement\Network\AdapterValidationClaim;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\RetryRoutePreference;
 use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
@@ -26,6 +25,7 @@ use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\StageSucceeded;
 use App\Enums\Procurement\Network\AdapterVerdict;
+use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Enums\Procurement\Platform\Completeness;
 use App\Enums\Procurement\Process\BlockedReason;
@@ -33,39 +33,40 @@ use App\Enums\Procurement\Process\DeferralReason;
 use App\Exceptions\Procurement\Process\ExecutionInterrupted;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\Network\OutboundOperationRepository;
-use App\Services\Procurement\Network\AdapterCanaryRouteSelector;
 use App\Services\Procurement\Network\NetworkOwnerFence;
-use App\Services\Procurement\Network\OutboundExecutor;
-use App\Services\Procurement\Network\ScheduledAttemptGate;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxy\ProxyResolver;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\CallerGate;
+use App\Services\Procurement\Proxyma\CallerOutbound;
+use App\Services\Procurement\Proxyma\CallerSendFacts;
+use App\Services\Procurement\Proxyma\ProfileBindings;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
 
 final readonly class AcquisitionValidation
 {
     public function __construct(private AdapterHealthRepository $adapters, private OutboundOperationRepository $operations,
-        private ProcessTransaction $tx, private ProxyResolver $routes, private OutboundExecutor $executor,
+        private ProcessTransaction $tx, private ProfileResolver $routes, private CallerOutbound $executor,
         private FetchOutcomeBridge $bridge, private AcquisitionArtifacts $artifacts) {}
 
     /** @param \Closure(PlatformOutbound, AcquisitionAssessment): StageOutcome $call */
-    public function run(AdapterContractRef $contract, int $platformId, RoutePolicy $routes, OutboundRequestPlan $first,
+    public function run(AdapterContractRef $contract, int $platformId, ProfileBindings $routes, OutboundRequestPlan $first,
         UrlPolicy $urls, ExecutionContext $work, \Closure $call): StageOutcome
     {
+        if (! CallerSendFacts::active()) {
+            return new StageBlocked(BlockedReason::HandlerHold);
+        }
         $health = $this->adapters->find($contract);
         if ($health === null || $health->string('state') === 'held') {
             return new StageBlocked(BlockedReason::HandlerHold);
         }
         $work->tick();
         $selector = $this->routes->outboundRoutes($routes);
-        $selection = $selector->select($first, new RetryRoutePreference([], null, true, $first->profile->distinctRoutes));
-        if ($selection instanceof TransportBlocked) {
-            return $this->bridge->failure(new FetchBlocked($selection->reason));
-        }
+        $selection = CallerSendFacts::needsProbe($routes, $first->targetId->value)
+            ? new TransportDeferred(NetworkDeferralReason::TargetCooldown, new RetryAt(new \DateTimeImmutable('+1 second'))) : null;
         $probe = null;
         $owner = $work;
         if ($health->string('state') !== 'healthy' || $selection instanceof TransportDeferred) {
@@ -82,7 +83,7 @@ final readonly class AcquisitionValidation
                 $controls, $seconds, max($seconds, 240), probeToken: $token, parentAttemptId: $work->lease()->attemptId));
             $owner = new OutboundExecutionContext($probe,
                 fn ($handle) => $this->tx->run(fn () => $this->operations->renew($handle, $seconds)), $work->tick(...), $seconds, 15);
-            $selector = app()->makeWith(AdapterCanaryRouteSelector::class, ['context' => $owner, 'routes' => $routes]);
+            $selector = $routes;
         }
         try {
             $claim = $this->tx->run(fn () => $this->adapters->admit($contract, $owner));
@@ -96,7 +97,7 @@ final readonly class AcquisitionValidation
                     ? new FetchDeferred($claim->reason, $claim->retryAt) : new FetchBlocked($claim->reason));
             }
             $owner->bindAdapter($claim);
-            $gate = app()->makeWith(ScheduledAttemptGate::class, ['routes' => $selector]);
+            $gate = app()->makeWith(CallerGate::class, ['routes' => $selector]);
             $outbound = new AcquisitionPlatformOutbound($this->executor, $gate, $urls,
                 new TransferBudget(134217728, 134217728), $work, $owner, $this->artifacts);
             $assessment = new AcquisitionAssessment($outbound->rejection(...));

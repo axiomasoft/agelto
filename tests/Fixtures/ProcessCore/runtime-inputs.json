@@ -1,262 +1,278 @@
 {
-    "format": "process-core-runtime-inputs/v1",
-    "files": [
-        {
-            "source": "estimates/gold/EST-GSFX-LSR-001.gold.json",
-            "runtime": "estimates/gold/EST-GSFX-LSR-001.gold.json",
-            "sha256": "449e62ba3cc0ab1ead8a4e066e11e4d5fe504a29841386dc430ec8f7476ea9af",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-GSFX-LSR-001.screening.json",
-            "runtime": "estimates/gold/EST-GSFX-LSR-001.screening.json",
-            "sha256": "9657f56c2dcf17f2fd1fba57cda3291f3ab036e47e409023686ca4bb520d8802",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-PDF-SCAN-001.screening.json",
-            "runtime": "estimates/gold/EST-PDF-SCAN-001.screening.json",
-            "sha256": "48ad8f51455bb3b267ca798b6b807536372f479dc8afc51066aa4ea518e59ae1",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLS-KS2-001.gold.json",
-            "runtime": "estimates/gold/EST-XLS-KS2-001.gold.json",
-            "sha256": "fe4523b387628a8d4fdb12a16d8d0939a770571829b9fa292a99aa5042274087",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLS-KS2-001.profile.json",
-            "runtime": "estimates/gold/EST-XLS-KS2-001.profile.json",
-            "sha256": "2b2f29f34850b4b002317e5a74c87045dce93cf3549d429e595bee139bea3925",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLS-KS2-001.screening.json",
-            "runtime": "estimates/gold/EST-XLS-KS2-001.screening.json",
-            "sha256": "9282f5c1bd9e73d1c2d8f33551ccfc363d846ea30ac7d8bf1b81add63d2fbb8d",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLS-KS3-001.profile.json",
-            "runtime": "estimates/gold/EST-XLS-KS3-001.profile.json",
-            "sha256": "42047be1ec89cd18869c11a666539d434beaf6d1dd249a25a8a106800b6f7e3f",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLS-KS3-001.screening.json",
-            "runtime": "estimates/gold/EST-XLS-KS3-001.screening.json",
-            "sha256": "4b42be127eecc08f209e3e06ed8b020c5cfd8c4448805d2ad9f4d34f6776a01c",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-KS2-001.gold.json",
-            "runtime": "estimates/gold/EST-XLSX-KS2-001.gold.json",
-            "sha256": "02caf4f268427442bd9290e04f7a250f4beb626f32ab9ffd3a8031066b3ae929",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-KS2-001.profile.json",
-            "runtime": "estimates/gold/EST-XLSX-KS2-001.profile.json",
-            "sha256": "d0eb01aa6f5f308eb5c33c20450206b34145e201f5dd57ce079648464e913553",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-KS2-001.screening.json",
-            "runtime": "estimates/gold/EST-XLSX-KS2-001.screening.json",
-            "sha256": "84ec1688f1fae595c510bcf4e7f1c32b8cc70a0df8e364d25aca029a2089aa3c",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-KS2-002.profile.json",
-            "runtime": "estimates/gold/EST-XLSX-KS2-002.profile.json",
-            "sha256": "8777ba2f304da7de4a50f6067b63362fe52ed8bfa656a07e98db845f70ce5eb1",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-KS2-002.screening.json",
-            "runtime": "estimates/gold/EST-XLSX-KS2-002.screening.json",
-            "sha256": "91d270f2e3b236a5cfd3cc57462ca321a88e69ec6095f9bf3667ed96015dd172",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-KS2-003.gold.json",
-            "runtime": "estimates/gold/EST-XLSX-KS2-003.gold.json",
-            "sha256": "45768fcacc0947bee761942ee2bbfc96f51d13437c12321eebb2ba7b5a5b1c7a",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-KS2-003.profile.json",
-            "runtime": "estimates/gold/EST-XLSX-KS2-003.profile.json",
-            "sha256": "6e488b0e0a18290b8e10906b007ea1d769691d73709df1a7a2f74794bbc2ed97",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-KS2-003.screening.json",
-            "runtime": "estimates/gold/EST-XLSX-KS2-003.screening.json",
-            "sha256": "c2600e7f4fd03048022b2d506ddbacf2c968b81096f43b4b32b01affad0185e2",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-LSR-001.gold.json",
-            "runtime": "estimates/gold/EST-XLSX-LSR-001.gold.json",
-            "sha256": "00aa8ca0b7d99a86b6ef1aeb7729bfd6bdb67345605ebb7e8c4c2c86d1cb07a1",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-LSR-001.profile.json",
-            "runtime": "estimates/gold/EST-XLSX-LSR-001.profile.json",
-            "sha256": "99ea983f0eff95863abbd64a3238388b16fd8bd5a12617d0b4dc8003d5b3f348",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-LSR-001.screening.json",
-            "runtime": "estimates/gold/EST-XLSX-LSR-001.screening.json",
-            "sha256": "b10c421857b9b7a660f56b69588b7767da6d6bfb344cc4a01ac264543d2ef01b",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-LSR-002.profile.json",
-            "runtime": "estimates/gold/EST-XLSX-LSR-002.profile.json",
-            "sha256": "315ab35bc2e9cc38ffa6788c2ffffd8c8e2ce42652ee958b24b86554679bbb41",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-LSR-002.screening.json",
-            "runtime": "estimates/gold/EST-XLSX-LSR-002.screening.json",
-            "sha256": "cff57f905a924f5b4f1b7ebf4f737f7c5a1d30ac46889504be71d39cd204aef5",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-LSR-003.profile.json",
-            "runtime": "estimates/gold/EST-XLSX-LSR-003.profile.json",
-            "sha256": "f427f22b2464b08db644b028e273cdb79954713f63110c594203b3dd87b71e84",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-LSR-003.screening.json",
-            "runtime": "estimates/gold/EST-XLSX-LSR-003.screening.json",
-            "sha256": "755b456dfc7dfcce702ddbd3ef77c4ce6d4350b1f3c727a0d9bd2aea529a91f8",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-VOR-001.gold.json",
-            "runtime": "estimates/gold/EST-XLSX-VOR-001.gold.json",
-            "sha256": "f31cf0a93072bfd87c63eef1b6a3e7ebd92e01e4d952efaeced3372e7eafc105",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-VOR-001.profile.json",
-            "runtime": "estimates/gold/EST-XLSX-VOR-001.profile.json",
-            "sha256": "5fbcaa2848f7b06c31dd4062b24f05aedd58fdaeb2902dbdce7bc2db38ca2657",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/gold/EST-XLSX-VOR-001.screening.json",
-            "runtime": "estimates/gold/EST-XLSX-VOR-001.screening.json",
-            "sha256": "7781abd159f7c96fd8a4da57afa92e7c640f499bf9049593ecb4967286077314",
-            "provenance": "tracked project corpus"
-        },
-        {
-            "source": "estimates/files/Администрация культуры и спорта 3.gsfx",
-            "runtime": "estimates/files/Администрация культуры и спорта 3.gsfx",
-            "sha256": "d175edac8b7a3032eee20cfd941cb2178b471e75f288e3fcc4fc8e44fc52708b",
-            "provenance": "existing local immutable EST-GSFX-LSR-001 corpus; binary is not committed"
-        },
-        {
-            "source": "tests/Support/ProcessCore/RuntimeInputs/audit-remediation-2026-10-08.md",
-            "runtime": "tests/Support/ProcessCore/RuntimeInputs/audit-remediation-2026-10-08.md",
-            "sha256": "818a872d0e63675dd713b0f204b9b5e92d9e5bba2aa1ecf6e83f0abee51a43c5",
-            "provenance": "Byte-identical Git blob f1cf54defca3824a9f53406bc99f1ebe9633de57 from 612d6df7:research/2026-10-08-audit-remediation.md; relocated for isolated runtime; SHA-256 unchanged"
-        },
-        {
-            "source": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.immutable58.md",
-            "runtime": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.immutable58.md",
-            "sha256": "f621347393d610da23be8f814013e2e0dc2d80c483380ca399e47ca3de8649b8",
-            "provenance": {
-                "commit": "0a071dca52d95e91a534cd335e24dfb036deef76",
-                "path": "plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md",
-                "version": "immutable58 original; preserved by D24"
-            }
-        },
-        {
-            "source": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.md",
-            "runtime": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.md",
-            "sha256": "bfb62a613a2b9d366cd41e3861fd146c732a3782d47e03f6f64852591b7386ef",
-            "provenance": {
-                "commit": "feaaca2f7c81c69173f58e434948daae4211efef",
-                "path": "plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md",
-                "version": "authentic61; runtime input selected by D24"
-            }
-        },
-        {
-            "source": "tests/Fixtures/ProcessCore/historical/gold-fields-audit.json",
-            "runtime": "tests/Fixtures/ProcessCore/historical/gold-fields-audit.json",
-            "sha256": "221b395d513c9612de02e016b1ce42c283957103dc279d6678eec8d783e4f5b0",
-            "provenance": {
-                "commit": "0a071dca52d95e91a534cd335e24dfb036deef76",
-                "path": "plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json"
-            }
-        },
-        {
-            "source": "resources/ai/prompts/README.md",
-            "runtime": "resources/ai/prompts/README.md",
-            "sha256": "96f365adbc5f156c391572ca90e57c51981ef300945066cb63080d1a3475ffcd",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        },
-        {
-            "source": "resources/ai/prompts/global/0-global.md",
-            "runtime": "resources/ai/prompts/global/0-global.md",
-            "sha256": "f456e1272b3dcb71a58a13d54da271a380071f53d77d5a3d5a3ee2fe7f66cee5",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        },
-        {
-            "source": "resources/ai/prompts/prompt-critic/0-prompt-critic.md",
-            "runtime": "resources/ai/prompts/prompt-critic/0-prompt-critic.md",
-            "sha256": "2a8f2b7d8e0fcefc3edcf539889aa2e057873b76e1f3db3b74e25a50731de41b",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        },
-        {
-            "source": "resources/ai/prompts/screening-classify/0-screening-classify.md",
-            "runtime": "resources/ai/prompts/screening-classify/0-screening-classify.md",
-            "sha256": "e1194fb058923ba8f0fe94a824574e29857822fe7415aff37cd3f2c646112b01",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        },
-        {
-            "source": "resources/ai/prompts/screening-global/0-screening-global.md",
-            "runtime": "resources/ai/prompts/screening-global/0-screening-global.md",
-            "sha256": "e93fca4c28c7af39b531740b3a04572c7db7088c1f2ee6cc21ee9abbfae0a04d",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        },
-        {
-            "source": "resources/estimates/ai/prompts/extraction-discovery/0-extraction-discovery.md",
-            "runtime": "resources/estimates/ai/prompts/extraction-discovery/0-extraction-discovery.md",
-            "sha256": "ee20f885e2f2a3ebba0be2aa3f48e53a28c0f63d86929bf1a0cbc6aad37a8a53",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        },
-        {
-            "source": "resources/estimates/ai/prompts/extraction-global/0-extraction-global.md",
-            "runtime": "resources/estimates/ai/prompts/extraction-global/0-extraction-global.md",
-            "sha256": "2f0a51f6d9dbeb19e450c72eda5fa999342f04288c5b1313be8ab1c9dcb5d477",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        },
-        {
-            "source": "resources/estimates/ai/prompts/extraction-passport/0-extraction-passport.md",
-            "runtime": "resources/estimates/ai/prompts/extraction-passport/0-extraction-passport.md",
-            "sha256": "65fddf15c7aff40ba45266af883a642c36d41a3c48a7c969ff086d62880d655b",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        },
-        {
-            "source": "resources/estimates/ai/prompts/extraction-rows/0-extraction-rows.md",
-            "runtime": "resources/estimates/ai/prompts/extraction-rows/0-extraction-rows.md",
-            "sha256": "84c7121f3906e37159aa6fab1059f7cf84d3afabd282749ad123256687e7ac90",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        },
-        {
-            "source": "resources/estimates/ai/prompts/extraction-totals/0-extraction-totals.md",
-            "runtime": "resources/estimates/ai/prompts/extraction-totals/0-extraction-totals.md",
-            "sha256": "b49b41af35f40cf84ba05012c92079a7d008b31970e9ed1ef8b83631913ef7d5",
-            "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume"
-        }
-    ]
+  "files": [
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-GSFX-LSR-001.gold.json",
+      "sha256": "449e62ba3cc0ab1ead8a4e066e11e4d5fe504a29841386dc430ec8f7476ea9af",
+      "source": "estimates/gold/EST-GSFX-LSR-001.gold.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-GSFX-LSR-001.screening.json",
+      "sha256": "9657f56c2dcf17f2fd1fba57cda3291f3ab036e47e409023686ca4bb520d8802",
+      "source": "estimates/gold/EST-GSFX-LSR-001.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-PDF-SCAN-001.screening.json",
+      "sha256": "48ad8f51455bb3b267ca798b6b807536372f479dc8afc51066aa4ea518e59ae1",
+      "source": "estimates/gold/EST-PDF-SCAN-001.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLS-KS2-001.gold.json",
+      "sha256": "fe4523b387628a8d4fdb12a16d8d0939a770571829b9fa292a99aa5042274087",
+      "source": "estimates/gold/EST-XLS-KS2-001.gold.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLS-KS2-001.profile.json",
+      "sha256": "2b2f29f34850b4b002317e5a74c87045dce93cf3549d429e595bee139bea3925",
+      "source": "estimates/gold/EST-XLS-KS2-001.profile.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLS-KS2-001.screening.json",
+      "sha256": "9282f5c1bd9e73d1c2d8f33551ccfc363d846ea30ac7d8bf1b81add63d2fbb8d",
+      "source": "estimates/gold/EST-XLS-KS2-001.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLS-KS3-001.profile.json",
+      "sha256": "42047be1ec89cd18869c11a666539d434beaf6d1dd249a25a8a106800b6f7e3f",
+      "source": "estimates/gold/EST-XLS-KS3-001.profile.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLS-KS3-001.screening.json",
+      "sha256": "4b42be127eecc08f209e3e06ed8b020c5cfd8c4448805d2ad9f4d34f6776a01c",
+      "source": "estimates/gold/EST-XLS-KS3-001.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-KS2-001.gold.json",
+      "sha256": "02caf4f268427442bd9290e04f7a250f4beb626f32ab9ffd3a8031066b3ae929",
+      "source": "estimates/gold/EST-XLSX-KS2-001.gold.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-KS2-001.profile.json",
+      "sha256": "d0eb01aa6f5f308eb5c33c20450206b34145e201f5dd57ce079648464e913553",
+      "source": "estimates/gold/EST-XLSX-KS2-001.profile.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-KS2-001.screening.json",
+      "sha256": "84ec1688f1fae595c510bcf4e7f1c32b8cc70a0df8e364d25aca029a2089aa3c",
+      "source": "estimates/gold/EST-XLSX-KS2-001.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-KS2-002.profile.json",
+      "sha256": "8777ba2f304da7de4a50f6067b63362fe52ed8bfa656a07e98db845f70ce5eb1",
+      "source": "estimates/gold/EST-XLSX-KS2-002.profile.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-KS2-002.screening.json",
+      "sha256": "91d270f2e3b236a5cfd3cc57462ca321a88e69ec6095f9bf3667ed96015dd172",
+      "source": "estimates/gold/EST-XLSX-KS2-002.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-KS2-003.gold.json",
+      "sha256": "45768fcacc0947bee761942ee2bbfc96f51d13437c12321eebb2ba7b5a5b1c7a",
+      "source": "estimates/gold/EST-XLSX-KS2-003.gold.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-KS2-003.profile.json",
+      "sha256": "6e488b0e0a18290b8e10906b007ea1d769691d73709df1a7a2f74794bbc2ed97",
+      "source": "estimates/gold/EST-XLSX-KS2-003.profile.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-KS2-003.screening.json",
+      "sha256": "c2600e7f4fd03048022b2d506ddbacf2c968b81096f43b4b32b01affad0185e2",
+      "source": "estimates/gold/EST-XLSX-KS2-003.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-LSR-001.gold.json",
+      "sha256": "00aa8ca0b7d99a86b6ef1aeb7729bfd6bdb67345605ebb7e8c4c2c86d1cb07a1",
+      "source": "estimates/gold/EST-XLSX-LSR-001.gold.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-LSR-001.profile.json",
+      "sha256": "99ea983f0eff95863abbd64a3238388b16fd8bd5a12617d0b4dc8003d5b3f348",
+      "source": "estimates/gold/EST-XLSX-LSR-001.profile.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-LSR-001.screening.json",
+      "sha256": "b10c421857b9b7a660f56b69588b7767da6d6bfb344cc4a01ac264543d2ef01b",
+      "source": "estimates/gold/EST-XLSX-LSR-001.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-LSR-002.profile.json",
+      "sha256": "315ab35bc2e9cc38ffa6788c2ffffd8c8e2ce42652ee958b24b86554679bbb41",
+      "source": "estimates/gold/EST-XLSX-LSR-002.profile.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-LSR-002.screening.json",
+      "sha256": "cff57f905a924f5b4f1b7ebf4f737f7c5a1d30ac46889504be71d39cd204aef5",
+      "source": "estimates/gold/EST-XLSX-LSR-002.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-LSR-003.profile.json",
+      "sha256": "f427f22b2464b08db644b028e273cdb79954713f63110c594203b3dd87b71e84",
+      "source": "estimates/gold/EST-XLSX-LSR-003.profile.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-LSR-003.screening.json",
+      "sha256": "755b456dfc7dfcce702ddbd3ef77c4ce6d4350b1f3c727a0d9bd2aea529a91f8",
+      "source": "estimates/gold/EST-XLSX-LSR-003.screening.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-VOR-001.gold.json",
+      "sha256": "f31cf0a93072bfd87c63eef1b6a3e7ebd92e01e4d952efaeced3372e7eafc105",
+      "source": "estimates/gold/EST-XLSX-VOR-001.gold.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-VOR-001.profile.json",
+      "sha256": "5fbcaa2848f7b06c31dd4062b24f05aedd58fdaeb2902dbdce7bc2db38ca2657",
+      "source": "estimates/gold/EST-XLSX-VOR-001.profile.json"
+    },
+    {
+      "provenance": "tracked project corpus",
+      "runtime": "estimates/gold/EST-XLSX-VOR-001.screening.json",
+      "sha256": "7781abd159f7c96fd8a4da57afa92e7c640f499bf9049593ecb4967286077314",
+      "source": "estimates/gold/EST-XLSX-VOR-001.screening.json"
+    },
+    {
+      "provenance": "existing local immutable EST-GSFX-LSR-001 corpus; binary is not committed",
+      "runtime": "estimates/files/Администрация культуры и спорта 3.gsfx",
+      "sha256": "d175edac8b7a3032eee20cfd941cb2178b471e75f288e3fcc4fc8e44fc52708b",
+      "source": "estimates/files/Администрация культуры и спорта 3.gsfx"
+    },
+    {
+      "provenance": "Byte-identical Git blob f1cf54defca3824a9f53406bc99f1ebe9633de57 from 612d6df7:research/2026-10-08-audit-remediation.md; relocated for isolated runtime; SHA-256 unchanged",
+      "runtime": "tests/Support/ProcessCore/RuntimeInputs/audit-remediation-2026-10-08.md",
+      "sha256": "818a872d0e63675dd713b0f204b9b5e92d9e5bba2aa1ecf6e83f0abee51a43c5",
+      "source": "tests/Support/ProcessCore/RuntimeInputs/audit-remediation-2026-10-08.md"
+    },
+    {
+      "provenance": {
+        "commit": "0a071dca52d95e91a534cd335e24dfb036deef76",
+        "path": "plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md",
+        "version": "immutable58 original; preserved by D24"
+      },
+      "runtime": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.immutable58.md",
+      "sha256": "f621347393d610da23be8f814013e2e0dc2d80c483380ca399e47ca3de8649b8",
+      "source": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.immutable58.md"
+    },
+    {
+      "provenance": {
+        "commit": "feaaca2f7c81c69173f58e434948daae4211efef",
+        "path": "plans/archive/2026.08.09-RELEASE-READINESS/artifacts/P9-admin-route-role-matrix.md",
+        "version": "authentic61; runtime input selected by D24"
+      },
+      "runtime": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.md",
+      "sha256": "bfb62a613a2b9d366cd41e3861fd146c732a3782d47e03f6f64852591b7386ef",
+      "source": "tests/Fixtures/ProcessCore/historical/P9-admin-route-role-matrix.md"
+    },
+    {
+      "provenance": {
+        "commit": "0a071dca52d95e91a534cd335e24dfb036deef76",
+        "path": "plans/archive/2026.08.06-CRAWL-HARDEN/artifacts/P7.4-fields-audit.json"
+      },
+      "runtime": "tests/Fixtures/ProcessCore/historical/gold-fields-audit.json",
+      "sha256": "221b395d513c9612de02e016b1ce42c283957103dc279d6678eec8d783e4f5b0",
+      "source": "tests/Fixtures/ProcessCore/historical/gold-fields-audit.json"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/ai/prompts/README.md",
+      "sha256": "96f365adbc5f156c391572ca90e57c51981ef300945066cb63080d1a3475ffcd",
+      "source": "resources/ai/prompts/README.md"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/ai/prompts/global/0-global.md",
+      "sha256": "f456e1272b3dcb71a58a13d54da271a380071f53d77d5a3d5a3ee2fe7f66cee5",
+      "source": "resources/ai/prompts/global/0-global.md"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/ai/prompts/prompt-critic/0-prompt-critic.md",
+      "sha256": "2a8f2b7d8e0fcefc3edcf539889aa2e057873b76e1f3db3b74e25a50731de41b",
+      "source": "resources/ai/prompts/prompt-critic/0-prompt-critic.md"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/ai/prompts/screening-classify/0-screening-classify.md",
+      "sha256": "e1194fb058923ba8f0fe94a824574e29857822fe7415aff37cd3f2c646112b01",
+      "source": "resources/ai/prompts/screening-classify/0-screening-classify.md"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/ai/prompts/screening-global/0-screening-global.md",
+      "sha256": "e93fca4c28c7af39b531740b3a04572c7db7088c1f2ee6cc21ee9abbfae0a04d",
+      "source": "resources/ai/prompts/screening-global/0-screening-global.md"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/estimates/ai/prompts/extraction-discovery/0-extraction-discovery.md",
+      "sha256": "ee20f885e2f2a3ebba0be2aa3f48e53a28c0f63d86929bf1a0cbc6aad37a8a53",
+      "source": "resources/estimates/ai/prompts/extraction-discovery/0-extraction-discovery.md"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/estimates/ai/prompts/extraction-global/0-extraction-global.md",
+      "sha256": "2f0a51f6d9dbeb19e450c72eda5fa999342f04288c5b1313be8ab1c9dcb5d477",
+      "source": "resources/estimates/ai/prompts/extraction-global/0-extraction-global.md"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/estimates/ai/prompts/extraction-passport/0-extraction-passport.md",
+      "sha256": "65fddf15c7aff40ba45266af883a642c36d41a3c48a7c969ff086d62880d655b",
+      "source": "resources/estimates/ai/prompts/extraction-passport/0-extraction-passport.md"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/estimates/ai/prompts/extraction-rows/0-extraction-rows.md",
+      "sha256": "84c7121f3906e37159aa6fab1059f7cf84d3afabd282749ad123256687e7ac90",
+      "source": "resources/estimates/ai/prompts/extraction-rows/0-extraction-rows.md"
+    },
+    {
+      "provenance": "tracked readonly prompt canon; runtime writes target a disposable volume",
+      "runtime": "resources/estimates/ai/prompts/extraction-totals/0-extraction-totals.md",
+      "sha256": "b49b41af35f40cf84ba05012c92079a7d008b31970e9ed1ef8b83631913ef7d5",
+      "source": "resources/estimates/ai/prompts/extraction-totals/0-extraction-totals.md"
+    }
+  ],
+  "format": "process-core-runtime-inputs/v1",
+  "repositories": {
+    "azguard": {
+      "commit": "ebd613cb99b1d72b7b303032e0d7ed0dd7774f4f",
+      "packages": {
+        "packages/core": "d29108a6bcaa49f434d9a391bcdab28f75fa3800af4145eedbd6221ef0e586a7",
+        "packages/filament": "b72245c8977039b4f299c9e41e221704c02702bd081509923388cbe7390e8af8"
+      }
+    },
+    "proxyma": {
+      "commit": "06861ce54fcff36da99d3e56c81facc6627e23cc",
+      "packages": {
+        "packages/core": "174e28b5aead14a23dfde0c09fec92b660dfad7c53fdf925a6981c7177b8d163",
+        "packages/filament": "f7b38627f081120bdaea6ca5d78189492ca0fee3ee1a1c87ac1239e195b74864"
+      }
+    }
+  }
 }

@@ -15,3 +15,23 @@ public/build/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 *.log
+
+# Private sources: only the two package trees enter dependency build stages.
+local/vendors/*/*
+!local/vendors/azguard/packages/
+!local/vendors/proxyma/packages/
+local/vendors/*/packages/*
+!local/vendors/azguard/packages/core/
+!local/vendors/azguard/packages/filament/
+!local/vendors/proxyma/packages/core/
+!local/vendors/proxyma/packages/filament/
+# Git metadata for the test rig is mounted at runtime, never built into an image.
+docker/tests/process-core/runtime-inputs/
+**/.git
+**/.env*
+**/auth.json
+**/credentials*
+**/secrets
+**/*.key
+**/id_rsa*
+**/id_ed25519*

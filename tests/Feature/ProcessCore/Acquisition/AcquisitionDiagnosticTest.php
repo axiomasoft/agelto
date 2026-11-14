@@ -15,7 +15,6 @@ use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Enums\Procurement\Network\AdapterVerdict;
 use App\Enums\Procurement\Process\ControlMode;
 use App\Models\Procurement\Platform\Okpd2Node;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Repositories\Procurement\Process\ControlRepository;
 use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;
 use App\Services\Platforms\Eis\EisListingPartitioner;
@@ -28,12 +27,17 @@ use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Platform\Contracts\ListingSource;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxyma\ProfileResolver as ProxyResolver;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
+use Proxyma\Infrastructure\Database\PackageSchema;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
+use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 use Tests\Support\ProcessCore\RawEvidenceFixtures;
 
 beforeEach(function (): void {
@@ -53,12 +57,14 @@ test('standalone adapter canary validates through the new owner without domain p
         $definition = (new PlatformRegistry(config()))->get(new PlatformCode('eis'));
         $profile = EisCrawlerFactory::new()->create();
         app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
         $control = DB::table('prc_control_scopes')->where('scope_key', 'acquisition')->sole();
         app(ProcessTransaction::class)->run(fn () => app(ControlRepository::class)
             ->setMode('acquisition', ControlMode::Paused, null, 'Diagnostic while paused',
                 $control->control_version, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
         $routeKey = app(OutboundPolicy::class)->defaultRouteProfile;
         $route = app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile($routeKey, $fixture->route->routeId->value));
+        ProxymaCallerFixtures::install($wire);
         $routeId = DB::table('prc_network_route_profiles')->where('profile_key', $routeKey)->value('id');
         $filter = new EisListingFilter(['123']);
         $plan = (new EisListingPartitioner)->plan($filter, '2026-01-01', '2026-01-01');
@@ -72,8 +78,8 @@ test('standalone adapter canary validates through the new owner without domain p
             ->and(DB::table('prc_process_work')->count())->toBe(0)
             ->and(DB::table('prc_crawl_blocks')->count())->toBe(0)
             ->and(DB::table('prc_procurements')->count())->toBe(0)
-            ->and(DB::table('prc_request_attempts')->count())->toBe(1)
-            ->and(DB::table('prc_network_demands')->distinct()->pluck('traffic_class')->all())->toBe(['diagnostic'])
+            ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
+            ->and(PackageNetworkFacts::demands()->distinct()->pluck('traffic_class')->all())->toBe(['diagnostic'])
             ->and(DB::table('prc_control_scopes')->where('scope_key', 'acquisition')->value('desired_mode'))->toBe('paused')
             ->and(DB::table('prc_outbound_operations')->sole()->kind)->toBe('probe')
             ->and(DB::table('prc_outbound_operations')->sole()->state)->toBe('closed')
@@ -94,8 +100,10 @@ test('registered diagnostic runner prepares two bounded reads and keeps canonica
             'platform_id' => $profile->registry->platform_id, 'code' => '43', 'external_id' => '123',
         ]);
         app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
         $key = app(OutboundPolicy::class)->defaultRouteProfile;
         app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile($key, $fixture->route->routeId->value));
+        ProxymaCallerFixtures::install($wire);
         app()->instance(AcquisitionDiagnostic::class, app()->makeWith(AcquisitionDiagnostic::class, ['urls' => $wire->policy()]));
         $body = file_get_contents(base_path('tests/Fixtures/Platforms/Eis/Csv/neutral-valid.csv'));
         $wire->respond('/listing', $body, headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -105,7 +113,7 @@ test('registered diagnostic runner prepares two bounded reads and keeps canonica
             app(HealthBaselineReader::class)->read(), new DateTimeImmutable('2026-11-01T12:00:00Z'));
         expect($result->verdict)->toBe(PlatformCheckVerdict::Ok)
             ->and($result->requestsUsed)->toBe(2)->and($result->measured['overlap'])->toBe(0)
-            ->and($wire->receipts())->toHaveCount(2)->and(DB::table('prc_request_attempts')->count())->toBe(2)
+            ->and($wire->receipts())->toHaveCount(2)->and(PackageNetworkFacts::attempts()->count())->toBe(2)
             ->and(DB::table('prc_process_work')->count())->toBe(0)->and(DB::table('prc_procurements')->count())->toBe(0);
         foreach ($wire->receipts() as $index => $receipt) {
             parse_str(parse_url($receipt['path'], PHP_URL_QUERY) ?? '', $query);
@@ -131,8 +139,10 @@ test('diagnostic failures retain physical evidence without publishing or blindly
         $profile = EisCrawlerFactory::new()->create();
         Okpd2Node::factory()->create(['platform_id' => $profile->registry->platform_id, 'code' => '43', 'external_id' => '123']);
         app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
         $key = app(OutboundPolicy::class)->defaultRouteProfile;
         app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile($key, $fixture->route->routeId->value));
+        ProxymaCallerFixtures::install($wire);
         app()->instance(AcquisitionDiagnostic::class, app()->makeWith(AcquisitionDiagnostic::class, ['urls' => $wire->policy()]));
         $body = match ($failure) {
             'empty_response' => '',
@@ -144,9 +154,9 @@ test('diagnostic failures retain physical evidence without publishing or blindly
                 headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
         }
         if ($failure === 'no_route') {
-            DB::table('prc_network_routes')->update(['enabled' => false]);
+            DB::table(PackageSchema::tables()['routes'])->update(['enabled' => false, 'revision' => DB::raw('revision + 1')]);
         } elseif ($failure === 'rate_limit') {
-            DB::table('prc_network_budgets')->update(['not_before' => DB::raw("clock_timestamp() + interval '1 hour'")]);
+            DB::table(PackageSchema::tables()['budgets'])->update(['send_tat' => DB::raw("clock_timestamp() + interval '60 seconds'")]);
         } elseif ($failure === 'parser_fault') {
             // The physical read is real; only the post-response parser fault is injected.
             app()->bind(EisListingSource::class, function ($container) {
@@ -181,7 +191,7 @@ test('diagnostic failures retain physical evidence without publishing or blindly
                 ->and($result->requestsUsed)->toBe($physical);
         }
         expect($wire->receipts())->toHaveCount($physical)
-            ->and(DB::table('prc_request_attempts')->count())->toBe($physical)
+            ->and(PackageNetworkFacts::attempts()->count())->toBe($physical)
             ->and(DB::table('prc_procurements')->count())->toBe(0)
             ->and(DB::table('prc_process_work')->count())->toBe(0)
             ->and(DB::table('prc_outbound_operations')->where('state', '!=', 'closed')->count())->toBe(0);

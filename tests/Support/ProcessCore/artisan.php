@@ -33,7 +33,7 @@ TestEnvironmentGuard::assertIsolatedTestFilesystem($app);
 Http::preventStrayRequests();
 
 // Only the fixture queue is consumed. Existing domain jobs remain inactive.
-config(['horizon.environments.testing' => [
+config(['horizon.memory_limit' => 128, 'horizon.environments.testing' => [
     'supervisor-core-fixtures' => [
         'connection' => 'redis',
         'queue' => ['process-core-fixtures'],

@@ -10,7 +10,6 @@ use App\Dto\Procurement\Network\NetworkChangeResult;
 use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Network\NetworkChangeStatus;
@@ -19,11 +18,11 @@ use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Repositories\Procurement\Process\TransitionRepository;
 use App\Services\Procurement\Network\OutboundPolicy;
-use Illuminate\Support\Facades\DB;
+use App\Services\Procurement\Proxyma\CallerSendFacts;
 
 /**
  * Единственный writer source catalog authority:
- * `prc_source_targets`, origin/probe/route-origin `prc_network_budgets` и начальные health rows.
+ * `prc_source_targets` и adapter contracts. Budget/route/network health writers принадлежат package.
  * Вызывается только явным catalog sync/override/retire, никогда routine boot.
  */
 final readonly class SourceCatalogRepository
@@ -33,39 +32,7 @@ final readonly class SourceCatalogRepository
     /** @return list<LedgerRow> Bounded advisory scan; every effect is revalidated by claim/send. */
     public function probeCandidates(?string $afterId, int $limit = 8): array
     {
-        return SourceCatalogSqlHelper::probeCandidates($afterId, $limit);
-    }
-
-    /** New configured routes get the same unknown health and budget authorities as explicit sync. */
-    public function initializeRoute(string $routeId, OutboundPolicy $policy): void
-    {
-        CallerTransaction::require('Route authority initialization');
-        $routeRow = LedgerRow::one('SELECT egress_id FROM prc_network_routes WHERE id = ?', [$routeId]);
-        $egressId = $routeRow?->string('egress_id');
-        $sharedEgress = $egressId !== null && LedgerRow::one('SELECT 1 AS shared FROM prc_network_routes WHERE egress_id = ? AND id <> ? LIMIT 1', [$egressId, $routeId]) !== null;
-        $targets = [];
-        foreach (LedgerRow::all('SELECT id, canonical_origin, endpoint_policy::text AS endpoint_policy FROM prc_source_targets WHERE retired_at IS NULL ORDER BY id') as $target) {
-            $targets[$target->string('id')] = $target->string('id');
-            $origin = CanonicalOrigin::fromUrl($target->string('canonical_origin'));
-            $ep = json_decode($target->string('endpoint_policy'), true, flags: JSON_THROW_ON_ERROR);
-            $routeBudget = is_array($ep) && is_array($ep['route_origin_budget'] ?? null)
-                ? OriginBudgetPolicy::fromArray($ep['route_origin_budget'])
-                : $policy->routeOriginBudget;
-            DB::insert('INSERT INTO prc_network_budgets (id, scope_key, emission_interval_us, burst, max_inflight, policy_version)
-                VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT (scope_key) DO NOTHING',
-                [ProcessUuid::random()->value, $origin->routeScopeKey($routeId), $routeBudget->emissionIntervalUs(),
-                    $routeBudget->burst, $routeBudget->maxInflight]);
-            if ($sharedEgress) {
-                $egressBudget = is_array($ep) && is_array($ep['egress_origin_budget'] ?? null)
-                    ? OriginBudgetPolicy::fromArray($ep['egress_origin_budget'])
-                    : $routeBudget;
-                DB::insert('INSERT INTO prc_network_budgets (id, scope_key, emission_interval_us, burst, max_inflight, policy_version)
-                    VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT (scope_key) DO NOTHING',
-                    [ProcessUuid::random()->value, $origin->egressScopeKey($egressId), $egressBudget->emissionIntervalUs(),
-                        $egressBudget->burst, $egressBudget->maxInflight]);
-            }
-        }
-        SourceCatalogSqlHelper::ensureHealthRows($targets, [$routeId]);
+        return CallerSendFacts::active() ? CallerSendFacts::probeCandidates($afterId, $limit) : [];
     }
 
     public function findActiveAdapterTarget(int $platformId, string $targetKey, AdapterContractRef $contract): ?ProcessUuid
@@ -133,16 +100,8 @@ final readonly class SourceCatalogRepository
         SourceCatalogSqlHelper::validateOriginDefaults($platformId, $catalog, $policy);
 
         $synced = SourceCatalogSqlHelper::syncTargetRows($platformId, $providerKey, $catalog, $policy, $rows, $this->adapters);
-        $routeRows = LedgerRow::all('SELECT id, egress_id FROM prc_network_routes ORDER BY id');
-        $routes = array_map(static fn (LedgerRow $route): string => $route->string('id'), $routeRows);
-        $routeEgressIds = [];
-        foreach ($routeRows as $routeRow) {
-            $routeEgressIds[$routeRow->string('id')] = $routeRow->string('egress_id');
-        }
-        [$budgetsCreated, $drifted] = SourceCatalogSqlHelper::ensureBudgets(
-            SourceCatalogSqlHelper::declaredBudgets($catalog, $policy, $routes, $routeEgressIds, $platformId),
-        );
-        $health = SourceCatalogSqlHelper::ensureHealthRows($synced['active'], $routes);
+        $budgetsCreated = $health = 0;
+        $drifted = [];
 
         $report = new CatalogSyncReport(
             platformCode: $catalog instanceof SourceTargetDefinitions ? $catalog->platformCode : null,
@@ -169,57 +128,6 @@ final readonly class SourceCatalogRepository
         }
 
         return $report;
-    }
-
-    public function overrideBudget(
-        string $scopeKey,
-        OriginBudgetPolicy $budget,
-        int $expectedVersion,
-        OutboundPolicy $policy,
-        ?int $actorId,
-        string $reason,
-        ProcessUuid $eventId,
-        ProcessUuid $projectionMessageId,
-    ): NetworkChangeResult {
-        CallerTransaction::require('Network budget override');
-        $reason = SourceCatalogSqlHelper::reason($reason);
-        if (! $policy->withinBounds($budget) || (str_starts_with($scopeKey, 'probe:') && $budget->maxInflight !== 1)) {
-            throw new \InvalidArgumentException('Budget override is outside outbound.override_bounds.');
-        }
-        $system = SourceCatalogSqlHelper::lockSystemAuthority();
-        $row = LedgerRow::one(
-            'SELECT id, emission_interval_us, burst, max_inflight, policy_version FROM prc_network_budgets WHERE scope_key = ? FOR UPDATE',
-            [$scopeKey],
-        );
-        if ($row === null) {
-            return new NetworkChangeResult(NetworkChangeStatus::NotFound, null);
-        }
-        $version = $row->int('policy_version');
-        if ($version !== $expectedVersion) {
-            return new NetworkChangeResult(NetworkChangeStatus::VersionConflict, $version);
-        }
-        if ($budget->matchesStored($row->int('emission_interval_us'), $row->int('burst'), $row->int('max_inflight'))) {
-            return new NetworkChangeResult(NetworkChangeStatus::Unchanged, $version);
-        }
-        $changed = LedgerRow::one(
-            'UPDATE prc_network_budgets SET emission_interval_us = ?, burst = ?, max_inflight = ?, policy_version = policy_version + 1
-             WHERE id = ? AND policy_version = ? RETURNING policy_version',
-            [$budget->emissionIntervalUs(), $budget->burst, $budget->maxInflight, $row->string('id'), $version],
-        ) ?? throw new \LogicException('Budget policy fence did not match the locked row.');
-        $this->audit($system, 'network_budget_override', $actorId === null ? ActorKind::System : ActorKind::Operator, $actorId, [
-            'scope_key' => $scopeKey,
-            'previous_emission_interval_us' => $row->int('emission_interval_us'),
-            'previous_burst' => $row->int('burst'),
-            'previous_max_inflight' => $row->int('max_inflight'),
-            'emission_interval_us' => $budget->emissionIntervalUs(),
-            'rate_per_minute' => $budget->ratePerMinute,
-            'burst' => $budget->burst,
-            'max_inflight' => $budget->maxInflight,
-            'policy_version' => $changed->int('policy_version'),
-            'reason' => $reason,
-        ], $eventId, $projectionMessageId);
-
-        return new NetworkChangeResult(NetworkChangeStatus::Applied, $changed->int('policy_version'));
     }
 
     public function retireTarget(

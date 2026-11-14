@@ -96,14 +96,12 @@ final class PlatformSourceRules
             'app/Console/Platforms/Eis/VerifyDocumentUid.php' => [
                 'App\\Models\\Procurement\\Platform\\Registry',
                 'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',
-                'App\\Services\\Procurement\\Proxy\\ProxyResolver',
+                'App\\Services\\Procurement\\Proxyma\\ProfileResolver',
             ],
             'database/factories/Platforms/Eis/EisCrawlerFactory.php' => [
                 'App\\Models\\Procurement\\Crawler\\Crawler',
-                'App\\Models\\Procurement\\Crawler\\Proxy',
                 'App\\Models\\Procurement\\Platform\\Platform',
                 'App\\Models\\Procurement\\Platform\\Registry',
-                'App\\Repositories\\Procurement\\Network\\RouteRepository',
                 'App\\Services\\Procurement\\Network\\OutboundPolicy',
                 'App\\Services\\Procurement\\Process\\ProcessTransaction',
                 'Illuminate\\Support\\Facades\\DB',
@@ -121,6 +119,7 @@ final class PlatformSourceRules
                 'App\\Repositories\\Procurement\\Process\\LedgerRow',
                 'App\\Services\\Procurement\\Acquisition\\Contracts\\AcquisitionProfilePreparer',
                 'App\\Services\\Procurement\\Network\\OutboundPolicy',
+                'App\\Services\\Procurement\\Proxyma\\ProfileResolver',
             ],
             'app/Services/Platforms/Eis/EisDefinition.php' => [
                 'App\\Filament\\Platforms\\Eis\\EisUiExtension',
@@ -143,9 +142,6 @@ final class PlatformSourceRules
             'app/Services/Platforms/Eis/Diagnostics/ListingFilterCheck.php' => [
                 'App\\Services\\Procurement\\Network\\Contracts\\DiagnosticCheck',
             ],
-            'app/Services/Platforms/Eis/Csv/EisCsvParser.php' => [
-                'App\\Services\\Procurement\\Network\\BoundedResponseReader',
-            ],
             'app/Models/Platforms/Eis/EisDetails.php' => [
                 'App\Models\Procurement\Procurement',
             ],
@@ -159,8 +155,8 @@ final class PlatformSourceRules
             ],
             'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php' => [
                 'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',
-                'App\\Services\\Procurement\\Proxy\\ProxyResolver',
-                'App\\Services\\Procurement\\Proxy\\RoutePolicy',
+                'App\\Services\\Procurement\\Proxyma\\ProfileResolver',
+                'App\\Services\\Procurement\\Proxyma\\ProfileBindings',
                 'App\Models\Procurement\Platform\Platform',
                 'App\Models\Procurement\Platform\Okpd2Node',
                 'App\Repositories\Procurement\Platform\Okpd2NodeReadRepository',
@@ -174,15 +170,11 @@ final class PlatformSourceRules
                 'App\Models\Procurement\Platform\Registry',
             ],
             'database/seeders/Platforms/Eis/EisCrawlerProxySeeder.php' => [
-                'App\\Services\\Procurement\\Process\\ProcessTransaction',
-                'App\\Repositories\\Procurement\\Process\\ControlRepository',
-                'App\\Repositories\\Procurement\\Network\\RouteRepository',
-                'App\Models\Procurement\Crawler\Proxy',
+                'Illuminate\Support\Facades\DB',
             ],
             'database/seeders/Platforms/Eis/EisAuditSeeder.php' => [
-                'App\\Repositories\\Procurement\\Network\\RouteRepository',
                 'App\Models\Procurement\Crawler\Crawler',
-                'App\Models\Procurement\Crawler\Proxy',
+                'App\Models\Procurement\Proxyma\ProfileLink',
                 'Illuminate\Support\Facades\DB',
             ],
             'database/seeders/BaseSeeder.php' => [

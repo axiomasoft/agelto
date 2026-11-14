@@ -117,6 +117,18 @@ def case_inventory(cases):
     return {"count": len(names), "names_sha256": digest(names)}
 
 
+def replay_binding(root, contract, binding):
+    original = binding["replaces"]
+    replacement = contract["replay_replacements"][original]
+    need(binding["file"] in replacement["files"], "undeclared replay replacement")
+    archive = root / replacement["archive"]
+    need(sha(archive) == replacement["source_sha256"], "modified historical scenario source")
+    need(binding["group"] in replacement["groups"] and
+         re.search(r"->group\([^;]*['\"]" + re.escape(binding["group"]) + r"['\"]", archive.read_text()),
+         "missing historical scenario group")
+    return replacement
+
+
 def build(root, reports, folder, validate_load, candidate):
     root, reports, folder = Path(root), Path(reports), Path(folder)
     contract = read(root / CONTRACT)
@@ -125,7 +137,10 @@ def build(root, reports, folder, validate_load, candidate):
     current = read(folder / "inputs.json")
     errors, gates, scenario_evidence = [], {}, {}
     latest = {}
+    runtime = None
     for path in sorted(reports.glob("*/result.json")):
+        if path.parent.name > folder.name:
+            continue
         result = read(path)
         latest[(result.get("command"), result.get("width"))] = (path.parent, result)
     for validation, key in GATES.items():
@@ -136,6 +151,15 @@ def build(root, reports, folder, validate_load, candidate):
             previous = read(location / "inputs.json")
             need(digest(previous) == result["candidate"]["input_tree_sha256"], "evidence input hash mismatch")
             changed = changed_inputs(root, previous, current, contract, validation == "V1")
+            if contract.get("installed_proxyma"):
+                measured_runtime = result["runtime"]
+                need(measured_runtime.get("images") and measured_runtime.get("config_sha256") and
+                     measured_runtime.get("dependencies") == read(root /
+                     "tests/Fixtures/ProcessCore/runtime-inputs.json")["repositories"],
+                     "missing/stale installed runtime")
+                if runtime is None:
+                    runtime = measured_runtime
+                need(runtime == measured_runtime, "mixed acceptance runtimes")
             proof = {"command": key[0], "width": key[1], "result": str((location / "result.json").relative_to(root)),
                      "original_candidate": result["candidate"], "changed_non_influencing_inputs": changed,
                      "reuse": "identical_inputs" if not changed else "identical_execution_inputs",
@@ -169,6 +193,9 @@ def build(root, reports, folder, validate_load, candidate):
                                               "requests", "server_receipts", "active_reservations_after_drain",
                                               "pending_outbox_after_drain", "unaccounted_work", "fifo_grant_inversions")}
                 if validation == "V6":
+                    for path, expected in contract.get("integration_cases", {}).items():
+                        need(case_inventory(file_cases(executed, path)) == expected,
+                             "missing installed integration scenarios: " + path)
                     comparison = read(location / "scenario-comparison.json")
                     need(sha(location / "scenario-comparison.json") ==
                          result["tests"].get("scenario_comparison_sha256"), "regression comparison hash mismatch")
@@ -191,10 +218,14 @@ def build(root, reports, folder, validate_load, candidate):
                 path, group, target = binding["file"], binding["group"], binding["target"]
                 need(target == "core-test-regression", "scenario evidence target mismatch")
                 need(group == contract["scenario_group_names"][scenario], "scenario group mapping mismatch")
-                source = (root / path).read_text()
-                grouped = re.search(r"->group\([^;]*['\"]" + re.escape(group) + r"['\"]", source)
-                if binding.get("group_mode") == "case_prefix":
-                    grouped = re.search(r"test\(['\"]" + scenario + r" ", source)
+                if binding.get("group_mode") == "contract_replay":
+                    replay_binding(root, contract, binding)
+                    grouped = True
+                else:
+                    source = (root / path).read_text()
+                    grouped = re.search(r"->group\([^;]*['\"]" + re.escape(group) + r"['\"]", source)
+                    if binding.get("group_mode") == "case_prefix":
+                        grouped = re.search(r"test\(['\"]" + scenario + r" ", source)
                 need(grouped,
                      "missing declared group: " + path + ":" + group)
                 observed = file_cases(scenario_evidence.get("V6", []), path)

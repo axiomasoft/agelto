@@ -21,6 +21,7 @@ use App\Services\Procurement\Process\Contracts\LeaseKeeper;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 use Tests\Support\ProcessCore\ProviderSendFixtures;
 
 pest()->group('analysis-execution', 'provider-send-fencing');
@@ -36,7 +37,7 @@ test('полный timeout не помещается: slice denial без networ
         expect($wire->fingerprint)->toBe($f->wire->fingerprint)
             ->and($gate->claimSend($f->operation, $wire)->denial)->toBe(ProviderSendDenial::SliceExhausted)
             ->and($server->receipts())->toBe([])
-            ->and(DB::table('prc_network_demands')->count())->toBe(0)
+            ->and(PackageNetworkFacts::demands()->count())->toBe(0)
             ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(0)
             ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->outcome)->toBe('not_sent')
             ->and(DB::table('llm_budget_reservations')->sole()->settled_amount)->toBe('0.00000000');
@@ -59,7 +60,7 @@ test('потерянный lease сохраняет управляющий вы�
         $gate = ProviderSendFixtures::gateFor($f->lease, $f->run, $f->target, $f->route, $f->profile, $server, $context);
         expect(fn () => $gate->claimSend($f->operation, $f->wire))->toThrow(LeaseLost::class)
             ->and($server->receipts())->toBe([])
-            ->and(DB::table('prc_network_demands')->count())->toBe(0)
+            ->and(PackageNetworkFacts::demands()->count())->toBe(0)
             ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe(0)
             ->and(DB::table('llm_budget_reservations')->sole()->settled_amount)->toBe('0.00000000');
     } finally {

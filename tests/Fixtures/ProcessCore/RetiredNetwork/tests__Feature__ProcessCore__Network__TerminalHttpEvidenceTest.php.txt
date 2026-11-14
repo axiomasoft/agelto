@@ -1,0 +1,55 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Dto\Procurement\Network\TransferBudget;
+use App\Dto\Procurement\Network\TransportDeferred;
+use App\Exceptions\Procurement\Process\SliceExhausted;
+use App\Services\Procurement\Proxyma\CallerOutbound as OutboundExecutor;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\Http\PermitFixtures as F;
+use Tests\Support\ProcessCore\Http\WireFixture;
+
+beforeEach(fn () => F::clean());
+afterEach(fn () => F::clean());
+
+test('последний полный 503 остаётся evidence при исчерпании slice до следующей отправки', function (): void {
+    $wire = new WireFixture;
+    try {
+        $f = new F($wire);
+        $wire->respond('/unavailable', 'temporary unavailable', 503);
+        $context = $f->context(function (): void {
+            if (DB::table('prc_request_attempts')->where('status', 503)->whereNotNull('finished_at')->exists()) {
+                throw SliceExhausted::forWork('fixture');
+            }
+        });
+        $plan = $f->plan(url: $wire->url('/unavailable'));
+        $result = app(OutboundExecutor::class)->execute($plan, $context, $f->gate(), $wire->policy(), new TransferBudget(65536, 65536));
+        expect($result)->toBeInstanceOf(TransportDeferred::class)
+            ->and($result->reason->value)->toBe('slice_exhausted')
+            ->and($result->finalResponse->body->utf8)->toBe('temporary unavailable')
+            ->and($result->finalResponse->status)->toBe(503)
+            ->and($result->finalResponse->requestId->value)->toBe($plan->physicalRequestId->value)
+            ->and($result->lastRequestId->value)->toBe($plan->physicalRequestId->value)
+            ->and($wire->receipts())->toHaveCount(1);
+    } finally {
+        $wire->stop();
+    }
+})->group('transport-and-work-budget');
+
+test('сетевой отказ следующей попытки не наследует тело предыдущего 503', function (): void {
+    $wire = new WireFixture;
+    try {
+        $f = new F($wire);
+        $plan = $f->plan(url: $wire->url('/unavailable-then-drop'));
+        $result = app(OutboundExecutor::class)->execute($plan, $f->context(), $f->gate(), $wire->policy(), new TransferBudget(65536, 65536));
+        expect($result)->toBeInstanceOf(TransportDeferred::class)
+            ->and($result->finalResponse)->toBeNull()
+            ->and($result->lastRequestId->value)->not->toBe($plan->physicalRequestId->value)
+            ->and($result->lastRequestId->value)->toBe(DB::table('prc_request_attempts')->orderByDesc('request_seq')->value('request_id'))
+            ->and(DB::table('prc_request_attempts')->where('status', 503)->count())->toBe(1)
+            ->and($wire->receipts())->toHaveCount($f->profile->attempts);
+    } finally {
+        $wire->stop();
+    }
+})->group('transport-and-work-budget');

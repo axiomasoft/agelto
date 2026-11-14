@@ -17,14 +17,11 @@ use App\Dto\Procurement\Process\StagePartial;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Llm\OperationDenied;
-use App\Models\User;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Services\Procurement\Document\DocumentStorageReconciler;
 use App\Services\Procurement\Extraction\AnalysisProviderConnections;
 use App\Services\Procurement\Extraction\ExtractionHandler;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\RecoveryReconciler;
 use App\Services\Procurement\Process\WorkFeeder;
 use App\Services\Procurement\Process\WorkFinalizer;
@@ -37,10 +34,13 @@ use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\ExtractionRuntimeFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FinancialFixtures;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\TransportFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
+use Tests\Support\ProcessCore\ProxymaProviderFixtures;
 
 pest()->group('structured-extraction-contract', 'provider-and-worker-recovery', 'analysis-execution');
 
@@ -54,8 +54,10 @@ test('an unclaimed denied send preserves a known-safe retry directive and is nev
         $origin = $server->url('/')->origin;
         app(SourceCatalogSync::class)->syncProvider(new ProviderTargetDefinitions(new ProviderKey('fixture-provider'), [
             new SourceTargetDefinition('provider:fixture-provider:generate', 'provider', $origin, [$profile], new OriginBudgetPolicy(600, 1, 2))]));
+        HistoricalNetworkFixtures::synchronize();
+        ProxymaProviderFixtures::installTarget(DB::table('prc_source_targets')->where('provider_key', 'fixture-provider')->sole()->id, $origin->value());
         app(AnalysisProviderConnections::class)->register(new AnalysisProviderConnection($recipe->llm, $origin->value(), FinancialFixtures::pricing(), $period, $profile, 'fixture-only-key', $server->policy()));
-        DB::table('prc_network_routes')->update(['enabled' => false]);
+        DB::table('pxm_routes')->update(['enabled' => false, 'revision' => DB::raw('revision + 1')]);
         $input = new ExtractionWindowInput($window->run->id, $window->windowKey, $recipe->hash);
         $outcome = app(ExtractionHandler::class)->execute($input, app(ExecutionContextFactory::class)->open($lease));
         app(WorkFinalizer::class)->finish($lease, $outcome);
@@ -68,13 +70,9 @@ test('an unclaimed denied send preserves a known-safe retry directive and is nev
             ->and($server->receipts())->toHaveCount(0);
         $lease = FinalizeFixtures::rerun($work);
         expect($lease->checkpoint->providerRecoveryPlan->mode->value)->toBe('known_retry_eligible');
-        DB::table('prc_network_routes')->update(['enabled' => true]);
-        $route = DB::table('prc_network_routes')->where('kind', 'direct')->soleValue('id');
-        $version = (int) DB::table('prc_network_route_profiles')->where('profile_key', 'llm')->soleValue('policy_version');
-        $actor = User::factory()->create()->id;
-        app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->updateProfile('llm', $version, [$route], $actor, 'Allow repaired fixture route', LedgerFixtures::uuid(), LedgerFixtures::uuid()));
-        foreach (['prc_route_health', 'prc_route_target_health', 'prc_target_health'] as $table) {
-            DB::table($table)->update(['state' => 'closed']);
+        DB::table('pxm_routes')->update(['enabled' => true, 'revision' => DB::raw('revision + 1')]);
+        foreach (['pxm_route_health', 'pxm_route_target_health', 'pxm_profile_health', 'pxm_target_health'] as $table) {
+            DB::table($table)->update($table === 'pxm_target_health' ? ['state' => 'closed', 'availability' => 'available'] : ['state' => 'closed']);
         }
         $body = json_encode(['fixture_receipt' => 1, 'outcome' => 'success', 'cost' => '0.00200001', 'candidates' => [['finishReason' => 'STOP', 'content' => ['parts' => [['text' => AiFixtures::raw()]]]]]], JSON_THROW_ON_ERROR);
         $server->respond('/v1beta/models/fixture-model:generateContent', $body, headers: ['Content-Type' => 'application/json'], method: 'POST');
@@ -102,15 +100,12 @@ test('SIGKILL of the real extraction runner resumes the same work with zero addi
         app(SourceCatalogSync::class)->syncProvider(new ProviderTargetDefinitions(new ProviderKey('fixture-provider'), [
             new SourceTargetDefinition('provider:fixture-provider:generate', 'provider', $origin, [$profile], new OriginBudgetPolicy(600, 1, 2)),
         ]));
-        $profileVersion = (int) DB::table('prc_network_route_profiles')->where('profile_key', 'llm')->value('policy_version');
-        $route = (string) DB::table('prc_network_routes')->where('kind', 'direct')->value('id');
-        $actor = User::factory()->create()->id;
-        app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->updateProfile('llm', $profileVersion, [$route], $actor,
-            'Authorize fixture route for the real analysis worker', LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+        HistoricalNetworkFixtures::synchronize();
         foreach (['prc_route_health', 'prc_route_target_health', 'prc_target_health'] as $table) {
             DB::table($table)->update(['state' => 'closed']);
         }
         DB::table('prc_network_budgets')->update(['emission_interval_us' => 100_000]);
+        ProxymaProviderFixtures::installTarget(DB::table('prc_source_targets')->where('provider_key', 'fixture-provider')->sole()->id, $origin->value());
         $connection = new AnalysisProviderConnection($recipe->llm, $origin->value(), FinancialFixtures::pricing(), $period, $profile,
             'fixture-only-key', $server->policy());
         $body = json_encode(['fixture_receipt' => 1, 'outcome' => 'success', 'cost' => '0.00200001',
@@ -119,7 +114,7 @@ test('SIGKILL of the real extraction runner resumes the same work with zero addi
         app(WorkFeeder::class)->tick('analysis');
         $delivery = new DeliveryEnvelope($work, ExecutionFixtures::delivery($work), LedgerFixtures::uuid(), 1);
         $payload = base64_encode(serialize([$connection, $delivery, Storage::disk('local')->path(''), $boundary]));
-        $code = '\Tests\Support\ProcessCore\ExtractionRuntimeFixtures::bind();'
+        $code = '\Tests\Support\ProcessCore\ExtractionRuntimeFixtures::bind();\Tests\Support\ProcessCore\ProxymaProviderFixtures::configure();'
             .'[$connection,$delivery,$localRoot,$boundary]=unserialize(base64_decode('.var_export($payload, true).'));'
             .'config(["filesystems.disks.local.root"=>$localRoot]); \Illuminate\Support\Facades\Storage::forgetDisk("local");'
             .'app(\App\Services\Llm\Execution\ReceiptPolicies::class)->register("fixture-provider",new \Tests\Support\ProcessCore\FinancialFixtures);'
@@ -168,7 +163,7 @@ test('SIGKILL of the real extraction runner resumes the same work with zero addi
         expect(app(WorkRunner::class)->runDelivery($delivery)->value)->toBe('executed')
             ->and(DB::table('prc_analysis_chunks')->count())->toBe(1)
             ->and(DB::table('llm_provider_calls')->count())->toBe(1)
-            ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
             ->and(DB::table('llm_budget_reservations')->count())->toBe(1)
             ->and($server->receipts())->toHaveCount(1)
             ->and(ExecutionFixtures::work($work)->state)->toBe('ready');
@@ -185,7 +180,7 @@ test('SIGKILL of the real extraction runner resumes the same work with zero addi
             ->and(DB::table('prc_estimates')->count())->toBe(1)
             ->and(DB::table('prc_analysis_runs')->value('publication_status'))->toBe('published')
             ->and(DB::table('llm_provider_calls')->count())->toBe(1)->and(DB::table('llm_budget_reservations')->count())->toBe(1)
-            ->and(DB::table('prc_request_attempts')->count())->toBe(1)->and($server->receipts())->toHaveCount(1);
+            ->and(PackageNetworkFacts::attempts()->count())->toBe(1)->and($server->receipts())->toHaveCount(1);
     } finally {
         $server->stop();
     }
@@ -208,5 +203,5 @@ test('missing immutable representation defers as storage dependency before reser
         ->and(DB::table('prc_process_attempts')->whereNotNull('fault_signature')->count())->toBe(0)
         ->and(DB::table('llm_provider_calls')->count())->toBe(0)
         ->and(DB::table('llm_budget_reservations')->count())->toBe(0)
-        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
+        ->and(PackageNetworkFacts::attempts()->count())->toBe(0);
 });

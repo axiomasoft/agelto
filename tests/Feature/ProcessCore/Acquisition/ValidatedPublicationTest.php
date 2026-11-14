@@ -28,13 +28,15 @@ use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\WorkFinalizer;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\ProfileBindings as RoutePolicy;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\ListingFixtures;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 use Tests\Support\ProcessCore\RawEvidenceFixtures;
 
 beforeEach(function (): void {
@@ -55,6 +57,7 @@ test('acquisition publishes only a current complete validation receipt and uses 
         app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($f->code, [
             new SourceTargetDefinition('card', 'detail', $f->url->origin, [$f->profile], adapterContract: $ref),
         ]));
+        HistoricalNetworkFixtures::synchronize();
         if (! $canary) {
             DB::table('prc_adapter_health')->update(['state' => 'healthy']);
         }
@@ -72,6 +75,7 @@ test('acquisition publishes only a current complete validation receipt and uses 
         $context = new ExecutionContext($lease, app(WorkStoreRepository::class), app(ProcessClock::class),
             Duration::seconds(240), Duration::seconds(360), Duration::seconds(15), Duration::seconds(15), Duration::seconds(30));
         $task = app(ListingStoreRepository::class)->task($run['input']);
+        ProxymaCallerFixtures::install($wire);
         $outcome = app(AcquisitionValidation::class)->run($ref, $platform, new RoutePolicy([new HttpRouteBinding($f->route->routeId)]),
             $f->plan(), $wire->policy(), $context, function (PlatformOutbound $outbound) use ($f, $context, $task): StageSucceeded {
                 expect($outbound->execute($f->plan(), $context))->toBeInstanceOf(TransportSucceeded::class);

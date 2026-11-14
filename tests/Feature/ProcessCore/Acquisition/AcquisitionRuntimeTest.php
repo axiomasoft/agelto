@@ -18,7 +18,6 @@ use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Enums\Procurement\Process\StageCode;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Platforms\Eis\EisListingPartitioner;
 use App\Services\Platforms\Eis\EisListingSource;
@@ -39,9 +38,13 @@ use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Platforms\Contract\RecordingOutbound;
 use Tests\Support\ProcessCore\FinalizeFixtures;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
+use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 use Tests\Support\ProcessCore\RawEvidenceFixtures;
 
 beforeEach(function (): void {
@@ -63,9 +66,11 @@ test('real EIS producer work runs through registry composition local HTTP canary
         $definition = $platforms->get(new PlatformCode('eis'));
         $profile = EisCrawlerFactory::new()->create();
         app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
         $routeKey = app(OutboundPolicy::class)->defaultRouteProfile;
         app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile($routeKey, $f->route->routeId->value));
         $route = DB::table('prc_network_route_profiles')->where('profile_key', $routeKey)->sole();
+        ProxymaCallerFixtures::install($wire);
         app()->forgetInstance(StageRegistry::class);
         $stages = app(StageRegistry::class);
         expect($stages->handlerVersion(StageCode::Listing))->toBe(AcquisitionRuntime::VERSION);
@@ -100,7 +105,7 @@ test('real EIS producer work runs through registry composition local HTTP canary
         expect($outcome)->toBeInstanceOf(StageSucceeded::class)->and($outcome->result)->toBeInstanceOf(ValidatedAcquisitionResult::class);
         app(WorkFinalizer::class)->finish($context->lease(), $outcome);
         expect(DB::table('prc_process_work')->where('id', $row->id)->sole()->state)->toBe('succeeded')
-            ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
             ->and(DB::table('prc_outbound_operations')->where('kind', 'legacy_bridge')->count())->toBe(0)
             ->and(DB::table('prc_outbound_operations')->sole()->parent_attempt_id)->toBe($lease->attemptId->value)
             ->and($wire->receipts())->toHaveCount(1)

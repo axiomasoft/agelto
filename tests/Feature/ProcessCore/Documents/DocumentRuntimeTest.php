@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Document\DocumentReference;
 use App\Dto\Procurement\Document\SourceDocumentKey;
+use App\Dto\Procurement\Network\TransferBudget;
+use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Platform\PlatformCode;
 use App\Dto\Procurement\Platform\SourceIdentifierType;
 use App\Dto\Procurement\Platform\SourceIdentifierValue;
@@ -20,7 +22,6 @@ use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Document\DocumentCatalogRepository;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentRuntime;
@@ -32,6 +33,7 @@ use App\Services\Procurement\Process\StageRegistry;
 use App\Services\Procurement\Process\WorkFeeder;
 use App\Services\Procurement\Process\WorkFinalizer;
 use App\Services\Procurement\Process\WorkRunner;
+use App\Services\Procurement\Proxyma\CallerOutbound;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\AiFixtures;
@@ -39,16 +41,47 @@ use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\DownloadFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FixtureStagePayloadCodec;
+use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
 use Tests\Support\ProcessCore\Http\CallerFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 use Tests\Support\ProcessCore\PreparedFixtureAnalysisHandler;
 use Tests\Support\ProcessCore\PreparedFixturePublicationRepository;
 use Tests\Support\ProcessCore\PrepareFixtures;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
+use Tests\Support\ProcessCore\ProxymaFixtures;
 use Tests\Support\ProcessCore\StubPdfTools;
 
 pest()->group('document-processing', 'admission-fairness');
+
+test('consumer transport сохраняет download validators и отбрасывает посторонние response headers', function (): void {
+    PermitFixtures::clean();
+    $wire = new WireFixture;
+    try {
+        $f = new DownloadFixtures($wire);
+        [, , $context] = $f->running();
+        $wire->respond('/document', "%PDF-1.4\nfixture\n%%EOF", headers: [
+            'Content-Type' => 'application/pdf', 'Content-Disposition' => 'attachment; filename="fixture.pdf"',
+            'ETag' => '"fixture-v1"', 'Last-Modified' => 'Wed, 11 Nov 2026 10:00:00 GMT',
+            'Set-Cookie' => 'fixture-secret', 'X-Private-Metadata' => 'fixture-secret',
+        ]);
+        $result = app(CallerOutbound::class)->execute($f->plan('/document')->request,
+            $context, $f->network->gate(), $wire->policy(), new TransferBudget(262144, 262144));
+        expect($result)->toBeInstanceOf(TransportSucceeded::class)
+            ->and($result->response->header('Content-Disposition'))->toBe('attachment; filename="fixture.pdf"')
+            ->and($result->response->header('ETag'))->toBe('"fixture-v1"')
+            ->and($result->response->header('Last-Modified'))->toBe('Wed, 11 Nov 2026 10:00:00 GMT')
+            ->and($result->response->header('Set-Cookie'))->toBeNull()
+            ->and($result->response->header('X-Private-Metadata'))->toBeNull()
+            ->and($wire->receipts())->toHaveCount(1)
+            ->and(PackageNetworkFacts::attempts()->count())->toBe(1);
+    } finally {
+        $wire->stop();
+        PermitFixtures::clean();
+    }
+});
 
 test('потеря source object при prepare даёт storage wait без item failure и handler fault', function (): void {
     PermitFixtures::clean();
@@ -79,6 +112,7 @@ test('registered runtime проводит reference download prepare через 
         app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile(app(OutboundPolicy::class)->defaultRouteProfile, $routeId));
         CallerFixtures::healthReady();
         app()->instance(PdfPreparationTools::class, new StubPdfTools(1));
+        ProxymaCallerFixtures::install($wire);
         app()->instance(RuntimeDownloadHandler::class, app()->makeWith(RuntimeDownloadHandler::class, ['urls' => $wire->policy()]));
         app()->forgetInstance(StageRegistry::class);
         expect(app(StageRegistry::class)->handlerVersion(StageCode::Download))->toBe(DocumentRuntime::VERSION);
@@ -97,6 +131,7 @@ test('registered runtime проводит reference download prepare через 
         $prepare = DB::table('prc_process_work')->where('stage', 'prepare')->sole();
         expect($prepare->input_revision)->toBe(2)->and($prepare->origin_run_id)->not->toBe($work->origin_run_id);
         ExecutionFixtures::setMode('acquisition', ControlMode::Paused);
+        ProxymaFixtures::resetAuthority();
         DB::table('prc_source_targets')->update(['retired_at' => now()]);
         $id = new WorkId(new ProcessUuid($prepare->id));
         for ($i = 0; $i < 4 && ExecutionFixtures::work($id)->state !== 'succeeded'; $i++) {
@@ -107,7 +142,7 @@ test('registered runtime проводит reference download prepare через 
             ->and(DB::table('prc_document_representations')->where('range_key', 'complete')->count())->toBe(1)
             ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBeNull()
             ->and(DB::table('prc_process_reservations')->count())->toBe(0)
-            ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
             ->and(DB::table('prc_outbound_operations')->where('kind', 'legacy_bridge')->count())->toBe(0);
 
         // Extend the actual reference→HTTP→prepare chain into a test-only transactional sink.
@@ -137,7 +172,7 @@ test('registered runtime проводит reference download prepare через 
         $publication = DB::table('p36_fixture_publications')->sole();
         expect([$publication->version_id, $publication->content_hash])->toBe([$representation->document_version_id, $representation->content_hash])
             ->and(ExecutionFixtures::work($screening)->state)->toBe('succeeded')
-            ->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
             ->and(DB::table('prc_process_reservations')->count())->toBe(0)
             ->and(DB::table('prc_operation_intents')->where('stage', 'screening')->value('pending_reason'))->toBeNull()
             ->and(DB::table('prc_estimates')->count())->toBe(0);
@@ -180,10 +215,11 @@ test('runtime download открывает canary probe когда target health 
         $registry = CallerFixtures::platform($wire);
         $routeId = DB::table('prc_network_routes')->sole()->id;
         app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile(app(OutboundPolicy::class)->defaultRouteProfile, $routeId));
-        DB::table('prc_target_health')->update(['state' => 'unknown', 'availability' => 'unknown']);
-        DB::table('prc_route_target_health')->update(['state' => 'unknown']);
-        expect(DB::table('prc_target_health')->pluck('state')->unique()->all())->toBe(['unknown'])
-            ->and(DB::table('prc_route_target_health')->pluck('state')->unique()->all())->toBe(['unknown']);
+        ProxymaCallerFixtures::install($wire);
+        DB::table('pxm_target_health')->update(['state' => 'unknown', 'availability' => 'unknown']);
+        DB::table('pxm_route_target_health')->update(['state' => 'unknown']);
+        expect(DB::table('pxm_target_health')->pluck('state')->unique()->all())->toBe(['unknown'])
+            ->and(DB::table('pxm_route_target_health')->pluck('state')->unique()->all())->toBe(['unknown']);
         app()->instance(RuntimeDownloadHandler::class, app()->makeWith(RuntimeDownloadHandler::class, ['urls' => $wire->policy()]));
         app()->forgetInstance(StageRegistry::class);
         $this->artisan('process:sync-documents')->assertSuccessful();
@@ -198,7 +234,7 @@ test('runtime download открывает canary probe когда target health 
         (new ExecuteWorkJob($work->id, 1, LedgerFixtures::uuid()->value))->handle(app(WorkRunner::class));
         expect(DB::table('prc_process_work')->where('id', $work->id)->value('state'))->toBe('succeeded')
             ->and(DB::table('prc_outbound_operations')->where('caller_code', 'document.download_canary')->value('state'))->toBe('closed')
-            ->and(DB::table('prc_target_health')->whereIn('state', ['closed'])->count())->toBe(1);
+            ->and(DB::table('pxm_target_health')->whereIn('state', ['closed'])->count())->toBe(1);
     } finally {
         $wire->stop();
         PermitFixtures::clean();
@@ -214,6 +250,7 @@ test('runtime download использует имя файла и расшире�
         $registry = CallerFixtures::platform($wire);
         $routeId = DB::table('prc_network_routes')->sole()->id;
         app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile(app(OutboundPolicy::class)->defaultRouteProfile, $routeId));
+        ProxymaCallerFixtures::install($wire);
         app()->instance(RuntimeDownloadHandler::class, app()->makeWith(RuntimeDownloadHandler::class, ['urls' => $wire->policy()]));
         app()->forgetInstance(StageRegistry::class);
         $this->artisan('process:sync-documents')->assertSuccessful();

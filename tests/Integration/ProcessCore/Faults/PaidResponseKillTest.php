@@ -42,6 +42,7 @@ test('SIGKILL настоящего extraction runner различает authoriz
             [$connection,$delivery,$localRoot,$boundary,$root] = unserialize(base64_decode(__PAYLOAD__));
             \Tests\Support\ProcessCore\AcceptanceRuntime::shortPolicy();
             \Tests\Support\ProcessCore\ExtractionRuntimeFixtures::bind();
+            \Tests\Support\ProcessCore\ProxymaProviderFixtures::configure();
             config(['filesystems.disks.local.root'=>$localRoot]);
             \Illuminate\Support\Facades\Storage::forgetDisk('local');
             app(\App\Services\Llm\Execution\ReceiptPolicies::class)->register('fixture-provider',new \App\Services\Llm\Providers\GeminiAssetReceiptPolicy);
@@ -84,7 +85,9 @@ test('SIGKILL настоящего extraction runner различает authoriz
             ->and(DB::table('llm_provider_calls')->whereNotNull('send_claimed_at')->count())->toBe($notSent ? 0 : 1)
             ->and(DB::table('llm_provider_calls')->where('receipt_state', 'verified')->count())->toBe(0)
             ->and(DB::table('prc_analysis_chunks')->count())->toBe(0);
-        $until = hrtime(true) + 45_000_000_000;
+        $remainingLeaseSeconds = (float) DB::table('prc_process_work')->where('id', $work->value->value)
+            ->selectRaw('extract(epoch from (lease_until - clock_timestamp())) as seconds')->value('seconds');
+        $until = hrtime(true) + (int) ceil(max(0, $remainingLeaseSeconds + 2 + 3) * 1_000_000_000);
         while (ExecutionFixtures::work($work)->state === 'running' && hrtime(true) < $until) {
             app(RecoveryReconciler::class)->recoverExpiredRunning();
             usleep(100_000);

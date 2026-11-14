@@ -48,18 +48,22 @@ final readonly class NetworkOwnerFence
         return $snapshot instanceof AuthoritySnapshot ? $snapshot : null;
     }
 
-    public function lock(ExecutionLease|OutboundOperationHandle $owner, ?AuthoritySnapshot $snapshot, ?ProviderKey $provider = null): NetworkOwnerState|TransportBlocked
+    public function lock(ExecutionLease|OutboundOperationHandle $owner, ?AuthoritySnapshot $snapshot, ?ProviderKey $provider = null,
+        bool $allowPausedOwner = false): NetworkOwnerState|TransportBlocked
     {
         CallerTransaction::require('Network owner prefix');
         if ($owner instanceof ExecutionLease) {
             if ($snapshot === null) {
                 return new TransportBlocked(NetworkBlockedReason::ConfigurationHold);
             }
-            $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: false);
+            // The work/subjects remain exclusively locked below. A send only reads
+            // capacity membership, so shared lane locks preserve the current prefix
+            // while independent admitted owners do not serialize behind one lane row.
+            $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: false, readOnlyLane: true);
             if ($prefix instanceof PrefixFailure) {
                 return new TransportBlocked(NetworkBlockedReason::OwnerLost);
             }
-            if (! $prefix->controlsEnabled) {
+            if (! $prefix->controlsEnabled && ! $allowPausedOwner) {
                 return new TransportBlocked(NetworkBlockedReason::Paused);
             }
             if (! $prefix->handlerHealthy) {

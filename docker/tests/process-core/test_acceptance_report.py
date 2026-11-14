@@ -127,11 +127,15 @@ class AcceptanceReportTest(unittest.TestCase):
 
     def test_missing_gate_and_latest_red_width_cannot_reuse_old_green(self):
         (self.f.reports / "V2/result.json").unlink()
-        self.f.write(self.f.reports / "zzz/result.json", {"command": "core-test-load", "width": 10, "exit": 1})
+        self.f.write(self.f.reports / "before-current/result.json", {"command": "core-test-load", "width": 10, "exit": 1})
         errors = self.f.build()["errors"]
         self.assertTrue(any(e["id"] == "V2" for e in errors))
         self.assertTrue(any(e["id"] == "V4" for e in errors))
         self.assertFalse(any(e["id"] == "V5" for e in errors))
+
+    def test_future_red_cannot_replace_evidence_at_the_collected_checkpoint(self):
+        self.f.write(self.f.reports / "zzz/result.json", {"command": "core-test-load", "width": 10, "exit": 1})
+        self.assertEqual([], self.f.build()["errors"])
 
     def test_changed_configuration_is_stale_but_report_docs_are_recorded_for_reuse(self):
         previous = {"config/process.php": "original", "docs/dev/process-core-acceptance.md": "before"}

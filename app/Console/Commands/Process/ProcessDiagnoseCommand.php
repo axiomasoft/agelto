@@ -7,7 +7,6 @@ namespace App\Console\Commands\Process;
 use App\Dto\Procurement\Platform\PlatformCode;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Models\Procurement\Platform\Platform;
-use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Acquisition\AdapterDiagnosticRunner;
 use App\Services\Procurement\Health\PlatformHealthChecker;
 use App\Services\Procurement\Network\OutboundPolicy;
@@ -15,6 +14,8 @@ use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Proxyma\Infrastructure\Database\PackageSchema;
 
 #[Description('Запускает healthcheck-проверки площадки по штатным данным')]
 #[Signature('process:diagnose
@@ -104,173 +105,12 @@ final class ProcessDiagnoseCommand extends Command
             return self::FAILURE;
         }
 
-        $stageProfiles = [];
-        foreach (['listing', 'detail', 'status_refresh'] as $stage) {
-            $configuredKey = $definition->stageRouteProfiles[$stage] ?? null;
-            $hasMembers = $configuredKey !== null && (LedgerRow::one(
-                'SELECT count(*) AS n FROM prc_network_route_profiles p
-                 JOIN prc_network_route_profile_members m ON m.profile_id = p.id
-                 JOIN prc_network_routes r ON r.id = m.route_id
-                 WHERE p.profile_key = ? AND r.enabled = true',
-                [$configuredKey],
-            )?->int('n') ?? 0) > 0;
-            $effectiveKey = $hasMembers ? $configuredKey : $outboundPolicy->defaultRouteProfile;
-            $stageProfiles[$stage] = $effectiveKey;
-            $this->info(sprintf(
-                'Стадия %s: профиль=%s%s',
-                $stage,
-                $effectiveKey,
-                $configuredKey !== null && ! $hasMembers ? sprintf(' (fallback от %s — пустой профиль)', $configuredKey) : '',
-            ));
-        }
-
-        foreach ($definition->sourceTargets->origins() as $origin) {
-            $originHash = $origin->hash()->hex;
-            $originBudget = LedgerRow::one(
-                'SELECT emission_interval_us, burst, max_inflight,
-                    CASE WHEN not_before > clock_timestamp() THEN not_before::text ELSE NULL END AS cooldown_until
-                 FROM prc_network_budgets WHERE scope_key = ?',
-                [$origin->budgetScopeKey()],
-            );
-            $fallbackOriginPolicy = $definition->sourceTargets->originBudget($origin, $outboundPolicy->originBudget);
-            $originIntervalUs = $originBudget?->int('emission_interval_us') ?? $fallbackOriginPolicy->emissionIntervalUs();
-            $originRate = intdiv(59_999_999, $originIntervalUs) + 1;
-            $originBurst = $originBudget?->int('burst') ?? $fallbackOriginPolicy->burst;
-            $originInflight = $originBudget?->int('max_inflight') ?? $fallbackOriginPolicy->maxInflight;
-            $originCooldown = $originBudget?->nullableString('cooldown_until');
-
-            $this->line(sprintf(
-                'Origin %s://%s:%d: rate_per_minute=%d, emission_interval_us=%d, burst=%d, max_inflight=%d, статус=%s',
-                $origin->scheme,
-                $origin->host,
-                $origin->port,
-                $originRate,
-                $originIntervalUs,
-                $originBurst,
-                $originInflight,
-                $originCooldown !== null ? 'cooldown до '.$originCooldown : 'укладывается в бюджет',
-            ));
-
-            $fallbackRoutePolicy = $definition->sourceTargets->routeOriginBudget($origin, $outboundPolicy->routeOriginBudget);
-            $routes = LedgerRow::all(
-                "SELECT
-                    r.id::text AS route_id,
-                    r.route_key,
-                    r.kind,
-                    r.egress_id,
-                    r.enabled,
-                    px.host AS proxy_host,
-                    px.port AS proxy_port,
-                    COALESCE((
-                        SELECT string_agg(p.profile_key, ',' ORDER BY p.profile_key)
-                        FROM prc_network_route_profile_members m
-                        JOIN prc_network_route_profiles p ON p.id = m.profile_id
-                        WHERE m.route_id = r.id
-                    ), '-') AS profiles,
-                    COALESCE(max(b.emission_interval_us), ?) AS emission_interval_us,
-                    COALESCE(min(b.burst), ?) AS burst,
-                    COALESCE(min(b.max_inflight), ?) AS max_inflight,
-                    max(CASE WHEN b.not_before > clock_timestamp() THEN b.not_before ELSE NULL END)::text AS cooldown_until,
-                    COALESCE((
-                        SELECT count(*) FROM prc_request_attempts a
-                        JOIN prc_source_targets t ON t.id = a.target_id
-                        WHERE a.route_id = r.id AND t.canonical_origin = ?
-                          AND a.sent_at >= clock_timestamp() - interval '5 minutes'
-                    ), 0) AS req_5m,
-                    COALESCE((
-                        SELECT count(*) FROM prc_request_attempts a
-                        JOIN prc_source_targets t ON t.id = a.target_id
-                        WHERE a.route_id = r.id AND t.canonical_origin = ?
-                          AND a.sent_at >= clock_timestamp() - interval '60 minutes'
-                    ), 0) AS req_60m,
-                    COALESCE((
-                        SELECT count(*) FROM prc_request_attempts a
-                        JOIN prc_source_targets t ON t.id = a.target_id
-                        WHERE a.route_id = r.id AND t.canonical_origin = ?
-                          AND a.status IN (403, 429)
-                          AND a.sent_at >= clock_timestamp() - interval '5 minutes'
-                    ), 0) AS waf_5m,
-                    COALESCE((
-                        SELECT count(*) FROM prc_request_attempts a
-                        JOIN prc_source_targets t ON t.id = a.target_id
-                        WHERE a.route_id = r.id AND t.canonical_origin = ?
-                          AND a.status IN (403, 429)
-                          AND a.sent_at >= clock_timestamp() - interval '60 minutes'
-                    ), 0) AS waf_60m
-                 FROM prc_network_routes r
-                 LEFT JOIN prc_proxies px ON px.route_id = r.id
-                 LEFT JOIN prc_network_budgets b ON b.scope_key IN (
-                     'route-origin:' || r.id::text || ':' || ?,
-                     'egress-origin:' || r.egress_id || ':' || ?
-                 )
-                 GROUP BY r.id, r.route_key, r.kind, r.egress_id, r.enabled, px.host, px.port
-                 ORDER BY r.kind DESC, r.route_key ASC",
-                [
-                    $fallbackRoutePolicy->emissionIntervalUs(),
-                    $fallbackRoutePolicy->burst,
-                    $fallbackRoutePolicy->maxInflight,
-                    $origin->value(),
-                    $origin->value(),
-                    $origin->value(),
-                    $origin->value(),
-                    $originHash,
-                    $originHash,
-                ],
-            );
-
-            $tableRows = [];
-            foreach ($routes as $row) {
-                $intervalUs = $row->int('emission_interval_us');
-                $ratePerMinute = intdiv(59_999_999, $intervalUs) + 1;
-                $burst = $row->int('burst');
-                $maxInflight = $row->int('max_inflight');
-                $req5m = $row->int('req_5m');
-                $req60m = $row->int('req_60m');
-                $waf5m = $row->int('waf_5m');
-                $waf60m = $row->int('waf_60m');
-                $cooldown = $row->nullableString('cooldown_until');
-                $enabled = $row->bool('enabled');
-                $profileKeys = explode(',', $row->string('profiles'));
-                $stagesForRoute = [];
-                foreach ($stageProfiles as $st => $profKey) {
-                    if (in_array($profKey, $profileKeys, true)) {
-                        $stagesForRoute[] = $st;
-                    }
-                }
-                $endpointLabel = $row->nullableString('proxy_host') !== null
-                    ? $row->string('proxy_host').':'.$row->int('proxy_port')
-                    : $row->string('route_key');
-
-                if (! $enabled) {
-                    $status = 'отключён';
-                } elseif ($cooldown !== null) {
-                    $status = sprintf('cooldown до %s (403/429: %d/%d)', $cooldown, $waf5m, $waf60m);
-                } elseif ($req5m > ($ratePerMinute * 5 + $burst) || $req60m > ($ratePerMinute * 60 + $burst)) {
-                    $status = sprintf('превышен лимит (403/429: %d/%d)', $waf5m, $waf60m);
-                } else {
-                    $status = sprintf('укладывается в бюджет (403/429: %d/%d)', $waf5m, $waf60m);
-                }
-
-                $tableRows[] = [
-                    $endpointLabel,
-                    $row->string('egress_id'),
-                    $row->string('profiles'),
-                    $stagesForRoute === [] ? '-' : implode(',', $stagesForRoute),
-                    (string) $intervalUs,
-                    (string) $ratePerMinute,
-                    (string) $burst,
-                    (string) $maxInflight,
-                    sprintf('%d / %d', $req5m, $req60m),
-                    sprintf('%d / %d', $waf5m, $waf60m),
-                    $status,
-                ];
-            }
-
-            $this->table(
-                ['Прокси / Маршрут', 'Egress ID', 'Профили', 'Стадии', 'emission_interval_us', 'rate_per_minute', 'burst', 'max_inflight', 'Запросы (5м / 60м)', '403/429 (5м / 60м)', 'Статус'],
-                $tableRows,
-            );
-        }
+        $tables = PackageSchema::tables();
+        $rows = DB::table($tables['budgets'])->where('tenant_key', 'system')
+            ->orderBy('scope_key')->limit(100)->get(['scope_key', 'emission_interval_us', 'burst', 'max_inflight', 'cooldown_until']);
+        $this->table(['Scope', 'Interval µs', 'Burst', 'Max inflight', 'Cooldown'],
+            $rows->map(static fn ($row): array => array_values((array) $row))->all());
+        $this->info('Network authority: Proxyma. Archive: explicit historical request reader.');
 
         return self::SUCCESS;
     }

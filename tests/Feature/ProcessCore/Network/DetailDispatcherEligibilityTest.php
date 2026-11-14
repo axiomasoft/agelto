@@ -10,11 +10,13 @@ use App\Services\Procurement\Network\AcquisitionEligibility;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
+use Proxyma\Infrastructure\Database\PackageSchema;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\NetworkFixtures;
+use Tests\Support\ProcessCore\ProxymaUpgradeFixtures;
 
 beforeEach(fn () => F::clean());
 afterEach(fn () => F::clean());
@@ -26,6 +28,16 @@ test('canonical detail exclusion preserves due work and lets another platform us
     $sync = app(SourceCatalogSync::class);
     $sync->sync(NetworkFixtures::catalog('held'));
     $sync->sync(NetworkFixtures::catalog('available'));
+    ProxymaUpgradeFixtures::package();
+    foreach (DB::table('prc_source_targets')->get() as $target) {
+        DB::table(PackageSchema::tables()['targets'])->insert(['id' => $target->id, 'tenant_key' => 'system',
+            'target_key' => 'source:'.$target->id, 'canonical_origin' => $target->canonical_origin,
+            'destination_policy_key' => 'default']);
+        DB::table('prc_proxyma_target_links')->insert(['source_target_id' => $target->id, 'tenant_key' => 'system',
+            'target_id' => $target->id, 'source_revision' => $target->policy_version]);
+        DB::table(PackageSchema::tables()['target_health'])->insert(['id' => LedgerFixtures::uuid()->value,
+            'tenant_key' => 'system', 'target_id' => $target->id, 'state' => 'closed', 'availability' => 'available']);
+    }
     $blocked = DB::transaction(fn () => ExecutionFixtures::detailWork());
     $eligible = DB::transaction(fn () => ExecutionFixtures::detailWork());
     foreach ([[$blocked, $a], [$eligible, $b]] as [$work, $platform]) {
@@ -41,7 +53,7 @@ test('canonical detail exclusion preserves due work and lets another platform us
     } elseif ($hold === 'retired') {
         DB::table('prc_source_targets')->where('platform_id', $a->id)->update(['retired_at' => DB::raw('clock_timestamp()')]);
     } else {
-        DB::table('prc_target_health')->whereIn('target_id', DB::table('prc_source_targets')->select('id')->where('platform_id', $a->id))
+        DB::table(PackageSchema::tables()['target_health'])->whereIn('target_id', DB::table('prc_source_targets')->select('id')->where('platform_id', $a->id))
             ->update(['state' => 'open', 'open_until' => DB::raw("clock_timestamp() + interval '10 minutes'")]);
     }
     $excluded = app(AcquisitionEligibility::class)->excludedPlatforms(StageCode::Detail);

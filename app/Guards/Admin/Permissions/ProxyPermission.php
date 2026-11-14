@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Guards\Admin\Permissions;
 
-use App\Models\Procurement\Crawler\Proxy;
 use AzGuard\Permissions\RequiresGrant;
 use AzGuard\Permissions\Resource;
+use Proxyma\Infrastructure\Eloquent\EndpointRecord;
 
 #[RequiresGrant]
-#[Resource(model: Proxy::class)]
+#[Resource(model: EndpointRecord::class)]
 enum ProxyPermission: string
 {
     case ViewAny = 'proxy.view_any';

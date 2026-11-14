@@ -22,6 +22,18 @@ test('SIGKILL конкретного Horizon worker восстанавливае
             expect($marker['transaction_level'])->toBeGreaterThan(0);
         }
         expect(posix_kill($marker['pid'], SIGKILL))->toBeTrue();
+        if ($boundary === 'sent-intent-before-wire') {
+            expect(DB::table('pxm_attempts as attempt')
+                ->join('pxm_operations as operation', 'operation.id', '=', 'attempt.operation_id')
+                ->join('prc_process_attempts as process_attempt', static function ($join): void {
+                    $join->on(DB::raw('process_attempt.id::text'), '=', 'operation.owner_id');
+                })
+                ->where('operation.owner_type', 'process_attempt')
+                ->where('process_attempt.work_id', $id)
+                ->where('attempt.status', 'authorized')
+                ->count())->toBe(1)
+                ->and($scenario->wire->receipts())->toHaveCount(0);
+        }
         $work = new WorkId(new ProcessUuid($id));
         $stateAfterKill = ExecutionFixtures::work($work)->state;
         if ($boundary === 'mid-range-checkpoint') {

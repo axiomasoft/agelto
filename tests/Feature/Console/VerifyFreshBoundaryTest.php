@@ -6,7 +6,6 @@ use App\Dto\Procurement\Health\CheckResult;
 use App\Dto\Procurement\Platform\PlatformCode;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Models\Procurement\Platform\Okpd2Node;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;
 use App\Services\Procurement\Acquisition\AcquisitionDiagnostic;
 use App\Services\Procurement\Acquisition\DiagnosticRunner;
@@ -17,6 +16,8 @@ use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
+use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\RawEvidenceFixtures;
@@ -38,6 +39,7 @@ function runBoundaryDiagnostic(WireFixture $wire): CheckResult
     $profile = EisCrawlerFactory::new()->create();
     Okpd2Node::factory()->create(['platform_id' => $profile->registry->platform_id, 'code' => '43', 'external_id' => '123']);
     app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+    HistoricalNetworkFixtures::synchronize();
     app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile(
         app(OutboundPolicy::class)->defaultRouteProfile, $fixture->route->routeId->value));
     app()->instance(AcquisitionDiagnostic::class, app()->makeWith(AcquisitionDiagnostic::class, ['urls' => $wire->policy()]));

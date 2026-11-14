@@ -14,10 +14,10 @@ use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Platform\ResponseAssessment;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Enums\Procurement\Network\TrafficClass;
-use App\Services\Procurement\Network\Contracts\OutboundAttemptGate;
-use App\Services\Procurement\Network\OutboundExecutor;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
+use App\Services\Procurement\Proxyma\CallerGate;
+use App\Services\Procurement\Proxyma\CallerOutbound;
 
 /** Normal physical attempts belong to Process; only an explicit canary has a probe owner. */
 final class AcquisitionPlatformOutbound implements PlatformOutbound
@@ -25,7 +25,7 @@ final class AcquisitionPlatformOutbound implements PlatformOutbound
     /** @var array<string,TransportSucceeded> Bounded by this owner's TransferBudget. */
     private array $responses = [];
 
-    public function __construct(private OutboundExecutor $executor, private OutboundAttemptGate $gate,
+    public function __construct(private CallerOutbound $executor, private CallerGate $gate,
         private UrlPolicy $urls, private TransferBudget $budget, private ExecutionContext|OutboundExecutionContext $work,
         private ExecutionContext|OutboundExecutionContext $owner, private AcquisitionArtifacts $artifacts) {}
 

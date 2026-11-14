@@ -69,6 +69,7 @@ x-runtime: &runtime
     - ../estimates/files/Администрация культуры и спорта 3.gsfx:/var/www/html/estimates/files/Администрация культуры и спорта 3.gsfx:ro
     - ./tests/process-core/runtime-inputs/candidate.git:/var/www/html/.git:ro
     - ./tests/process-core/runtime-inputs/azguard:/var/www/html/local/vendors/azguard:ro
+    - ./tests/process-core/runtime-inputs/proxyma:/var/www/html/local/vendors/proxyma:ro
     - ./tests/process-core/runtime-inputs/metadata.json:/process-core-inputs/metadata.json:ro
     - ../routes:/var/www/html/routes:ro
     - ../scripts:/var/www/html/scripts:ro

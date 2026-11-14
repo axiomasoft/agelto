@@ -13,7 +13,7 @@ use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Network\SafeUrl;
 use App\Enums\Procurement\Network\IdempotencyClass;
 use App\Enums\Procurement\Network\TrafficClass;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\ProfileBindings;
 use Closure;
 use Illuminate\Http\Client\Response;
 
@@ -30,7 +30,7 @@ interface LegacyOutbound
 
     /** @param list<string> $controls */
     public function request(string $callerCode, ?int $platformId, ?ProviderKey $providerKey, string $capability,
-        SafeUrl $url, TrafficClass $trafficClass, RoutePolicy $routePolicy, array $controls, int $deadlineSeconds,
+        SafeUrl $url, TrafficClass $trafficClass, ProfileBindings $routePolicy, array $controls, int $deadlineSeconds,
         string $method = 'GET', HttpRequestPayload $payload = new HttpRequestPayload,
         IdempotencyClass $idempotency = IdempotencyClass::ReadOnly, ?Closure $checkpoint = null, ?int $sendLimit = null, ?OutboundExecutionContext $context = null): Response;
 }

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Filament\Platforms\Eis;
 
+use App\Dto\Platforms\Eis\EisPolicy;
 use App\Enums\Procurement\Crawler\ListingSortField;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Registry;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
+use Carbon\CarbonImmutable;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -38,13 +40,23 @@ final readonly class EisCrawlerPlatformForm
             Toggle::make('filter.stageCancelled')->label('Этап «Закупка отменена»'),
             TextInput::make('filter.priceFrom')->label('НМЦК от')->numeric()->minValue(0),
             TextInput::make('filter.priceTo')->label('НМЦК до')->numeric()->minValue(1),
-            DatePicker::make('filter.publishedFrom')->label('Дата размещения с'),
-            DatePicker::make('filter.publishedTo')->label('Дата размещения по'),
+            self::sourceDateField('filter.publishedFrom', 'Дата размещения с'),
+            self::sourceDateField('filter.publishedTo', 'Дата размещения по'),
             TextInput::make('filter.searchString')->label('Строка поиска'),
             Toggle::make('filter.morphology')->label('Морфология поиска'),
             Select::make('filter.sortField')->label('Сортировка выдачи')->options(ListingSortField::class),
             Toggle::make('filter.sortAscending')->label('По возрастанию'),
         ];
+    }
+
+    private static function sourceDateField(string $name, string $label): DatePicker
+    {
+        $timezone = app(EisPolicy::class)->sourceTimezone->getName();
+
+        // Date-only state не должен терять день источника или получать текущее время при DTO cast.
+        return DatePicker::make($name)->label($label)->timezone($timezone)->format(DATE_ATOM)
+            ->dehydrateStateUsing(static fn (?string $state): ?string => $state === null ? null
+                : CarbonImmutable::parse($state)->setTimezone($timezone)->startOfDay()->toAtomString());
     }
 
     private function okpd2CodeField(Registry $registry): Select|Placeholder

@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Database\Seeders\Platforms\Eis;
 
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Proxy;
-use App\Repositories\Procurement\Network\RouteRepository;
+use App\Models\Procurement\Proxyma\ProfileLink;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Proxyma\Domain\Policy\TenantKey;
+use Proxyma\Infrastructure\Database\PackageSchema;
 use RuntimeException;
 
 /** A separate audit profile; does not overwrite the seeded annual profile. */
@@ -32,7 +33,6 @@ final class EisAuditSeeder extends Seeder
             }
 
             $this->call(EisCrawlerProxySeeder::class);
-            Proxy::query()->where('service', EisCrawlerProxySeeder::SERVICE)->sole();
 
             $filter = clone $source->filter;
 
@@ -43,11 +43,14 @@ final class EisAuditSeeder extends Seeder
                 'is_active' => true,
                 'route_profile_id' => null,
             ])->save();
-            $profile = app(RouteRepository::class)->profile(id: null, key: 'eis.audit');
+            $profile = DB::table((new ProfileLink)->getTable().' as l')
+                ->join(PackageSchema::tables()['route_profiles'].' as p', 'p.id', '=', 'l.profile_id')
+                ->where('l.tenant_key', TenantKey::SYSTEM)->where('p.tenant_key', TenantKey::SYSTEM)
+                ->where('p.profile_key', 'eis.audit')->whereNull('p.retired_at')->orderByDesc('l.source_version')->value('l.source_profile_id');
             if ($profile === null) {
                 throw new RuntimeException('EIS audit route profile is not installed.');
             }
-            $crawler->update(['route_profile_id' => $profile->value]);
+            $crawler->update(['route_profile_id' => $profile]);
         });
     }
 }

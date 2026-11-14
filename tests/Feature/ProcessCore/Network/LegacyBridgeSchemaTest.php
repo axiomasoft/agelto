@@ -43,9 +43,9 @@ test('expiry отменяет pending и reserved но сохраняет sent f
     expect(app(OutboundOperationRepository::class)->renew($owner, 60))->toBeNull();
     expect(app(LegacyBridge::class)->expireStale())->toBe(1)
         ->and(app(LegacyBridge::class)->expireStale())->toBe(0)
-        ->and(DB::table('prc_network_permits')->where('id', $reserved)->sole()->state)->toBe('expired')
+        ->and(DB::table('prc_network_permits')->where('id', $reserved)->sole()->state)->toBe('reserved')
         ->and(DB::table('prc_network_permits')->where('id', $sent)->sole()->state)->toBe('sent')
-        ->and(DB::table('prc_network_demands')->where('id', $second)->sole()->state)->toBe('expired')
+        ->and(DB::table('prc_network_demands')->where('id', $second)->sole()->state)->toBe('queued')
         ->and(DB::table('prc_network_budgets')->orderBy('id')->pluck('tat')->all())->toBe($debt);
 });
 

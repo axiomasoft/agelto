@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Services\Procurement\Process\DaemonPolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
+use Proxyma\Infrastructure\Database\PackageSchema;
 use Tests\Support\ProcessCore\AcceptanceRuntime;
 use Tests\Support\ProcessCore\AcceptanceScenario;
 use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
 
 pest()->group('admission-fairness', 'sustained-workload', 'bounded-network-demand', 'load');
 
@@ -17,8 +20,10 @@ test('совместная нагрузка сохраняет W C immutable age
     $duration = (int) (getenv('PROCESS_CORE_LOAD_SECONDS') ?: 0);
     $total = $duration > 0 ? 1000 : 12;
     $scenario = new AcceptanceScenario($width);
+    $reconcilePolicy = app(DaemonPolicy::class);
     $start = hrtime(true);
     $faults = $samples = $ids = $feeders = [];
+    $nextReconcileAt = 0;
     try {
         $ids = $scenario->documents(min(100, intdiv($total, 2)), old: true);
         $originalAge = DB::table('prc_process_work')->whereIn('id', $ids)->orderBy('id')->pluck('created_at', 'id')->all();
@@ -50,7 +55,13 @@ test('совместная нагрузка сохраняет W C immutable age
                     'at_seconds' => $elapsed, 'redis_flush' => true, 'horizon_restart' => true];
                 $nextFault = $elapsed + 300;
             }
-            $scenario->recover();
+            if (hrtime(true) >= $nextReconcileAt) {
+                $scenario->recover();
+                $nextReconcileAt = hrtime(true) + DaemonPolicy::jittered(
+                    $reconcilePolicy->reconcileTickSeconds,
+                    $reconcilePolicy->reconcileJitterPercent,
+                ) * 1_000_000;
+            }
             $scenario->tick();
             $scenario->assertBounds();
             if (is_file($scenario->root.'/faults.jsonl')) {
@@ -63,7 +74,7 @@ test('совместная нагрузка сохраняет W C immutable age
                 $samples[] = ['at_seconds' => $elapsed, ...$counts, 'pending_outbox' => (int) $lag->pending,
                     'outbox_age_seconds' => (float) $lag->age, 'controller_rss_kib' => AcceptanceRuntime::rss(),
                     'transitions' => DB::table('prc_process_transitions')->count(),
-                    'network_queued' => DB::table('prc_network_demands')->where('state', 'queued')->count(),
+                    'network_queued' => PackageNetworkFacts::demands()->where('state', 'active')->count(),
                     'completed' => DB::table('prc_process_work')->where('state', 'succeeded')->count(),
                     'oldest_eligible_seconds' => (float) DB::selectOne("SELECT coalesce(max(extract(epoch FROM (clock_timestamp()-created_at))),0) AS age
                         FROM prc_process_work WHERE state='ready' OR (state='deferred' AND due_at<=clock_timestamp())")->age];
@@ -71,15 +82,16 @@ test('совместная нагрузка сохраняет W C immutable age
             }
             usleep(100_000);
         } while ($elapsed < $duration || count($ids) < $total);
-        $scenario->drain(180);
+        $scenario->drain(180, reconcilePolicy: $reconcilePolicy);
         $scenario->stop();
         $attempts = DB::select('SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM (finished_at-started_at))) AS p50,
             percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM (finished_at-started_at))) AS p95,
             percentile_cont(0.99) WITHIN GROUP (ORDER BY extract(epoch FROM (finished_at-started_at))) AS p99
             FROM prc_process_attempts WHERE finished_at IS NOT NULL');
-        $inversions = (int) DB::selectOne('SELECT count(*) AS n FROM (SELECT d.ticket_seq,
-            lag(d.ticket_seq) OVER (ORDER BY p.created_at,p.id) AS previous
-            FROM prc_network_permits p JOIN prc_network_demands d ON d.id=p.demand_id) ordered WHERE ticket_seq<previous')->n;
+        $inversions = (int) DB::selectOne('SELECT count(*) AS n FROM (SELECT d.sequence,
+            lag(d.sequence) OVER (ORDER BY p.created_at,p.id) AS previous
+            FROM pxm_permits p JOIN pxm_demands d ON d.id=p.demand_id
+            ) ordered WHERE sequence<previous')->n;
         $executions = array_map(fn ($line) => json_decode($line, true, flags: JSON_THROW_ON_ERROR),
             file($scenario->root.'/executions.jsonl', FILE_IGNORE_NEW_LINES));
         $report = [
@@ -101,7 +113,7 @@ test('совместная нагрузка сохраняет W C immutable age
             'active_reservations_after_drain' => DB::table('prc_process_reservations')->count(),
             'pending_outbox_after_drain' => DB::table('prc_process_outbox')->whereNull('published_at')->count(),
             'unaccounted_work' => DB::table('prc_process_work')->where('state', '!=', 'succeeded')->count(),
-            'requests' => DB::table('prc_request_attempts')->count(), 'server_receipts' => count($scenario->wire->receipts()),
+            'requests' => PackageNetworkFacts::attempts()->count(), 'server_receipts' => count($scenario->wire->receipts()),
             'history_rows' => DB::table('prc_process_transitions')->count(),
             'transitions_by_state' => DB::table('prc_process_transitions')->selectRaw('entity_kind,new_state,count(*) AS rows')
                 ->groupBy('entity_kind', 'new_state')->get()->all(),
@@ -123,7 +135,51 @@ test('совместная нагрузка сохраняет W C immutable age
             ->and(DB::table('prc_process_work')->whereIn('id', array_keys($originalAge))->orderBy('id')->pluck('created_at', 'id')->all())->toBe($originalAge)
             ->and($report['requests'])->toBeGreaterThanOrEqual(3 * $total)
             ->and($report['server_receipts'])->toBeGreaterThanOrEqual(3 * $total);
+    } catch (Throwable $failure) {
+        writeLoadFailureSnapshot($failure);
+
+        throw $failure;
     } finally {
         $scenario->close();
     }
 });
+
+function writeLoadFailureSnapshot(Throwable $failure): void
+{
+    $evidence = getenv('PROCESS_CORE_EVIDENCE_PATH');
+    if (! is_string($evidence) || $evidence === '' || DB::transactionLevel() !== 0) {
+        return;
+    }
+
+    $destination = str_ends_with($evidence, '.json')
+        ? substr($evidence, 0, -5).'-failed.json'
+        : $evidence.'-failed.json';
+    $tables = PackageSchema::tables();
+    $attempts = DB::table($tables['attempts']);
+    $demands = DB::table($tables['demands'].' as demand');
+    $snapshot = [
+        'format' => 'process-core-load-failure/v1',
+        'failure_class' => $failure::class,
+        'budgets' => DB::table($tables['budgets'])->where('tenant_key', 'system')->orderBy('scope_key')->limit(100)
+            ->get(['id', 'scope_key', 'revision', 'emission_interval_us', 'burst', 'max_inflight', 'inflight', 'tat', 'send_tat', 'cooldown_until']),
+        'permits' => DB::table($tables['permits'])->where('tenant_key', 'system')->selectRaw("state, count(*) AS permits,
+            count(authorized_at) AS authorized, count(completed_at) AS completed,
+            count(*) FILTER (WHERE state IN ('reserved','authorized') AND expires_at <= clock_timestamp()) AS expired_live")
+            ->groupBy('state')->orderBy('state')->get(),
+        'eligible_demand_parents' => $demands->join($tables['operations'].' as operation', 'operation.id', '=', 'demand.operation_id')
+            ->leftJoin('prc_process_attempts as attempt', DB::raw('attempt.id::text'), '=', 'operation.owner_id')
+            ->leftJoin('prc_process_work as work', 'work.id', '=', 'attempt.work_id')
+            ->where('demand.tenant_key', 'system')->whereIn('demand.state', ['active', 'admitted'])
+            ->where('demand.deadline', '>', DB::raw('clock_timestamp()'))
+            ->selectRaw("demand.state AS demand_state, coalesce(work.state, 'missing') AS work_state, count(*) AS demands,
+                count(attempt.id) AS current_attempts")
+            ->groupBy('demand.state', 'work.state')->orderBy('demand.state')->orderBy('work.state')->get(),
+        'checkpoint_distribution' => DB::table('prc_process_work')->selectRaw("state,
+            coalesce(checkpoint #>> '{stage_progress,payload,position}', 'none') AS position, count(*) AS works")
+            ->groupBy('state', DB::raw("checkpoint #>> '{stage_progress,payload,position}'"))->orderBy('state')->orderBy('position')->get(),
+        'slices_and_receipts' => $attempts->selectRaw('status, count(*) AS attempts, count(receipt_id) AS receipts')
+            ->groupBy('status')->orderBy('status')->get(),
+    ];
+
+    file_put_contents($destination, json_encode($snapshot, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR)."\n");
+}

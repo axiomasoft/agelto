@@ -7,14 +7,9 @@ namespace Tests\Support\ProcessCore;
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
 use App\Dto\Llm\Requests\PinnedLlmContext;
 use App\Dto\Llm\Requests\RequestIdentity;
-use App\Dto\Procurement\Network\HttpRouteBinding;
-use App\Dto\Procurement\Network\NetworkRouteSelection;
-use App\Dto\Procurement\Network\OutboundRequestPlan;
 use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Network\RetryRoutePreference;
 use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Network\SelectedNetworkRoute;
 use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\RequestProfile;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
@@ -33,11 +28,11 @@ use App\Services\Llm\Providers\GeminiGenerateContentClient;
 use App\Services\Llm\Schema\ProviderSchemaCompiler;
 use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
 use App\Services\Procurement\Extraction\AnalysisProviderSendGate;
-use App\Services\Procurement\Network\Contracts\OutboundRouteSelector;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Process\ExecutionContextFactory;
 use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Proxyma\CallerSendFacts;
 use App\Services\Procurement\Screening\ScreeningContract;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
@@ -101,6 +96,7 @@ final class ProviderSendFixtures
         app(SourceCatalogSync::class)->syncProvider(new ProviderTargetDefinitions(new ProviderKey('fixture-provider'), [
             new SourceTargetDefinition('provider:fixture-provider:generate', 'provider', $origin, [$this->profile], new OriginBudgetPolicy(600, 1, 2)),
         ]));
+        HistoricalNetworkFixtures::synchronize();
         $this->target = new ProcessUuid(DB::table('prc_source_targets')->where('provider_key', 'fixture-provider')->sole()->id);
         $this->route = new ProcessUuid(DB::table('prc_network_routes')->where('kind', 'direct')->sole()->id);
         foreach (['prc_route_health', 'prc_route_target_health', 'prc_target_health'] as $table) {
@@ -112,32 +108,30 @@ final class ProviderSendFixtures
 
     public function gate(): AnalysisProviderSendGate
     {
+        if (! CallerSendFacts::active()) {
+            new ProxymaProviderFixtures($this);
+        }
+
         return self::gateFor($this->lease, $this->run, $this->target, $this->route, $this->profile, $this->server);
     }
 
     public static function gateFor(ExecutionLease $lease, ProcessUuid $run, ProcessUuid $target, ProcessUuid $route, RequestProfile $profile, WireFixture|SafeUrl $server, ?ExecutionContext $context = null): AnalysisProviderSendGate
     {
-        $selector = new class($route) implements OutboundRouteSelector
-        {
-            public function __construct(private ProcessUuid $route) {}
-
-            public function select(OutboundRequestPlan $plan, RetryRoutePreference $preference): SelectedNetworkRoute
-            {
-                return new SelectedNetworkRoute(new NetworkRouteSelection($this->route), new HttpRouteBinding($this->route));
-            }
-        };
-
         return app()->make(AnalysisProviderSendGate::class, ['context' => $context ?? app(ExecutionContextFactory::class)->open($lease),
             'runId' => $run, 'target' => $target, 'profile' => $profile, 'urlPolicy' => $server instanceof WireFixture ? $server->policy() : new UrlPolicy([$server->origin], ['fixture.test' => ['127.0.0.1']]),
-            'routes' => $selector, 'apiKey' => 'fixture-only-key']);
+            'apiKey' => 'fixture-only-key']);
     }
 
     public function worker(string $action): string
     {
+        if (! CallerSendFacts::active()) {
+            new ProxymaProviderFixtures($this);
+        }
         $data = base64_encode(serialize([$this->lease, $this->run, $this->target, $this->route, $this->profile, $this->server->url('/'), $this->wire, $this->operation]));
 
         return '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\\Enums\\Procurement\\Process\\StageCode::Screening);'
             .'[$lease,$run,$target,$route,$profile,$server,$wire,$operation]=unserialize(base64_decode('.var_export($data, true).'));'
+            .'\\Tests\\Support\\ProcessCore\\ProxymaProviderFixtures::configure();'
             .'$gate=\\Tests\\Support\\ProcessCore\\ProviderSendFixtures::gateFor($lease,$run,$target,$route,$profile,$server);'
             .$action;
     }

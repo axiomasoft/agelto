@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Dto\Procurement\Network\ProxyNodeConfiguration;
 use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Process\RetryAt;
 use App\Dto\Procurement\Process\StageDeferred;
@@ -15,7 +14,6 @@ use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Procurement\Crawler\OutboundRequestDeadlineExceeded;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Crawler\RawArtifact;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\PartitionCoverage;
@@ -32,13 +30,11 @@ use App\Services\Procurement\Process\RelayDaemon;
 use App\Services\Procurement\Process\StageQueueMap;
 use App\Services\Procurement\Process\WorkFeeder;
 use App\Services\Procurement\Process\WorkFinalizer;
-use App\Services\Procurement\Proxy\ProxyBindingResolver;
 use App\Support\SecretRedactor;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use GuzzleHttp\Psr7\Response as PsrResponse;
 use GuzzleHttp\Psr7\Utils;
 use Illuminate\Database\QueryException;
-use Illuminate\Encryption\Encrypter;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
@@ -48,11 +44,9 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Platforms\Contract\ContractRuntime;
-use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
-use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
 
@@ -216,43 +210,6 @@ test('просроченный deadline закрывает тело до его 
     expect($input->isReadable())->toBeFalse();
 });
 
-test('plaintext прокси обновляется идемпотентно без изменения уже зашифрованного пароля', function (): void {
-    $proxy = Proxy::factory()->create(['username' => 'user']);
-    DB::table('prc_network_routes')->where('id', $proxy->route_id)->update(['secret_ref' => 'AUDIT_PROXY_SECRET']);
-    $crawler = EisCrawlerFactory::new()->withProxies($proxy)->create();
-    putenv('AUDIT_PROXY_SECRET=first');
-    try {
-        $resolver = app(ProxyBindingResolver::class);
-        expect(array_values($resolver->forCrawler($crawler)->bindings)[0]->credentials())->toBe('user:first');
-        putenv('AUDIT_PROXY_SECRET=second');
-        expect(array_values($resolver->forCrawler($crawler)->bindings)[0]->credentials())->toBe('user:second')
-            ->and(Schema::hasColumn('prc_proxies', 'password'))->toBeFalse()
-            ->and($proxy->fresh()->load('route')->toJson())->not->toContain('first', 'second');
-    } finally {
-        putenv('AUDIT_PROXY_SECRET');
-    }
-});
-
-test('повреждённый ciphertext блокирует весь upgrade без частичной перезаписи', function (): void {
-    $proxy = Proxy::factory()->create();
-    $before = $proxy->fresh()->load('route')->toArray();
-    expect(fn () => ProxyNodeConfiguration::fromArray([
-        'service' => 'audit', 'host' => 'proxy.test', 'port' => 8080, 'secret_ref' => 'eyJdamaged',
-    ]))->toThrow(InvalidArgumentException::class);
-    expect($proxy->fresh()->load('route')->toArray())->toBe($before);
-});
-
-test('чужой APP_KEY не превращает ciphertext в новый plaintext', function (): void {
-    $proxy = Proxy::factory()->create();
-    $foreign = new Encrypter(random_bytes(32), 'AES-256-CBC');
-    $value = $foreign->encryptString('private');
-    $before = $proxy->fresh()->load('route')->toArray();
-    expect(fn () => ProxyNodeConfiguration::fromArray([
-        'service' => 'audit', 'host' => 'proxy.test', 'port' => 8080, 'secret_ref' => $value,
-    ]))->toThrow(InvalidArgumentException::class);
-    expect($proxy->fresh()->load('route')->toArray())->toBe($before);
-});
-
 test('граница суток хранит 23 и 25 часов в зоне с DST', function (string $date, int $hours): void {
     $clock = new EisSourceClock('Europe/Berlin');
     $start = $clock->parseDateTime('!d.m.Y', $date);
@@ -289,34 +246,4 @@ test('retention удаляет ограниченную порцию проср�
         ->and(Schema::hasTable('prc_source_incidents'))->toBeFalse();
     Storage::disk('s3')->assertMissing($old);
     Storage::disk('s3')->assertExists($fresh);
-});
-
-test('четыре процесса не расходуют больше одного общего HTTP слота', function (): void {
-    PermitFixtures::clean();
-    try {
-        $f = new PermitFixtures;
-        DB::table('prc_network_budgets')->update(['max_inflight' => 1, 'emission_interval_us' => 60_000_000]);
-        $workers = [];
-        foreach (range(1, 4) as $index) {
-            $context = $f->context();
-            $ticket = $f->ticket($context);
-            $id = var_export($ticket->id->value, true);
-            $owner = var_export($context->lease()->id->value, true);
-            $url = var_export($f->url->reveal(), true);
-            $workers[(string) $index] = <<<PHP
-\$context = \Tests\Support\ProcessCore\Http\PermitFixtures::importContext({$owner});
-\$ticket = \Tests\Support\ProcessCore\Http\PermitFixtures::importTicket({$id}, {$url});
-\$permit = app(\App\Repositories\Procurement\Network\NetworkPermitRepository::class)->reserve(\$ticket, \$context);
-return ['admitted' => \$permit instanceof \App\Dto\Procurement\Network\ScheduledNetworkPermit,
-    'backend_pid' => \Illuminate\Support\Facades\DB::scalar('select pg_backend_pid()')];
-PHP;
-        }
-        $results = ConcurrentTransactions::concurrently($workers);
-        expect(array_sum(array_column($results, 'admitted')))->toBe(1)
-            ->and(array_unique(array_column($results, 'backend_pid')))->toHaveCount(4)
-            ->and(DB::table('prc_network_permits')->count())->toBe(1);
-    } finally {
-        PermitFixtures::clean();
-    }
-
 });

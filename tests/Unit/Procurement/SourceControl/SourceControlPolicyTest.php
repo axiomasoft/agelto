@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Network\HealthPolicy;
 use App\Services\Procurement\Network\OutboundPolicy;
 use Illuminate\Config\Repository;
 
@@ -11,18 +10,6 @@ function sourceControlConfig(): array
 {
     return require base_path('config/outbound.php');
 }
-
-test('конфиг проекта разбирается: статусы и реакции по умолчанию', function (): void {
-    $config = new Repository(['outbound' => sourceControlConfig()]);
-    $policy = new OutboundPolicy($config);
-    $health = new HealthPolicy($config);
-    expect($policy->originBudget->ratePerMinute)->toBe(15)
-        ->and($policy->originBudget->burst)->toBe(1)
-        ->and($policy->defaultRouteProfile)->toBe('default')
-        ->and($policy->providerRouteProfile)->toBe('llm')
-        ->and($health->globalFailures)->toBe(5)->and($health->targetFailures)->toBe(5)
-        ->and($health->globalBase)->toBe(1800)->and($health->targetBase)->toBe(300);
-});
 
 test('ошибка конфига валит разбор с адресом ошибки', function (Closure $break, string $message): void {
     $config = sourceControlConfig();

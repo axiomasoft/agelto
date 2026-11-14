@@ -38,6 +38,7 @@ yarn-error.log
 
 /auth.json
 /local/vendors/azguard/
+/local/vendors/proxyma/
 /local/secrets/*
 !/local/secrets/.gitignore
 /.fleet

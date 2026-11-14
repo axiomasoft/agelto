@@ -4,45 +4,37 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore\Http;
 
-use App\Dto\Procurement\Network\AuthorizedHttpRequest;
-use App\Dto\Procurement\Network\HttpRequestPayload;
-use App\Dto\Procurement\Network\HttpRouteBinding;
-use App\Dto\Procurement\Network\NetworkDemandTicket;
 use App\Dto\Procurement\Network\NetworkRouteSelection;
-use App\Dto\Procurement\Network\NetworkSendClaim;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundOperationHandle;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\RetryRoutePreference;
 use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Network\ScheduledNetworkPermit;
-use App\Dto\Procurement\Network\SelectedNetworkRoute;
-use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\RequestProfile;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
-use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Network\IdempotencyClass;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Enums\Procurement\Network\TrafficClass;
-use App\Repositories\Procurement\Network\NetworkPermitRepository;
 use App\Repositories\Procurement\Network\OutboundOperationRepository;
-use App\Services\Procurement\Network\Contracts\OutboundRouteSelector;
-use App\Services\Procurement\Network\HttpTransport;
-use App\Services\Procurement\Network\OutboundPolicy;
-use App\Services\Procurement\Network\ScheduledAttemptGate;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Proxyma\CallerGate;
+use App\Services\Procurement\Proxyma\CallerSendFacts;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\NetworkFixtures;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
+use Tests\Support\ProcessCore\ProxymaFixtures;
 use Tests\Support\TestEnvironmentGuard;
 
 /** Real owners, catalog and PostgreSQL. Only health readiness/time facts are fixture setup. */
 final class PermitFixtures
 {
+    private ?WireFixture $wireFixture;
+
     public readonly string $code;
 
     public readonly ProcessUuid $target;
@@ -53,17 +45,17 @@ final class PermitFixtures
 
     public readonly SafeUrl $url;
 
-    public readonly NetworkPermitRepository $repo;
-
-    public function __construct(?WireFixture $wire = null)
+    public function __construct(?WireFixture $wire = null, bool $tls = false)
     {
+        $this->wireFixture = $wire;
         $this->code = 'permit_'.bin2hex(random_bytes(6));
         NetworkFixtures::platform($this->code);
-        $this->url = $wire?->url('/ok') ?? new SafeUrl('https://example.test/ok');
+        $this->url = $wire?->url('/ok', $tls) ?? new SafeUrl('https://example.test/ok');
         $this->profile = TransportFixtures::profile(['total_seconds' => 4]);
         app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($this->code, [
             new SourceTargetDefinition('card', 'detail', $this->url->origin, [$this->profile], new OriginBudgetPolicy(600, 1, 2)),
         ]));
+        HistoricalNetworkFixtures::synchronize();
         $this->target = new ProcessUuid(DB::table('prc_source_targets')->where('target_key', 'card')->whereNull('retired_at')
             ->where('platform_id', DB::table('prc_platforms')->where('code', $this->code)->value('id'))->sole()->id);
         $this->route = new NetworkRouteSelection(new ProcessUuid(DB::table('prc_network_routes')->sole()->id));
@@ -72,7 +64,6 @@ final class PermitFixtures
         }
         // Test scaling keeps the same GCRA inequalities; production defaults remain 15/min.
         DB::table('prc_network_budgets')->update(['emission_interval_us' => 100_000]);
-        $this->repo = app(NetworkPermitRepository::class);
     }
 
     public static function clean(): void
@@ -84,6 +75,7 @@ final class PermitFixtures
         while (DB::transactionLevel() > 0) {
             DB::rollBack();
         }
+        ProxymaFixtures::resetAuthority();
         DB::table('prc_observation_applications')->whereIn('observation_id', DB::table('prc_observations')->select('observation_id')->whereIn('kind', ['adapter_validation', 'adapter_validation_reset']))->delete();
         DB::table('prc_observations')->whereIn('kind', ['adapter_validation', 'adapter_validation_reset'])->delete();
         DB::statement('TRUNCATE prc_adapter_health, prc_network_routes, prc_network_route_profiles, prc_source_targets, prc_outbound_operations CASCADE');
@@ -100,53 +92,30 @@ final class PermitFixtures
         return new OutboundExecutionContext($owner, fn ($handle) => app(ProcessTransaction::class)->run(fn () => app(OutboundOperationRepository::class)->renew($handle, 120)), $checkpoint, 120, 15);
     }
 
+    public static function importContext(string $operationId): OutboundExecutionContext
+    {
+        $row = DB::table('prc_outbound_operations')->where('id', $operationId)->sole();
+        $lease = new OutboundOperationHandle(new ProcessUuid($row->id), OutboundOperationKind::from($row->kind),
+            (int) $row->generation, new ProcessUuid($row->owner_token),
+            new \DateTimeImmutable($row->lease_until), new \DateTimeImmutable($row->deadline_at));
+
+        return new OutboundExecutionContext($lease, static fn () => $lease, static function (): void {}, 60, 15);
+    }
+
+    public function gate(): CallerGate
+    {
+        if (! CallerSendFacts::active()) {
+            ProxymaCallerFixtures::install($this->wireFixture ?? throw new \LogicException('Wire fixture required for execution.'));
+        }
+
+        return ProxymaCallerFixtures::gate($this->route->routeId->value);
+    }
+
     public function plan(TrafficClass $class = TrafficClass::Detail, ?SafeUrl $url = null, ?ProcessUuid $physicalId = null): OutboundRequestPlan
     {
         return new OutboundRequestPlan($physicalId ?? LedgerFixtures::uuid(), $this->target, 'GET', $url ?? $this->url, $this->profile, $class, IdempotencyClass::ReadOnly);
     }
 
-    public function ticket(OutboundExecutionContext|ExecutionContext $context, ?OutboundRequestPlan $plan = null): NetworkDemandTicket
-    {
-        $ticket = $this->repo->register($plan ?? $this->plan(), $context, $this->route);
-
-        return $ticket instanceof NetworkDemandTicket ? $ticket : throw new \LogicException('Fixture ticket rejected: '.get_debug_type($ticket));
-    }
-
-    public function reserve(OutboundExecutionContext|ExecutionContext $context, ?OutboundRequestPlan $plan = null): ScheduledNetworkPermit
-    {
-        $result = $this->repo->reserve($this->ticket($context, $plan), $context);
-
-        return $result instanceof ScheduledNetworkPermit ? $result : throw new \LogicException('Fixture reservation rejected: '.get_debug_type($result));
-    }
-
-    public function gate(): ScheduledAttemptGate
-    {
-        return new ScheduledAttemptGate($this->repo, new class($this->route) implements OutboundRouteSelector
-        {
-            public function __construct(private NetworkRouteSelection $route) {}
-
-            public function select(OutboundRequestPlan $plan, RetryRoutePreference $preference): SelectedNetworkRoute
-            {
-                return new SelectedNetworkRoute($this->route, new HttpRouteBinding($this->route->routeId));
-            }
-        }, app(OutboundPolicy::class));
-    }
-
-    public function send(ScheduledNetworkPermit $permit, OutboundExecutionContext|ExecutionContext $context, WireFixture $wire): bool
-    {
-        $claim = $this->repo->claimSend($permit, $context);
-        if (! $claim instanceof NetworkSendClaim || ! $claim->claimed) {
-            return false;
-        }
-        $request = new AuthorizedHttpRequest($permit->ticket->plan, new HttpRouteBinding($this->route->routeId));
-        $resolved = $wire->policy()->resolve($request->plan->url, $context, 1);
-        $result = app(HttpTransport::class)->sendOnce($request, $resolved, new HttpRequestPayload, $context, new TransferBudget(1_000_000, 1_000_000));
-        $this->repo->record($request->plan->physicalRequestId, $result);
-
-        return true;
-    }
-
-    /** Prior durable authorizations, not a fake runtime grant. Current sends still use the gate. */
     public function history(OutboundExecutionContext $context, int $count, int $secondsAgo = 10): void
     {
         $origin = DB::table('prc_network_budgets')->where('scope_key', $this->url->origin->budgetScopeKey())->sole()->id;
@@ -167,32 +136,5 @@ final class PermitFixtures
                 'target_id' => $this->target->value, 'route_id' => $this->route->routeId->value, 'started_at' => $when, 'sent_at' => $when,
                 'finished_at' => $when, 'phase' => 'finished', 'outcome' => 'response', 'epochs' => '{}', 'epochs_schema_version' => 1]);
         }
-    }
-
-    public static function importTicket(string $id, string $url): NetworkDemandTicket
-    {
-        $row = DB::table('prc_network_demands')->where('id', $id)->sole();
-        $plan = new OutboundRequestPlan(new ProcessUuid($row->physical_request_id), new ProcessUuid($row->target_id), 'GET',
-            new SafeUrl($url), TransportFixtures::profile(), TrafficClass::from($row->traffic_class), IdempotencyClass::ReadOnly);
-
-        return new NetworkDemandTicket(new ProcessUuid($id), (int) $row->ticket_seq, $plan, new NetworkRouteSelection(new ProcessUuid($row->route_id)));
-    }
-
-    /** Replays an already-issued reservation identity; claimSend remains the authorization. */
-    public static function importPermit(NetworkDemandTicket $ticket): ScheduledNetworkPermit
-    {
-        $row = DB::table('prc_network_permits')->where('demand_id', $ticket->id->value)->sole();
-
-        return new ScheduledNetworkPermit(new ProcessUuid($row->id), $ticket,
-            new \DateTimeImmutable($row->slot_at), new \DateTimeImmutable($row->expires_at));
-    }
-
-    public static function importContext(string $operationId): OutboundExecutionContext
-    {
-        $row = DB::table('prc_outbound_operations')->where('id', $operationId)->sole();
-        $handle = new OutboundOperationHandle(new ProcessUuid($row->id), OutboundOperationKind::from($row->kind), (int) $row->generation,
-            new ProcessUuid($row->owner_token), new \DateTimeImmutable($row->lease_until), new \DateTimeImmutable($row->deadline_at));
-
-        return new OutboundExecutionContext($handle, fn ($owner) => app(ProcessTransaction::class)->run(fn () => app(OutboundOperationRepository::class)->renew($owner, 120)), null, 120, 15);
     }
 }

@@ -19,7 +19,6 @@ use App\Dto\Procurement\Process\StagePartial;
 use App\Enums\Llm\OperationPurpose;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Services\Llm\Cache\ProviderAssetManager;
 use App\Services\Llm\Execution\ProviderOperationPlan;
 use App\Services\Llm\Execution\ReceiptPolicies;
@@ -42,6 +41,7 @@ use Tests\Support\ProcessCore\AssetFixtures;
 use Tests\Support\ProcessCore\ExtractionRuntimeFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FinancialFixtures;
+use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\ProviderSendFixtures;
 use Tests\Support\ProcessCore\ScreeningRuntimeFixtures;
@@ -154,8 +154,6 @@ test('lookup recovery продолжает declared generation с отдельн
             $f->profile, 'fixture-only-key', $server->policy()));
         DB::transaction(fn () => app(RouteRepository::class)->ensureProfile(
             app(OutboundPolicy::class)->providerRouteProfile, $f->route->value));
-        $profileId = app(RouteRepository::class)->profile(null, app(OutboundPolicy::class)->providerRouteProfile);
-        DB::table('prc_network_route_profile_members')->insertOrIgnore(['profile_id' => $profileId->value, 'route_id' => $f->route->value]);
         $body = json_encode(['fixture_receipt' => 1, 'outcome' => 'success', 'cost' => '0.00200001',
             'candidates' => [['finishReason' => 'STOP', 'content' => ['parts' => [['text' => ScreeningRuntimeFixtures::raw()]]]]]], JSON_THROW_ON_ERROR);
         $server->respond('/v1beta/models/fixture-model:generateContent', $body, method: 'POST', replace: true);

@@ -7,7 +7,6 @@ namespace App\Models\Procurement\Network;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Факт результата запроса/контракта/парсинга, включая stale; health projection применяет его
@@ -26,17 +25,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property array<string, mixed>|null $details
  * @property int|null $details_schema_version
  * @property CarbonImmutable $occurred_at
- * @property-read RequestAttempt|null $request
  */
 #[Table(name: 'prc_observations', key: 'observation_id', keyType: 'string', incrementing: false, timestamps: false)]
 final class Observation extends Model
 {
-    /** @return BelongsTo<RequestAttempt, $this> */
-    public function request(): BelongsTo
-    {
-        return $this->belongsTo(RequestAttempt::class, 'request_id');
-    }
-
     protected function casts(): array
     {
         return [

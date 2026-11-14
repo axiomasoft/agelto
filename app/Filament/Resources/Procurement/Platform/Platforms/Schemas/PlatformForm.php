@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Platform\Platforms\Schemas;
 
+use App\Services\Procurement\Proxyma\SettingsSections;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Fieldset;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Model;
 
 class PlatformForm
 {
@@ -46,11 +49,8 @@ class PlatformForm
                                     ->numeric()
                                     ->minValue(0)
                                     ->helperText('Пусто — использовать проверенный дефолт конфига.'),
-                                TextInput::make('throttle.requestsPerMinutePerProxy')
-                                    ->label('Добавка на прокси в минуту')
-                                    ->numeric()
-                                    ->minValue(0)
-                                    ->helperText('Пусто — использовать проверенный дефолт конфига.'),
+                                TextEntry::make('origin_quota_explanation')
+                                    ->state('Добавка на прокси устарела и не применяется. Origin quota общая для всех маршрутов; число прокси её не увеличивает.'),
                                 TextInput::make('throttle.maxWaitSeconds')
                                     ->label('Максимальное ожидание слота, сек')
                                     ->numeric()
@@ -61,6 +61,7 @@ class PlatformForm
                                 ...self::stageFields('document', 'Документ'),
                             ]),
                     ]),
+                Section::make('Proxyma')->schema(fn (?Model $record): array => app(SettingsSections::class)->forRecord($record))->columnSpanFull(),
                 Section::make('Доступность')
                     ->description('Неактивная площадка не участвует в новых заданиях сбора.')
                     ->schema([

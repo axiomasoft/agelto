@@ -30,7 +30,6 @@ final class CrawlersTable
             TextColumn::make('registry.name')->label('Реестр'),
             TextColumn::make('listing_kind')->label('Режим')->formatStateUsing(fn (mixed $state): string => $state instanceof \BackedEnum ? (string) $state->value : '—'),
             TextColumn::make('schedule')->label('Расписание (UTC)')->placeholder('—')->visibleFrom('md'),
-            TextColumn::make('routeProfile.profile_key')->label('Профиль маршрутов')->placeholder(config()->string('outbound.routing.default_profile'))->toggleable(isToggledHiddenByDefault: true),
             IconColumn::make('is_active')->label('Активно')->boolean(),
         ])->recordActions([
             Action::make('start')->label('Запустить')->requiresConfirmation()

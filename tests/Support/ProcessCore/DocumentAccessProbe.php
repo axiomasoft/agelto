@@ -34,6 +34,7 @@ final readonly class DocumentAccessProbe
             NetworkFixtures::platform($definition->code->value);
         }
         app(SourceCatalogSync::class)->sync($definition->sourceTargets);
+        HistoricalNetworkFixtures::synchronize();
         $platformId = DB::table('prc_platforms')->where('code', $definition->code->value)->sole()->id;
         $document = Document::factory()->create(['platform_id' => $platformId, 'source_document_key' => 'fixture:'.LedgerFixtures::uuid()->value,
             'source_key_version' => 1, 'access_descriptor_version' => 1, 'reference_observed_at' => now(), 'access_schema_version' => 1,

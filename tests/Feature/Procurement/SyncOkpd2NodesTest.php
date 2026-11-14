@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Proxy\ProxyScope;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Models\Procurement\Crawler\Proxy;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
@@ -12,6 +10,7 @@ use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Sleep;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\LegacyBusinessNetwork;
 
 /** Проверяет синхронизацию ОКПД2 на синтетических HTTP fixtures без сети. */
@@ -28,9 +27,9 @@ function okpd2SyncPlatform(): Platform
  * Активный узел скоупа `crawl_listing`: резолвер не выдаёт лизу без кандидата, а гео-политика
  * скоупа требует российский узел (`crawler.proxy.policy.crawl_listing.required_country`).
  */
-function okpd2SyncProxy(): Proxy
+function okpd2SyncProxy(): object
 {
-    return Proxy::factory()->country('RU')->withScopes([ProxyScope::CrawlListing])->create();
+    return HistoricalNetworkFixtures::proxy(['country' => 'RU']);
 }
 
 /**

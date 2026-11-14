@@ -9,7 +9,7 @@ use App\Dto\Procurement\Network\AdapterValidationClaim;
 use App\Dto\Procurement\Network\HttpRouteBinding;
 use App\Dto\Procurement\Network\OutboundExecutionContext;
 use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\ScheduledNetworkPermit;
+use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportBlocked;
 use App\Dto\Procurement\Network\TransportDeferred;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
@@ -24,12 +24,16 @@ use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\CallerOutbound;
+use App\Services\Procurement\Proxyma\ProfileBindings as RoutePolicy;
 use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\Http\AdapterFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\PackageNetworkFacts;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 
 beforeEach(fn () => F::clean());
 afterEach(fn () => F::clean());
@@ -42,7 +46,10 @@ function adapterOutcomeFixture(WireFixture $wire): array
     app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($f->code, [
         new SourceTargetDefinition('card', 'detail', $f->url->origin, [$f->profile], adapterContract: $ref),
     ]));
+    HistoricalNetworkFixtures::synchronize();
     DB::table('prc_network_budgets')->update(['emission_interval_us' => 1000]);
+
+    ProxymaCallerFixtures::install($wire);
 
     return [$f, $ref, new RoutePolicy([new HttpRouteBinding($f->route->routeId)]),
         app()->makeWith(LegacyOutboundClient::class, ['urls' => $wire->policy()])];
@@ -82,8 +89,10 @@ test('полная canary проверка двух вкладок имеет о
             ->and($health->probe_token)->toBeNull()->and(DB::table('prc_outbound_operations')->count())->toBe(1)
             ->and(DB::table('prc_outbound_operations')->sole()->state)->toBe('closed')
             ->and($details['request_ids'])->toHaveCount(2)
-            ->and($details['request_ids'])->toBe(DB::table('prc_request_attempts')->orderBy('request_seq')->pluck('request_id')->all())
-            ->and($fact->request_id)->toBe($details['request_ids'][1])->and($wire->receipts())->toHaveCount(2);
+            ->and($details['request_ids'])->toBe(PackageNetworkFacts::attempts()->orderBy('request_seq')->pluck('request_id')->all())
+            ->and($fact->request_id)->toBeNull()
+            ->and(PackageNetworkFacts::attempts()->where('request_id', $details['request_ids'][1])->count())->toBe(1)
+            ->and($wire->receipts())->toHaveCount(2);
         app(ProcessTransaction::class)->run(fn () => app(AdapterHealthRepository::class)->assertReceipt($result->receipt));
     } finally {
         $wire->stop();
@@ -128,10 +137,10 @@ test('разрешённый redirect полной canary проходит от�
             $wire->url('/start'), TrafficClass::Diagnostic, $routes, $call->controls, 120);
         $result = $client->validated($call, adapterOutcomeInspect($client, $call));
         expect($wire->receipts())->toHaveCount(2)
-            ->and(DB::table('prc_network_permits')->where('state', 'released')->count())->toBe(2)
+            ->and(PackageNetworkFacts::permits()->where('state', 'released')->count())->toBe(2)
             ->and(DB::table('prc_outbound_operations')->count())->toBe(1)
             ->and($result->receipt->requestIds)->toHaveCount(1)
-            ->and($result->receipt->requestIds[0]->value)->toBe(DB::table('prc_request_attempts')->where('status', 200)->sole()->request_id)
+            ->and($result->receipt->requestIds[0]->value)->toBe(PackageNetworkFacts::attempts()->where('status', 200)->sole()->request_id)
             ->and(DB::table('prc_adapter_health')->sole()->state)->toBe('healthy');
     } finally {
         $wire->stop();
@@ -185,7 +194,7 @@ test('semantic rejection отзывает старых owners до canary и в�
             $call = adapterOutcomeCall($f, $ref, $routes, 'warmup'.$index);
             $client->validated($call, adapterOutcomeInspect($client, $call));
         }
-        DB::table('prc_network_budgets')->update(['max_inflight' => 8]);
+        DB::table('pxm_budgets')->update(['max_inflight' => 8, 'revision' => DB::raw('revision + 1')]);
         $repository = app(AdapterHealthRepository::class);
         $tx = app(ProcessTransaction::class);
         $owner = function (bool $mustAdmit = true) use ($f, $ref, $repository, $tx): OutboundExecutionContext {
@@ -213,9 +222,6 @@ test('semantic rejection отзывает старых owners до canary и в�
         $plan = $f->plan();
         $plan = new OutboundRequestPlan($plan->physicalRequestId, $plan->targetId, $plan->method,
             $plan->url, $plan->profile, $plan->trafficClass, $plan->idempotency, adapterClaim: $c->adapterClaim());
-        $ticket = $f->repo->register($plan, $c, $f->route);
-        $permit = $f->repo->reserve($ticket, $c);
-        expect($permit)->toBeInstanceOf(ScheduledNetworkPermit::class);
         $oldEpoch = DB::table('prc_adapter_health')->sole()->health_epoch;
         $failed = $tx->run(fn () => $repository->observe($a, LedgerFixtures::hash('failed'),
             new AdapterInspection('rejected', $rejection, 'fixture.schema', $rejection === AdapterVerdict::ContractFailure ? LedgerFixtures::hash('signature') : null)));
@@ -228,8 +234,8 @@ test('semantic rejection отзывает старых owners до canary и в�
         $call = adapterOutcomeCall($f, $ref, $routes, 'new_canary');
         $client->validated($call, adapterOutcomeInspect($client, $call));
         expect(DB::table('prc_adapter_health')->sole()->state)->toBe('healthy')
-            ->and($f->repo->claimSend($permit, $c))->toBeInstanceOf(TransportBlocked::class)
-            ->and(DB::table('prc_request_attempts')->where('request_id', $plan->physicalRequestId->value)->count())->toBe(0)
+            ->and(app(CallerOutbound::class)->execute($plan, $c, $f->gate(), $wire->policy(), new TransferBudget(65536, 65536)))->toBeInstanceOf(TransportBlocked::class)
+            ->and(PackageNetworkFacts::attempts()->where('request_id', $plan->physicalRequestId->value)->count())->toBe(0)
             ->and($wire->receipts())->toHaveCount(6);
         $owner();
         $owner();

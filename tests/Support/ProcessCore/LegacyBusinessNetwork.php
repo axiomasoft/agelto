@@ -59,6 +59,7 @@ final class LegacyBusinessNetwork implements LegacyOutbound
 
     public static function catalog(Platform $platform): void
     {
+        HistoricalNetworkFixtures::synchronize();
         if (! $platform->is_active) {
             return;
         }
@@ -67,6 +68,7 @@ final class LegacyBusinessNetwork implements LegacyOutbound
             new SourceTargetDefinition('business.listing', 'listing', $origin, [NetworkFixtures::profile()]),
             new SourceTargetDefinition('business.detail', 'detail', $origin, [NetworkFixtures::profile()]),
         ]));
+        HistoricalNetworkFixtures::synchronize();
     }
 
     public static function pausePlatform(int $platformId): void

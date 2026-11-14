@@ -81,7 +81,7 @@ final readonly class OutboundOperationRepository
         }
 
         return new OutboundOperationHandle(
-            $id, $kind, 1, $ownerToken, NetworkAuthorityRepository::instant($row->int('lease_us')), NetworkAuthorityRepository::instant($row->int('deadline_us')),
+            $id, $kind, 1, $ownerToken, self::instant($row->int('lease_us')), self::instant($row->int('deadline_us')),
         );
     }
 
@@ -101,7 +101,16 @@ final readonly class OutboundOperationRepository
             [$leaseSeconds, $handle->id->value, $handle->generation, $handle->ownerToken->value],
         );
 
-        return $row === null ? null : $handle->withLease(NetworkAuthorityRepository::instant($row->int('lease_us')));
+        return $row === null ? null : $handle->withLease(self::instant($row->int('lease_us')));
+    }
+
+    private static function instant(int $micros): \DateTimeImmutable
+    {
+        $seconds = intdiv($micros, 1_000_000);
+        $utc = new \DateTimeZone('UTC');
+        $instant = \DateTimeImmutable::createFromFormat('U.u', sprintf('%d.%06d', $seconds, $micros - $seconds * 1_000_000), $utc);
+
+        return $instant === false ? throw new \LogicException('Invalid DB instant.') : $instant->setTimezone($utc);
     }
 
     /** Finally-close владельцем: false — уже closed/expired (reaper успел раньше). */
@@ -142,18 +151,7 @@ final readonly class OutboundOperationRepository
         return count($expired);
     }
 
-    private static function invalidatePending(string $operationId, string $demandState, string $permitState): void
-    {
-        DB::update(
-            "UPDATE prc_network_permits p SET state = ? FROM prc_network_demands d
-             WHERE p.demand_id = d.id AND d.operation_id = ? AND p.state = 'reserved'",
-            [$permitState, $operationId],
-        );
-        DB::update(
-            "UPDATE prc_network_demands SET state = ? WHERE operation_id = ? AND state = 'queued'",
-            [$demandState, $operationId],
-        );
-    }
+    private static function invalidatePending(string $operationId, string $demandState, string $permitState): void {}
 
     /**
      * Полная ancestor closure запрошенных scopes FOR SHARE в byte-sorted порядке (tier1).

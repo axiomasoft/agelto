@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Llm\Execution;
 
 use App\Enums\Llm\ProviderTransportFailure;
+use Proxyma\Domain\Execution\AttemptResult;
 
 /** Raw bounded receipt is financial evidence, never safe telemetry or publication authority. */
 final readonly class ProviderTransportOutcome
@@ -24,6 +25,7 @@ final readonly class ProviderTransportOutcome
         public bool $wireMeasured = false,
         public int $curlCode = 0,
         public ?array $stats = null,
+        public ?AttemptResult $networkResult = null,
     ) {
         if (($status === null) !== ($body === null)
             || ($status === null) === ($failure === null)

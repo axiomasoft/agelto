@@ -13,8 +13,8 @@ use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
 use App\Repositories\Procurement\Platform\Okpd2NodeStoreRepository;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
-use App\Services\Procurement\Proxy\ProxyResolver;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\ProfileBindings;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 use Illuminate\Http\Client\Response;
 use RuntimeException;
 
@@ -28,7 +28,7 @@ use RuntimeException;
  * профили ссылаются на КОДЫ и сохраняют свой смысл при смене внутренних id площадки.
  *
  * Канал к площадке — те же три сейма, что у боевого `CsvSourceMethod`: лиза
- * `ProxyResolver` → canonical owner/permit/executor → TLS trust из `SourceTlsTrust`.
+ * `ProfileResolver` → canonical owner/permit/executor → TLS trust из `SourceTlsTrust`.
  * Отдельного канала обхода этих проверок нет.
  */
 final readonly class Okpd2NodeSynchronizer
@@ -42,7 +42,7 @@ final readonly class Okpd2NodeSynchronizer
     public function __construct(
         private Okpd2NodeReadRepository $nodes,
         private Okpd2NodeStoreRepository $store,
-        private ProxyResolver $proxyResolver,
+        private ProfileResolver $proxyResolver,
         private LegacyOutbound $outbound,
         private EisPolicy $policy,
     ) {}
@@ -272,7 +272,7 @@ final readonly class Okpd2NodeSynchronizer
     /**
      * @return list<array<string, mixed>>
      */
-    private function fetchChildren(RoutePolicy $lease, string $endpoint, string $parentId, Platform $platform): array
+    private function fetchChildren(ProfileBindings $lease, string $endpoint, string $parentId, Platform $platform): array
     {
         $response = $this->request(lease: $lease, endpoint: $endpoint, parentId: $parentId, platform: $platform);
 
@@ -312,7 +312,7 @@ final readonly class Okpd2NodeSynchronizer
         return $children;
     }
 
-    private function request(RoutePolicy $lease, string $endpoint, string $parentId, Platform $platform): Response
+    private function request(ProfileBindings $lease, string $endpoint, string $parentId, Platform $platform): Response
     {
         $url = $endpoint.(str_contains($endpoint, '?') ? '&' : '?').http_build_query(['parentId' => $parentId]);
 

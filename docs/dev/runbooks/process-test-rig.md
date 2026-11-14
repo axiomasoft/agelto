@@ -160,8 +160,12 @@ gold corpus, один существующий GSFX binary, audit research и pr
 `core-test-up` выполняет только `vendor-sync.sh --check` и экспортирует настоящие shallow Git
 objects текущего HEAD и pinned dependency из существующего локального checkout. Credential-free
 snapshots лежат в ignored `docker/tests/process-core/runtime-inputs/` и подключаются read-only;
-host `.git`, Git config, hooks и credentials не копируются. Dependency checkout содержит только
-два package subtrees из закрытого lock manifest. Stale/incomplete snapshot отвергается: после
+host `.git`, Git config, hooks и credentials не копируются. Каждый dependency snapshot содержит только
+два package subtrees из strict v2 lock manifest (v1 Azguard нормализуется при чтении).
+`runtime-inputs.json.repositories` фиксирует полный source SHA и SHA-256 обоих payload
+для Azguard и Proxyma. Snapshot проверяется по точным pinned Git blobs; missing/changed/extra
+files, credential paths, symlinks, hooks и посторонний Git config отвергаются.
+Compose монтирует оба snapshot только read-only, без host checkout/.git/credentials. Stale/incomplete snapshot отвергается: после
 остановки isolated runtime удалите только этот generated каталог и повторите `core-test-up`.
 Публичный fixture Redis password соответствует `--requirepass`, doctor выполняет настоящие
 diagnostics без подмены результата.

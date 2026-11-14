@@ -13,7 +13,6 @@ use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\FinalPromptPage;
-use App\Filament\Pages\NetworkRouteProfilesPage;
 use App\Filament\Pages\PromptCompositionPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\DatasetExamples\DatasetExampleResource;
@@ -23,7 +22,6 @@ use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\PromptSuggestionResource;
 use App\Filament\Resources\Procurement\Ai\Providers\ProviderResource;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\CrawlerResource;
-use App\Filament\Resources\Procurement\Crawler\Proxies\ProxyResource;
 use App\Filament\Resources\Procurement\Estimates\EstimateResource;
 use App\Filament\Resources\Procurement\Health\PlatformChecks\PlatformCheckResource;
 use App\Filament\Resources\Procurement\OperationLogs\OperationLogResource;
@@ -60,6 +58,9 @@ use App\Services\Procurement\Platform\PlatformUiResolver;
 use App\Services\Procurement\Process\ProcessOperatorCommands;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Proxyma\UiAuthority;
+use App\Services\Procurement\Proxyma\UiAuthorizer;
+use App\Services\Procurement\Proxyma\UiTenantContext;
 use Filament\Facades\Filament;
 use Filament\Navigation\NavigationGroup;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -67,6 +68,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
+use Proxyma\Contracts\Authorizer;
+use Proxyma\Contracts\CatalogMutationFence;
+use Proxyma\Contracts\TenantContextResolver;
+use Proxyma\Filament\Pages\AttemptsPage;
+use Proxyma\Filament\Pages\AuditPage;
+use Proxyma\Filament\Pages\BindingsPage;
+use Proxyma\Filament\Pages\BudgetsPage;
+use Proxyma\Filament\Pages\HealthPage;
+use Proxyma\Filament\Pages\PolicyInspector;
+use Proxyma\Filament\Resources\Pages\Endpoints;
+use Proxyma\Filament\Resources\Pages\RouteProfiles;
+use Proxyma\Filament\Resources\Pages\Routes;
 use Tests\Support\Platforms\JsonProcurement\JsonListingFilter;
 use Tests\Support\Platforms\JsonProcurement\JsonProcurementDefinition;
 use Tests\Support\ProcessCore\AiUiFixtures;
@@ -74,6 +87,7 @@ use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\FixtureProviderRecoveryResolver;
 use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ProxymaFixtures;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\artisan;
@@ -115,6 +129,11 @@ test('навигация и все страницы админки рендер�
         'Система',
     ]);
 
+    ProxymaFixtures::activate();
+    app()->bind(Authorizer::class, UiAuthorizer::class);
+    app()->bind(TenantContextResolver::class, UiTenantContext::class);
+    app()->bind(CatalogMutationFence::class, UiAuthority::class);
+
     $expectedResources = [
         ProcurementResource::class => 'Закупки',
         EstimateResource::class => 'Закупки',
@@ -124,7 +143,6 @@ test('навигация и все страницы админки рендер�
         StatusMappingResource::class => 'Площадки',
         PlatformCheckResource::class => 'Площадки',
         CrawlerResource::class => 'Сбор данных',
-        ProxyResource::class => 'Сбор данных',
         FixtureResource::class => 'Качество анализа',
         DatasetExampleResource::class => 'Качество анализа',
         ProviderResource::class => 'Настройка AI',
@@ -140,6 +158,11 @@ test('навигация и все страницы админки рендер�
 
     foreach ($expectedResources as $resourceClass => $expectedGroup) {
         expect($resourceClass::getNavigationGroup())->toBe($expectedGroup);
+    }
+    $proxymaPages = [Endpoints::class, Routes::class, RouteProfiles::class, BindingsPage::class,
+        PolicyInspector::class, BudgetsPage::class, HealthPage::class, AttemptsPage::class, AuditPage::class];
+    foreach ($proxymaPages as $pageClass) {
+        expect($pageClass::getNavigationGroup())->toBe('Proxyma');
     }
 
     // Verify guest is redirected to login on protected admin routes.
@@ -173,6 +196,9 @@ test('навигация и все страницы админки рендер�
 
     // Seed canonical AI UI fixtures for full page rendering.
     [$fixture, $analysisRun, $analysis] = AiUiFixtures::accepted();
+    // AI fixture preparation resets the disposable network authority together with its transport state.
+    // Activate Proxyma only after that reset, before exercising its UI adapters.
+    ProxymaFixtures::activate();
     $procurement = Procurement::factory()->create();
     $estimate = Estimate::factory()->create([
         'procurement_id' => $procurement->id,
@@ -183,13 +209,17 @@ test('навигация и все страницы админки рендер�
     $admin = User::factory()->create();
     $admin->assignRole(SuperAdminRole::class);
     actingAs($admin);
+    expect(app(UiAuthority::class)->active('proxyma'))->toBeTrue();
     foreach (array_keys($expectedResources) as $resourceClass) {
         $this->get($resourceClass::getUrl('index'))->assertOk();
+    }
+    foreach ($proxymaPages as $pageClass) {
+        expect($pageClass::canAccess())->toBeTrue($pageClass);
+        $this->get($pageClass::getUrl())->assertOk();
     }
 
     foreach ([
         Dashboard::getUrl(),
-        NetworkRouteProfilesPage::getUrl(),
         PromptCompositionPage::getUrl(),
         FinalPromptPage::getUrl(['run' => $analysisRun->id]),
         ProcurementResource::getUrl('view', ['record' => $procurement]),

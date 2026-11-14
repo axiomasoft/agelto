@@ -2,6 +2,10 @@
 set -euo pipefail
 root_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 mode=${1:-static}
+cleanup_build() {
+    rm -rf "$root_dir/public/build"
+}
+trap cleanup_build EXIT
 grep -F '"packageManager": "pnpm@9.15.0"' "$root_dir/package.json" >/dev/null
 grep -F 'strictPort: true' "$root_dir/vite.config.js" >/dev/null
 grep -F 'vite_node_modules:/var/www/html/node_modules' "$root_dir/docker-compose.yml" >/dev/null
@@ -21,6 +25,7 @@ if [[ "$mode" == 'dynamic' ]]; then
         "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
         rm -f "$root_dir/public/hot"
         rm -rf "$temp_dir"
+        cleanup_build
     }
     trap cleanup EXIT
 

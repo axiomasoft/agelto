@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Schema;
 use Tests\Support\ProcessCore\ExecutionFixtures as E;
 use Tests\Support\ProcessCore\FinalizeFixtures as F;
 use Tests\Support\ProcessCore\FixtureStageCheckpoint;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\NetworkFixtures;
 
 function suspendedProcessWork(int $failures = 0): WorkId
@@ -91,6 +92,7 @@ test('expired target cooldown does not clear a manual pause or rewrite health fr
     $work = suspendedProcessWork();
     NetworkFixtures::platform('suspended');
     app(SourceCatalogSync::class)->sync(NetworkFixtures::catalog('suspended'));
+    HistoricalNetworkFixtures::synchronize();
     $targets = DB::table('prc_source_targets')->where('capability', 'detail')->pluck('id');
     DB::table('prc_target_health')->whereIn('target_id', $targets)->update(['state' => 'open', 'open_until' => now()->subMinute()]);
     E::setMode('acquisition', ControlMode::Paused);

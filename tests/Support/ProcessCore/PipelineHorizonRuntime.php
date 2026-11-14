@@ -19,7 +19,7 @@ use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\StageRegistry;
-use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxyma\ProfileResolver as ProxyResolver;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Horizon\SupervisorCommandString;
@@ -37,6 +37,7 @@ final class PipelineHorizonRuntime
         }
         $spec = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
         config($spec['config']);
+        ProxymaCallerFixtures::configure();
         foreach (array_keys($spec['config']['filesystems.disks']) as $disk) {
             Storage::forgetDisk($disk);
         }

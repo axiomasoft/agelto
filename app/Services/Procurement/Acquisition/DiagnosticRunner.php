@@ -17,12 +17,12 @@ use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
-use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 
 final readonly class DiagnosticRunner
 {
     public function __construct(private AcquisitionProfiles $profiles, private AcquisitionDiagnostic $diagnostic,
-        private ProxyResolver $routes) {}
+        private ProfileResolver $routes) {}
 
     public function run(DiagnosticCheck $check, PlatformDefinition $definition, int $platformId,
         HealthBaseline $baseline, \DateTimeImmutable $at): CheckResult

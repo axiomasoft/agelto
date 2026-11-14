@@ -9,7 +9,6 @@ use App\Dto\Procurement\Network\NetworkChangeResult;
 use App\Dto\Procurement\Network\ProviderKey;
 use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
 use App\Dto\Procurement\Platform\RequestProfile;
 use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
@@ -17,7 +16,6 @@ use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScopeDefinition;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Enums\Procurement\Process\ScopeKind;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\ControlRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
@@ -36,7 +34,6 @@ final readonly class SourceCatalogSync
         private OutboundPolicy $policy,
         private SourceCatalogRegistry $registry,
         private SourceCatalogRepository $catalog,
-        private RouteRepository $routes,
         private ControlRepository $controls,
         private ProcessTransaction $transaction,
         private LlmProviderFactory $providerFactory,
@@ -88,11 +85,7 @@ final readonly class SourceCatalogSync
     private function ensureBaseTopology(array $scopes): void
     {
         $this->transaction->run(fn () => $this->controls->ensureScopes($scopes));
-        $direct = $this->transaction->run(fn (): string => $this->routes->ensureDirectRoute($this->policy->directEgressId, $this->policy->directIndependenceGroup));
-        $this->transaction->run(function () use ($direct): void {
-            $this->routes->ensureProfile($this->policy->defaultRouteProfile, $direct);
-            $this->routes->ensureProfile($this->policy->providerRouteProfile);
-        });
+
     }
 
     /**
@@ -102,6 +95,13 @@ final readonly class SourceCatalogSync
     public function syncProviders(?array $providerKeys = null): array
     {
         $catalogs = $this->registry->providers();
+        if (is_string(config('services.telegram.bot_token')) && config('services.telegram.bot_token') !== '') {
+            $catalogs['telegram'] = new ProviderTargetDefinitions(new ProviderKey('telegram'), [
+                new SourceTargetDefinition('provider:telegram:notification', 'notification', CanonicalOrigin::fromUrl('https://api.telegram.org'), [
+                    new RequestProfile('notification.telegram', 5, 10, 10, 65_536, 196_608, 0, 1, 1, [], ResponseKind::Text, 'UTF-8', 1),
+                ]),
+            ]);
+        }
         foreach ($this->providerFactory->networkOrigins() as $key => $urls) {
             if (isset($catalogs[$key])) {
                 throw new \InvalidArgumentException('Duplicate configured provider catalog: '.$key);
@@ -132,18 +132,6 @@ final readonly class SourceCatalogSync
         }
 
         return $reports;
-    }
-
-    public function overrideBudget(string $scopeKey, OriginBudgetPolicy $budget, int $expectedVersion, ?int $actorId, string $reason): NetworkChangeResult
-    {
-        if (! $this->policy->withinBounds($budget)) {
-            throw new \InvalidArgumentException('Budget override is outside outbound.override_bounds.');
-        }
-        [$eventId, $projectionId] = [ProcessUuid::random(), ProcessUuid::random()];
-
-        return $this->transaction->run(fn (): NetworkChangeResult => $this->catalog->overrideBudget(
-            $scopeKey, $budget, $expectedVersion, $this->policy, $actorId, $reason, $eventId, $projectionId,
-        ));
     }
 
     public function retireTarget(ProcessUuid $targetId, int $expectedVersion, ?int $actorId, string $reason): NetworkChangeResult

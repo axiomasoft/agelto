@@ -13,12 +13,9 @@ use App\Enums\Procurement\Process\AcquisitionKind;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Network\RouteRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Platforms\Eis\EisListingPartitioner;
 use App\Services\Platforms\Eis\Listing\EisProfilePreparer;
-use App\Services\Procurement\Network\OutboundPolicy;
-use App\Services\Procurement\Process\ProcessTransaction;
 use Carbon\CarbonImmutable;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
@@ -39,8 +36,7 @@ final class AcquisitionProfileFixtures
     public static function query(Crawler $profile, ?AcquisitionKind $kind = null, ?string $day = null,
         int $firstRow = 1, ?int $lowCents = null, ?int $highCents = null): array
     {
-        app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)
-            ->ensureProfile(app(OutboundPolicy::class)->defaultRouteProfile));
+        HistoricalNetworkFixtures::synchronize();
         $kind ??= $profile->listing_kind;
         $date = $day === null ? null : new \DateTimeImmutable($day);
         $launch = app(EisProfilePreparer::class)->prepare($profile, $kind, $date, $date);
@@ -65,7 +61,11 @@ final class AcquisitionProfileFixtures
     {
         $day = self::sourceDay();
         $route = ListingStoreRepository::id('p218-command-route')->value;
-        DB::table('prc_network_route_profiles')->insertOrIgnore(['id' => $route, 'profile_key' => 'p218-command', 'policy_version' => 1]);
+        if (DB::getSchemaBuilder()->hasTable('prc_network_authorities') && DB::table('prc_network_authorities')->where('id', 'network')->value('authority') === 'proxyma') {
+            $route = (string) (DB::table('prc_network_route_profiles')->value('id') ?? $route);
+        } else {
+            DB::table('prc_network_route_profiles')->insertOrIgnore(['id' => $route, 'profile_key' => 'p218-command', 'policy_version' => 1]);
+        }
         $profile = EisCrawlerFactory::new()->create(['listing_kind' => $kind, 'route_profile_id' => $route,
             'filter' => new EisSearchFilter(okpd2Codes: ['43'], publishedFrom: $day, publishedTo: $day),
             'schedule' => '* * * * *']);

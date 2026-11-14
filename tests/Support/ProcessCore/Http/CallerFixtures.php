@@ -14,6 +14,7 @@ use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 
 final class CallerFixtures
 {
@@ -32,6 +33,7 @@ final class CallerFixtures
         $platform = Platform::query()->firstOrCreate(['code' => 'eis'], ['name' => 'ЕИС', 'base_url' => $wire->url('/')->reveal(), 'is_active' => true]);
         $registry = Registry::query()->firstOrCreate(['platform_id' => $platform->id, 'code' => 'fz44'], ['name' => '44-ФЗ', 'settings' => []]);
         app(SourceCatalogSync::class)->syncRegistered(['eis']);
+        HistoricalNetworkFixtures::synchronize();
         self::healthReady();
 
         return $registry;
@@ -39,6 +41,7 @@ final class CallerFixtures
 
     public static function healthReady(): void
     {
+        HistoricalNetworkFixtures::synchronize();
         // Prior successful canary is fixture setup; the actual sends still require real owners/permits.
         foreach (['prc_route_health', 'prc_route_target_health', 'prc_target_health'] as $table) {
             DB::table($table)->update(['state' => 'closed']);
@@ -52,6 +55,7 @@ final class CallerFixtures
         app(SourceCatalogSync::class)->syncProvider(new ProviderTargetDefinitions(new ProviderKey('wire'), [
             new SourceTargetDefinition('provider:wire:api', 'provider', $wire->url('/')->origin, [TransportFixtures::profile()]),
         ]));
+        HistoricalNetworkFixtures::synchronize();
         DB::table('prc_network_route_profile_members')->insert([
             'profile_id' => DB::table('prc_network_route_profiles')->where('profile_key', 'llm')->sole()->id,
             'route_id' => DB::table('prc_network_routes')->where('kind', 'direct')->sole()->id,

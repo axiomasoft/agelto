@@ -70,7 +70,6 @@ final readonly class OutboundPolicy
             || array_diff(array_keys($root), [...self::ROOT_KEYS, ...self::OPTIONAL_ROOT_KEYS]) !== []) {
             throw new \InvalidArgumentException('Invalid outbound policy: outbound');
         }
-        new HealthPolicy($config);
         new AdapterHealthPolicy($config);
         $routing = $root['routing'];
         if (! is_array($routing) || array_keys($routing) !== ['default_profile', 'provider_profile']) {

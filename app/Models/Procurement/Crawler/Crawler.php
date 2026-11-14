@@ -6,7 +6,6 @@ namespace App\Models\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\Contracts\RequiresScope;
 use App\Enums\Procurement\Process\AcquisitionKind;
-use App\Models\Procurement\Network\NetworkRouteProfile;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CrawlerFilterFactory;
 use Database\Factories\Procurement\Crawler\CrawlerFactory;
@@ -150,13 +149,6 @@ final class Crawler extends Model
     public function registry(): BelongsTo
     {
         return $this->belongsTo(related: Registry::class);
-    }
-
-    /** @return BelongsToMany<Proxy, $this> */
-    /** @return BelongsTo<NetworkRouteProfile, $this> */
-    public function routeProfile(): BelongsTo
-    {
-        return $this->belongsTo(NetworkRouteProfile::class, 'route_profile_id');
     }
 
     /**

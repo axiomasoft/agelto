@@ -24,17 +24,19 @@ use App\Enums\Procurement\Process\IntentState;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\SubjectKind;
 use App\Models\Procurement\Document\Document;
+use App\Models\Procurement\Platform\Registry;
+use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Document\DownloadFinalizer;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Document\DownloadHandler;
 use App\Services\Procurement\Document\DownloadStageCodec;
-use App\Services\Procurement\Network\Contracts\OutboundAttemptGate;
-use App\Services\Procurement\Network\OutboundExecutor;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Platform\Contracts\DocumentAccessResolver;
 use App\Services\Procurement\Platform\ExecutorPlatformOutbound;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Proxyma\CallerGate;
+use App\Services\Procurement\Proxyma\CallerOutbound;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\Http\TransportFixtures;
@@ -42,20 +44,31 @@ use Tests\Support\ProcessCore\Http\WireFixture;
 
 final class DownloadFixtures
 {
+    public ?int $sendLimit = null;
+
     public readonly PermitFixtures $network;
 
     public readonly Document $document;
 
     public readonly DocumentAccessResolver $access;
 
-    public function __construct(public readonly WireFixture $wire, public string $path = '/document', public ?ContentHash $expectedHash = null)
+    public function __construct(public readonly WireFixture $wire, public string $path = '/document', public ?ContentHash $expectedHash = null,
+        public bool $tls = false)
     {
+        if ($tls) {
+            config()->set('outbound.http.tls_bundles', ['fixture.test' => $wire->root.'/cert.pem']);
+        }
         ExecutionFixtures::authority([StageCode::Download]);
         app(StageRegistry::class)->bindFinalization(StageCode::Download, new DownloadStageCodec, app(DownloadFinalizer::class));
-        $this->network = new PermitFixtures($wire);
-        $this->document = Document::factory()->create(['source_url' => null, 'source_document_key' => 'document:'.bin2hex(random_bytes(6)),
+        $this->network = new PermitFixtures($wire, $tls);
+        $platformId = (int) DB::table('prc_platforms')->where('code', $this->network->code)->value('id');
+        $registry = Registry::query()->firstOrCreate(
+            ['platform_id' => $platformId, 'code' => 'fz44'], ['name' => '44-ФЗ', 'settings' => []]);
+        $procurement = Procurement::factory()->create(['platform_id' => $platformId, 'registry_id' => $registry->id]);
+        $this->document = Document::factory()->create(['procurement_id' => $procurement->id, 'platform_id' => $platformId,
+            'source_url' => null, 'source_document_key' => 'document:'.bin2hex(random_bytes(6)),
             'source_key_version' => 1, 'access_schema_version' => 1, 'access_descriptor_version' => 1,
-            'reference_observed_at' => now(), 'access_descriptor' => json_encode(['url' => $wire->url($path)->reveal(), 'expires_at' => null], JSON_THROW_ON_ERROR)]);
+            'reference_observed_at' => now(), 'access_descriptor' => json_encode(['url' => $wire->url($path, $tls)->reveal(), 'expires_at' => null], JSON_THROW_ON_ERROR)]);
         $this->access = new class($this) implements DocumentAccessResolver
         {
             public int $refreshes = 0;
@@ -82,8 +95,8 @@ final class DownloadFixtures
     {
         $profile = TransportFixtures::profile(['response_kind' => 'binary', 'max_text_bytes' => null, 'charset_default' => null]);
 
-        return new DocumentFetchPlan(new OutboundRequestPlan(LedgerFixtures::uuid(), $this->network->target, 'GET', $this->wire->url($path),
-            $profile, TrafficClass::Download, IdempotencyClass::ReadOnly), 'fixture.pdf', $this->expectedHash);
+        return new DocumentFetchPlan(new OutboundRequestPlan(LedgerFixtures::uuid(), $this->network->target, 'GET', $this->wire->url($path, $this->tls),
+            $profile, TrafficClass::Download, IdempotencyClass::ReadOnly, sendLimit: $this->sendLimit), 'fixture.pdf', $this->expectedHash);
     }
 
     private function installProfile(): void
@@ -91,10 +104,12 @@ final class DownloadFixtures
         app(SourceCatalogSync::class)->sync(new SourceTargetDefinitions($this->network->code, [
             new SourceTargetDefinition('card', 'download', $this->network->url->origin, [$this->plan($this->path)->request->profile], new OriginBudgetPolicy(600, 1, 2)),
         ]));
+        HistoricalNetworkFixtures::synchronize();
         foreach (['prc_route_health', 'prc_route_target_health', 'prc_target_health'] as $table) {
             DB::table($table)->update(['state' => 'closed']);
         }
         DB::table('prc_network_budgets')->update(['emission_interval_us' => 100000]);
+        ProxymaCallerFixtures::install($this->wire);
     }
 
     /** @return array{DownloadInput,WorkId,ExecutionContext} */
@@ -115,18 +130,19 @@ final class DownloadFixtures
             } else {
                 DB::table('prc_operation_intents')->where('id', $intent->value)->update(['state' => 'active', 'pending_reason' => null]);
             }
-            $works->storeWork($work, $input, 1, $intent, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid());
+            $platformId = (int) DB::table('prc_platforms')->where('code', $this->network->code)->value('id');
+            $works->storeWork($work, $input, 1, $intent, 'platform:'.$this->network->code, $platformId, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid());
         });
-        ExecutionFixtures::ensureWorkScopes(StageCode::Download, 'manual');
+        ExecutionFixtures::ensureWorkScopes(StageCode::Download, 'platform:'.$this->network->code);
         $lease = FinalizeFixtures::running($work);
 
         return [$input, $work, new ExecutionContext($lease, app(WorkStoreRepository::class), app(ProcessClock::class),
             Duration::seconds(300), Duration::seconds(420), Duration::seconds(15), Duration::seconds(15), Duration::seconds(30))];
     }
 
-    public function handler(?OutboundAttemptGate $gate = null): DownloadHandler
+    public function handler(?CallerGate $gate = null): DownloadHandler
     {
         return app()->makeWith(DownloadHandler::class, ['access' => $this->access, 'outbound' => new ExecutorPlatformOutbound(
-            app(OutboundExecutor::class), $gate ?? $this->network->gate(), $this->wire->policy(), new TransferBudget(262144, 262144))]);
+            app(CallerOutbound::class), $gate ?? $this->network->gate(), $this->wire->policy(), new TransferBudget(262144, 262144))]);
     }
 }

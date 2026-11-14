@@ -114,7 +114,8 @@ final readonly class AuthorityRepository
      * @param  list<AuthoritySnapshot>  $eligibilitySnapshots
      * @param  list<ProcessUuid>  $storageDomains
      */
-    public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork, array $eligibilitySnapshots = [], ?PublicationLocks $publication = null, array $storageDomains = []): LockedPrefix|PrefixFailure
+    public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork, array $eligibilitySnapshots = [], ?PublicationLocks $publication = null,
+        array $storageDomains = [], bool $readOnlyLane = false): LockedPrefix|PrefixFailure
     {
         CallerTransaction::require('Process lock prefix');
 
@@ -126,7 +127,7 @@ final readonly class AuthorityRepository
         $healthyIds = $tier1['healthyIds'];
         $capacity = $tier1['capacity'];
 
-        $lanes = $this->loader()->lockLaneTier($capacity);
+        $lanes = $this->loader()->lockLaneTier($capacity, $readOnlyLane);
         if ($lanes instanceof PrefixFailure) {
             return $lanes;
         }

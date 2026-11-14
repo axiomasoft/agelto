@@ -176,10 +176,11 @@ class Proxy(socketserver.StreamRequestHandler):
             return
         method, target, _ = line.split(" ")
         host, port = target.rsplit(":", 1)
-        if method != "CONNECT" or host != "127.0.0.1":
+        if method != "CONNECT" or host not in {"127.0.0.1", "fixture.test"}:
             self.wfile.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
             return
-        with socket.create_connection((host, int(port)), timeout=5) as upstream:
+        upstream_host = "127.0.0.1" if host == "fixture.test" else host
+        with socket.create_connection((upstream_host, int(port)), timeout=5) as upstream:
             self.wfile.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
             self.wfile.flush()
             sockets = [self.connection, upstream]

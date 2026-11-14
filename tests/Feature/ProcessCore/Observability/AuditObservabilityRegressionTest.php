@@ -6,7 +6,10 @@ use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Document\DocumentHead;
 use App\Dto\Procurement\Document\DocumentRevision;
 use App\Dto\Procurement\Document\SourceDocumentMetadata;
+use App\Dto\Procurement\Network\ProviderKey;
+use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\SourceTargetDefinition;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Health\ReadinessCheckCode;
@@ -29,10 +32,12 @@ use App\Repositories\Procurement\Process\ControlRepository;
 use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
 use App\Services\Health\ApplicationReadiness;
+use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\MetricProjector;
 use App\Services\Procurement\Process\ProcessDiagnosticsInspector;
 use App\Services\Procurement\Process\ProcessTransaction;
 use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Proxyma\TelegramOutbound;
 use App\Services\Reference\ClassifierImporter;
 use App\Support\SecretRedactor;
 use App\Support\Telemetry\SafeJsonLogProcessor;
@@ -49,7 +54,6 @@ use Illuminate\Support\Facades\Context;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Http;
 use Laravel\Horizon\Contracts\SupervisorRepository;
 use Monolog\Logger;
 use Monolog\Processor\PsrLogMessageProcessor;
@@ -63,8 +67,13 @@ use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\HttpFoundation\Response;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
+use Tests\Support\ProcessCore\Http\PermitFixtures;
+use Tests\Support\ProcessCore\Http\TransportFixtures;
+use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\ListingFixtures;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 
 pest()->group('legacy-ownership-cutover', 'operational-metrics-and-alerting');
 
@@ -307,23 +316,43 @@ test('SafeLogChannelTap, SecretRedactor, Horizon gate и операторски�
 });
 
 test('PipelineAlert ставит дедупликационный ключ в кэш только после успешной доставки в Telegram и указывает process:status', function (): void {
+    PermitFixtures::clean();
     config()->set('services.telegram.bot_token', 'test-token');
     config()->set('services.telegram.chat_id', '12345');
     Cache::forget('pipeline_alert:test_key');
 
-    Http::fakeSequence()
-        ->push('gateway timeout', 500)
-        ->push('gateway timeout', 500)
-        ->push(['ok' => true], 200);
-
-    $alert = app(PipelineAlert::class);
-    $alert->notify(['test_key' => 'Деталь']);
-    expect(Cache::has('pipeline_alert:test_key'))->toBeFalse();
-
-    $alert->notify(['test_key' => 'Деталь']);
-    expect(Cache::has('pipeline_alert:test_key'))->toBeTrue();
-
-    Http::assertSent(fn ($request): bool => str_contains((string) ($request['text'] ?? ''), 'php artisan process:status'));
+    $wire = new WireFixture;
+    try {
+        new PermitFixtures($wire);
+        $profile = TransportFixtures::profile([
+            'code' => 'notification.telegram', 'attempts' => 1, 'distinct_routes' => 1, 'delays_ms' => [], 'redirects' => 0]);
+        app(SourceCatalogSync::class)->syncProvider(new ProviderTargetDefinitions(
+            new ProviderKey('telegram'), [new SourceTargetDefinition(
+                'provider:telegram:notification', 'notification', $wire->url('/')->origin, [$profile])]));
+        HistoricalNetworkFixtures::synchronize();
+        ProxymaCallerFixtures::install($wire);
+        config()->set('services.telegram.api_url', $wire->url('/')->origin->value());
+        app()->instance(TelegramOutbound::class,
+            new TelegramOutbound($wire->policy()));
+        $path = '/bottest-token/sendMessage';
+        $wire->respond($path, 'gateway timeout', 500, method: 'POST');
+        $wire->respond($path, '{"ok":true}', method: 'POST');
+        $alert = app(PipelineAlert::class);
+        $alert->notify(['test_key' => 'Деталь']);
+        expect(Cache::has('pipeline_alert:test_key'))->toBeFalse()->and($wire->receipts())->toHaveCount(1);
+        $alert->notify(['test_key' => 'Деталь']);
+        expect(Cache::has('pipeline_alert:test_key'))->toBeTrue()->and($wire->receipts())->toHaveCount(2);
+        $payload = json_encode(['chat_id' => '12345', 'text' => implode("\n", [
+            '⚠️ <b>[AGELTO ['.mb_strtoupper(config('app.env')).']] Проблемы пайплайна</b>', '', '• Деталь', '',
+            'Проверьте Horizon или запустите <code>php artisan process:status</code> / <code>php artisan pipeline:status</code>',
+        ]), 'parse_mode' => 'HTML'], JSON_THROW_ON_ERROR);
+        expect($wire->receipts()[1]['body_sha256'])->toBe(hash('sha256', $payload));
+        $alert->notify(['test_key' => 'Деталь']);
+        expect($wire->receipts())->toHaveCount(2);
+    } finally {
+        $wire->stop();
+        PermitFixtures::clean();
+    }
 
     $logRoot = (string) config('testing.log_root');
     LogChannel::Platforms->warning('platform-dom-drift-marker', ['tab' => 'common-info']);

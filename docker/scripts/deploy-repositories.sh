@@ -65,12 +65,16 @@ read_profile() {
     [[ "${PROFILE[GITHUB_ED25519_HOST_KEY]}" =~ ^AAAAC3NzaC1lZDI1NTE5AAAAI[A-Za-z0-9+/=]+$ ]] || fail 'GITHUB_ED25519_HOST_KEY must be an Ed25519 public key body'
 }
 
-deploy_home() { printf '/home/%s\n' "${PROFILE[DEPLOY_USER]}"; }
+deploy_home() {
+    if [[ "$mode" == fixture ]]; then printf '%s/home/deploy\n' "$fixture_root"; return; fi
+    printf '/home/%s\n' "${PROFILE[DEPLOY_USER]}"
+}
 ssh_dir() { printf '%s/.ssh\n' "$(deploy_home)"; }
 ssh_config() { printf '%s/config\n' "$(ssh_dir)"; }
 known_hosts() { printf '%s/known_hosts\n' "$(ssh_dir)"; }
 
 as_deploy() {
+    if [[ "$mode" == fixture ]]; then "$adapter" "$@"; return; fi
     runuser -u "${PROFILE[DEPLOY_USER]}" -- env "HOME=$(deploy_home)" "$@"
 }
 
@@ -103,29 +107,23 @@ write_ssh_trust() {
     local config_file
     config_file="$(mktemp)"
     trap 'rm -f "$trust_file" "$config_file"' RETURN
-    cat > "$config_file" <<EOF
-Host github-agelto
+    : > "$config_file"
+    local identity
+    for identity in agelto azguard proxyma; do
+        cat >> "$config_file" <<EOF
+Host github-$identity
     HostName github.com
     HostKeyAlias github.com
     User git
-    IdentityFile $(key_path agelto)
+    IdentityFile $(key_path "$identity")
     IdentitiesOnly yes
     IdentityAgent none
     ForwardAgent no
     StrictHostKeyChecking yes
     UserKnownHostsFile $(known_hosts)
 
-Host github-azguard
-    HostName github.com
-    HostKeyAlias github.com
-    User git
-    IdentityFile $(key_path azguard)
-    IdentitiesOnly yes
-    IdentityAgent none
-    ForwardAgent no
-    StrictHostKeyChecking yes
-    UserKnownHostsFile $(known_hosts)
 EOF
+    done
     install -m 0600 -o "${PROFILE[DEPLOY_USER]}" -g "${PROFILE[DEPLOY_USER]}" "$config_file" "$(ssh_config)"
     trap - RETURN
     rm -f "$trust_file" "$config_file"
@@ -163,13 +161,18 @@ ensure_clean_checkout() {
         origin="$(as_deploy git -C "$checkout" config --get remote.origin.url)" || fail "checkout has no origin: $checkout"
         normalize_origin "$origin" "$repository" >/dev/null || fail "checkout origin is not the pinned GitHub repository: $checkout"
     else
-        install -d -m 0755 -o "${PROFILE[DEPLOY_USER]}" -g "${PROFILE[DEPLOY_USER]}" "$(dirname "$checkout")"
+        if [[ "$mode" == fixture ]]; then
+            install -d -m 0755 "$(dirname "$checkout")"
+        else
+            install -d -m 0755 -o "${PROFILE[DEPLOY_USER]}" -g "${PROFILE[DEPLOY_USER]}" "$(dirname "$checkout")"
+        fi
         as_deploy git clone --no-checkout "$(alias_origin "$alias" "$repository")" "$checkout"
         as_deploy git -C "$checkout" remote set-url origin "$(canonical_origin "$repository")"
     fi
 
     as_deploy git -C "$checkout" fetch --quiet --no-tags "$(alias_origin "$alias" "$repository")" "$expected_sha"
     as_deploy git -C "$checkout" checkout --detach "$expected_sha"
+    normalize_origin "$(as_deploy git -C "$checkout" config --get remote.origin.url)" "$repository" >/dev/null || fail 'checkout origin changed'
     [[ "$(as_deploy git -C "$checkout" rev-parse HEAD)" == "$expected_sha" ]] || fail "checkout is not pinned to $expected_sha: $checkout"
     as_deploy git -C "$checkout" symbolic-ref -q HEAD >/dev/null && fail "checkout must be detached: $checkout"
     [[ -z "$(as_deploy git -C "$checkout" status --porcelain --untracked-files=all)" ]] || fail "checkout became dirty: $checkout"
@@ -197,55 +200,51 @@ prepare() {
     write_ssh_trust
     assert_key_pair "$(key_path agelto)" agelto
     assert_key_pair "$(key_path azguard)" azguard
+    assert_key_pair "$(key_path proxyma)" proxyma
     assert_ssh_alias github-agelto "$(key_path agelto)"
     assert_ssh_alias github-azguard "$(key_path azguard)"
+    assert_ssh_alias github-proxyma "$(key_path proxyma)"
     pass 'separate GitHub SSH aliases, pinned host trust and 0700/0600 permissions are ready'
     printf '\nEnroll each public key as a read-only deploy key in its intended GitHub repository, then run sync:\n'
     printf '  Agelto (%s): ' "${PROFILE[AGELTO_REPOSITORY]}"; as_deploy ssh-keygen -lf "$(key_path agelto).pub"
     printf '  AzGuard (from %s): ' "$vendor_manifest"; as_deploy ssh-keygen -lf "$(key_path azguard).pub"
+    printf '  Proxyma (from %s): ' "$vendor_manifest"; as_deploy ssh-keygen -lf "$(key_path proxyma).pub"
     printf '  sudo %q sync --profile %q --enrollment-confirmed\n' "$0" "$profile"
 }
 
 sync() {
     [[ $EUID -eq 0 ]] || fail 'sync must run as root and delegates Git operations to deploy'
-    "$enrollment_confirmed" || fail 'missing --enrollment-confirmed; enroll both public keys as read-only GitHub deploy keys first'
+    "$enrollment_confirmed" || fail 'missing --enrollment-confirmed; enroll all public keys as read-only GitHub deploy keys first'
     assert_key_pair "$(key_path agelto)" agelto
     assert_key_pair "$(key_path azguard)" azguard
+    assert_key_pair "$(key_path proxyma)" proxyma
     assert_ssh_alias github-agelto "$(key_path agelto)"
     assert_ssh_alias github-azguard "$(key_path azguard)"
+    assert_ssh_alias github-proxyma "$(key_path proxyma)"
     verify_enrollment github-agelto
     verify_enrollment github-azguard
+    verify_enrollment github-proxyma
 
     ensure_clean_checkout "${PROFILE[AGELTO_CHECKOUT_DIR]}" "${PROFILE[AGELTO_REPOSITORY]}" "${PROFILE[AGELTO_CANDIDATE_SHA]}" github-agelto
-    local vendor_repository vendor_sha
     local candidate_vendor_manifest="${PROFILE[AGELTO_CHECKOUT_DIR]}/docker/private-vendors.lock.json"
     local candidate_vendor_verifier="${PROFILE[AGELTO_CHECKOUT_DIR]}/docker/scripts/vendor-sync.sh"
-    [[ -x "$candidate_vendor_verifier" ]] || fail 'P2 vendor verifier is missing from the candidate source'
-    [[ -f "$candidate_vendor_manifest" ]] || fail 'P2 vendor lock manifest is missing from the candidate source'
-    readarray -t vendor_values < <(python3 - "$candidate_vendor_manifest" <<'PY'
-import json
-import re
-import sys
-
-value = json.load(open(sys.argv[1], encoding='utf-8'))
-repository = value.get('repository', {})
-path = repository.get('path')
-commit = value.get('commit')
-if not isinstance(path, str) or not re.fullmatch(r'[A-Za-z0-9._-]+/[A-Za-z0-9._-]+', path):
-    raise SystemExit('P2 vendor manifest has an invalid repository path')
-if not isinstance(commit, str) or not re.fullmatch(r'[0-9a-f]{40}', commit):
-    raise SystemExit('P2 vendor manifest has an invalid full SHA')
-print(path)
-print(commit)
-PY
-)
-    vendor_repository=${vendor_values[0]}
-    vendor_sha=${vendor_values[1]}
-    ensure_clean_checkout "${PROFILE[AGELTO_CHECKOUT_DIR]}/local/vendors/azguard" "$vendor_repository" "$vendor_sha" github-azguard
+    local candidate_vendor_parser="${PROFILE[AGELTO_CHECKOUT_DIR]}/docker/scripts/vendor_manifest.py"
+    [[ -x "$candidate_vendor_verifier" && -f "$candidate_vendor_parser" ]] || fail 'vendor verifier is missing from candidate source'
+    [[ -f "$candidate_vendor_manifest" ]] || fail 'vendor lock manifest is missing from candidate source'
+    local vendor_values key repository sha
+    vendor_values="$(python3 -B "$candidate_vendor_parser" --rows)" || fail 'invalid candidate vendor manifest'
+    while IFS=$'\t' read -r key repository sha; do
+        case "$key:$repository" in
+            azguard:axiomasoft/azguard-private|proxyma:axiomasoft/proxyma) ;;
+            *) fail 'vendor repository/alias is not allowlisted' ;;
+        esac
+        ensure_clean_checkout "${PROFILE[AGELTO_CHECKOUT_DIR]}/local/vendors/$key" "$repository" "$sha" "github-$key"
+        verify_read_only "${PROFILE[AGELTO_CHECKOUT_DIR]}/local/vendors/$key" "github-$key" "$repository"
+    done <<< "$vendor_values"
     as_deploy "$candidate_vendor_verifier" --check
     verify_read_only "${PROFILE[AGELTO_CHECKOUT_DIR]}" github-agelto "${PROFILE[AGELTO_REPOSITORY]}"
-    verify_read_only "${PROFILE[AGELTO_CHECKOUT_DIR]}/local/vendors/azguard" github-azguard "$vendor_repository"
-    pass "clean detached Agelto ${PROFILE[AGELTO_CANDIDATE_SHA]} and D19 AzGuard $vendor_sha are verified"
+    pass "clean detached Agelto ${PROFILE[AGELTO_CANDIDATE_SHA]} and all pinned vendors are verified"
+
 }
 
 fixture() {
@@ -259,7 +258,8 @@ fixture() {
 
     local fixture_ssh="$resolved_root/home/deploy/.ssh"
     local fixture_checkout="$resolved_root/checkouts/agelto"
-    local fixture_vendor="$resolved_root/checkouts/azguard"
+    local vendor_values
+    vendor_values="$(python3 -B "$root_dir/scripts/vendor_manifest.py" --rows)" || fail 'invalid vendor manifest'
     install -d -m 0700 "$fixture_ssh" "$resolved_root/checkouts"
 
     local trust_file="$fixture_ssh/known_hosts"
@@ -270,7 +270,7 @@ fixture() {
     [[ "$fingerprint" == 'SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU' ]] || fail 'GitHub Ed25519 host key does not match the verified fingerprint'
 
     local alias key
-    for alias in agelto azguard; do
+    for alias in agelto azguard proxyma; do
         key="$fixture_ssh/${alias}_deploy_ed25519"
         if [[ -e "$key" || -e "$key.pub" ]]; then
             [[ -f "$key" && ! -L "$key" && -f "$key.pub" && ! -L "$key.pub" ]] || fail "incomplete fixture key pair: $alias"
@@ -284,65 +284,35 @@ fixture() {
     done
 
     local config="$fixture_ssh/config"
-    cat > "$config" <<EOF
-Host github-agelto
+    : > "$config"
+    for alias in agelto azguard proxyma; do
+        cat >> "$config" <<EOF
+Host github-$alias
     HostName github.com
     HostKeyAlias github.com
     User git
-    IdentityFile $fixture_ssh/agelto_deploy_ed25519
+    IdentityFile $fixture_ssh/${alias}_deploy_ed25519
     IdentitiesOnly yes
     IdentityAgent none
     ForwardAgent no
     StrictHostKeyChecking yes
     UserKnownHostsFile $trust_file
 
-Host github-azguard
-    HostName github.com
-    HostKeyAlias github.com
-    User git
-    IdentityFile $fixture_ssh/azguard_deploy_ed25519
-    IdentitiesOnly yes
-    IdentityAgent none
-    ForwardAgent no
-    StrictHostKeyChecking yes
-    UserKnownHostsFile $trust_file
 EOF
+    done
     chmod 0600 "$config"
-    "$adapter" validate-alias github-agelto "$config"
-    "$adapter" validate-alias github-azguard "$config"
-    "$adapter" verify-enrollment github-agelto "$trust_file"
-    "$adapter" verify-enrollment github-azguard "$trust_file"
-
-    local vendor_repository vendor_sha
-    readarray -t vendor_values < <(python3 - "$vendor_manifest" <<'PY'
-import json
-import re
-import sys
-
-value = json.load(open(sys.argv[1], encoding='utf-8'))
-repository = value.get('repository', {}).get('path')
-commit = value.get('commit')
-if not isinstance(repository, str) or not re.fullmatch(r'[A-Za-z0-9._-]+/[A-Za-z0-9._-]+', repository):
-    raise SystemExit('invalid vendor repository')
-if not isinstance(commit, str) or not re.fullmatch(r'[0-9a-f]{40}', commit):
-    raise SystemExit('invalid vendor SHA')
-print(repository)
-print(commit)
-PY
-)
-    vendor_repository=${vendor_values[0]}
-    vendor_sha=${vendor_values[1]}
-
-    "$adapter" checkout "${PROFILE[AGELTO_REPOSITORY]}" "${PROFILE[AGELTO_CANDIDATE_SHA]}" "$fixture_checkout"
-    "$adapter" verify-origin "${PROFILE[AGELTO_REPOSITORY]}" "$fixture_checkout"
-    "$adapter" verify-detached "${PROFILE[AGELTO_CANDIDATE_SHA]}" "$fixture_checkout"
-    "$adapter" verify-clean "$fixture_checkout"
-    "$adapter" verify-read-only "${PROFILE[AGELTO_REPOSITORY]}" "$fixture_checkout"
-    "$adapter" checkout "$vendor_repository" "$vendor_sha" "$fixture_vendor"
-    "$adapter" verify-origin "$vendor_repository" "$fixture_vendor"
-    "$adapter" verify-detached "$vendor_sha" "$fixture_vendor"
-    "$adapter" verify-clean "$fixture_vendor"
-    "$adapter" verify-read-only "$vendor_repository" "$fixture_vendor"
+    for alias in agelto azguard proxyma; do
+        assert_ssh_alias "github-$alias" "$(key_path "$alias")"
+        verify_enrollment "github-$alias"
+    done
+    ensure_clean_checkout "$fixture_checkout" "${PROFILE[AGELTO_REPOSITORY]}" "${PROFILE[AGELTO_CANDIDATE_SHA]}" github-agelto
+    verify_read_only "$fixture_checkout" github-agelto "${PROFILE[AGELTO_REPOSITORY]}"
+    local key repository sha fixture_vendor
+    while IFS=$'\t' read -r key repository sha; do
+        fixture_vendor="$resolved_root/checkouts/$key"
+        ensure_clean_checkout "$fixture_vendor" "$repository" "$sha" "github-$key"
+        verify_read_only "$fixture_vendor" "github-$key" "$repository"
+    done <<< "$vendor_values"
     pass 'fixture proved separate identities, strict trust, pinned clean origins and read-only probes without network'
 }
 

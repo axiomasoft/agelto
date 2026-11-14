@@ -110,9 +110,11 @@ RUN pnpm build && pnpm documentation:build
 
 FROM runtime-base AS dependencies
 WORKDIR /var/www/html
-COPY --exclude=local/vendors/azguard . /var/www/html
+COPY --exclude=local/vendors/azguard --exclude=local/vendors/proxyma . /var/www/html
 COPY local/vendors/azguard/packages/core /var/www/html/local/vendors/azguard/packages/core
 COPY local/vendors/azguard/packages/filament /var/www/html/local/vendors/azguard/packages/filament
+COPY local/vendors/proxyma/packages/core /var/www/html/local/vendors/proxyma/packages/core
+COPY local/vendors/proxyma/packages/filament /var/www/html/local/vendors/proxyma/packages/filament
 RUN --mount=type=cache,id=agelto-composer-cache,target=/tmp/composer-cache \
     COMPOSER_CACHE_DIR=/tmp/composer-cache \
     composer install --no-dev --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
@@ -120,7 +122,7 @@ RUN --mount=type=cache,id=agelto-composer-cache,target=/tmp/composer-cache \
 FROM runtime-base AS application
 ARG SOURCE_SHA
 ARG VENDOR_LOCK_SHA
-COPY --exclude=local/vendors/azguard . /var/www/html
+COPY --exclude=local/vendors/azguard --exclude=local/vendors/proxyma . /var/www/html
 COPY --from=dependencies /var/www/html/vendor /var/www/html/vendor
 COPY --from=frontend /build/public/build /var/www/html/public/build
 COPY --from=frontend /build/var/private-documentation /var/private-documentation
@@ -142,15 +144,17 @@ USER root
 
 FROM runtime-base AS doctor-dependencies
 WORKDIR /var/www/html
-COPY --exclude=local/vendors/azguard . /var/www/html
+COPY --exclude=local/vendors/azguard --exclude=local/vendors/proxyma . /var/www/html
 COPY local/vendors/azguard/packages/core /var/www/html/local/vendors/azguard/packages/core
 COPY local/vendors/azguard/packages/filament /var/www/html/local/vendors/azguard/packages/filament
+COPY local/vendors/proxyma/packages/core /var/www/html/local/vendors/proxyma/packages/core
+COPY local/vendors/proxyma/packages/filament /var/www/html/local/vendors/proxyma/packages/filament
 RUN composer install --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
 
 FROM runtime-base AS doctor
 ARG SOURCE_SHA
 ARG VENDOR_LOCK_SHA
-COPY --exclude=local/vendors/azguard . /var/www/html
+COPY --exclude=local/vendors/azguard --exclude=local/vendors/proxyma . /var/www/html
 COPY --from=doctor-dependencies /var/www/html/vendor /var/www/html/vendor
 RUN install -d -m 0755 /usr/share/agelto \
     && printf '%s\n' "$VENDOR_LOCK_SHA" > /usr/share/agelto/vendor-lock.sha \

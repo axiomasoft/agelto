@@ -256,6 +256,7 @@ test('response body stays out of context and Sentry while the retired log writer
 });
 
 test('AssignTraceId кладёт в Context route/origin/шаблон пути, а не raw fullUrl с query', function (): void {
+    $this->withoutVite();
     $this->get('/?token=QUERYSECRET&cursor=RAWCURSOR')->assertSuccessful();
 
     $url = Context::get('url');

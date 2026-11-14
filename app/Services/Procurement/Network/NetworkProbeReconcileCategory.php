@@ -12,7 +12,7 @@ use App\Enums\Procurement\Process\ControlMode;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Repositories\Procurement\Process\ControlRepository;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
-use App\Services\Procurement\Proxy\ProxyResolver;
+use App\Services\Procurement\Proxyma\ProfileResolver;
 
 /** Safe declared probes only; never selects or retries domain work. One physical probe per tick. */
 final class NetworkProbeReconcileCategory implements ReconcileCategory
@@ -20,7 +20,7 @@ final class NetworkProbeReconcileCategory implements ReconcileCategory
     private ?string $cursor = null;
 
     public function __construct(private readonly SourceCatalogRepository $catalog,
-        private readonly LegacyOutboundClient $outbound, private readonly ProxyResolver $routes,
+        private readonly LegacyOutboundClient $outbound, private readonly ProfileResolver $routes,
         private readonly ControlRepository $controls) {}
 
     public function name(): string

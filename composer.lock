@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "039a884ca5c6d9b4dfbbc78565f35616",
+    "content-hash": "5fe73bf7448495c9910bc8f930db9bff",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -352,6 +352,88 @@
                 "security": "https://github.com/axiomasoft/azguard-private/blob/main/SECURITY.md",
                 "source": "https://github.com/axiomasoft/azguard"
             },
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "axiomasoft/proxyma",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "local/vendors/proxyma/packages/core",
+                "reference": "79c44ea426865862cfca1e00077e674cf15a8ee3"
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-mbstring": "*",
+                "ext-openssl": "*",
+                "ext-pdo": "*",
+                "ext-pdo_pgsql": "*",
+                "illuminate/console": "^13.0",
+                "illuminate/contracts": "^13.0",
+                "illuminate/database": "^13.0",
+                "illuminate/encryption": "^13.0",
+                "illuminate/events": "^13.0",
+                "illuminate/support": "^13.0",
+                "php": "^8.4",
+                "psr/log": "^3.0",
+                "symfony/http-foundation": "^7.4 || ^8.0",
+                "symfony/process": "^7.4 || ^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Proxyma\\Laravel\\ProxymaServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Proxyma\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Proxyma core",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "axiomasoft/proxyma-filament",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "local/vendors/proxyma/packages/filament",
+                "reference": "240166ff0f024a1187f339ae01746fe45e4c4773"
+            },
+            "require": {
+                "axiomasoft/proxyma": "self.version",
+                "filament/filament": "^5.0",
+                "php": "^8.4"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Proxyma\\Filament\\ProxymaFilamentServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Proxyma\\Filament\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Proxyma Filament integration",
             "transport-options": {
                 "symlink": false,
                 "relative": true
@@ -10940,12 +11022,12 @@
             "version": "v5.6.4",
             "source": {
                 "type": "git",
-                "url": "https://github.com/vlucas/phpdotenv.git",
+                "url": "https://github.com/phpdotenv/phpdotenv.git",
                 "reference": "416df702837983f8d5ff48c9c3fee4f5f57b980b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/vlucas/phpdotenv/zipball/416df702837983f8d5ff48c9c3fee4f5f57b980b",
+                "url": "https://api.github.com/repos/phpdotenv/phpdotenv/zipball/416df702837983f8d5ff48c9c3fee4f5f57b980b",
                 "reference": "416df702837983f8d5ff48c9c3fee4f5f57b980b",
                 "shasum": ""
             },
@@ -15183,5 +15265,5 @@
         "php": "^8.4"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.6.0"
 }
