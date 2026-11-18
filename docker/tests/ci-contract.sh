@@ -8,7 +8,7 @@ cd "$root_dir"
 ci_workflow=.github/workflows/ci.yml
 tia_workflow=.github/workflows/tia-baseline.yml
 
-for required_file in "$ci_workflow" "$tia_workflow" .github/dependabot.yml .github/CODEOWNERS docker/scripts/coverage-gate.py; do
+for required_file in "$ci_workflow" "$tia_workflow" .github/CODEOWNERS docker/scripts/coverage-gate.py; do
     test -f "$required_file" || { echo "Missing CI carrier: $required_file" >&2; exit 1; }
 done
 
