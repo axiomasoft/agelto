@@ -2873,7 +2873,7 @@
         },
         {
             "path": "tests/Feature/Health/NotifyPlatformHealthChangedTest.php",
-            "sha256": "7a024f46f323b3d8d2adadcac9de8f6cc64d343170b9193697ae98f6cd013aff",
+            "sha256": "d4e143347c7903c72aaf8f1e0cfa147dd26fc5cdc994ed1115041841030d59ec",
             "scenarios": [
                 "слушатель передаёт изменение здоровья в существующий Telegram-транспорт"
             ],
