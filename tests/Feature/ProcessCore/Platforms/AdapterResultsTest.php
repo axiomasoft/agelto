@@ -291,6 +291,15 @@ test('ЕИС detail выносит extension и missing required сохраня�
     expect($parts['documents'])->toBe(Completeness::CompleteEmpty)->and($parts['results'])->toBe(Completeness::NotApplicable);
     $partial = $source->parse(adapterResultFixtureDetailRequest(), ['common-info' => adapterResultFixtureResponse($header.$common, 'text/html')]);
     expect($partial->snapshot->complete())->toBeFalse()->and($partial->snapshot->documents)->toBe([]);
+
+    $emptyTable = '<section class="blockInfo__section"></section>'
+        .'<div id="positionKTRU"><table class="tableBlock"><tbody></tbody></table></div>'
+        .'<section class="organizations-block"><table class="parties-table"><tbody></tbody></table></section>';
+    $emptyItems = $source->parse(adapterResultFixtureDetailRequest(), ['common-info' => adapterResultFixtureResponse($header.$emptyTable, 'text/html')]);
+    expect($emptyItems)->toBeInstanceOf(DetailFetched::class);
+    $emptyParts = array_column(array_map(get_object_vars(...), $emptyItems->snapshot->parts), 'completeness', 'name');
+    expect($emptyParts['attributes'])->toBe(Completeness::Partial)->and($emptyItems->snapshot->items)->toBe([]);
+
     $wrong = $source->parse(adapterResultFixtureDetailRequest(), ['common-info' => adapterResultFixtureResponse(str_replace('00042', '000420', $header).$common, 'text/html')]);
     expect($wrong)->toBeInstanceOf(FetchItemRejected::class)->and($wrong->assessment->reason)->toBe(AssessmentReason::IdentityMismatch);
 });

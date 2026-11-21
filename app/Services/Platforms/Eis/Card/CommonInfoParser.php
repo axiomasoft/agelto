@@ -155,8 +155,8 @@ final readonly class CommonInfoParser
     {
         try {
             $table = CardDomHelper::itemTables($crawler);
-
-            if ($table->count() === 0) {
+            $itemRows = CardDomHelper::itemRows($table);
+            if ($itemRows->count() === 0) {
                 return [];
             }
 
@@ -169,7 +169,7 @@ final readonly class CommonInfoParser
             $rows = [];
             $hasExplicitPosition = false;
 
-            CardDomHelper::itemRows($table)->each(static function (Crawler $tr) use (&$rows, &$hasExplicitPosition, $expectedColumns): void {
+            $itemRows->each(static function (Crawler $tr) use (&$rows, &$hasExplicitPosition, $expectedColumns): void {
                 $cells = $tr->children('td');
 
                 if ($cells->count() < $expectedColumns) {

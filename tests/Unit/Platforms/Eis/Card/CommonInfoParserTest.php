@@ -353,7 +353,7 @@ test('parse разбирает 6-колоночную таблицу неопр�
 });
 
 test('строгий parse пробрасывает исключение таблицы позиций без заголовка, нестрогий возвращает snapshot', function () {
-    $html = '<section class="blockInfo__section"></section><div id="positionKTRU"><table class="tableBlock"><tbody></tbody></table></div>';
+    $html = '<section class="blockInfo__section"></section><div id="positionKTRU"><table class="tableBlock"><tbody><tr><td>Позиция</td></tr></tbody></table></div>';
     $parser = app(CommonInfoParser::class);
 
     expect(fn () => $parser->parse(html: $html, strict: true))->toThrow(InvalidArgumentException::class);

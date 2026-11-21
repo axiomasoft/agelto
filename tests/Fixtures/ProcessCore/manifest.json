@@ -120,7 +120,7 @@
             "captured_at": "2026-11-03",
             "contract_hashes_refreshed_at": "2026-11-11",
             "previous_accepted_sha256": "b910db33b772938f028a1734cba5942d004684718ab5b6058caa5e7c86e16063",
-            "sha256": "5a5224dc1435db0c53d65805496bf9c410cc70319e9314ae6c8a14fdd2431006",
+            "sha256": "5d892e2bbe410abb2e2fdb15a9cc41586d0f86421c3b4bdbd8ba4da8332869fd",
             "expected": {
                 "assessment": "orchestration_contracts_quality_not_measured",
                 "schema_version": 1
@@ -4114,7 +4114,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/SpreadsheetStrategyTest.php",
-            "sha256": "a2d2e4f3b3f421f423c98a0d597451d533122298c81b4c6ef5a337dcaebadc89",
+            "sha256": "c2b941ac31067dd85f72e275afa726f73deb0451abaa83f6231cb54ae39b476e",
             "scenarios": [
                 "registry направляет текстовые документы в typed Word handler",
                 "docx → представление pdf с meta.tool=libreoffice, документ не терминален",
@@ -5010,7 +5010,7 @@
         },
         {
             "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
-            "sha256": "63c7433a136b61b775dbb83e2a226699d3af0c48899c5c7b710dfc99d3ff8189",
+            "sha256": "9cdb225a048dd4885fcd0303009c80489ba5e0acf03c6d857aa2c0accd469222",
             "scenarios": [
                 "parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info)",
                 "parse разбирает площадку и контактное лицо из раздельных section (не общий dd со ссылкой)",
@@ -7894,7 +7894,7 @@
         {
             "path": "app/Services/Platforms/Eis/Card/CommonInfoParser.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Card\\CommonInfoParser",
-            "sha256": "422d2db67f74dce9217679737ff98a105b3c8da8a635a8529a2fb13142e14ac4",
+            "sha256": "b0b442c95dedff2f3ffbd70ef759f59891aeafd8579aaf557950d9729a6ccf8e",
             "original_path": "app/Services/Procurement/Eis/Card/CommonInfoParser.php",
             "original_sha256": "3652b366991a0e1b0d724b054ad7ec9762386039beafa19a06dc60b87f451b0c",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\CommonInfoParser",

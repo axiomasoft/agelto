@@ -53,7 +53,7 @@ final class RecoveryReconciler
      * Курсор полной страницы не откатывается, постоянный сбой не держит хвост.
      * ProviderLinkageUnavailable не запоминается: incident уже открыт.
      *
-     * @var list<string>
+     * @var array<string,WorkId> Кандидаты с последней страницы курсора, по ID работы.
      */
     private array $expiredRunningRetries = [];
 
@@ -133,19 +133,14 @@ final class RecoveryReconciler
     public function recoverExpiredRunning(): int
     {
         $recovered = 0;
-        /** @var array<string, true> $attempted */
-        $attempted = [];
         $retries = $this->expiredRunningRetries;
-        $this->expiredRunningRetries = [];
-        foreach ($retries as $id) {
-            if (isset($attempted[$id])) {
-                continue;
-            }
-            $attempted[$id] = true;
-            $recovered += $this->recoverOneExpiredRunning(new WorkId(new ProcessUuid($id)));
+        foreach ($retries as $workId) {
+            $recovered += $this->recoverOneExpiredRunning($workId);
         }
+        // Повтор уже использован. Следующий tick запоминает сбои только с новой страницы.
+        $this->expiredRunningRetries = [];
         foreach ($this->recovery->expiredRunning(self::BATCH, $this->expiredRunningCursor) as $workId) {
-            if (isset($attempted[$workId->value->value])) {
+            if (isset($retries[$workId->value->value])) {
                 continue;
             }
             $recovered += $this->recoverOneExpiredRunning($workId);
@@ -179,11 +174,7 @@ final class RecoveryReconciler
 
     private function rememberExpiredRunning(WorkId $workId): void
     {
-        $id = $workId->value->value;
-        if (count($this->expiredRunningRetries) >= self::BATCH || in_array($id, $this->expiredRunningRetries, true)) {
-            return;
-        }
-        $this->expiredRunningRetries[] = $id;
+        $this->expiredRunningRetries[$workId->value->value] = $workId;
     }
 
     /**
