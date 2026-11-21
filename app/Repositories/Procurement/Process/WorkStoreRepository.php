@@ -120,6 +120,8 @@ final readonly class WorkStoreRepository implements LeaseKeeper
                     return $result;
                 }
             }
+        } catch (AttemptCheckpointClosed) {
+            return CheckpointResult::refused(CheckpointStatus::LostOwnership);
         } catch (QueryException $exception) {
             throw DatabaseFailureClassifier::isTransient($exception) ? new DependencyUnavailable('database', $exception) : $exception;
         }
@@ -402,3 +404,6 @@ final readonly class WorkStoreRepository implements LeaseKeeper
 
 /** Откат heartbeat: attempt уже закрыт. Не QueryException, поэтому ProcessTransaction не повторяет closure. */
 final class AttemptHeartbeatClosed extends \RuntimeException {}
+
+/** Откат checkpoint: attempt уже закрыт. Не QueryException, поэтому ProcessTransaction не повторяет closure. */
+final class AttemptCheckpointClosed extends \RuntimeException {}

@@ -42,8 +42,8 @@ final readonly class CommonInfoParser
             $ikz = CardDomHelper::parseIkz($crawler, self::TERM_IKZ, self::IKZ_LENGTH);
             $etp = CardDomHelper::parseEtp($crawler, self::TERM_ETP_NAME, self::TERM_ETP_URL);
             $contactPerson = CardDomHelper::parseContactPerson($crawler, self::TERM_CONTACT_NAME, self::TERM_CONTACT_EMAIL);
-            $financingRows = $this->parseFinancingRows($crawler);
-            $items = $this->parseItems($crawler);
+            $financingRows = $this->parseFinancingRows(crawler: $crawler, strict: $strict);
+            $items = $this->parseItems(crawler: $crawler, strict: $strict);
 
             $this->warnIfBlockInfoSuppressed($crawler, $ikz, $etp, $contactPerson, $financingRows, $items);
 
@@ -96,7 +96,7 @@ final readonly class CommonInfoParser
     /**
      * @return list<FinancingRowData>
      */
-    private function parseFinancingRows(Crawler $crawler): array
+    private function parseFinancingRows(Crawler $crawler, bool $strict): array
     {
         try {
             $section = CardDomHelper::titleSection($crawler, self::TERM_FINANCING_TOTAL);
@@ -139,7 +139,11 @@ final readonly class CommonInfoParser
             }
 
             return $rows;
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            if ($strict) {
+                throw $exception;
+            }
+
             return [];
         }
     }
@@ -147,7 +151,7 @@ final readonly class CommonInfoParser
     /**
      * @return list<PurchaseItemRowData>
      */
-    private function parseItems(Crawler $crawler): array
+    private function parseItems(Crawler $crawler, bool $strict): array
     {
         try {
             $table = CardDomHelper::itemTables($crawler);
@@ -233,7 +237,11 @@ final readonly class CommonInfoParser
             }
 
             return $items;
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            if ($strict) {
+                throw $exception;
+            }
+
             return [];
         }
     }

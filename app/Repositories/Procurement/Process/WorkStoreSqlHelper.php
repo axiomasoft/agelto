@@ -328,7 +328,14 @@ final readonly class WorkStoreSqlHelper
             return CheckpointResult::refused(CheckpointStatus::LostOwnership);
         }
         $this->registry->resultRepository($lease->stage)->storeProgress($snapshot->input, $progress);
-        DB::update('UPDATE prc_process_attempts SET last_checkpoint_at = clock_timestamp() WHERE id = ? AND finished_at IS NULL', [$lease->attemptId->value]);
+        $updated = DB::update(
+            'UPDATE prc_process_attempts SET last_checkpoint_at = clock_timestamp() WHERE id = ? AND finished_at IS NULL',
+            [$lease->attemptId->value],
+        );
+        if ($updated !== 1) {
+            // Не QueryException: closure не ретраится, а исключение откатывает work CAS и storeProgress.
+            throw new AttemptCheckpointClosed;
+        }
 
         return CheckpointResult::saved($row->int('checkpoint_seq'), new DbInstant(new \DateTimeImmutable($row->string('lease_until'))), $merged);
     }
