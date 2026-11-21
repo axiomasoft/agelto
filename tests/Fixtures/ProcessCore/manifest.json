@@ -120,7 +120,7 @@
             "captured_at": "2026-11-03",
             "contract_hashes_refreshed_at": "2026-11-11",
             "previous_accepted_sha256": "b910db33b772938f028a1734cba5942d004684718ab5b6058caa5e7c86e16063",
-            "sha256": "ac6bf65c78b25c0dd90d1f0dfafe84a366569de5649a97db1f181a082ac9dec5",
+            "sha256": "5a5224dc1435db0c53d65805496bf9c410cc70319e9314ae6c8a14fdd2431006",
             "expected": {
                 "assessment": "orchestration_contracts_quality_not_measured",
                 "schema_version": 1
