@@ -58,6 +58,11 @@ final readonly class ClassifierImporter
             }
 
             while (($line = fgetcsv($handle)) !== false) {
+                // fgetcsv отдаёт пустую строку как [null]; строка из пустых ячеек — не данные.
+                if ($this->isBlankLine($line)) {
+                    continue;
+                }
+
                 $values = [];
 
                 foreach ($line as $value) {
@@ -79,6 +84,20 @@ final readonly class ClassifierImporter
         } finally {
             fclose($handle);
         }
+    }
+
+    /**
+     * @param  array<int, string|null>  $line
+     */
+    private function isBlankLine(array $line): bool
+    {
+        foreach ($line as $cell) {
+            if ($cell !== null && $cell !== '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

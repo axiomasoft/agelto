@@ -351,3 +351,15 @@ test('parse разбирает 6-колоночную таблицу неопр�
         ->and($snapshot->commonInfo->items[1]->positionNumber)->toBe(2)
         ->and($snapshot->commonInfo->items[1]->unitPrice)->toBe('1250.00');
 });
+
+test('строгий parse пробрасывает исключение таблицы позиций без заголовка, нестрогий возвращает snapshot', function () {
+    $html = '<section class="blockInfo__section"></section><div id="positionKTRU"><table class="tableBlock"><tbody><tr><td>Позиция</td></tr></tbody></table></div>';
+    $parser = app(CommonInfoParser::class);
+
+    expect(fn () => $parser->parse(html: $html, strict: true))->toThrow(InvalidArgumentException::class);
+
+    $snapshot = $parser->parse(html: $html);
+
+    expect($snapshot)->toBeInstanceOf(CommonInfoSnapshot::class)
+        ->and($snapshot->status)->toBe(DetailSnapshotStatus::Incomplete);
+});

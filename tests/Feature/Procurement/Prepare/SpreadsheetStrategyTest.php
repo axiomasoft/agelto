@@ -282,6 +282,25 @@ test('xlsx сверх лимита размера — ветка LibreOffice, п
     expect($representation->meta['tool'])->toBe('libreoffice');
 });
 
+test('пустой вывод конвертера таблицы не сохраняется как pdf и даёт unprocessable', function () {
+    config(['ai.prepare.xlsx_max_mb' => 0]);
+    fakeSoffice(conversionSucceeds: true, pdfContent: '');
+    $content = file_get_contents(base_path('tests/Fixtures/Documents/sample.xlsx'));
+    [$document, $version] = makeDocumentVersion('xlsx', $content);
+
+    $result = app(SpreadsheetStrategy::class)->process($document, $version);
+
+    expect($result)->toBe(PreparationResult::Unprocessable)
+        ->and($result)->not->toBe(PreparationResult::ReadyForScreening)
+        ->and($document->refresh()->status)->toBe(DocumentStatus::Unprocessable)
+        ->and($document->last_error)->toContain('conversion_failed');
+
+    expect(DocumentRepresentation::query()
+        ->where('document_version_id', $version->id)
+        ->where('kind', RepresentationKind::Pdf)
+        ->count())->toBe(0);
+});
+
 test('обе ветки упали — unprocessable(conversion_failed)', function () {
     config(['ai.prepare.xlsx_max_mb' => 0]);
     fakeSoffice(conversionSucceeds: false);

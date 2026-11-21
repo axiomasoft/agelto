@@ -78,18 +78,29 @@ final readonly class WorkStoreRepository implements LeaseKeeper
     public function heartbeat(ExecutionLease $lease): LeaseRenewal
     {
         try {
-            $row = LedgerRow::one(
-                "UPDATE prc_process_work SET lease_until = clock_timestamp() + make_interval(secs => ?), heartbeat_at = clock_timestamp()
-                 WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'running' AND lease_until > clock_timestamp()
-                 RETURNING lease_until::text AS lease_until",
-                [$this->policy->leaseSeconds($lease->stage), $lease->workId->value->value, $lease->generation, $lease->token->value],
-            );
-            if ($row === null) {
-                return LeaseRenewal::lost();
-            }
-            DB::update('UPDATE prc_process_attempts SET last_heartbeat_at = clock_timestamp() WHERE id = ? AND finished_at IS NULL', [$lease->attemptId->value]);
+            return $this->transaction->run(function () use ($lease): LeaseRenewal {
+                $row = LedgerRow::one(
+                    "UPDATE prc_process_work SET lease_until = clock_timestamp() + make_interval(secs => ?), heartbeat_at = clock_timestamp()
+                     WHERE id = ? AND generation = ? AND owner_token = ? AND state = 'running' AND lease_until > clock_timestamp()
+                     RETURNING lease_until::text AS lease_until",
+                    [$this->policy->leaseSeconds($lease->stage), $lease->workId->value->value, $lease->generation, $lease->token->value],
+                );
+                if ($row === null) {
+                    return LeaseRenewal::lost();
+                }
+                $updated = DB::update(
+                    'UPDATE prc_process_attempts SET last_heartbeat_at = clock_timestamp() WHERE id = ? AND finished_at IS NULL',
+                    [$lease->attemptId->value],
+                );
+                if ($updated === 0) {
+                    // Не QueryException: closure не ретраится, а исключение откатывает продление lease.
+                    throw new AttemptHeartbeatClosed;
+                }
 
-            return LeaseRenewal::renewed(new DbInstant(new \DateTimeImmutable($row->string('lease_until'))));
+                return LeaseRenewal::renewed(new DbInstant(new \DateTimeImmutable($row->string('lease_until'))));
+            });
+        } catch (AttemptHeartbeatClosed) {
+            return LeaseRenewal::lost();
         } catch (QueryException $exception) {
             throw DatabaseFailureClassifier::isTransient($exception) ? new DependencyUnavailable('database', $exception) : $exception;
         }
@@ -109,6 +120,8 @@ final readonly class WorkStoreRepository implements LeaseKeeper
                     return $result;
                 }
             }
+        } catch (AttemptCheckpointClosed) {
+            return CheckpointResult::refused(CheckpointStatus::LostOwnership);
         } catch (QueryException $exception) {
             throw DatabaseFailureClassifier::isTransient($exception) ? new DependencyUnavailable('database', $exception) : $exception;
         }
@@ -388,3 +401,9 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         return $this->helper ?? new WorkStoreSqlHelper($this->transitions, $this->outbox, $this->policy, $this->resolver, $this->registry);
     }
 }
+
+/** Откат heartbeat: attempt уже закрыт. Не QueryException, поэтому ProcessTransaction не повторяет closure. */
+final class AttemptHeartbeatClosed extends \RuntimeException {}
+
+/** Откат checkpoint: attempt уже закрыт. Не QueryException, поэтому ProcessTransaction не повторяет closure. */
+final class AttemptCheckpointClosed extends \RuntimeException {}

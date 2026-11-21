@@ -47,6 +47,16 @@ final class RecoveryReconciler
     /** @var array{sort: string, id: string}|null */
     private ?array $expiredRunningCursor = null;
 
+    /**
+     * Id expired running, которые этот инстанс не забрал: DependencyUnavailable либо throwable
+     * из isolated. Не больше BATCH. Следующий проход пробует их один раз до страницы курсора.
+     * Курсор полной страницы не откатывается, постоянный сбой не держит хвост.
+     * ProviderLinkageUnavailable не запоминается: incident уже открыт.
+     *
+     * @var array<string,WorkId> Кандидаты с последней страницы курсора, по ID работы.
+     */
+    private array $expiredRunningRetries = [];
+
     /** @var array{sort: string, id: string}|null */
     private ?array $admittedCursor = null;
 
@@ -123,28 +133,48 @@ final class RecoveryReconciler
     public function recoverExpiredRunning(): int
     {
         $recovered = 0;
+        $retries = $this->expiredRunningRetries;
+        foreach ($retries as $workId) {
+            $recovered += $this->recoverOneExpiredRunning($workId);
+        }
+        // Повтор уже использован. Следующий tick запоминает сбои только с новой страницы.
+        $this->expiredRunningRetries = [];
         foreach ($this->recovery->expiredRunning(self::BATCH, $this->expiredRunningCursor) as $workId) {
-            $recovered += $this->isolated('recover_running', $workId, function () use ($workId): int {
-                try {
-                    $pinned = $this->recovery->pinnedPlan($workId);
-                    $finding = $this->provider->inspect($workId, $pinned['plan'] ?? null);
-                } catch (ProviderLinkageUnavailable) {
-                    $this->openProviderLinkageIncident($workId);
-
-                    return 0;
-                } catch (DependencyUnavailable $unavailable) {
-                    // Storage недоступен: dependency wait, новый provider send не разрешается — work остаётся running-expired.
-                    ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
-
-                    return 0;
-                }
-                $seq = $pinned['seq'] ?? 0;
-
-                return $this->each($workId, true, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->recoverRunning($snapshot, $finding, $seq, $this->provider, $ids));
-            });
+            if (isset($retries[$workId->value->value])) {
+                continue;
+            }
+            $recovered += $this->recoverOneExpiredRunning($workId);
         }
 
         return $recovered;
+    }
+
+    private function recoverOneExpiredRunning(WorkId $workId): int
+    {
+        return $this->isolated('recover_running', $workId, function () use ($workId): int {
+            try {
+                $pinned = $this->recovery->pinnedPlan($workId);
+                $finding = $this->provider->inspect($workId, $pinned['plan'] ?? null);
+            } catch (ProviderLinkageUnavailable) {
+                $this->openProviderLinkageIncident($workId);
+
+                return 0;
+            } catch (DependencyUnavailable $unavailable) {
+                // Storage недоступен: dependency wait, новый provider send не разрешается — work остаётся running-expired.
+                ProcessLog::dependencyUnavailable($unavailable->dependency, $unavailable);
+                $this->rememberExpiredRunning($workId);
+
+                return 0;
+            }
+            $seq = $pinned['seq'] ?? 0;
+
+            return $this->each($workId, true, fn (AuthoritySnapshot $snapshot, array $ids): RecoveryOutcome => $this->recovery->recoverRunning($snapshot, $finding, $seq, $this->provider, $ids));
+        });
+    }
+
+    private function rememberExpiredRunning(WorkId $workId): void
+    {
+        $this->expiredRunningRetries[$workId->value->value] = $workId;
     }
 
     /**
@@ -161,6 +191,10 @@ final class RecoveryReconciler
         } catch (\Throwable $failure) {
             $this->workFailure ??= $failure;
             ProcessLog::daemonError('reconcile', $category.'_work_failed', $failure, ['work_id' => $workId->value->value]);
+            // workFailure хранит только первый сбой категории, но курсор уже прошёл каждый id.
+            if ($category === 'recover_running' && ! $failure instanceof ProviderLinkageUnavailable) {
+                $this->rememberExpiredRunning($workId);
+            }
 
             return 0;
         }

@@ -136,6 +136,11 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             $durationMs = (int) round((microtime(as_float: true) - $startedAt) * 1000);
 
             $pdf = (string) file_get_contents($localOutput);
+
+            if (! $this->acceptsPdfBytes($pdf)) {
+                return false;
+            }
+
             $this->storePdfRepresentation($version, $disk, $diskName, $pdf, [
                 'tool' => 'phpspreadsheet+mpdf',
                 'tool_version' => InstalledVersions::getPrettyVersion('phpoffice/phpspreadsheet'),
@@ -161,6 +166,11 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             }
 
             $pdf = (string) file_get_contents($localOutput);
+
+            if (! $this->acceptsPdfBytes($pdf)) {
+                return false;
+            }
+
             $this->storePdfRepresentation($version, $disk, $diskName, $pdf, [
                 'tool' => 'libreoffice',
                 'tool_version' => $this->converter->version(),
@@ -170,6 +180,11 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         } finally {
             PipelineTemporaryFile::deleteDirectory($outputDir);
         }
+    }
+
+    private function acceptsPdfBytes(string $bytes): bool
+    {
+        return $bytes !== '' && str_starts_with($bytes, '%PDF');
     }
 
     /**
