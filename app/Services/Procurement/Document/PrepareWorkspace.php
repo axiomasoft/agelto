@@ -33,24 +33,55 @@ final readonly class PrepareWorkspace
         if ($reservation->phase !== StoragePhase::Prepare || ! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
             throw new \InvalidArgumentException('Local prepare workspace required.');
         }
-        $this->capacity->beginWrite($reservation);
+        $key = $reservation->objectKey();
+        $dir = $disk->path($key);
+        $cleanupOnFailure = true;
+        $writing = false;
         try {
-            if (! $disk->makeDirectory($reservation->objectKey())) {
+            if (! $disk->makeDirectory(dirname($key))) {
                 throw new ArtifactUnavailable('Prepare workspace unavailable.');
             }
-            $dir = $disk->path($reservation->objectKey());
-            $pid = $this->pid();
-            $owner = json_encode(['reservation' => $reservation->id->value, 'pid' => $pid, 'start' => $this->start($pid)], JSON_THROW_ON_ERROR);
-            if (@file_put_contents($dir.'/owner.json', $owner) !== strlen($owner)) {
-                throw new ArtifactUnavailable('Workspace owner proof unavailable.');
+            $cleanupOnFailure = false;
+            // The parent survives workspace cleanup, so concurrent opens lock the same directory.
+            $lock = @fopen(dirname($dir), 'r');
+            if (! is_resource($lock)) {
+                throw new ArtifactUnavailable('Prepare workspace initialization lock unavailable.');
+            }
+            try {
+                if (! flock($lock, LOCK_EX | LOCK_NB)) {
+                    throw new ArtifactUnavailable('Prepare workspace initialization lock unavailable.');
+                }
+                $row = LedgerRow::one('SELECT * FROM prc_storage_reservations WHERE id=?', [$reservation->id->value])
+                    ?? throw new \LogicException('Missing reservation.');
+                $this->capacity->assertIdentity($reservation, $row);
+                if ($row->string('status') !== 'reserved') {
+                    throw new \LogicException('Upload already claimed; verify or reconcile instead of overwriting.');
+                }
+                $cleanupOnFailure = true;
+                // Publish a recoverable writer identity before there can be a writing reservation.
+                $this->writeFileOwner($reservation, $dir.'.owner');
+                $this->capacity->beginWrite($reservation);
+                $writing = true;
+                if (! $disk->makeDirectory($key)) {
+                    throw new ArtifactUnavailable('Prepare workspace unavailable.');
+                }
+                if (! @rename($dir.'.owner', $dir.'/owner.json')) {
+                    throw new ArtifactUnavailable('Workspace owner proof unavailable.');
+                }
+            } finally {
+                fclose($lock);
             }
         } catch (\Throwable $failure) {
             // No caller has the workspace path yet, so no tool or spool writer can still use it.
-            try {
-                $this->capacity->finishWrite($reservation);
-                $this->gc->cleanup($reservation);
-            } catch (\Throwable $cleanupFailure) {
-                ProcessLog::dependencyUnavailable('storage', $cleanupFailure);
+            if ($cleanupOnFailure) {
+                try {
+                    if ($writing) {
+                        $this->capacity->finishStoppedWrite($reservation);
+                    }
+                    $this->gc->cleanup($reservation);
+                } catch (\Throwable $cleanupFailure) {
+                    ProcessLog::dependencyUnavailable('storage', $cleanupFailure);
+                }
             }
 
             throw $failure;
@@ -79,7 +110,10 @@ final readonly class PrepareWorkspace
         }
         $dir = $disk->path($reservation->objectKey());
         $cleanupProof = $dir.'.cleanup';
-        if (! is_dir($dir)) {
+        if (! is_file($dir.'/owner.json')) {
+            if (is_dir($dir) || is_file($dir.'.owner')) {
+                return $this->cleanupStoppedFile($reservation);
+            }
             if (is_file($cleanupProof) && trim((string) file_get_contents($cleanupProof)) === $reservation->id->value) {
                 $this->capacity->finishStoppedWrite($reservation);
             }
@@ -87,9 +121,6 @@ final readonly class PrepareWorkspace
             // A missing proof cannot stop a writing reservation. A previously acknowledged stop
             // may finish cleanup after a crash, or replay after its proof has been deleted.
             return $this->gc->cleanup($reservation);
-        }
-        if (! is_file($dir.'/owner.json')) {
-            return false;
         }
         try {
             $owner = json_decode((string) file_get_contents($dir.'/owner.json'), true, flags: JSON_THROW_ON_ERROR);
@@ -158,18 +189,7 @@ final readonly class PrepareWorkspace
         if (! $disk->makeDirectory(dirname($reservation->objectKey()))) {
             throw new ArtifactUnavailable('Local writer directory unavailable.');
         }
-        $pid = $this->pid();
-        $owner = [
-            'reservation' => $reservation->id->value,
-            'owner_token' => $reservation->ownerToken->value,
-            'generation' => $reservation->generation,
-            'key' => $reservation->objectKey(),
-            'pid' => $pid,
-            'start' => $this->start($pid),
-        ];
-        if (file_put_contents($disk->path($reservation->objectKey()).'.owner', json_encode($owner, JSON_THROW_ON_ERROR)) === false) {
-            throw new ArtifactUnavailable('Local writer owner proof unavailable.');
-        }
+        $this->writeFileOwner($reservation, $disk->path($reservation->objectKey()).'.owner');
     }
 
     public function clearFileWriter(StorageReservationRequest $reservation): void
@@ -204,8 +224,12 @@ final readonly class PrepareWorkspace
         if (! is_file($ownerPath)) {
             return false;
         }
+        $proof = @file_get_contents($ownerPath);
+        if ($proof === false) {
+            return false;
+        }
         try {
-            $owner = json_decode((string) file_get_contents($ownerPath), true, flags: JSON_THROW_ON_ERROR);
+            $owner = json_decode($proof, true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
             return false;
         }
@@ -219,6 +243,10 @@ final readonly class PrepareWorkspace
             return false;
         }
         if ($owner['pid'] === $this->pid() || $this->start($owner['pid']) === $owner['start']) {
+            return false;
+        }
+        // The owner may have published owner.json and started tools before it stopped.
+        if (@file_get_contents($ownerPath) !== $proof) {
             return false;
         }
         if (file_put_contents($cleanupProof, $reservation->id->value) === false) {
@@ -323,6 +351,23 @@ final readonly class PrepareWorkspace
         }
 
         return new \DateTimeImmutable($attempt->string('db_now')) >= $until->modify("+{$margin} seconds");
+    }
+
+    private function writeFileOwner(StorageReservationRequest $reservation, string $path): void
+    {
+        $pid = $this->pid();
+        $start = $this->start($pid) ?? throw new ArtifactUnavailable('Local writer process identity unavailable.');
+        $proof = json_encode([
+            'reservation' => $reservation->id->value,
+            'owner_token' => $reservation->ownerToken->value,
+            'generation' => $reservation->generation,
+            'key' => $reservation->objectKey(),
+            'pid' => $pid,
+            'start' => $start,
+        ], JSON_THROW_ON_ERROR);
+        if (@file_put_contents($path, $proof) !== strlen($proof)) {
+            throw new ArtifactUnavailable('Local writer owner proof unavailable.');
+        }
     }
 
     private function pid(): int

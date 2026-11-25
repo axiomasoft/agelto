@@ -38,6 +38,7 @@ use Illuminate\Support\Facades\Storage;
 use League\Flysystem\FilesystemAdapter as FlysystemAdapter;
 use League\Flysystem\UnableToCreateDirectory;
 use Psr\Http\Message\RequestInterface;
+use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\DownloadFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
@@ -353,6 +354,91 @@ test('сверка повторяет удаление каталога посл
     app(DocumentStorageReconciler::class)->reconcile();
     expect(crashRecoveryStatus($reservation))->toBe('cleaned')
         ->and($disk->exists($reservation->objectKey()))->toBeFalse();
+});
+
+test('сверка освобождает резерв после SIGKILL до публикации владельца каталога', function (bool $createDirectory): void {
+    $f = new PrepareFixtures;
+    $reservation = app(PrepareStorageRepository::class)->reserve($f->context()->lease())->workspace;
+    $disk = Storage::disk($reservation->disk);
+    $worker = strtr(<<<'PHP'
+        $reservation = unserialize(__RESERVATION__);
+        $disk = \Illuminate\Support\Facades\Storage::build(['driver' => 'local', 'root' => __ROOT__, 'throw' => true]);
+        $key = $reservation->objectKey();
+        $mock = Mockery::mock($disk)->makePartial();
+        $mock->shouldReceive('makeDirectory')->with($key)->andReturnUsing(static function () use ($disk, $key): bool {
+            if (__CREATE_DIRECTORY__ && ! $disk->makeDirectory($key)) {
+                throw new RuntimeException('Fixture could not create workspace.');
+            }
+            fwrite(STDERR, 'workspace interrupted before owner.json');
+            posix_kill(getmypid(), SIGKILL);
+
+            throw new RuntimeException('Fixture worker survived SIGKILL.');
+        });
+        \Illuminate\Support\Facades\Storage::set($reservation->disk, $mock);
+        app(\App\Services\Procurement\Document\PrepareWorkspace::class)->open($reservation);
+        return [];
+        PHP, [
+        '__RESERVATION__' => var_export(serialize($reservation), return: true),
+        '__ROOT__' => var_export($disk->path(''), return: true),
+        '__CREATE_DIRECTORY__' => var_export($createDirectory, return: true),
+    ]);
+
+    expect(fn () => ConcurrentTransactions::execute($worker))
+        ->toThrow(RuntimeException::class, 'PostgreSQL worker failed: workspace interrupted before owner.json');
+    $key = $reservation->objectKey();
+    expect(crashRecoveryStatus($reservation))->toBe('writing')
+        ->and($disk->directoryExists($key))->toBe($createDirectory)
+        ->and($disk->fileExists($key.'/owner.json'))->toBeFalse();
+
+    $reconciler = app(DocumentStorageReconciler::class);
+    $reconciler->reconcile();
+    expect(crashRecoveryStatus($reservation))->toBe('writing');
+    expect(FinalizeFixtures::revoke($f->work, cancel: true))->toBeTrue();
+    $reconciler->reconcile();
+    expect(crashRecoveryStatus($reservation))->toBe('cleaned')
+        ->and($disk->exists($key))->toBeFalse()
+        ->and($disk->exists($key.'.owner'))->toBeFalse()
+        ->and($disk->exists($key.'.cleanup'))->toBeFalse()
+        ->and($reconciler->reconcile())->toBe(0);
+})->with(['каталог ещё отсутствует' => false, 'каталог уже создан' => true]);
+
+test('сверка повторяет очистку незавершённого каталога по сохранённому подтверждению остановки', function (): void {
+    $f = new PrepareFixtures;
+    $reservation = app(PrepareStorageRepository::class)->reserve($f->context()->lease())->workspace;
+    app(StorageCapacityRepository::class)->beginWrite($reservation);
+    $disk = Storage::disk($reservation->disk);
+    $key = $reservation->objectKey();
+    $disk->makeDirectory($key);
+    $disk->put($key.'.cleanup', $reservation->id->value);
+    expect(FinalizeFixtures::revoke($f->work, cancel: true))->toBeTrue();
+
+    app(DocumentStorageReconciler::class)->reconcile();
+    expect(crashRecoveryStatus($reservation))->toBe('cleaned')
+        ->and($disk->exists($key))->toBeFalse()
+        ->and($disk->exists($key.'.cleanup'))->toBeFalse();
+});
+
+test('сверка откладывает удаление зарезервированного каталога до завершения инициализации', function (): void {
+    $f = new PrepareFixtures;
+    $reservation = app(PrepareStorageRepository::class)->reserve($f->context()->lease())->workspace;
+    $disk = Storage::disk($reservation->disk);
+    $key = $reservation->objectKey();
+    $disk->put($key.'.owner', 'маркер инициализации');
+    $lock = fopen(dirname($disk->path($key)), 'r');
+    try {
+        expect(flock($lock, LOCK_EX | LOCK_NB))->toBeTrue();
+        expect(FinalizeFixtures::revoke($f->work, cancel: true))->toBeTrue();
+        $reconciler = app(DocumentStorageReconciler::class);
+        $reconciler->reconcile();
+        expect(crashRecoveryStatus($reservation))->toBe('cleaning')
+            ->and($disk->exists($key.'.owner'))->toBeTrue();
+    } finally {
+        fclose($lock);
+    }
+
+    $reconciler->reconcile();
+    expect(crashRecoveryStatus($reservation))->toBe('cleaned')
+        ->and($disk->exists($key.'.owner'))->toBeFalse();
 });
 
 test('повреждённое доказательство остановки инструмента сохраняет резерв подготовки', function (string $file): void {

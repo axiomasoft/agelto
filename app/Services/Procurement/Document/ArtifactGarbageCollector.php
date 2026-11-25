@@ -9,6 +9,7 @@ use App\Dto\Procurement\Document\StorageReservationRequest;
 use App\Enums\Procurement\Document\ArtifactDeletionState;
 use App\Enums\Procurement\Document\StoragePhase;
 use App\Repositories\Procurement\Document\ArtifactRepository;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Local\LocalFilesystemAdapter;
@@ -43,6 +44,28 @@ final readonly class ArtifactGarbageCollector
         }
         $disk = Storage::disk($reservation->disk);
         $local = $disk->getAdapter() instanceof LocalFilesystemAdapter;
+        if ($local && $reservation->phase === StoragePhase::Prepare) {
+            $parent = dirname($disk->path($reservation->objectKey()));
+            // The cleaning status now fences any new initializer. Wait for the existing one to leave.
+            clearstatcache(true, $parent);
+            if (is_dir($parent)) {
+                $lock = @fopen($parent, 'r');
+                if (! is_resource($lock)) {
+                    return false;
+                }
+                try {
+                    return flock($lock, LOCK_EX | LOCK_NB) && $this->deleteReservation($disk, $reservation, local: true);
+                } finally {
+                    fclose($lock);
+                }
+            }
+        }
+
+        return $this->deleteReservation($disk, $reservation, $local);
+    }
+
+    private function deleteReservation(Filesystem $disk, StorageReservationRequest $reservation, bool $local): bool
+    {
         if ($local && $reservation->phase === StoragePhase::Prepare && is_dir($disk->path($reservation->objectKey()))
             && ! $disk->deleteDirectory($reservation->objectKey())) {
             return false;
