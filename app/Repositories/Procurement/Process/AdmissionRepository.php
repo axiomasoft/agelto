@@ -9,6 +9,7 @@ use App\Dto\Procurement\Process\AuthoritySnapshot;
 use App\Dto\Procurement\Process\ControlSnapshot;
 use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\FairnessCursor;
+use App\Dto\Procurement\Process\HandlerAuthoritySnapshot;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
@@ -16,6 +17,7 @@ use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\AdmissionStatus;
 use App\Enums\Procurement\Process\AuthorityGap;
 use App\Enums\Procurement\Process\CapacityKind;
+use App\Enums\Procurement\Process\HandlerEligibility;
 use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
@@ -32,10 +34,16 @@ use Illuminate\Support\Facades\DB;
  * active reservation rows после всех capacity locks, cohort cap и fairness cursor parent lane
  * повторно сверяются под теми же locks. Grant атомарно вставляет group + точный набор members,
  * увеличивает dispatch_generation, пишет transition + projection intent, work_wake и cursor.
+ *
+ * @phpstan-import-type EligibilityPair from AuthorityRepository
+ * @phpstan-import-type EligibilityAuthority from AuthorityRepository
  */
 final readonly class AdmissionRepository
 {
     private const int MAX_RELOADS = 3;
+
+    private const string ELIGIBLE_WORK = "(w.state = 'ready' OR (w.state = 'deferred' AND w.due_at <= clock_timestamp()))
+        AND NOT EXISTS (SELECT 1 FROM prc_operation_intents i WHERE i.id = w.intent_id AND i.state = 'pending')";
 
     public function __construct(
         private AuthorityRepository $authority,
@@ -67,7 +75,7 @@ final readonly class AdmissionRepository
                     ? AdmissionStatus::HandlerUnavailable
                     : AdmissionStatus::NotEligible);
             }
-            $eligibility = $this->readEligibilitySnapshots($snapshot);
+            $eligibility = $this->authority->readEligibilityAuthority($this->parentEligiblePairs($snapshot));
             $result = $this->transaction->run(fn (): AdmissionResult => $this->admitLocked($snapshot, $expectedCursor, $eligibleCohorts, $ids, $eligibility));
             if ($result->status === AdmissionStatus::InvariantViolation) {
                 $this->transaction->run(fn () => $this->incidents->openMembershipIncident(
@@ -96,8 +104,8 @@ final readonly class AdmissionRepository
 
         return array_map(static fn (LedgerRow $row): array => ['stage' => StageCode::from($row->string('stage')), 'cohort' => $row->string('cohort_key')], LedgerRow::all(
             'SELECT w.stage, w.cohort_key FROM prc_process_work w
-             WHERE w.stage IN ('.LedgerRow::placeholders(count($values)).") AND (w.state = 'ready' OR (w.state = 'deferred' AND w.due_at <= clock_timestamp())) AND NOT EXISTS (SELECT 1 FROM prc_operation_intents i WHERE i.id = w.intent_id AND i.state = 'pending')
-             GROUP BY w.stage, w.cohort_key ORDER BY w.cohort_key COLLATE \"C\", w.stage COLLATE \"C\"",
+             WHERE w.stage IN ('.LedgerRow::placeholders(count($values)).') AND '.self::ELIGIBLE_WORK.'
+             GROUP BY w.stage, w.cohort_key ORDER BY w.cohort_key COLLATE "C", w.stage COLLATE "C"',
             $values,
         ));
     }
@@ -132,10 +140,9 @@ final readonly class AdmissionRepository
     public function candidates(StageCode $stage, string $cohort): array
     {
         return array_map(static fn (LedgerRow $row): WorkId => new WorkId(new ProcessUuid($row->string('id'))), LedgerRow::all(
-            "WITH cutoff AS (SELECT clock_timestamp() - make_interval(secs => ?) AS aged_before)
+            'WITH cutoff AS (SELECT clock_timestamp() - make_interval(secs => ?) AS aged_before)
              SELECT w.id FROM prc_process_work w CROSS JOIN cutoff c
-             WHERE w.stage = ? AND w.cohort_key = ? AND (w.state = 'ready' OR (w.state = 'deferred' AND w.due_at <= clock_timestamp()))
-              AND NOT EXISTS (SELECT 1 FROM prc_operation_intents i WHERE i.id = w.intent_id AND i.state = 'pending')
+             WHERE w.stage = ? AND w.cohort_key = ? AND '.self::ELIGIBLE_WORK."
              ORDER BY (w.created_at <= c.aged_before) DESC,
                       CASE WHEN w.created_at <= c.aged_before THEN w.created_at END ASC NULLS LAST,
                       CASE WHEN w.created_at > c.aged_before AND w.cohort_key <> 'manual' THEN w.priority ELSE 100 END ASC,
@@ -147,13 +154,13 @@ final readonly class AdmissionRepository
 
     /**
      * @param  array<string, ProcessUuid>  $ids
-     * @param  array<string, AuthoritySnapshot|AuthorityGap>  $eligibility
+     * @param  array<string, EligibilityAuthority|AuthorityGap>  $eligibility
      */
     private function admitLocked(AuthoritySnapshot $snapshot, FairnessCursor $expectedCursor, int $eligibleCohorts, array $ids, array $eligibility): AdmissionResult
     {
         $eligibilitySnapshots = array_values(array_filter(
             $eligibility,
-            static fn (AuthoritySnapshot|AuthorityGap $item): bool => $item instanceof AuthoritySnapshot,
+            static fn (array|AuthorityGap $item): bool => is_array($item),
         ));
         $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: true, eligibilitySnapshots: $eligibilitySnapshots);
         if ($prefix instanceof PrefixFailure) {
@@ -214,70 +221,74 @@ final readonly class AdmissionRepository
         return $this->grantLocked($snapshot, $prefix, $cursor->advance($cohort, $code), $ids);
     }
 
-    /** @return array<string, AuthoritySnapshot|AuthorityGap> One representative per ready/due pair, for early authority locks only. */
-    private function readEligibilitySnapshots(AuthoritySnapshot $candidate): array
-    {
-        $snapshots = [];
-        foreach ($this->parentEligiblePairs($candidate) as $pair) {
-            $work = LedgerRow::one(
-                "SELECT w.id FROM prc_process_work w WHERE w.stage = ? AND w.cohort_key = ?
-                 AND (w.state = 'ready' OR (w.state = 'deferred' AND w.due_at <= clock_timestamp())) AND NOT EXISTS (SELECT 1 FROM prc_operation_intents i WHERE i.id = w.intent_id AND i.state = 'pending') ORDER BY w.id LIMIT 1",
-                [$pair['stage']->value, $pair['cohort']],
-            );
-            if ($work === null) {
-                continue;
-            }
-            $snapshots[$pair['stage']->value.':'.$pair['cohort']] = $this->authority->readAuthoritySnapshot(new WorkId(new ProcessUuid($work->string('id'))));
-        }
-
-        return $snapshots;
-    }
-
     /**
      * Fresh ready/due pairs + early-locked controls/handlers/capacity; caller count is never authority.
      *
-     * @param  array<string, AuthoritySnapshot|AuthorityGap>  $eligibility
+     * @param  array<string, EligibilityAuthority|AuthorityGap>  $eligibility
      */
     private function lockedEligibleCohorts(AuthoritySnapshot $candidate, LockedPrefix $prefix, array $eligibility): ?int
     {
         $cohorts = [];
-        foreach ($this->parentEligiblePairs($candidate) as $pair) {
-            $snapshot = $eligibility[$pair['stage']->value.':'.$pair['cohort']] ?? null;
+        foreach ($this->parentEligiblePairs($candidate) as ['cohort' => $cohort, 'handler' => $handler]) {
+            $snapshot = $eligibility[$handler->stage->value.':'.$cohort] ?? null;
             if ($snapshot === null) {
                 return null;
             }
             if ($snapshot instanceof AuthorityGap) {
                 continue;
             }
-            $keys = array_map(static fn (ControlSnapshot $scope): string => $scope->scopeKey, $snapshot->controls);
-            if (array_diff($keys, $prefix->enabledScopeKeys) !== [] || ! in_array($snapshot->handler->id->value, $prefix->healthyHandlerIds, true)) {
+            if ($snapshot['handler']->id->value !== $handler->id->value) {
+                return null;
+            }
+            $keys = array_map(static fn (ControlSnapshot $scope): string => $scope->scopeKey, $snapshot['controls']);
+            if (array_diff($keys, $prefix->enabledScopeKeys) !== [] || ! in_array($handler->id->value, $prefix->healthyHandlerIds, true)) {
                 continue;
             }
-            foreach ($this->policy->requiredLanes($pair['stage']) as $key) {
+            foreach ($this->policy->requiredLanes($handler->stage) as $key) {
                 $lane = $prefix->lane($key);
                 if ($lane->outstanding >= $lane->maxOutstanding) {
                     continue 2;
                 }
             }
-            $cohorts[$pair['cohort']] = true;
+            $cohorts[$cohort] = true;
         }
 
         return count($cohorts);
     }
 
-    /** @return list<array{stage: StageCode, cohort: string}> Same installed-handler boundary as feeder selection. */
+    /** @return list<EligibilityPair> Same installed-handler boundary as feeder selection. */
     private function parentEligiblePairs(AuthoritySnapshot $candidate): array
     {
-        $stages = array_values(array_filter(
-            $this->policy->stagesOfParentLane($this->policy->parentLane($candidate->handler->stage)),
-            fn (StageCode $stage): bool => $this->registry->handlerVersion($stage) !== null,
-        ));
+        $versions = [];
+        $bindings = [];
+        foreach ($this->policy->stagesOfParentLane($this->policy->parentLane($candidate->handler->stage)) as $stage) {
+            $version = $this->registry->handlerVersion($stage);
+            if ($version !== null) {
+                $versions[] = '(?::text, ?::text)';
+                array_push($bindings, $stage->value, $version);
+            }
+        }
+        if ($versions === []) {
+            return [];
+        }
 
-        return array_values(array_filter($this->eligiblePairs($stages), function (array $pair): bool {
-            return LedgerRow::one('SELECT id FROM prc_process_handler_holds WHERE stage = ? AND handler_version = ?', [
-                $pair['stage']->value, $this->registry->handlerVersion($pair['stage']),
-            ]) !== null;
-        }));
+        return array_map(static fn (LedgerRow $row): array => [
+            'cohort' => $row->string('cohort_key'),
+            'handler' => new HandlerAuthoritySnapshot(
+                id: new ProcessUuid($row->string('id')),
+                stage: StageCode::from($row->string('stage')),
+                handlerVersion: $row->string('handler_version'),
+                eligibility: HandlerEligibility::from($row->string('state')),
+                version: $row->int('version'),
+            ),
+        ], LedgerRow::all(
+            'SELECT DISTINCT h.stage, w.cohort_key, h.id, h.handler_version, h.state, h.version
+             FROM (VALUES '.implode(', ', $versions).') AS installed(stage, handler_version)
+             JOIN prc_process_handler_holds h USING (stage, handler_version)
+             JOIN prc_process_work w ON w.stage = h.stage
+             WHERE '.self::ELIGIBLE_WORK,
+            $bindings,
+        ));
     }
 
     /** @param array<string, ProcessUuid> $ids */

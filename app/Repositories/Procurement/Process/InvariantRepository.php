@@ -54,8 +54,17 @@ final readonly class InvariantRepository
         $rows = LedgerRow::all(
             <<<SQL
             WITH required(stage, lane_keys, lane_hash) AS (VALUES {$required}),
-            work_facts AS (
-                SELECT w.*, g.id AS group_id, g.state AS group_state,
+            candidate_work(id) AS (
+                SELECT id FROM prc_process_work WHERE state = 'admitted'
+                UNION
+                SELECT id FROM prc_process_work WHERE state = 'running'
+                UNION
+                SELECT work_id FROM prc_admission_groups WHERE state <> 'released'
+                UNION
+                SELECT work_id FROM prc_process_attempts WHERE finished_at IS NULL OR terminal_kind IS NULL
+            ), work_facts AS (
+                SELECT w.id, w.state, w.dispatch_generation, w.generation, w.owner_token,
+                       g.id AS group_id, g.state AS group_state,
                        g.dispatch_generation AS group_dispatch, g.attempt_id,
                        encode(g.required_lane_set_hash, 'hex') AS group_hash,
                        required.lane_keys, required.lane_hash,
@@ -71,7 +80,8 @@ final readonly class InvariantRepository
                         WHERE p.work_id = w.id AND p.finished_at IS NULL) AS unfinished,
                        EXISTS(SELECT 1 FROM prc_process_attempts p WHERE p.work_id = w.id
                               AND ((p.finished_at IS NULL) <> (p.terminal_kind IS NULL))) AS bad_attempt
-                FROM prc_process_work w
+                FROM candidate_work c
+                JOIN prc_process_work w ON w.id = c.id
                 JOIN required ON required.stage = w.stage
                 LEFT JOIN prc_admission_groups g ON g.work_id = w.id AND g.state <> 'released'
                 LEFT JOIN prc_process_attempts a ON a.id = g.attempt_id
@@ -93,8 +103,9 @@ final readonly class InvariantRepository
                 ) AS v(kind, violated) WHERE v.violated
                 UNION ALL
                 SELECT 'group:' || g.id, 'invariant_released_members'
-                FROM prc_admission_groups g WHERE g.state = 'released'
-                  AND EXISTS(SELECT 1 FROM prc_process_reservations r WHERE r.admission_group_id = g.id)
+                FROM (SELECT DISTINCT admission_group_id FROM prc_process_reservations) r
+                JOIN prc_admission_groups g ON g.id = r.admission_group_id
+                WHERE g.state = 'released'
                 UNION ALL
                 SELECT 'lane:' || l.id, v.kind
                 FROM prc_process_lanes l CROSS JOIN LATERAL (

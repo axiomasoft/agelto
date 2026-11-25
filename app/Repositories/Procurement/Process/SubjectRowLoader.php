@@ -35,6 +35,8 @@ use App\Services\Procurement\Process\SubjectLockResolver;
 
 /**
  * Загрузчик и блокировщик subject-цепочки, control/handler/lane/storage tiers и active admission group.
+ *
+ * @phpstan-import-type EligibilityAuthority from AuthorityRepository
  */
 final readonly class SubjectRowLoader
 {
@@ -48,22 +50,37 @@ final readonly class SubjectRowLoader
     {
         $policy = $this->policy ?? app(ProcessPolicy::class);
         $scopeKeys = array_map(static fn (ScopeDefinition $scope): string => $scope->key, $policy->workScopes($code, $cohortKey));
-        sort($scopeKeys, SORT_STRING);
+        $controls = $this->readControlSnapshotsByKey($scopeKeys);
+        if (count($controls) !== count($scopeKeys)) {
+            return AuthorityGap::ScopesMissing;
+        }
+
+        return array_values($controls);
+    }
+
+    /**
+     * @param  list<string>  $scopeKeys
+     * @return array<string, ControlSnapshot>
+     */
+    public function readControlSnapshotsByKey(array $scopeKeys): array
+    {
         $controls = LedgerRow::all(
             'SELECT id, scope_key, desired_mode, control_version FROM prc_control_scopes
              WHERE scope_key IN ('.LedgerRow::placeholders(count($scopeKeys)).') ORDER BY scope_key COLLATE "C"',
             $scopeKeys,
         );
-        if (count($controls) !== count($scopeKeys)) {
-            return AuthorityGap::ScopesMissing;
+        $byKey = [];
+        foreach ($controls as $row) {
+            $key = $row->string('scope_key');
+            $byKey[$key] = new ControlSnapshot(
+                new ProcessUuid($row->string('id')),
+                $key,
+                ControlMode::from($row->string('desired_mode')),
+                $row->int('control_version'),
+            );
         }
 
-        return array_map(static fn (LedgerRow $row): ControlSnapshot => new ControlSnapshot(
-            new ProcessUuid($row->string('id')),
-            $row->string('scope_key'),
-            ControlMode::from($row->string('desired_mode')),
-            $row->int('control_version'),
-        ), $controls);
+        return $byKey;
     }
 
     public function readHandlerSnapshot(StageCode $code, string $handlerVersion): HandlerAuthoritySnapshot|AuthorityGap
@@ -90,15 +107,29 @@ final readonly class SubjectRowLoader
     {
         $policy = $this->policy ?? app(ProcessPolicy::class);
         $laneKeys = $policy->requiredLanes($code);
-        $lanes = LedgerRow::all(
-            'SELECT id FROM prc_process_lanes WHERE lane_key IN ('.LedgerRow::placeholders(count($laneKeys)).') ORDER BY id',
-            $laneKeys,
-        );
+        $lanes = $this->readLaneIdsByKey($laneKeys);
         if (count($lanes) !== count($laneKeys)) {
             return AuthorityGap::LanesMissing;
         }
 
-        return array_map(static fn (LedgerRow $lane): string => $lane->string('id'), $lanes);
+        return array_values($lanes);
+    }
+
+    /**
+     * @param  list<string>  $laneKeys
+     * @return array<string, string>
+     */
+    public function readLaneIdsByKey(array $laneKeys): array
+    {
+        $lanes = [];
+        foreach (LedgerRow::all(
+            'SELECT id, lane_key FROM prc_process_lanes WHERE lane_key IN ('.LedgerRow::placeholders(count($laneKeys)).') ORDER BY id',
+            $laneKeys,
+        ) as $row) {
+            $lanes[$row->string('lane_key')] = $row->string('id');
+        }
+
+        return $lanes;
     }
 
     public function readSubjectSnapshots(WorkInput $input): SubjectLockSnapshot|AuthorityGap
@@ -131,7 +162,7 @@ final readonly class SubjectRowLoader
     /**
      * Tier 1 (control closure FOR SHARE) и Tier 1b (handler-version eligibility FOR SHARE).
      *
-     * @param  list<AuthoritySnapshot>  $snapshots
+     * @param  list<AuthoritySnapshot|EligibilityAuthority>  $snapshots
      * @return array{enabledKeys: list<string>, healthyIds: list<string>, capacity: array<string, CapacityAuthority>}|PrefixFailure
      */
     public function lockControlAndHandlerTiers(array $snapshots): array|PrefixFailure
@@ -140,11 +171,14 @@ final readonly class SubjectRowLoader
         $expectedHandlers = [];
         $capacity = [];
         foreach ($snapshots as $authority) {
-            foreach ($authority->controls as $scope) {
+            $controls = $authority instanceof AuthoritySnapshot ? $authority->controls : $authority['controls'];
+            $handler = $authority instanceof AuthoritySnapshot ? $authority->handler : $authority['handler'];
+            $members = $authority instanceof AuthoritySnapshot ? $authority->capacity : $authority['capacity'];
+            foreach ($controls as $scope) {
                 $expectedControls[$scope->scopeKey] = $scope->id->value;
             }
-            $expectedHandlers[$authority->handler->id->value] = $authority->handler;
-            foreach ($authority->capacity as $member) {
+            $expectedHandlers[$handler->id->value] = $handler;
+            foreach ($members as $member) {
                 $capacity[$member->key()] = $member;
             }
         }

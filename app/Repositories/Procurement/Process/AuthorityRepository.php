@@ -11,6 +11,7 @@ use App\Dto\Procurement\Process\ControlSnapshot;
 use App\Dto\Procurement\Process\HandlerAuthoritySnapshot;
 use App\Dto\Procurement\Process\LockedSubject;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\ScopeDefinition;
 use App\Dto\Procurement\Process\SubjectLockSnapshot;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
@@ -27,6 +28,9 @@ use App\Services\Procurement\Process\SubjectLockResolver;
 
 /**
  * Authority pre-read и полный lock prefix.
+ *
+ * @phpstan-type EligibilityPair array{cohort: string, handler: HandlerAuthoritySnapshot}
+ * @phpstan-type EligibilityAuthority array{controls: list<ControlSnapshot>, handler: HandlerAuthoritySnapshot, capacity: list<CapacityAuthority>}
  */
 final readonly class AuthorityRepository
 {
@@ -111,7 +115,57 @@ final readonly class AuthorityRepository
     }
 
     /**
-     * @param  list<AuthoritySnapshot>  $eligibilitySnapshots
+     * Admission fairness needs only early lock tiers for the competing pairs.
+     *
+     * @param  list<EligibilityPair>  $pairs
+     * @return array<string, EligibilityAuthority|AuthorityGap>
+     */
+    public function readEligibilityAuthority(array $pairs): array
+    {
+        if ($pairs === []) {
+            return [];
+        }
+        $required = [];
+        $scopeKeys = $laneKeys = [];
+        foreach ($pairs as ['cohort' => $cohort, 'handler' => $handler]) {
+            $stage = $handler->stage;
+            $scopes = array_map(static fn (ScopeDefinition $scope): string => $scope->key, $this->policy->workScopes(stage: $stage, cohort: $cohort));
+            $lanes = $this->policy->requiredLanes($stage);
+            $required[$stage->value.':'.$cohort] = [$handler, $scopes, $lanes];
+            array_push($scopeKeys, ...$scopes);
+            array_push($laneKeys, ...$lanes);
+        }
+        $controlsByKey = $this->loader()->readControlSnapshotsByKey(array_values(array_unique($scopeKeys)));
+        $laneIdsByKey = $this->loader()->readLaneIdsByKey(array_values(array_unique($laneKeys)));
+
+        $eligibility = [];
+        foreach ($required as $key => [$handler, $scopes, $lanes]) {
+            $controls = [];
+            foreach ($scopes as $scope) {
+                if (! isset($controlsByKey[$scope])) {
+                    $eligibility[$key] = AuthorityGap::ScopesMissing;
+
+                    continue 2;
+                }
+                $controls[] = $controlsByKey[$scope];
+            }
+            $capacity = [];
+            foreach ($lanes as $lane) {
+                if (! isset($laneIdsByKey[$lane])) {
+                    $eligibility[$key] = AuthorityGap::LanesMissing;
+
+                    continue 2;
+                }
+                $capacity[] = new CapacityAuthority(CapacityKind::Lane, new ProcessUuid($laneIdsByKey[$lane]));
+            }
+            $eligibility[$key] = ['controls' => $controls, 'handler' => $handler, 'capacity' => $capacity];
+        }
+
+        return $eligibility;
+    }
+
+    /**
+     * @param  list<AuthoritySnapshot|EligibilityAuthority>  $eligibilitySnapshots
      * @param  list<ProcessUuid>  $storageDomains
      */
     public function lockPrefix(AuthoritySnapshot $snapshot, bool $skipLockedWork, array $eligibilitySnapshots = [], ?PublicationLocks $publication = null,

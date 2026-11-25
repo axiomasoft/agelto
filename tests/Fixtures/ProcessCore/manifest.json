@@ -8662,14 +8662,14 @@
         {
             "path": "app/Repositories/Procurement/Process/AuthorityRepository.php",
             "fqcn": "App\\Repositories\\Procurement\\Process\\AuthorityRepository",
-            "sha256": "ce45684ff82ca6d83caf51d414ad2a8057368d9ff652394689f651513eb8ea27",
+            "sha256": "4c2f9099596b412f079f7e88d709323082acabdd07a349e44781a942bc526b24",
             "accepted_change_item": "Proxyma:P10.4",
             "current_change_reason": "P10.4 фиксирует текущий prefix-lock contract для isolated consumer verification."
         },
         {
             "path": "app/Repositories/Procurement/Process/SubjectRowLoader.php",
             "fqcn": "App\\Repositories\\Procurement\\Process\\SubjectRowLoader",
-            "sha256": "f014955cce6a6e7b01356412e004af288b820e3639f7d7b081772e457a7b0510",
+            "sha256": "5ad8d866a8b7d730caf5ac768782718c557bcc682818f951046109313dc68663",
             "accepted_change_item": "Proxyma:P10.4",
             "current_change_reason": "P10.4 фиксирует текущий prefix-lock contract для isolated consumer verification."
         },

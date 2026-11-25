@@ -350,17 +350,12 @@ final readonly class RecoveryRepository
 
             return RecoveryOutcome::Skipped;
         }
-        if ($finding !== null && $finding->receipt !== null && RecoveryQueryRepository::sameOperation($pinned, $finding) && $resolver instanceof ProviderRecoveryPolicy) {
-            $resolver->settleLocked($finding);
-        }
-        if ($finding === null || ($finding->mode === ProviderRecoveryMode::BlockedUnknown && $terminal === null)
-            || ! RecoveryQueryRepository::sameOperation($pinned, $finding)) {
+        if ($finding === null || ! $this->settleProviderFinding($pinned, $finding, $terminal, $resolver)) {
             $this->rescheduleProvider($snapshot->workId);
 
             return RecoveryOutcome::Skipped;
         }
 
-        $resolver->settleLocked($finding);
         $stage = $snapshot->handler->stage;
         if ($finding->expectedInputHash->hex !== $snapshot->inputHash->hex || ! $prefix->intentActive
             || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {
@@ -398,15 +393,11 @@ final readonly class RecoveryRepository
         if (! $pinned instanceof ProviderRecoveryPlan || $work->int('checkpoint_seq') !== $pinnedSeq) {
             return RecoveryOutcome::Skipped;
         }
-        if ($finding !== null && $finding->receipt !== null && RecoveryQueryRepository::sameOperation($pinned, $finding) && $resolver instanceof ProviderRecoveryPolicy) {
-            $resolver->settleLocked($finding);
-        }
-        if ($finding === null || ($finding->mode === ProviderRecoveryMode::BlockedUnknown && $terminal === null) || ! RecoveryQueryRepository::sameOperation($pinned, $finding)) {
+        if ($finding === null || ! $this->settleProviderFinding($pinned, $finding, $terminal, $resolver)) {
             DB::update("UPDATE prc_process_work SET updated_at = clock_timestamp() WHERE id = ? AND state = 'cancelled'", [$snapshot->workId->value->value]);
 
             return RecoveryOutcome::Skipped;
         }
-        $resolver->settleLocked($finding);
         DB::update(
             "UPDATE prc_process_work
              SET checkpoint = NULL, checkpoint_schema_version = NULL, checkpoint_seq = checkpoint_seq + 1, updated_at = clock_timestamp()
@@ -415,6 +406,20 @@ final readonly class RecoveryRepository
         );
 
         return RecoveryOutcome::Recovered;
+    }
+
+    /** Settles financial evidence even if the verified receipt leaves the work blocked. */
+    private function settleProviderFinding(ProviderRecoveryPlan $pinned, ProviderRecoveryPlan $finding, ?BlockedReason $terminal, ProviderRecoveryResolver $resolver): bool
+    {
+        if (! RecoveryQueryRepository::sameOperation($pinned, $finding)) {
+            return false;
+        }
+        $resolved = $finding->mode !== ProviderRecoveryMode::BlockedUnknown || $terminal !== null;
+        if ($resolved || ($finding->receipt !== null && $resolver instanceof ProviderRecoveryPolicy)) {
+            $resolver->settleLocked($finding);
+        }
+
+        return $resolved;
     }
 
     /**

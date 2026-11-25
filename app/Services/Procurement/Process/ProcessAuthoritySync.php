@@ -10,7 +10,6 @@ use App\Enums\Procurement\Process\StageCode;
 use App\Repositories\Procurement\Process\ControlRepository;
 use App\Repositories\Procurement\Process\HandlerAuthorityRepository;
 use App\Repositories\Procurement\Process\LaneRepository;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Идемпотентная boot/catalog материализация authority rows до первой работы:
@@ -25,6 +24,7 @@ final readonly class ProcessAuthoritySync
         private ControlRepository $controls,
         private LaneRepository $lanes,
         private HandlerAuthorityRepository $handlers,
+        private ProcessTransaction $transaction,
     ) {}
 
     public function ensureBaseline(): void
@@ -35,14 +35,14 @@ final readonly class ProcessAuthoritySync
             array_push($scopes, ...$this->policy->stageScopes($stage));
             array_push($required, ...$this->policy->requiredLanes($stage));
         }
-        DB::transaction(fn () => $this->controls->ensureScopes($scopes), attempts: 1);
+        $this->transaction->run(fn () => $this->controls->ensureScopes($scopes));
 
         $lanes = array_values(array_filter($this->policy->lanes(), static fn (LanePolicy $lane): bool => in_array($lane->key, $required, true)));
-        DB::transaction(fn () => $this->lanes->syncLanes($lanes, $this->policy->policyVersion), attempts: 1);
+        $this->transaction->run(fn () => $this->lanes->syncLanes(policies: $lanes, policyVersion: $this->policy->policyVersion));
     }
 
     public function registerHandler(StageCode $stage, string $handlerVersion): HandlerAuthoritySnapshot
     {
-        return DB::transaction(fn (): HandlerAuthoritySnapshot => $this->handlers->register($stage, $handlerVersion), attempts: 1);
+        return $this->transaction->run(fn (): HandlerAuthoritySnapshot => $this->handlers->register(stage: $stage, handlerVersion: $handlerVersion));
     }
 }

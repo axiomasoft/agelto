@@ -114,7 +114,7 @@ final readonly class WorkFinalizer
             return $pool[$index] ??= ['work' => ProcessUuid::random(), 'event' => ProcessUuid::random(), 'projection' => ProcessUuid::random()];
         };
         for ($reload = 0; $reload < self::MAX_RELOADS; $reload++) {
-            $snapshot = $this->authority->readAuthoritySnapshot($lease->workId);
+            $snapshot = $this->authority->readAuthoritySnapshot(workId: $lease->workId, executingVersion: $lease->handlerVersion);
             if ($snapshot instanceof AuthorityGap) {
                 return CompletionResult::invariantViolation();
             }

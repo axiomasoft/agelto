@@ -109,7 +109,11 @@ final readonly class IntentRepository
         $kind = SubjectKind::from($subjectKind);
         $table = $kind->value;
         $headColumn = AuthorityRepository::headColumn($kind);
-        $head = LedgerRow::one("SELECT {$headColumn} FROM {$table} WHERE id::text = ?", [$subjectId])
+        $idType = match ($kind) {
+            SubjectKind::Procurement, SubjectKind::Document, SubjectKind::DocumentVersion => 'bigint',
+            SubjectKind::CrawlBlock, SubjectKind::AnalysisRun, SubjectKind::AnalysisWindow => 'uuid',
+        };
+        $head = LedgerRow::one("SELECT {$headColumn} FROM {$table} WHERE id = ?::{$idType}", [$subjectId])
             ?? throw new \LogicException('Pending intent subject disappeared.');
         DB::update(
             "UPDATE prc_operation_intents SET state = 'active', expected_head_generation = ? WHERE id = ? AND state = 'pending'",
