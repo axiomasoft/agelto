@@ -31,7 +31,8 @@ IMPLEMENTED = {"faults", "load", "file", "ai", "documents", "up", "env", "reset"
 # database connections. Transport, platform adapters and reconciliation have their own suites.
 SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Feature/ProcessCore/Documents", "tests/Integration/ProcessCore/Concurrency/StorageCapacityTest.php", "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php", "tests/Feature/Procurement/Prepare", "tests/Feature/Document/DocumentDownloaderTest.php"], "acquisition": ["tests/Feature/ProcessCore/Acquisition", "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php"], "execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
                "concurrency": ["tests/Integration/ProcessCore/Concurrency"],
-               "observability": ["tests/Feature/ProcessCore/Observability"],
+               "observability": ["tests/Feature/ProcessCore/Observability",
+                                 "tests/Feature/Health/PrivatePackagesArePinnedTest.php"],
                "network": ["tests/Feature/ProcessCore/Network",
                             "tests/Integration/ProcessCore/Concurrency/CatalogConcurrencyTest.php"],
                "platforms": ["tests/Feature/ProcessCore/Platforms",
