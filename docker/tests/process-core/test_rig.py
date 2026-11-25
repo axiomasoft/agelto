@@ -421,6 +421,7 @@ class RigGuardsTest(unittest.TestCase):
         self.assertEqual(rig.SUITE_PATHS["network"], [
             "tests/Feature/ProcessCore/Network",
             "tests/Feature/Procurement/Network/ProxymaCutoverTest.php",
+            "tests/Feature/Procurement/Network/ProxymaProbingAndGuardTest.php",
             "tests/Integration/ProcessCore/Concurrency/CatalogConcurrencyTest.php",
         ])
         calls = []

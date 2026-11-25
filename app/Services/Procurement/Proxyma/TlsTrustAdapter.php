@@ -7,10 +7,10 @@ namespace App\Services\Procurement\Proxyma;
 use App\Services\Procurement\SourceTlsTrust;
 use Proxyma\Contracts\TlsTrustPolicy;
 use Proxyma\Domain\Catalog\CanonicalOrigin;
-use Proxyma\Domain\Execution\ContentHash;
 use Proxyma\Domain\Execution\TlsTrustConfiguration;
 use Proxyma\Domain\Execution\Uuid;
 use Proxyma\Infrastructure\Database\ConnectionScope;
+use Proxyma\Infrastructure\Http\TlsTrust;
 
 final readonly class TlsTrustAdapter implements TlsTrustPolicy
 {
@@ -18,22 +18,25 @@ final readonly class TlsTrustAdapter implements TlsTrustPolicy
 
     public function tlsConfigurationFor(CanonicalOrigin $origin, Uuid $targetId): TlsTrustConfiguration
     {
-        return $this->configuration($origin->host);
+        return (new TlsTrust(scope: $this->scope, originBundles: $this->bundlesFor($origin->host)))
+            ->tlsConfigurationFor(origin: $origin, targetId: $targetId);
     }
 
     public function proxyConfigurationFor(string $originalHost): TlsTrustConfiguration
     {
-        return $this->configuration($originalHost);
+        $originalHost = trim($originalHost);
+
+        return (new TlsTrust(scope: $this->scope, proxyBundles: $this->bundlesFor($originalHost)))
+            ->proxyConfigurationFor($originalHost);
     }
 
-    private function configuration(string $host): TlsTrustConfiguration
+    /** @return array<string, string> */
+    private function bundlesFor(string $host): array
     {
         $this->scope->assertOutsideTransaction();
 
         $bundle = $this->trust->optionsFor($host)['verify'] ?? null;
-        $digest = $bundle === null ? false : @hash_file('sha256', $bundle);
 
-        return new TlsTrustConfiguration(caBundlePath: $bundle,
-            caBundleSha256: $digest === false ? null : new ContentHash($digest));
+        return $bundle === null ? [] : [$host => $bundle];
     }
 }

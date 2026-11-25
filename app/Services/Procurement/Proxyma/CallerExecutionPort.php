@@ -20,14 +20,15 @@ use Proxyma\Application\Execution\OutboundExecutor;
 use Proxyma\Application\Health\ProbeCoordinator;
 use Proxyma\Application\Policy\PolicyResolver;
 use Proxyma\Application\Routing\RouteSelector;
-use Proxyma\Contracts\CatalogQueries;
 use Proxyma\Contracts\FiniteExecutionPort;
 use Proxyma\Contracts\PhysicalTransport;
 use Proxyma\Contracts\WorkBudget;
 use Proxyma\Domain\Admission\AdmissionRejected;
+use Proxyma\Domain\Catalog\Route;
 use Proxyma\Domain\Execution as X;
 use Proxyma\Domain\Policy\EffectivePolicy;
 use Proxyma\Domain\Policy\TenantKey;
+use Proxyma\Domain\Routing\CandidateSnapshot;
 use Proxyma\Infrastructure\Database\DatabaseClock;
 use Proxyma\Infrastructure\Database\PackageSchema;
 
@@ -136,13 +137,19 @@ final readonly class CallerExecutionPort implements FiniteExecutionPort
         }
         $purpose = $lease instanceof P\ExecutionLease || $lease->kind === E\OutboundOperationKind::LegacyBridge
             ? X\DemandPurpose::Ordinary : X\DemandPurpose::Diagnostic;
+        $probeRoute = null;
         if ($probe) {
             $preflight = new X\WireRequest($request->operationId, $request->operationId, $request->targetId, $effective->effectiveRevision,
                 $request->method, $request->url, $request->timeouts, min($lease->leaseUntil, $lease->deadlineAt),
                 $request->headers, $request->body, $request->idempotency, $purpose, trafficClass: $request->trafficKey,
                 responseProfile: $request->responseProfile);
-            if (app(RouteSelector::class)->select($tenant, $profile, $effective, $preflight, $routes)->route === null) {
+            $normal = app(RouteSelector::class)->select($tenant, $profile, $effective, $preflight, $routes);
+            $probeRoute = $this->probeRoute(snapshot: $normal->snapshot, target: $targetId, policy: $effective,
+                allowBootstrap: $normal->route === null);
+            if ($probeRoute !== null) {
                 $purpose = X\DemandPurpose::Probe;
+            } elseif ($normal->route === null) {
+                throw new AdmissionRejected('probe_route_missing');
             }
         }
         $networkProbe = $purpose === X\DemandPurpose::Probe;
@@ -159,8 +166,9 @@ final readonly class CallerExecutionPort implements FiniteExecutionPort
             : DB::table('prc_outbound_operations')->where('id', $lease->id->value)->value('parent_attempt_id');
         app(OperationCommands::class)->create($operation, $profile, $targetId, $timeouts, is_string($parent) ? new X\Uuid($parent) : null);
         app(AdapterSendGuard::class)->prepare($plan);
-        if ($networkProbe) {
-            $this->prepareProbe($plan, $context, $request, $operation, $profile, $effective);
+        if ($probeRoute !== null) {
+            $this->prepareProbe(plan: $plan, context: $context, request: $request, operation: $operation,
+                profile: $profile, effective: $effective, route: $probeRoute);
         }
         $transport = app()->makeWith(PhysicalTransport::class, ['maxResponseBytes' => $plan->profile->maxEntityBytes,
             'cancelled' => static function () use ($context): bool {
@@ -205,15 +213,70 @@ final readonly class CallerExecutionPort implements FiniteExecutionPort
         app(DemandQueue::class)->cancel($tenant, $operation->operationId, new X\Uuid($demand));
     }
 
+    private function probeRoute(CandidateSnapshot $snapshot, X\Uuid $target, EffectivePolicy $policy, bool $allowBootstrap): ?Route
+    {
+        $profile = $snapshot->profile;
+        if ($profile === null) {
+            return null;
+        }
+        $db = app(ProcessOwnerAuthority::class)->connection();
+        $tables = PackageSchema::tables();
+        $targetState = $this->probeHealth($db->table($tables['target_health'])
+            ->where('tenant_key', TenantKey::SYSTEM)->where('target_id', $target->value));
+        if ($targetState === 'blocked') {
+            return null;
+        }
+
+        $targetRecovery = null;
+        $bootstrap = null;
+        foreach ($snapshot->candidates as $candidate) {
+            $route = $candidate->route;
+            if ($route === null || ! $route->enabled || $route->isRetired() || ! $policy->allowsRoute(route: $route, profile: $profile)) {
+                continue;
+            }
+            $routeState = $this->probeHealth($db->table($tables['route_health'])->where('tenant_key', $route->tenantKey->value)
+                ->where('route_id', $route->id->value)->whereNull('credential_endpoint_id'));
+            $pairState = $this->probeHealth($db->table($tables['route_target_health'])->where('tenant_key', $route->tenantKey->value)
+                ->where('route_id', $route->id->value)->where('target_id', $target->value));
+            $states = [$targetState, $routeState, $pairState];
+            if (in_array('blocked', $states, true)) {
+                continue;
+            }
+            if ($routeState === 'due' || $pairState === 'due') {
+                return $route;
+            }
+            if ($targetState === 'due') {
+                $targetRecovery ??= $route;
+            }
+            if ($allowBootstrap && in_array('unknown', $states, true)) {
+                $bootstrap ??= $route;
+            }
+        }
+
+        return $targetRecovery ?? $bootstrap;
+    }
+
+    /** Unlocked candidate read. ProbeCoordinator rechecks the selected route and health under locks. */
+    private function probeHealth(Builder $health): string
+    {
+        $state = $health->whereRaw("NOT starts_with(COALESCE(reason_code, ''), 'credential_hold')")
+            ->selectRaw("CASE
+                WHEN (state = 'open' AND open_until <= clock_timestamp())
+                    OR (state = 'half_open' AND probe_until <= clock_timestamp()) THEN 'due'
+                WHEN state IN ('closed', 'unknown') THEN state
+                ELSE 'blocked' END AS probe_state")
+            ->first()?->probe_state;
+
+        return is_string($state) ? $state : 'blocked';
+    }
+
     private function prepareProbe(N\OutboundRequestPlan $plan, P\ExecutionContext|N\OutboundExecutionContext $context,
-        X\OutboundRequest $request, X\OperationCorrelation $operation, X\Uuid $profile, EffectivePolicy $effective): void
+        X\OutboundRequest $request, X\OperationCorrelation $operation, X\Uuid $profile, EffectivePolicy $effective, Route $route): void
     {
         $wire = new X\WireRequest($request->operationId, new X\Uuid($plan->physicalRequestId->value), $request->targetId,
             $effective->effectiveRevision, $request->method, $request->url, $request->timeouts, $operation->deadlineAt,
             $request->headers, $request->body, $request->idempotency, X\DemandPurpose::Probe, trafficClass: $request->trafficKey,
             responseProfile: $request->responseProfile);
-        $catalog = app(CatalogQueries::class);
-        $route = $catalog->routesForProfile(TenantKey::system(), $profile)[0] ?? throw new AdmissionRejected('probe_route_missing');
         $selection = new X\RouteSelection($route->id, $route->kind, $profile, $route->endpointId, $route->credentialVersion, $route->egress, $route->independenceGroup);
         $work = new class($context) implements WorkBudget
         {
@@ -228,14 +291,15 @@ final readonly class CallerExecutionPort implements FiniteExecutionPort
         };
         // Consumer exception: начальный unknown становится due probe; PostgreSQL остаётся authority времени.
         $tables = PackageSchema::tables();
-        foreach (['target_health' => ['target_id' => $request->targetId->value],
-            'profile_health' => ['profile_id' => $profile->value], 'route_health' => ['route_id' => $route->id->value],
-            'route_target_health' => ['route_id' => $route->id->value, 'target_id' => $request->targetId->value]] as $name => $identity) {
+        foreach (['target_health' => ['tenant_key' => TenantKey::SYSTEM, 'target_id' => $request->targetId->value],
+            'profile_health' => ['tenant_key' => TenantKey::SYSTEM, 'profile_id' => $profile->value],
+            'route_health' => ['tenant_key' => $route->tenantKey->value, 'route_id' => $route->id->value],
+            'route_target_health' => ['tenant_key' => $route->tenantKey->value, 'route_id' => $route->id->value, 'target_id' => $request->targetId->value]] as $name => $identity) {
             $patch = ['state' => 'open', 'open_until' => DB::raw("clock_timestamp() - interval '1 second'")];
             if ($name === 'target_health') {
                 $patch['availability'] = 'unavailable';
             }
-            DB::table($tables[$name])->where('tenant_key', TenantKey::SYSTEM)->where($identity)->where('state', 'unknown')->update($patch);
+            DB::table($tables[$name])->where($identity)->where('state', 'unknown')->update($patch);
         }
         $input = app(ReservationService::class)->prepare($wire, $operation, $selection, $effective, $work);
         app(ProbeCoordinator::class)->claim($input, min(300, $plan->profile->totalSeconds + 30));

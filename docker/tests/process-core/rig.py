@@ -39,6 +39,7 @@ SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Fea
                                  "tests/Feature/Health/PrivatePackagesArePinnedTest.php"],
                "network": ["tests/Feature/ProcessCore/Network",
                             "tests/Feature/Procurement/Network/ProxymaCutoverTest.php",
+                            "tests/Feature/Procurement/Network/ProxymaProbingAndGuardTest.php",
                             "tests/Integration/ProcessCore/Concurrency/CatalogConcurrencyTest.php"],
                "platforms": ["tests/Feature/ProcessCore/Platforms",
                              "tests/Unit/Architecture/PlatformsDomainLayoutTest.php",

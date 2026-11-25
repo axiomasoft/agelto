@@ -22,17 +22,20 @@ use Proxyma\Domain\Execution\LockedOwnerState;
 use Proxyma\Domain\Execution\LockedTransactionContext;
 use Proxyma\Domain\Execution\WireRequest;
 use Proxyma\Infrastructure\Database\PackageSchema;
+use WeakMap;
 
 final class AdapterSendGuard implements LockedAdmissionGuard, SqlConnectionParticipant
 {
-    /** @var array<string, OutboundRequestPlan> */
-    private array $plans = [];
+    /** @var WeakMap<OutboundRequestPlan, true> */
+    private WeakMap $plans;
 
     public function __construct(
         private readonly ProcessOwnerAuthority $owners,
         private readonly TargetCatalogAdapter $targets,
         private readonly AdapterHealthRepository $adapters,
-    ) {}
+    ) {
+        $this->plans = new WeakMap;
+    }
 
     public function connection(): Connection
     {
@@ -46,17 +49,17 @@ final class AdapterSendGuard implements LockedAdmissionGuard, SqlConnectionParti
 
     public function prepare(OutboundRequestPlan $plan): void
     {
-        $id = $plan->physicalRequestId->value;
-        if (isset($this->plans[$id]) && $this->plans[$id] !== $plan) {
+        $existing = $this->planFor($plan->physicalRequestId->value);
+        if ($existing !== null && $existing !== $plan) {
             throw new \LogicException('Physical request context is immutable.');
         }
-        $this->plans[$id] = $plan;
+        $this->plans[$plan] = true;
     }
 
     public function evaluateLocked(WireRequest $request, LockedOwnerState $owner, LockedTransactionContext $transaction): ?ClaimDenied
     {
         $state = $this->owners->networkState($owner->owner, $transaction);
-        $plan = $this->plans[$request->physicalAttemptId->value] ?? $this->plans[$request->operationId->value] ?? null;
+        $plan = $this->planFor(physicalId: $request->physicalAttemptId->value, operationId: $request->operationId->value);
         $source = $this->targets->sourceFor($request->targetId);
         $deny = static fn (): ClaimDenied => new ClaimDenied(ClaimDenialReason::GuardDenied);
         if ($state === null || $plan === null || $source === null
@@ -94,6 +97,21 @@ final class AdapterSendGuard implements LockedAdmissionGuard, SqlConnectionParti
         $marked = $journal->update(['first_authorized_at' => DB::raw('COALESCE(first_authorized_at, clock_timestamp())')]);
 
         return $marked === 1 ? null : $deny();
+    }
+
+    private function planFor(string $physicalId, ?string $operationId = null): ?OutboundRequestPlan
+    {
+        $operationPlan = null;
+        foreach ($this->plans as $plan => $_) {
+            if ($plan->physicalRequestId->value === $physicalId) {
+                return $plan;
+            }
+            if ($plan->physicalRequestId->value === $operationId) {
+                $operationPlan = $plan;
+            }
+        }
+
+        return $operationPlan;
     }
 
     private static function profileMatches(LedgerRow $target, RequestProfile $profile): bool

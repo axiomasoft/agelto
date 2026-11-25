@@ -220,10 +220,13 @@ test('слоты исключают финансовые настройки, а 
 });
 
 test('TLS adapter следует единственной SourceTlsTrust authority и запрещает работу внутри transaction', function (): void {
-    config(['outbound.http.tls_bundles' => ['example.test' => '/fixture/ca.pem']]);
+    $bundle = base_path('tests/Fixtures/ProcessCore/ProxymaReplay/Http/certificates/ca.pem');
+    config(['outbound.http.tls_bundles' => ['example.test' => $bundle]]);
     $tls = app(TlsTrustAdapter::class);
-    expect($tls->tlsConfigurationFor(CanonicalOrigin::fromUrl('https://example.test'), new Uuid(LedgerFixtures::uuid()->value))->caBundlePath)->toBe('/fixture/ca.pem')
-        ->and($tls->proxyConfigurationFor('EXAMPLE.TEST.')->caBundlePath)->toBe('/fixture/ca.pem')
+    $originTrust = $tls->tlsConfigurationFor(CanonicalOrigin::fromUrl('https://example.test'), new Uuid(LedgerFixtures::uuid()->value));
+    expect($originTrust->caBundlePath)->toBe($bundle)
+        ->and($originTrust->caBundleSha256?->hex)->toBe(hash_file('sha256', $bundle))
+        ->and($tls->proxyConfigurationFor('EXAMPLE.TEST.'))->toEqual($originTrust)
         ->and($tls->proxyConfigurationFor('other.test')->caBundlePath)->toBeNull();
     expect(fn () => P::locked(fn () => $tls->proxyConfigurationFor('example.test')))->toThrow(LogicException::class);
 });

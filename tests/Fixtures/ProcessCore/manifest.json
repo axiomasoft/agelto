@@ -5935,7 +5935,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Network/ProxymaCatalogAdapterTest.php",
-            "sha256": "8dc697e4a0de59daf5ce280eedf4ead0a7789b2d34ee3bc9440b87fb73072327",
+            "sha256": "099f4d5ad3a5a02d2eafa7f6dfedd2d0cd076bbeb7f5b83eda6faf4fb6f3e5bb",
             "accepted_change_item": "Proxyma:P9.5",
             "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay.",
             "scenarios": [
@@ -8104,7 +8104,7 @@
         },
         {
             "path": "app/Services/Procurement/Proxyma/AdapterSendGuard.php",
-            "sha256": "ef60ce4d702a496fbe12800c499c479989edc0bec4575aae2f64ae9f8863288a",
+            "sha256": "5eeb841d034fbfe9b2469c6f0b3b2dc48597fabe2930490a12886e25bb66ad59",
             "accepted_change_item": "Proxyma:P9.2",
             "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay.",
             "fqcn": "App\\Services\\Procurement\\Proxyma\\AdapterSendGuard",
@@ -8143,7 +8143,7 @@
         },
         {
             "path": "app/Services/Procurement/Proxyma/TlsTrustAdapter.php",
-            "sha256": "fa185a96513b0282a9487e9090e981b8ca78d803f138f1cedd513e5dc969a9a8",
+            "sha256": "37046ae80b4912a9e072bb90a63a8606256bb97a8af85f2918a618f94304bb4c",
             "accepted_change_item": "Proxyma:P9.2",
             "current_change_reason": "Inactive package adapters preserve Agelto process/adapter/TLS ownership; historical executed scenarios unchanged.",
             "fqcn": "App\\Services\\Procurement\\Proxyma\\TlsTrustAdapter"
@@ -8600,7 +8600,7 @@
         {
             "path": "app/Services/Procurement/Proxyma/CallerExecutionPort.php",
             "fqcn": "App\\Services\\Procurement\\Proxyma\\CallerExecutionPort",
-            "sha256": "edc0a2981d24caa2ace97533ded8b78a51c62b097858610bce44e13e4730fb6b",
+            "sha256": "a280139057dc871bbaf08bcf7804845aba4952ee8630e70bdac8ba919f59a863",
             "change_reason": "Proxyma:P10.3 explicit consumer adapter or migration-only carrier.",
             "before_proxyma_runtime_removal_sha256": "5d0f308e68ac9ba5ed8672f5cb0f7b6379187d191aac657335c267e4fb652e99",
             "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay."
