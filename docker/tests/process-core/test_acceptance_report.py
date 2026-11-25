@@ -61,7 +61,8 @@ class EvidenceFixture:
                 self.write(folder / "install-comparison.json", {"first": measured, "second": measured})
                 result["manifests"] = measured
             elif validation == "V7":
-                result["quality"] = {k: 0 for k in ("pint", "phpstan", "architecture", "schema-docs", "schema-tests")}
+                result["quality"] = {k: 0 for k in ("pint", "phpstan", "architecture", "schema-docs", "schema-tests",
+                                                    "docs-integrity", "composer-audit")}
             else:
                 self.save_cases(folder, result, self.cases)
                 if validation in {"V2", "V3", "V4", "V5"}:

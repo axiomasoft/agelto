@@ -157,10 +157,10 @@
       "source": "estimates/gold/EST-XLSX-VOR-001.screening.json"
     },
     {
-      "provenance": "existing local immutable EST-GSFX-LSR-001 corpus; binary is not committed",
-      "runtime": "estimates/files/Администрация культуры и спорта 3.gsfx",
-      "sha256": "d175edac8b7a3032eee20cfd941cb2178b471e75f288e3fcc4fc8e44fc52708b",
-      "source": "estimates/files/Администрация культуры и спорта 3.gsfx"
+      "provenance": "deterministic ZIP of the tracked synthetic tests/Fixtures/gsfx Data.xml and Properties.txt",
+      "runtime": "tests/Fixtures/ProcessCore/synthetic-estimate.gsfx",
+      "sha256": "ebb33fefe013457fd5211456bcf23f96664c1c6d7ebed7077515069786d38fbb",
+      "source": "tests/Fixtures/ProcessCore/synthetic-estimate.gsfx"
     },
     {
       "provenance": "Byte-identical Git blob f1cf54defca3824a9f53406bc99f1ebe9633de57 from 612d6df7:research/2026-10-08-audit-remediation.md; relocated for isolated runtime; SHA-256 unchanged",

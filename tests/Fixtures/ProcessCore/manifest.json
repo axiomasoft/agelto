@@ -591,7 +591,7 @@
             "adapter_version": "acquisition/1",
             "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
             "captured_at": "2026-10-31",
-            "sha256": "2c75d167d771fb6998c8b300fc1c29611002c569d991b6f834dc0babf02df9a6",
+            "sha256": "6923ca0ae0c685c8ae9d28528118f59c7ab71359f271331f5e5fb1bfd9b4d138",
             "expected": {
                 "assessment": "exact_executed_replacements",
                 "schema_version": 1
@@ -3722,7 +3722,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Gold/GsfxGoldMapperTest.php",
-            "sha256": "9fa2b89b9b388c5f435468dc35609dde0c2a10a5e9da8031e106dc2b38091aaf",
+            "sha256": "cda9081d990ad5557c62324bfa37f6bc2356c871d356344daba4cc43baae8e94",
             "scenarios": [
                 "позиция с прямой ценой каталога несёт обе цены и не теряет точность",
                 "ресурсы привязаны к своей позиции и получают тип по словарю §2.2",
@@ -3739,7 +3739,7 @@
                 "work_type_id позиции резолвится в дерево видов работ, у безссылочной позиции — null",
                 "начисления по главам: процентная ставка идёт в rate, формула без Value не хранится, итог сметы — последней строкой",
                 "калькуляционный метод, базовый год и цитата уровня цен резолвятся из паспорта",
-                "на реальном эталоне EST-GSFX-LSR-001 маппер проходит GoldValidator без ошибок"
+                "маппер валидирует смету из синтетического GSFX и сохраняет обе позиции"
             ],
             "original_sha256": "78ceaacc0835166e1f2017c02e9396d876a10284b1e09df92b4e0fd89f298ed3",
             "before_polish_sha256": "78ceaacc0835166e1f2017c02e9396d876a10284b1e09df92b4e0fd89f298ed3"

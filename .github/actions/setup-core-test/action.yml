@@ -1,0 +1,52 @@
+name: Start isolated Process Core test rig
+description: Reuse image layers and dependency downloads, then start the guarded Compose project.
+inputs:
+  write-cache:
+    description: Save reusable layers and public dependency downloads on a trusted run.
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/setup-vendors
+    - uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+    - name: Load isolated images
+      uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7.0.0
+      with:
+        source: .
+        files: docker/compose.core-test.yml
+        targets: app,core-postgres
+        load: true
+        set: |
+          app.cache-from=type=gha,scope=core-test-php
+          core-postgres.cache-from=type=gha,scope=core-test-postgres
+          ${{ inputs.write-cache == 'true' && 'app.cache-to=type=gha,scope=core-test-php,mode=max' || '' }}
+          ${{ inputs.write-cache == 'true' && 'core-postgres.cache-to=type=gha,scope=core-test-postgres,mode=max' || '' }}
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+      with:
+        node-version: '24'
+    - name: Resolve pnpm download cache
+      id: pnpm
+      shell: bash
+      run: |
+        corepack enable
+        printf 'path=%s\n' "$(pnpm store path)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      id: downloads
+      with:
+        path: |
+          storage/app/testing/process-core/composer-cache
+          ${{ steps.pnpm.outputs.path }}
+        key: core-downloads-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('composer.lock', 'pnpm-lock.yaml') }}
+    - name: Build the browser-facing assets and start the rig
+      shell: bash
+      run: |
+        pnpm install --frozen-lockfile --ignore-scripts
+        pnpm build
+        make core-test-up CORE_TEST_PREBUILT=1
+    - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      if: inputs.write-cache == 'true' && steps.downloads.outputs.cache-hit != 'true'
+      with:
+        path: |
+          storage/app/testing/process-core/composer-cache
+          ${{ steps.pnpm.outputs.path }}
+        key: ${{ steps.downloads.outputs.cache-primary-key }}

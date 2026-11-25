@@ -5,22 +5,36 @@ set -euo pipefail
 root_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
 evidence_dir=${RELEASE_QUALITY_EVIDENCE_DIR:-"$root_dir/.ci-artifacts/release-quality"}
 project_name=${COMPOSE_PROJECT_NAME:-agelto_dev}
+env_file=${ENV_FILE:-.env}
 
 cd "$root_dir"
 rm -rf "$evidence_dir"
 mkdir -p "$evidence_dir"
 
-compose=(docker compose --project-directory "$root_dir" --project-name "$project_name" --env-file "$root_dir/.env" -f "$root_dir/docker-compose.yml")
-app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app)
+if [[ "$project_name" == agelto_core_test ]]; then
+    compose=(docker compose --project-directory "$root_dir/docker" --project-name "$project_name" \
+        --env-file "$env_file" -f "$root_dir/docker/compose.core-test.yml")
+    app=("${compose[@]}" exec -T app)
+else
+    # Retain the existing local release evidence carrier.
+    make test-preflight ENV_FILE="$env_file"
+    compose=(docker compose --project-directory "$root_dir" --project-name "$project_name" \
+        --env-file "$env_file" -f "$root_dir/docker-compose.yml")
+    app=("${compose[@]}" exec -T -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app)
+fi
 app_root=$("${compose[@]}" exec -T app pwd)
 
 run_test() {
     local name=$1
     shift
 
+    local php=(php -d memory_limit=1G)
+    if [[ "$name" == coverage ]]; then
+        php+=(-d pcov.enabled=1)
+    fi
     local started finished elapsed
     started=$(date +%s%3N)
-    if ! "${app[@]}" php artisan test --ci --no-tia --compact --log-junit="storage/app/release-quality/$name.xml" "$@" >"$evidence_dir/$name.txt" 2>&1; then
+    if ! "${app[@]}" "${php[@]}" ./vendor/bin/pest --ci --no-tia --compact --log-junit="storage/app/release-quality/$name.xml" "$@" >"$evidence_dir/$name.txt" 2>&1; then
         cat "$evidence_dir/$name.txt" >&2
         exit 1
     fi
@@ -29,7 +43,6 @@ run_test() {
     printf '%s\n' "$elapsed" >"$evidence_dir/$name.milliseconds"
 }
 
-make test-preflight
 "${app[@]}" sh -ec 'rm -rf storage/app/release-quality && mkdir -p storage/app/release-quality'
 
 for run in 1 2 3 4 5; do

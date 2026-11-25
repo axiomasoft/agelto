@@ -173,7 +173,8 @@ def build(root, reports, folder, validate_load, candidate):
             elif validation == "V7":
                 need(result.get("quality") and all(type(v) is int and v == 0 for v in result["quality"].values()),
                      "missing quality subchecks")
-                need(set(result["quality"]) == {"pint", "phpstan", "architecture", "schema-docs", "schema-tests"},
+                need(set(result["quality"]) == {"pint", "phpstan", "architecture", "schema-docs", "schema-tests",
+                                                 "docs-integrity", "composer-audit"},
                      "incomplete quality subchecks")
                 proof["quality"] = result["quality"]
             else:

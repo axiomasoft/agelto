@@ -383,16 +383,16 @@ test('калькуляционный метод, базовый год и цит
         ->and($gold['estimates'][0]['rows_expected'])->toBe(2);
 });
 
-test('на реальном эталоне EST-GSFX-LSR-001 маппер проходит GoldValidator без ошибок', function () {
-    if (! is_dir(base_path('estimates/files')) || ! file_exists(base_path('estimates/files/Администрация культуры и спорта 3.gsfx'))) {
-        $this->markTestSkipped('Реальный эталон корпуса недоступен на этом дереве (D1 — файлы не коммитятся в git).');
-    }
-
+test('маппер валидирует смету из синтетического GSFX и сохраняет обе позиции', function () {
     $zip = new ZipArchive;
-    $zip->open(base_path('estimates/files/Администрация культуры и спорта 3.gsfx'));
-    $properties = $zip->getFromName('Properties.txt');
-    $dataXml = $zip->getFromName('Data.xml');
-    $zip->close();
+    expect($zip->open(base_path('tests/Fixtures/ProcessCore/synthetic-estimate.gsfx'), ZipArchive::CHECKCONS))->toBeTrue();
+    try {
+        $properties = $zip->getFromName('Properties.txt');
+        $dataXml = $zip->getFromName('Data.xml');
+        expect($properties)->toBeString()->and($dataXml)->toBeString();
+    } finally {
+        $zip->close();
+    }
 
     $document = app(GsfxReader::class)->parse($properties, $dataXml);
     $gold = (new GsfxGoldMapper)->toGold($document);
@@ -410,6 +410,5 @@ test('на реальном эталоне EST-GSFX-LSR-001 маппер про�
         }
     }
 
-    // 110 <Position> в Data.xml (`grep -c '<Position' Data.xml`, snapshot корпуса edac..52708b).
-    expect($positionCount)->toBe(110);
+    expect($positionCount)->toBe(2);
 });

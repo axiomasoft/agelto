@@ -66,7 +66,6 @@ x-runtime: &runtime
     - ../estimates/gold:/var/www/html/estimates/gold:ro
     - ../estimates/manifest.json:/var/www/html/estimates/manifest.json:ro
     - ../estimates/eval-splits.json:/var/www/html/estimates/eval-splits.json:ro
-    - ../estimates/files/Администрация культуры и спорта 3.gsfx:/var/www/html/estimates/files/Администрация культуры и спорта 3.gsfx:ro
     - ./tests/process-core/runtime-inputs/candidate.git:/var/www/html/.git:ro
     - ./tests/process-core/runtime-inputs/azguard:/var/www/html/local/vendors/azguard:ro
     - ./tests/process-core/runtime-inputs/proxyma:/var/www/html/local/vendors/proxyma:ro

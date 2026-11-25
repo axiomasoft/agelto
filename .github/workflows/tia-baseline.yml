@@ -15,32 +15,27 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  COMPOSE_PROJECT_NAME: agelto_tia_${{ github.run_id }}
-  IMAGE_TAG: tia-${{ github.sha }}
+  ENV_FILE: .env.example
 
 jobs:
   baseline:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-        with:
-          php-version: '8.5'
-          coverage: pcov
-      - name: Bootstrap trusted local carrier
-        run: make bootstrap MODE=dev ENV_FILE=.env.example
-      - name: Record fresh TIA baseline
-        run: make test:tia-refresh
-      - name: Export exact hidden Pest baseline path
-        run: make test:tia-baseline-export
+      - uses: ./.github/actions/setup-core-test
+      - name: Record and export one complete TIA graph
+        id: tia
+        run: |
+          result=$(make core-test-tia)
+          printf '%s\n' "$result"
+          printf 'path=%s/tia-baseline\n' "$(jq -r .evidence <<< "$result")" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pest-tia-baseline
-          path: .ci-artifacts/tia-baseline
+          path: ${{ steps.tia.outputs.path }}
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30

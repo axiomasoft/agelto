@@ -6,6 +6,8 @@ on:
     branches: [main]
   schedule:
     - cron: '0 4 * * 1'
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -16,228 +18,139 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  COMPOSE_PROJECT_NAME: agelto_ci_${{ github.run_id }}_${{ github.job }}
+  ENV_FILE: .env.example
   IMAGE_TAG: ci-${{ github.sha }}
 
 jobs:
   quality:
     name: Quality and static analysis
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+      - uses: ./.github/actions/setup-core-test
         with:
-          php-version: '8.5'
-          coverage: pcov
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+          write-cache: ${{ github.event_name == 'push' }}
+      - name: Run isolated quality checks
+        run: make core-quality
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
         with:
-          node-version: '24'
-      - name: Enable locked pnpm
-        run: corepack enable
-      - id: composer-cache
-        name: Resolve Composer download cache
-        run: echo "path=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ${{ steps.composer-cache.outputs.path }}
-          key: composer-${{ runner.os }}-${{ runner.arch }}-php85-${{ hashFiles('composer.lock') }}
-      - id: pnpm-cache
-        name: Resolve pnpm download cache
-        run: echo "path=$(pnpm store path)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ${{ steps.pnpm-cache.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('pnpm-lock.yaml') }}
-      - name: Resolve strict private source pins
-        id: private-pins
-        run: |
-          python3 -B docker/scripts/vendor_manifest.py --rows > /tmp/agelto-private-pins
-          python3 - <<'PYCODE' >> "$GITHUB_OUTPUT"
-          import json
-          value = json.load(open('docker/private-vendors.lock.json'))
-          for row in value.get('repositories', []):
-              if row['key'] == 'proxyma':
-                  print('proxyma=' + row['commit'])
-          PYCODE
-      - name: Prepare pinned private Proxyma source
-        if: steps.private-pins.outputs.proxyma != ''
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          repository: axiomasoft/proxyma
-          ref: ${{ steps.private-pins.outputs.proxyma }}
-          path: local/vendors/proxyma
-          token: ${{ secrets.PROXYMA_READ_TOKEN }}
-          persist-credentials: false
-      - name: Bootstrap trusted local carrier
-        run: make bootstrap MODE=dev ENV_FILE=.env.example
-      - name: Run local quality carrier
-        run: make quality
-      - name: Save Composer download cache on trusted push
-        if: github.event_name != 'pull_request'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ${{ steps.composer-cache.outputs.path }}
-          key: composer-${{ runner.os }}-${{ runner.arch }}-php85-${{ hashFiles('composer.lock') }}
-      - name: Save pnpm download cache on trusted push
-        if: github.event_name != 'pull_request'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ${{ steps.pnpm-cache.outputs.path }}
-          key: pnpm-${{ runner.os }}-${{ runner.arch }}-node24-${{ hashFiles('pnpm-lock.yaml') }}
+          name: quality-${{ github.sha }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: error
+          retention-days: 14
 
   tests:
-    name: Full no-TIA tests
+    name: PHP tests (${{ matrix.shard }}/4)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-        with:
-          php-version: '8.5'
-          coverage: pcov
-      - name: Resolve strict private source pins
-        id: private-pins
-        run: |
-          python3 -B docker/scripts/vendor_manifest.py --rows > /tmp/agelto-private-pins
-          python3 - <<'PYCODE' >> "$GITHUB_OUTPUT"
-          import json
-          value = json.load(open('docker/private-vendors.lock.json'))
-          for row in value.get('repositories', []):
-              if row['key'] == 'proxyma':
-                  print('proxyma=' + row['commit'])
-          PYCODE
-      - name: Prepare pinned private Proxyma source
-        if: steps.private-pins.outputs.proxyma != ''
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          repository: axiomasoft/proxyma
-          ref: ${{ steps.private-pins.outputs.proxyma }}
-          path: local/vendors/proxyma
-          token: ${{ secrets.PROXYMA_READ_TOKEN }}
-          persist-credentials: false
-      - name: Bootstrap trusted local carrier
-        run: make bootstrap MODE=dev ENV_FILE=.env.example
-      - name: Run full no-TIA JUnit carrier
-        run: make test:junit
+      - uses: ./.github/actions/setup-core-test
+      - name: Run one isolated no-TIA shard
+        env:
+          SHARD: ${{ matrix.shard }}/4
+        run: make core-test-shard
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: junit-${{ github.job }}-${{ github.sha }}
-          path: storage/app/ci/junit.xml
+          name: junit-shard-${{ matrix.shard }}-${{ github.sha }}
+          path: storage/app/testing/process-core/reports/
           if-no-files-found: error
           retention-days: 14
 
-  coverage:
-    name: Coverage floor
+  release-quality:
+    name: Release quality and coverage evidence
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-        with:
-          php-version: '8.5'
-          coverage: pcov
-      - name: Resolve strict private source pins
-        id: private-pins
-        run: |
-          python3 -B docker/scripts/vendor_manifest.py --rows > /tmp/agelto-private-pins
-          python3 - <<'PYCODE' >> "$GITHUB_OUTPUT"
-          import json
-          value = json.load(open('docker/private-vendors.lock.json'))
-          for row in value.get('repositories', []):
-              if row['key'] == 'proxyma':
-                  print('proxyma=' + row['commit'])
-          PYCODE
-      - name: Prepare pinned private Proxyma source
-        if: steps.private-pins.outputs.proxyma != ''
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          repository: axiomasoft/proxyma
-          ref: ${{ steps.private-pins.outputs.proxyma }}
-          path: local/vendors/proxyma
-          token: ${{ secrets.PROXYMA_READ_TOKEN }}
-          persist-credentials: false
-      - name: Bootstrap trusted local carrier
-        run: make bootstrap MODE=dev ENV_FILE=.env.example
-      - name: Run no-TIA coverage carrier
-        run: make test:coverage
-      - name: Enforce release coverage floors
-        run: |
-          python3 docker/scripts/coverage-gate.py --clover storage/app/coverage/clover.xml \
-            --critical-file app/Services/Documentation/PrivateDocumentationLocator.php \
-            --critical-file app/Services/Health/ApplicationReadiness.php \
-            --critical-file app/Services/Procurement/Prepare/Archive/ArchiveEntryValidator.php \
-            --critical-file app/Services/Procurement/Proxy/ProxyResolver.php \
-            --critical-file app/Actions/Procurement/Screening/ApplyScreeningDispositionAction.php \
-            --critical-file app/Repositories/Procurement/Process/WorkStoreRepository.php \
-            --critical-file app/Services/Procurement/Process/WorkRunner.php \
-            --critical-file app/Services/Procurement/Process/RecoveryReconciler.php \
-            --critical-file app/Repositories/Procurement/Crawler/ListingFinalizer.php \
-            --critical-file app/Services/Llm/Execution/ReceiptStore.php \
-            --critical-file app/Services/Procurement/Extraction/AnalysisProviderSendGate.php \
-            --critical-file app/Repositories/Llm/Request/FinancialReservationRepository.php \
-            --critical-file app/Services/Procurement/Network/HttpTransport.php \
-            --critical-file app/Services/Procurement/Network/UrlPolicy.php
+      - uses: ./.github/actions/setup-core-test
+      - name: Collect the 13 no-TIA runs and enforce the committed coverage floors
+        run: make core-test-release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
-          name: coverage-${{ github.sha }}
-          path: |
-            storage/app/coverage/clover.xml
-            storage/app/coverage/junit.xml
+          name: release-quality-${{ github.sha }}
+          path: storage/app/testing/process-core/reports/
           if-no-files-found: error
           retention-days: 14
 
-  e2e:
-    name: Playwright acceptance
+  faults:
+    name: Process Core fault suite
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+      - uses: ./.github/actions/setup-core-test
+      - run: make core-test-faults
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
         with:
-          php-version: '8.5'
+          name: faults-${{ github.sha }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: error
+          retention-days: 14
+
+  load:
+    name: Process Core load suite (width ${{ matrix.width }})
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        width: [10, 20]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-core-test
+      - name: Run the isolated load suite
+        env:
+          WIDTH: ${{ matrix.width }}
+        run: make core-test-load
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: load-${{ matrix.width }}-${{ github.sha }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: error
+          retention-days: 14
+
+  e2e:
+    name: Playwright clean install acceptance
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '24'
-      - name: Enable locked pnpm
-        run: corepack enable
-      - name: Resolve strict private source pins
-        id: private-pins
-        run: |
-          python3 -B docker/scripts/vendor_manifest.py --rows > /tmp/agelto-private-pins
-          python3 - <<'PYCODE' >> "$GITHUB_OUTPUT"
-          import json
-          value = json.load(open('docker/private-vendors.lock.json'))
-          for row in value.get('repositories', []):
-              if row['key'] == 'proxyma':
-                  print('proxyma=' + row['commit'])
-          PYCODE
-      - name: Prepare pinned private Proxyma source
-        if: steps.private-pins.outputs.proxyma != ''
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          repository: axiomasoft/proxyma
-          ref: ${{ steps.private-pins.outputs.proxyma }}
-          path: local/vendors/proxyma
-          token: ${{ secrets.PROXYMA_READ_TOKEN }}
-          persist-credentials: false
-      - name: Prepare pinned package source
-        run: make vendor:sync
-      - name: Run isolated D24 carrier
+      - run: corepack enable
+      - uses: ./.github/actions/setup-vendors
+      - name: Run the isolated production install and browser tests
         env:
           E2E_ARTIFACT_DIR: .ci-artifacts
         run: bash docker/tests/clean-install-e2e.sh
@@ -254,128 +167,56 @@ jobs:
 
   build-security:
     name: Immutable build and security
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-        with:
-          php-version: '8.5'
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: '24'
-      - name: Enable locked pnpm
-        run: corepack enable
-      - name: Resolve strict private source pins
-        id: private-pins
-        run: |
-          python3 -B docker/scripts/vendor_manifest.py --rows > /tmp/agelto-private-pins
-          python3 - <<'PYCODE' >> "$GITHUB_OUTPUT"
-          import json
-          value = json.load(open('docker/private-vendors.lock.json'))
-          for row in value.get('repositories', []):
-              if row['key'] == 'proxyma':
-                  print('proxyma=' + row['commit'])
-          PYCODE
-      - name: Prepare pinned private Proxyma source
-        if: steps.private-pins.outputs.proxyma != ''
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          repository: axiomasoft/proxyma
-          ref: ${{ steps.private-pins.outputs.proxyma }}
-          path: local/vendors/proxyma
-          token: ${{ secrets.PROXYMA_READ_TOKEN }}
-          persist-credentials: false
-      - name: Prepare pinned package source
-        run: make vendor:sync
-      - name: Audit locked dependencies
-        run: |
-          composer audit --locked --no-interaction
-          pnpm audit --audit-level=high
+      - run: corepack enable
+      - uses: ./.github/actions/setup-vendors
+      - name: Audit locked frontend dependencies
+        run: pnpm audit --audit-level=high
       - name: Build immutable image pair
         run: |
           make image:build IMAGE_TAG=${{ env.IMAGE_TAG }}
           docker build --build-arg SOURCE_SHA=${{ github.sha }} -t agelto/postgres:${{ env.IMAGE_TAG }} docker/postgres
-      - uses: aquasecurity/trivy-action@1f0aa582c8c8f5f7639610d6d38baddfea4fdcee # v0.9.2
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: agelto/app:${{ env.IMAGE_TAG }}
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: false
           cache: false
-      - uses: aquasecurity/trivy-action@1f0aa582c8c8f5f7639610d6d38baddfea4fdcee # v0.9.2
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: agelto/doctor:${{ env.IMAGE_TAG }}
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: false
           cache: false
-      - uses: aquasecurity/trivy-action@1f0aa582c8c8f5f7639610d6d38baddfea4fdcee # v0.9.2
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: agelto/postgres:${{ env.IMAGE_TAG }}
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: false
           cache: false
-      - uses: aquasecurity/trivy-action@1f0aa582c8c8f5f7639610d6d38baddfea4fdcee # v0.9.2
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: redis:7-alpine
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: false
           cache: false
-      - uses: aquasecurity/trivy-action@1f0aa582c8c8f5f7639610d6d38baddfea4fdcee # v0.9.2
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: minio/minio:RELEASE.2025-04-22T22-12-26Z
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: false
           cache: false
-
-  release-quality:
-    name: Release quality evidence
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-        with:
-          php-version: '8.5'
-          coverage: pcov
-      - name: Resolve strict private source pins
-        id: private-pins
-        run: |
-          python3 -B docker/scripts/vendor_manifest.py --rows > /tmp/agelto-private-pins
-          python3 - <<'PYCODE' >> "$GITHUB_OUTPUT"
-          import json
-          value = json.load(open('docker/private-vendors.lock.json'))
-          for row in value.get('repositories', []):
-              if row['key'] == 'proxyma':
-                  print('proxyma=' + row['commit'])
-          PYCODE
-      - name: Prepare pinned private Proxyma source
-        if: steps.private-pins.outputs.proxyma != ''
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          repository: axiomasoft/proxyma
-          ref: ${{ steps.private-pins.outputs.proxyma }}
-          path: local/vendors/proxyma
-          token: ${{ secrets.PROXYMA_READ_TOKEN }}
-          persist-credentials: false
-      - name: Bootstrap trusted local carrier
-        run: make bootstrap MODE=dev ENV_FILE=.env.example
-      - name: Collect D40/D42 no-TIA release evidence
-        run: make test:release
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
-        with:
-          name: release-quality-${{ github.sha }}
-          path: .ci-artifacts/release-quality
-          if-no-files-found: error
-          retention-days: 14

@@ -25044,6 +25044,20 @@
       ],
       "reason": "P10.3 removes replaced generic implementation. Archived consumer source retains this exact historical obligation; native contracts and consumer adapters execute as actual Agelto cases in isolated fixtures. Passing replacements remain mandatory in final consumer JUnit.",
       "contract": "Proxyma D9; integration#mapping; P10.3 runtime ownership, read-only archive, immutable per-physical operation."
+    },
+    {
+      "source": {
+        "file": "tests/Feature/Procurement/Gold/GsfxGoldMapperTest.php",
+        "name": "на реальном эталоне EST-GSFX-LSR-001 маппер проходит GoldValidator без ошибок"
+      },
+      "replacements": [
+        {
+          "file": "tests/Feature/Procurement/Gold/GsfxGoldMapperTest.php",
+          "name": "маппер валидирует смету из синтетического GSFX и сохраняет обе позиции"
+        }
+      ],
+      "reason": "Replace the developer-local real archive with a tracked synthetic archive exercising the parser, mapper, validation and exact position retention.",
+      "contract": "Process Core runtime inputs; hermetic GSFX format regression."
     }
   ]
 }

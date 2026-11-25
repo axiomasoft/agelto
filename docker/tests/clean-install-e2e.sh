@@ -74,7 +74,7 @@ cleanup() {
 
     docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file" kill >/dev/null 2>&1 || true
 
-    if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file" down --remove-orphans >/dev/null 2>&1; then
+    if ! docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file" down --volumes --remove-orphans >/dev/null 2>&1; then
         echo "Could not fully tear down isolated Compose project $project" >&2
     fi
 
@@ -95,22 +95,17 @@ trap cleanup EXIT
 git -C "$root_dir" worktree add --detach "$candidate" HEAD >/dev/null
 candidate_sha=$(git -C "$candidate" rev-parse HEAD)
 image_tag="p4-${candidate_sha:0:12}"
-vendor_source="$root_dir/local/vendors/azguard"
-vendor_checkout="$candidate/local/vendors/azguard"
-vendor_commit=$(python3 - "$candidate/docker/private-vendors.lock.json" <<'PY'
-import json
-import sys
-
-print(json.load(open(sys.argv[1], encoding='utf-8'))['commit'])
-PY
-)
-
-[[ -d "$vendor_source/.git" ]] || { echo "Pinned vendor checkout is missing: $vendor_source" >&2; exit 2; }
-git -C "$vendor_source" cat-file -e "$vendor_commit^{commit}"
-mkdir -p "$(dirname "$vendor_checkout")"
-git clone --no-local --no-checkout "$vendor_source" "$vendor_checkout" >/dev/null
-git -C "$vendor_checkout" checkout --detach "$vendor_commit" >/dev/null
-git -C "$vendor_checkout" remote set-url origin "$(git -C "$vendor_source" config --get remote.origin.url)"
+vendor_pins=$(python3 -B "$candidate/docker/scripts/vendor_manifest.py" --root "$candidate" --rows)
+while IFS=$'\t' read -r vendor_key vendor_repository vendor_commit; do
+    vendor_source="$root_dir/local/vendors/$vendor_key"
+    vendor_checkout="$candidate/local/vendors/$vendor_key"
+    [[ -d "$vendor_source/.git" ]] || { echo "Pinned vendor checkout is missing: $vendor_source" >&2; exit 2; }
+    git -C "$vendor_source" cat-file -e "$vendor_commit^{commit}"
+    git init --quiet --template= "$vendor_checkout"
+    git -C "$vendor_checkout" fetch --quiet --no-tags --depth=1 "$vendor_source" "$vendor_commit"
+    git -C "$vendor_checkout" checkout --detach "$vendor_commit" >/dev/null
+    git -C "$vendor_checkout" remote add origin "https://github.com/$vendor_repository.git"
+done <<< "$vendor_pins"
 if [[ -n "$password_file" ]]; then
     cp "$password_file" "$candidate/.e2e-admin-password"
 else
@@ -155,15 +150,12 @@ export IMAGE_TAG="$image_tag"
 
 cd "$candidate"
 pnpm install --frozen-lockfile
-pnpm documentation:build
 pnpm exec playwright install chromium
-bash docker/scripts/vendor-sync.sh --check --composer-check
-composer install --no-scripts --no-interaction --no-progress
 COMPOSE_PROJECT_NAME="$project" IMAGE_TAG="$image_tag" make bootstrap MODE=prod-build ENV_FILE=.env.e2e
 
 compose=(docker compose --project-directory "$candidate" --project-name "$project" --env-file "$e2e_env" -f "$compose_file")
-"${compose[@]}" up -d --wait postgres redis minio
-"${compose[@]}" run --rm --no-deps app sh -ec 'mc alias set agelto-bootstrap "$AWS_ENDPOINT" "$AWS_ACCESS_KEY_ID" "$(cat "$AWS_SECRET_ACCESS_KEY_FILE")" >/dev/null && mc mb --ignore-existing "agelto-bootstrap/$AWS_BUCKET" >/dev/null'
+"${compose[@]}" up -d --wait postgres redis redis-cache redis-session minio
+make prod:storage:init ENV_FILE=.env.e2e
 "${compose[@]}" run --rm --no-deps app php artisan migrate --force
 "${compose[@]}" run --rm --no-deps app php artisan db:seed --class=Database\\Seeders\\BaseSeeder --force
 "${compose[@]}" run --rm --no-deps -v "$password_file:/run/secrets/initial_admin_password:ro" app php artisan admin:create-initial --email="$admin_email" --password-file=/run/secrets/initial_admin_password

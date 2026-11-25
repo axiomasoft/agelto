@@ -18,7 +18,67 @@ rig = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(rig)
 
 
+def copy_synthetic_gsfx(root):
+    source = Path(__file__).resolve().parents[3] / rig.GSFX_FIXTURE
+    destination = root / rig.GSFX_FIXTURE
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, destination)
+    return {"source": rig.GSFX_FIXTURE, "runtime": rig.GSFX_FIXTURE,
+            "sha256": rig.hashlib.sha256(destination.read_bytes()).hexdigest()}
+
+
 class RigGuardsTest(unittest.TestCase):
+    def test_аудит_composer_повторяет_только_ошибку_транспорта(self):
+        scenarios = [
+            ([(100, "curl error 28 while downloading"), (0, "")], 0),
+            ([(100, "curl error 6 while downloading")] * 3, 100),
+            ([(1, "Found a security advisory")], 1),
+        ]
+        for attempts, expected in scenarios:
+            with self.subTest(attempts=attempts), tempfile.TemporaryDirectory() as directory:
+                folder = Path(directory)
+                pending = iter(attempts)
+
+                def audit(output, name, *args):
+                    self.assertEqual(args, ("audit", "--locked", "--no-interaction"))
+                    exit_code, message = next(pending)
+                    (output / f"{name}.log").write_text(message)
+                    return exit_code
+
+                with patch.object(rig, "composer_on_bridge", side_effect=audit) as command:
+                    self.assertEqual(rig.composer_audit(folder), expected)
+                    self.assertEqual(command.call_count, len(attempts))
+
+    def test_номер_шарда_ограничен_матрицей_из_четырёх(self):
+        for index in range(1, 5):
+            with patch.dict(os.environ, {"SHARD": f"{index}/4"}):
+                self.assertEqual(rig.shard_selection(), f"{index}/4")
+        for value in ("", "0/4", "5/4", "1/2", "--no-tia"):
+            with self.subTest(value=value), patch.dict(os.environ, {"SHARD": value}), self.assertRaises(rig.GuardError):
+                rig.shard_selection()
+
+    def test_gsfx_отклоняет_локальный_архив_из_манифеста(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = root / "tests/Fixtures/ProcessCore/runtime-inputs.json"
+            manifest.parent.mkdir(parents=True)
+            local_archive = "estimates/files/developer.gsfx"
+            manifest.write_text(json.dumps({"files": [{"source": local_archive, "runtime": local_archive}]}))
+            with patch.object(rig, "ROOT", root), self.assertRaisesRegex(rig.GuardError, "hermetic synthetic fixture"):
+                rig.verify_fixture_inputs()
+
+    def test_экспорт_публикует_ровно_один_граф_tia(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(rig, "compose"):
+            folder = Path(directory)
+            recording = folder / "tia-recording" / "project"
+            recording.mkdir(parents=True)
+            with self.assertRaisesRegex(rig.GuardError, "exactly one graph"):
+                rig.export_tia(folder, "/test")
+            (recording / "graph.json").write_text("{}")
+            (recording / "coverage.bin.gz").write_bytes(b"fixture")
+            rig.export_tia(folder, "/test")
+            self.assertEqual({p.name for p in (folder / "tia-baseline").iterdir()}, {"graph.json", "coverage.bin.gz"})
+
     def test_single_file_selection_rejects_directories_options_and_path_escape(self):
         valid = "tests/Feature/ProcessCore/Platforms/PlatformUiRegistryTest.php"
         with patch.dict(os.environ, {"TEST_FILE": valid}):
@@ -208,11 +268,11 @@ class RigGuardsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp, patch.object(rig, "ROOT", Path(temp)):
             root = Path(temp)
             manifest = root / "tests/Fixtures/ProcessCore/runtime-inputs.json"
-            manifest.parent.mkdir(parents=True)
             original = root / "original.json"
             original.write_text('{"measured": 42}')
-            manifest.write_text(json.dumps({"files": [{"source": "original.json",
-                                  "sha256": rig.hashlib.sha256(original.read_bytes()).hexdigest()}]}))
+            manifest.write_text(json.dumps({"files": [copy_synthetic_gsfx(root),
+                                  {"source": "original.json", "runtime": "original.json",
+                                   "sha256": rig.hashlib.sha256(original.read_bytes()).hexdigest()}]}))
             rig.verify_fixture_inputs()
             original.write_text('{"measured": 0}')
             with self.assertRaisesRegex(rig.GuardError, "required runtime input"):
@@ -1081,10 +1141,10 @@ class VendorDeliveryTest(unittest.TestCase):
 
     def test_snapshots_bind_both_source_hashes_reject_missing_stale_dirty_and_credentials(self):
         manifest = self.root / "tests/Fixtures/ProcessCore/runtime-inputs.json"
-        manifest.parent.mkdir(parents=True)
+        fixtures = [copy_synthetic_gsfx(self.root)]
         repositories = {r["key"]: {"commit": r["commit"], "packages": self.module.package_hashes(
                         self.module.package_files(self.root / "local/vendors" / r["key"], r), r)} for r in self.rows}
-        manifest.write_text(json.dumps({"files": [], "repositories": repositories}))
+        manifest.write_text(json.dumps({"files": fixtures, "repositories": repositories}))
         runtime = self.root / "docker/tests/process-core/runtime-inputs"
         runtime.parent.mkdir(parents=True)
         report = self.root / "report"
@@ -1113,11 +1173,11 @@ class VendorDeliveryTest(unittest.TestCase):
                 rig.prepare_metadata(report)
             file.write_bytes(raw)
             repositories["proxyma"]["commit"] = "a" * 40
-            manifest.write_text(json.dumps({"files": [], "repositories": repositories}))
+            manifest.write_text(json.dumps({"files": fixtures, "repositories": repositories}))
             with self.assertRaisesRegex(rig.GuardError, "SHA/hashes"):
                 rig.prepare_metadata(report)
             repositories["proxyma"]["commit"] = self.rows[1]["commit"]
-            manifest.write_text(json.dumps({"files": [], "repositories": repositories}))
+            manifest.write_text(json.dumps({"files": fixtures, "repositories": repositories}))
             metadata = runtime / "metadata.json"
             metadata.write_text("{}")
             with self.assertRaisesRegex(rig.GuardError, "stale"):
@@ -1160,10 +1220,9 @@ class VendorDeliveryTest(unittest.TestCase):
         self.assertEqual(files["packages/core/.gitattributes"], (package / ".gitattributes").read_bytes())
         self.assertEqual(files["packages/core/payload.txt"], b"$Format:%H$\n")
         manifest = self.root / "tests/Fixtures/ProcessCore/runtime-inputs.json"
-        manifest.parent.mkdir(parents=True)
         repositories = {r["key"]: {"commit": r["commit"], "packages": self.module.package_hashes(
                         self.module.package_files(self.root / "local/vendors" / r["key"], r), r)} for r in self.rows}
-        manifest.write_text(json.dumps({"files": [], "repositories": repositories}))
+        manifest.write_text(json.dumps({"files": [copy_synthetic_gsfx(self.root)], "repositories": repositories}))
         runtime = self.root / "docker/tests/process-core/runtime-inputs"
         runtime.parent.mkdir(parents=True)
         report = self.root / "report"

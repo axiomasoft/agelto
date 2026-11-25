@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -26,7 +27,10 @@ VOLUMES = {"core-postgres", "core-redis", "core-objects", "core-storage", "core-
            "core-prompts", "core-estimate-prompts"}
 RUNTIME_INPUTS = ROOT / "docker/tests/process-core/runtime-inputs"
 FUTURE = set()
-IMPLEMENTED = {"faults", "load", "file", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
+IMPLEMENTED = {"faults", "load", "file", "shard", "tia", "release", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
+RESET_SUITES = {"faults", "load", "shard", "tia", "execution", "concurrency", "observability",
+                "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}
+GSFX_FIXTURE = "tests/Fixtures/ProcessCore/synthetic-estimate.gsfx"
 # Domain suites execute their owning assertions; concurrency tests use separate processes and
 # database connections. Transport, platform adapters and reconciliation have their own suites.
 SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Feature/ProcessCore/Documents", "tests/Integration/ProcessCore/Concurrency/StorageCapacityTest.php", "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php", "tests/Feature/Procurement/Prepare", "tests/Feature/Document/DocumentDownloaderTest.php"], "acquisition": ["tests/Feature/ProcessCore/Acquisition", "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php"], "execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
@@ -323,6 +327,9 @@ def write_json(path, value):
 
 def verify_fixture_inputs():
     manifest = json.loads((ROOT / "tests/Fixtures/ProcessCore/runtime-inputs.json").read_text())
+    gsfx = [entry for entry in manifest["files"] if entry["runtime"].endswith(".gsfx")]
+    require(len(gsfx) == 1 and gsfx[0]["source"] == gsfx[0]["runtime"] == GSFX_FIXTURE,
+            "GSFX runtime input must use the hermetic synthetic fixture")
     for entry in manifest["files"]:
         path = ROOT / entry["source"]
         require(path.is_file() and not path.is_symlink()
@@ -427,6 +434,38 @@ def prepare_metadata(folder):
 
 def prepare_runtime():
     return compose("exec", "-T", "app", "php", "tests/Support/ProcessCore/prepare-runtime.php")
+
+
+def composer_on_bridge(folder, name, *arguments, install=False):
+    """Use the rig's PHP image for public dependency metadata without runtime networking."""
+    image = config_identity()["services"]["app"]["image"]
+    mounts = [item for path in ("composer.json", "composer.lock")
+              for item in ("--mount", f"type=bind,src={ROOT / path},dst=/var/www/html/{path},readonly")]
+    if install:
+        vendor = ROOT / "vendor"
+        cache = REPORTS.parent / "composer-cache"
+        for path in (vendor, cache):
+            require(not path.is_symlink(), "unsafe Composer directory")
+            path.mkdir(exist_ok=True)
+        mounts += ["--mount", f"type=bind,src={vendor},dst=/var/www/html/vendor",
+                   "--mount", f"type=bind,src={cache},dst=/composer-cache"]
+        for key in ("azguard", "proxyma"):
+            mounts += ["--mount", f"type=bind,src={RUNTIME_INPUTS / key},dst=/var/www/html/local/vendors/{key},readonly"]
+    result = run(["docker", "run", "--rm", "--network", "bridge", "--cap-drop=ALL",
+                  "--security-opt=no-new-privileges", "--user", f"{os.getuid()}:{os.getgid()}",
+                  "--workdir", "/var/www/html", "-e", "COMPOSER_HOME=/tmp/composer",
+                  "-e", "COMPOSER_CACHE_DIR=/composer-cache" if install else "COMPOSER_CACHE_DIR=/tmp/composer-cache",
+                  *mounts, "--entrypoint", "composer", image, *arguments], check=False)
+    (folder / (name + ".log")).write_text(result.stdout + result.stderr)
+    return result.returncode
+
+
+def composer_audit(folder):
+    for name in ("composer-audit", "composer-audit-retry-1", "composer-audit-retry-2"):
+        result = composer_on_bridge(folder, name, "audit", "--locked", "--no-interaction")
+        if result != 100 or not re.search(r"curl error (6|28) while downloading", (folder / f"{name}.log").read_text()):
+            return result
+    return result
 
 
 def snapshot(folder):
@@ -664,6 +703,12 @@ def load_width():
     return int(value)
 
 
+def shard_selection():
+    shard = os.environ.get("SHARD", "")
+    require(re.fullmatch(r"[1-4]/4", shard), "SHARD must be one of 1/4, 2/4, 3/4, 4/4")
+    return shard
+
+
 def validate_load_report(report, width):
     spec = importlib.util.spec_from_file_location("core_load_report", Path(__file__).with_name("load_report.py"))
     module = importlib.util.module_from_spec(spec)
@@ -671,8 +716,47 @@ def validate_load_report(report, width):
     return module.validate(report, width)
 
 
+def prepare_tia(folder):
+    home = f"/var/www/html/storage/app/testing/process-core/{folder.name}-tia"
+    branch = os.environ.get("GITHUB_REF_NAME") or "main"
+    run(["git", "check-ref-format", "refs/heads/" + branch])
+    repo_pattern = r"[A-Za-z0-9_-][A-Za-z0-9_.-]*/[A-Za-z0-9_-][A-Za-z0-9_.-]*"
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    if not repository:
+        origin = run(["git", "config", "--get", "remote.origin.url"], check=False).stdout.strip()
+        match = re.fullmatch(r"(?:https://github\.com/|ssh://git@github\.com/|git@github\.com:)(" +
+                             repo_pattern + r")", origin)
+        repository = match[1].removesuffix(".git") if match else ""
+    require(re.fullmatch(repo_pattern, repository), "TIA requires a GitHub repository identity")
+    compose("exec", "-T", "app", "sh", "-ec", '''
+        mkdir -p "$(dirname "$1")"
+        mkdir "$1"
+        cp -R /var/www/html/.git "$1/git"
+        git --git-dir="$1/git" update-ref "refs/heads/$2" HEAD
+        git --git-dir="$1/git" symbolic-ref HEAD "refs/heads/$2"
+        git --git-dir="$1/git" remote add origin "$3"
+        git --git-dir="$1/git" symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+        git --git-dir="$1/git" --work-tree=/var/www/html read-tree HEAD
+    ''', "tia", home, branch, "https://github.com/" + repository + ".git")
+    return home
+
+
+def export_tia(folder, home):
+    recorded = folder / "tia-recording"
+    compose("cp", f"app:{home}/.pest/tia", str(recorded))
+    graphs = list(recorded.glob("*/graph.json"))
+    require(len(graphs) == 1, "Pest TIA must record exactly one graph")
+    baseline = folder / "tia-baseline"
+    baseline.mkdir()
+    shutil.copy2(graphs[0], baseline / graphs[0].name)
+    coverage = graphs[0].with_name("coverage.bin.gz")
+    if coverage.is_file():
+        shutil.copy2(coverage, baseline / coverage.name)
+
+
 def suite(folder, name):
     selected = [single_test_path()] if name == "file" else None
+    shard = shard_selection() if name == "shard" else None
     if name == "unit":
         # Pure tests need the isolated runtime identity, not a migrated domain schema.
         identity()
@@ -686,10 +770,21 @@ def suite(folder, name):
     junit = f"storage/app/testing/process-core/{folder.name}-{name}.xml"
     # The full retained project corpus rebuilds Laravel/Filament thousands of times. Keep the
     # isolated regression runner finite without inheriting the app worker's 256 MiB CLI default.
-    command = (["php", "-d", "memory_limit=1G"] if name == "regression" else []) + [
-        "./vendor/bin/pest", "--no-tia", "--compact", "--log-junit=" + junit]
+    command = ["php", "-d", "memory_limit=1G"] if name in {"regression", "shard", "tia"} else []
+    if name == "tia":
+        # Pest restarts with just pcov.directory unless it already matches the project root.
+        command += ["-d", "pcov.enabled=1", "-d", "pcov.directory=/var/www/html",
+                    "-d", "pcov.exclude=~(vendor|storage|node_modules)~"]
+    command += ["./vendor/bin/pest", "--compact", "--log-junit=" + junit]
+    command += ["--tia", "--fresh", "--ci"] if name == "tia" else ["--no-tia"]
+    if shard is not None:
+        command += ["--ci", "--shard=" + shard]
     command += selected if selected is not None else (["--testsuite=Unit"] if name == "unit" else SUITE_PATHS.get(name, []))
     options = []
+    if name == "tia":
+        tia_home = prepare_tia(folder)
+        options += ["-e", "HOME=" + tia_home, "-e", "GIT_DIR=" + tia_home + "/git",
+                    "-e", "GIT_WORK_TREE=/var/www/html"]
     small_load = name == "file" and selected == ["tests/Integration/ProcessCore/Load/LoadTest.php"]
     if name == "load":
         options = ["-e", "PROCESS_CORE_LOAD_WIDTH=" + str(load_width()),
@@ -699,8 +794,11 @@ def suite(folder, name):
         options = ["-e", "PROCESS_CORE_EVIDENCE_PATH=/var/www/html/storage/app/testing/process-core/" + folder.name + "-load.json"]
     result = compose("exec", "-T", *options, "app", *command, check=False)
     (folder / (name + ".log")).write_text(result.stdout + result.stderr)
-    compose("cp", f"app:/var/www/html/{junit}", str(folder / "junit.xml"))
-    tree = ET.parse(folder / "junit.xml")
+    junit_file = folder / "junit.xml"
+    copied = compose("cp", f"app:/var/www/html/{junit}", str(junit_file), check=False)
+    require(copied.returncode == 0 and junit_file.is_file() and junit_file.stat().st_size > 0,
+            f"{name} produced no JUnit report (Pest exit {result.returncode}); see {name}.log")
+    tree = ET.parse(junit_file)
     cases = [{"class": c.get("classname"), "name": c.get("name"), "file": c.get("file"),
               "status": "failed" if c.find("failure") is not None or c.find("error") is not None
               else "skipped" if c.find("skipped") is not None else "passed"}
@@ -711,6 +809,8 @@ def suite(folder, name):
     require(all(c["status"] == "passed" for c in cases), "baseline contains failed/skipped scenarios")
     require(sum(int(c.get("assertions", "0")) for c in tree.iter("testcase")) > 0,
             "suite executed no assertions")
+    if name == "tia":
+        export_tia(folder, tia_home)
     if small_load or name == "load":
         compose("cp", "app:/var/www/html/storage/app/testing/process-core/" + folder.name + "-load.json", str(folder / "load.json"))
     if name == "load":
@@ -731,7 +831,8 @@ def suite(folder, name):
         return {"executed": len(cases), "exit": result.returncode,
                 "original_preserved": comparison["preserved_cases"],
                 "scenario_comparison_sha256": hashlib.sha256((folder / "scenario-comparison.json").read_bytes()).hexdigest()}
-    return {"executed": len(cases), "exit": result.returncode}
+    return {"executed": len(cases), "exit": result.returncode,
+            **({"shard": shard} if shard is not None else {})}
 
 
 def quality(folder):
@@ -749,12 +850,27 @@ def quality(folder):
                           ("phpstan", ["./vendor/bin/phpstan", "analyse", "--memory-limit=1G", "--no-progress"]),
                           ("architecture", ["./vendor/bin/pest", "--no-tia",
                                              "--compact", "tests/Unit/Architecture"]),
+                          ("docs-integrity", ["./vendor/bin/pest", "--no-tia",
+                                              "--compact", "tests/Unit/Docs/DocsIntegrityTest.php"]),
                           ("schema-docs", ["php", "tests/Support/ProcessCore/verify-baseline.php"])]:
         result = compose("exec", "-T", "app", *command, check=False)
         (folder / (name + ".log")).write_text(result.stdout + result.stderr)
         results[name] = result.returncode
+    results["composer-audit"] = composer_audit(folder)
     require(not any(results.values()), f"quality failed: {results}; see run logs")
     return results
+
+
+def release_quality(folder):
+    readiness()
+    stop_workers()
+    verify_fixture_inputs()
+    prepare_runtime()
+    result = run(["env", "COMPOSE_PROJECT_NAME=" + PROJECT, "ENV_FILE=" + str(ENV_FILE),
+                  "RELEASE_QUALITY_EVIDENCE_DIR=" + str(folder / "release-quality"),
+                  "bash", ROOT / "docker/scripts/collect-release-quality-evidence.sh"], check=False)
+    (folder / "release-quality.log").write_text(result.stdout + result.stderr)
+    require(result.returncode == 0, "release quality failed; see release-quality.log")
 
 
 def collect(folder):
@@ -786,14 +902,25 @@ def execute(command, name):
             result["width"] = load_width()  # Reject invalid input before reset or any mutation.
         if name in {"install", "e2e", "faults", "load", "regression"} or command == "core-quality":
             result["runtime"] = acceptance_runtime()
-        if name in {"faults", "load", "reset", "install", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
+        if name == "shard":
+            shard_selection()
+        if name in RESET_SUITES | {"reset", "install", "release"}:
             clock = install_clock()
             result["install_clock"] = clock
             write_json(folder / "install-clock.json", clock)
         if name == "up":
             identity(allow_empty=True)  # Validate all pre-existing resources before mutation.
             result["runtime_metadata"] = prepare_metadata(folder)
-            compose("up", "-d", "--build", "--wait", "app", "core-postgres", "core-redis", "object-storage",
+            prebuilt = os.environ.get("CORE_TEST_PREBUILT", "0")
+            require(prebuilt in {"0", "1"}, "CORE_TEST_PREBUILT must be 0 or 1")
+            if not (ROOT / "vendor/autoload.php").is_file():
+                if prebuilt == "0":
+                    compose("build", "app")
+                require(composer_on_bridge(folder, "composer-install", "install", "--no-scripts", "--no-interaction",
+                                           "--no-progress", "--prefer-dist", install=True) == 0,
+                        "Composer installation failed; see composer-install.log")
+            compose("up", "-d", "--no-build" if prebuilt == "1" else "--build", "--wait",
+                    "app", "core-postgres", "core-redis", "object-storage",
                     "fixture-http", "fixture-proxy", "fake-gemini")
             result["identity"] = identity()
             destructive_guard()
@@ -811,12 +938,15 @@ def execute(command, name):
             write_json(folder / "install-comparison.json", {"first": before, "second": after})
             require(before == after, "two clean installs produced different manifests")
             result["manifests"] = after
-        elif name in {"faults", "load", "file", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
-            if name in {"faults", "load", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}:
+        elif name in RESET_SUITES | {"file", "unit", "release"}:
+            if name in RESET_SUITES | {"release"}:
                 reset_folder = folder / "clean-reset"
                 reset_folder.mkdir()
                 reset(reset_folder, clock=clock)
-            result["tests"] = suite(folder, name)
+            if name == "release":
+                release_quality(folder)
+            else:
+                result["tests"] = suite(folder, name)
         elif command == "core-quality":
             result["quality"] = quality(folder)
         elif name == "report":
