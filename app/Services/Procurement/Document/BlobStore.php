@@ -15,6 +15,8 @@ use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
+use Aws\CommandInterface;
+use Aws\Middleware;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -86,10 +88,15 @@ final readonly class BlobStore
                 if ($disk->exists($reservation->objectKey())) {
                     throw new ArtifactUnavailable('Immutable upload key already exists.');
                 }
-                rewind($spool);
+                if (! rewind($spool)) {
+                    throw new ArtifactUnavailable('Temporary upload stream cannot be rewound.');
+                }
                 $execution?->tick();
+                $options = $remote ? $this->remoteWriteOptions($reservation->disk, $reservation, $spool, $size) : [];
                 $putStarted = true;
-                $confirmed = $disk->put($reservation->objectKey(), $spool);
+                $confirmed = $remote
+                    ? $disk->put($reservation->objectKey(), $spool, $options)
+                    : $disk->put($reservation->objectKey(), $spool);
                 if (! $confirmed) {
                     throw new ArtifactUnavailable('Object write unconfirmed.');
                 }
@@ -180,6 +187,7 @@ final readonly class BlobStore
         $claim = null;
         try {
             $execution?->tick();
+            $options = $remote ? $this->remoteWriteOptions($blob->disk, $artifact->reservation, $source, $artifact->sizeBytes) : [];
             // Re-read and pin under the capacity authority before touching the older immutable key.
             // A completed GC means the caller will acquire its own fresh staging object instead.
             if ($remote) {
@@ -191,7 +199,7 @@ final readonly class BlobStore
                 return;
             }
             $this->workspace->recordRepairWriter($blob);
-            $confirmed = $disk->put($key, $source);
+            $confirmed = $remote ? $disk->put($key, $source, $options) : $disk->put($key, $source);
             if (! $confirmed || ! $this->matches($disk, $key, $artifact, $execution)) {
                 throw new ArtifactUnavailable('Immutable duplicate repair unconfirmed.');
             }
@@ -205,6 +213,47 @@ final readonly class BlobStore
                     throw new ArtifactUnavailable('Canonical repair ownership changed.');
                 }
             }
+        }
+    }
+
+    /**
+     * @param  resource  $source
+     * @return array{mup_threshold: int, before_upload: \Closure(CommandInterface): void}
+     */
+    private function remoteWriteOptions(string $disk, StorageReservationRequest $writer, $source, int $size): array
+    {
+        $timeout = config("filesystems.disks.{$disk}.http.timeout");
+        if ((! is_float($timeout) && ! is_int($timeout)) || ! is_finite($timeout) || $timeout <= 0) {
+            throw new ArtifactUnavailable('Remote upload requires a finite HTTP timeout.');
+        }
+        if ((fstat($source)['size'] ?? null) !== $size) {
+            throw new ArtifactUnavailable('Remote upload requires a stream of the verified size.');
+        }
+        $this->assertRemoteWriter($writer);
+
+        // Recovery waits for one request timeout after the lease. An unknown size, multipart
+        // upload or SDK retry could extend writes past that window.
+        return [
+            'mup_threshold' => PHP_INT_MAX,
+            'before_upload' => function (CommandInterface $command) use ($writer, $timeout): void {
+                $command['@retries'] = 0;
+                $httpOptions = $command['@http'];
+                $command['@http'] = ['timeout' => $timeout] + (is_array($httpOptions) ? $httpOptions : []);
+                $command->getHandlerList()->appendAttempt(Middleware::tap(fn () => $this->assertRemoteWriter($writer)));
+            },
+        ];
+    }
+
+    private function assertRemoteWriter(StorageReservationRequest $writer): void
+    {
+        if (LedgerRow::one(
+            sql: "SELECT 1 FROM prc_process_attempts a JOIN prc_process_work w ON w.id = a.work_id
+                WHERE a.id = ? AND w.id = ? AND a.generation = ? AND a.finished_at IS NULL
+                AND w.generation = a.generation AND w.owner_token = ? AND w.state = 'running'
+                AND w.lease_until > clock_timestamp()",
+            bindings: [$writer->attemptId?->value, $writer->workId?->value, $writer->generation, $writer->ownerToken->value],
+        ) === null) {
+            throw new ArtifactUnavailable('Remote upload requires a live writer lease.');
         }
     }
 

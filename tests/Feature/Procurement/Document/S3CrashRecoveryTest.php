@@ -30,11 +30,14 @@ use App\Services\Procurement\Document\StoredDocumentWriter;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Prepare\PdfPreparationTools;
 use App\Services\Procurement\Process\ProcessTransaction;
+use GuzzleHttp\Promise\RejectedPromise;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\FilesystemAdapter as FlysystemAdapter;
 use League\Flysystem\UnableToCreateDirectory;
+use Psr\Http\Message\RequestInterface;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\DownloadFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
@@ -112,7 +115,7 @@ test('неподтверждённый ответ записи S3 оставля
     $f = new PrepareFixtures;
     $context = $f->context();
     $reservations = app(PrepareStorageRepository::class)->reserve($context->lease());
-    $disk->shouldReceive('put')->with($reservations->output->objectKey(), Mockery::type('resource'))->once()->andReturnFalse();
+    $disk->shouldReceive('put')->with($reservations->output->objectKey(), Mockery::type('resource'), Mockery::type('array'))->once()->andReturnFalse();
     $stream = fopen('php://memory', 'w+b');
     try {
         fwrite($stream, 'данные');
@@ -125,6 +128,76 @@ test('неподтверждённый ответ записи S3 оставля
 
     expect(crashRecoveryStatus($reservations->output))->toBe('writing')
         ->and(crashRecoveryStatus($reservations->spool))->toBe('cleaned');
+});
+
+test('загрузка в S3 прекращается, если попытку отозвали во время проверки ключа', function (): void {
+    $disk = crashRecoveryS3();
+    $f = new PrepareFixtures;
+    $context = $f->context();
+    $reservations = app(PrepareStorageRepository::class)->reserve($context->lease());
+    $disk->shouldReceive('exists')->twice()->with($reservations->output->objectKey())->andReturnUsing(function () use ($f): bool {
+        expect(FinalizeFixtures::revoke($f->work, cancel: true))->toBeTrue();
+
+        return false;
+    }, fn (): bool => false);
+    $disk->shouldNotReceive('put');
+    $stream = fopen('php://memory', 'w+b');
+    try {
+        fwrite($stream, 'данные');
+        rewind($stream);
+        expect(fn () => app(BlobStore::class)->put($reservations->output, $stream, $reservations->spool, $context))
+            ->toThrow(ArtifactUnavailable::class, 'Remote upload requires a live writer lease.');
+    } finally {
+        fclose($stream);
+    }
+
+    expect(crashRecoveryStatus($reservations->output))->toBe('staged');
+    app(DocumentStorageReconciler::class)->reconcile();
+    expect(crashRecoveryStatus($reservations->output))->toBe('cleaned');
+});
+
+test('запись большого объекта S3 укладывается в один HTTP-запрос даже при ответе 503', function (): void {
+    $requests = [];
+    $config = [
+        'driver' => 's3',
+        'bucket' => 'crash-recovery',
+        'region' => 'us-east-1',
+        'credentials' => ['key' => 'test-key', 'secret' => 'test-secret'],
+        'http' => ['timeout' => 15],
+        'retries' => 1,
+        'http_handler' => static function (RequestInterface $request, array $options) use (&$requests): RejectedPromise {
+            $requests[] = [$request->getMethod(), $options['timeout']];
+
+            return new RejectedPromise([
+                'exception' => new RuntimeException('S3 unavailable'),
+                'response' => new Response(status: 503),
+            ]);
+        },
+    ];
+    config()->set([
+        'filesystems.disks.crash-recovery-s3' => $config,
+        'documents.prepare.disk' => 'crash-recovery-s3',
+        'documents.prepare.artifact_bytes' => 24 * 1024 * 1024,
+    ]);
+    $disk = Mockery::mock(Storage::build($config))->makePartial();
+    Storage::set('crash-recovery-s3', $disk);
+    $f = new PrepareFixtures;
+    $context = $f->context();
+    $reservations = app(PrepareStorageRepository::class)->reserve($context->lease());
+    $disk->shouldReceive('exists')->once()->with($reservations->output->objectKey())->andReturnFalse();
+
+    $stream = tmpfile();
+    try {
+        // Above the AWS SDK's default multipart threshold of 16 MiB.
+        expect(ftruncate($stream, 17 * 1024 * 1024))->toBeTrue();
+        expect(fn () => app(BlobStore::class)->put($reservations->output, $stream, $reservations->spool, $context))
+            ->toThrow(ArtifactUnavailable::class, 'Object write unconfirmed.');
+    } finally {
+        fclose($stream);
+    }
+
+    expect($requests)->toBe([['PUT', 15]])
+        ->and(crashRecoveryStatus($reservations->output))->toBe('writing');
 });
 
 test('прерванное восстановление S3 снимает блокировку после lease текущей попытки и сохраняет канонический ключ', function (): void {
