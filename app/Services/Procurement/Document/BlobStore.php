@@ -71,21 +71,34 @@ final readonly class BlobStore
                 }
             }
             $expected = new ContentHash(hash_final($hash));
+            $disk = Storage::disk($reservation->disk);
+            $remote = ! $disk->getAdapter() instanceof LocalFilesystemAdapter
+                && config("filesystems.disks.{$reservation->disk}.driver") === 's3';
+            if ($remote && $reservation->attemptId === null) {
+                throw new ArtifactUnavailable('Remote upload requires a work attempt.');
+            }
+            $putStarted = false;
+            $confirmed = false;
+            $execution?->tick();
             $this->capacity->beginWrite($reservation);
             try {
-                $disk = Storage::disk($reservation->disk);
                 $this->workspace->recordFileWriter($reservation);
                 if ($disk->exists($reservation->objectKey())) {
                     throw new ArtifactUnavailable('Immutable upload key already exists.');
                 }
                 rewind($spool);
-                if (! $disk->put($reservation->objectKey(), $spool)) {
+                $execution?->tick();
+                $putStarted = true;
+                $confirmed = $disk->put($reservation->objectKey(), $spool);
+                if (! $confirmed) {
                     throw new ArtifactUnavailable('Object write unconfirmed.');
                 }
             } finally {
-                // If PHP dies before this returns, writing remains charged; expiry/cancel is not cleanup.
-                $this->capacity->finishWrite($reservation);
-                $this->workspace->clearFileWriter($reservation);
+                // A failed remote response can leave a request in flight after the caller exits.
+                if (! $remote || ! $putStarted || $confirmed) {
+                    $this->capacity->finishWrite($reservation);
+                    $this->workspace->clearFileWriter($reservation);
+                }
             }
 
             return $this->verify($reservation, $expected, $size, $execution);
@@ -162,11 +175,19 @@ final readonly class BlobStore
         $blob = new BlobReference(new ProcessUuid($row->string('id')), $artifact->reservation->domainId,
             $artifact->hash, $row->string('disk'), $key, $row->int('size_bytes'));
         $confirmed = false;
+        $remote = ! $disk->getAdapter() instanceof LocalFilesystemAdapter
+            && config("filesystems.disks.{$blob->disk}.driver") === 's3';
+        $claim = null;
         try {
             $execution?->tick();
             // Re-read and pin under the capacity authority before touching the older immutable key.
             // A completed GC means the caller will acquire its own fresh staging object instead.
-            if (! $this->artifacts->beginRepair($blob)) {
+            if ($remote) {
+                $claim = $this->artifacts->beginRemoteRepair($blob, source: $artifact->reservation);
+                if ($claim === null) {
+                    return;
+                }
+            } elseif (! $this->artifacts->beginRepair($blob)) {
                 return;
             }
             $this->workspace->recordRepairWriter($blob);
@@ -178,7 +199,11 @@ final readonly class BlobStore
             fclose($source);
             if ($confirmed) {
                 $this->workspace->clearRepairWriter($blob);
-                $this->artifacts->finishRepair($blob);
+                if ($claim === null) {
+                    $this->artifacts->finishRepair($blob);
+                } elseif (! $this->artifacts->finishRemoteRepair($blob, claim: $claim)) {
+                    throw new ArtifactUnavailable('Canonical repair ownership changed.');
+                }
             }
         }
     }
@@ -186,10 +211,22 @@ final readonly class BlobStore
     public function recoverStoppedRepair(BlobReference $blob): bool
     {
         $this->outsideTransaction();
+        $disk = Storage::disk($blob->disk);
+        if (! $disk->getAdapter() instanceof LocalFilesystemAdapter && config("filesystems.disks.{$blob->disk}.driver") === 's3') {
+            $claim = $this->artifacts->remoteRepairClaim($blob);
+            if ($claim === null) {
+                return false;
+            }
+            $claimedAt = $claim->string('repair_claimed_at');
+            $attempt = $claim->nullableString('repair_attempt_id');
+
+            // A subsequent writer can retry a missing or incomplete repair; the canonical key remains catalogued.
+            return $this->workspace->remoteWriterStopped($blob->disk, $attempt === null ? null : new ProcessUuid($attempt), unownedSince: $claimedAt)
+                && $this->artifacts->finishRemoteRepair($blob, claim: $claimedAt);
+        }
         if (! $this->workspace->repairWriterStopped($blob)) {
             return false;
         }
-        $disk = Storage::disk($blob->disk);
         if (! $this->matchesBlob($disk, $blob->objectKey, $blob->hash, $blob->sizeBytes, null)) {
             return false;
         }

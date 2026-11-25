@@ -199,6 +199,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_11_11_100001_create_prc_proxyma_transfer_records.php` | create | Proxyma:P10.1 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. PLAN2:P2.4 adds rollback for the owned schema objects. |
 | `2026_11_11_100002_add_prc_proxyma_cutover_fences.php` | alter | Proxyma:P10.2 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. |
 | `2026_11_25_100000_add_audit_performance_indexes.php` | alter | PLAN2:P2.4 | Add indexes for retention, diagnostics and operator queries with reversible DDL. |
+| `2026_11_25_100001_add_document_repair_ownership.php` | alter | PLAN2:P3.1 | Persist the actual canonical repair attempt and fence recovery from newer repairs. |
 
 ### Legacy lifecycle
 
@@ -1267,6 +1268,8 @@ Create: P3.1; activation boundary: P3.5; owner: `Repositories/Procurement/Docume
 | disk | text | no | disk text NOT NULL |
 | object_key | text | no | object_key text NOT NULL |
 | created_at | timestamptz | no | created_at timestamptz NOT NULL |
+| repair_attempt_id | uuid | yes | repair_attempt_id uuid NULL REFERENCES prc_process_attempts(id) → prc_process_attempts(id) ON DELETE NO ACTION @P3.1 |
+| repair_claimed_at | timestamptz | yes | repair_claimed_at timestamptz NULL |
 
 Constraints:
 - `CONSTRAINT prc_storage_reservations_owner_check CHECK ((work_id IS NULL)=(attempt_id IS NULL) AND NOT(work_id IS NOT NULL AND operation_id IS NOT NULL))`
@@ -5195,6 +5198,8 @@ Owner: Repositories/Procurement/Document; retention: artifacts.
 | disk | text / text | NO | text NOT NULL |
 | object_key | text / text | NO | text NOT NULL |
 | created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| repair_attempt_id | uuid / uuid | YES | uuid |
+| repair_claimed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
 
 Constraints:
 - `prc_storage_reservations_attempt_id_fkey`: `FOREIGN KEY (attempt_id) REFERENCES prc_process_attempts(id)`
@@ -5210,6 +5215,7 @@ Constraints:
 - `prc_storage_reservations_owner_check`: `CHECK ((((work_id IS NULL) = (attempt_id IS NULL)) AND (NOT ((work_id IS NOT NULL) AND (operation_id IS NOT NULL)))))`
 - `prc_storage_reservations_phase_check`: `CHECK ((phase = ANY (ARRAY['download'::text, 'prepare'::text])))`
 - `prc_storage_reservations_pkey`: `PRIMARY KEY (id)`
+- `prc_storage_reservations_repair_attempt_id_fkey`: `FOREIGN KEY (repair_attempt_id) REFERENCES prc_process_attempts(id)`
 - `prc_storage_reservations_status_check`: `CHECK ((status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text, 'cleaned'::text, 'transferred'::text])))`
 - `prc_storage_reservations_upload_intent_id_key`: `UNIQUE (upload_intent_id)`
 - `prc_storage_reservations_work_id_fkey`: `FOREIGN KEY (work_id) REFERENCES prc_process_work(id)`

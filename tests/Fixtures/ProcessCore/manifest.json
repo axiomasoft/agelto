@@ -5968,7 +5968,7 @@
         },
         {
             "path": "docker/tests/process-core/test_schema_inventory.py",
-            "sha256": "6bc5cd6b6143e4d4eb141d7f1a640a7dd18bdbc36264b936537a79c4ba664de6",
+            "sha256": "c90e721cd5e821d6ceda047091cb0cd8ebdf0e71bfd6e3e1d63cfec61382b386",
             "accepted_change_item": "Proxyma:P10.1",
             "current_change_reason": "Refresh stale isolated package discovery before application boot; preserve exact additive schema inventory expectations."
         },
@@ -6206,7 +6206,7 @@
         },
         {
             "path": "docs/dev/process-schema.md",
-            "sha256": "7b668b542aa4c341796db76a482e4d2e654a49ebf5b2ab0f4468580dd694dd77",
+            "sha256": "b88eeb8b0fe98869ad76a51ca59522e4e06f923217ec68d3208dfcdcac7708c3",
             "accepted_change_item": "Proxyma:P10.2",
             "current_change_reason": "PLAN2:P2.4 audit index inventory and migration rollback reconciliation.",
             "before_proxyma_runtime_removal_sha256": "bcd17541a0c246165dfbb1c9dd181e6341a5211fcf66521a9c45cf74460db842"
@@ -6249,7 +6249,7 @@
         },
         {
             "path": "tests/Support/ProcessCore/schema-inventory.json",
-            "sha256": "9fed6810de91b4daa5c992d13335cbc3bc2f5704d75e8bddc20b938fc1aad8dc",
+            "sha256": "c453e30a532b08a260752d0e73294ce8a6e508ed734b80ff8a458eff3a85e62c",
             "accepted_change_item": "Proxyma:P10.2",
             "current_change_reason": "PLAN2:P2.4 audit index inventory and migration rollback reconciliation.",
             "before_proxyma_runtime_removal_sha256": "50a2393d95ed5f32d01dd9d908333ae597d029588fa99f087dd3ea1b352d160a"
@@ -7841,6 +7841,10 @@
         {
             "path": "database/migrations/2026_11_25_100000_add_audit_performance_indexes.php",
             "sha256": "02166cefd03bdcba2d148e7d45c1b9fac6feb52ba0b7f0ec562b787c082a9d85"
+        },
+        {
+            "path": "database/migrations/2026_11_25_100001_add_document_repair_ownership.php",
+            "sha256": "15b08f25d94c02bf03b124fd8e1cbb5f9798e69c735a6a98fa181c68adbacc92"
         }
     ],
     "source_classes": [

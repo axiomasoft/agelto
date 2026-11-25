@@ -6,9 +6,14 @@ namespace App\Services\Procurement\Document;
 
 use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Document\StorageReservationRequest;
+use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Document\StoragePhase;
+use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
+use App\Repositories\Procurement\Process\LedgerRow;
+use App\Services\Procurement\Process\ProcessLog;
+use App\Services\Procurement\Process\ProcessPolicy;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 
@@ -18,7 +23,9 @@ final readonly class PrepareWorkspace
     /** Bounded owner.json, php-finished and cleanup proof in addition to spool bytes. */
     public const int SPOOL_PROOF_BYTES = 1024;
 
-    public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc) {}
+    private const int S3_GRACE_SECONDS = 30;
+
+    public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc, private ProcessPolicy $policy) {}
 
     public function open(StorageReservationRequest $reservation): string
     {
@@ -27,13 +34,26 @@ final readonly class PrepareWorkspace
             throw new \InvalidArgumentException('Local prepare workspace required.');
         }
         $this->capacity->beginWrite($reservation);
-        if (! $disk->makeDirectory($reservation->objectKey())) {
-            throw new ArtifactUnavailable('Prepare workspace unavailable.');
-        }
-        $dir = $disk->path($reservation->objectKey());
-        $owner = ['reservation' => $reservation->id->value, 'pid' => $this->pid(), 'start' => $this->start($this->pid())];
-        if (file_put_contents($dir.'/owner.json', json_encode($owner, JSON_THROW_ON_ERROR)) === false) {
-            throw new ArtifactUnavailable('Workspace owner proof unavailable.');
+        try {
+            if (! $disk->makeDirectory($reservation->objectKey())) {
+                throw new ArtifactUnavailable('Prepare workspace unavailable.');
+            }
+            $dir = $disk->path($reservation->objectKey());
+            $pid = $this->pid();
+            $owner = json_encode(['reservation' => $reservation->id->value, 'pid' => $pid, 'start' => $this->start($pid)], JSON_THROW_ON_ERROR);
+            if (@file_put_contents($dir.'/owner.json', $owner) !== strlen($owner)) {
+                throw new ArtifactUnavailable('Workspace owner proof unavailable.');
+            }
+        } catch (\Throwable $failure) {
+            // No caller has the workspace path yet, so no tool or spool writer can still use it.
+            try {
+                $this->capacity->finishWrite($reservation);
+                $this->gc->cleanup($reservation);
+            } catch (\Throwable $cleanupFailure) {
+                ProcessLog::dependencyUnavailable('storage', $cleanupFailure);
+            }
+
+            throw $failure;
         }
 
         return $dir;
@@ -71,7 +91,11 @@ final readonly class PrepareWorkspace
         if (! is_file($dir.'/owner.json')) {
             return false;
         }
-        $owner = json_decode((string) file_get_contents($dir.'/owner.json'), true, flags: JSON_THROW_ON_ERROR);
+        try {
+            $owner = json_decode((string) file_get_contents($dir.'/owner.json'), true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return false;
+        }
         if (! is_array($owner) || ($owner['reservation'] ?? null) !== $reservation->id->value || ! is_int($owner['pid'] ?? null) || ! is_string($owner['start'] ?? null)) {
             return false;
         }
@@ -86,7 +110,11 @@ final readonly class PrepareWorkspace
             if (str_contains(basename($path), '.')) {
                 continue;
             }
-            $proof = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+            try {
+                $proof = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                return false;
+            }
             if (! is_array($proof) || ($proof['stopped'] ?? null) !== true) {
                 return false;
             }
@@ -106,7 +134,12 @@ final readonly class PrepareWorkspace
     {
         $disk = Storage::disk($reservation->disk);
         if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
-            return false;
+            if ($reservation->attemptId === null || ! $this->remoteWriterStopped($reservation->disk, $reservation->attemptId)) {
+                return false;
+            }
+            $this->capacity->finishStoppedWrite($reservation);
+
+            return $this->gc->cleanup($reservation);
         }
         $path = $disk->path($reservation->objectKey());
         if ($reservation->phase === StoragePhase::Prepare && (is_dir($path) || (! is_file($path) && ! is_file($path.'.owner')))) {
@@ -253,6 +286,43 @@ final readonly class PrepareWorkspace
         }
 
         return $owner['pid'] !== $this->pid() && $this->start($owner['pid']) !== $owner['start'];
+    }
+
+    public function remoteWriterStopped(string $disk, ?ProcessUuid $attemptId, ?string $unownedSince = null): bool
+    {
+        $timeout = config("filesystems.disks.{$disk}.http.timeout");
+        if (config("filesystems.disks.{$disk}.driver") !== 's3' || (! is_float($timeout) && ! is_int($timeout)) || ! is_finite($timeout) || $timeout <= 0) {
+            return false;
+        }
+        $margin = (int) ceil($timeout) + self::S3_GRACE_SECONDS;
+        if ($attemptId === null) {
+            // Legacy repair holds have no owner. Observe the hold for a full worker lease.
+            $maxLease = max(array_map($this->policy->leaseSeconds(...), StageCode::cases()));
+
+            return $unownedSince !== null && (LedgerRow::one(
+                'SELECT clock_timestamp() >= ?::timestamptz + make_interval(secs => ?) AS expired',
+                [$unownedSince, $maxLease + $margin],
+            )?->bool('expired') ?? false);
+        }
+
+        $attempt = LedgerRow::one("SELECT w.stage, clock_timestamp()::text AS db_now, a.finished_at,
+            GREATEST(a.started_at, a.last_heartbeat_at, a.last_checkpoint_at) AS last_renewal,
+            CASE WHEN w.state = 'running' AND w.generation = a.generation THEN w.lease_until END AS lease_until
+            FROM prc_process_attempts a JOIN prc_process_work w ON w.id = a.work_id WHERE a.id = ?", [$attemptId->value]);
+        if ($attempt === null) {
+            return false;
+        }
+        $lease = $attempt->nullableString('lease_until');
+        $finished = $attempt->nullableString('finished_at');
+        $stageLease = $this->policy->leaseSeconds(StageCode::from($attempt->string('stage')));
+        $until = $lease === null
+            ? (new \DateTimeImmutable($attempt->string('last_renewal')))->modify("+{$stageLease} seconds")
+            : new \DateTimeImmutable($lease);
+        if ($finished !== null) {
+            $until = max($until, new \DateTimeImmutable($finished));
+        }
+
+        return new \DateTimeImmutable($attempt->string('db_now')) >= $until->modify("+{$margin} seconds");
     }
 
     private function pid(): int

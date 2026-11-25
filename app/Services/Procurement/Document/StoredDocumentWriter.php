@@ -21,6 +21,7 @@ use App\Repositories\Procurement\Document\DocumentRepresentationRepository;
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Services\Procurement\Process\ProcessTransaction;
+use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -208,13 +209,30 @@ final readonly class StoredDocumentWriter
     /** @return array{string,int} */
     private function digestObject(string $disk, string $path): array
     {
-        $stream = Storage::disk($disk)->readStream($path);
+        $maxBytes = config()->integer('documents.download.max_bytes');
+        $filesystem = Storage::disk($disk);
+        if ($filesystem instanceof AwsS3V3Adapter) {
+            // Avoid buffering the whole HTTP response before the bounded read can stop it.
+            $filesystem = Storage::build([...$filesystem->getConfig(), 'stream_reads' => true]);
+        }
+        $stream = $filesystem->readStream($path);
         if (! is_resource($stream)) {
             throw new ArtifactUnavailable('Stored object stream unavailable.');
         }
         try {
             $hash = hash_init('sha256');
-            $size = hash_update_stream($hash, $stream);
+            $size = 0;
+            while (! feof($stream)) {
+                $chunk = fread($stream, max(1, min(8192, $maxBytes - $size + 1)));
+                if ($chunk === false || ($chunk === '' && ! feof($stream))) {
+                    throw new ArtifactUnavailable('Stored object stream read failed.');
+                }
+                $size += strlen($chunk);
+                if ($size > $maxBytes) {
+                    throw new ArtifactUnavailable('Stored object exceeds the document byte ceiling.');
+                }
+                hash_update($hash, $chunk);
+            }
 
             return [hash_final($hash), $size];
         } finally {

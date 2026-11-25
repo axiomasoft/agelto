@@ -163,7 +163,7 @@ final readonly class PrepareHandler implements StageHandler
                     }
                     $artifact = $this->persist($batch->anchoredText, $r, $execution, $deadline);
                     $batches[] = new PreparedBatch($artifact, $batch->pages);
-                    $next = max(1, min(20, (int) floor(150 / ($batch->seconds / $range->length()))));
+                    $next = max(1, min(20, (int) floor(150 / (max(0.001, $batch->seconds) / $range->length()))));
                     $keepOutput = true;
                 } catch (ToolFailed $e) {
                     if ($range->length() > 1) {

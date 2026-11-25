@@ -33,6 +33,7 @@ use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\StageHandler;
+use App\Services\Procurement\Process\ProcessLog;
 use App\Support\Files\MimeDetector;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\FilesystemException;
@@ -141,7 +142,9 @@ final readonly class DownloadHandler implements StageHandler
                 if ($prefix === false) {
                     throw new ArtifactUnavailable('Downloaded stream unreadable.');
                 }
-                rewind($stream);
+                if (! @rewind($stream)) {
+                    throw new ArtifactUnavailable('Downloaded stream cannot be rewound.');
+                }
                 $mime = MimeDetector::of($prefix);
                 if (in_array($mime, ['text/html', 'application/xhtml+xml'], true) || preg_match('/^\s*(?:<!doctype\s+html|<html|<head|<body|<form)\b/i', $prefix)) {
                     return new StageBlocked(BlockedReason::PolicyReview);
@@ -167,11 +170,19 @@ final readonly class DownloadHandler implements StageHandler
                 fclose($stream);
             }
             // A failed delete retains the temporary charge. An uncertain writer is never released.
-            if ($binary === null || $this->removeBinary($binary)) {
-                $this->gc->cleanup($reservations->temporary);
+            try {
+                if ($binary === null || $this->removeBinary($binary)) {
+                    $this->gc->cleanup($reservations->temporary);
+                }
+            } catch (\Throwable $failure) {
+                ProcessLog::dependencyUnavailable('storage', $failure);
             }
             if (! $published) {
-                $this->gc->cleanup($reservations->durable);
+                try {
+                    $this->gc->cleanup($reservations->durable);
+                } catch (\Throwable $failure) {
+                    ProcessLog::dependencyUnavailable('storage', $failure);
+                }
             }
             // Successful staged original remains charged until guarded transfer or orphan GC.
         }

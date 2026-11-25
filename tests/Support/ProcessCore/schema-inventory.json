@@ -443,6 +443,16 @@
       "source_command": "core-test-reset",
       "source_run": "20261125T104330.967856Z-1697665",
       "catalog_sha256": "433783c2f2783bd62a8552db522e2b9cff489b9bfd0a5ef127d1ba33300d1508"
+    },
+    "document_repair_ownership": {
+      "item": "PLAN2:P3.1",
+      "kind": "isolated_forward_catalog_generation",
+      "tables": [
+        "prc_storage_reservations"
+      ],
+      "source_command": "core-test-reset",
+      "source_run": "20261125T111127.307002Z-1882264",
+      "catalog_sha256": "a11e683079747c596424b96db60c90639077bd304dd30ba1b478b920c5e17e13"
     }
   },
   "migrations": [
@@ -1103,6 +1113,13 @@
       "action": "alter",
       "owner_item": "PLAN2:P2.4",
       "reason": "Add indexes for retention, diagnostics and operator queries with reversible DDL."
+    },
+    {
+      "path": "database/migrations/2026_11_25_100001_add_document_repair_ownership.php",
+      "sha256": "15b08f25d94c02bf03b124fd8e1cbb5f9798e69c735a6a98fa181c68adbacc92",
+      "action": "alter",
+      "owner_item": "PLAN2:P3.1",
+      "reason": "Persist the actual canonical repair attempt and fence recovery from newer repairs."
     }
   ],
   "baseline": {
@@ -20223,6 +20240,26 @@
             "table_name": "prc_storage_reservations",
             "table_schema": "public",
             "udt_name": "timestamptz"
+          },
+          {
+            "column_default": null,
+            "column_name": "repair_attempt_id",
+            "data_type": "uuid",
+            "is_nullable": "YES",
+            "ordinal_position": 16,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "uuid"
+          },
+          {
+            "column_default": null,
+            "column_name": "repair_claimed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 17,
+            "table_name": "prc_storage_reservations",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
           }
         ],
         "constraints": [
@@ -20318,6 +20355,13 @@
             "type": "p"
           },
           {
+            "definition": "FOREIGN KEY (repair_attempt_id) REFERENCES prc_process_attempts(id)",
+            "name": "prc_storage_reservations_repair_attempt_id_fkey",
+            "schema": "public",
+            "table_name": "prc_storage_reservations",
+            "type": "f"
+          },
+          {
             "definition": "CHECK ((status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text, 'cleaned'::text, 'transferred'::text])))",
             "name": "prc_storage_reservations_status_check",
             "schema": "public",
@@ -20339,7 +20383,7 @@
             "type": "f"
           }
         ],
-        "definition": "CREATE TABLE public.prc_storage_reservations (\n    id uuid NOT NULL,\n    domain_id uuid NOT NULL,\n    work_id uuid,\n    attempt_id uuid,\n    operation_id uuid,\n    upload_intent_id uuid NOT NULL,\n    owner_token uuid NOT NULL,\n    generation bigint NOT NULL,\n    byte_upper_bound bigint NOT NULL,\n    phase text NOT NULL,\n    status text NOT NULL,\n    cleanup_verified_at timestamp with time zone,\n    disk text NOT NULL,\n    object_key text NOT NULL,\n    created_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_storage_reservations_byte_upper_bound_check CHECK ((byte_upper_bound > 0)),\n    CONSTRAINT prc_storage_reservations_cleanup_check CHECK (((status = 'cleaned'::text) = (cleanup_verified_at IS NOT NULL))),\n    CONSTRAINT prc_storage_reservations_disk_check CHECK ((length(disk) > 0)),\n    CONSTRAINT prc_storage_reservations_generation_check CHECK ((generation >= 1)),\n    CONSTRAINT prc_storage_reservations_object_key_check CHECK ((length(object_key) > 0)),\n    CONSTRAINT prc_storage_reservations_owner_check CHECK ((((work_id IS NULL) = (attempt_id IS NULL)) AND (NOT ((work_id IS NOT NULL) AND (operation_id IS NOT NULL))))),\n    CONSTRAINT prc_storage_reservations_phase_check CHECK ((phase = ANY (ARRAY['download'::text, 'prepare'::text]))),\n    CONSTRAINT prc_storage_reservations_status_check CHECK ((status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text, 'cleaned'::text, 'transferred'::text])))\n);",
+        "definition": "CREATE TABLE public.prc_storage_reservations (\n    id uuid NOT NULL,\n    domain_id uuid NOT NULL,\n    work_id uuid,\n    attempt_id uuid,\n    operation_id uuid,\n    upload_intent_id uuid NOT NULL,\n    owner_token uuid NOT NULL,\n    generation bigint NOT NULL,\n    byte_upper_bound bigint NOT NULL,\n    phase text NOT NULL,\n    status text NOT NULL,\n    cleanup_verified_at timestamp with time zone,\n    disk text NOT NULL,\n    object_key text NOT NULL,\n    created_at timestamp with time zone NOT NULL,\n    repair_attempt_id uuid,\n    repair_claimed_at timestamp with time zone,\n    CONSTRAINT prc_storage_reservations_byte_upper_bound_check CHECK ((byte_upper_bound > 0)),\n    CONSTRAINT prc_storage_reservations_cleanup_check CHECK (((status = 'cleaned'::text) = (cleanup_verified_at IS NOT NULL))),\n    CONSTRAINT prc_storage_reservations_disk_check CHECK ((length(disk) > 0)),\n    CONSTRAINT prc_storage_reservations_generation_check CHECK ((generation >= 1)),\n    CONSTRAINT prc_storage_reservations_object_key_check CHECK ((length(object_key) > 0)),\n    CONSTRAINT prc_storage_reservations_owner_check CHECK ((((work_id IS NULL) = (attempt_id IS NULL)) AND (NOT ((work_id IS NOT NULL) AND (operation_id IS NOT NULL))))),\n    CONSTRAINT prc_storage_reservations_phase_check CHECK ((phase = ANY (ARRAY['download'::text, 'prepare'::text]))),\n    CONSTRAINT prc_storage_reservations_status_check CHECK ((status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text, 'cleaned'::text, 'transferred'::text])))\n);",
         "indexes": [
           {
             "indexdef": "CREATE INDEX prc_storage_reservations_active_idx ON public.prc_storage_reservations USING btree (domain_id) WHERE (status = ANY (ARRAY['reserved'::text, 'writing'::text, 'staged'::text, 'cleaning'::text]))",
@@ -29335,6 +29379,24 @@
           "type": "timestamptz",
           "nullable": false,
           "definition": "created_at timestamptz NOT NULL"
+        },
+        "repair_attempt_id": {
+          "type": "uuid",
+          "nullable": true,
+          "definition": "repair_attempt_id uuid NULL REFERENCES prc_process_attempts(id)",
+          "references": {
+            "table": "prc_process_attempts",
+            "columns": [
+              "id"
+            ],
+            "on_delete": "NO ACTION",
+            "at": "P3.1"
+          }
+        },
+        "repair_claimed_at": {
+          "type": "timestamptz",
+          "nullable": true,
+          "definition": "repair_claimed_at timestamptz NULL"
         }
       },
       "constraints": [

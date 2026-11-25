@@ -13,6 +13,10 @@ use App\Services\Procurement\Process\ProcessLog;
 /** Object I/O stays outside DB locks. A dead lease alone never releases uncertain tool bytes. */
 final class DocumentStorageReconciler implements ReconcileCategory
 {
+    private const int RESERVATION_BATCH = 50;
+
+    private const int BLOB_BATCH = 25;
+
     private ?ProcessUuid $cursor = null;
 
     private ?ProcessUuid $repairCursor = null;
@@ -36,10 +40,10 @@ final class DocumentStorageReconciler implements ReconcileCategory
 
     public function reconcile(): int
     {
-        $rows = $this->capacity->cleanupCandidates(afterId: $this->cursor);
+        $rows = $this->capacity->cleanupCandidates(afterId: $this->cursor, limit: self::RESERVATION_BATCH);
         if ($rows === [] && $this->cursor !== null) {
             $this->cursor = null;
-            $rows = $this->capacity->cleanupCandidates();
+            $rows = $this->capacity->cleanupCandidates(limit: self::RESERVATION_BATCH);
         }
         if ($rows === []) {
             $this->cursor = null;
@@ -61,14 +65,14 @@ final class DocumentStorageReconciler implements ReconcileCategory
                 ]);
             }
         }
-        if (count($rows) < 50) {
+        if (count($rows) < self::RESERVATION_BATCH) {
             $this->cursor = null;
         }
 
-        $repairs = $this->artifacts->repairCandidates(afterId: $this->repairCursor);
+        $repairs = $this->artifacts->repairCandidates(afterId: $this->repairCursor, limit: self::BLOB_BATCH);
         if ($repairs === [] && $this->repairCursor !== null) {
             $this->repairCursor = null;
-            $repairs = $this->artifacts->repairCandidates();
+            $repairs = $this->artifacts->repairCandidates(limit: self::BLOB_BATCH);
         }
         foreach ($repairs as $blob) {
             $this->repairCursor = $blob->id;
@@ -83,15 +87,16 @@ final class DocumentStorageReconciler implements ReconcileCategory
                 ]);
             }
         }
-        if (count($repairs) < 25) {
+        if (count($repairs) < self::BLOB_BATCH) {
             $this->repairCursor = null;
         }
 
-        $candidates = $this->artifacts->unreferencedBatch(900, 25, $this->blobVerifiedAtCursor, $this->blobIdCursor);
+        $candidates = $this->artifacts->unreferencedBatch(graceSeconds: 900, limit: self::BLOB_BATCH,
+            afterVerifiedAt: $this->blobVerifiedAtCursor, afterId: $this->blobIdCursor);
         if ($candidates === [] && $this->blobIdCursor !== null) {
             $this->blobVerifiedAtCursor = null;
             $this->blobIdCursor = null;
-            $candidates = $this->artifacts->unreferencedBatch(900, 25);
+            $candidates = $this->artifacts->unreferencedBatch(graceSeconds: 900, limit: self::BLOB_BATCH);
         }
         foreach ($candidates as $candidate) {
             $blob = $candidate->blob;
@@ -111,7 +116,7 @@ final class DocumentStorageReconciler implements ReconcileCategory
                 ]);
             }
         }
-        if (count($candidates) < 25) {
+        if (count($candidates) < self::BLOB_BATCH) {
             $this->blobVerifiedAtCursor = null;
             $this->blobIdCursor = null;
         }

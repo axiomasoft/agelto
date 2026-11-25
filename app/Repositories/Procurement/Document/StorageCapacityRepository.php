@@ -120,7 +120,7 @@ final readonly class StorageCapacityRepository
         });
     }
 
-    /** Idempotent factual stop acknowledgement, called only after verified local stop and file/workspace deletion. */
+    /** Idempotent writer stop acknowledgement. The reservation stays charged until verified cleanup. */
     public function finishStoppedWrite(StorageReservationRequest $request): void
     {
         $this->mutate($request, function (LedgerRow $row) use ($request): void {

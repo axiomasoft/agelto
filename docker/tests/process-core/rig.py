@@ -33,7 +33,7 @@ RESET_SUITES = {"faults", "load", "shard", "tia", "execution", "concurrency", "o
 GSFX_FIXTURE = "tests/Fixtures/ProcessCore/synthetic-estimate.gsfx"
 # Domain suites execute their owning assertions; concurrency tests use separate processes and
 # database connections. Transport, platform adapters and reconciliation have their own suites.
-SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Feature/ProcessCore/Documents", "tests/Integration/ProcessCore/Concurrency/StorageCapacityTest.php", "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php", "tests/Feature/Procurement/Prepare", "tests/Feature/Document/DocumentDownloaderTest.php"], "acquisition": ["tests/Feature/ProcessCore/Acquisition", "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php"], "execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
+SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Feature/ProcessCore/Documents", "tests/Integration/ProcessCore/Concurrency/StorageCapacityTest.php", "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php", "tests/Feature/Procurement/Prepare", "tests/Feature/Procurement/Document/S3CrashRecoveryTest.php", "tests/Feature/Document/DocumentDownloaderTest.php"], "acquisition": ["tests/Feature/ProcessCore/Acquisition", "tests/Unit/Architecture/AcquisitionIdentityOwnershipTest.php"], "execution": ["tests/Feature/ProcessCore/Execution", "tests/Integration/ProcessCore/Concurrency"],
                "concurrency": ["tests/Integration/ProcessCore/Concurrency"],
                "observability": ["tests/Feature/ProcessCore/Observability",
                                  "tests/Feature/Health/PrivatePackagesArePinnedTest.php"],

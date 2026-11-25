@@ -42,6 +42,11 @@ final readonly class ArtifactGarbageCollector
             return false;
         }
         $disk = Storage::disk($reservation->disk);
+        $local = $disk->getAdapter() instanceof LocalFilesystemAdapter;
+        if ($local && $reservation->phase === StoragePhase::Prepare && is_dir($disk->path($reservation->objectKey()))
+            && ! $disk->deleteDirectory($reservation->objectKey())) {
+            return false;
+        }
         if (! $disk->delete($reservation->objectKey()) || $disk->exists($reservation->objectKey())) {
             return false;
         }
@@ -51,7 +56,7 @@ final readonly class ArtifactGarbageCollector
                 return false;
             }
         }
-        if ($disk->getAdapter() instanceof LocalFilesystemAdapter) {
+        if ($local) {
             foreach (['.cleanup', '.owner'] as $suffix) {
                 $sidecar = $disk->path($reservation->objectKey()).$suffix;
                 if (is_file($sidecar) && (! @unlink($sidecar) || is_file($sidecar))) {

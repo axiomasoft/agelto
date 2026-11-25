@@ -134,10 +134,10 @@ class SchemaInventoryTest(unittest.TestCase):
     def test_complete_inventory_and_full_document_pass(self):
         # Старые run/call tables удалены; inactive Proxyma добавляет шесть mapping/authority tables.
         self.assertEqual(self.inventory["current_item"], "P3.17")
-        self.assertEqual(len(self.inventory["migrations"]), 82)
+        self.assertEqual(len(self.inventory["migrations"]), 83)
         self.assertEqual(len(self.inventory["baseline"]["tables"]), 130)
-        # Sealed coverage/publication metadata and normalized estimate provenance are required.
-        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1503)
+        # Sealed coverage/publication metadata, estimate provenance and repair ownership are required.
+        self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1505)
         adapter_columns = {c["column_name"]: (c["udt_name"], c["is_nullable"])
                            for c in self.inventory["baseline"]["tables"]["prc_outbound_operations"]["columns"]
                            if c["column_name"] in ("adapter_health_id", "adapter_health_epoch")}
