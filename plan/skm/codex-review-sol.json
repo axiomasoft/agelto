@@ -1,0 +1,12 @@
+{
+  "reviewer": "codex/gpt-6.2-sol/high",
+  "stages": [
+    {
+      "role": "reviewer",
+      "provider": "codex",
+      "model": "gpt-6.2-sol",
+      "effort": "high",
+      "model_class": "implementation"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "stages": [
+    {
+      "role": "executor",
+      "provider": "codex",
+      "model": "gpt-6.2-sol",
+      "effort": "xhigh",
+      "model_class": "frontier"
+    }
+  ]
+}
