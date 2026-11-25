@@ -193,8 +193,8 @@ final readonly class GsfxXmlParser
             $name = $child->getName();
 
             match ($name) {
-                'Resources' => $resources = $this->parseResources($child, $unmapped),
-                'Koefficients' => $coefficients = $this->parseCoefficients($child, $unmapped),
+                'Resources' => $resources = [...$resources, ...$this->parseResources($child, $unmapped)],
+                'Koefficients' => $coefficients = [...$coefficients, ...$this->parseCoefficients($child, $unmapped)],
                 'Quantity' => $quantity = $this->readQuantityResult($child, $quantity, $unmapped),
                 'PriceBase' => $priceBase = $this->priceValue($child, $unmapped),
                 'PriceCurr' => $priceCurr = $this->priceValue($child, $unmapped),

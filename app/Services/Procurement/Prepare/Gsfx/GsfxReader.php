@@ -41,7 +41,10 @@ final readonly class GsfxReader
         $workTypeGroups = $this->parseWorkTypeGroups($xml, $unmapped);
         $addZatrGlavas = $this->parseAddZatrGlavas($xml, $unmapped);
         $indexCatalog = $this->xmlParser->parseIndexCatalog($xml, $unmapped);
-        $coefficients = isset($xml->Koefficients) ? $this->xmlParser->parseCoefficients($xml->Koefficients, $unmapped) : [];
+        $coefficients = [];
+        foreach ($xml->Koefficients ?? [] as $koefficientsNode) {
+            $coefficients = [...$coefficients, ...$this->xmlParser->parseCoefficients($koefficientsNode, $unmapped)];
+        }
         $this->tallyUnmappedTopLevel($xml, $unmapped);
 
         return new GsfxDocument(
@@ -64,7 +67,18 @@ final readonly class GsfxReader
 
     private function decode(string $raw): string
     {
-        return mb_convert_encoding($raw, 'UTF-8', 'Windows-1251');
+        $withoutBom = (string) preg_replace('/^\xEF\xBB\xBF/', '', $raw, limit: 1);
+
+        if ($withoutBom !== $raw || $this->hasUtf8Prolog($withoutBom) || mb_check_encoding($withoutBom, 'UTF-8')) {
+            return $withoutBom;
+        }
+
+        return mb_convert_encoding($withoutBom, 'UTF-8', 'Windows-1251');
+    }
+
+    private function hasUtf8Prolog(string $raw): bool
+    {
+        return preg_match('/^\s*(?:\xEF\xBB\xBF)?<\?xml\b[^>]*\bencoding\s*=\s*["\']utf-?8["\'][^>]*\?>/i', $raw) === 1;
     }
 
     private function loadXml(string $utf8Xml): SimpleXMLElement

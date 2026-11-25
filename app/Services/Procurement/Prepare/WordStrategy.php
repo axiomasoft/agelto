@@ -13,6 +13,7 @@ use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
+use App\Services\Procurement\Prepare\Archive\ArchiveWorkspaceHelper;
 use App\Services\Storage\FileLocationResolver;
 use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Support\Facades\Storage;
@@ -48,7 +49,7 @@ final readonly class WordStrategy implements PreparationStrategy
         $outputDir = PipelineTemporaryFile::createDirectory(prefix: 'word_pdf_');
 
         try {
-            file_put_contents($localInput, $sourceDisk->get($version->storage_path));
+            ArchiveWorkspaceHelper::copyToLocal($sourceDisk, $version->storage_path, $localInput);
 
             if (in_array($version->extension, ['docx', 'odt'], true)) {
                 try {
@@ -74,25 +75,62 @@ final readonly class WordStrategy implements PreparationStrategy
                 return PreparationResult::Unprocessable;
             }
 
-            $pdf = (string) file_get_contents($localOutput);
+            if (! $this->acceptsPdfFile($localOutput)) {
+                $this->markUnprocessable($document, 'LibreOffice создал пустой или некорректный PDF');
+
+                return PreparationResult::Unprocessable;
+            }
+
             $preparedPath = $this->preparedPath($version);
-            $this->writer->write($disk, $version, RepresentationKind::Pdf, $preparedPath, $pdf, [
-                'storage_path' => $preparedPath,
-                'disk' => $diskName,
-                'size_bytes' => strlen($pdf),
-                'mime' => 'application/pdf',
-                'meta' => [
-                    'tool' => 'libreoffice',
-                    'tool_version' => $this->converter->version(deadlineAt: $deadlineAt),
-                ],
-                'generated_at' => now(),
-            ]);
+            $pdfStream = fopen($localOutput, 'rb');
+
+            if (! is_resource($pdfStream)) {
+                throw new RuntimeException("Не удалось открыть PDF после конвертации: {$localOutput}");
+            }
+
+            try {
+                $this->writer->writeStream(
+                    disk: $disk,
+                    version: $version,
+                    kind: RepresentationKind::Pdf,
+                    path: $preparedPath,
+                    stream: $pdfStream,
+                    attributes: [
+                        'storage_path' => $preparedPath,
+                        'disk' => $diskName,
+                        'size_bytes' => (int) filesize($localOutput),
+                        'mime' => 'application/pdf',
+                        'meta' => [
+                            'tool' => 'libreoffice',
+                            'tool_version' => $this->converter->version(deadlineAt: $deadlineAt),
+                        ],
+                        'generated_at' => now(),
+                    ],
+                );
+            } finally {
+                fclose($pdfStream);
+            }
 
             return PreparationResult::ReadyForScreening;
         } finally {
             @unlink($localInput);
             PipelineTemporaryFile::deleteDirectory($outputDir);
         }
+    }
+
+    private function acceptsPdfFile(string $path): bool
+    {
+        if (! is_file($path)) {
+            return false;
+        }
+
+        $size = @filesize($path);
+
+        if (! is_int($size) || $size <= 0) {
+            return false;
+        }
+
+        return @file_get_contents($path, false, null, 0, 4) === '%PDF';
     }
 
     private function preparedPath(DocumentVersion $version): string

@@ -75,6 +75,7 @@ final class DocumentStorageFixtures
     {
         DB::statement('TRUNCATE prc_documents,prc_document_versions,prc_document_representations,prc_document_blobs,prc_storage_domains,prc_storage_reservations CASCADE');
         Storage::fake('local');
+        Storage::fake('s3');
         Storage::fake('p31_tmp');
     }
 

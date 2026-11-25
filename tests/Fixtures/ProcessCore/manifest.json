@@ -4114,7 +4114,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/SpreadsheetStrategyTest.php",
-            "sha256": "a27bc4e4e9ce2e9440b395943e4b25ae8ee458b59114fce90ef57f350d13b94b",
+            "sha256": "1db96b81b7b97a4ad17a3c932f65091ae9d97e893308d3b0e29789351be7aa90",
             "scenarios": [
                 "registry направляет текстовые документы в typed Word handler",
                 "docx → представление pdf с meta.tool=libreoffice, документ не терминален",

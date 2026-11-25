@@ -52,21 +52,7 @@ final readonly class ArchiveWorkspaceHelper
         $stream = $disk->readStream($storagePath);
 
         if (! is_resource($stream)) {
-            $contents = $disk->get($storagePath);
-
-            if (! is_string($contents)) {
-                throw new RuntimeException("Оригинал архива недоступен на диске: {$storagePath}");
-            }
-
-            if (strlen($contents) > $budget->maxTotalBytes) {
-                throw new ArchiveValidationException('превышен суммарный размер архива');
-            }
-
-            if (file_put_contents($localPath, $contents) === false) {
-                throw new RuntimeException("Не удалось записать временный файл архива: {$localPath}");
-            }
-
-            return;
+            throw new RuntimeException("Оригинал архива недоступен на диске: {$storagePath}");
         }
 
         $target = fopen($localPath, 'wb');

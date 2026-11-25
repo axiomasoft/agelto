@@ -104,7 +104,7 @@ test('сбой или изменение повторного чтения batch
     $mock = Mockery::mock($disk)->makePartial();
     $mock->shouldReceive('get')->once()->with($artifact->reservation->objectKey())
         ->andReturn($missing ? null : str_repeat('x', $artifact->sizeBytes));
-    Storage::partialMock()->shouldReceive('disk')->with($artifact->reservation->disk)->andReturn($mock);
+    Storage::set($artifact->reservation->disk, $mock);
 
     $ctx = $f->context();
     $outcome = $f->handler($tools)->execute($f->input, $ctx);

@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Prepare;
 
 use App\Services\Procurement\Gold\WorksheetCellReader;
+use App\Support\Files\PipelineTemporaryFile;
+use Illuminate\Support\Facades\Process;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -62,21 +65,122 @@ final readonly class TextGridRenderer
      */
     public function render(string $localPath, string $extension): array|false
     {
-        if (! $this->xlsxResourceGuard->accepts(path: $localPath, extension: $extension)) {
+        if (! is_file($localPath) || ! $this->xlsxResourceGuard->accepts(path: $localPath, extension: $extension)) {
             return false;
         }
 
         $maxMb = $this->positiveFloatConfig(key: 'ai.prepare.xlsx_max_mb', default: 25.0);
-        if (filesize($localPath) > $maxMb * 1024 * 1024) {
+        $fileSize = @filesize($localPath);
+        if (! is_int($fileSize) || $fileSize > $maxMb * 1024 * 1024) {
             return false;
         }
 
         $maxRows = $this->positiveIntConfig(key: 'ai.prepare.xlsx_max_rows', default: 20_000);
+        $maxCells = $this->positiveIntConfig(key: 'ai.prepare.xlsx_max_cells', default: 2_000_000);
+        $memoryLimit = $this->nonEmptyStringConfig(key: 'ai.prepare.xlsx_convert_memory_limit', default: '512M');
+        $timeout = $this->positiveIntConfig(key: 'ai.prepare.xlsx_convert_timeout_seconds', default: 120);
+
+        $outputPath = PipelineTemporaryFile::create(prefix: 'text_grid_', extension: 'json');
+
+        try {
+            $script = 'require $argv[1]; exit(\App\Services\Procurement\Prepare\TextGridRenderer::runSubprocess($argv[2], $argv[3], (int) $argv[4], (int) $argv[5], $argv[6]));';
+            $result = Process::path(base_path())
+                ->timeout($timeout)
+                ->run([
+                    PHP_BINARY,
+                    '-d',
+                    "memory_limit={$memoryLimit}",
+                    '-r',
+                    $script,
+                    '--',
+                    base_path('vendor/autoload.php'),
+                    $localPath,
+                    $extension,
+                    (string) $maxRows,
+                    (string) $maxCells,
+                    $outputPath,
+                ]);
+
+            if ($result->failed() || ! is_file($outputPath)) {
+                return false;
+            }
+
+            $rawOutput = @file_get_contents($outputPath);
+            if (! is_string($rawOutput) || $rawOutput === '') {
+                return false;
+            }
+
+            $decoded = json_decode($rawOutput, true);
+            if (! is_array($decoded)
+                || ! isset($decoded['text'], $decoded['sheets'], $decoded['rows'])
+                || ! is_string($decoded['text'])
+                || ! is_int($decoded['sheets'])
+                || ! is_int($decoded['rows'])) {
+                return false;
+            }
+
+            return [
+                'text' => $decoded['text'],
+                'sheets' => $decoded['sheets'],
+                'rows' => $decoded['rows'],
+            ];
+        } finally {
+            @unlink($outputPath);
+        }
+    }
+
+    public static function runSubprocess(string $localPath, string $extension, int $maxRows, int $maxCells, string $outputPath): int
+    {
+        $renderer = new self(new XlsxResourceGuard);
+        $rendered = $renderer->renderInProcess(
+            localPath: $localPath,
+            extension: $extension,
+            maxRows: $maxRows,
+            maxCells: $maxCells,
+        );
+
+        if ($rendered === false) {
+            return 1;
+        }
+
+        $json = json_encode($rendered, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+
+        return @file_put_contents($outputPath, $json) === strlen($json) ? 0 : 1;
+    }
+
+    /**
+     * @return array{text: string, sheets: int, rows: int}|false
+     */
+    private function renderInProcess(string $localPath, string $extension, int $maxRows, int $maxCells): array|false
+    {
         if ($this->countRows($localPath, $extension) > $maxRows) {
             return false;
         }
 
         $reader = $extension === 'xls' ? new XlsReader : new XlsxReader;
+        $reader->setReadEmptyCells(false);
+        $reader->setReadFilter(new class($maxRows, $maxCells) implements IReadFilter
+        {
+            private int $visitedCells = 0;
+
+            public function __construct(
+                private readonly int $maxRows,
+                private readonly int $maxCells,
+            ) {}
+
+            public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool
+            {
+                if ($row > $this->maxRows) {
+                    throw new \OverflowException('Row limit exceeded.');
+                }
+
+                if (++$this->visitedCells > $this->maxCells) {
+                    throw new \OverflowException('Cell budget exceeded.');
+                }
+
+                return true;
+            }
+        });
 
         try {
             $spreadsheet = $reader->load($localPath);
@@ -87,7 +191,6 @@ final readonly class TextGridRenderer
         try {
             $sheets = $spreadsheet->getAllSheets();
 
-            $maxCells = $this->positiveIntConfig(key: 'ai.prepare.xlsx_max_cells', default: 2_000_000);
             if ($this->cellBudget($sheets) > $maxCells) {
                 return false;
             }
@@ -263,6 +366,17 @@ final readonly class TextGridRenderer
 
         if (! is_int($value) || $value <= 0) {
             throw new \UnexpectedValueException("{$key} must be a positive integer.");
+        }
+
+        return $value;
+    }
+
+    private function nonEmptyStringConfig(string $key, string $default): string
+    {
+        $value = config($key, $default);
+
+        if (! is_string($value) || trim($value) === '') {
+            throw new \UnexpectedValueException("{$key} must be a non-empty string.");
         }
 
         return $value;

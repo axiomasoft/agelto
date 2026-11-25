@@ -12,7 +12,7 @@ return [
         'pdf_slice_seconds' => 60,
     ],
     // Canonical storage addresses; immutable rows retain their recorded disk.
-    'disk' => 's3',
+    'disk' => env('DOCUMENTS_DISK', 's3'),
     'fallback_disks' => [],
     'allowed_hosts' => ['zakupki.gov.ru'],
     'signature_bytes' => 8192,
@@ -39,7 +39,7 @@ return [
         'tools_version' => 'qpdf version 12.2.0 16.7.0+dfsg1 tesseract 5.5.0 pdftotext version 25.03.0 pdfinfo version 25.03.0',
         'durable_domain' => 'documents.originals',
         'temporary_domain' => 'documents.temporary',
-        'disk' => 'local',
+        'disk' => env('DOCUMENTS_DISK', 's3'),
         'temporary_disk' => 'local',
     ],
     'download' => [
@@ -47,7 +47,7 @@ return [
         'revalidation_seconds' => 2592000,
         'durable_domain' => 'documents.originals',
         'temporary_domain' => 'documents.temporary',
-        'disk' => 'local',
+        'disk' => env('DOCUMENTS_DISK', 's3'),
         'temporary_disk' => 'local',
     ],
 ];

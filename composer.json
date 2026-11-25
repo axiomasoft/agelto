@@ -157,6 +157,11 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "audit": {
+            "ignore": {
+                "PKSA-kwst-yd6p-pksp": "Transitive filament/actions dependency; CSV CharsetConverter is not used."
+            }
         }
     },
     "minimum-stability": "stable",

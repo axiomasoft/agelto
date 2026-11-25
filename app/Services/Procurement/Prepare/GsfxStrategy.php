@@ -265,6 +265,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
             $lines[] = '## '.$chapter->caption;
 
             foreach ($chapter->positions as $position) {
+                $unitPrice = $position->price_curr ?? $position->price_base;
                 $lines[] = sprintf(
                     '%s. %s [%s] — %s %s x %s = %s',
                     $position->number ?? '—',
@@ -272,13 +273,47 @@ final readonly class GsfxStrategy implements PreparationStrategy
                     $position->code ?? '—',
                     $position->quantity ?? '—',
                     $position->unit ?? '',
-                    $position->price_curr ?? $position->price_base ?? '—',
-                    $position->price_curr ?? $position->price_base ?? '—',
+                    $unitPrice ?? '—',
+                    $this->calculatePositionTotal($position->quantity, $unitPrice) ?? '—',
                 );
             }
         }
 
         return implode("\n", $lines);
+    }
+
+    private function calculatePositionTotal(?string $quantity, ?string $unitPrice): ?string
+    {
+        $normalizedQuantity = $this->normalizeDecimal($quantity);
+        $normalizedUnitPrice = $this->normalizeDecimal($unitPrice);
+
+        if ($normalizedQuantity === null || $normalizedUnitPrice === null) {
+            return null;
+        }
+
+        return bcadd(bcmul($normalizedQuantity, $normalizedUnitPrice, 10), '0', 2);
+    }
+
+    /**
+     * @return numeric-string|null
+     */
+    private function normalizeDecimal(?string $raw): ?string
+    {
+        if ($raw === null) {
+            return null;
+        }
+
+        $normalized = str_replace(',', '.', str_replace([' ', "\u{00A0}"], '', trim($raw)));
+
+        if (str_starts_with($normalized, '+')) {
+            $normalized = substr($normalized, 1);
+        }
+
+        if (preg_match('/^-?\d+(?:\.\d+)?$/D', $normalized) !== 1 || ! is_numeric($normalized)) {
+            return null;
+        }
+
+        return $normalized;
     }
 
     /** @param list<ArchiveEntry> $entries */

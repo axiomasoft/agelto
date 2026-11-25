@@ -186,7 +186,14 @@ test('ошибка object storage после Word-конверсии остаё�
         'size_bytes' => strlen($source),
     ]);
     $disk = Mockery::mock(Filesystem::class);
-    $disk->shouldReceive('get')->once()->with($sourcePath)->andReturn($source);
+    $disk->shouldReceive('readStream')->once()->with($sourcePath)->andReturnUsing(static function () use ($source) {
+        $stream = fopen('php://temp', 'w+b');
+        assert(is_resource($stream));
+        fwrite($stream, $source);
+        rewind($stream);
+
+        return $stream;
+    });
     $disk->shouldReceive('writeStream')->once()->with(
         Mockery::pattern('/\.staging\./'),
         Mockery::on(static fn (mixed $stream): bool => is_resource($stream)
@@ -326,7 +333,14 @@ test('ошибка object storage после LibreOffice-фолбэка табл
         'size_bytes' => strlen($source),
     ]);
     $disk = Mockery::mock(Filesystem::class);
-    $disk->shouldReceive('get')->once()->with($sourcePath)->andReturn($source);
+    $disk->shouldReceive('readStream')->once()->with($sourcePath)->andReturnUsing(static function () use ($source) {
+        $stream = fopen('php://temp', 'w+b');
+        assert(is_resource($stream));
+        fwrite($stream, $source);
+        rewind($stream);
+
+        return $stream;
+    });
     $disk->shouldReceive('writeStream')->once()->with(
         Mockery::pattern('/\.staging\./'),
         Mockery::on(static fn (mixed $stream): bool => is_resource($stream)

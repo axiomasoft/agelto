@@ -14,6 +14,7 @@ use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
+use App\Services\Procurement\Prepare\Archive\ArchiveWorkspaceHelper;
 use App\Services\Storage\FileLocationResolver;
 use App\Support\Files\PipelineTemporaryFile;
 use Composer\InstalledVersions;
@@ -73,7 +74,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         $localInput = PipelineTemporaryFile::create(prefix: 'xlsx_', extension: $version->extension);
 
         try {
-            file_put_contents($localInput, $sourceDisk->get($version->storage_path));
+            ArchiveWorkspaceHelper::copyToLocal($sourceDisk, $version->storage_path, $localInput);
 
             if ($version->extension === 'xlsx') {
                 try {
@@ -137,13 +138,11 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
             $durationMs = (int) round((microtime(as_float: true) - $startedAt) * 1000);
 
-            $pdf = (string) file_get_contents($localOutput);
-
-            if (! $this->acceptsPdfBytes($pdf)) {
+            if (! $this->acceptsPdfFile($localOutput)) {
                 return false;
             }
 
-            $this->storePdfRepresentation($version, $disk, $diskName, $pdf, [
+            $this->storePdfRepresentation($version, $disk, $diskName, $localOutput, [
                 'tool' => 'phpspreadsheet+mpdf',
                 'tool_version' => InstalledVersions::getPrettyVersion('phpoffice/phpspreadsheet'),
                 'duration_ms' => $durationMs,
@@ -169,13 +168,11 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
                 return false;
             }
 
-            $pdf = (string) file_get_contents($localOutput);
-
-            if (! $this->acceptsPdfBytes($pdf)) {
+            if (! $this->acceptsPdfFile($localOutput)) {
                 return false;
             }
 
-            $this->storePdfRepresentation($version, $disk, $diskName, $pdf, [
+            $this->storePdfRepresentation($version, $disk, $diskName, $localOutput, [
                 'tool' => 'libreoffice',
                 'tool_version' => $this->converter->version(deadlineAt: $deadlineAt),
             ]);
@@ -186,25 +183,52 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         }
     }
 
-    private function acceptsPdfBytes(string $bytes): bool
+    private function acceptsPdfFile(string $path): bool
     {
-        return $bytes !== '' && str_starts_with($bytes, '%PDF');
+        if (! is_file($path)) {
+            return false;
+        }
+
+        $size = @filesize($path);
+
+        if (! is_int($size) || $size <= 0) {
+            return false;
+        }
+
+        return @file_get_contents($path, false, null, 0, 4) === '%PDF';
     }
 
     /**
      * @param  array<string, mixed>  $meta
      */
-    private function storePdfRepresentation(DocumentVersion $version, Filesystem $disk, string $diskName, string $pdf, array $meta): void
+    private function storePdfRepresentation(DocumentVersion $version, Filesystem $disk, string $diskName, string $localOutput, array $meta): void
     {
         $preparedPath = $this->preparedPath($version);
-        $this->writer->write($disk, $version, RepresentationKind::Pdf, $preparedPath, $pdf, [
-            'storage_path' => $preparedPath,
-            'disk' => $diskName,
-            'size_bytes' => strlen($pdf),
-            'mime' => 'application/pdf',
-            'meta' => $meta,
-            'generated_at' => now(),
-        ]);
+        $pdfStream = fopen($localOutput, 'rb');
+
+        if (! is_resource($pdfStream)) {
+            throw new RuntimeException("Не удалось открыть PDF после конвертации: {$localOutput}");
+        }
+
+        try {
+            $this->writer->writeStream(
+                disk: $disk,
+                version: $version,
+                kind: RepresentationKind::Pdf,
+                path: $preparedPath,
+                stream: $pdfStream,
+                attributes: [
+                    'storage_path' => $preparedPath,
+                    'disk' => $diskName,
+                    'size_bytes' => (int) filesize($localOutput),
+                    'mime' => 'application/pdf',
+                    'meta' => $meta,
+                    'generated_at' => now(),
+                ],
+            );
+        } finally {
+            fclose($pdfStream);
+        }
     }
 
     private function storeTextGrid(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput): void
