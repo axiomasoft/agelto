@@ -215,7 +215,7 @@ final class ArchiveExtractor
         $attributes = $values['Attributes'] ?? '';
         $isDirectory = str_contains($attributes, 'D') || (($values['Folder'] ?? '') === '+') || str_ends_with($path, '/') || str_ends_with($path, '\\');
         $isSymlink = str_contains($attributes, 'L') || (($values['Symbolic Link'] ?? '') !== '');
-        $isHardLink = ($values['Hard Link'] ?? '') !== '';
+        $isHardLink = isset($values['Hard Link']);
         $type = $isSymlink ? 'symlink' : ($isHardLink ? 'hardlink' : ($isDirectory ? 'directory' : 'file'));
 
         return new ArchiveEntry(

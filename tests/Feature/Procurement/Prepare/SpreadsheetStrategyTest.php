@@ -186,6 +186,7 @@ test('ошибка object storage после Word-конверсии остаё�
         'size_bytes' => strlen($source),
     ]);
     $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('files')->once()->with('documents/'.substr($sourceHash, 0, 2))->andReturn([]);
     $disk->shouldReceive('readStream')->once()->with($sourcePath)->andReturnUsing(static function () use ($source) {
         $stream = fopen('php://temp', 'w+b');
         assert(is_resource($stream));
@@ -333,6 +334,7 @@ test('ошибка object storage после LibreOffice-фолбэка табл
         'size_bytes' => strlen($source),
     ]);
     $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('files')->once()->with('documents/'.substr($sourceHash, 0, 2))->andReturn([]);
     $disk->shouldReceive('readStream')->once()->with($sourcePath)->andReturnUsing(static function () use ($source) {
         $stream = fopen('php://temp', 'w+b');
         assert(is_resource($stream));

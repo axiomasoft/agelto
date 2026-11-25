@@ -56,6 +56,7 @@ final readonly class RepresentationWriter
         $this->rewind($stream);
         [$contentHash] = $this->hash($stream);
         $storagePath = $this->contentAddressedPath(path: $path, contentHash: $contentHash);
+        $this->cleanupOrphanedStaging(disk: $disk, path: $path);
         $stagingPath = "{$storagePath}.staging.".Str::uuid();
 
         try {
@@ -102,8 +103,6 @@ final readonly class RepresentationWriter
         if (! hash_equals($contentHash, $storedHash)) {
             throw new \RuntimeException("Object storage вернул неполный representation: {$storagePath}");
         }
-
-        $this->cleanupOrphanedStaging(disk: $disk, path: $path, currentStagingPath: $stagingPath);
 
         $attributes['storage_path'] = $storagePath;
         $attributes['size_bytes'] = $storedSize;
@@ -176,20 +175,30 @@ final readonly class RepresentationWriter
         return "{$stem}.{$contentHash}.{$extension}";
     }
 
-    private function cleanupOrphanedStaging(Filesystem $disk, string $path, string $currentStagingPath): void
+    private function cleanupOrphanedStaging(Filesystem $disk, string $path): void
     {
         $cutoff = now()->getTimestamp() - config()->integer('documents.temporary_stale_seconds');
 
         try {
-            foreach ($disk->files(dirname($path)) as $candidate) {
-                if ($candidate !== $currentStagingPath
-                    && $this->isStagingPathFor(candidate: $candidate, path: $path)
-                    && $disk->lastModified($candidate) < $cutoff) {
-                    $disk->delete($candidate);
-                }
-            }
+            $candidates = $disk->files(dirname($path));
         } catch (FilesystemException $exception) {
             report($exception);
+
+            return;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (! $this->isStagingPathFor(candidate: $candidate, path: $path)) {
+                continue;
+            }
+
+            try {
+                if ($disk->lastModified($candidate) < $cutoff) {
+                    $disk->delete($candidate);
+                }
+            } catch (FilesystemException $exception) {
+                report($exception);
+            }
         }
     }
 

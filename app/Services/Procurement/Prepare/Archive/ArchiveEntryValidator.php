@@ -81,7 +81,9 @@ final class ArchiveEntryValidator
         }
 
         if ($totalBytes > 0) {
-            $denominator = $hasUnknownCompressedSize ? $archiveSizeBytes : $knownCompressedBytes;
+            $denominator = $hasUnknownCompressedSize
+                ? $archiveSizeBytes
+                : min($knownCompressedBytes, $archiveSizeBytes ?? $knownCompressedBytes);
             if ($denominator === null || $denominator <= 0 || $totalBytes / $denominator > $budget->maxCompressionRatio) {
                 throw new ArchiveValidationException('превышен суммарный коэффициент сжатия архива');
             }

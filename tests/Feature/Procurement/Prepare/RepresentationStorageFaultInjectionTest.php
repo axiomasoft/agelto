@@ -25,6 +25,7 @@ dataset('prepared representation outputs', [
 test('false object write does not finalize any prepared representation', function (RepresentationKind $kind): void {
     $version = DocumentVersion::factory()->create();
     $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('files')->once()->with('prepared')->andReturn([]);
     $disk->shouldReceive('writeStream')->once()->with(
         Mockery::pattern('/\.staging\./'),
         Mockery::on(static fn (mixed $stream): bool => is_resource($stream)
@@ -47,6 +48,7 @@ test('false object write does not finalize any prepared representation', functio
 test('storage exception does not finalize a representation', function (): void {
     $version = DocumentVersion::factory()->create();
     $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('files')->once()->with('prepared')->andReturn([]);
     $disk->shouldReceive('writeStream')->once()->with(
         Mockery::pattern('/\.staging\./'),
         Mockery::on(static fn (mixed $stream): bool => is_resource($stream)

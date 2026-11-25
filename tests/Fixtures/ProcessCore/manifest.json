@@ -4077,7 +4077,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/RepresentationStorageFaultInjectionTest.php",
-            "sha256": "2835912d86f366fdf8713261aa8ee11346e6111bcc3305e760f1ab673ccc05a4",
+            "sha256": "348927b7dc98b7b8aa0a394485d4546ccb760eacac28d1365c14620f1a87b0de",
             "scenarios": [
                 "false object write does not finalize any prepared representation",
                 "storage exception does not finalize a representation",
@@ -4114,7 +4114,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/SpreadsheetStrategyTest.php",
-            "sha256": "1db96b81b7b97a4ad17a3c932f65091ae9d97e893308d3b0e29789351be7aa90",
+            "sha256": "c4433a965a2e4402da11f43f67b04235ae5a66b1571d359d4376b0afda86cb35",
             "scenarios": [
                 "registry направляет текстовые документы в typed Word handler",
                 "docx → представление pdf с meta.tool=libreoffice, документ не терминален",

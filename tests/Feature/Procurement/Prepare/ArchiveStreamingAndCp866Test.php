@@ -22,6 +22,7 @@ use App\Support\Files\ShardedBlobPath;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\UnableToRetrieveMetadata;
 use Tests\Support\ProcessCore\FakePrepareTools;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
@@ -288,6 +289,49 @@ test('расхождение фактического размера запис�
     'неполная запись' => ['123456'],
 ]);
 
+test('вывод распаковщика копируется на диск без накопления байтов в памяти PHP', function (): void {
+    $sizeMiB = 40;
+    $sizeBytes = $sizeMiB * 1024 * 1024;
+    FakePrepareTools::instance()->configure(
+        key: 'unar_bin',
+        code: <<<'PY'
+chunk = b'x' * (1024 * 1024)
+for _ in range(data['size_mib']):
+    sys.stdout.buffer.write(chunk)
+PY,
+        data: ['size_mib' => $sizeMiB],
+    );
+    $archive = PipelineTemporaryFile::create(prefix: 'rar_stream_', extension: 'rar');
+    $directory = PipelineTemporaryFile::createDirectory(prefix: 'rar_stream_output_');
+    $target = "{$directory}/entry.bin";
+
+    try {
+        $extractor = app(ArchiveExtractor::class);
+        $entry = new ArchiveEntry(path: 'entry.bin', declaredSize: $sizeBytes, compressedSize: $sizeBytes);
+        $budget = ArchiveBudget::fromConfig();
+        $totalBytes = 0;
+        memory_reset_peak_usage();
+        $initialMemory = memory_get_usage();
+        $extractor->extractEntry(
+            archivePath: $archive,
+            format: 'rar',
+            entry: $entry,
+            targetPath: $target,
+            budget: $budget,
+            totalBytes: $totalBytes,
+        );
+        $extraMemory = memory_get_peak_usage() - $initialMemory;
+
+        expect($totalBytes)->toBe($sizeBytes)
+            ->and(filesize($target))->toBe($sizeBytes)
+            ->and(file_get_contents(filename: $target, offset: $sizeBytes - 32, length: 32))->toBe(str_repeat('x', 32))
+            ->and($extraMemory)->toBeLessThan(16 * 1024 * 1024);
+    } finally {
+        @unlink($archive);
+        File::deleteDirectory($directory);
+    }
+});
+
 test('solid 7z с превышением коэффициента сжатия относительно физического размера архива и записи Hard Link отклоняются', function (): void {
     $diskName = (string) config('documents.disk');
     $disk = Storage::fake($diskName);
@@ -361,20 +405,40 @@ test('solid 7z с превышением коэффициента сжатия �
         FakePrepareTools::instance()->configure(
             key: 'sevenzip_bin',
             code: 'print(data["output"])',
-            data: ['output' => "Path = archive.7z\nType = 7z\n----------\nPath = original.txt\nSize = 10\nPacked Size = 10\nAttributes = A\nEncrypted = -\n\nPath = hardlink.txt\nSize = 0\nPacked Size = 0\nHard Link = original.txt\nAttributes = A\nEncrypted = -\n"],
+            data: ['output' => implode("\n", [
+                'Path = archive.7z', 'Type = 7z', '----------',
+                'Path = original.txt', 'Size = 10', 'Packed Size = 10', 'Attributes = A', 'Encrypted = -', '',
+                'Path = hardlink.txt', 'Size = 0', 'Packed Size = 0', 'Hard Link = original.txt', '',
+                'Path = hardlink-empty.txt', 'Size = 0', 'Packed Size = 0', 'Hard Link = ',
+            ])],
         );
         $hardLinkEntries = $extractor->listEntries(archivePath: $archivePath, format: '7z');
-        expect($hardLinkEntries)->toHaveCount(2)
-            ->and($hardLinkEntries[1]->type)->toBe('hardlink');
+        expect($hardLinkEntries)->toHaveCount(3);
 
-        expect(fn () => app(ArchiveEntryValidator::class)->validate(
-            entries: $hardLinkEntries,
-            budget: $strictBudget,
-            archiveSizeBytes: $archiveSize,
-        ))->toThrow(ArchiveValidationException::class, 'special entry');
+        foreach (array_slice($hardLinkEntries, 1) as $hardLink) {
+            expect($hardLink->type)->toBe('hardlink')
+                ->and(fn () => app(ArchiveEntryValidator::class)->validate(
+                    entries: [$hardLink],
+                    budget: $strictBudget,
+                    archiveSizeBytes: $archiveSize,
+                ))->toThrow(ArchiveValidationException::class, 'special entry');
+        }
     } finally {
         File::deleteDirectory($workDir);
     }
+});
+
+test('сумма Packed Size не может превысить физический размер архива в расчёте коэффициента', function (): void {
+    $budget = new ArchiveBudget(maxDepth: 2, maxEntries: 2, maxEntryBytes: 10, maxTotalBytes: 10, maxCompressionRatio: 5, maxPathLength: 30);
+    $entries = [
+        new ArchiveEntry(path: 'first.txt', declaredSize: 4, compressedSize: 2),
+        new ArchiveEntry(path: 'second.txt', declaredSize: 4, compressedSize: 2),
+    ];
+    $validator = app(ArchiveEntryValidator::class);
+
+    expect($validator->validate(entries: $entries, budget: $budget, archiveSizeBytes: 4))->toHaveCount(2)
+        ->and(fn () => $validator->validate(entries: $entries, budget: $budget, archiveSizeBytes: 1))
+        ->toThrow(ArchiveValidationException::class, 'превышен суммарный коэффициент сжатия архива');
 });
 
 test('повторная запись представления удаляет старые staging-объекты и сохраняет свежие записи и соседние файлы', function (): void {
@@ -423,4 +487,35 @@ test('повторная запись представления удаляет 
         ->and($disk->get($unrelatedFile))->toBe('keep me')
         ->and($disk->get($storagePath))->toBe($content)
         ->and($disk->allFiles())->toEqualCanonicalizing([$storagePath, $activeStaging, $unrelatedFile]);
+});
+
+test('старая временная запись удаляется до новой загрузки, даже если соседний объект уже исчез', function (): void {
+    $version = DocumentVersion::factory()->create();
+    $disk = Storage::fake('representation-retry-cleanup');
+    $path = 'documents/ab/sample.pdf';
+    $disappeared = "{$path}.staging.11111111-1111-4111-8111-111111111111";
+    $orphan = "{$path}.staging.22222222-2222-4222-8222-222222222222";
+    $disk->put($disappeared, 'first interrupted write');
+    $disk->put($orphan, 'second interrupted write');
+    $stale = now()->getTimestamp() - config()->integer('documents.temporary_stale_seconds') - 1;
+    expect(touch($disk->path($orphan), $stale))->toBeTrue();
+
+    $mock = Mockery::mock($disk)->makePartial();
+    $mock->shouldReceive('lastModified')->once()->with($disappeared)->andReturnUsing(function () use ($disk, $disappeared): never {
+        $disk->delete($disappeared);
+
+        throw UnableToRetrieveMetadata::lastModified($disappeared);
+    });
+    $mock->shouldReceive('writeStream')->once()->with(Mockery::pattern('/\.staging\./'), Mockery::type('resource'))->andReturnFalse();
+
+    expect(fn () => app(RepresentationWriter::class)->write(
+        disk: $mock,
+        version: $version,
+        kind: RepresentationKind::Pdf,
+        path: $path,
+        content: '%PDF-1.4 retry fixture',
+        attributes: [],
+    ))->toThrow(RuntimeException::class, 'Не удалось сохранить staging representation');
+
+    expect($disk->exists($orphan))->toBeFalse();
 });
