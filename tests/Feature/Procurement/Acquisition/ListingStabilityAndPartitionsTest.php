@@ -7,6 +7,7 @@ use App\Dto\Platforms\Eis\EisListingPolicy;
 use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Acquisition\DetailProgress;
 use App\Dto\Procurement\Acquisition\DetailResult;
+use App\Dto\Procurement\Acquisition\FetchBlocked;
 use App\Dto\Procurement\Acquisition\ListingFetched;
 use App\Dto\Procurement\Acquisition\ListingPage;
 use App\Dto\Procurement\Acquisition\ListingResult;
@@ -25,6 +26,7 @@ use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\StageSucceeded;
 use App\Enums\Procurement\AwardStatus;
 use App\Enums\Procurement\Crawler\ListingSortField;
+use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Platform\AssessmentReason;
 use App\Enums\Procurement\Platform\Completeness;
 use App\Enums\Procurement\Platform\SnapshotConsistency;
@@ -39,6 +41,7 @@ use App\Services\Procurement\Acquisition\ListingHandler;
 use App\Services\Procurement\Platform\Contracts\ListingSource;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\ExecutionContextFactory;
+use App\Services\Procurement\Process\RecoveryReconciler;
 use App\Services\Procurement\Process\WorkFinalizer;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
@@ -80,6 +83,55 @@ test('пауза перед отправкой сохраняет стабиль
         ->and(DB::table('prc_process_runs')->where('id', $run['run']->value)->value('discovery_outcome'))->toBe($fault ? 'incomplete' : 'complete')
         ->and(app(ListingCoverageRepository::class)->read($run['stream'])->verifiedThrough)->toBe($fault ? null : '2026-01-01');
 })->with(['обычная пауза' => false, 'ошибка обработчика' => true]);
+
+test('совпавший повтор после снятия блокировки учитывает результат предыдущей попытки', function (bool $rejectedResponse): void {
+    ListingFixtures::bind();
+    $run = ListingFixtures::run();
+    $page = ListingFixtures::page();
+    ListingFixtures::finish(work: $run['work'], input: $run['input'], page: $page);
+    $pass = ListingFixtures::next($run['crawl']) ?? throw new LogicException('Ожидался повторный проход');
+    $source = Mockery::mock(ListingSource::class);
+    $blockedFetch = $rejectedResponse
+        ? new ListingFetched(new ListingPage(
+            summaries: new ProcurementSummaries([]), rowsTotal: 0,
+            assessment: new ResponseAssessment(completeness: Completeness::Partial, reason: AssessmentReason::InvalidResponse, bodyHash: ContentHash::of('invalid')),
+            terminalProof: TerminalProof::None, nextCursor: null,
+        ))
+        : new FetchBlocked(NetworkBlockedReason::Paused);
+    $source->expects('fetch')->twice()->andReturn($blockedFetch, new ListingFetched($page));
+    $partitioner = new EisListingPartitioner;
+    $handler = new ListingHandler(store: app(ListingStoreRepository::class), source: $source,
+        partitioner: $partitioner, filters: $partitioner, bridge: new FetchOutcomeBridge);
+    $execution = app(ExecutionContextFactory::class);
+    $finalizer = app(WorkFinalizer::class);
+
+    $lease = FinalizeFixtures::running($pass['work']);
+    $outcome = $handler->execute(input: $pass['input'], execution: $execution->open($lease));
+    expect($finalizer->finish(lease: $lease, outcome: $outcome)->status->value)->toBe('applied');
+    $work = DB::table('prc_process_work')->where('id', $pass['work']->value->value);
+    expect($work->value('state'))->toBe('blocked')
+        ->and($work->value('reason_code'))->toBe($rejectedResponse ? 'handler_hold' : 'paused')
+        ->and(DB::table('prc_process_attempts')->where('id', $lease->attemptId->value)->value('fault_signature'))->toBeNull();
+    expect(app(RecoveryReconciler::class)->releaseBlocked())->toBe(1)
+        ->and($work->value('state'))->toBe('ready')
+        ->and($work->value('reason_code'))->toBeNull();
+
+    $retry = FinalizeFixtures::running($pass['work']);
+    $outcome = $handler->execute(input: $pass['input'], execution: $execution->open($retry));
+    expect($finalizer->finish(lease: $retry, outcome: $outcome)->status->value)->toBe('applied');
+
+    $processRun = DB::table('prc_process_runs')->where('id', $run['run']->value);
+    $coverage = app(ListingCoverageRepository::class);
+    expect($processRun->value('discovery_outcome'))->toBe($rejectedResponse ? 'collecting' : 'complete')
+        ->and($coverage->read($run['stream'])->verifiedThrough)->toBe($rejectedResponse ? null : '2026-01-01');
+    if ($rejectedResponse) {
+        $third = ListingFixtures::next($run['crawl']) ?? throw new LogicException('Ожидался третий проход');
+        ListingFixtures::finish(work: $third['work'], input: $third['input'], page: $page);
+        expect($processRun->value('discovery_outcome'))->toBe('incomplete')
+            ->and($coverage->read($run['stream'])->verifiedThrough)->toBeNull()
+            ->and(DB::table('prc_crawl_blocks')->where('id', $third['input']->crawlBlockId->value)->value('limitation_reason_code'))->toBe('unstable_source');
+    }
+})->with(['непригодная страница' => true, 'пауза перед запросом' => false]);
 
 test('обработчик переполнения учитывает уже выделенные корневые партиции', function (): void {
     ListingFixtures::bind();

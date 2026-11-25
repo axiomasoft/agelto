@@ -20,6 +20,7 @@ use App\Dto\Procurement\Process\WorkInput;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\Platform\TerminalProof;
 use App\Enums\Procurement\Process\ActorKind;
+use App\Enums\Procurement\Process\BlockedReason;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
@@ -68,10 +69,18 @@ final class ListingFinalizer implements StagePublicationRepository
             throw new \LogicException('Missing listing publication locks.');
         }
         $task = $result->task;
+        // Recovery clears the work reason, but the transition keeps the hold for that attempt.
         $uninterrupted = LedgerRow::one("SELECT NOT EXISTS (
             SELECT 1 FROM prc_process_attempts a JOIN prc_process_work w ON w.id=a.work_id
-            WHERE w.crawl_block_id=? AND (a.terminal_kind='interrupted' OR a.fault_signature IS NOT NULL)
-        ) AS uninterrupted", [$input->crawlBlockId->value])?->bool('uninterrupted') ?? false;
+            WHERE w.crawl_block_id=? AND (
+                a.terminal_kind='interrupted' OR a.fault_signature IS NOT NULL
+                OR (a.terminal_kind='blocked' AND EXISTS (
+                    SELECT 1 FROM prc_process_transitions t
+                    WHERE t.work_id=a.work_id AND t.generation=a.generation
+                      AND t.previous_state='running' AND t.new_state='blocked' AND t.reason_code=?
+                ))
+            )
+        ) AS uninterrupted", [$input->crawlBlockId->value, BlockedReason::HandlerHold->value])?->bool('uninterrupted') ?? false;
         foreach ($this->store->receipts($task) as $prior) {
             $uninterrupted = $uninterrupted && $prior->uninterrupted;
         }
