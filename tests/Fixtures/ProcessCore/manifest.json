@@ -6308,7 +6308,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Acquisition/AuditAcquisitionRegressionTest.php",
-            "sha256": "92099581eb7fc8e9c818603dc9a25f01a79174c15d1cc6b545c493b8415a93ae",
+            "sha256": "2404cbd5e9b45b77f03da0074ec4b59077146e8a96559bcf76dbbdbfdcf47cb0",
             "scenarios": [
                 "EisSearchFilter отвергает priceTo меньше priceFrom и принимает равные границы цены",
                 "ListingCoverageRepository не отмечает окно observed при исходах только pass/split без observed/complete",
@@ -8502,7 +8502,7 @@
         {
             "path": "app/Services/Platforms/Eis/Listing/EisProfilePreparer.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Listing\\EisProfilePreparer",
-            "sha256": "aa224ef3e7762b955544a1daffba88d74a5a6b4ea0ef8d239dcc1174076a3f82",
+            "sha256": "c3ff935088d0c747c41494dd1babf612f77274165b49d94cea98ba911f0dd17f",
             "change_reason": "Proxyma:P10.3 explicit consumer adapter or migration-only carrier.",
             "before_proxyma_runtime_removal_sha256": "1c23f5c4759109363213c9271dce80322c8ac96e73f023e28cccfa46e176741b",
             "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay."

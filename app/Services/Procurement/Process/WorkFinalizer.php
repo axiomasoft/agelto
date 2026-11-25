@@ -113,10 +113,16 @@ final readonly class WorkFinalizer
         $successorIds = static function (int $index) use (&$pool): array {
             return $pool[$index] ??= ['work' => ProcessUuid::random(), 'event' => ProcessUuid::random(), 'projection' => ProcessUuid::random()];
         };
+        $prepared = false;
         for ($reload = 0; $reload < self::MAX_RELOADS; $reload++) {
             $snapshot = $this->authority->readAuthoritySnapshot(workId: $lease->workId, executingVersion: $lease->handlerVersion);
             if ($snapshot instanceof AuthorityGap) {
                 return CompletionResult::invariantViolation();
+            }
+            if (! $prepared && $outcome instanceof StageSucceeded
+                && $snapshot->admissionGroup?->attemptId?->value === $lease->attemptId->value) {
+                $this->finalization->preparePublication(stage: $lease->stage, outcome: $outcome);
+                $prepared = true;
             }
             // By-reference флаг: arrow fn захватывает по значению и потеряла бы признак corrupt membership.
             $corrupt = false;

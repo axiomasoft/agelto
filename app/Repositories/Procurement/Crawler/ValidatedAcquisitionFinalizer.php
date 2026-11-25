@@ -16,14 +16,22 @@ use App\Exceptions\Procurement\Process\PublicationBlocked;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Repositories\Procurement\Process\WorkStoreRepository;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
+use App\Services\Procurement\Process\Contracts\StagePublicationPreparation;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
 use App\Services\Procurement\Process\Contracts\StageResultRepository;
 use App\Services\Procurement\Process\ProcessPayloadCodec;
 
 /** A receipt epoch is checked in the same fenced transaction as canonical publication. */
-final readonly class ValidatedAcquisitionFinalizer implements StagePublicationRepository
+final readonly class ValidatedAcquisitionFinalizer implements StagePublicationPreparation, StagePublicationRepository
 {
     public function __construct(private StageResultRepository $inner, private AdapterHealthRepository $adapters) {}
+
+    public function preparePublication(ValidatedStageResult $result): void
+    {
+        if ($this->inner instanceof StagePublicationPreparation) {
+            $this->inner->preparePublication($this->validated($result)->result);
+        }
+    }
 
     public function publicationLocks(WorkInput $input, ValidatedStageResult $result): PublicationLocks
     {

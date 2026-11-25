@@ -158,7 +158,7 @@ final readonly class EisContractManifest
                     if ($name === 'split') {
                         $left = EisListingCursor::decode($result->children[0]);
                         $right = EisListingCursor::decode($result->children[1]);
-                        Assert::assertSame([0, 100000000, 100000000, 200000000], [$left->lowCents, $left->highCents, $right->lowCents, $right->highCents]);
+                        Assert::assertSame([0, 100000000, 100000001, 200000000], [$left->lowCents, $left->highCents, $right->lowCents, $right->highCents]);
                     }
 
                     return new Observation($result->incompleteReason === null ? State::Complete : State::Partial,

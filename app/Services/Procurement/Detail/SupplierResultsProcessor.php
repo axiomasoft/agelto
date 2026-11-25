@@ -14,9 +14,11 @@ use App\Models\Procurement\Award;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\Protocol;
 use App\Repositories\Organization\ProcurementPartyStoreRepository;
+use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Organization\OrganizationResolver;
+use App\Services\PartitionCoverage;
 use App\Services\Procurement\ProcurementOutcomeEvaluator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -36,30 +38,56 @@ final readonly class SupplierResultsProcessor
         private ProcurementPartyStoreRepository $partyStoreRepository,
         private ProcurementStoreRepository $procurementStoreRepository,
         private ProcurementOutcomeEvaluator $outcomeEvaluator,
+        private PartitionCoverage $partitions,
     ) {}
 
     public function process(Procurement $procurement, SupplierResultsData $data): void
     {
+        $observedAt = Carbon::now();
+        $this->ensurePartitions(data: $data, observedAt: $observedAt);
+        DB::transaction(fn () => $this->storePrepared(procurement: $procurement, data: $data, observedAt: $observedAt));
+    }
+
+    public function ensurePartitions(SupplierResultsData $data, Carbon $observedAt): void
+    {
+        $dates = [];
+        if ($data->protocol !== null) {
+            $dates[] = $this->protocolEventAt(data: $data->protocol, observedAt: $observedAt);
+        }
+        if ($data->award !== null) {
+            $dates[] = $data->award->awardedAt ?? $observedAt;
+        }
+        $this->partitions->ensureMonths(table: 'prc_events', dates: $dates);
+    }
+
+    public function storePrepared(Procurement $procurement, SupplierResultsData $data, Carbon $observedAt): void
+    {
         if ($data->protocol === null && $data->bids === [] && $data->award === null) {
             return;
         }
+        CallerTransaction::require('Supplier results publication');
 
-        DB::transaction(function () use ($procurement, $data): void {
-            $protocol = $data->protocol !== null ? $this->storeProtocol($procurement, $data->protocol) : null;
+        $protocol = $data->protocol === null ? null : $this->storeProtocol(
+            procurement: $procurement, data: $data->protocol, occurredAt: $this->protocolEventAt(data: $data->protocol, observedAt: $observedAt));
 
-            foreach ($data->bids as $bid) {
-                $this->storeBid($procurement, $protocol, $bid);
-            }
+        foreach ($data->bids as $bid) {
+            $this->storeBid(procurement: $procurement, protocol: $protocol, data: $bid);
+        }
 
-            if ($data->award !== null) {
-                $this->storeAward($procurement, $data->award);
-            }
+        if ($data->award !== null) {
+            $this->storeAward(procurement: $procurement, data: $data->award,
+                occurredAt: ($data->award->awardedAt ?? $observedAt)->copy()->utc());
+        }
 
-            $this->outcomeEvaluator->evaluate(procurement: $procurement);
-        });
+        $this->outcomeEvaluator->evaluate(procurement: $procurement);
     }
 
-    private function storeProtocol(Procurement $procurement, ProtocolData $data): Protocol
+    private function protocolEventAt(ProtocolData $data, Carbon $observedAt): Carbon
+    {
+        return ($data->publishedAt ?? $data->signedAt ?? $observedAt)->copy()->utc();
+    }
+
+    private function storeProtocol(Procurement $procurement, ProtocolData $data, Carbon $occurredAt): Protocol
     {
         $protocol = $this->detailStoreRepository->upsertProtocol(
             procurementId: $procurement->id,
@@ -75,7 +103,7 @@ final readonly class SupplierResultsProcessor
             $this->procurementStoreRepository->storeEvent(
                 procurementId: $procurement->id,
                 eventType: ProcurementEventType::ProtocolPublished,
-                occurredAt: $data->publishedAt ?? $data->signedAt ?? Carbon::now(),
+                occurredAt: $occurredAt,
                 entityRef: ['protocol_id' => $protocol->id],
                 payload: ['source_number' => $data->sourceNumber, 'type' => $data->type],
             );
@@ -107,7 +135,7 @@ final readonly class SupplierResultsProcessor
         );
     }
 
-    private function storeAward(Procurement $procurement, AwardData $data): Award
+    private function storeAward(Procurement $procurement, AwardData $data, Carbon $occurredAt): Award
     {
         $winner = $data->winner !== null
             ? $this->organizationResolver->resolve($data->winner)
@@ -116,7 +144,7 @@ final readonly class SupplierResultsProcessor
         $attributes = [
             'final_price' => $data->finalPrice,
             'status' => $data->status,
-            'awarded_at' => $data->awardedAt ?? Carbon::now(),
+            'awarded_at' => $occurredAt,
         ];
 
         if ($winner !== null) {
@@ -147,7 +175,7 @@ final readonly class SupplierResultsProcessor
             $this->procurementStoreRepository->storeEvent(
                 procurementId: $procurement->id,
                 eventType: ProcurementEventType::AwardMade,
-                occurredAt: $data->awardedAt ?? Carbon::now(),
+                occurredAt: $occurredAt,
                 entityRef: ['award_id' => $award->id],
                 payload: ['winner_org_id' => $winner?->id, 'final_price' => $data->finalPrice],
             );

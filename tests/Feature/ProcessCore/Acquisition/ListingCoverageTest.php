@@ -29,7 +29,7 @@ pest()->group('listing-coverage', 'listing-partition-coverage');
 
 beforeEach(fn () => F::bind());
 
-test('decimal overlap, inclusive rows and bounded root continuation preserve declared scope', function (): void {
+test('смежные ценовые интервалы, включительные номера строк и продолжение сохраняют область поиска', function (): void {
     $planner = new EisListingPartitioner;
     $filter = new EisListingFilter(['123'], ['af']);
     $plan = $planner->plan($filter, '2024-01-01', '2026-01-01', 'update', '0.01', '2500001.00');
@@ -41,7 +41,7 @@ test('decimal overlap, inclusive rows and bounded root continuation preserve dec
     $split = $planner->split($cursor->envelope(), 1);
     $left = EisListingCursor::decode($split->children[0]);
     $right = EisListingCursor::decode($split->children[1]);
-    expect($left->highCents)->toBe($right->lowCents)->and($left->highCents)->toBe(125000050)
+    expect($left->highCents)->toBe(125000050)->and($right->lowCents)->toBe(125000051)
         ->and($right->highCents)->toBe(250000100)
         ->and($planner->restoreFilter($planner->snapshot($filter))->fingerprint()->hex)->toBe($filter->fingerprint()->hex);
     expect((new EisListingPartitioner(new EisListingPolicy(maxPartitions: 2)))->split($cursor->envelope(), 1)->incompleteReason)->toBe(AssessmentReason::Overflow);

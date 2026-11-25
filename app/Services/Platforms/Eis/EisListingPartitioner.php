@@ -73,10 +73,10 @@ final readonly class EisListingPartitioner implements ListingFilterCodec, Listin
 
     /** Pure bounded root allocation; the unallocated tail is explicit, never silently dropped. */
     public function plan(EisListingFilter $filter, string $from, string $through,
-        string $dateField = 'publish', string $priceFrom = '0.00', string $priceTo = '1000000000.00', int $blockSize = 500): ListingPlan
+        string $dateField = 'publish', string $priceFrom = '0.00', ?string $priceTo = null, int $blockSize = 500): ListingPlan
     {
         $low = $this->cents($priceFrom);
-        $high = $this->cents($priceTo);
+        $high = $priceTo === null ? null : $this->cents($priceTo);
         $cursor = new EisListingCursor($from, $dateField, $low, $high, $filter->fingerprint(), blockSize: $blockSize);
         new EisListingCursor($through, $dateField, $low, $high, $filter->fingerprint(), blockSize: $blockSize);
         if ($from > $through) {
@@ -119,7 +119,7 @@ final readonly class EisListingPartitioner implements ListingFilterCodec, Listin
         $p = EisListingCursor::decode($cursor);
 
         return ContentHash::of(json_encode([$registryId, $p->filterHash->hex,
-            $accessPolicy->hex, $adapterVersion, $p->dateField, $p->lowCents, $p->highCents, $p->blockSize], JSON_THROW_ON_ERROR));
+            $accessPolicy->hex, $adapterVersion, $p->dateField, $p->lowCents, $p->streamUpperBound(), $p->blockSize], JSON_THROW_ON_ERROR));
     }
 
     /** Pure closing/outage recovery from the immutable assignment, independent of the current profile. */
@@ -127,8 +127,8 @@ final readonly class EisListingPartitioner implements ListingFilterCodec, Listin
     {
         $p = EisListingCursor::decode($task->rootCursor);
 
-        return $this->plan($this->restoreFilter($task->filter), $task->windowStart, $task->windowEnd, $p->dateField,
-            EisListingCursor::decimal($p->lowCents), EisListingCursor::decimal($p->highCents), $p->blockSize);
+        return $this->plan(filter: $this->restoreFilter($task->filter), from: $task->windowStart, through: $task->windowEnd, dateField: $p->dateField,
+            priceFrom: EisListingCursor::decimal($p->lowCents), priceTo: $p->highCents === null ? null : EisListingCursor::decimal($p->highCents), blockSize: $p->blockSize);
     }
 
     public function split(CursorEnvelope $cursor, int $allocatedPartitions): PartitionResult
@@ -137,14 +137,19 @@ final readonly class EisListingPartitioner implements ListingFilterCodec, Listin
         if ($allocatedPartitions < 1) {
             throw new \InvalidArgumentException('Invalid allocated partition count.');
         }
-        $width = $partition->highCents - $partition->lowCents;
+        $low = $partition->lowCents;
+        $high = $partition->highCents;
+        $width = ($high ?? EisListingCursor::MAX_PRICE_CENTS) - $low;
         if ($width <= $this->policy->minIntervalCents || $partition->depth >= $this->policy->maxDepth || $allocatedPartitions + 2 > $this->policy->maxPartitions) {
             return new PartitionResult([], AssessmentReason::Overflow);
         }
-        $mid = $partition->lowCents + intdiv($width, 2);
+        $mid = $high === null
+            ? min(EisListingCursor::MAX_PRICE_CENTS - 1, max($low * 2, $low + $this->policy->minIntervalCents))
+            : $low + intdiv($width, 2);
 
         return new PartitionResult(array_map(static fn (array $range): CursorEnvelope => (new EisListingCursor(
-            $partition->day, $partition->dateField, $range[0], $range[1], $partition->filterHash, 1, $partition->depth + 1, $partition->blockSize,
-        ))->envelope(), [[$partition->lowCents, $mid], [$mid, $partition->highCents]]));
+            day: $partition->day, dateField: $partition->dateField, lowCents: $range[0], highCents: $range[1],
+            filterHash: $partition->filterHash, depth: $partition->depth + 1, blockSize: $partition->blockSize,
+        ))->envelope(), [[$low, $mid], [$mid + 1, $high]]));
     }
 }

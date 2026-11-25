@@ -28,7 +28,9 @@ use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\DeferralReason;
 use App\Enums\Procurement\Process\PrefixFailure;
 use App\Enums\Procurement\Process\ProviderRecoveryMode;
+use App\Enums\Procurement\Process\StageCode;
 use App\Enums\Procurement\Process\WorkState;
+use App\Services\Procurement\Process\Contracts\StagePublicationPreparation;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
 use App\Services\Procurement\Process\ProcessPolicy;
 use App\Services\Procurement\Process\StageRegistry;
@@ -76,6 +78,14 @@ final readonly class WorkFinalizationRepository
         private ProcessPolicy $policy,
         private IntentRepository $intents,
     ) {}
+
+    public function preparePublication(StageCode $stage, StageSucceeded $outcome): void
+    {
+        $repository = $this->registry->resultRepository($stage);
+        if ($repository instanceof StagePublicationPreparation) {
+            $repository->preparePublication($outcome->result);
+        }
+    }
 
     /**
      * @param  array<string, ProcessUuid>  $ids  precreated stable IDs: event, projection, feed, incident*

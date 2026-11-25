@@ -10,7 +10,6 @@ use App\Enums\Telemetry\LogChannel;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\PartitionCoverage;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Дополняет prc_events датами переходов этапов из event-journal. Протоколы, awards и bids
@@ -21,6 +20,7 @@ final readonly class EventJournalProcessor
 {
     public function __construct(
         private ProcurementStoreRepository $storeRepository,
+        private PartitionCoverage $partitions,
     ) {}
 
     /**
@@ -28,8 +28,26 @@ final readonly class EventJournalProcessor
      */
     public function process(Procurement $procurement, array $entries): void
     {
+        $this->ensurePartitions($entries);
+        $this->storePrepared(procurement: $procurement, entries: $entries);
+    }
+
+    /** @param list<JournalEntryData> $entries */
+    public function ensurePartitions(array $entries): void
+    {
+        $dates = [];
+        foreach ($entries as $entry) {
+            if ($this->mapEntry($entry) !== null) {
+                $dates[] = $entry->occurredAt;
+            }
+        }
+        $this->partitions->ensureMonths(table: 'prc_events', dates: $dates);
+    }
+
+    /** @param list<JournalEntryData> $entries */
+    public function storePrepared(Procurement $procurement, array $entries): void
+    {
         $skipped = 0;
-        $ensuredMonths = [];
 
         foreach ($entries as $entry) {
             $mapped = $this->mapEntry($entry);
@@ -45,26 +63,13 @@ final readonly class EventJournalProcessor
                 continue;
             }
 
-            $month = $entry->occurredAt->copy()->utc()->startOfMonth();
-            $monthKey = $month->format('Y_m');
-
-            if (! isset($ensuredMonths[$monthKey])) {
-                $ensuredMonths[$monthKey] = true;
-
-                /** @var object{name?: string|null}|null $partition */
-                $partition = DB::selectOne('SELECT to_regclass(?) AS name', ['prc_events_'.$monthKey]);
-
-                if (($partition->name ?? null) === null) {
-                    app(PartitionCoverage::class)->ensure('prc_events', $month, $month->copy()->addMonthNoOverflow());
-                }
-            }
-
             [$eventType, $newValue] = $mapped;
+            $occurredAt = $entry->occurredAt->copy()->utc();
 
             if ($this->storeRepository->hasEvent(
                 procurementId: $procurement->id,
                 eventType: $eventType,
-                occurredAt: $entry->occurredAt,
+                occurredAt: $occurredAt,
                 newValue: $newValue,
             )) {
                 continue;
@@ -73,7 +78,7 @@ final readonly class EventJournalProcessor
             $this->storeRepository->storeEvent(
                 procurementId: $procurement->id,
                 eventType: $eventType,
-                occurredAt: $entry->occurredAt,
+                occurredAt: $occurredAt,
                 newValue: $newValue,
                 payload: ['source' => 'event_journal', 'raw_text' => $entry->rawText],
             );

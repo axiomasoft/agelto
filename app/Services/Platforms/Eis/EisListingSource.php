@@ -70,7 +70,7 @@ final readonly class EisListingSource implements ListingSource, ResponseValidato
             'fz44' => 'on', 'sortBy' => $filter->sortBy, 'sortDirection' => 'true',
             $cursor->dateField.'DateFrom' => $day, $cursor->dateField.'DateTo' => $day,
             'priceFromGeneral' => EisListingCursor::decimal($cursor->lowCents),
-            ...($cursor->highCents < EisListingCursor::UNBOUNDED_HIGH_CENTS
+            ...($cursor->highCents !== null
                 ? ['priceToGeneral' => EisListingCursor::decimal($cursor->highCents)]
                 : []),
             'registryNumberCsv' => 'on', 'publishDateCsv' => 'on', 'lastDateChangeCsv' => 'on',
@@ -141,7 +141,7 @@ final readonly class EisListingSource implements ListingSource, ResponseValidato
                 $price = explode('.', $summary->initialPrice ?? '');
                 $cents = (int) $price[0] * 100 + (int) substr(str_pad($price[1] ?? '', 2, '0'), 0, 2);
                 if (! str_starts_with(trim($dateValue), $day) || $cents < $cursor->lowCents
-                    || ($cursor->highCents < EisListingCursor::UNBOUNDED_HIGH_CENTS && $cents > $cursor->highCents)
+                    || ($cursor->highCents !== null && $cents > $cursor->highCents)
                     || ! $filter->acceptsStage($summary->sourceStage)) {
                     return $invalid(AssessmentReason::FilterMismatch, $count);
                 }

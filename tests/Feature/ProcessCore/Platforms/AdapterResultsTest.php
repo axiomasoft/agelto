@@ -173,12 +173,12 @@ test('semantic empty отличается от blank truncated malformed и over
     expect($json->parseListing(adapterResultFixtureJsonRequest(), adapterResultFixtureResponse(json_encode($valid), 'application/json'))->assessment->reason)->toBe(AssessmentReason::Overflow);
 });
 
-test('decimal overlap сохраняет midpoint и bounded split оставляет explicit incomplete', function (): void {
+test('деление цены сохраняет каждую копейку в одном интервале и учитывает лимиты', function (): void {
     $filter = adapterResultFixtureRequest()->filter;
     $cursor = new EisListingCursor('2026-10-31', 'publish', 100000000, 150000100, $filter->fingerprint());
     $result = (new EisListingPartitioner)->split($cursor->envelope(), 1);
     [$left, $right] = array_map(EisListingCursor::decode(...), $result->children);
-    expect($left->highCents)->toBe(125000050)->and($right->lowCents)->toBe(125000050)
+    expect($left->highCents)->toBe(125000050)->and($right->lowCents)->toBe(125000051)
         ->and(EisListingCursor::decimal($left->highCents))->toBe('1250000.50')
         ->and($left->firstRow)->toBe(1);
     foreach ([
@@ -188,15 +188,21 @@ test('decimal overlap сохраняет midpoint и bounded split оставл�
     ] as $limited) {
         expect($limited->children)->toBe([])->and($limited->incompleteReason)->toBe(AssessmentReason::Overflow);
     }
-    $unbounded = new EisListingCursor('2026-10-31', 'publish', 10000000, EisListingCursor::UNBOUNDED_HIGH_CENTS, $filter->fingerprint());
+    $unbounded = new EisListingCursor(day: '2026-10-31', dateField: 'publish', lowCents: 10000000, highCents: null, filterHash: $filter->fingerprint());
     [$unboundedLeft, $unboundedRight] = (new EisListingPartitioner)->split($unbounded->envelope(), 1)->children;
     $eis = adapterResultFixtureEis();
     parse_str((string) parse_url($eis->plan(new ListingRequest('fz44', $filter, $unboundedLeft))->url->reveal(), PHP_URL_QUERY), $leftQuery);
     parse_str((string) parse_url($eis->plan(new ListingRequest('fz44', $filter, $unboundedRight))->url->reveal(), PHP_URL_QUERY), $rightQuery);
-    expect($leftQuery)->toHaveKey('priceFromGeneral', '100000.00')->toHaveKey('priceToGeneral', '500050000.00')
-        ->and($rightQuery)->toHaveKey('priceFromGeneral', '500050000.00')->not->toHaveKey('priceToGeneral');
+    expect($leftQuery)->toHaveKey('priceFromGeneral', '100000.00')->toHaveKey('priceToGeneral', '200000.00')
+        ->and($rightQuery)->toHaveKey('priceFromGeneral', '200000.01')->not->toHaveKey('priceToGeneral');
     $aboveOneBillion = str_replace('1250000,50', '2500000000,50', adapterResultFixtureCsv());
     expect($eis->parse(new ListingRequest('fz44', $filter, $unboundedRight), adapterResultFixtureResponse($aboveOneBillion))->assessment->usable())->toBeTrue();
+
+    $bounded = new EisListingCursor(day: '2026-10-31', dateField: 'publish', lowCents: 0, highCents: 100_000_000_000, filterHash: $filter->fingerprint());
+    $request = new ListingRequest(registry: 'fz44', filter: $filter, cursor: $bounded->envelope());
+    parse_str((string) parse_url($eis->plan($request)->url->reveal(), PHP_URL_QUERY), $boundedQuery);
+    expect($boundedQuery)->toHaveKey('priceToGeneral', '1000000000.00')
+        ->and($eis->parse(request: $request, response: adapterResultFixtureResponse($aboveOneBillion))->assessment->reason)->toBe(AssessmentReason::FilterMismatch);
 });
 
 test('повтор cap boundary и неприменённый date/price filter не дают terminal proof', function (): void {

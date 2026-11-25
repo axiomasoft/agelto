@@ -11,6 +11,24 @@ use RuntimeException;
 /** Coverage is derived from PostgreSQL bounds, independent of partman naming. */
 final readonly class PartitionCoverage
 {
+    /** @param list<Carbon> $dates */
+    public function ensureMonths(string $table, array $dates): void
+    {
+        $months = [];
+        foreach ($dates as $date) {
+            $month = $date->copy()->utc()->startOfMonth();
+            $months[$month->format('Y_m')] = $month;
+        }
+
+        foreach ($months as $key => $month) {
+            $attached = DB::scalar('SELECT EXISTS (SELECT 1 FROM pg_inherits
+                WHERE inhparent = to_regclass(?) AND inhrelid = to_regclass(?))', [$table, $table.'_'.$key]);
+            if ($attached !== true) {
+                $this->ensure(table: $table, from: $month, to: $month->copy()->addMonthNoOverflow());
+            }
+        }
+    }
+
     public function ensure(string $table, Carbon $from, Carbon $to): void
     {
         if (preg_match('/^[a-z][a-z0-9_]*$/D', $table) !== 1) {

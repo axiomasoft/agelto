@@ -177,7 +177,7 @@ test('EisListingPartitioner::split соблюдает граничные инв�
     expect($resMaxPart->children)->toBe([])
         ->and($resMaxPart->incompleteReason)->toBe(AssessmentReason::Overflow);
 
-    // При allocatedPartitions = 14 (14 + 2 <= 16) интервал делится пополам с совпадением границы left->highCents === right->lowCents.
+    // При 14 + 2 <= 16 дочерние интервалы смежны с точностью до копейки.
     $resOk = $partitioner->split($splittable->envelope(), 14);
     expect($resOk->children)->toHaveCount(2)
         ->and($resOk->incompleteReason)->toBeNull();
@@ -186,7 +186,7 @@ test('EisListingPartitioner::split соблюдает граничные инв�
     $right = EisListingCursor::decode($resOk->children[1]);
     expect($left->lowCents)->toBe(100)
         ->and($right->highCents)->toBe(201)
-        ->and($left->highCents)->toBe($right->lowCents)
+        ->and($right->lowCents)->toBe(($left->highCents ?? throw new LogicException('Ожидалась верхняя граница')) + 1)
         ->and($left->depth)->toBe(1)
         ->and($right->depth)->toBe(1);
 });

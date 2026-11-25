@@ -50,7 +50,10 @@ final readonly class ListingHandler implements StageHandler
         }
         $page = $result->page;
         if (in_array($page->assessment->reason, [AssessmentReason::Overflow, AssessmentReason::RepeatedPage], true)) {
-            return new StageSucceeded(new ListingResult($task, $page, $this->partitioner->split($task->rootCursor, 1)));
+            $split = $this->partitioner->split(cursor: $task->rootCursor,
+                allocatedPartitions: $this->store->allocatedPartitions($input->crawlBlockId));
+
+            return new StageSucceeded(new ListingResult(task: $task, page: $page, split: $split));
         }
         if (! $page->assessment->usable()) {
             // Invalid response cannot advance cursor or masquerade as a completed page.

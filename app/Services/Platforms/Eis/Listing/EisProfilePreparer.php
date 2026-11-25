@@ -84,12 +84,13 @@ final readonly class EisProfilePreparer implements AcquisitionProfilePreparer
         $routeVersion = $stageProfiles['listing']['route_policy_version'] ?? $route->int('policy_version');
         $access = ContentHash::of(json_encode([$routeId, $routeVersion], JSON_THROW_ON_ERROR));
         $partitioner = new EisListingPartitioner($this->policy->listing, $this->policy->sourceTimezone);
-        $axis = $kind === AcquisitionKind::Delta ? 'update' : 'publish';
+        $axis = $kind === AcquisitionKind::Delta || ($kind === AcquisitionKind::Fresh && $filter->sortField === ListingSortField::Updated)
+            ? 'update' : 'publish';
         $low = (string) ($filter->priceFrom ?? 0);
-        $high = (string) ($filter->priceTo ?? 1_000_000_000);
+        $high = $filter->priceTo === null ? null : (string) $filter->priceTo;
         $first = $partitioner->plan($typed, $start, $start, $axis, $low, $high, $this->policy->blockSize);
         $stream = $partitioner->streamKey($registry->id, $first->windows[0]->cursor, $access, '1');
-        if ($kind !== AcquisitionKind::Archive) {
+        if ($kind !== AcquisitionKind::Archive && $from === null) {
             $resumed = $this->coverage->read($stream)->resumeFrom($start);
             $start = $start <= $finish ? min($finish, $resumed) : $resumed;
         }

@@ -68,9 +68,10 @@ final class ListingFinalizer implements StagePublicationRepository
             throw new \LogicException('Missing listing publication locks.');
         }
         $task = $result->task;
-        $attempts = LedgerRow::one('SELECT count(*) AS n FROM prc_process_attempts a JOIN prc_process_work w ON w.id=a.work_id WHERE w.crawl_block_id=?',
-            [$input->crawlBlockId->value])?->int('n') ?? 0;
-        $uninterrupted = $attempts === 1;
+        $uninterrupted = LedgerRow::one("SELECT NOT EXISTS (
+            SELECT 1 FROM prc_process_attempts a JOIN prc_process_work w ON w.id=a.work_id
+            WHERE w.crawl_block_id=? AND (a.terminal_kind='interrupted' OR a.fault_signature IS NOT NULL)
+        ) AS uninterrupted", [$input->crawlBlockId->value])?->bool('uninterrupted') ?? false;
         foreach ($this->store->receipts($task) as $prior) {
             $uninterrupted = $uninterrupted && $prior->uninterrupted;
         }
@@ -122,8 +123,7 @@ final class ListingFinalizer implements StagePublicationRepository
         $reason = null;
         $next = [];
         if ($result->split !== null) {
-            $count = LedgerRow::one("SELECT count(DISTINCT partition_payload->>'rootBlockId') AS n FROM prc_crawl_blocks
-                WHERE crawl_run_id=? AND limitation_reason_code IS DISTINCT FROM 'root_allocation_bound'", [$crawlRun->value])?->int('n') ?? 0;
+            $count = $this->store->allocatedPartitions($input->crawlBlockId);
             if ($result->split->children === [] || $count + count($result->split->children) > $task->maxPartitions) {
                 $outcome = 'incomplete';
                 $reason = 'listing_cap_unresolved';

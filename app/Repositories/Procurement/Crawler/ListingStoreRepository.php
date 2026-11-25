@@ -89,6 +89,13 @@ final readonly class ListingStoreRepository
         return AcquisitionKind::from($row->string('listing_kind'));
     }
 
+    public function allocatedPartitions(ProcessUuid $blockId): int
+    {
+        return LedgerRow::one("SELECT count(DISTINCT partition_payload->>'rootBlockId') AS n FROM prc_crawl_blocks
+            WHERE crawl_run_id=(SELECT crawl_run_id FROM prc_crawl_blocks WHERE id=?)
+              AND limitation_reason_code IS DISTINCT FROM 'root_allocation_bound'", [$blockId->value])?->int('n') ?? 0;
+    }
+
     public function detailReference(ProcessUuid $intentId): ?ListingDetailReference
     {
         $id = self::id('reference:'.$intentId->value);
