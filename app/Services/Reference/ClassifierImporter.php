@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Reference;
 
+use DateTimeImmutable;
 use Generator;
 use RuntimeException;
 
@@ -29,7 +30,7 @@ final readonly class ClassifierImporter
         }
 
         try {
-            $header = fgetcsv($handle);
+            $header = fgetcsv($handle, escape: '');
 
             if ($header === false) {
                 return;
@@ -45,6 +46,9 @@ final readonly class ClassifierImporter
                 if (! is_string($column) || $column === '') {
                     throw new RuntimeException("Выгрузка содержит пустой или нестроковый заголовок: {$path}");
                 }
+                if (! mb_check_encoding($column, 'UTF-8')) {
+                    throw new RuntimeException("Заголовок выгрузки содержит некорректный UTF-8: {$path}");
+                }
 
                 $columns[] = $column;
             }
@@ -57,7 +61,7 @@ final readonly class ClassifierImporter
                 throw new RuntimeException("В заголовке выгрузки отсутствует обязательная колонка code: {$path}");
             }
 
-            while (($line = fgetcsv($handle)) !== false) {
+            while (($line = fgetcsv($handle, escape: '')) !== false) {
                 // fgetcsv отдаёт пустую строку как [null]; строка из пустых ячеек — не данные.
                 if ($this->isBlankLine($line)) {
                     continue;
@@ -68,6 +72,9 @@ final readonly class ClassifierImporter
                 foreach ($line as $value) {
                     if (! is_string($value)) {
                         throw new RuntimeException("Выгрузка содержит нестроковое значение: {$path}");
+                    }
+                    if (! mb_check_encoding($value, 'UTF-8')) {
+                        throw new RuntimeException("Строка выгрузки содержит некорректный UTF-8: {$path}");
                     }
 
                     $values[] = $value;
@@ -106,22 +113,46 @@ final readonly class ClassifierImporter
      */
     private function normalize(array $row): array
     {
+        $code = $row['code'];
+        if (trim($code) === '') {
+            throw new RuntimeException('В строке выгрузки отсутствует код классификатора.');
+        }
+
+        $level = $row['level'] ?? '0';
+        if (! preg_match('/^\d+$/D', $level) || (int) $level > 2_147_483_647) {
+            throw new RuntimeException("Некорректный level для кода «{$code}».");
+        }
+
         $attributes = ($row['attributes'] ?? '') !== '' ? $row['attributes'] : null;
         if ($attributes !== null && ! json_validate($attributes)) {
             throw new RuntimeException("Некорректный JSON в колонке attributes для кода «{$row['code']}».");
         }
 
         return [
-            'code' => $row['code'],
+            'code' => $code,
             'parent_code' => ($row['parent_code'] ?? '') !== '' ? $row['parent_code'] : null,
-            'level' => (int) ($row['level'] ?? 0),
+            'level' => (int) $level,
             'name' => $row['name'] ?? '',
             'okpd2_code' => ($row['okpd2_code'] ?? '') !== '' ? $row['okpd2_code'] : null,
-            'valid_from' => ($row['valid_from'] ?? '') !== '' ? $row['valid_from'] : null,
-            'valid_to' => ($row['valid_to'] ?? '') !== '' ? $row['valid_to'] : null,
+            'valid_from' => $this->date(value: $row['valid_from'] ?? '', column: 'valid_from', code: $code),
+            'valid_to' => $this->date(value: $row['valid_to'] ?? '', column: 'valid_to', code: $code),
             // Сырой JSON-текст из колонки выгрузки — передаётся в jsonb как есть,
             // без повторного json_encode на стороне LoadClassifiers.
             'attributes' => $attributes,
         ];
+    }
+
+    private function date(string $value, string $column, string $code): ?string
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        $date = str_contains($value, "\0") ? false : DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        if ($date === false || $date->format('Y-m-d') !== $value || $date->format('Y') === '0000') {
+            throw new RuntimeException("Некорректная дата {$column} для кода «{$code}».");
+        }
+
+        return $value;
     }
 }

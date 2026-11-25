@@ -1120,6 +1120,13 @@
       "action": "alter",
       "owner_item": "PLAN2:P3.1",
       "reason": "Persist the actual canonical repair attempt and fence recovery from newer repairs."
+    },
+    {
+      "path": "database/migrations/2026_11_25_100002_add_attributes_observed_at_to_org_organizations.php",
+      "sha256": "645e043eeb2fea9816a295fe3cf82d149aaa8829972a264ab2c7c1cd652781b2",
+      "action": "alter",
+      "owner_item": "PLAN2:P5.3",
+      "reason": "Record when organization attributes were observed so archive imports preserve newer data."
     }
   ],
   "baseline": {
@@ -3224,6 +3231,16 @@
             "table_name": "org_organizations",
             "table_schema": "public",
             "udt_name": "timestamp"
+          },
+          {
+            "column_default": null,
+            "column_name": "attributes_observed_at",
+            "data_type": "timestamp with time zone",
+            "is_nullable": "YES",
+            "ordinal_position": 18,
+            "table_name": "org_organizations",
+            "table_schema": "public",
+            "udt_name": "timestamptz"
           }
         ],
         "constraints": [
@@ -3242,7 +3259,7 @@
             "type": "u"
           }
         ],
-        "definition": "CREATE TABLE public.org_organizations (\n    id bigint NOT NULL,\n    uuid uuid NOT NULL,\n    inn character varying(255),\n    kpp character varying(255),\n    ogrn character varying(255),\n    full_name character varying(255) NOT NULL,\n    short_name character varying(255),\n    address_raw text,\n    region_code character varying(255),\n    phone character varying(255),\n    email character varying(255),\n    attributes jsonb,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone\n);",
+        "definition": "CREATE TABLE public.org_organizations (\n    id bigint NOT NULL,\n    uuid uuid NOT NULL,\n    inn character varying(255),\n    kpp character varying(255),\n    ogrn character varying(255),\n    full_name character varying(255) NOT NULL,\n    short_name character varying(255),\n    address_raw text,\n    region_code character varying(255),\n    phone character varying(255),\n    email character varying(255),\n    attributes jsonb,\n    created_at timestamp(0) without time zone,\n    updated_at timestamp(0) without time zone,\n    attributes_observed_at timestamp(6) with time zone\n);",
         "indexes": [
           {
             "indexdef": "CREATE INDEX org_organizations_inn_index ON public.org_organizations USING btree (inn)",

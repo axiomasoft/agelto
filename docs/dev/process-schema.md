@@ -201,6 +201,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_11_11_100002_add_prc_proxyma_cutover_fences.php` | alter | Proxyma:P10.2 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. |
 | `2026_11_25_100000_add_audit_performance_indexes.php` | alter | PLAN2:P2.4 | Add indexes for retention, diagnostics and operator queries with reversible DDL. |
 | `2026_11_25_100001_add_document_repair_ownership.php` | alter | PLAN2:P3.1 | Persist the actual canonical repair attempt and fence recovery from newer repairs. |
+| `2026_11_25_100002_add_attributes_observed_at_to_org_organizations.php` | alter | PLAN2:P5.3 | Record when organization attributes were observed so archive imports preserve newer data. |
 
 ### Legacy lifecycle
 
@@ -2405,6 +2406,7 @@ Owner: Organization; retention: business.
 | attributes | jsonb / jsonb | YES | jsonb |
 | created_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
 | updated_at | timestamp without time zone / timestamp | YES | timestamp(0) without time zone |
+| attributes_observed_at | timestamp with time zone / timestamptz | YES | timestamp(6) with time zone |
 
 Constraints:
 - `org_organizations_pkey`: `PRIMARY KEY (id)`

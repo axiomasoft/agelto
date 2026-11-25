@@ -4321,7 +4321,7 @@
         },
         {
             "path": "tests/Feature/Reference/LoadClassifiersTest.php",
-            "sha256": "dcb045a0b97b5667788790b1883d00a06d71c993a12cb0b56484f7d5b6b97627",
+            "sha256": "f14e06e318337c6cba316f63ce91f244f1654679085669108ea2fb22a3f976df",
             "scenarios": [
                 "ref:load-classifiers наполняет ref_okpd2 из выгрузки",
                 "ref:load-classifiers идемпотентен — повторный прогон не плодит строк",
@@ -5968,7 +5968,7 @@
         },
         {
             "path": "docker/tests/process-core/test_schema_inventory.py",
-            "sha256": "c6cd67ff1b63be071e829e3e1e2321df95797726804502cec4167f7e4afbdd1b",
+            "sha256": "1bcaeefc472b338d3e82155b7a68982a2870aa3db8f86f4b29578c1f78d6b555",
             "accepted_change_item": "Proxyma:P10.1",
             "current_change_reason": "Refresh stale isolated package discovery before application boot; preserve exact additive schema inventory expectations."
         },
@@ -6206,7 +6206,7 @@
         },
         {
             "path": "docs/dev/process-schema.md",
-            "sha256": "ba92cf3b88cd05a499abeca81345828727b65a5bdc775d6c0edf3c74656bf5a0",
+            "sha256": "155114c7c7fb98330d82743988097403b1afa7de5da3cfb667a5a5d4d09c5b18",
             "accepted_change_item": "Proxyma:P10.2",
             "current_change_reason": "PLAN2:P2.4 audit index inventory and migration rollback reconciliation.",
             "before_proxyma_runtime_removal_sha256": "bcd17541a0c246165dfbb1c9dd181e6341a5211fcf66521a9c45cf74460db842"
@@ -6249,7 +6249,7 @@
         },
         {
             "path": "tests/Support/ProcessCore/schema-inventory.json",
-            "sha256": "c6e0b0051c8f529077d13c4b877a1c7b78e994ecd55840037062c18d1660bc7a",
+            "sha256": "46fa23b5ad43d3e61c3421945de0567d7d4265dbf03532b16fd57ef252f2bbc1",
             "accepted_change_item": "Proxyma:P10.2",
             "current_change_reason": "PLAN2:P2.4 audit index inventory and migration rollback reconciliation.",
             "before_proxyma_runtime_removal_sha256": "50a2393d95ed5f32d01dd9d908333ae597d029588fa99f087dd3ea1b352d160a"
@@ -7845,6 +7845,10 @@
         {
             "path": "database/migrations/2026_11_25_100001_add_document_repair_ownership.php",
             "sha256": "15b08f25d94c02bf03b124fd8e1cbb5f9798e69c735a6a98fa181c68adbacc92"
+        },
+        {
+            "path": "database/migrations/2026_11_25_100002_add_attributes_observed_at_to_org_organizations.php",
+            "sha256": "645e043eeb2fea9816a295fe3cf82d149aaa8829972a264ab2c7c1cd652781b2"
         }
     ],
     "source_classes": [

@@ -24,9 +24,16 @@ final readonly class OrganizationStoreRepository
             ->first();
     }
 
-    public function findByOgrn(string $ogrn): ?Organization
+    public function findByOgrnAndKpp(string $ogrn, ?string $kpp): ?Organization
     {
-        return Organization::query()->where('ogrn', $ogrn)->first();
+        return Organization::query()->where('ogrn', $ogrn)->where('kpp', $kpp)->first();
+    }
+
+    public function findUniqueByOgrn(string $ogrn): ?Organization
+    {
+        $matches = Organization::query()->where('ogrn', $ogrn)->limit(2)->get();
+
+        return $matches->count() === 1 ? $matches->first() : null;
     }
 
     public function findByIdentifier(OrganizationIdentifierData $identifier): ?Organization
@@ -43,9 +50,13 @@ final readonly class OrganizationStoreRepository
         return Organization::query()->lockForUpdate()->findOrFail($organization->id);
     }
 
-    public function lockOgrnResolution(string $ogrn): void
+    public function lockTaxResolution(?string $inn, ?string $ogrn): void
     {
-        DB::select('SELECT pg_advisory_xact_lock(hashtext(?), hashtext(?))', ['org_organizations.ogrn', $ogrn]);
+        foreach (['inn' => $inn, 'ogrn' => $ogrn] as $kind => $value) {
+            if ($value !== null) {
+                DB::select(query: 'SELECT pg_advisory_xact_lock(hashtext(?), hashtext(?))', bindings: ["org_organizations.{$kind}", $value]);
+            }
+        }
     }
 
     /** @param list<OrganizationIdentifierData> $identifiers */

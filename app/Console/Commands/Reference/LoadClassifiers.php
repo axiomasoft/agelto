@@ -10,6 +10,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
 
 /**
@@ -32,8 +33,20 @@ final class LoadClassifiers extends Command
             return self::FAILURE;
         }
 
-        foreach ($classifiers as $key => $config) {
-            $this->importClassifier(importer: $importer, key: $key, config: $config);
+        $totals = DB::transaction(function () use ($classifiers, $importer): array {
+            $totals = [];
+            foreach ($classifiers as $key => $config) {
+                $imported = $this->importClassifier(importer: $importer, key: $key, config: $config);
+                if ($imported !== null) {
+                    $totals[$key] = $imported;
+                }
+            }
+
+            return $totals;
+        });
+
+        foreach ($totals as $key => $imported) {
+            $this->info("Классификатор «{$key}»: обработано {$imported} строк.");
         }
 
         return self::SUCCESS;
@@ -42,20 +55,20 @@ final class LoadClassifiers extends Command
     /**
      * @param  array{model: class-string<Model>, source_path: string|null}  $config
      */
-    private function importClassifier(ClassifierImporter $importer, string $key, array $config): void
+    private function importClassifier(ClassifierImporter $importer, string $key, array $config): ?int
     {
         $path = $config['source_path'];
 
         if ($path === null || $path === '') {
             $this->warn("Классификатор «{$key}»: путь выгрузки не сконфигурирован, пропуск.");
 
-            return;
+            return null;
         }
 
         if (! is_file($path)) {
             $this->warn("Классификатор «{$key}»: файл выгрузки не найден ({$path}), пропуск.");
 
-            return;
+            return null;
         }
 
         $modelClass = $config['model'];
@@ -71,10 +84,15 @@ final class LoadClassifiers extends Command
             yield from $importer->rows(path: $path);
         })
             ->chunk($chunkSize)
-            ->each(function (LazyCollection $chunk) use ($modelClass, $columns, &$imported): void {
+            ->each(function (LazyCollection $chunk) use ($modelClass, $columns, $key, &$imported): void {
                 $now = now();
+                $chunkRows = $chunk->collect();
+                $duplicates = $chunkRows->duplicatesStrict('code')->uniqueStrict();
+                if ($duplicates->isNotEmpty()) {
+                    $this->warn("Классификатор «{$key}»: повторяющиеся коды в чанке: {$duplicates->implode(', ')}.");
+                }
 
-                $rows = $chunk
+                $rows = $chunkRows
                     ->map(fn (array $row) => [
                         ...array_intersect_key($row, array_flip($columns)),
                         'attributes' => $row['attributes'],
@@ -98,7 +116,7 @@ final class LoadClassifiers extends Command
                 $imported += count($rows);
             });
 
-        $this->info("Классификатор «{$key}»: обработано {$imported} строк.");
+        return $imported;
     }
 
     /**

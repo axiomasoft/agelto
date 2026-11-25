@@ -7,6 +7,8 @@ namespace App\Services\Organization;
 use App\Dto\Procurement\Details\OrganizationData;
 use App\Models\Organization\Organization;
 use App\Repositories\Organization\OrganizationStoreRepository;
+use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -21,41 +23,48 @@ use RuntimeException;
  */
 final readonly class OrganizationResolver
 {
+    private const int MAX_ATTEMPTS = 3;
+
     public function __construct(
         private OrganizationStoreRepository $storeRepository,
     ) {}
 
-    public function resolve(OrganizationData $data): Organization
+    public function resolve(OrganizationData $data, ?DateTimeInterface $observedAt = null): Organization
     {
         if ($data->inn === null && $data->ogrn === null && $data->identifiers === []) {
             throw new InvalidArgumentException('Для организации требуется ИНН, ОГРН или внешний идентификатор.');
         }
 
-        $organization = $this->find($data);
+        $observedAt = $observedAt === null ? CarbonImmutable::now() : CarbonImmutable::instance($observedAt);
+        for ($attempt = 1; ; $attempt++) {
+            $organization = $this->find($data);
 
-        try {
-            return $this->persist($data, $organization);
-        } catch (UniqueConstraintViolationException $exception) {
-            // persist() rolls back its savepoint before repeating the full identity lookup.
-            $organization = $this->find($data) ?? throw $exception;
-
-            return $this->persist($data, $organization);
+            try {
+                return $this->persist(data: $data, organization: $organization, observedAt: $observedAt);
+            } catch (UniqueConstraintViolationException $exception) {
+                if ($attempt >= self::MAX_ATTEMPTS) {
+                    throw $exception;
+                }
+            }
         }
     }
 
-    private function persist(OrganizationData $data, ?Organization $organization): Organization
+    private function persist(OrganizationData $data, ?Organization $organization, CarbonImmutable $observedAt): Organization
     {
-        return DB::transaction(function () use ($data, $organization): Organization {
-            if ($organization === null && $data->ogrn !== null) {
-                $this->storeRepository->lockOgrnResolution($data->ogrn);
+        return DB::transaction(function () use ($data, $organization, $observedAt): Organization {
+            if (($data->inn !== null || $data->ogrn !== null) && ($organization === null
+                || ($data->inn !== null && $organization->inn !== $data->inn)
+                || ($data->ogrn !== null && $organization->ogrn !== $data->ogrn)
+                || $organization->kpp !== $data->kpp)) {
+                $this->storeRepository->lockTaxResolution(inn: $data->inn, ogrn: $data->ogrn);
                 $organization = $this->find($data);
             }
 
             if ($organization === null) {
-                $organization = $this->storeRepository->create($this->attributes($data));
+                $organization = $this->storeRepository->create($this->attributes(data: $data, observedAt: $observedAt));
             } else {
                 $organization = $this->storeRepository->lock($organization);
-                $this->updateChangedAttributes($organization, $data);
+                $this->updateChangedAttributes(organization: $organization, data: $data, observedAt: $observedAt);
             }
 
             $this->storeRepository->storeIdentifiers($organization, $data->identifiers);
@@ -74,7 +83,7 @@ final readonly class OrganizationResolver
         }
 
         if ($data->ogrn !== null) {
-            $matches[] = $this->storeRepository->findByOgrn(ogrn: $data->ogrn);
+            $matches[] = $this->storeRepository->findByOgrnAndKpp(ogrn: $data->ogrn, kpp: $data->kpp);
         }
 
         foreach ($data->identifiers as $identifier) {
@@ -82,6 +91,9 @@ final readonly class OrganizationResolver
         }
 
         $organizations = collect($matches)->filter()->keyBy('id');
+        if ($organizations->isEmpty()) {
+            return $this->findWithIncompleteTaxIdentity($data);
+        }
 
         if ($organizations->count() > 1) {
             throw new RuntimeException('Идентификаторы организации указывают на разные записи; автоматическое слияние запрещено.');
@@ -90,12 +102,28 @@ final readonly class OrganizationResolver
         return $organizations->first();
     }
 
-    private function updateChangedAttributes(Organization $organization, OrganizationData $data): void
+    private function findWithIncompleteTaxIdentity(OrganizationData $data): ?Organization
     {
-        $attributes = $this->attributes($data);
+        if ($data->kpp === null) {
+            return $data->ogrn === null ? null : $this->storeRepository->findUniqueByOgrn($data->ogrn);
+        }
 
-        foreach (['inn', 'kpp', 'ogrn'] as $key) {
-            if ($attributes[$key] !== null && $organization->getAttribute($key) !== null && $organization->getAttribute($key) !== $attributes[$key]) {
+        $byInn = $data->inn === null ? null : $this->storeRepository->findByInnAndKpp(inn: $data->inn, kpp: null);
+        $byOgrn = $data->ogrn === null ? null : $this->storeRepository->findByOgrnAndKpp(ogrn: $data->ogrn, kpp: null);
+        if ($byInn !== null && $byOgrn !== null && $byInn->id !== $byOgrn->id) {
+            throw new RuntimeException('Идентификаторы организации указывают на разные записи; автоматическое слияние запрещено.');
+        }
+
+        return $byInn ?? $byOgrn;
+    }
+
+    private function updateChangedAttributes(Organization $organization, OrganizationData $data, CarbonImmutable $observedAt): void
+    {
+        $attributes = $this->attributes(data: $data, observedAt: $observedAt);
+        $identity = array_intersect_key($attributes, array_flip(['inn', 'kpp', 'ogrn']));
+
+        foreach ($identity as $key => $value) {
+            if ($value !== null && $organization->getAttribute($key) !== null && $organization->getAttribute($key) !== $value) {
                 throw new RuntimeException('Противоречивые идентификаторы организации; обновление запрещено.');
             }
         }
@@ -110,8 +138,9 @@ final readonly class OrganizationResolver
             }
         }
 
+        $previous = $organization->attributes_observed_at ?? $organization->updated_at;
         $changed = array_filter(
-            $attributes,
+            $previous !== null && $observedAt->lt($previous) ? $identity : $attributes,
             static fn (mixed $value, string $key): bool => $value !== null && $organization->{$key} !== $value,
             ARRAY_FILTER_USE_BOTH,
         );
@@ -124,7 +153,7 @@ final readonly class OrganizationResolver
     /**
      * @return array<string, mixed>
      */
-    private function attributes(OrganizationData $data): array
+    private function attributes(OrganizationData $data, CarbonImmutable $observedAt): array
     {
         return [
             'inn' => $data->inn,
@@ -134,6 +163,7 @@ final readonly class OrganizationResolver
             'address_raw' => $data->addressRaw,
             'phone' => $data->phone,
             'email' => $data->email,
+            'attributes_observed_at' => $observedAt,
         ];
     }
 }

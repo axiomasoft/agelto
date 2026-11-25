@@ -81,3 +81,43 @@ test('ref:load-classifiers наполняет ref_ktru с okpd2_code и attribut
     expect($item->okpd2_code)->toBe('62.01.11')
         ->and($item->attributes)->toBe(['unit' => 'шт']);
 });
+
+test('команда откатывает ранние чанки и справочники при ошибке в конце выгрузки', function (): void {
+    $path = tempnam(sys_get_temp_dir(), 'classifier_');
+    assert(is_string($path));
+
+    try {
+        file_put_contents($path, "code,level,name,valid_from\n62.01,1,Первая запись,2024-01-01\n62.02,плохо,Последняя запись,2024-01-01\n");
+        config([
+            'reference.classifiers.okpd2.source_path' => fixtureOkpd2Path(),
+            'reference.classifiers.ktru.source_path' => $path,
+            'reference.classifiers.okved2.source_path' => null,
+            'reference.classifiers.kbk.source_path' => null,
+            'reference.import_chunk_size' => 1,
+        ]);
+
+        expect(fn () => $this->artisan('ref:load-classifiers')->run())->toThrow(RuntimeException::class, 'Некорректный level');
+        expect(Okpd2::query()->count())->toBe(0)->and(Ktru::query()->count())->toBe(0);
+    } finally {
+        unlink($path);
+    }
+});
+
+test('команда предупреждает о дубле внутри чанка и сохраняет последнюю строку', function (): void {
+    $path = tempnam(sys_get_temp_dir(), 'classifier_');
+    assert(is_string($path));
+
+    try {
+        file_put_contents($path, "code,level,name,valid_from\n62.01,1,Первая запись,2024-01-01\n62.01,2,Последняя запись,2024-01-01\n");
+        config(['reference.classifiers.okpd2.source_path' => $path, 'reference.import_chunk_size' => 2]);
+
+        $this->artisan('ref:load-classifiers', ['classifier' => 'okpd2'])
+            ->expectsOutput('Классификатор «okpd2»: повторяющиеся коды в чанке: 62.01.')
+            ->assertSuccessful();
+
+        $row = Okpd2::query()->sole();
+        expect($row->name)->toBe('Последняя запись')->and($row->level)->toBe(2);
+    } finally {
+        unlink($path);
+    }
+});

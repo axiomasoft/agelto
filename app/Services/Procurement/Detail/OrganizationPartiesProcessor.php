@@ -38,7 +38,7 @@ final readonly class OrganizationPartiesProcessor
         $customerOrganizationIds = [];
 
         foreach ($parties as $party) {
-            $organization = $this->organizationResolver->resolve($party->organization);
+            $organization = $this->organizationResolver->resolve(data: $party->organization, observedAt: $procurement->source_updated_at);
 
             $this->storeRepository->upsertParty(
                 procurementId: $procurement->id,

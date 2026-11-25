@@ -118,7 +118,7 @@ final readonly class SupplierResultsProcessor
         // OrganizationResolver — см. SupplierResultsParser/BidData: без ИНН/ОГРН резолвер
         // не отличает одно юрлицо от другого, склеивая разных участников в одну организацию.
         $organizationId = $data->organization !== null
-            ? $this->organizationResolver->resolve($data->organization)->id
+            ? $this->organizationResolver->resolve(data: $data->organization, observedAt: $procurement->source_updated_at)->id
             : null;
 
         $this->detailStoreRepository->upsertBid(
@@ -138,7 +138,7 @@ final readonly class SupplierResultsProcessor
     private function storeAward(Procurement $procurement, AwardData $data, Carbon $occurredAt): Award
     {
         $winner = $data->winner !== null
-            ? $this->organizationResolver->resolve($data->winner)
+            ? $this->organizationResolver->resolve(data: $data->winner, observedAt: $procurement->source_updated_at)
             : null;
 
         $attributes = [
