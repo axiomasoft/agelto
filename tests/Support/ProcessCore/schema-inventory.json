@@ -419,6 +419,30 @@
       "ddl_changed": false,
       "migration_compatibility": "Only 2026_07_04_100040 imports the historical Proxy; three additive migrations import explicit Legacy table carriers.",
       "history": "Legacy network and request/FK tables retained read-only; physical removal deferred."
+    },
+    "audit_performance_indexes": {
+      "item": "PLAN2:P2.4",
+      "kind": "isolated_forward_catalog_generation",
+      "tables": [
+        "llm_provider_calls",
+        "prc_analysis_llm_requests",
+        "prc_analysis_runs",
+        "prc_detail_snapshots",
+        "prc_observations",
+        "prc_operation_intents",
+        "prc_process_incidents",
+        "prc_process_outbox",
+        "prc_process_run_work",
+        "prc_process_runs",
+        "prc_process_transitions",
+        "prc_process_work",
+        "prc_request_attempts",
+        "prc_status_refreshes"
+      ],
+      "note": "Additive audit query indexes; Proxyma down() additions preserve the installed forward schema.",
+      "source_command": "core-test-reset",
+      "source_run": "20261125T104330.967856Z-1697665",
+      "catalog_sha256": "433783c2f2783bd62a8552db522e2b9cff489b9bfd0a5ef127d1ba33300d1508"
     }
   },
   "migrations": [
@@ -1051,18 +1075,18 @@
     },
     {
       "path": "database/migrations/2026_11_11_100000_create_prc_proxyma_adapter_links.php",
-      "sha256": "95686223407ff2392f0d473afe5667db4ec8f80462cb5452efaf76c1e6cae642",
+      "sha256": "ec199290c6edee396dc5b4fee8ea3467b063de483282188b425e15104de9f5cf",
       "action": "create",
       "owner_item": "Proxyma:P9.2",
-      "reason": "P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained.",
+      "reason": "P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. PLAN2:P2.4 adds rollback for the owned schema objects.",
       "before_proxyma_runtime_removal_sha256": "60601f5b771d7365e949d755b24f75eda4b9a570682ff61e60b2fcce5dd62610"
     },
     {
       "path": "database/migrations/2026_11_11_100001_create_prc_proxyma_transfer_records.php",
-      "sha256": "b4a98e952c757990f5e17a423f6429c1ca4bcf3eb099d52a98faf541a319dc49",
+      "sha256": "0dfb1e5afc1a5da0f4bb7cdedc114d5a60a3d4061ccf54e24f82cfd9c6db1ca9",
       "action": "create",
       "owner_item": "Proxyma:P10.1",
-      "reason": "P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained.",
+      "reason": "P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. PLAN2:P2.4 adds rollback for the owned schema objects.",
       "before_proxyma_runtime_removal_sha256": "e298deffbd8fb5c134da7728612b219686ec6f679694235f30df7478bcfb1a2f"
     },
     {
@@ -1072,6 +1096,13 @@
       "owner_item": "Proxyma:P10.2",
       "reason": "P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained.",
       "before_proxyma_runtime_removal_sha256": "d8ed66cf0b2ef548e92613119e1e7956ae5f2a86b749a844bbf4260efd4dd995"
+    },
+    {
+      "path": "database/migrations/2026_11_25_100000_add_audit_performance_indexes.php",
+      "sha256": "02166cefd03bdcba2d148e7d45c1b9fac6feb52ba0b7f0ec562b787c082a9d85",
+      "action": "alter",
+      "owner_item": "PLAN2:P2.4",
+      "reason": "Add indexes for retention, diagnostics and operator queries with reversible DDL."
     }
   ],
   "baseline": {
@@ -7289,6 +7320,12 @@
             "indexname": "prc_detail_snapshots_procurement_id_input_revision_part_key_key",
             "schemaname": "public",
             "tablename": "prc_detail_snapshots"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_detail_snapshots_published_idx ON public.prc_detail_snapshots USING btree (procurement_id, created_at DESC) WHERE ((completeness = 'complete'::text) AND (part_key ~~ '%:published'::text))",
+            "indexname": "prc_detail_snapshots_published_idx",
+            "schemaname": "public",
+            "tablename": "prc_detail_snapshots"
           }
         ],
         "owner": "Repositories/Procurement/Crawler",
@@ -12839,6 +12876,18 @@
         "definition": "CREATE TABLE public.prc_observations (\n    observation_id uuid NOT NULL,\n    request_id uuid,\n    attempt_id uuid,\n    kind text NOT NULL,\n    reason_code text NOT NULL,\n    input_hash bytea NOT NULL,\n    generation bigint NOT NULL,\n    epochs jsonb NOT NULL,\n    epochs_schema_version smallint NOT NULL,\n    stale boolean DEFAULT false NOT NULL,\n    details jsonb,\n    details_schema_version smallint,\n    occurred_at timestamp with time zone NOT NULL,\n    CONSTRAINT prc_observations_details_schema_check CHECK (((details IS NULL) = (details_schema_version IS NULL))),\n    CONSTRAINT prc_observations_details_schema_version_check CHECK ((details_schema_version > 0)),\n    CONSTRAINT prc_observations_epochs_schema_version_check CHECK ((epochs_schema_version > 0)),\n    CONSTRAINT prc_observations_generation_check CHECK ((generation >= 0)),\n    CONSTRAINT prc_observations_input_hash_check CHECK ((octet_length(input_hash) = 32))\n);",
         "indexes": [
           {
+            "indexdef": "CREATE INDEX prc_observations_attempt_idx ON public.prc_observations USING btree (attempt_id)",
+            "indexname": "prc_observations_attempt_idx",
+            "schemaname": "public",
+            "tablename": "prc_observations"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_observations_occurred_idx ON public.prc_observations USING btree (occurred_at)",
+            "indexname": "prc_observations_occurred_idx",
+            "schemaname": "public",
+            "tablename": "prc_observations"
+          },
+          {
             "indexdef": "CREATE UNIQUE INDEX prc_observations_pkey ON public.prc_observations USING btree (observation_id)",
             "indexname": "prc_observations_pkey",
             "schemaname": "public",
@@ -13226,6 +13275,12 @@
           {
             "indexdef": "CREATE UNIQUE INDEX prc_operation_intents_pkey ON public.prc_operation_intents USING btree (id)",
             "indexname": "prc_operation_intents_pkey",
+            "schemaname": "public",
+            "tablename": "prc_operation_intents"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_operation_intents_state_due_idx ON public.prc_operation_intents USING btree (state, next_due_at)",
+            "indexname": "prc_operation_intents_state_due_idx",
             "schemaname": "public",
             "tablename": "prc_operation_intents"
           }
@@ -14719,6 +14774,12 @@
             "indexname": "prc_process_incidents_pkey",
             "schemaname": "public",
             "tablename": "prc_process_incidents"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_process_incidents_state_seen_idx ON public.prc_process_incidents USING btree (state, last_seen_at DESC)",
+            "indexname": "prc_process_incidents_state_seen_idx",
+            "schemaname": "public",
+            "tablename": "prc_process_incidents"
           }
         ],
         "owner": "Repositories/Procurement/Process",
@@ -15184,6 +15245,12 @@
             "indexname": "prc_process_outbox_pkey",
             "schemaname": "public",
             "tablename": "prc_process_outbox"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_process_outbox_published_idx ON public.prc_process_outbox USING btree (published_at, message_id) WHERE (published_at IS NOT NULL)",
+            "indexname": "prc_process_outbox_published_idx",
+            "schemaname": "public",
+            "tablename": "prc_process_outbox"
           }
         ],
         "owner": "Repositories/Procurement/Process",
@@ -15621,6 +15688,12 @@
             "indexname": "prc_process_run_work_pkey",
             "schemaname": "public",
             "tablename": "prc_process_run_work"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_process_run_work_work_idx ON public.prc_process_run_work USING btree (work_id)",
+            "indexname": "prc_process_run_work_work_idx",
+            "schemaname": "public",
+            "tablename": "prc_process_run_work"
           }
         ],
         "owner": "Repositories/Procurement/Process",
@@ -15890,6 +15963,12 @@
           {
             "indexdef": "CREATE UNIQUE INDEX prc_process_runs_pkey ON public.prc_process_runs USING btree (id)",
             "indexname": "prc_process_runs_pkey",
+            "schemaname": "public",
+            "tablename": "prc_process_runs"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_process_runs_requested_idx ON public.prc_process_runs USING btree (requested_at DESC)",
+            "indexname": "prc_process_runs_requested_idx",
             "schemaname": "public",
             "tablename": "prc_process_runs"
           },
@@ -16177,6 +16256,12 @@
             "tablename": "prc_process_transitions"
           },
           {
+            "indexdef": "CREATE INDEX prc_process_transitions_occurred_idx ON public.prc_process_transitions USING btree (occurred_at, event_id)",
+            "indexname": "prc_process_transitions_occurred_idx",
+            "schemaname": "public",
+            "tablename": "prc_process_transitions"
+          },
+          {
             "indexdef": "CREATE UNIQUE INDEX prc_process_transitions_pkey ON public.prc_process_transitions USING btree (event_id)",
             "indexname": "prc_process_transitions_pkey",
             "schemaname": "public",
@@ -16197,6 +16282,12 @@
           {
             "indexdef": "CREATE UNIQUE INDEX prc_process_transitions_work_seq_unique ON public.prc_process_transitions USING btree (work_id, entity_seq) WHERE (work_id IS NOT NULL)",
             "indexname": "prc_process_transitions_work_seq_unique",
+            "schemaname": "public",
+            "tablename": "prc_process_transitions"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_process_transitions_work_state_time_idx ON public.prc_process_transitions USING btree (entity_kind, new_state, occurred_at) WHERE (entity_kind = 'work'::text)",
+            "indexname": "prc_process_transitions_work_state_time_idx",
             "schemaname": "public",
             "tablename": "prc_process_transitions"
           },
@@ -16904,6 +16995,12 @@
             "tablename": "prc_process_work"
           },
           {
+            "indexdef": "CREATE INDEX prc_process_work_detail_latest_idx ON public.prc_process_work USING btree (procurement_id, created_at DESC, id DESC) WHERE ((stage = 'detail'::text) AND (procurement_id IS NOT NULL))",
+            "indexname": "prc_process_work_detail_latest_idx",
+            "schemaname": "public",
+            "tablename": "prc_process_work"
+          },
+          {
             "indexdef": "CREATE INDEX prc_process_work_document_idx ON public.prc_process_work USING btree (document_id) WHERE (document_id IS NOT NULL)",
             "indexname": "prc_process_work_document_idx",
             "schemaname": "public",
@@ -16954,6 +17051,12 @@
           {
             "indexdef": "CREATE INDEX prc_process_work_run_idx ON public.prc_process_work USING btree (origin_run_id, stage, state)",
             "indexname": "prc_process_work_run_idx",
+            "schemaname": "public",
+            "tablename": "prc_process_work"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_process_work_updated_idx ON public.prc_process_work USING btree (updated_at DESC)",
+            "indexname": "prc_process_work_updated_idx",
             "schemaname": "public",
             "tablename": "prc_process_work"
           },
@@ -18649,6 +18752,12 @@
             "indexname": "prc_request_attempts_pkey",
             "schemaname": "public",
             "tablename": "prc_request_attempts"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_request_attempts_started_idx ON public.prc_request_attempts USING btree (started_at)",
+            "indexname": "prc_request_attempts_started_idx",
+            "schemaname": "public",
+            "tablename": "prc_request_attempts"
           }
         ],
         "owner": "Repositories/Procurement/Network",
@@ -19813,6 +19922,12 @@
           {
             "indexdef": "CREATE UNIQUE INDEX prc_status_refreshes_intent_id_key ON public.prc_status_refreshes USING btree (intent_id)",
             "indexname": "prc_status_refreshes_intent_id_key",
+            "schemaname": "public",
+            "tablename": "prc_status_refreshes"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_status_refreshes_next_due_idx ON public.prc_status_refreshes USING btree (next_due_at)",
+            "indexname": "prc_status_refreshes_next_due_idx",
             "schemaname": "public",
             "tablename": "prc_status_refreshes"
           },
@@ -22253,6 +22368,12 @@
         "definition": "CREATE TABLE public.prc_analysis_runs (\n    id uuid NOT NULL,\n    document_version_id bigint NOT NULL,\n    representation_id bigint NOT NULL,\n    representation_hash bytea NOT NULL,\n    recipe_json jsonb NOT NULL,\n    recipe_schema_version smallint NOT NULL,\n    recipe_hash bytea NOT NULL,\n    generation bigint NOT NULL,\n    expected_document_head_generation bigint NOT NULL,\n    expected_analysis_generation bigint NOT NULL,\n    requested_reason text NOT NULL,\n    supersedes_run_id uuid,\n    publication_status text NOT NULL,\n    screening_result jsonb,\n    screening_result_schema_version smallint,\n    screening_disposition text,\n    declared_coverage jsonb,\n    declared_coverage_schema_version smallint,\n    publication_digest bytea,\n    CONSTRAINT prc_analysis_runs_coverage_pair CHECK (((declared_coverage IS NULL) = (declared_coverage_schema_version IS NULL))),\n    CONSTRAINT prc_analysis_runs_coverage_schema CHECK (((declared_coverage_schema_version IS NULL) OR (declared_coverage_schema_version = ANY (ARRAY[1, 2])))),\n    CONSTRAINT prc_analysis_runs_coverage_source CHECK (((declared_coverage_schema_version IS DISTINCT FROM 2) OR ((NOT (jsonb_typeof((declared_coverage -> 'source'::text)) IS DISTINCT FROM 'object'::text)) AND ((NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'null'::text)) OR (NOT (jsonb_typeof((declared_coverage -> 'estimates'::text)) IS DISTINCT FROM 'array'::text)))))),\n    CONSTRAINT prc_analysis_runs_expected_analysis_generation_check CHECK ((expected_analysis_generation >= 1)),\n    CONSTRAINT prc_analysis_runs_expected_document_head_generation_check CHECK ((expected_document_head_generation >= 1)),\n    CONSTRAINT prc_analysis_runs_generation_check CHECK ((generation >= 1)),\n    CONSTRAINT prc_analysis_runs_publication_check CHECK ((publication_status = ANY (ARRAY['unpublished'::text, 'published'::text]))),\n    CONSTRAINT prc_analysis_runs_publication_digest_check CHECK (((publication_digest IS NULL) OR (octet_length(publication_digest) = 32))),\n    CONSTRAINT prc_analysis_runs_publication_pair CHECK (((publication_status = 'published'::text) = (publication_digest IS NOT NULL))),\n    CONSTRAINT prc_analysis_runs_recipe_hash_check CHECK ((octet_length(recipe_hash) = 32)),\n    CONSTRAINT prc_analysis_runs_recipe_schema_version_check CHECK ((recipe_schema_version > 0)),\n    CONSTRAINT prc_analysis_runs_representation_hash_check CHECK ((octet_length(representation_hash) = 32)),\n    CONSTRAINT prc_analysis_runs_screening_disposition_check CHECK ((screening_disposition = ANY (ARRAY['extract'::text, 'retain'::text, 'review'::text, 'ignore'::text]))),\n    CONSTRAINT prc_analysis_runs_screening_disposition_pair CHECK (((screening_result IS NULL) = (screening_disposition IS NULL))),\n    CONSTRAINT prc_analysis_runs_screening_schema_check CHECK (((screening_result_schema_version IS NULL) OR (screening_result_schema_version = 1))),\n    CONSTRAINT prc_analysis_runs_screening_schema_pair CHECK (((screening_result IS NULL) = (screening_result_schema_version IS NULL)))\n);",
         "indexes": [
           {
+            "indexdef": "CREATE INDEX prc_analysis_runs_document_version_idx ON public.prc_analysis_runs USING btree (document_version_id)",
+            "indexname": "prc_analysis_runs_document_version_idx",
+            "schemaname": "public",
+            "tablename": "prc_analysis_runs"
+          },
+          {
             "indexdef": "CREATE UNIQUE INDEX prc_analysis_runs_id_recipe_unique ON public.prc_analysis_runs USING btree (id, recipe_hash)",
             "indexname": "prc_analysis_runs_id_recipe_unique",
             "schemaname": "public",
@@ -23678,6 +23799,12 @@
             "indexname": "llm_provider_calls_reservation_id_key",
             "schemaname": "public",
             "tablename": "llm_provider_calls"
+          },
+          {
+            "indexdef": "CREATE INDEX llm_provider_calls_send_time_idx ON public.llm_provider_calls USING btree (COALESCE(sent_at, send_claimed_at))",
+            "indexname": "llm_provider_calls_send_time_idx",
+            "schemaname": "public",
+            "tablename": "llm_provider_calls"
           }
         ],
         "owner": "P3.9",
@@ -24057,6 +24184,12 @@
           {
             "indexdef": "CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)",
             "indexname": "prc_analysis_llm_requests_pkey",
+            "schemaname": "public",
+            "tablename": "prc_analysis_llm_requests"
+          },
+          {
+            "indexdef": "CREATE INDEX prc_analysis_llm_requests_run_call_idx ON public.prc_analysis_llm_requests USING btree (analysis_run_id, physical_call_id)",
+            "indexname": "prc_analysis_llm_requests_run_call_idx",
             "schemaname": "public",
             "tablename": "prc_analysis_llm_requests"
           },
@@ -26047,7 +26180,9 @@
         "CONSTRAINT prc_process_runs_trigger_key_unique UNIQUE (trigger_key)",
         "CHECK (configuration_schema_version > 0)"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE INDEX prc_process_runs_requested_idx ON public.prc_process_runs USING btree (requested_at DESC)"
+      ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
     "prc_process_incidents": {
@@ -26139,7 +26274,8 @@
         "CHECK (evidence_schema_version > 0)"
       ],
       "indexes": [
-        "CREATE UNIQUE INDEX prc_process_incidents_active_fingerprint_unique ON prc_process_incidents (fingerprint) WHERE state <> 'resolved';"
+        "CREATE UNIQUE INDEX prc_process_incidents_active_fingerprint_unique ON prc_process_incidents (fingerprint) WHERE state <> 'resolved';",
+        "CREATE INDEX prc_process_incidents_state_seen_idx ON public.prc_process_incidents USING btree (state, last_seen_at DESC)"
       ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
@@ -26444,7 +26580,8 @@
         "CONSTRAINT prc_operation_intents_intent_key_unique UNIQUE (intent_key)"
       ],
       "indexes": [
-        "CREATE UNIQUE INDEX prc_operation_intents_one_active_unique ON prc_operation_intents (stage, subject_kind, subject_id) WHERE state = 'active';"
+        "CREATE UNIQUE INDEX prc_operation_intents_one_active_unique ON prc_operation_intents (stage, subject_kind, subject_id) WHERE state = 'active';",
+        "CREATE INDEX prc_operation_intents_state_due_idx ON public.prc_operation_intents USING btree (state, next_due_at)"
       ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
@@ -26759,7 +26896,9 @@
         "CREATE INDEX prc_process_work_claim_idx     ON prc_process_work (dispatch_claim_until, id) WHERE state = 'admitted';",
         "CREATE INDEX prc_process_work_fairness_idx  ON prc_process_work (stage, cohort_key, created_at, id) WHERE state IN ('ready','deferred');",
         "CREATE INDEX prc_process_work_run_idx       ON prc_process_work (origin_run_id, stage, state);",
-        "CREATE INDEX prc_process_work_provider_recovery_due_idx ON prc_process_work(provider_recovery_due_at,id) WHERE state='blocked' AND reason_code='provider_result_unknown';"
+        "CREATE INDEX prc_process_work_provider_recovery_due_idx ON prc_process_work(provider_recovery_due_at,id) WHERE state='blocked' AND reason_code='provider_result_unknown';",
+        "CREATE INDEX prc_process_work_updated_idx ON public.prc_process_work USING btree (updated_at DESC)",
+        "CREATE INDEX prc_process_work_detail_latest_idx ON public.prc_process_work USING btree (procurement_id, created_at DESC, id DESC) WHERE ((stage = 'detail'::text) AND (procurement_id IS NOT NULL))"
       ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
@@ -27068,7 +27207,9 @@
       "constraints": [
         "PRIMARY KEY (run_id, work_id)"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE INDEX prc_process_run_work_work_idx ON public.prc_process_run_work USING btree (work_id)"
+      ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
     "prc_process_transitions": {
@@ -27208,7 +27349,9 @@
         "CREATE UNIQUE INDEX prc_process_transitions_incident_seq_unique ON prc_process_transitions (incident_id, entity_seq) WHERE incident_id IS NOT NULL;",
         "CREATE UNIQUE INDEX prc_process_transitions_work_seq_unique    ON prc_process_transitions (work_id, entity_seq)    WHERE work_id IS NOT NULL;",
         "CREATE UNIQUE INDEX prc_process_transitions_run_seq_unique     ON prc_process_transitions (run_id, entity_seq)     WHERE run_id IS NOT NULL;",
-        "CREATE INDEX prc_process_transitions_run_time_idx  ON prc_process_transitions (run_id, occurred_at, event_id);"
+        "CREATE INDEX prc_process_transitions_run_time_idx  ON prc_process_transitions (run_id, occurred_at, event_id);",
+        "CREATE INDEX prc_process_transitions_occurred_idx ON public.prc_process_transitions USING btree (occurred_at, event_id)",
+        "CREATE INDEX prc_process_transitions_work_state_time_idx ON public.prc_process_transitions USING btree (entity_kind, new_state, occurred_at) WHERE (entity_kind = 'work'::text)"
       ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
@@ -27279,7 +27422,8 @@
         "CHECK (payload_schema_version > 0)"
       ],
       "indexes": [
-        "CREATE INDEX prc_process_outbox_pending_idx ON prc_process_outbox (kind, available_at, message_id) WHERE published_at IS NULL;"
+        "CREATE INDEX prc_process_outbox_pending_idx ON prc_process_outbox (kind, available_at, message_id) WHERE published_at IS NULL;",
+        "CREATE INDEX prc_process_outbox_published_idx ON public.prc_process_outbox USING btree (published_at, message_id) WHERE (published_at IS NOT NULL)"
       ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
@@ -27997,7 +28141,9 @@
         "CHECK ((artifacts IS NULL) = (artifacts_schema_version IS NULL))",
         "CHECK ((attempt_id IS NOT NULL) <> (demand_id IS NOT NULL))"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE INDEX prc_request_attempts_started_idx ON public.prc_request_attempts USING btree (started_at)"
+      ],
       "contract": "execution#s04"
     },
     "prc_observations": {
@@ -28093,7 +28239,10 @@
         "CHECK (details_schema_version > 0)",
         "CHECK ((details IS NULL) = (details_schema_version IS NULL))"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE INDEX prc_observations_attempt_idx ON public.prc_observations USING btree (attempt_id)",
+        "CREATE INDEX prc_observations_occurred_idx ON public.prc_observations USING btree (occurred_at)"
+      ],
       "contract": "execution#s04"
     },
     "prc_observation_applications": {
@@ -28912,7 +29061,9 @@
         "CHECK (char_length(part_key) BETWEEN 1 AND 160)",
         "CHECK (jsonb_typeof(result_ref) = 'object')"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE INDEX prc_detail_snapshots_published_idx ON public.prc_detail_snapshots USING btree (procurement_id, created_at DESC) WHERE ((completeness = 'complete'::text) AND (part_key ~~ '%:published'::text))"
+      ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
     "prc_status_refreshes": {
@@ -28977,7 +29128,9 @@
         "UNIQUE(procurement_id,cycle_seq)",
         "UNIQUE(intent_id)"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE INDEX prc_status_refreshes_next_due_idx ON public.prc_status_refreshes USING btree (next_due_at)"
+      ],
       "contract": "implementation-blueprint#bp-ddl-core"
     },
     "prc_procurement_documents": {
@@ -29412,7 +29565,9 @@
         "CONSTRAINT prc_analysis_runs_supersedes_run_id_fkey FOREIGN KEY (supersedes_run_id) REFERENCES prc_analysis_runs(id)",
         "CONSTRAINT prc_analysis_runs_version_identity_unique UNIQUE (id, document_version_id)"
       ],
-      "indexes": [],
+      "indexes": [
+        "CREATE INDEX prc_analysis_runs_document_version_idx ON public.prc_analysis_runs USING btree (document_version_id)"
+      ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },
     "prc_analysis_windows": {
@@ -30113,7 +30268,8 @@
         "CREATE UNIQUE INDEX llm_provider_calls_pkey ON public.llm_provider_calls USING btree (physical_call_id)",
         "CREATE UNIQUE INDEX llm_provider_calls_receipt_id_key ON public.llm_provider_calls USING btree (receipt_id)",
         "CREATE UNIQUE INDEX llm_provider_calls_receipt_upload_key_key ON public.llm_provider_calls USING btree (receipt_upload_key)",
-        "CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)"
+        "CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)",
+        "CREATE INDEX llm_provider_calls_send_time_idx ON public.llm_provider_calls USING btree (COALESCE(sent_at, send_claimed_at))"
       ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },
@@ -30226,7 +30382,8 @@
         "CREATE UNIQUE INDEX prc_analysis_llm_active_work ON public.prc_analysis_llm_requests USING btree (work_id) WHERE recovery_active",
         "CREATE UNIQUE INDEX prc_analysis_llm_requests_physical_call_id_key ON public.prc_analysis_llm_requests USING btree (physical_call_id)",
         "CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)",
-        "CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)"
+        "CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)",
+        "CREATE INDEX prc_analysis_llm_requests_run_call_idx ON public.prc_analysis_llm_requests USING btree (analysis_run_id, physical_call_id)"
       ],
       "contract": "documents-ai#s01,s04,s05,s06,s08,s09,s10"
     },

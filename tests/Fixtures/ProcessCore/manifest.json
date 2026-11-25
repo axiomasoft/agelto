@@ -5968,7 +5968,7 @@
         },
         {
             "path": "docker/tests/process-core/test_schema_inventory.py",
-            "sha256": "4b5ceac3df52a89c6c0f2be8cae675c64c98e7f206c7604306c0be80b122f33c",
+            "sha256": "6bc5cd6b6143e4d4eb141d7f1a640a7dd18bdbc36264b936537a79c4ba664de6",
             "accepted_change_item": "Proxyma:P10.1",
             "current_change_reason": "Refresh stale isolated package discovery before application boot; preserve exact additive schema inventory expectations."
         },
@@ -6206,9 +6206,9 @@
         },
         {
             "path": "docs/dev/process-schema.md",
-            "sha256": "52bcb84354a1951e5addb7452420bb81e45fd69c777b689525d263078690fe1e",
+            "sha256": "7b668b542aa4c341796db76a482e4d2e654a49ebf5b2ab0f4468580dd694dd77",
             "accepted_change_item": "Proxyma:P10.2",
-            "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay.",
+            "current_change_reason": "PLAN2:P2.4 audit index inventory and migration rollback reconciliation.",
             "before_proxyma_runtime_removal_sha256": "bcd17541a0c246165dfbb1c9dd181e6341a5211fcf66521a9c45cf74460db842"
         },
         {
@@ -6249,9 +6249,9 @@
         },
         {
             "path": "tests/Support/ProcessCore/schema-inventory.json",
-            "sha256": "5b8de59cb12042401d4fb62194feb7a1688670abc21412200205a91b1d9b511c",
+            "sha256": "9fed6810de91b4daa5c992d13335cbc3bc2f5704d75e8bddc20b938fc1aad8dc",
             "accepted_change_item": "Proxyma:P10.2",
-            "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay.",
+            "current_change_reason": "PLAN2:P2.4 audit index inventory and migration rollback reconciliation.",
             "before_proxyma_runtime_removal_sha256": "50a2393d95ed5f32d01dd9d908333ae597d029588fa99f087dd3ea1b352d160a"
         },
         {
@@ -7820,16 +7820,16 @@
         },
         {
             "path": "database/migrations/2026_11_11_100000_create_prc_proxyma_adapter_links.php",
-            "sha256": "95686223407ff2392f0d473afe5667db4ec8f80462cb5452efaf76c1e6cae642",
+            "sha256": "ec199290c6edee396dc5b4fee8ea3467b063de483282188b425e15104de9f5cf",
             "before_proxyma_runtime_removal_sha256": "60601f5b771d7365e949d755b24f75eda4b9a570682ff61e60b2fcce5dd62610",
-            "current_change_reason": "P10.3 exact manifest/current replay identities; frozen provenance retained."
+            "current_change_reason": "P10.3 exact manifest/current replay identities; frozen provenance retained. PLAN2:P2.4 adds schema rollback."
         },
         {
             "path": "database/migrations/2026_11_11_100001_create_prc_proxyma_transfer_records.php",
-            "sha256": "b4a98e952c757990f5e17a423f6429c1ca4bcf3eb099d52a98faf541a319dc49",
+            "sha256": "0dfb1e5afc1a5da0f4bb7cdedc114d5a60a3d4061ccf54e24f82cfd9c6db1ca9",
             "accepted_change_item": "Proxyma:P10.1",
             "before_proxyma_runtime_removal_sha256": "e298deffbd8fb5c134da7728612b219686ec6f679694235f30df7478bcfb1a2f",
-            "current_change_reason": "P10.3 exact manifest/current replay identities; frozen provenance retained."
+            "current_change_reason": "P10.3 exact manifest/current replay identities; frozen provenance retained. PLAN2:P2.4 adds schema rollback."
         },
         {
             "path": "database/migrations/2026_11_11_100002_add_prc_proxyma_cutover_fences.php",
@@ -7837,6 +7837,10 @@
             "accepted_change_item": "Proxyma:P10.2",
             "before_proxyma_runtime_removal_sha256": "d8ed66cf0b2ef548e92613119e1e7956ae5f2a86b749a844bbf4260efd4dd995",
             "current_change_reason": "P10.3 exact manifest/current replay identities; frozen provenance retained."
+        },
+        {
+            "path": "database/migrations/2026_11_25_100000_add_audit_performance_indexes.php",
+            "sha256": "02166cefd03bdcba2d148e7d45c1b9fac6feb52ba0b7f0ec562b787c082a9d85"
         }
     ],
     "source_classes": [

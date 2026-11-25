@@ -88,4 +88,14 @@ return new class extends Migration
             DB::statement("ALTER TABLE {$table} ADD CONSTRAINT {$table}_valid CHECK ({$check})");
         }
     }
+
+    public function down(): void
+    {
+        Schema::dropIfExists((new NetworkAuthority)->getTable());
+        Schema::dropIfExists((new CutoverJournal)->getTable());
+        Schema::dropIfExists((new OwnerLink)->getTable());
+        Schema::dropIfExists((new BindingLink)->getTable());
+        Schema::dropIfExists((new ProfileLink)->getTable());
+        Schema::dropIfExists((new TargetLink)->getTable());
+    }
 };

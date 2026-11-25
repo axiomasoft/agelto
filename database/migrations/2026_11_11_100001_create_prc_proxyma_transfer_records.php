@@ -54,4 +54,12 @@ return new class extends Migration
             CREATE TRIGGER prc_pxm_archive_immutable BEFORE UPDATE OR DELETE ON {$archive}
                 FOR EACH ROW EXECUTE FUNCTION prc_proxyma_transfer_immutable();");
     }
+
+    public function down(): void
+    {
+        Schema::dropIfExists((new StateArchive)->getTable());
+        Schema::dropIfExists((new TransferRecord)->getTable());
+        Schema::dropIfExists((new EndpointLink)->getTable());
+        DB::statement('DROP FUNCTION IF EXISTS prc_proxyma_transfer_immutable()');
+    }
 };

@@ -195,9 +195,10 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_11_02_100001_create_llm_request_ledger.php` | rewrite | P3.13 | Canonical AI recipe/chunk/publication and provider-ledger consumer cutover. |
 | `2026_11_02_100002_create_llm_assets.php` | create | P3.12 | Canonical files/cache identity and fenced physical creation ownership; no paid runtime activation. |
 | `2026_11_07_100000_add_llm_send_eligibility_indexes.php` | create | P3.17 | Forward send-eligibility indexes for period reservation state and unknown logical request state. |
-| `2026_11_11_100000_create_prc_proxyma_adapter_links.php` | create | Proxyma:P9.2 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. |
-| `2026_11_11_100001_create_prc_proxyma_transfer_records.php` | create | Proxyma:P10.1 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. |
+| `2026_11_11_100000_create_prc_proxyma_adapter_links.php` | create | Proxyma:P9.2 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. PLAN2:P2.4 adds rollback for the owned schema objects. |
+| `2026_11_11_100001_create_prc_proxyma_transfer_records.php` | create | Proxyma:P10.1 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. PLAN2:P2.4 adds rollback for the owned schema objects. |
 | `2026_11_11_100002_add_prc_proxyma_cutover_fences.php` | alter | Proxyma:P10.2 | P10.3 Q1-approved getTable carrier imports only; original DDL and pinned baseline migrations retained. |
+| `2026_11_25_100000_add_audit_performance_indexes.php` | alter | PLAN2:P2.4 | Add indexes for retention, diagnostics and operator queries with reversible DDL. |
 
 ### Legacy lifecycle
 
@@ -300,6 +301,7 @@ Constraints:
 - `CHECK (configuration_schema_version > 0)`
 
 Indexes:
+- `CREATE INDEX prc_process_runs_requested_idx ON public.prc_process_runs USING btree (requested_at DESC)`
 
 #### prc_process_incidents
 
@@ -327,6 +329,7 @@ Constraints:
 
 Indexes:
 - `CREATE UNIQUE INDEX prc_process_incidents_active_fingerprint_unique ON prc_process_incidents (fingerprint) WHERE state <> 'resolved';`
+- `CREATE INDEX prc_process_incidents_state_seen_idx ON public.prc_process_incidents USING btree (state, last_seen_at DESC)`
 
 #### prc_process_handler_holds
 
@@ -423,6 +426,7 @@ Constraints:
 
 Indexes:
 - `CREATE UNIQUE INDEX prc_operation_intents_one_active_unique ON prc_operation_intents (stage, subject_kind, subject_id) WHERE state = 'active';`
+- `CREATE INDEX prc_operation_intents_state_due_idx ON public.prc_operation_intents USING btree (state, next_due_at)`
 
 #### prc_process_work
 
@@ -500,6 +504,8 @@ Indexes:
 - `CREATE INDEX prc_process_work_fairness_idx ON prc_process_work (stage, cohort_key, created_at, id) WHERE state IN ('ready','deferred');`
 - `CREATE INDEX prc_process_work_run_idx ON prc_process_work (origin_run_id, stage, state);`
 - `CREATE INDEX prc_process_work_provider_recovery_due_idx ON prc_process_work(provider_recovery_due_at,id) WHERE state='blocked' AND reason_code='provider_result_unknown';`
+- `CREATE INDEX prc_process_work_updated_idx ON public.prc_process_work USING btree (updated_at DESC)`
+- `CREATE INDEX prc_process_work_detail_latest_idx ON public.prc_process_work USING btree (procurement_id, created_at DESC, id DESC) WHERE ((stage = 'detail'::text) AND (procurement_id IS NOT NULL))`
 
 #### prc_process_attempts
 
@@ -590,6 +596,7 @@ Constraints:
 - `PRIMARY KEY (run_id, work_id)`
 
 Indexes:
+- `CREATE INDEX prc_process_run_work_work_idx ON public.prc_process_run_work USING btree (work_id)`
 
 #### prc_process_transitions
 
@@ -629,6 +636,8 @@ Indexes:
 - `CREATE UNIQUE INDEX prc_process_transitions_work_seq_unique ON prc_process_transitions (work_id, entity_seq) WHERE work_id IS NOT NULL;`
 - `CREATE UNIQUE INDEX prc_process_transitions_run_seq_unique ON prc_process_transitions (run_id, entity_seq) WHERE run_id IS NOT NULL;`
 - `CREATE INDEX prc_process_transitions_run_time_idx ON prc_process_transitions (run_id, occurred_at, event_id);`
+- `CREATE INDEX prc_process_transitions_occurred_idx ON public.prc_process_transitions USING btree (occurred_at, event_id)`
+- `CREATE INDEX prc_process_transitions_work_state_time_idx ON public.prc_process_transitions USING btree (entity_kind, new_state, occurred_at) WHERE (entity_kind = 'work'::text)`
 
 #### prc_process_outbox
 
@@ -654,6 +663,7 @@ Constraints:
 
 Indexes:
 - `CREATE INDEX prc_process_outbox_pending_idx ON prc_process_outbox (kind, available_at, message_id) WHERE published_at IS NULL;`
+- `CREATE INDEX prc_process_outbox_published_idx ON public.prc_process_outbox USING btree (published_at, message_id) WHERE (published_at IS NOT NULL)`
 
 #### prc_process_daemon_heartbeats
 
@@ -881,6 +891,7 @@ Constraints:
 - `CHECK ((attempt_id IS NOT NULL) <> (demand_id IS NOT NULL))`
 
 Indexes:
+- `CREATE INDEX prc_request_attempts_started_idx ON public.prc_request_attempts USING btree (started_at)`
 
 #### prc_observations
 
@@ -908,6 +919,8 @@ Constraints:
 - `CHECK ((details IS NULL) = (details_schema_version IS NULL))`
 
 Indexes:
+- `CREATE INDEX prc_observations_attempt_idx ON public.prc_observations USING btree (attempt_id)`
+- `CREATE INDEX prc_observations_occurred_idx ON public.prc_observations USING btree (occurred_at)`
 
 #### prc_observation_applications
 
@@ -1177,6 +1190,7 @@ Constraints:
 - `CHECK (jsonb_typeof(result_ref) = 'object')`
 
 Indexes:
+- `CREATE INDEX prc_detail_snapshots_published_idx ON public.prc_detail_snapshots USING btree (procurement_id, created_at DESC) WHERE ((completeness = 'complete'::text) AND (part_key ~~ '%:published'::text))`
 
 #### prc_status_refreshes
 
@@ -1197,6 +1211,7 @@ Constraints:
 - `UNIQUE(intent_id)`
 
 Indexes:
+- `CREATE INDEX prc_status_refreshes_next_due_idx ON public.prc_status_refreshes USING btree (next_due_at)`
 
 #### prc_procurement_documents
 
@@ -1335,6 +1350,7 @@ Constraints:
 - `CONSTRAINT prc_analysis_runs_version_identity_unique UNIQUE (id, document_version_id)`
 
 Indexes:
+- `CREATE INDEX prc_analysis_runs_document_version_idx ON public.prc_analysis_runs USING btree (document_version_id)`
 
 #### prc_analysis_windows
 
@@ -1582,6 +1598,7 @@ Indexes:
 - `CREATE UNIQUE INDEX llm_provider_calls_receipt_id_key ON public.llm_provider_calls USING btree (receipt_id)`
 - `CREATE UNIQUE INDEX llm_provider_calls_receipt_upload_key_key ON public.llm_provider_calls USING btree (receipt_upload_key)`
 - `CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)`
+- `CREATE INDEX llm_provider_calls_send_time_idx ON public.llm_provider_calls USING btree (COALESCE(sent_at, send_claimed_at))`
 
 #### prc_analysis_llm_requests
 
@@ -1617,6 +1634,7 @@ Indexes:
 - `CREATE UNIQUE INDEX prc_analysis_llm_requests_physical_call_id_key ON public.prc_analysis_llm_requests USING btree (physical_call_id)`
 - `CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)`
 - `CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)`
+- `CREATE INDEX prc_analysis_llm_requests_run_call_idx ON public.prc_analysis_llm_requests USING btree (analysis_run_id, physical_call_id)`
 
 #### llm_file_assets
 
@@ -3066,6 +3084,7 @@ Constraints:
 Indexes:
 - `prc_detail_snapshots_pkey`: `CREATE UNIQUE INDEX prc_detail_snapshots_pkey ON public.prc_detail_snapshots USING btree (id)`
 - `prc_detail_snapshots_procurement_id_input_revision_part_key_key`: `CREATE UNIQUE INDEX prc_detail_snapshots_procurement_id_input_revision_part_key_key ON public.prc_detail_snapshots USING btree (procurement_id, input_revision, part_key)`
+- `prc_detail_snapshots_published_idx`: `CREATE INDEX prc_detail_snapshots_published_idx ON public.prc_detail_snapshots USING btree (procurement_id, created_at DESC) WHERE ((completeness = 'complete'::text) AND (part_key ~~ '%:published'::text))`
 
 #### prc_document_blobs
 
@@ -3949,6 +3968,8 @@ Constraints:
 - `prc_observations_request_id_fkey`: `FOREIGN KEY (request_id) REFERENCES prc_request_attempts(request_id)`
 
 Indexes:
+- `prc_observations_attempt_idx`: `CREATE INDEX prc_observations_attempt_idx ON public.prc_observations USING btree (attempt_id)`
+- `prc_observations_occurred_idx`: `CREATE INDEX prc_observations_occurred_idx ON public.prc_observations USING btree (occurred_at)`
 - `prc_observations_pkey`: `CREATE UNIQUE INDEX prc_observations_pkey ON public.prc_observations USING btree (observation_id)`
 
 #### prc_okpd2_nodes
@@ -4015,6 +4036,7 @@ Indexes:
 - `prc_operation_intents_intent_key_unique`: `CREATE UNIQUE INDEX prc_operation_intents_intent_key_unique ON public.prc_operation_intents USING btree (intent_key)`
 - `prc_operation_intents_one_active_unique`: `CREATE UNIQUE INDEX prc_operation_intents_one_active_unique ON public.prc_operation_intents USING btree (stage, subject_kind, subject_id) WHERE (state = 'active'::text)`
 - `prc_operation_intents_pkey`: `CREATE UNIQUE INDEX prc_operation_intents_pkey ON public.prc_operation_intents USING btree (id)`
+- `prc_operation_intents_state_due_idx`: `CREATE INDEX prc_operation_intents_state_due_idx ON public.prc_operation_intents USING btree (state, next_due_at)`
 
 #### prc_outbound_operation_controls
 
@@ -4268,6 +4290,7 @@ Constraints:
 Indexes:
 - `prc_process_incidents_active_fingerprint_unique`: `CREATE UNIQUE INDEX prc_process_incidents_active_fingerprint_unique ON public.prc_process_incidents USING btree (fingerprint) WHERE (state <> 'resolved'::text)`
 - `prc_process_incidents_pkey`: `CREATE UNIQUE INDEX prc_process_incidents_pkey ON public.prc_process_incidents USING btree (id)`
+- `prc_process_incidents_state_seen_idx`: `CREATE INDEX prc_process_incidents_state_seen_idx ON public.prc_process_incidents USING btree (state, last_seen_at DESC)`
 
 #### prc_process_lanes
 
@@ -4352,6 +4375,7 @@ Indexes:
 - `prc_process_outbox_dedup_key_unique`: `CREATE UNIQUE INDEX prc_process_outbox_dedup_key_unique ON public.prc_process_outbox USING btree (dedup_key)`
 - `prc_process_outbox_pending_idx`: `CREATE INDEX prc_process_outbox_pending_idx ON public.prc_process_outbox USING btree (kind, available_at, message_id) WHERE (published_at IS NULL)`
 - `prc_process_outbox_pkey`: `CREATE UNIQUE INDEX prc_process_outbox_pkey ON public.prc_process_outbox USING btree (message_id)`
+- `prc_process_outbox_published_idx`: `CREATE INDEX prc_process_outbox_published_idx ON public.prc_process_outbox USING btree (published_at, message_id) WHERE (published_at IS NOT NULL)`
 
 #### prc_process_projection_receipts
 
@@ -4444,6 +4468,7 @@ Constraints:
 
 Indexes:
 - `prc_process_run_work_pkey`: `CREATE UNIQUE INDEX prc_process_run_work_pkey ON public.prc_process_run_work USING btree (run_id, work_id)`
+- `prc_process_run_work_work_idx`: `CREATE INDEX prc_process_run_work_work_idx ON public.prc_process_run_work USING btree (work_id)`
 
 #### prc_process_runs
 
@@ -4485,6 +4510,7 @@ Constraints:
 
 Indexes:
 - `prc_process_runs_pkey`: `CREATE UNIQUE INDEX prc_process_runs_pkey ON public.prc_process_runs USING btree (id)`
+- `prc_process_runs_requested_idx`: `CREATE INDEX prc_process_runs_requested_idx ON public.prc_process_runs USING btree (requested_at DESC)`
 - `prc_process_runs_trigger_key_unique`: `CREATE UNIQUE INDEX prc_process_runs_trigger_key_unique ON public.prc_process_runs USING btree (trigger_key)`
 
 #### prc_process_transitions
@@ -4528,10 +4554,12 @@ Constraints:
 Indexes:
 - `prc_process_transitions_control_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_control_seq_unique ON public.prc_process_transitions USING btree (control_id, entity_seq) WHERE (control_id IS NOT NULL)`
 - `prc_process_transitions_incident_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_incident_seq_unique ON public.prc_process_transitions USING btree (incident_id, entity_seq) WHERE (incident_id IS NOT NULL)`
+- `prc_process_transitions_occurred_idx`: `CREATE INDEX prc_process_transitions_occurred_idx ON public.prc_process_transitions USING btree (occurred_at, event_id)`
 - `prc_process_transitions_pkey`: `CREATE UNIQUE INDEX prc_process_transitions_pkey ON public.prc_process_transitions USING btree (event_id)`
 - `prc_process_transitions_run_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_run_seq_unique ON public.prc_process_transitions USING btree (run_id, entity_seq) WHERE (run_id IS NOT NULL)`
 - `prc_process_transitions_run_time_idx`: `CREATE INDEX prc_process_transitions_run_time_idx ON public.prc_process_transitions USING btree (run_id, occurred_at, event_id)`
 - `prc_process_transitions_work_seq_unique`: `CREATE UNIQUE INDEX prc_process_transitions_work_seq_unique ON public.prc_process_transitions USING btree (work_id, entity_seq) WHERE (work_id IS NOT NULL)`
+- `prc_process_transitions_work_state_time_idx`: `CREATE INDEX prc_process_transitions_work_state_time_idx ON public.prc_process_transitions USING btree (entity_kind, new_state, occurred_at) WHERE (entity_kind = 'work'::text)`
 - `prc_process_transitions_work_time_idx`: `CREATE INDEX prc_process_transitions_work_time_idx ON public.prc_process_transitions USING btree (work_id, occurred_at, event_id)`
 
 #### prc_process_work
@@ -4625,6 +4653,7 @@ Indexes:
 - `prc_process_work_analysis_window_idx`: `CREATE INDEX prc_process_work_analysis_window_idx ON public.prc_process_work USING btree (analysis_window_id) WHERE (analysis_window_id IS NOT NULL)`
 - `prc_process_work_claim_idx`: `CREATE INDEX prc_process_work_claim_idx ON public.prc_process_work USING btree (dispatch_claim_until, id) WHERE (state = 'admitted'::text)`
 - `prc_process_work_crawl_block_idx`: `CREATE INDEX prc_process_work_crawl_block_idx ON public.prc_process_work USING btree (crawl_block_id) WHERE (crawl_block_id IS NOT NULL)`
+- `prc_process_work_detail_latest_idx`: `CREATE INDEX prc_process_work_detail_latest_idx ON public.prc_process_work USING btree (procurement_id, created_at DESC, id DESC) WHERE ((stage = 'detail'::text) AND (procurement_id IS NOT NULL))`
 - `prc_process_work_document_idx`: `CREATE INDEX prc_process_work_document_idx ON public.prc_process_work USING btree (document_id) WHERE (document_id IS NOT NULL)`
 - `prc_process_work_document_version_idx`: `CREATE INDEX prc_process_work_document_version_idx ON public.prc_process_work USING btree (document_version_id) WHERE (document_version_id IS NOT NULL)`
 - `prc_process_work_due_idx`: `CREATE INDEX prc_process_work_due_idx ON public.prc_process_work USING btree (due_at, priority, id) WHERE (state = ANY (ARRAY['ready'::text, 'deferred'::text]))`
@@ -4634,6 +4663,7 @@ Indexes:
 - `prc_process_work_procurement_idx`: `CREATE INDEX prc_process_work_procurement_idx ON public.prc_process_work USING btree (procurement_id) WHERE (procurement_id IS NOT NULL)`
 - `prc_process_work_provider_recovery_due_idx`: `CREATE INDEX prc_process_work_provider_recovery_due_idx ON public.prc_process_work USING btree (provider_recovery_due_at, id) WHERE ((state = 'blocked'::text) AND (reason_code = 'provider_result_unknown'::text))`
 - `prc_process_work_run_idx`: `CREATE INDEX prc_process_work_run_idx ON public.prc_process_work USING btree (origin_run_id, stage, state)`
+- `prc_process_work_updated_idx`: `CREATE INDEX prc_process_work_updated_idx ON public.prc_process_work USING btree (updated_at DESC)`
 - `prc_process_work_work_key_unique`: `CREATE UNIQUE INDEX prc_process_work_work_key_unique ON public.prc_process_work USING btree (work_key)`
 
 #### prc_procurement_documents
@@ -4910,6 +4940,7 @@ Indexes:
 - `prc_request_attempts_attempt_seq_unique`: `CREATE UNIQUE INDEX prc_request_attempts_attempt_seq_unique ON public.prc_request_attempts USING btree (attempt_id, request_seq)`
 - `prc_request_attempts_demand_id_key`: `CREATE UNIQUE INDEX prc_request_attempts_demand_id_key ON public.prc_request_attempts USING btree (demand_id)`
 - `prc_request_attempts_pkey`: `CREATE UNIQUE INDEX prc_request_attempts_pkey ON public.prc_request_attempts USING btree (request_id)`
+- `prc_request_attempts_started_idx`: `CREATE INDEX prc_request_attempts_started_idx ON public.prc_request_attempts USING btree (started_at)`
 
 #### prc_revisions
 
@@ -5114,6 +5145,7 @@ Constraints:
 
 Indexes:
 - `prc_status_refreshes_intent_id_key`: `CREATE UNIQUE INDEX prc_status_refreshes_intent_id_key ON public.prc_status_refreshes USING btree (intent_id)`
+- `prc_status_refreshes_next_due_idx`: `CREATE INDEX prc_status_refreshes_next_due_idx ON public.prc_status_refreshes USING btree (next_due_at)`
 - `prc_status_refreshes_pkey`: `CREATE UNIQUE INDEX prc_status_refreshes_pkey ON public.prc_status_refreshes USING btree (id)`
 - `prc_status_refreshes_procurement_id_cycle_seq_key`: `CREATE UNIQUE INDEX prc_status_refreshes_procurement_id_cycle_seq_key ON public.prc_status_refreshes USING btree (procurement_id, cycle_seq)`
 
@@ -5538,6 +5570,7 @@ Constraints:
 - `prc_analysis_runs_version_identity_unique`: `UNIQUE (id, document_version_id)`
 
 Indexes:
+- `prc_analysis_runs_document_version_idx`: `CREATE INDEX prc_analysis_runs_document_version_idx ON public.prc_analysis_runs USING btree (document_version_id)`
 - `prc_analysis_runs_id_recipe_unique`: `CREATE UNIQUE INDEX prc_analysis_runs_id_recipe_unique ON public.prc_analysis_runs USING btree (id, recipe_hash)`
 - `prc_analysis_runs_pkey`: `CREATE UNIQUE INDEX prc_analysis_runs_pkey ON public.prc_analysis_runs USING btree (id)`
 - `prc_analysis_runs_version_identity_unique`: `CREATE UNIQUE INDEX prc_analysis_runs_version_identity_unique ON public.prc_analysis_runs USING btree (id, document_version_id)`
@@ -5759,6 +5792,7 @@ Indexes:
 - `llm_provider_calls_receipt_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_receipt_id_key ON public.llm_provider_calls USING btree (receipt_id)`
 - `llm_provider_calls_receipt_upload_key_key`: `CREATE UNIQUE INDEX llm_provider_calls_receipt_upload_key_key ON public.llm_provider_calls USING btree (receipt_upload_key)`
 - `llm_provider_calls_reservation_id_key`: `CREATE UNIQUE INDEX llm_provider_calls_reservation_id_key ON public.llm_provider_calls USING btree (reservation_id)`
+- `llm_provider_calls_send_time_idx`: `CREATE INDEX llm_provider_calls_send_time_idx ON public.llm_provider_calls USING btree (COALESCE(sent_at, send_claimed_at))`
 
 #### llm_budget_reservations
 
@@ -5826,6 +5860,7 @@ Indexes:
 - `prc_analysis_llm_active_work`: `CREATE UNIQUE INDEX prc_analysis_llm_active_work ON public.prc_analysis_llm_requests USING btree (work_id) WHERE recovery_active`
 - `prc_analysis_llm_requests_physical_call_id_key`: `CREATE UNIQUE INDEX prc_analysis_llm_requests_physical_call_id_key ON public.prc_analysis_llm_requests USING btree (physical_call_id)`
 - `prc_analysis_llm_requests_pkey`: `CREATE UNIQUE INDEX prc_analysis_llm_requests_pkey ON public.prc_analysis_llm_requests USING btree (id)`
+- `prc_analysis_llm_requests_run_call_idx`: `CREATE INDEX prc_analysis_llm_requests_run_call_idx ON public.prc_analysis_llm_requests USING btree (analysis_run_id, physical_call_id)`
 - `prc_analysis_llm_work_idx`: `CREATE INDEX prc_analysis_llm_work_idx ON public.prc_analysis_llm_requests USING btree (work_id, attempt_id)`
 
 #### llm_financial_actions
