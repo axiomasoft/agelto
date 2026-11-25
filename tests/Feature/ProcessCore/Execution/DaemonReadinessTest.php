@@ -79,7 +79,7 @@ function loopProbe(DaemonKind $kind, Closure $tick, int $delayMs = 0): object
             return $this->kind;
         }
 
-        public function tick(): DaemonTick
+        public function tick(?Closure $heartbeat = null): DaemonTick
         {
             $this->ticks++;
 
@@ -116,7 +116,7 @@ test('карантин feeder wake сохраняет degraded на idle polls �
     expect($daemon->tick()->errorCode)->toBeNull();
 });
 
-test('ошибка producer не останавливает здоровый producer и admission listing, а wake ждёт чистого tick', function (): void {
+test('ошибка producer не останавливает здоровый producer, admission listing и подтверждение wake', function (): void {
     ExecutionFixtures::authority([StageCode::Listing]);
     app()->instance(ProcessClock::class, loopClock());
     $work = ExecutionFixtures::listingWork();
@@ -202,11 +202,11 @@ test('ошибка producer не останавливает здоровый pro
             ->and(ExecutionFixtures::work($work)->state)->toBe('admitted')
             ->and(DB::table('prc_admission_groups')->where('work_id', $work->value->value)->count())->toBe(1)
             ->and(DB::table('prc_process_outbox')->where('kind', 'work_wake')->where('payload->work_id', $work->value->value)->count())->toBe(1)
-            ->and($wake->published_at)->toBeNull()
+            ->and($wake->published_at)->not->toBeNull()
             ->and($wake->claim_token)->toBeNull()
             ->and($wake->claim_until)->toBeNull()
-            ->and($wake->last_error_code)->toBe('feed_tick_failed')
-            ->and($wake->attempts)->toBe($attempt);
+            ->and($wake->last_error_code)->toBeNull()
+            ->and($wake->attempts)->toBe(1);
     }
 
     $failing->fails = false;
@@ -214,7 +214,7 @@ test('ошибка producer не останавливает здоровый pro
     $tick = $daemon->tick();
     $wake = DB::table('prc_process_outbox')->where('message_id', $message->value)->sole();
     expect($tick->errorCode)->toBeNull()
-        ->and($tick->processed)->toBeGreaterThanOrEqual(2)
+        ->and($tick->processed)->toBeGreaterThanOrEqual(1)
         ->and($healthy->calls)->toBe(3)
         ->and($wake->published_at)->not->toBeNull()
         ->and($wake->last_error_code)->toBeNull()

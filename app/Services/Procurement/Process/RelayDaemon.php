@@ -15,6 +15,7 @@ use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
 use App\Services\Procurement\Process\Contracts\WorkWakePublisher;
+use Closure;
 use Illuminate\Database\QueryException;
 
 /**
@@ -50,7 +51,7 @@ final class RelayDaemon implements ProcessDaemon
         return DaemonKind::Relay;
     }
 
-    public function tick(): DaemonTick
+    public function tick(?Closure $heartbeat = null): DaemonTick
     {
         $token = ProcessUuid::random();
         /** @var list<ClaimedOutboxMessage> $messages */
@@ -58,6 +59,7 @@ final class RelayDaemon implements ProcessDaemon
         $published = 0;
         $error = null;
         foreach ($messages as $index => $message) {
+            $heartbeat?->__invoke();
             $wake = $this->decode($message);
             if (is_string($wake)) {
                 $this->quarantine($message, $wake);

@@ -8,6 +8,7 @@ use App\Dto\Procurement\Process\DaemonTick;
 use App\Enums\Procurement\Process\DaemonKind;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
+use Closure;
 
 /**
  * Reconcile daemon: tick 5 s ±20%, bounded категории recovery одна за другой. Категории
@@ -45,11 +46,12 @@ final class ReconcileDaemon implements ProcessDaemon
         return DaemonKind::Reconcile;
     }
 
-    public function tick(): DaemonTick
+    public function tick(?Closure $heartbeat = null): DaemonTick
     {
         $processed = 0;
         $error = null;
         foreach ($this->categories as $category) {
+            $heartbeat?->__invoke();
             try {
                 $processed += $category->reconcile();
             } catch (\Throwable $failure) {

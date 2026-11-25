@@ -14,6 +14,7 @@ use App\Enums\Procurement\Process\ProjectionApplyStatus;
 use App\Repositories\Procurement\Process\IncidentRepository;
 use App\Repositories\Procurement\Process\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
+use Closure;
 
 /**
  * Projector daemon: tick 1 s, claim-ит ТОЛЬКО kind projection по
@@ -26,6 +27,10 @@ use App\Services\Procurement\Process\Contracts\ProcessDaemon;
  */
 final class ProjectorDaemon implements ProcessDaemon
 {
+    private const int MAX_APPLY_ATTEMPTS = 5;
+
+    private const string APPLY_FAILED = 'projection_apply_failed';
+
     private bool $statesEnsured = false;
 
     public function __construct(
@@ -43,7 +48,7 @@ final class ProjectorDaemon implements ProcessDaemon
         return DaemonKind::Project;
     }
 
-    public function tick(): DaemonTick
+    public function tick(?Closure $heartbeat = null): DaemonTick
     {
         if (! $this->statesEnsured) {
             $this->projector->ensureStates();
@@ -54,6 +59,7 @@ final class ProjectorDaemon implements ProcessDaemon
         $messages = $this->transaction->run(fn (): array => $this->outbox->claim(OutboxKind::Projection, $token, $this->policy->projectBatch, $this->policy->projectClaimSeconds));
         $acknowledged = 0;
         foreach ($messages as $index => $message) {
+            $heartbeat?->__invoke();
             try {
                 if ($this->handle($message)) {
                     $acknowledged++;
@@ -84,7 +90,30 @@ final class ProjectorDaemon implements ProcessDaemon
 
             return false;
         }
-        $results = $this->projector->apply($eventId);
+        try {
+            $results = $this->projector->apply($eventId);
+        } catch (\Throwable $failure) {
+            if (DatabaseFailureClassifier::isTransient($failure)) {
+                throw $failure;
+            }
+            ProcessLog::daemonError(
+                daemon: 'project',
+                code: self::APPLY_FAILED,
+                failure: $failure,
+                context: ['message_id' => $message->messageId->value, 'attempts' => $message->attempts],
+            );
+            if ($message->attempts >= self::MAX_APPLY_ATTEMPTS) {
+                $this->quarantine(message: $message, reason: 'apply_failed', eventId: $eventId);
+            } else {
+                $this->outbox->defer(
+                    message: $message,
+                    code: self::APPLY_FAILED,
+                    delaySeconds: intdiv($this->policy->backoffMs($message->attempts), 1000),
+                );
+            }
+
+            return false;
+        }
         $quarantine = null;
         $deferred = false;
         foreach ($results as $status) {
@@ -117,11 +146,13 @@ final class ProjectorDaemon implements ProcessDaemon
         $ids = [ProcessUuid::random(), ProcessUuid::random(), ProcessUuid::random()];
         ProcessLog::quarantined($code, ['message_id' => $message->messageId->value]);
         $this->transaction->run(function () use ($message, $code, $reason, $eventId, $ids): void {
-            $this->outbox->quarantine($message, $code, $this->projection->quarantineRetrySeconds);
+            if (! $this->outbox->quarantine($message, $code, $this->projection->quarantineRetrySeconds)) {
+                return;
+            }
             $this->incidents->open(
                 fingerprint: ContentHash::of('outbox-quarantine:v1:projection:'.$reason),
                 scopeKey: 'outbox:projection',
-                kind: 'projection_schema_error',
+                kind: $reason === 'apply_failed' ? 'outbox_quarantine' : 'projection_schema_error',
                 evidence: ['code' => $code, 'message_id' => $message->messageId->value, ...($eventId === null ? [] : ['event_id' => $eventId->value])],
                 incidentId: $ids[0],
                 eventId: $ids[1],
@@ -134,7 +165,7 @@ final class ProjectorDaemon implements ProcessDaemon
     private function release(array $messages): void
     {
         try {
-            $this->outbox->releaseClaims($messages, 'projection_apply_failed');
+            $this->outbox->releaseClaims(messages: $messages, errorCode: self::APPLY_FAILED);
         } catch (\Throwable $failure) {
             // Claim истечёт сам; вторичный сбой не должен скрывать исходную причину tick.
             ProcessLog::daemonError('project', 'release_claim_failed', $failure);

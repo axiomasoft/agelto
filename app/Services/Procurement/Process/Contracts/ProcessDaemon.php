@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Process\Contracts;
 
 use App\Dto\Procurement\Process\DaemonTick;
 use App\Enums\Procurement\Process\DaemonKind;
+use Closure;
 
 /**
  * Один tick долгоживущего Process daemon. Цикл, signals, heartbeat, backoff и recycle
@@ -17,7 +18,8 @@ interface ProcessDaemon
 {
     public function kind(): DaemonKind;
 
-    public function tick(): DaemonTick;
+    /** @param (Closure(): void)|null $heartbeat Проверяет интервал между частями долгого tick. */
+    public function tick(?Closure $heartbeat = null): DaemonTick;
 
     /** Пауза до следующего tick в миллисекундах; 0 — работа есть, drain без sleep. */
     public function delayMs(DaemonTick $last): int;

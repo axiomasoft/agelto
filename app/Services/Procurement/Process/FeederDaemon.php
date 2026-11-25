@@ -7,7 +7,6 @@ namespace App\Services\Procurement\Process;
 use App\Dto\Procurement\Process\ClaimedOutboxMessage;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DaemonTick;
-use App\Dto\Procurement\Process\LanePolicy;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Process\DaemonKind;
 use App\Enums\Procurement\Process\OutboxKind;
@@ -16,13 +15,14 @@ use App\Repositories\Procurement\Process\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
+use Closure;
 
 /**
  * Feeder daemon: periodic tick 2 s ±20% по всем parent lanes плюс
  * собственные feeder_wake, которые ускоряют tick. Claim-ит ТОЛЬКО kind feeder_wake и не трогает
  * work_wake/projection. Feeder wake — ускоритель, не authority: coalesced wake мог быть уже
- * опубликован, поэтому periodic tick остаётся страховкой. Сообщение помечается consumed только
- * после принятого feed tick; сбой tick освобождает claim и оставляет wake в outbox. Admission,
+ * опубликован, поэтому periodic tick остаётся страховкой. Wakes успешных lanes подтверждаются
+ * даже при частичном сбое; claim неуспешной lane освобождается для следующего tick. Admission,
  * fairness и W/C принадлежат WorkFeeder под lane locks; здесь только расписание и outbox consumption.
  */
 final class FeederDaemon implements ProcessDaemon
@@ -53,7 +53,7 @@ final class FeederDaemon implements ProcessDaemon
         return DaemonKind::Feed;
     }
 
-    public function tick(): DaemonTick
+    public function tick(?Closure $heartbeat = null): DaemonTick
     {
         $token = ProcessUuid::random();
         /** @var list<ClaimedOutboxMessage> $wakes */
@@ -79,10 +79,16 @@ final class FeederDaemon implements ProcessDaemon
                     );
                 }
             }
-            foreach ($this->parentLanes() as $lane) {
+            $parentByLane = array_column($this->process->lanes(), 'parentKey', 'key');
+            $failedLanes = [];
+            foreach ($parentByLane as $lane => $parent) {
+                if ($parent !== null) {
+                    continue;
+                }
                 try {
                     $granted += $this->feeder->tick($lane);
                 } catch (\Throwable $failure) {
+                    $failedLanes[$lane] = true;
                     $firstFailure ??= $failure;
                     ProcessLog::daemonError(
                         daemon: 'feed',
@@ -92,26 +98,21 @@ final class FeederDaemon implements ProcessDaemon
                     );
                 }
             }
+            $consumed = $this->consume(wakes: $wakes, parentByLane: $parentByLane, failedLanes: $failedLanes);
             if ($firstFailure !== null) {
                 throw $firstFailure;
             }
         } catch (\Throwable $failure) {
-            // Tick не принят: wakes остаются в outbox для следующего tick, исключение классифицирует loop.
+            // CAS освобождает только оставшиеся claims. Исходный сбой классифицирует loop.
             try {
-                $this->outbox->releaseClaims($wakes, 'feed_tick_failed');
-            } catch (\Throwable) {
+                $this->outbox->releaseClaims(messages: $wakes, errorCode: 'feed_tick_failed');
+            } catch (\Throwable $releaseFailure) {
+                ProcessLog::daemonError(daemon: 'feed', code: 'release_claim_failed', failure: $releaseFailure);
             }
 
             throw $failure;
         }
         $this->nextFullTickNs = $now + DaemonPolicy::jittered($this->policy->feedTickSeconds, $this->policy->feedJitterPercent) * 1_000_000;
-
-        $consumed = 0;
-        foreach ($wakes as $wake) {
-            if ($this->consume($wake)) {
-                $consumed++;
-            }
-        }
 
         return new DaemonTick($granted + $consumed, $this->outbox->quarantinedCount(OutboxKind::FeederWake) > 0 ? 'outbox_quarantined' : null);
     }
@@ -121,31 +122,36 @@ final class FeederDaemon implements ProcessDaemon
         return $last->processed > 0 ? 0 : $this->policy->feedPollMs;
     }
 
-    /** @return list<string> parent lane keys в стабильном порядке policy */
-    private function parentLanes(): array
+    /**
+     * @param  list<ClaimedOutboxMessage>  $wakes
+     * @param  array<string, ?string>  $parentByLane
+     * @param  array<string, true>  $failedLanes
+     */
+    private function consume(array $wakes, array $parentByLane, array $failedLanes): int
     {
-        return array_values(array_map(
-            static fn (LanePolicy $lane): string => $lane->key,
-            array_filter($this->process->lanes(), static fn (LanePolicy $lane): bool => $lane->parentKey === null),
-        ));
+        $accepted = [];
+        foreach ($wakes as $wake) {
+            if ($wake->payload->schemaVersion !== 1) {
+                $this->quarantine(wake: $wake, reason: 'schema_unsupported');
+
+                continue;
+            }
+            try {
+                $lane = $this->codec->decodeFeederWake($wake->payload);
+            } catch (\InvalidArgumentException) {
+                $this->quarantine(wake: $wake, reason: 'payload_invalid');
+
+                continue;
+            }
+            if (! isset($failedLanes[$parentByLane[$lane] ?? $lane])) {
+                $accepted[] = $wake;
+            }
+        }
+
+        return $this->outbox->markPublishedBatch($accepted);
     }
 
-    /** Valid wake принят feed tick; нечитаемый — quarantine с видимым кодом, а не молчаливая потеря. */
-    private function consume(ClaimedOutboxMessage $wake): bool
-    {
-        if ($wake->payload->schemaVersion !== 1) {
-            return $this->quarantine($wake, 'schema_unsupported');
-        }
-        try {
-            $this->codec->decodeFeederWake($wake->payload);
-        } catch (\InvalidArgumentException) {
-            return $this->quarantine($wake, 'payload_invalid');
-        }
-
-        return $this->outbox->markPublished($wake);
-    }
-
-    private function quarantine(ClaimedOutboxMessage $wake, string $reason): false
+    private function quarantine(ClaimedOutboxMessage $wake, string $reason): void
     {
         $code = OutboxRepository::QUARANTINE_PREFIX.$reason;
         $ids = [ProcessUuid::random(), ProcessUuid::random(), ProcessUuid::random()];
@@ -162,7 +168,5 @@ final class FeederDaemon implements ProcessDaemon
                 projectionMessageId: $ids[2],
             );
         });
-
-        return false;
     }
 }

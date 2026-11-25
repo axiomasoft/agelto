@@ -110,6 +110,15 @@ final readonly class OutboxRepository
         ) === 1;
     }
 
+    /** @param list<ClaimedOutboxMessage> $messages */
+    public function markPublishedBatch(array $messages): int
+    {
+        return $this->updateClaims(
+            messages: $messages,
+            assignments: 'published_at = clock_timestamp(), claim_token = NULL, claim_until = NULL, last_error_code = NULL',
+        );
+    }
+
     /** Publish не удался: claim снимается, код ошибки сохраняется, повтор — следующим tick consumer. */
     public function releaseClaim(ClaimedOutboxMessage $message, string $errorCode): bool
     {
@@ -123,9 +132,40 @@ final readonly class OutboxRepository
     /** @param list<ClaimedOutboxMessage> $messages */
     public function releaseClaims(array $messages, string $errorCode): void
     {
-        foreach ($messages as $message) {
-            $this->releaseClaim($message, $errorCode);
+        $this->updateClaims(
+            messages: $messages,
+            assignments: 'claim_token = NULL, claim_until = NULL, last_error_code = ?',
+            bindings: [$errorCode],
+        );
+    }
+
+    /**
+     * Сохраняет CAS для каждого сообщения, в том числе если переданы разные kind или токены.
+     *
+     * @param  list<ClaimedOutboxMessage>  $messages
+     * @param  list<string>  $bindings
+     */
+    private function updateClaims(array $messages, string $assignments, array $bindings = []): int
+    {
+        if ($messages === []) {
+            return 0;
         }
+        $groups = [];
+        foreach ($messages as $message) {
+            $groups[$message->kind->value][$message->claimToken->value][] = $message->messageId->value;
+        }
+        $filters = [];
+        foreach ($groups as $kind => $claims) {
+            foreach ($claims as $token => $ids) {
+                $filters[] = '(message_id = ANY(?::uuid[]) AND kind = ? AND claim_token = ?)';
+                array_push($bindings, '{'.implode(',', $ids).'}', $kind, $token);
+            }
+        }
+
+        return DB::update(
+            "UPDATE prc_process_outbox SET {$assignments} WHERE published_at IS NULL AND (".implode(' OR ', $filters).')',
+            $bindings,
+        );
     }
 
     /**

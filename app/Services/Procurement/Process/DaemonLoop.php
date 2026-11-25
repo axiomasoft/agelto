@@ -62,6 +62,12 @@ final class DaemonLoop
         } catch (\Throwable $failure) {
             ProcessLog::daemonError($daemon->kind()->value, 'heartbeat_register_failed', $failure);
         }
+        $heartbeat = function () use ($daemon, $instance, $heartbeatNs, &$lastBeat, &$reportedError): void {
+            if ($this->clock->monotonicNs() - $lastBeat >= $heartbeatNs) {
+                $this->beat($daemon, $instance, $reportedError);
+                $lastBeat = $this->clock->monotonicNs();
+            }
+        };
 
         try {
             while (true) {
@@ -70,7 +76,7 @@ final class DaemonLoop
                     return $stop;
                 }
                 try {
-                    $tick = $daemon->tick();
+                    $tick = $daemon->tick(heartbeat: $heartbeat);
                     $failures = 0;
                     $delayMs = $daemon->delayMs($tick);
                 } catch (\Throwable $failure) {
@@ -79,10 +85,12 @@ final class DaemonLoop
                     ProcessLog::daemonError($daemon->kind()->value, (string) $tick->errorCode, $failure);
                     $delayMs = $this->policy->backoffMs($failures);
                 }
-                if ($tick->errorCode !== $reportedError || $this->clock->monotonicNs() - $lastBeat >= $heartbeatNs) {
-                    $this->beat($daemon, $instance, $tick->errorCode);
+                if ($tick->errorCode !== $reportedError) {
                     $reportedError = $tick->errorCode;
+                    $this->beat($daemon, $instance, $reportedError);
                     $lastBeat = $this->clock->monotonicNs();
+                } else {
+                    $heartbeat();
                 }
                 while ($delayMs > 0) {
                     if ($this->stopReason($started, $shouldStop) !== null) {
@@ -91,10 +99,7 @@ final class DaemonLoop
                     $chunk = min($delayMs, self::SLEEP_CHUNK_MS);
                     $this->clock->sleep(new Duration($chunk));
                     $delayMs -= $chunk;
-                    if ($this->clock->monotonicNs() - $lastBeat >= $heartbeatNs) {
-                        $this->beat($daemon, $instance, $reportedError);
-                        $lastBeat = $this->clock->monotonicNs();
-                    }
+                    $heartbeat();
                 }
             }
         } finally {
