@@ -5912,7 +5912,7 @@
         },
         {
             "path": "config/proxyma.php",
-            "sha256": "01bec3b85eacbf4ad9d35f32e59d02234cc5f6e4279ff0d61f7353d9fc4546b2",
+            "sha256": "a20f8395cffba9c3db62bfed74f99b93178f3f81ca47a66b8d06b7d172f380ca",
             "accepted_change_item": "Proxyma:P9.2",
             "current_change_reason": "Inactive package adapters preserve Agelto process/adapter/TLS ownership; historical executed scenarios unchanged."
         },
@@ -6554,7 +6554,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Network/ReplayExecutorPolicyTest.php",
-            "sha256": "f2e77d798511fac2a602dd0027c8b00edd89cd30be45296dc39d54342eabf23a",
+            "sha256": "636b402ee8ca3926fae592fba332c4d78eb1a276cd7b82a076e9e050ae88442a",
             "scenarios": [
                 "ограничивает повторы по maxAttempts, maxDistinctRoutes и sendLimit с новым permit на каждую попытку",
                 "проверяет remainingSlice и deadline до DNS и admission без лишнего permit или сетевого вызова",
@@ -7155,7 +7155,7 @@
         },
         {
             "path": "tests/Support/ProcessCore/ProxymaReplay/PhysicalFixtures.php",
-            "sha256": "edeadff491ddfdff907294a78f20cc8631af8d64a90d2f67a0e3a95d80e8435a",
+            "sha256": "1b3810f63ab3640ed6a6b5bf5c61e2f6c232a373766fb58e55cc2606033fd88e",
             "before_proxyma_runtime_removal_sha256": "36e6b045927e74d05e45ead7fa4ce30c4ebc4d1e91f5cd07d257d0238a9e315b",
             "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay."
         },
@@ -8157,7 +8157,7 @@
         },
         {
             "path": "app/Providers/ProxymaServiceProvider.php",
-            "sha256": "f6f20fbba903857628bce905c48026b6c66e5c6ec1bdadb779a13cd9002fbe53",
+            "sha256": "b17a5b475e2ad8fe9e0fd105de38b085bf56553594f51d5e8200eef151131163",
             "accepted_change_item": "Proxyma:P9.5",
             "current_change_reason": "F1/F2/F3: production runtime identity, owner panel/slot settings and current active profile; historical mappings preserved.",
             "fqcn": "App\\Providers\\ProxymaServiceProvider",

@@ -115,7 +115,7 @@ function makeExecutorForTest(
         $scope = $this->transactions->scope;
         $dns = new DnsResolver($scope, static fn (string $host): array => $dnsRecords[$host] ?? ['93.184.216.34']);
         $destinations = new DestinationPolicy($dns, $privateTargets, [80, 443, 8080, 8443]);
-        $proxies = new ProxyResolver($dns);
+        $proxies = new ProxyResolver(dns: $dns, privateProxies: ['proxy.test' => ['198.51.100.10']]);
 
         $secretResolver = new class($secrets) implements SecretResolver
         {

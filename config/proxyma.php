@@ -7,6 +7,8 @@ use App\Support\SecretValue;
 
 return [
     'connection' => env('DB_CONNECTION', 'pgsql'),
+    // Точные пары хоста прокси и разрешённых непубличных IP в канонической записи.
+    'private_proxies' => [],
     'wire' => ['digest_key' => SecretValue::resolve(name: 'PROXYMA_WIRE_DIGEST_KEY', default: env('PROXYMA_WIRE_DIGEST_KEY'))],
     'scheduler' => ['enabled' => false],
     'extensions' => [

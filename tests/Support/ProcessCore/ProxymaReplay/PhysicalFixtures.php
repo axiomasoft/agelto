@@ -72,7 +72,8 @@ trait PhysicalFixtures
             if ($proxyPortOffset !== 0) {
                 $endpoint = new Endpoint($endpointId, $this->tenant, $protocol, $endpoint->host, $endpoint->port + $proxyPortOffset, $ref);
             }
-            $proxy = (new ProxyResolver($dns))->resolve($endpoint, 500);
+            $proxy = (new ProxyResolver(dns: $dns, privateProxies: [$endpoint->host => ['127.0.0.1']]))
+                ->resolve(endpoint: $endpoint, timeoutMs: 500);
             $credential = $ref === null ? null : new ResolvedSecret($ref, 'user@/%', $password ?? 'p:a@ss/%?');
         }
         \selectionHealth($this->db, $this->tenant);

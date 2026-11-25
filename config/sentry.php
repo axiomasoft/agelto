@@ -54,10 +54,11 @@ return [
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#send_default_pii
     'send_default_pii' => env('SENTRY_SEND_DEFAULT_PII', false),
 
-    // Все исходящие события и breadcrumbs проходят общий TelemetrySanitizer (observability#s05);
+    // События, логи и breadcrumbs проходят общий TelemetrySanitizer;
     // static callables, чтобы config оставался кэшируемым.
     'before_send' => [SentrySanitizer::class, 'beforeSend'],
     'before_send_transaction' => [SentrySanitizer::class, 'beforeSendTransaction'],
+    'before_send_log' => [SentrySanitizer::class, 'beforeSendLog'],
     'before_breadcrumb' => [SentrySanitizer::class, 'beforeBreadcrumb'],
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#ignore_exceptions

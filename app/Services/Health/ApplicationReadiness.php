@@ -373,37 +373,51 @@ final readonly class ApplicationReadiness
             throw new \RuntimeException('Database connection is unavailable');
         }
 
-        if ($connection->getDriverName() === 'pgsql') {
-            if ($connection->transactionLevel() > 0) {
-                $ms = $this->remainingBudgetMs($deadlineNs);
-                $connection->statement("SET LOCAL lock_timeout = {$ms}");
-                $connection->statement("SET LOCAL statement_timeout = {$ms}");
-                try {
-                    $callback($connection);
-                } finally {
-                    if (hrtime(true) < $deadlineNs) {
-                        try {
-                            $connection->statement('SET LOCAL lock_timeout = 0');
-                            $connection->statement('SET LOCAL statement_timeout = 0');
-                        } catch (Throwable) {
-                        }
-                    }
-                }
-
-                return;
-            }
-
-            $connection->transaction(function () use ($connection, $deadlineNs, $callback): void {
-                $ms = $this->remainingBudgetMs($deadlineNs);
-                $connection->statement("SET LOCAL lock_timeout = {$ms}");
-                $connection->statement("SET LOCAL statement_timeout = {$ms}");
-                $callback($connection);
-            });
+        if ($connection->getDriverName() !== 'pgsql') {
+            $callback($connection);
 
             return;
         }
 
-        $callback($connection);
+        $probe = function () use ($connection, $deadlineNs, $callback): void {
+            $ms = $this->remainingBudgetMs($deadlineNs);
+            $connection->statement(query: "SET LOCAL lock_timeout = {$ms}");
+            $connection->statement(query: "SET LOCAL statement_timeout = {$ms}");
+            $callback($connection);
+        };
+
+        if ($connection->transactionLevel() === 0) {
+            $connection->transaction($probe);
+
+            return;
+        }
+
+        // Keep Laravel's transaction level and callbacks owned by the caller.
+        $connection->statement('SAVEPOINT agelto_readiness_timeouts');
+        try {
+            $original = $connection->selectOne(
+                query: "SELECT current_setting('lock_timeout') AS lock_timeout, current_setting('statement_timeout') AS statement_timeout",
+                useReadPdo: false,
+            );
+            if (! $original instanceof \stdClass
+                || ! is_string($original->lock_timeout ?? null)
+                || ! is_string($original->statement_timeout ?? null)) {
+                throw new \RuntimeException('Could not read database readiness timeouts');
+            }
+
+            $probe();
+            $connection->selectOne(
+                query: "SELECT set_config('lock_timeout', ?, true), set_config('statement_timeout', ?, true)",
+                bindings: [$original->lock_timeout, $original->statement_timeout],
+                useReadPdo: false,
+            );
+        } catch (Throwable $failure) {
+            $connection->statement('ROLLBACK TO SAVEPOINT agelto_readiness_timeouts');
+
+            throw $failure;
+        } finally {
+            $connection->statement('RELEASE SAVEPOINT agelto_readiness_timeouts');
+        }
     }
 
     private function remainingBudgetMs(int $deadlineNs): int

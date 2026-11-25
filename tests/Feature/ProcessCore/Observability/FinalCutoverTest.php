@@ -77,7 +77,7 @@ test('final schema renders the entire admin sidebar badges filters and audited i
     }
 });
 
-test('runtime schedule contains only the five adopted maintenance and producer entries', function (): void {
+test('планировщик запускает только утверждённые команды и heartbeat готовности', function (): void {
     expect(Artisan::all())->not->toHaveKeys(['crawler:progress', 'crawler:prune-history',
         'pipeline:cleanup-temp', 'pipeline:stuck-check', 'pipeline:dispatch-backlog', 'pipeline:retry-failed']);
     $commands = [];
@@ -88,7 +88,7 @@ test('runtime schedule contains only the five adopted maintenance and producer e
             $reflection = new ReflectionFunction($callback);
             $callbacks[] = $reflection->getClosureScopeClass()?->getName().'::'.$reflection->getName();
         } else {
-            preg_match('/(?:^|\s)(partitions:maintain|process:[a-z-]+)(?:\s|$)/', $event->command, $match);
+            preg_match('/(?:^|\s)(partitions:maintain|process:[a-z-]+|proxyma:prune)(?:\s|$)/', $event->command, $match);
             $commands[] = [$match[1] ?? $event->command, $event->expression];
         }
     }
@@ -99,6 +99,7 @@ test('runtime schedule contains only the five adopted maintenance and producer e
         ['process:health-report', '*/5 * * * *'],
         ['process:retention', '0 * * * *'],
         ['process:schedule-acquisition', '* * * * *'],
+        ['proxyma:prune', '0 * * * *'],
     ])->and($callbacks)->toBe(['App\Services\Health\ApplicationReadiness::recordSchedulerHeartbeat']);
     $this->artisan('schedule:list')->assertSuccessful();
     $this->artisan('process:health-report')->assertSuccessful();

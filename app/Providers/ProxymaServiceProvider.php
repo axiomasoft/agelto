@@ -18,6 +18,7 @@ use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ServiceProvider;
+use Proxyma\Application\Execution\ProxyResolver;
 use Proxyma\Contracts\Authorizer;
 use Proxyma\Contracts\CatalogMutationFence;
 use Proxyma\Contracts\OwnerAuthority;
@@ -34,6 +35,10 @@ final class ProxymaServiceProvider extends ServiceProvider
 
     public function register(): void
     {
+        $this->app->bind(ProxyResolver::class);
+        $this->app->when(ProxyResolver::class)
+            ->needs('$privateProxies')
+            ->giveConfig('proxyma.private_proxies', []);
         $this->app->register(InactiveProxymaServiceProvider::class);
         $this->app->scoped(ProcessOwnerAuthority::class);
         $this->app->scoped(AdapterSendGuard::class);

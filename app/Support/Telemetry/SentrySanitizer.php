@@ -7,11 +7,12 @@ namespace App\Support\Telemetry;
 use Sentry\Breadcrumb;
 use Sentry\Event;
 use Sentry\EventHint;
+use Sentry\Logs\Log;
 use Sentry\Tracing\Span;
 use Sentry\Tracing\SpanContext;
 
 /**
- * Sentry before_send / before_send_transaction / before_breadcrumb hooks (observability#s05):
+ * Sentry before_send / before_send_transaction / before_send_log / before_breadcrumb hooks:
  * те же правила, что у log channels. Static callables, чтобы config кэшировался. Ошибка очистки
  * отбрасывает событие целиком, а не отправляет его сырым.
  */
@@ -25,6 +26,27 @@ final class SentrySanitizer
     public static function beforeSendTransaction(Event $event, ?EventHint $hint = null): ?Event
     {
         return self::sanitizeEvent($event);
+    }
+
+    public static function beforeSendLog(Log $log): ?Log
+    {
+        try {
+            $sanitizer = new TelemetrySanitizer;
+            $safe = new Log(
+                timestamp: $log->getTimestamp(),
+                traceId: $log->getTraceId(),
+                level: $log->getLevel(),
+                body: $sanitizer->text($log->getBody()),
+            );
+
+            foreach ($sanitizer->stringContext($log->attributes()->toSimpleArray()) as $key => $value) {
+                $safe->setAttribute(key: $sanitizer->text($key), value: $value);
+            }
+
+            return $safe;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public static function beforeBreadcrumb(Breadcrumb $breadcrumb): ?Breadcrumb

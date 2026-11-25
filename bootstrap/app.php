@@ -3,12 +3,15 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\AssignTraceId;
+use App\Support\Telemetry\SafeLogManager;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Sentry\Laravel\Integration;
 
-return Application::configure(basePath: dirname(__DIR__))
+require_once __DIR__.'/proxyma.php';
+
+$app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
@@ -24,3 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Implementation Rules); DSN/прод-хост GlitchTip — Pending Work владельца.
         Integration::handles($exceptions);
     })->create();
+
+$app->singleton('log', static fn (Application $app): SafeLogManager => new SafeLogManager($app));
+
+return $app;

@@ -93,6 +93,7 @@
         "rector/rector": "2.6.2"
     },
     "autoload": {
+        "files": ["bootstrap/proxyma.php"],
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
