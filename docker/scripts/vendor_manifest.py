@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import sys
 
-REPOSITORIES = {"azguard": "axiomasoft/azguard-private", "proxyma": "axiomasoft/proxyma"}
+REPOSITORIES = {"azguard": "axiomasoft/azguard", "proxyma": "axiomasoft/proxyma"}
 
 
 def require(condition, message):
