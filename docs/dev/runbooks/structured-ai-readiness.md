@@ -28,9 +28,10 @@ schema golden, model/HTTP fixtures, затронутой реализации и
 | Связная цепочка | StructuredChainAcceptance: настоящий ExtractionHandler и HTTP, ledger settlement, durable chunk и publication; lost continuation и late put после committed blocked; invalid JSON оплачивается и не публикуется |
 
 Новые checks используют actual Process/financial/network/storage owners. Synthetic provider/account
-отвечает на loopback HTTP; Gemini receipt policy настоящая. Generation receipt с известными token
-counts conservatively settles весь pinned upper bound: это accounted exposure, а не измеренный
-provider invoice. Token usage, charge classification и business validity — отдельные факты.
+отвечает на loopback HTTP; Gemini receipt policy настоящая. При известном usage стоимость
+вычисляется по сохранённому тарифу, остаток резерва освобождается. Если стоимость превышает
+резерв, квитанция хранит полное списание, а аудит и расчёт доступного бюджета учитывают разницу.
+Стоимость по тарифу, классификация квитанции и валидность бизнес-ответа учитываются отдельно.
 Отсутствующий usage остаётся unknown даже после conservative settlement. Returned modelVersion
 и finishReason сохраняются, если получены как bounded metadata; отсутствующая version не выдумывается.
 Response ID и полный raw envelope доступны по protected receipt/hash, без копирования в telemetry.

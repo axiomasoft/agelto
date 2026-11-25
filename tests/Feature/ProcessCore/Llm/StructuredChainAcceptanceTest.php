@@ -41,7 +41,7 @@ afterEach(function (): void {
     $this->server->stop();
 });
 
-test('business handler проходит actual wire receipt chunk publication с сохранением финансового upper bound', function (): void {
+test('обработчик сохраняет квитанцию и публикует результат после расчёта фактической стоимости', function (): void {
     $f = new StructuredChainFixtures($this->server);
     $outcome = $f->extract($f->lease);
     expect($outcome)->toBeInstanceOf(StagePartial::class);
@@ -71,8 +71,8 @@ test('business handler проходит actual wire receipt chunk publication с
         ->and(PackageNetworkFacts::attempts()->sole()->request_id)->toBe($call->physical_call_id)
         ->and(PackageNetworkFacts::permits()->sole()->state)->toBe('released')
         ->and($reserve->state)->toBe('settled')
-        ->and($reserve->settled_amount)->toBe($reserve->upper_bound)
-        ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('spent'))->toBe($reserve->upper_bound)
+        ->and($reserve->settled_amount)->toBe('0.00131000')
+        ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('spent'))->toBe('0.00131000')
         ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('reserved'))->toBe('0.00000000')
         ->and(DB::table('prc_analysis_chunks')->count())->toBe(0)
         ->and(DB::table('prc_estimates')->count())->toBe(0);
@@ -159,12 +159,12 @@ test('actual wire late put после committed blocked scan возобновл�
         ->and(DB::table('llm_provider_calls')->count())->toBe(1)
         ->and(DB::table('llm_budget_reservations')->count())->toBe(1)
         ->and(DB::table('llm_budget_reservations')->sole()->state)->toBe('settled')
-        ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('spent'))->toBe(DB::table('llm_budget_reservations')->sole()->upper_bound)
+        ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('spent'))->toBe('0.00131000')
         ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
         ->and($this->server->receipts())->toHaveCount(1);
 });
 
-test('invalid model JSON на actual wire оплачивается консервативно и исчерпывает один semantic reask без publication', function (): void {
+test('невалидный ответ оплачивается по использованным токенам и допускает один повтор без публикации', function (): void {
     $f = new StructuredChainFixtures($this->server);
     $envelope = json_decode(StructuredChainFixtures::envelope(), true, flags: JSON_THROW_ON_ERROR);
     $envelope['candidates'][0]['content']['parts'][0]['text'] = 'not valid model JSON';
@@ -181,7 +181,7 @@ test('invalid model JSON на actual wire оплачивается консер�
         ->and(DB::table('llm_provider_requests')->orderBy('semantic_reask_ordinal')->pluck('semantic_reask_ordinal')->all())->toBe([0, 1])
         ->and(DB::table('llm_provider_calls')->count())->toBe(2)
         ->and(DB::table('llm_budget_reservations')->where('state', 'settled')->count())->toBe(2)
-        ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('spent'))->toBe('0.01419200')
+        ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('spent'))->toBe('0.00262000')
         ->and(DB::table('llm_budget_periods')->where('id', $f->period)->value('reserved'))->toBe('0.00000000')
         ->and(DB::table('prc_analysis_chunks')->count())->toBe(0)
         ->and(DB::table('prc_estimates')->count())->toBe(0)

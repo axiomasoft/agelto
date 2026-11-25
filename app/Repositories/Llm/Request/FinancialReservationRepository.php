@@ -89,9 +89,17 @@ final class FinancialReservationRepository
     {
         self::requireTransaction();
 
+        // Reservation amounts remain bounded. Admission also accounts for the excess from verified calls.
         return ProviderRow::one(
-            'SELECT *, period_start<=clock_timestamp() AND period_end>clock_timestamp() AS current, (?::timestamptz IS NULL OR ?::timestamptz > clock_timestamp()) AS pricing_current FROM llm_budget_periods WHERE id=? AND account_id=? AND currency=? FOR UPDATE',
-            [$pricingValidUntil, $pricingValidUntil, $id, $account, $currency],
+            'SELECT p.*, period_start<=clock_timestamp() AND period_end>clock_timestamp() AS current,
+                (?::timestamptz IS NULL OR ?::timestamptz > clock_timestamp()) AS pricing_current,
+                CASE WHEN ?::timestamptz IS NOT NULL THEN GREATEST(cap-spent-reserved-COALESCE((
+                    SELECT sum(c.cost_actual-r.settled_amount) FROM llm_budget_reservations r
+                    JOIN llm_provider_calls c ON c.physical_call_id=r.operation_id
+                    WHERE r.period_id=p.id AND r.state=\'settled\' AND c.cost_actual>r.settled_amount
+                ),0),0)::numeric(24,8) END AS available
+                FROM llm_budget_periods p WHERE id=? AND account_id=? AND currency=? FOR UPDATE',
+            [$pricingValidUntil, $pricingValidUntil, $pricingValidUntil, $id, $account, $currency],
         ) ?? throw new OperationDenied('budget_period_missing');
     }
 
@@ -103,14 +111,13 @@ final class FinancialReservationRepository
         $unknown = ProviderRow::one("SELECT count(DISTINCT q.logical_request_id) AS count FROM llm_provider_requests q
             JOIN llm_provider_calls c ON c.logical_request_id=q.logical_request_id
             JOIN llm_budget_reservations r ON r.id=c.reservation_id JOIN llm_budget_periods p ON p.id=r.period_id
-            WHERE p.account_id=? AND p.currency=? AND q.state IN ('unknown','abandoned_unknown')", $bindings)?->int('count') ?? 0;
+            WHERE p.account_id=? AND p.currency=? AND r.state='reserved' AND q.state IN ('unknown','abandoned_unknown')", $bindings)?->int('count') ?? 0;
         if (bccomp($newExposure, '0', 8) > 0 && $unknown >= $account->int('unknown_count_threshold')) {
             throw new OperationDenied('account_unknown_hold');
         }
         $exposure = ProviderRow::one("SELECT COALESCE(sum(r.upper_bound),0) AS amount FROM llm_budget_reservations r
-            JOIN llm_budget_periods p ON p.id=r.period_id JOIN llm_provider_calls c ON c.physical_call_id=r.operation_id
-            JOIN llm_provider_requests q ON q.logical_request_id=c.logical_request_id
-            WHERE p.account_id=? AND p.currency=? AND (r.state='reserved' OR (c.usage_status='unknown' AND q.state IN ('unknown','abandoned_unknown')))", $bindings)?->decimal('amount') ?? '0';
+            JOIN llm_budget_periods p ON p.id=r.period_id
+            WHERE p.account_id=? AND p.currency=? AND r.state='reserved'", $bindings)?->decimal('amount') ?? '0';
         $hardCap = $account->nullableString('hard_exposure_cap');
         $hardCap = $hardCap === null ? null : FinancialAmount::normalize($hardCap);
         if ($hardCap !== null && bccomp(bcadd($exposure, $alreadyReserved ? '0' : $newExposure, 8), $hardCap, 8) > 0) {
@@ -122,9 +129,13 @@ final class FinancialReservationRepository
     {
         $amount = FinancialAmount::normalize($amount);
         self::requireTransaction();
-        if (bccomp($amount, '0', 8) < 0 || bccomp($amount, $call->upperBound, 8) > 0) {
+        $receiptHash = $call->claimed && $verifiedReceiptHash !== null && preg_match('/^[a-f0-9]{64}$/D', $verifiedReceiptHash) === 1
+            ? $verifiedReceiptHash : null;
+        $overdraft = bccomp($amount, $call->upperBound, 8) > 0;
+        if ($overdraft && $receiptHash === null) {
             throw new OperationDenied('usage_exceeds_reserved_bound');
         }
+        $settled = $overdraft ? $call->upperBound : $amount;
         $row = ProviderRow::one('SELECT state,settled_amount,operation_id,period_id,upper_bound FROM llm_budget_reservations WHERE id=? FOR UPDATE', [$call->authorization->reservationId])
             ?? throw new \LogicException('Missing reservation.');
         if ($row->string('operation_id') !== $call->authorization->physicalCallId
@@ -133,19 +144,17 @@ final class FinancialReservationRepository
             throw new OperationDenied('reservation_identity_mismatch');
         }
         if ($row->string('state') === 'settled') {
-            if (bccomp($row->decimal('settled_amount'), $amount, 8) !== 0) {
-                if ($verifiedReceiptHash === null || preg_match('/^[a-f0-9]{64}$/D', $verifiedReceiptHash) !== 1
+            $previous = $row->decimal('settled_amount');
+            if (bccomp($previous, $settled, 8) !== 0 || $overdraft) {
+                if ($receiptHash === null
                     || ProviderRow::one("SELECT id FROM llm_financial_actions WHERE physical_call_id=? AND action='conservative_settlement'", [$call->authorization->physicalCallId]) === null) {
                     throw new OperationDenied('settlement_conflict');
                 }
-                DB::insert("INSERT INTO llm_financial_actions(id,account_id,currency,physical_call_id,action,actor,reason,details,details_schema_version)
-                    VALUES (?,?,?,?,'receipt_reconciliation','verified_receipt','Resolve conservative settlement with exact receipt',?::jsonb,1)", [
-                    (string) Uuid::uuid5(Uuid::NAMESPACE_URL, 'llm-receipt-settlement:'.$call->authorization->physicalCallId.':'.$verifiedReceiptHash),
-                    $call->context->account, $call->currency, $call->authorization->physicalCallId,
-                    CanonicalJson::encode(['receipt_sha256' => $verifiedReceiptHash, 'previous_amount' => $row->decimal('settled_amount'), 'settled_amount' => $amount]),
-                ]);
-                DB::update('UPDATE llm_budget_periods SET spent=spent-?+? WHERE id=?', [$row->decimal('settled_amount'), $amount, $call->periodId]);
-                DB::update('UPDATE llm_budget_reservations SET settled_amount=? WHERE id=?', [$amount, $call->authorization->reservationId]);
+                $this->auditReceiptSettlement(call: $call, hash: $receiptHash, previous: $previous, settled: $settled, actual: $amount);
+                if (bccomp($previous, $settled, 8) !== 0) {
+                    DB::update('UPDATE llm_budget_periods SET spent=spent-?+? WHERE id=?', [$previous, $settled, $call->periodId]);
+                    DB::update('UPDATE llm_budget_reservations SET settled_amount=? WHERE id=?', [$settled, $call->authorization->reservationId]);
+                }
             }
 
             return;
@@ -153,7 +162,28 @@ final class FinancialReservationRepository
         if ($row->string('state') !== 'reserved') {
             throw new OperationDenied('invalid_reservation_state');
         }
-        DB::update('UPDATE llm_budget_periods SET reserved=reserved-?,spent=spent+? WHERE id=?', [$call->upperBound, $amount, $call->periodId]);
-        DB::update("UPDATE llm_budget_reservations SET state='settled',settled_amount=? WHERE id=?", [$amount, $call->authorization->reservationId]);
+        if ($overdraft) {
+            $this->auditReceiptSettlement(call: $call, hash: $receiptHash, previous: null, settled: $settled, actual: $amount);
+        }
+        DB::update('UPDATE llm_budget_periods SET reserved=reserved-?,spent=spent+? WHERE id=?', [$call->upperBound, $settled, $call->periodId]);
+        DB::update("UPDATE llm_budget_reservations SET state='settled',settled_amount=? WHERE id=?", [$settled, $call->authorization->reservationId]);
+    }
+
+    /**
+     * @param  numeric-string  $settled
+     * @param  numeric-string  $actual
+     */
+    private function auditReceiptSettlement(ProviderCall $call, string $hash, ?string $previous, string $settled, string $actual): void
+    {
+        $overdraft = bcsub($actual, $settled, 8);
+        $hasOverdraft = bccomp($overdraft, '0', 8) > 0;
+        DB::insert("INSERT INTO llm_financial_actions(id,account_id,currency,physical_call_id,action,actor,reason,details,details_schema_version)
+            VALUES (?,?,?,?,'receipt_reconciliation','verified_receipt',?,?::jsonb,1) ON CONFLICT(id) DO NOTHING", [
+            (string) Uuid::uuid5(Uuid::NAMESPACE_URL, 'llm-receipt-settlement:'.$call->authorization->physicalCallId.':'.$hash),
+            $call->context->account, $call->currency, $call->authorization->physicalCallId,
+            $hasOverdraft ? 'Verified receipt exceeded reservation bound' : 'Resolve conservative settlement with exact receipt',
+            CanonicalJson::encode(['receipt_sha256' => $hash, 'previous_amount' => $previous, 'settled_amount' => $settled,
+                'actual_amount' => $actual, 'overdraft_amount' => $overdraft, 'original_period_id' => $call->periodId]),
+        ]);
     }
 }

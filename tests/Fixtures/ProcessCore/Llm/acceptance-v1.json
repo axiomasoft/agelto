@@ -50,7 +50,7 @@
   "inputs": [
     {
       "path": "docker/compose.core-test.yml",
-      "sha256": "997d12eb49bb43f4044c8d284eca9a7a7012be47cbd31002b9fb26a132dfbc46",
+      "sha256": "987bd8184c2a9371211e3efbdb2962e5288850e00602d3fe4af9891354ca758d",
       "original_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111",
       "before_polish_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111"
     },
@@ -222,7 +222,7 @@
     },
     {
       "path": "app/Repositories/Llm/Request/RequestRepository.php",
-      "sha256": "0c9cea3fb96a686e2f1d20e229e5fd24b3393da0caec8324995d6fd658a81ebe",
+      "sha256": "7914f64ca7a7cc8da7e46fc35b30e744e5d384c7c2e73b54bfe1ef8950fbce10",
       "original_sha256": "af8bad8ca42c63f8706ad15e115163eab187b83663fe46495cc97b20c7b42d0e"
     },
     {
@@ -240,7 +240,7 @@
     },
     {
       "path": "app/Services/Llm/Providers/GeminiAssetReceiptPolicy.php",
-      "sha256": "f3c8222ac3c5fc3909f7d67bf0dfbd867ccd167914104e3e3057da4c94658fd8"
+      "sha256": "51a0f039ff71bd55b898cfbc1f03d0a81e6c32b5a2789738605b1ccbd45a4458"
     },
     {
       "path": "app/Services/Llm/Providers/GeminiGenerateContentClient.php",
@@ -303,7 +303,7 @@
     },
     {
       "path": "app/Services/Procurement/Extraction/AnalysisProviderSendGate.php",
-      "sha256": "22b2e35541bd8d3b27d402be6d68a433612700678393573a5170cedee7dc828e",
+      "sha256": "46b88fa9645c3db85c29446a92c4825f8525a69cb6185b07d3453202cf0e0415",
       "original_sha256": "361f7df5c02a4b1fc1744cb79f9af69cd29f4ee75c29e479873b983a66f3a654",
       "before_proxyma_runtime_removal_sha256": "1233bacea91e216fd189cd31a3b37cb818acd962a17a109971d02b256de150af"
     },
@@ -324,7 +324,7 @@
     },
     {
       "path": "composer.lock",
-      "sha256": "ee193845e6decc7a88ed64c62da755ed66eca51439e28d502220ef3fc474d6cb",
+      "sha256": "2e10a1c190c31f4c6e849694bf6f222ec1ee0d554c706e733ed96cbb350d79b0",
       "original_sha256": "e5981e6030590ce94182e8d364f1b6c0dfa9ed571e2642bc899a98e3435d912f",
       "before_proxyma_runtime_removal_sha256": "261267132daf469821d596ae4a0a9ddd3f2c422800f7b40aec6727d80d4d5d05"
     },
@@ -516,7 +516,7 @@
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/AssetContinuationTest.php",
-      "sha256": "955a751ac0352e4ded57c852eae1ab586570fd13341ed70622553b33e1d28f2f",
+      "sha256": "39eadd3de10f19aa75403203b8de00b5ea2f32a8602c1e80ce9f77be822ecdff",
       "original_path": "tests/Feature/ProcessCore/Llm/T22AssetContinuationTest.php",
       "original_sha256": "a7b6702ec1ab72ff04a787cf98aa651bea9227e9c50cebb1cdda755efcdb25a5",
       "before_polish_sha256": "f2503a152129a06628a3f7119d1dbc63e261a903fe5aa16258dc4be40576438e",
@@ -545,7 +545,7 @@
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
-      "sha256": "e5a4e02de67ad2713a9fabb88bea8d7cc3b748f6d669f724a18f4fcf069a7def",
+      "sha256": "10dec61de847af7c94291e4e1f0a688ddc6ddd39df868db4e74e892be4f8b3bb",
       "original_path": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
       "original_sha256": "46e77f62c780d331ce490c88dbc34b8abadff23dfbfe0e924f387bd95f4a1be3",
       "before_polish_sha256": "ee495e95ec8cdc92f53f358a144838f536c02a96e48173bbac92382baea93961",
@@ -576,7 +576,7 @@
     },
     {
       "path": "tests/Integration/ProcessCore/Concurrency/ProviderJointSendTest.php",
-      "sha256": "a5bf539b33c5c588fdce6c50bd212993354191f33f25c892ca733e06733fa8c7",
+      "sha256": "436d5b44d5efe811db1aaa92f585b33728700b5f541f69e16a9659a0ca3ad271",
       "original_path": "tests/Integration/ProcessCore/Concurrency/T35ProviderJointSendTest.php",
       "original_sha256": "3985807e1d3087565345db46f99eb544882881b9866ea032a5d214bb41badba6",
       "before_polish_sha256": "53bfc714887ab48433f91153340129e3a5c8ec975335491560f32a0252e319d7",

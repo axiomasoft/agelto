@@ -62,6 +62,9 @@ final readonly class RequestRepository
             if ($call->wireFingerprint !== $wire?->fingerprint) {
                 throw new OperationDenied('sealed_wire_conflict');
             }
+            if ($call->claimed) {
+                throw new OperationDenied('already_claimed');
+            }
 
             return $call->authorization;
         }
@@ -99,7 +102,7 @@ final readonly class RequestRepository
             }
         }
         $this->finance->assertSendEligible($account, $plan->pricing->upperBound);
-        if (bccomp(bcadd(bcadd($period->decimal('spent'), $period->decimal('reserved'), 8), $plan->pricing->upperBound, 8), $period->decimal('cap'), 8) > 0) {
+        if (bccomp($plan->pricing->upperBound, $period->decimal('available'), 8) > 0) {
             throw new OperationDenied('provider_budget');
         }
         $provider = ProviderRow::one('SELECT id FROM llm_providers WHERE code=? AND is_active=true', [$plan->context->provider])
@@ -232,7 +235,9 @@ final readonly class RequestRepository
         }
         $assessment = $receipt->assessment;
         $unknown = $assessment->outcome === ReceiptOutcome::Unknown;
-        $amount = $unknown ? null : ($assessment->cost ?? $call->upperBound);
+        $usage = $assessment->usage;
+        $amount = $unknown ? null : ($assessment->cost ?? ($usage === null || $usage->unknown
+            ? $call->upperBound : $this->actualCost(call: $call, usage: $usage)));
         if ($amount !== null) {
             $this->finance->settleLocked($call, $amount, $receipt->hash);
         }
@@ -246,9 +251,39 @@ final readonly class RequestRepository
         $state = match ($assessment->outcome) {
             ReceiptOutcome::Success => 'completed',
             ReceiptOutcome::NonbillableCacheMiss, ReceiptOutcome::NonbillableRetry, ReceiptOutcome::BilledError => 'failed_known',
-            ReceiptOutcome::Unknown => 'unknown',
+            ReceiptOutcome::Unknown => $call->requestState === 'abandoned_unknown' ? 'abandoned_unknown' : 'unknown',
         };
         DB::update('UPDATE llm_provider_requests SET state=? WHERE logical_request_id=?', [$state, $call->authorization->logicalRequestId]);
+    }
+
+    private function actualCost(ProviderCall $call, ProviderUsage $usage): string
+    {
+        $rates = ProviderRow::one(sql: "SELECT (pricing_snapshot->>'input_per_million')::bigint AS input_rate,
+            (pricing_snapshot->>'output_per_million')::bigint AS output_rate,
+            (pricing_snapshot->>'thinking_per_million')::bigint AS thinking_rate,
+            (pricing_snapshot->>'thinking_included_in_output')::boolean AS shared_output_rate,
+            (pricing_snapshot->>'fixed_charge')::bigint AS fixed_charge,
+            (pricing_snapshot->>'cache_create_charge')::bigint AS cache_create_charge,
+            (pricing_snapshot->>'storage_per_token_hour')::bigint AS storage_rate
+            FROM llm_budget_reservations WHERE id=? AND operation_id=? AND period_id=?",
+            bindings: [$call->authorization->reservationId, $call->authorization->physicalCallId, $call->periodId])
+            ?? throw new OperationDenied('reservation_identity_mismatch');
+
+        // The pinned snapshot has one input rate for both cached and uncached tokens.
+        $input = bcadd((string) $usage->uncachedInput, (string) $usage->cachedInput, 0);
+        $output = (string) $usage->output;
+        $thinking = (string) $usage->thinking;
+        if ($rates->bool('shared_output_rate')) {
+            $output = bcadd($output, $thinking, 0);
+            $thinking = '0';
+        }
+        $tokens = bcadd(bcmul($input, (string) $rates->int('input_rate'), 0), bcmul($output, (string) $rates->int('output_rate'), 0), 0);
+        $tokens = bcadd($tokens, bcmul($thinking, (string) $rates->int('thinking_rate'), 0), 0);
+        $micros = bcdiv(bcadd($tokens, '999999', 0), '1000000', 0);
+        $charges = bcadd((string) $rates->int('fixed_charge'), (string) $rates->int('cache_create_charge'), 0);
+        $storage = bcmul((string) $usage->cacheStorageTokenHours, (string) $rates->int('storage_rate'), 0);
+
+        return bcdiv(bcadd(bcadd($micros, $charges, 0), $storage, 0), '1000000', 8);
     }
 
     /** A command creates an audited durable replay intent, never releases the old obligation. */

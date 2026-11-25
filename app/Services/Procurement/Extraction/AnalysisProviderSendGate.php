@@ -256,7 +256,8 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
     {
         $this->assertConsumer($operation, $wire);
         $this->transactions->run(function () use ($operation, $wire): void {
-            $call = $this->requests->lock($this->requests->get($operation->physicalCallId));
+            $lockedAccount = null;
+            $call = $this->requests->lock(expected: $this->requests->get($operation->physicalCallId), lockedAccount: $lockedAccount);
             if ($call->authorization != $operation || $call->wireFingerprint !== $wire->fingerprint) {
                 throw new OperationDenied('sealed_wire_conflict');
             }
@@ -266,7 +267,7 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
             if ($call->requestState !== 'sending') {
                 throw new OperationDenied('authorization_revoked');
             }
-            $this->finance->assertSendEligible($this->finance->lockAccount($call->context->account, $call->currency), $call->upperBound, alreadyReserved: true);
+            $this->finance->assertSendEligible(account: $lockedAccount, newExposure: $call->upperBound, alreadyReserved: true);
         });
     }
 

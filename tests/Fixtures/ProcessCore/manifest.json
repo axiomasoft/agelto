@@ -120,7 +120,7 @@
             "captured_at": "2026-11-03",
             "contract_hashes_refreshed_at": "2026-11-11",
             "previous_accepted_sha256": "b910db33b772938f028a1734cba5942d004684718ab5b6058caa5e7c86e16063",
-            "sha256": "5d892e2bbe410abb2e2fdb15a9cc41586d0f86421c3b4bdbd8ba4da8332869fd",
+            "sha256": "2fe6b6a6cd3ee6c235957cd388cb7e0f0c9b084a5d4f2710f08d33372342d318",
             "expected": {
                 "assessment": "orchestration_contracts_quality_not_measured",
                 "schema_version": 1
@@ -6387,12 +6387,12 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
-            "sha256": "3606b2afb2bddb37d4398d5277f2c3bb0e05d02c6847c96b094f6f0b3c6c5d9f",
+            "sha256": "10dec61de847af7c94291e4e1f0a688ddc6ddd39df868db4e74e892be4f8b3bb",
             "scenarios": [
-                "business handler проходит actual wire receipt chunk publication с сохранением финансового upper bound",
+                "обработчик сохраняет квитанцию и публикует результат после расчёта фактической стоимости",
                 "durable actual HTTP receipt после потерянного chunk commit восстанавливается общим periodic tick без второго send",
                 "actual wire late put после committed blocked scan возобновляет тот же extraction и публикует единожды",
-                "invalid model JSON на actual wire оплачивается консервативно и исчерпывает один semantic reask без publication"
+                "невалидный ответ оплачивается по использованным токенам и допускает один повтор без публикации"
             ],
             "before_proxyma_runtime_removal_sha256": "ce0c1f326894c7b02ae911c98ce37a5a812e1d0d4d5b836cac8c2f891e99d5f8",
             "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay."
@@ -8184,7 +8184,7 @@
         },
         {
             "path": "app/Services/Procurement/Extraction/AnalysisProviderSendGate.php",
-            "sha256": "ac0b1f70f4fb3382da1b66ab804bbd732d52561e39509fad92e796e93be4316d",
+            "sha256": "46b88fa9645c3db85c29446a92c4825f8525a69cb6185b07d3453202cf0e0415",
             "fqcn": "App\\Services\\Procurement\\Extraction\\AnalysisProviderSendGate",
             "before_proxyma_ui_correction_sha256": "ff61f6c06c0f7cc3f1dcd9e3b2a44e1bf39781a310741315dc72b082d58d956c",
             "accepted_change_item": "Proxyma:P9.5",

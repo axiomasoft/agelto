@@ -24,7 +24,8 @@ final readonly class LlmCallReadRepository
             ->selectRaw("CASE WHEN c.usage_status='known' THEN (c.usage->>'uncached_input')::bigint END as prompt_tokens")
             ->selectRaw("CASE WHEN c.usage_status='known' THEN (c.usage->>'cached_input')::bigint END as cached_tokens")
             ->selectRaw("CASE WHEN c.usage_status='known' THEN (c.usage->>'output')::bigint END as completion_tokens")
-            ->selectRaw("round(c.cost_actual*1000000)::bigint as cost_micros, CASE WHEN b.state='reserved' THEN ceil(b.upper_bound*1000000)::bigint ELSE 0 END as reserved_micros")
+            ->selectRaw("CASE WHEN c.usage_status='known' THEN (c.usage->>'thinking')::bigint END as thinking_tokens")
+            ->selectRaw("round(coalesce(c.cost_actual,b.settled_amount)*1000000)::bigint as cost_micros, CASE WHEN b.state='reserved' THEN ceil(b.upper_bound*1000000)::bigint ELSE 0 END as reserved_micros")
             ->selectRaw("c.outcome='success' as success");
 
         return LlmCall::query()->fromSub($facts, 'llm_provider_calls');
@@ -32,10 +33,10 @@ final readonly class LlmCallReadRepository
 
     /**
      * Reporting rounds to integer microcurrency; original numeric(24,8) receipts remain unchanged.
-     * Unknown charge/usage and retained reserves are reported separately from known sums.
+     * Settled spend includes conservative settlements. Unknown usage and retained reserves remain visible.
      *
      * @param  list<string>  $axes
-     * @return list<array{day:?string,provider:?string,model:?string,purpose:?string,calls:int,prompt_tokens:int,cached_tokens:int,completion_tokens:int,cost_micros:int,unknown_calls:int,reserved_micros:int}>
+     * @return list<array{day:?string,provider:?string,model:?string,purpose:?string,calls:int,prompt_tokens:int,cached_tokens:int,completion_tokens:int,thinking_tokens:int,cost_micros:int,unknown_calls:int,reserved_micros:int}>
      */
     public function usageByAxes(CarbonInterface $from, CarbonInterface $to, array $axes, string $currency = 'USD'): array
     {
@@ -50,7 +51,7 @@ final readonly class LlmCallReadRepository
         $query = $this->query()->toBase()->where('called_at', '>=', $from->format('Y-m-d H:i:s.uP'))
             ->where('called_at', '<', $to->format('Y-m-d H:i:s.uP'))->where('currency', $currency)
             ->selectRaw("count(*) as calls, coalesce(sum(prompt_tokens),0) as prompt_tokens, coalesce(sum(cached_tokens),0) as cached_tokens,
-                coalesce(sum(completion_tokens),0) as completion_tokens, coalesce(sum(cost_micros),0) as cost_micros,
+                coalesce(sum(completion_tokens),0) as completion_tokens, coalesce(sum(thinking_tokens),0) as thinking_tokens, coalesce(sum(cost_micros),0) as cost_micros,
                 count(*) FILTER (WHERE cost_actual IS NULL OR usage_status='unknown') as unknown_calls, coalesce(sum(reserved_micros),0) as reserved_micros");
         foreach ($axes as $axis) {
             if ($axis === 'day') {
@@ -65,7 +66,8 @@ final readonly class LlmCallReadRepository
                 'model' => $row->nullableString('model'), 'purpose' => $row->nullableString('purpose'),
                 'calls' => $row->int('calls'), 'prompt_tokens' => $row->int('prompt_tokens'),
                 'cached_tokens' => $row->int('cached_tokens'), 'completion_tokens' => $row->int('completion_tokens'),
-                'cost_micros' => $row->int('cost_micros'), 'unknown_calls' => $row->int('unknown_calls'), 'reserved_micros' => $row->int('reserved_micros')];
+                'thinking_tokens' => $row->int('thinking_tokens'), 'cost_micros' => $row->int('cost_micros'),
+                'unknown_calls' => $row->int('unknown_calls'), 'reserved_micros' => $row->int('reserved_micros')];
         }
 
         return $result;
