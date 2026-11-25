@@ -8,12 +8,16 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
 use App\Services\Procurement\Prepare\ArchiveStrategy;
+use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Tests\Support\ProcessCore\FakePrepareTools;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
 beforeEach(fn () => StoredDocumentFixtures::reset());
+
+afterEach(fn () => FakePrepareTools::cleanup());
 
 /**
  * `ArchiveStrategy` расширена с ZIP до трёх форматов — `7z`/`rar` через реальные
@@ -180,26 +184,28 @@ test('RAR adapter имеет runtime evidence без сфабрикованно�
 });
 
 test('ArchiveExtractor::listEntries принимает числовые флаги 0 и 1 и директории без XADFileSize в выводе lsar -json', function () {
-    Process::fake([
-        '*' => Process::result(output: json_encode([
-            'lsarFormatVersion' => 2,
-            'lsarContents' => [
-                [
-                    'XADFileName' => 'Проект/06.3-41-25-СМ.pdf',
-                    'XADFileSize' => 2086696,
-                    'XADCompressedSize' => 1746654,
-                    'XADIsSolid' => 0,
-                ],
-                [
-                    'XADFileName' => 'Проект',
-                    'XADIsDirectory' => 1,
-                    'XADCompressedSize' => 0,
-                ],
+    FakePrepareTools::instance()->configure(key: 'lsar_bin', code: 'print(json.dumps(data))', data: [
+        'lsarFormatVersion' => 2,
+        'lsarContents' => [
+            [
+                'XADFileName' => 'Проект/06.3-41-25-СМ.pdf',
+                'XADFileSize' => 2086696,
+                'XADCompressedSize' => 1746654,
+                'XADIsSolid' => 0,
             ],
-        ], JSON_THROW_ON_ERROR)),
+            [
+                'XADFileName' => 'Проект',
+                'XADIsDirectory' => 1,
+                'XADCompressedSize' => 0,
+            ],
+        ],
     ]);
-
-    $entries = app(ArchiveExtractor::class)->listEntries('/tmp/fixture.rar', 'rar');
+    $archive = PipelineTemporaryFile::create(prefix: 'lsar_fixture_', extension: 'rar');
+    try {
+        $entries = app(ArchiveExtractor::class)->listEntries(archivePath: $archive, format: 'rar');
+    } finally {
+        unlink($archive);
+    }
 
     expect($entries)->toHaveCount(2)
         ->and($entries[0]->path)->toBe('Проект/06.3-41-25-СМ.pdf')

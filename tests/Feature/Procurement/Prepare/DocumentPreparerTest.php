@@ -12,11 +12,13 @@ use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\FakePrepareTools;
 use Tests\Support\ProcessCore\PreparationStrategyProbe;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+afterEach(fn () => FakePrepareTools::cleanup());
 
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
@@ -123,9 +125,7 @@ test('format corpus: XLSX — обе ветки SpreadsheetStrategy упали �
         'ai.prepare.xlsx_max_mb' => 0,
         'ai.prepare.strategies' => [SpreadsheetStrategy::class],
     ]);
-    Process::fake([
-        '*soffice*' => Process::result(errorOutput: 'soffice: crashed on convert', exitCode: 1),
-    ]);
+    FakePrepareTools::instance()->soffice(succeeds: false);
     Storage::fake('s3');
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     seedVersion($document, 'sample.xlsx', 'xlsx');
@@ -323,9 +323,7 @@ test('format corpus: unprocessable format probe не планирует AI', fun
         'ai.prepare.xlsx_max_mb' => 0,
         'ai.prepare.strategies' => [SpreadsheetStrategy::class],
     ]);
-    Process::fake([
-        '*soffice*' => Process::result(errorOutput: 'soffice: crashed on convert', exitCode: 1),
-    ]);
+    FakePrepareTools::instance()->soffice(succeeds: false);
     Storage::fake('s3');
     Queue::fake();
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);

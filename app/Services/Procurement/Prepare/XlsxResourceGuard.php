@@ -6,7 +6,7 @@ namespace App\Services\Procurement\Prepare;
 
 use ZipArchive;
 
-/** Rejects hostile OOXML containers before PhpSpreadsheet inflates metadata or cell data. */
+/** Rejects unsafe XML in office ZIP containers before a document reader opens them. */
 final class XlsxResourceGuard
 {
     public function accepts(string $path, string $extension, bool $checkXmlEntities = true): bool
@@ -17,7 +17,7 @@ final class XlsxResourceGuard
 
         $zip = new ZipArchive;
 
-        if ($zip->open($path, ZipArchive::CHECKCONS) !== true) {
+        if (@$zip->open($path, ZipArchive::CHECKCONS) !== true) {
             return false;
         }
 
@@ -85,8 +85,8 @@ final class XlsxResourceGuard
     {
         $zip = new ZipArchive;
 
-        if ($zip->open($filePath, ZipArchive::CHECKCONS) !== true) {
-            return;
+        if (@$zip->open($filePath, ZipArchive::CHECKCONS) !== true) {
+            throw new \RuntimeException('Не удалось открыть ZIP-контейнер офисного документа.');
         }
 
         try {
@@ -96,13 +96,14 @@ final class XlsxResourceGuard
                 $stat = $zip->statIndex($index);
 
                 if ($stat === false) {
-                    continue;
+                    throw new \RuntimeException('Не удалось прочитать метаданные ZIP-контейнера офисного документа.');
                 }
 
                 $name = $stat['name'];
 
-                if (preg_match('/\.(?:xml|rels)$/i', $name) === 1 && $this->entryContainsProhibitedXml($zip, $name, $maxDecoded)) {
-                    throw new \RuntimeException("XLSX entry {$name} contains prohibited DOCTYPE/ENTITY declaration.");
+                if (preg_match('/\.(?:xml|rels)$/i', $name) === 1
+                    && ($stat['size'] > $maxDecoded || $this->entryContainsProhibitedXml($zip, $name, $maxDecoded))) {
+                    throw new \RuntimeException("XML-запись {$name} недоступна, превышает лимит размера или содержит DOCTYPE/ENTITY.");
                 }
             }
         } finally {
@@ -112,7 +113,7 @@ final class XlsxResourceGuard
 
     private function entryContainsProhibitedXml(ZipArchive $zip, string $name, int $maxBytes): bool
     {
-        $stream = $zip->getStream($name);
+        $stream = @$zip->getStream($name);
 
         if (! is_resource($stream)) {
             return true;
@@ -122,15 +123,15 @@ final class XlsxResourceGuard
             $read = 0;
             $tail = '';
 
-            while (! feof($stream) && $read < $maxBytes) {
-                $chunk = fread($stream, 65536);
+            while (($remaining = $maxBytes - $read) > 0 && ! feof($stream)) {
+                $chunk = @fread($stream, min(65536, $remaining));
 
                 if ($chunk === false) {
                     return true;
                 }
 
                 if ($chunk === '') {
-                    continue;
+                    return ! feof($stream);
                 }
 
                 $read += strlen($chunk);
@@ -142,6 +143,11 @@ final class XlsxResourceGuard
                 }
 
                 $tail = substr($window, -64);
+            }
+
+            // A full final chunk may leave EOF unset even when the entry fits exactly.
+            if ($read >= $maxBytes && ! feof($stream)) {
+                return @fread($stream, 1) !== '' || ! feof($stream);
             }
 
             return false;

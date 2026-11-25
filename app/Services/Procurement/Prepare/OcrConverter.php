@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Prepare;
 
 use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
-use Illuminate\Support\Facades\Process;
+use App\Exceptions\Procurement\Prepare\ToolFailed;
+use App\Exceptions\Procurement\Prepare\ToolUnavailable;
 use RuntimeException;
 
 /**
@@ -19,17 +20,7 @@ use RuntimeException;
  */
 final readonly class OcrConverter
 {
-    private const array ALLOWED_ENV = [
-        'PATH',
-        'LANG',
-        'LC_ALL',
-        'LC_CTYPE',
-        'LD_LIBRARY_PATH',
-        'TESSDATA_PREFIX',
-        'FONTCONFIG_PATH',
-        'SOURCE_DATE_EPOCH',
-        'TZ',
-    ];
+    public function __construct(private BoundedToolProcess $tools) {}
 
     /**
      * Сколько страниц PDF зондируется на текстовый слой — тот же канон, что в инвентаре корпуса
@@ -45,25 +36,42 @@ final readonly class OcrConverter
      */
     public function run(string $inputPath, string $outputPdfPath, string $sidecarTxtPath, ?float $deadlineAt = null): void
     {
-        $result = Process::timeout($this->admittedTimeout(
+        $timeout = $this->admittedTimeout(
             operation: 'OCR',
             maximumSeconds: $this->timeoutSeconds(),
             remainingChainSeconds: $this->operationTimeoutSeconds('tesseract_version') + $this->operationTimeoutSeconds('pdf_page_count'),
             deadlineAt: $deadlineAt,
-        ))
-            ->env($this->sanitizedEnv(dirname($outputPdfPath)))
-            ->run([
-                $this->configString('ai.tools.ocrmypdf_bin'),
-                '--language', $this->languages(),
-                '--sidecar', $sidecarTxtPath,
-                '--output-type', 'pdf',
-                '--skip-text',
-                $inputPath,
-                $outputPdfPath,
-            ]);
+        );
+        $deadline = hrtime(true) / 1e9 + $timeout;
 
-        if ($result->failed() || ! file_exists($outputPdfPath)) {
-            throw new RuntimeException('OCR провалился: '.$result->errorOutput());
+        try {
+            $source = $this->tools->inputPath($inputPath);
+            $this->tools->inWorkspace(prefix: 'ocr_tool_', operation: function (string $directory) use ($source, $outputPdfPath, $sidecarTxtPath, $deadline): void {
+                $pdf = $directory.'/output.pdf';
+                $sidecar = $directory.'/output.txt';
+                $this->tools->run(
+                    command: [
+                        $this->configString('ai.tools.ocrmypdf_bin'),
+                        '--language', $this->languages(),
+                        '--sidecar', $sidecar,
+                        '--output-type', 'pdf',
+                        '--skip-text',
+                        $source,
+                        $pdf,
+                    ],
+                    directory: $directory,
+                    execution: null,
+                    deadline: $deadline,
+                    inputPath: $source,
+                    reportStderr: true,
+                );
+                if (file_exists($sidecar) || is_link($sidecar)) {
+                    $this->tools->copyOutput(source: $sidecar, target: $sidecarTxtPath);
+                }
+                $this->tools->copyOutput(source: $pdf, target: $outputPdfPath);
+            });
+        } catch (ToolFailed|ToolUnavailable $exception) {
+            throw new RuntimeException('OCR провалился: '.$exception->getMessage(), previous: $exception);
         }
     }
 
@@ -75,48 +83,45 @@ final readonly class OcrConverter
      */
     public function textCharsPerPage(string $pdfPath, ?float $deadlineAt = null): ?float
     {
-        $result = Process::timeout($this->admittedTimeout(
+        $timeout = $this->admittedTimeout(
             operation: 'pdftotext text-layer probe',
             maximumSeconds: $this->operationTimeoutSeconds('text_layer_probe'),
             remainingChainSeconds: $this->timeoutSeconds()
                 + $this->operationTimeoutSeconds('tesseract_version')
                 + $this->operationTimeoutSeconds('pdf_page_count'),
             deadlineAt: $deadlineAt,
-        ))
-            ->env($this->sanitizedEnv(dirname($pdfPath)))
-            ->run([
-                $this->configString('ai.tools.pdftotext_bin'),
-                '-f', '1',
-                '-l', (string) self::TEXT_LAYER_SAMPLE_PAGES,
-                $pdfPath,
-                '-',
-            ]);
+        );
+        $output = $this->probe(
+            command: [$this->configString('ai.tools.pdftotext_bin'), '-f', '1', '-l', (string) self::TEXT_LAYER_SAMPLE_PAGES],
+            timeout: $timeout,
+            input: $pdfPath,
+            argsAfterInput: ['-'],
+        );
 
-        if ($result->failed()) {
+        if ($output === null) {
             return null;
         }
 
-        $chars = strlen((string) preg_replace('/\s+/u', '', $result->output()));
+        $chars = strlen((string) preg_replace('/\s+/u', '', $output));
 
         return $chars / self::TEXT_LAYER_SAMPLE_PAGES;
     }
 
     public function pageCount(string $pdfPath, ?float $deadlineAt = null): ?int
     {
-        $result = Process::timeout($this->admittedTimeout(
+        $timeout = $this->admittedTimeout(
             operation: 'pdfinfo page-count probe',
             maximumSeconds: $this->operationTimeoutSeconds('pdf_page_count'),
             remainingChainSeconds: 0,
             deadlineAt: $deadlineAt,
-        ))
-            ->env($this->sanitizedEnv(dirname($pdfPath)))
-            ->run([$this->configString('ai.tools.pdfinfo_bin'), $pdfPath]);
+        );
+        $output = $this->probe(command: [$this->configString('ai.tools.pdfinfo_bin')], timeout: $timeout, input: $pdfPath);
 
-        if ($result->failed()) {
+        if ($output === null) {
             return null;
         }
 
-        foreach (explode("\n", $result->output()) as $line) {
+        foreach (explode("\n", $output) as $line) {
             if (preg_match('/^Pages:\s*(\d+)/', $line, $matches) === 1) {
                 return (int) $matches[1];
             }
@@ -127,20 +132,19 @@ final readonly class OcrConverter
 
     public function tesseractVersion(?float $deadlineAt = null): ?string
     {
-        $result = Process::timeout($this->admittedTimeout(
+        $timeout = $this->admittedTimeout(
             operation: 'Tesseract version probe',
             maximumSeconds: $this->operationTimeoutSeconds('tesseract_version'),
             remainingChainSeconds: $this->operationTimeoutSeconds('pdf_page_count'),
             deadlineAt: $deadlineAt,
-        ))
-            ->env($this->sanitizedEnv(sys_get_temp_dir()))
-            ->run([$this->configString('ai.tools.tesseract_bin'), '--version']);
+        );
+        $output = $this->probe(command: [$this->configString('ai.tools.tesseract_bin'), '--version'], timeout: $timeout);
 
-        if ($result->failed()) {
+        if ($output === null) {
             return null;
         }
 
-        $firstLine = trim(explode("\n", trim($result->output()), 2)[0]);
+        $firstLine = trim(explode("\n", trim($output), 2)[0]);
 
         return $firstLine !== '' ? $firstLine : null;
     }
@@ -150,26 +154,32 @@ final readonly class OcrConverter
         return $this->configString('ai.tools.ocr_languages', 'rus+eng');
     }
 
-    /** @return array<string, string|false> */
-    private function sanitizedEnv(string $tmpDir): array
+    /**
+     * @param  non-empty-list<string>  $command
+     * @param  list<string>  $argsAfterInput
+     */
+    private function probe(array $command, int $timeout, ?string $input = null, array $argsAfterInput = []): ?string
     {
-        $env = [];
-        foreach (array_keys(getenv() + $_ENV + $_SERVER) as $key) {
-            if (is_string($key) && $key !== '') {
-                $env[$key] = false;
+        $deadline = hrtime(true) / 1e9 + $timeout;
+        try {
+            $source = $input === null ? null : $this->tools->inputPath($input);
+            if ($source !== null) {
+                $command = [...$command, $source, ...$argsAfterInput];
             }
-        }
-        foreach (self::ALLOWED_ENV as $key) {
-            $value = getenv($key);
-            if (is_string($value) && $value !== '') {
-                $env[$key] = $value;
-            }
-        }
-        $env['TMPDIR'] = $tmpDir;
-        $env['HOME'] = $tmpDir;
-        $env['OMP_THREAD_LIMIT'] = '1';
 
-        return $env;
+            return $this->tools->inWorkspace(
+                prefix: 'ocr_probe_',
+                operation: fn (string $directory): string => $this->tools->run(
+                    command: $command,
+                    directory: $directory,
+                    execution: null,
+                    deadline: $deadline,
+                    inputPath: $source,
+                ),
+            );
+        } catch (ToolFailed|ToolUnavailable) {
+            return null;
+        }
     }
 
     private function timeoutSeconds(): int

@@ -40,13 +40,13 @@ use App\Services\Procurement\Prepare\LibreOfficeConverter;
 use App\Services\Procurement\Prepare\OcrConverter;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use App\Services\Procurement\Process\ProcessTransaction;
-use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;
+use Tests\Support\ProcessCore\FakePrepareTools;
 use Tests\Support\ProcessCore\FinalizeFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;
@@ -837,23 +837,23 @@ sys.exit(0)',
         }
         expect($unconfirmedCaught)->toBeInstanceOf(ToolCleanupUnconfirmed::class);
 
-        // 5. Legacy-конвертеры очищают секреты окружения при запуске Process.
+        // Проверяем фактическое окружение каждого адаптера на границе запуска.
         $prevAppKey = getenv('APP_KEY');
         putenv('APP_KEY=base64:secret-audit-key');
+        $archive = $dir.'/sample.7z';
+        file_put_contents($archive, 'test input');
         try {
-            Process::fake([
-                '*' => Process::result(output: "tesseract 5.5.0\n"),
-            ]);
-            app(LibreOfficeConverter::class)->version();
-            app(OcrConverter::class)->tesseractVersion();
-            try {
-                app(ArchiveExtractor::class)->listEntries($dir.'/missing.7z', '7z');
-            } catch (Throwable) {
-            }
+            $tools = FakePrepareTools::instance();
+            $check = 'assert "APP_KEY" not in os.environ and os.environ.get("OMP_THREAD_LIMIT") == "1"';
+            $tools->configure(key: 'soffice_bin', code: $check."\n".'print("LibreOffice test")');
+            $tools->configure(key: 'tesseract_bin', code: $check."\n".'print("tesseract 5.5.0")');
+            $tools->configure(key: 'sevenzip_bin', code: $check."\n".'print("----------")');
 
-            Process::assertRan(fn (PendingProcess $process): bool => ($process->environment['APP_KEY'] ?? null) === false
-                && ($process->environment['OMP_THREAD_LIMIT'] ?? null) === '1');
+            expect(app(LibreOfficeConverter::class)->version())->toBe('LibreOffice test')
+                ->and(app(OcrConverter::class)->tesseractVersion())->toBe('tesseract 5.5.0')
+                ->and(app(ArchiveExtractor::class)->listEntries(archivePath: $archive, format: '7z'))->toBe([]);
         } finally {
+            FakePrepareTools::cleanup();
             if ($prevAppKey === false) {
                 putenv('APP_KEY');
             } else {

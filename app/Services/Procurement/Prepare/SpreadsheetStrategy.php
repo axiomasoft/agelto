@@ -9,6 +9,8 @@ use App\Console\Commands\Procurement\ConvertXlsxToPdfCommand;
 use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
+use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
+use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
@@ -55,7 +57,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         private FileLocationResolver $locationResolver,
     ) {}
 
-    public function process(Document $document, DocumentVersion $version): PreparationResult
+    public function process(Document $document, DocumentVersion $version, ?float $deadlineAt = null): PreparationResult
     {
         $hasPdf = $this->representations->find($version, RepresentationKind::Pdf) !== null;
         $hasTextGrid = $this->representations->find($version, RepresentationKind::TextGrid) !== null;
@@ -87,7 +89,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
             if (! $hasPdf) {
                 $hasPdf = ($withinToolLimits && $this->tryPhpSpreadsheet($version, $disk, $diskName, $localInput))
-                    || $this->tryLibreOffice($version, $disk, $diskName, $localInput);
+                    || $this->tryLibreOffice($version, $disk, $diskName, $localInput, $deadlineAt);
             }
 
             if (! $hasTextGrid && $withinToolLimits) {
@@ -154,13 +156,15 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         }
     }
 
-    private function tryLibreOffice(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput): bool
+    private function tryLibreOffice(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput, ?float $deadlineAt): bool
     {
         $outputDir = PipelineTemporaryFile::createDirectory(prefix: 'xlsx_pdf_');
 
         try {
             try {
-                $localOutput = $this->converter->toPdf($localInput, $outputDir);
+                $localOutput = $this->converter->toPdf(inputPath: $localInput, outputDir: $outputDir, deadlineAt: $deadlineAt);
+            } catch (OperationBudgetExceeded|ToolCleanupUnconfirmed $exception) {
+                throw $exception;
             } catch (RuntimeException) {
                 return false;
             }
@@ -173,7 +177,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
             $this->storePdfRepresentation($version, $disk, $diskName, $pdf, [
                 'tool' => 'libreoffice',
-                'tool_version' => $this->converter->version(),
+                'tool_version' => $this->converter->version(deadlineAt: $deadlineAt),
             ]);
 
             return true;

@@ -9,6 +9,7 @@ use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
+use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
@@ -101,7 +102,7 @@ final readonly class ScanStrategy implements PreparationStrategy
                 if (trim($text) === '') {
                     throw new RuntimeException('OCR не извлёк ни одного символа (пустой sidecar)');
                 }
-            } catch (OperationBudgetExceeded $exception) {
+            } catch (OperationBudgetExceeded|ToolCleanupUnconfirmed $exception) {
                 // A job-slice deadline is a transient scheduling outcome. It must enter the
                 // PipelineJob error block and retry; OCR itself has not proved the PDF invalid.
                 throw $exception;

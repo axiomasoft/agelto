@@ -3,118 +3,81 @@
 declare(strict_types=1);
 
 use App\Services\Procurement\Prepare\LibreOfficeConverter;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Str;
+use App\Support\Files\PipelineTemporaryFile;
+use Tests\Support\ProcessCore\FakePrepareTools;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
-beforeEach(fn () => StoredDocumentFixtures::reset());
+beforeEach(function (): void {
+    StoredDocumentFixtures::reset();
+    $this->outputDir = PipelineTemporaryFile::createDirectory(prefix: 'lo_test_');
+    $this->inputPath = $this->outputDir.'/source.docx';
+    file_put_contents($this->inputPath, 'test input');
+});
 
-/**
- * Обёртка над `soffice --headless --convert-to pdf` — реальный `soffice` в юнит-тестах не
- * вызывается (Code Guidance), выход подставляется вручную по конвенции именования LibreOffice
- * (`<имя входного файла без расширения>.pdf` в `$outputDir`).
- */
-function tempOutputDir(): string
-{
-    $dir = sys_get_temp_dir().'/lo_test_'.Str::uuid();
-    File::ensureDirectoryExists($dir);
-
-    return $dir;
-}
-
-function placeFakePdf(string $inputPath, string $outputDir): void
-{
-    file_put_contents($outputDir.'/'.pathinfo($inputPath, PATHINFO_FILENAME).'.pdf', '%PDF-fake');
-}
+afterEach(function (): void {
+    FakePrepareTools::cleanup();
+    PipelineTemporaryFile::deleteDirectory($this->outputDir);
+});
 
 test('состав аргументов несёт headless, изолированный профиль и путь на выход', function () {
-    Process::fake();
-    $outputDir = tempOutputDir();
-    $inputPath = tempnam(sys_get_temp_dir(), 'doc_').'.docx';
-    placeFakePdf($inputPath, $outputDir);
+    $tools = FakePrepareTools::instance();
+    $tools->soffice();
 
-    app(LibreOfficeConverter::class)->toPdf($inputPath, $outputDir);
+    app(LibreOfficeConverter::class)->toPdf(inputPath: $this->inputPath, outputDir: $this->outputDir);
 
-    Process::assertRan(function ($process) use ($outputDir, $inputPath) {
-        $command = $process->command;
+    $args = $tools->calls('soffice_bin')[0];
+    $workspace = $args[array_search('--outdir', $args, true) + 1];
 
-        return $command[0] === config('ai.tools.soffice_bin')
-            && in_array('--headless', $command, true)
-            && in_array('--norestore', $command, true)
-            && collect($command)->contains(fn ($arg) => is_string($arg) && str_starts_with($arg, '-env:UserInstallation=file://'))
-            && in_array('--convert-to', $command, true)
-            && in_array('pdf', $command, true)
-            && in_array('--outdir', $command, true)
-            && in_array($outputDir, $command, true)
-            && in_array($inputPath, $command, true);
-    });
+    expect($args)->toContain('--headless', '--norestore', '--convert-to', 'pdf', $this->inputPath, "-env:UserInstallation=file://{$workspace}/profile")
+        ->and($workspace)->not->toBe($this->outputDir)
+        ->and(is_dir($workspace))->toBeFalse();
 });
 
 test('успешная конвертация возвращает путь к PDF в outputDir', function () {
-    Process::fake();
-    $outputDir = tempOutputDir();
-    $inputPath = tempnam(sys_get_temp_dir(), 'doc_').'.docx';
-    placeFakePdf($inputPath, $outputDir);
+    FakePrepareTools::instance()->soffice();
 
-    $result = app(LibreOfficeConverter::class)->toPdf($inputPath, $outputDir);
+    $result = app(LibreOfficeConverter::class)->toPdf(inputPath: $this->inputPath, outputDir: $this->outputDir);
 
-    expect($result)->toBe($outputDir.'/'.pathinfo($inputPath, PATHINFO_FILENAME).'.pdf')
-        ->and(file_exists($result))->toBeTrue();
+    expect($result)->toBe($this->outputDir.'/source.pdf')
+        ->and(file_get_contents($result))->toBe('%PDF-fake');
 });
 
 test('ненулевой exit — RuntimeException с errorOutput инструмента в сообщении', function () {
-    Process::fake([
-        '*' => Process::result(errorOutput: 'soffice: crashed on convert', exitCode: 1),
-    ]);
-    $outputDir = tempOutputDir();
-    $inputPath = tempnam(sys_get_temp_dir(), 'doc_').'.docx';
+    FakePrepareTools::instance()->soffice(succeeds: false);
 
-    app(LibreOfficeConverter::class)->toPdf($inputPath, $outputDir);
+    app(LibreOfficeConverter::class)->toPdf(inputPath: $this->inputPath, outputDir: $this->outputDir);
 })->throws(RuntimeException::class, 'soffice: crashed on convert');
 
 test('нулевой exit, но выходной файл не появился — тоже RuntimeException', function () {
-    Process::fake();
-    $outputDir = tempOutputDir();
-    $inputPath = tempnam(sys_get_temp_dir(), 'doc_').'.docx';
-    // Файл сознательно НЕ создаётся — как будто soffice отрапортовал успех, но PDF не написал.
+    FakePrepareTools::instance()->soffice(pdfContents: []);
 
-    app(LibreOfficeConverter::class)->toPdf($inputPath, $outputDir);
-})->throws(RuntimeException::class);
+    app(LibreOfficeConverter::class)->toPdf(inputPath: $this->inputPath, outputDir: $this->outputDir);
+})->throws(RuntimeException::class, 'Не удалось получить выходной файл');
 
 test('два одновременных вызова конвертера получают разные пути профиля', function () {
-    $profiles = [];
-    Process::fake(function ($process) use (&$profiles) {
-        $profiles[] = collect($process->command)->first(fn ($arg) => is_string($arg) && str_starts_with($arg, '-env:UserInstallation='));
+    $tools = FakePrepareTools::instance();
+    $tools->soffice();
+    $secondInput = $this->outputDir.'/second.docx';
+    file_put_contents($secondInput, 'second test input');
 
-        return Process::result();
-    });
+    app(LibreOfficeConverter::class)->toPdf(inputPath: $this->inputPath, outputDir: $this->outputDir);
+    app(LibreOfficeConverter::class)->toPdf(inputPath: $secondInput, outputDir: $this->outputDir);
 
-    $outputDir = tempOutputDir();
-    $input1 = tempnam(sys_get_temp_dir(), 'doc_').'.docx';
-    $input2 = tempnam(sys_get_temp_dir(), 'doc_').'.docx';
-    placeFakePdf($input1, $outputDir);
-    placeFakePdf($input2, $outputDir);
-
-    app(LibreOfficeConverter::class)->toPdf($input1, $outputDir);
-    app(LibreOfficeConverter::class)->toPdf($input2, $outputDir);
-
-    expect($profiles)->toHaveCount(2)
-        ->and($profiles[0])->not->toBe($profiles[1]);
+    $profiles = array_map(
+        fn (array $args): string => collect($args)->first(fn (string $arg): bool => str_starts_with($arg, '-env:UserInstallation=')),
+        $tools->calls('soffice_bin'),
+    );
+    expect($profiles)->toHaveCount(2)->and($profiles[0])->not->toBe($profiles[1]);
 });
 
 test('version() возвращает первую строку вывода --version', function () {
-    Process::fake([
-        '*' => Process::result(output: "LibreOffice 7.6.4.1 30(Build:4)\nBuild ID: abc123"),
-    ]);
+    FakePrepareTools::instance()->soffice();
 
     expect(app(LibreOfficeConverter::class)->version())->toBe('LibreOffice 7.6.4.1 30(Build:4)');
 });
 
 test('version() возвращает null, если бинарь не отвечает', function () {
-    Process::fake([
-        '*' => Process::result(errorOutput: 'not found', exitCode: 127),
-    ]);
+    config(['ai.tools.soffice_bin' => $this->outputDir.'/missing-soffice']);
 
     expect(app(LibreOfficeConverter::class)->version())->toBeNull();
 });

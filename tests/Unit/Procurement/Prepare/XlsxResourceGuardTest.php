@@ -75,6 +75,35 @@ test('xlsx guard отклоняет DOCTYPE и ENTITY объявления в xm
     ],
 ]);
 
+test('проверка XML отклоняет запись больше лимита и принимает запись ровно на границе', function (): void {
+    config(['ai.prepare.xlsx_max_decoded_mb' => 1]);
+    $limit = 1024 * 1024;
+    $maximalXml = '<xml>'.str_repeat(' ', $limit - strlen('<xml></xml>')).'</xml>';
+    $valid = hostileXlsx(['content.xml' => $maximalXml]);
+    $oversize = hostileXlsx(['content.xml' => $maximalXml."\n"]);
+
+    try {
+        $guard = app(XlsxResourceGuard::class);
+        $guard->assertSafeXmlEntries($valid);
+        expect(fn () => $guard->assertSafeXmlEntries($oversize))->toThrow(RuntimeException::class, 'превышает лимит размера');
+    } finally {
+        unlink($valid);
+        unlink($oversize);
+    }
+});
+
+test('проверка XML отклоняет повреждённый ZIP-контейнер', function (): void {
+    $path = PipelineTemporaryFile::create(prefix: 'broken_zip_', extension: 'xlsx');
+    file_put_contents($path, "PK\x03\x04");
+
+    try {
+        expect(fn () => app(XlsxResourceGuard::class)->assertSafeXmlEntries($path))
+            ->toThrow(RuntimeException::class, 'Не удалось открыть ZIP-контейнер');
+    } finally {
+        unlink($path);
+    }
+});
+
 /** @param array<string, string> $entries */
 function hostileXlsx(array $entries): string
 {

@@ -12,12 +12,15 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Prepare\DocumentFormatRegistry;
 use App\Services\Procurement\Prepare\OcrConverter;
 use App\Services\Procurement\Prepare\ScanStrategy;
-use Illuminate\Support\Facades\Process;
+use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\FakePrepareTools;
 use Tests\Support\ProcessCore\PreparationStrategyProbe;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
 beforeEach(fn () => StoredDocumentFixtures::reset());
+
+afterEach(fn () => FakePrepareTools::cleanup());
 
 /** OCR-инструменты подменены: тест проверяет аргументы и обработку результатов без реального OCR. */
 function makeScanVersion(string $extension = 'pdf', string $content = '%PDF-скан'): array
@@ -43,23 +46,16 @@ function makeScanVersion(string $extension = 'pdf', string $content = '%PDF-ск
  */
 function fakeOcrTools(float $charsPerPage = 0.0, bool $ocrSucceeds = true, string $sidecarText = "Наименование работ\nМонтаж двери\n"): void
 {
-    Process::fake([
-        '*pdftotext*' => Process::result(output: str_repeat('a', (int) round($charsPerPage * 3))),
-        '*pdfinfo*' => Process::result(output: "Title:\nPages:          2\nEncrypted:      no\n"),
-        '*tesseract*' => Process::result(output: "tesseract 5.5.0\n leptonica-1.85.0"),
-        '*ocrmypdf*' => function ($process) use ($ocrSucceeds, $sidecarText) {
-            if (! $ocrSucceeds) {
-                return Process::result(errorOutput: 'ocrmypdf: TaggedPDFError', exitCode: 4);
-            }
-
-            $command = $process->command;
-            $sidecarIndex = array_search('--sidecar', $command, true);
-            file_put_contents($command[$sidecarIndex + 1], $sidecarText);
-            file_put_contents(end($command), '%PDF-с-текстовым-слоем');
-
-            return Process::result();
-        },
-    ]);
+    $tools = FakePrepareTools::instance();
+    $tools->configure(key: 'pdftotext_bin', code: 'print(data["text"])', data: ['text' => str_repeat('a', (int) round($charsPerPage * 3))]);
+    $tools->configure(key: 'pdfinfo_bin', code: 'print("Pages: 2")');
+    $tools->configure(key: 'tesseract_bin', code: 'print("tesseract 5.5.0")');
+    $tools->configure(key: 'ocrmypdf_bin', code: <<<'PY'
+if not data['succeeds']:
+    sys.exit('ocrmypdf: TaggedPDFError')
+Path(args[args.index('--sidecar') + 1]).write_text(data['sidecar'])
+Path(args[-1]).write_text('%PDF-с-текстовым-слоем')
+PY, data: ['succeeds' => $ocrSucceeds, 'sidecar' => $sidecarText]);
 }
 
 test('registry направляет PDF в typed scan handler', function () {
@@ -82,15 +78,12 @@ test('PDF с текстовым слоем — стратегия вернула
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
 
-    Process::assertNotRan(fn ($process) => str_contains((string) implode(' ', (array) $process->command), 'ocrmypdf'));
+    expect(FakePrepareTools::instance()->calls('ocrmypdf_bin'))->toBe([]);
 });
 
 test('зонд не прочитал файл как PDF — стратегия вернула false, OCR не запускался', function () {
     fakeOcrTools();
-    Process::fake([
-        '*pdftotext*' => Process::result(errorOutput: 'Syntax Error: Couldn\'t find trailer dictionary', exitCode: 1),
-        '*ocrmypdf*' => Process::result(),
-    ]);
+    FakePrepareTools::instance()->configure(key: 'pdftotext_bin', code: 'sys.exit("Syntax Error: invalid PDF")');
     [$document, $version] = makeScanVersion('pdf', 'битые байты, не PDF');
 
     $result = app(ScanStrategy::class)->process($document, $version);
@@ -99,7 +92,7 @@ test('зонд не прочитал файл как PDF — стратегия 
         ->and($document->refresh()->status)->not->toBe(DocumentStatus::Unprocessable)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
 
-    Process::assertNotRan(fn ($process) => str_contains((string) ($process->command[0] ?? ''), 'ocrmypdf'));
+    expect(FakePrepareTools::instance()->calls('ocrmypdf_bin'))->toBe([]);
 });
 
 test('PDF без текстового слоя — созданы два представления, pdf_ocr и text', function () {
@@ -143,23 +136,15 @@ test('состав аргументов ocrmypdf несёт --language rus+eng, 
 
     app(ScanStrategy::class)->process($document, $version);
 
-    Process::assertRan(function ($process) {
-        $command = (array) $process->command;
+    $command = FakePrepareTools::instance()->calls('ocrmypdf_bin')[0];
+    $languageIndex = array_search('--language', $command, true);
+    $sidecarIndex = array_search('--sidecar', $command, true);
 
-        if (! str_contains((string) ($command[0] ?? ''), 'ocrmypdf')) {
-            return false;
-        }
-
-        $languageIndex = array_search('--language', $command, true);
-        $sidecarIndex = array_search('--sidecar', $command, true);
-
-        return $languageIndex !== false
-            && $command[$languageIndex + 1] === 'rus+eng'
-            && $sidecarIndex !== false
-            && str_ends_with($command[$sidecarIndex + 1], '.txt')
-            && in_array('--skip-text', $command, true)
-            && in_array('--output-type', $command, true);
-    });
+    expect($languageIndex)->not->toBeFalse()
+        ->and($command[$languageIndex + 1])->toBe('rus+eng')
+        ->and($sidecarIndex)->not->toBeFalse()
+        ->and($command[$sidecarIndex + 1])->toEndWith('.txt')
+        ->and($command)->toContain('--skip-text', '--output-type');
 });
 
 test('падение ocrmypdf — unprocessable(ocr_failed), представлений нет', function () {
@@ -197,7 +182,7 @@ test('повторный прогон идемпотентен — ocrmypdf не
     expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(2);
 
-    Process::assertRanTimes(fn ($process) => str_contains((string) ($process->command[0] ?? ''), 'ocrmypdf'), 1);
+    expect(FakePrepareTools::instance()->calls('ocrmypdf_bin'))->toHaveCount(1);
 });
 
 test('изображение — OCR запускается без зонда текстового слоя, представления созданы', function () {
@@ -209,7 +194,7 @@ test('изображение — OCR запускается без зонда т
     expect($result)->toBe(PreparationResult::ReadyForScreening)
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(2);
 
-    Process::assertNotRan(fn ($process) => str_contains((string) ($process->command[0] ?? ''), 'pdftotext'));
+    expect(FakePrepareTools::instance()->calls('pdftotext_bin'))->toBe([]);
 });
 
 test('падение OCR на изображении НЕ терминально — false, документ уходит в vision-ветку', function () {
@@ -224,7 +209,7 @@ test('падение OCR на изображении НЕ терминально
 });
 
 test('OCR не начинается, если после text-layer probe не помещается весь обязательный хвост', function (): void {
-    Process::fake();
+    fakeOcrTools();
     $operations = config('documents.format_tools');
     $deadlineAt = microtime(as_float: true)
         + $operations['ocr_seconds']
@@ -240,22 +225,27 @@ test('OCR не начинается, если после text-layer probe не �
         deadlineAt: $deadlineAt,
     ))->toThrow(OperationBudgetExceeded::class);
 
-    Process::assertNotRan(fn ($process): bool => str_contains((string) ($process->command[0] ?? ''), 'ocrmypdf'));
+    expect(FakePrepareTools::instance()->calls('ocrmypdf_bin'))->toBe([]);
 });
 
 test('text-layer probe допускается после двух секунд source setup', function (): void {
-    Process::fake(['*pdftotext*' => Process::result(output: '')]);
+    fakeOcrTools();
+    $source = PipelineTemporaryFile::create(prefix: 'probe_', extension: 'pdf');
+    try {
+        $result = app(OcrConverter::class)->textCharsPerPage(
+            pdfPath: $source,
+            deadlineAt: microtime(as_float: true) + config('process.stages.prepare.slice') - 2,
+        );
 
-    app(OcrConverter::class)->textCharsPerPage(
-        pdfPath: '/tmp/source.pdf',
-        deadlineAt: microtime(as_float: true) + config('process.stages.prepare.slice') - 2,
-    );
-
-    Process::assertRan(fn ($process): bool => str_contains((string) ($process->command[0] ?? ''), 'pdftotext'));
+        expect($result)->toBe(0.0)
+            ->and(FakePrepareTools::instance()->calls('pdftotext_bin'))->toHaveCount(1);
+    } finally {
+        unlink($source);
+    }
 });
 
 test('исчерпание prepare deadline остаётся retriable ошибкой, а не unprocessable PDF', function (): void {
-    Process::fake();
+    fakeOcrTools();
     [$document, $version] = makeScanVersion(content: '%PDF-1.7\nскан');
 
     expect(fn (): mixed => (new PreparationStrategyProbe(documentId: $document->id, budgetSeconds: 1))->handle())
@@ -267,5 +257,5 @@ test('исчерпание prepare deadline остаётся retriable ошиб�
         ->and($document->next_retry_at)->toBeNull()
         ->and(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(0);
 
-    Process::assertNotRan(fn ($process): bool => str_contains((string) ($process->command[0] ?? ''), 'pdftotext'));
+    expect(FakePrepareTools::instance()->calls('pdftotext_bin'))->toBe([]);
 });

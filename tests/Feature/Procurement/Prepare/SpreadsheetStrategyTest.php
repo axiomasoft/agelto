@@ -11,10 +11,13 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Prepare\DocumentFormatRegistry;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use App\Services\Procurement\Prepare\WordStrategy;
+use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Contracts\Filesystem\Filesystem;
-use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\ProcessCore\FakePrepareTools;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;
+
+afterEach(fn () => FakePrepareTools::cleanup());
 
 beforeEach(fn () => StoredDocumentFixtures::reset());
 
@@ -44,26 +47,22 @@ function makeDocumentVersion(string $extension, string $content, ?int $sizeBytes
 
 function fakeSoffice(bool $conversionSucceeds, string $pdfContent = '%PDF-fake'): void
 {
-    Process::fake([
-        '*soffice*' => function ($process) use ($conversionSucceeds, $pdfContent) {
-            $command = $process->command;
+    FakePrepareTools::instance()->soffice(succeeds: $conversionSucceeds, pdfContents: [$pdfContent]);
+}
 
-            if (in_array('--convert-to', $command, true)) {
-                if (! $conversionSucceeds) {
-                    return Process::result(errorOutput: 'soffice: crashed on convert', exitCode: 1);
-                }
+function wordZipFixture(): string
+{
+    $path = PipelineTemporaryFile::create(prefix: 'word_fixture_', extension: 'docx');
+    try {
+        $zip = new ZipArchive;
+        expect($zip->open($path, ZipArchive::OVERWRITE))->toBeTrue();
+        expect($zip->addFromString('word/document.xml', '<document/>'))->toBeTrue()
+            ->and($zip->close())->toBeTrue();
 
-                $outdirIndex = array_search('--outdir', $command, true);
-                $outputDir = $command[$outdirIndex + 1];
-                $inputPath = end($command);
-                file_put_contents($outputDir.'/'.pathinfo($inputPath, PATHINFO_FILENAME).'.pdf', $pdfContent);
-
-                return Process::result();
-            }
-
-            return Process::result(output: 'LibreOffice 7.6.4.1 30(Build:4)');
-        },
-    ]);
+        return (string) file_get_contents($path);
+    } finally {
+        unlink($path);
+    }
 }
 
 // --- WordStrategy (doc/docx/rtf/odt → pdf через LibreOffice) ---
@@ -80,7 +79,7 @@ test('registry направляет текстовые документы в typ
 
 test('docx → представление pdf с meta.tool=libreoffice, документ не терминален', function () {
     fakeSoffice(conversionSucceeds: true);
-    [$document, $version] = makeDocumentVersion('docx', 'заглушка docx-содержимого');
+    [$document, $version] = makeDocumentVersion('docx', wordZipFixture());
 
     $result = app(WordStrategy::class)->process($document, $version);
 
@@ -101,7 +100,7 @@ test('docx → представление pdf с meta.tool=libreoffice, доку
 
 test('падение LibreOffice-конверсии docx → unprocessable(conversion_failed), исход терминален', function () {
     fakeSoffice(conversionSucceeds: false);
-    [$document, $version] = makeDocumentVersion('docx', 'заглушка docx-содержимого');
+    [$document, $version] = makeDocumentVersion('docx', wordZipFixture());
 
     $result = app(WordStrategy::class)->process($document, $version);
 
@@ -112,13 +111,13 @@ test('падение LibreOffice-конверсии docx → unprocessable(conve
 
 test('повторный прогон WordStrategy идемпотентен — представление не пересоздаётся, soffice не вызывается', function () {
     fakeSoffice(conversionSucceeds: true);
-    [$document, $version] = makeDocumentVersion('docx', 'заглушка docx-содержимого');
+    [$document, $version] = makeDocumentVersion('docx', wordZipFixture());
 
     app(WordStrategy::class)->process($document, $version);
     $result = app(WordStrategy::class)->process($document, $version);
 
     expect($result)->toBe(PreparationResult::ReadyForScreening);
-    Process::assertRanTimes(fn ($process) => in_array('--convert-to', $process->command, true), 1);
+    expect(array_filter(FakePrepareTools::instance()->calls('soffice_bin'), fn (array $args): bool => in_array('--convert-to', $args, true)))->toHaveCount(1);
     expect(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(1);
 });
 
@@ -128,27 +127,8 @@ test('два документа одного исходного хеша сох�
     $source = '{\rtf1 одинаковый исходный документ}';
     $sourceHash = hash('sha256', $source);
     $pdfs = ['%PDF-first-render', '%PDF-second-render'];
-    $conversionCount = 0;
 
-    Process::fake([
-        '*soffice*' => function ($process) use (&$conversionCount, $pdfs) {
-            $command = $process->command;
-
-            if (in_array('--convert-to', $command, true)) {
-                $outdirIndex = array_search('--outdir', $command, true);
-                $outputDir = $command[$outdirIndex + 1];
-                $inputPath = end($command);
-                file_put_contents(
-                    $outputDir.'/'.pathinfo($inputPath, PATHINFO_FILENAME).'.pdf',
-                    $pdfs[$conversionCount++],
-                );
-
-                return Process::result();
-            }
-
-            return Process::result(output: 'LibreOffice 7.6.4.1 30(Build:4)');
-        },
-    ]);
+    FakePrepareTools::instance()->soffice(pdfContents: $pdfs);
 
     $versions = collect(['first', 'second'])->map(function (string $name) use ($disk, $source, $sourceHash): array {
         $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
@@ -195,7 +175,7 @@ test('ошибка object storage после Word-конверсии остаё�
     fakeSoffice(conversionSucceeds: true);
     $diskName = (string) config('documents.disk');
     $sourcePath = 'documents/transient.docx';
-    $source = 'заглушка docx-содержимого';
+    $source = wordZipFixture();
     $sourceHash = hash('sha256', $source);
     $document = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
     $version = DocumentVersion::factory()->create([
@@ -326,7 +306,7 @@ test('повторный прогон SpreadsheetStrategy идемпотенте
     $result = app(SpreadsheetStrategy::class)->process($document, $version);
 
     expect($result)->toBe(PreparationResult::ReadyForScreening);
-    Process::assertRanTimes(fn ($process) => in_array('--convert-to', $process->command, true), 1);
+    expect(array_filter(FakePrepareTools::instance()->calls('soffice_bin'), fn (array $args): bool => in_array('--convert-to', $args, true)))->toHaveCount(1);
     expect(DocumentRepresentation::query()->where('document_version_id', $version->id)->count())->toBe(1);
 });
 

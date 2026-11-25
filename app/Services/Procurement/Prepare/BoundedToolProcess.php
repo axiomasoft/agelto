@@ -8,6 +8,9 @@ use App\Dto\Procurement\Process\ExecutionContext;
 use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Exceptions\Procurement\Prepare\ToolFailed;
 use App\Exceptions\Procurement\Prepare\ToolUnavailable;
+use App\Support\Files\PipelineTemporaryFile;
+use Closure;
+use RuntimeException;
 use Symfony\Component\Process\Process;
 
 /** No shell, alarms or heartbeat fork. The independent wrapper enforces the hard wall bound. */
@@ -25,11 +28,25 @@ final readonly class BoundedToolProcess
         'TZ',
     ];
 
-    /** @param non-empty-list<string> $command */
-    public function run(array $command, string $directory, ExecutionContext $execution, float $deadline,
-        int $tmpBytes = 1073741824, int $memoryBytes = 4294967296, int $cpuSeconds = 200, bool $includeStderr = false): string
-    {
-        $execution->tick();
+    /**
+     * @param  non-empty-list<string>  $command
+     * @param  (Closure(resource): void)|null  $consumeOutput
+     */
+    public function run(
+        array $command,
+        string $directory,
+        ?ExecutionContext $execution,
+        float $deadline,
+        int $tmpBytes = 1073741824,
+        int $memoryBytes = 4294967296,
+        int $cpuSeconds = 200,
+        bool $includeStderr = false,
+        ?string $inputPath = null,
+        ?Closure $consumeOutput = null,
+        int $maxOutputBytes = 8388608,
+        bool $reportStderr = false,
+    ): string {
+        $execution?->tick();
         $seconds = $deadline - hrtime(true) / 1e9;
         if ($seconds <= 0) {
             throw new ToolFailed('page_timeout', reason: 'page_timeout');
@@ -37,9 +54,13 @@ final readonly class BoundedToolProcess
         $receipt = $directory.'/tool-'.bin2hex(random_bytes(8));
         $proofToken = bin2hex(random_bytes(32));
         file_put_contents($receipt.'.active', 'supervised');
+        $options = $inputPath === null ? [] : ["--input-file={$inputPath}"];
+        if ($consumeOutput !== null) {
+            $options[] = "--max-output-bytes={$maxOutputBytes}";
+        }
         $process = new Process(
             ['python3', __DIR__.'/tool_supervisor.py', $receipt, (string) $seconds,
-                (string) $tmpBytes, (string) $memoryBytes, (string) $cpuSeconds, ...$command],
+                (string) $tmpBytes, (string) $memoryBytes, (string) $cpuSeconds, ...$options, ...$command],
             $directory,
             $this->supervisorEnv($directory, $proofToken),
         );
@@ -47,7 +68,7 @@ final readonly class BoundedToolProcess
         try {
             $process->start();
             while ($this->running($process)) {
-                $execution->tick();
+                $execution?->tick();
                 usleep(100000);
             }
         } finally {
@@ -88,17 +109,82 @@ final readonly class BoundedToolProcess
         $reason = is_string($status['reason'] ?? null) ? $status['reason'] : null;
         $exit = is_int($status['exit'] ?? null) ? $status['exit'] : null;
         if ($exit !== 0 || $reason !== null) {
-            throw new ToolFailed($reason === 'page_timeout' ? 'page_timeout' : 'page_ocr_error', reason: $reason, exitCode: $exit);
+            $detail = $reportStderr ? $this->errorDetail($receipt.'.err') : '';
+            $message = ($reason === 'page_timeout' || $reportStderr) ? ($reason ?? 'page_ocr_error') : 'page_ocr_error';
+
+            throw new ToolFailed($detail !== '' ? $detail : $message, reason: $reason, exitCode: $exit);
         }
-        if (is_link($receipt.'.out') || ($includeStderr && is_link($receipt.'.err'))) {
+        $stdout = $receipt.'.out';
+        $stderr = $receipt.'.err';
+        if (is_link($stdout) || ! is_file($stdout) || ($includeStderr && (is_link($stderr) || ! is_file($stderr)))) {
             throw new ToolFailed('page_ocr_error', reason: 'invalid_output', exitCode: 0);
         }
-        $size = filesize($receipt.'.out');
-        if ($size === false || $size + ($includeStderr ? (filesize($receipt.'.err') ?: 0) : 0) > 8388608) {
+        $size = filesize($stdout);
+        if ($size === false || $size + ($includeStderr ? (filesize($stderr) ?: 0) : 0) > $maxOutputBytes) {
             throw new ToolFailed('tool_output_limit', reason: 'tool_output_limit', exitCode: 0);
         }
+        if ($consumeOutput !== null) {
+            $stream = fopen($stdout, 'rb');
+            if ($stream === false) {
+                throw new RuntimeException('Unable to open converter output.');
+            }
+            try {
+                $consumeOutput($stream);
+            } finally {
+                fclose($stream);
+            }
 
-        return (string) file_get_contents($receipt.'.out').($includeStderr ? (string) file_get_contents($receipt.'.err') : '');
+            return '';
+        }
+
+        return (string) file_get_contents($stdout).($includeStderr ? (string) file_get_contents($stderr) : '');
+    }
+
+    /**
+     * @template TResult
+     *
+     * @param  Closure(string): TResult  $operation
+     * @return TResult
+     */
+    public function inWorkspace(string $prefix, Closure $operation): mixed
+    {
+        $directory = PipelineTemporaryFile::createDirectory($prefix);
+        $cleanup = true;
+        try {
+            return $operation($directory);
+        } catch (ToolCleanupUnconfirmed $exception) {
+            $cleanup = false;
+
+            throw $exception;
+        } finally {
+            if ($cleanup) {
+                PipelineTemporaryFile::deleteDirectory($directory);
+            }
+        }
+    }
+
+    public function copyOutput(string $source, string $target): void
+    {
+        if (is_link($source) || ! is_file($source) || ! copy($source, $target)) {
+            throw new ToolFailed('Не удалось получить выходной файл конвертера.', reason: 'invalid_output');
+        }
+    }
+
+    public function inputPath(string $path): string
+    {
+        $resolved = realpath($path);
+        if ($resolved === false || ! is_file($resolved) || is_link($path)) {
+            throw new ToolFailed('Входной файл конвертера недоступен.', reason: 'invalid_converter_input');
+        }
+
+        return $resolved;
+    }
+
+    private function errorDetail(string $stderr): string
+    {
+        return is_file($stderr) && ! is_link($stderr)
+            ? trim((string) file_get_contents(filename: $stderr, length: 4096))
+            : '';
     }
 
     /** @return array<string, string|false> */

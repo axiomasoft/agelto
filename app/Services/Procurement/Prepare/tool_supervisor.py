@@ -3,6 +3,7 @@
 import ctypes
 import json
 import os
+import platform
 import resource
 import signal
 import subprocess
@@ -44,6 +45,8 @@ class SockFprog(ctypes.Structure):
 def main():
     proof_token = os.environ.pop('_AGELTO_SUPERVISOR_TOKEN', None)
     max_procs = 64
+    max_output_bytes = None
+    input_file = None
     args = sys.argv[1:]
     pos = []
     idx = 0
@@ -59,6 +62,14 @@ def main():
             max_procs = int(arg.split('=', 1)[1])
             idx += 1
             continue
+        if arg.startswith('--max-output-bytes='):
+            max_output_bytes = int(arg.split('=', 1)[1])
+            idx += 1
+            continue
+        if arg.startswith('--input-file='):
+            input_file = arg.split('=', 1)[1]
+            idx += 1
+            continue
         if len(pos) < 5:
             pos.append(arg)
             idx += 1
@@ -67,6 +78,41 @@ def main():
     receipt, seconds, ceiling, memory, cpu = pos
     command = args[idx:]
     seconds, ceiling, memory, cpu = float(seconds), int(ceiling), int(memory), int(cpu)
+    def write_receipt(stopped_ok, exit_code, stop_reason, group_id):
+        payload = {
+            'stopped': stopped_ok,
+            'exit': exit_code,
+            'reason': stop_reason,
+            'pgid': group_id,
+        }
+        if proof_token is not None:
+            payload['token'] = proof_token
+        tmp_receipt = receipt + '.new'
+        try:
+            os.unlink(tmp_receipt)
+        except FileNotFoundError:
+            pass
+        with open(tmp_receipt, 'w') as f:
+            json.dump(payload, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_receipt, receipt)
+        active_path = receipt + '.active'
+        if stopped_ok:
+            try:
+                os.unlink(active_path)
+            except FileNotFoundError:
+                pass
+        else:
+            with open(active_path, 'w') as f:
+                f.write('supervised')
+                f.flush()
+                os.fsync(f.fileno())
+    machine = platform.machine()
+    if platform.system() != 'Linux' or machine != 'x86_64' or ctypes.sizeof(ctypes.c_void_p) != 8:
+        print(f'Unsupported sandbox platform: {platform.system()} {machine}', file=sys.stderr)
+        write_receipt(True, 126, 'unsupported_sandbox_architecture', None)
+        return 0
     libc = ctypes.CDLL(None, use_errno=True)
     libc.prctl.argtypes = [ctypes.c_int, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong, ctypes.c_ulong]
     libc.prctl.restype = ctypes.c_int
@@ -94,7 +140,17 @@ def main():
     def is_within(path, prefix):
         return path == prefix or path.startswith(prefix.rstrip('/') + '/')
     ro_input_files = []
-    for arg in command:
+    # Explicit inputs come from the caller's local staging area. Grant access to the file
+    # itself so the sandbox need not expose the staging directory or copy large archives.
+    if input_file is not None:
+        real_input = os.path.realpath(input_file)
+        if input_file not in command[1:] or not os.path.isfile(real_input):
+            write_receipt(True, 126, 'invalid_converter_input', None)
+            return 0
+    # The executable path comes from tool configuration, independently of document metadata.
+    if os.path.isabs(command[0]) and os.path.isfile(command[0]):
+        ro_input_files.append(os.path.realpath(command[0]))
+    for arg in command if input_file is None else ():
         if not arg or arg.startswith('-'):
             continue
         try:
@@ -161,6 +217,8 @@ def main():
                 add_landlock_path(sys_path, ro_dir_mask)
             for ro_file in ro_input_files:
                 add_landlock_path(ro_file, ro_file_mask)
+            if input_file is not None:
+                add_landlock_path(real_input, 1 << 2)
             if libc.syscall(446, ctypes.c_int(ruleset_fd), ctypes.c_uint32(0)) != 0:
                 raise OSError('landlock_restrict_failed')
         finally:
@@ -181,36 +239,6 @@ def main():
         prog = SockFprog(len(insns), insns)
         if libc.prctl(22, 2, ctypes.addressof(prog), 0, 0) != 0:
             raise OSError('seccomp_unavailable')
-    def write_receipt(stopped_ok, exit_code, stop_reason, group_id):
-        payload = {
-            'stopped': stopped_ok,
-            'exit': exit_code,
-            'reason': stop_reason,
-            'pgid': group_id,
-        }
-        if proof_token is not None:
-            payload['token'] = proof_token
-        tmp_receipt = receipt + '.new'
-        try:
-            os.unlink(tmp_receipt)
-        except FileNotFoundError:
-            pass
-        with open(tmp_receipt, 'w') as f:
-            json.dump(payload, f)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_receipt, receipt)
-        active_path = receipt + '.active'
-        if stopped_ok:
-            try:
-                os.unlink(active_path)
-            except FileNotFoundError:
-                pass
-        else:
-            with open(active_path, 'w') as f:
-                f.write('supervised')
-                f.flush()
-                os.fsync(f.fileno())
     def workspace_size():
         total = 0
         for base, dirs, files in os.walk(os.getcwd()):
@@ -238,9 +266,12 @@ def main():
     reason = None
     with open(output, 'xb') as out, open(errors, 'xb') as err:
         try:
-            child = subprocess.Popen(command, stdout=out, stderr=err, close_fds=True, start_new_session=True, preexec_fn=limits, env=child_env)
+            child = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=out, stderr=err, close_fds=True, start_new_session=True, preexec_fn=limits, env=child_env)
         except OSError:
             write_receipt(True, 127, 'converter_unavailable', None)
+            return 0
+        except subprocess.SubprocessError:
+            write_receipt(True, 126, 'sandbox_setup_failed', None)
             return 0
         pgid = child.pid
         def group_alive():
@@ -355,6 +386,9 @@ def main():
                 if workspace_size() > ceiling:
                     reason = 'tmp_limit'
                     break
+                if max_output_bytes is not None and os.fstat(out.fileno()).st_size > max_output_bytes:
+                    reason = 'tool_output_limit'
+                    break
                 time.sleep(.05)
         finally:
             if reason is None and max_procs > 0 and len(descendants()) > max_procs:
@@ -401,6 +435,8 @@ def main():
             reap_nonblocking()
             if reason is None and workspace_size() > ceiling:
                 reason = 'tmp_limit'
+            if reason is None and max_output_bytes is not None and os.fstat(out.fileno()).st_size > max_output_bytes:
+                reason = 'tool_output_limit'
             clean = not group_alive() and not descendants()
             write_receipt(clean, child_exit if child_exit is not None else child.returncode, reason, pgid)
     return 0

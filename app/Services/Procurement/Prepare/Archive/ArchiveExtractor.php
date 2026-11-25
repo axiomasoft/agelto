@@ -6,25 +6,17 @@ namespace App\Services\Procurement\Prepare\Archive;
 
 use App\Dto\Procurement\Prepare\Archive\ArchiveBudget;
 use App\Dto\Procurement\Prepare\Archive\ArchiveEntry;
-use Illuminate\Contracts\Process\ProcessResult;
-use Illuminate\Support\Facades\Process;
+use App\Exceptions\Procurement\Prepare\ToolFailed;
+use App\Exceptions\Procurement\Prepare\ToolUnavailable;
+use App\Services\Procurement\Prepare\BoundedToolProcess;
+use Closure;
 use RuntimeException;
 use ZipArchive;
 
 /** Adapter metadata/byte stream only: security policy lives in ArchiveEntryValidator. */
 final readonly class ArchiveExtractor
 {
-    private const array ALLOWED_ENV = [
-        'PATH',
-        'LANG',
-        'LC_ALL',
-        'LC_CTYPE',
-        'LD_LIBRARY_PATH',
-        'TESSDATA_PREFIX',
-        'FONTCONFIG_PATH',
-        'SOURCE_DATE_EPOCH',
-        'TZ',
-    ];
+    public function __construct(private BoundedToolProcess $tools) {}
 
     /** @return list<ArchiveEntry> */
     public function listEntries(string $archivePath, string $format, ?float $deadlineAt = null): array
@@ -121,22 +113,20 @@ final readonly class ArchiveExtractor
     /** @return list<ArchiveEntry> */
     private function listSevenZip(string $archivePath, ?float $deadlineAt): array
     {
-        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))
-            ->env($this->sanitizedEnv(dirname($archivePath)))
-            ->run([
+        $output = $this->runTool(
+            command: [
                 $this->configString('ai.tools.sevenzip_bin'),
                 'l',
                 '-slt',
                 '-y',
                 '-p',
                 '--',
-                $archivePath,
-            ]);
-        if ($result->failed()) {
-            $this->rejectByOutput($result);
-        }
+            ],
+            archivePath: $archivePath,
+            deadlineAt: $deadlineAt,
+        );
 
-        [$headerSection, $afterSeparator] = array_pad(explode('----------', $result->output(), 2), 2, '');
+        [$headerSection, $afterSeparator] = array_pad(explode('----------', $output, 2), 2, '');
         if (preg_match('/^Encrypted\s*=\s*\+/m', $headerSection) === 1) {
             throw new ArchivePasswordProtectedException('архив содержит зашифрованные заголовки');
         }
@@ -182,77 +172,59 @@ final readonly class ArchiveExtractor
     private function extractSevenZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $this->extractProcessEntry(
-            [$this->configString('ai.tools.sevenzip_bin'), 'x', '-so', '-y', '-p', '-spd', '--', $archivePath, $entry->path],
-            $entry,
-            $targetPath,
-            $budget,
-            $totalBytes,
-            $deadlineAt,
+            command: [$this->configString('ai.tools.sevenzip_bin'), 'x', '-so', '-y', '-p', '-spd', '--'],
+            archivePath: $archivePath,
+            entry: $entry,
+            targetPath: $targetPath,
+            budget: $budget,
+            totalBytes: $totalBytes,
+            deadlineAt: $deadlineAt,
         );
     }
 
     private function extractRarEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $this->extractProcessEntry(
-            [$this->configString('ai.tools.unar_bin'), '-o', '-', '-D', '-q', $archivePath, $entry->path],
-            $entry,
-            $targetPath,
-            $budget,
-            $totalBytes,
-            $deadlineAt,
+            command: [$this->configString('ai.tools.unar_bin'), '-o', '-', '-D', '-q'],
+            archivePath: $archivePath,
+            entry: $entry,
+            targetPath: $targetPath,
+            budget: $budget,
+            totalBytes: $totalBytes,
+            deadlineAt: $deadlineAt,
         );
     }
 
-    /** @param list<string> $command */
-    private function extractProcessEntry(array $command, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
+    /** @param non-empty-list<string> $command */
+    private function extractProcessEntry(array $command, string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
-        $output = fopen($targetPath, 'xb');
-        if ($output === false) {
-            throw new RuntimeException("не удалось создать временный файл entry: {$targetPath}");
+        $limit = min($entry->declaredSize, $budget->maxEntryBytes, $budget->maxTotalBytes - $totalBytes);
+        if ($limit < 0) {
+            throw new ArchiveValidationException('фактические байты записи архива превысили бюджет');
         }
-        $bytes = 0;
-        try {
-            $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))
-                ->env($this->sanitizedEnv(dirname($targetPath)))
-                ->run(
-                    $command,
-                    function (string $type, string $buffer) use ($output, $entry, $budget, &$totalBytes, &$bytes): void {
-                        if ($type !== 'out') {
-                            return;
-                        }
-                        $bytes += strlen($buffer);
-                        $totalBytes += strlen($buffer);
-                        if ($bytes > $entry->declaredSize || $bytes > $budget->maxEntryBytes || $totalBytes > $budget->maxTotalBytes) {
-                            throw new ArchiveValidationException('фактические байты записи архива превысили бюджет');
-                        }
-                        if (fwrite($output, $buffer) !== strlen($buffer)) {
-                            throw new RuntimeException('не удалось записать временный файл entry');
-                        }
-                    },
-                );
-            if ($result->failed()) {
-                $this->rejectByOutput($result);
-            }
-            if ($bytes !== $entry->declaredSize) {
-                throw new ArchiveValidationException('фактический размер записи не совпал с metadata');
-            }
-        } catch (\Throwable $exception) {
-            fclose($output);
-            unlink($targetPath);
-            throw $exception;
-        }
-        fclose($output);
+        $this->runTool(
+            command: $command,
+            archivePath: $archivePath,
+            deadlineAt: $deadlineAt,
+            member: $entry->path,
+            consumeOutput: function ($input) use ($targetPath, $entry, $budget, &$totalBytes, $deadlineAt): void {
+                $this->copyBounded($input, $targetPath, $entry, $budget, $totalBytes, $deadlineAt);
+            },
+            maxOutputBytes: $limit,
+        );
     }
 
     /** @return list<ArchiveEntry> */
     private function listRar(string $archivePath, ?float $deadlineAt): array
     {
-        $result = Process::timeout($this->timeout(deadlineAt: $deadlineAt))
-            ->env($this->sanitizedEnv(dirname($archivePath)))
-            ->run(['lsar', '-json', $archivePath]);
-        $decoded = json_decode($result->output(), true);
-        if ($result->failed() || ! is_array($decoded) || ! is_array($decoded['lsarContents'] ?? null)) {
-            $this->rejectByOutput($result);
+        $output = $this->runTool(
+            command: [$this->requiredString(config('ai.tools.lsar_bin', 'lsar'), 'ai.tools.lsar_bin'), '-json'],
+            archivePath: $archivePath,
+            deadlineAt: $deadlineAt,
+        );
+        $decoded = json_decode($output, true);
+        if (! is_array($decoded) || ! is_array($decoded['lsarContents'] ?? null)) {
+            $this->rejectByOutput($output);
         }
 
         $entries = [];
@@ -322,9 +294,9 @@ final readonly class ArchiveExtractor
         fclose($output);
     }
 
-    private function rejectByOutput(ProcessResult $result): never
+    private function rejectByOutput(string $output): never
     {
-        $output = trim($result->errorOutput().$result->output());
+        $output = trim($output);
         $lower = mb_strtolower($output, 'UTF-8');
         if (
             str_contains($lower, 'password')
@@ -366,26 +338,51 @@ final readonly class ArchiveExtractor
         return $this->nonNegativeInt(config('documents.format_tools.persistence_seconds', 120), 'archive persistence reserve');
     }
 
-    /** @return array<string, string|false> */
-    private function sanitizedEnv(string $tmpDir): array
-    {
-        $env = [];
-        foreach (array_keys(getenv() + $_ENV + $_SERVER) as $key) {
-            if (is_string($key) && $key !== '') {
-                $env[$key] = false;
+    /**
+     * @param  non-empty-list<string>  $command
+     * @param  (Closure(resource): void)|null  $consumeOutput
+     */
+    private function runTool(
+        array $command,
+        string $archivePath,
+        ?float $deadlineAt,
+        ?string $member = null,
+        ?Closure $consumeOutput = null,
+        int $maxOutputBytes = 8388608,
+    ): string {
+        $deadline = hrtime(true) / 1e9 + $this->timeout(deadlineAt: $deadlineAt);
+        try {
+            $source = $this->tools->inputPath($archivePath);
+            $command[] = $source;
+            if ($member !== null) {
+                $command[] = $member;
             }
-        }
-        foreach (self::ALLOWED_ENV as $key) {
-            $value = getenv($key);
-            if (is_string($value) && $value !== '') {
-                $env[$key] = $value;
-            }
-        }
-        $env['TMPDIR'] = $tmpDir;
-        $env['HOME'] = $tmpDir;
-        $env['OMP_THREAD_LIMIT'] = '1';
 
-        return $env;
+            return $this->tools->inWorkspace(
+                prefix: 'archive_tool_',
+                operation: fn (string $directory): string => $this->tools->run(
+                    command: $command,
+                    directory: $directory,
+                    execution: null,
+                    deadline: $deadline,
+                    tmpBytes: $maxOutputBytes + 1048576,
+                    inputPath: $source,
+                    consumeOutput: $consumeOutput,
+                    maxOutputBytes: $maxOutputBytes,
+                    reportStderr: true,
+                ),
+            );
+        } catch (ToolFailed|ToolUnavailable $exception) {
+            if ($exception instanceof ToolFailed) {
+                if ($exception->reason === 'page_timeout') {
+                    throw new RuntimeException('Истекло время работы распаковщика.', previous: $exception);
+                }
+                if (in_array($exception->reason, ['tool_output_limit', 'tmp_limit'], true)) {
+                    throw new ArchiveValidationException('вывод распаковщика превысил бюджет', previous: $exception);
+                }
+            }
+            $this->rejectByOutput($exception->getMessage());
+        }
     }
 
     private function configString(string $key): string

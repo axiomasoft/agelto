@@ -3904,7 +3904,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/ArchiveStrategyTest.php",
-            "sha256": "7c8eefd0511317fb0d010b27dbce2c1b4254d61a4bb57459b07c0a6d8e978c95",
+            "sha256": "a1482549f36438ee2b0db85f845a7708a698ed7a0823103d561de83d3f6e4bed",
             "scenarios": [
                 "ZIP metadata проходит CHECKCONS и entry извлекается потоком",
                 "7z → дочерние документы созданы",
@@ -3936,7 +3936,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/DocumentPreparerTest.php",
-            "sha256": "1d54e1cb41c700345252c3c2e46d4e3f90a8f8e66f917183fb379ea40c34628b",
+            "sha256": "986d10b68e6a952beb5f4c0a70f07e0991bcd1611f56edd10c24eca464b7e7ef",
             "scenarios": [
                 "format corpus: подготовка PDF — PassthroughStrategy, документ переходит в prepared без планирования AI",
                 "format corpus: подготовка PNG — ImageStrategy без конвертации, документ переходит в prepared",
@@ -4017,7 +4017,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/LibreOfficeConverterTest.php",
-            "sha256": "29bae379932aac15b858f91696acb8dd94fc35b6e279ebe30bdf97703a770b51",
+            "sha256": "145edea8c126ef22a5b87ed97eff087a8f6803aeff2465240a547bf16eb2ff27",
             "scenarios": [
                 "состав аргументов несёт headless, изолированный профиль и путь на выход",
                 "успешная конвертация возвращает путь к PDF в outputDir",
@@ -4091,7 +4091,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/ScanStrategyTest.php",
-            "sha256": "105b71ae798f5ac1889e2a13a77172339d1292a61ebd44978084ab9a60b91c0d",
+            "sha256": "e0c2f0d678c5ff046b3b1a0b436c8f62dbc8f587b2c11659d64d75a3acaccf35",
             "scenarios": [
                 "registry направляет PDF в typed scan handler",
                 "PDF с текстовым слоем — стратегия вернула false, OCR не запускался",
@@ -4114,7 +4114,7 @@
         },
         {
             "path": "tests/Feature/Procurement/Prepare/SpreadsheetStrategyTest.php",
-            "sha256": "c2b941ac31067dd85f72e275afa726f73deb0451abaa83f6231cb54ae39b476e",
+            "sha256": "a27bc4e4e9ce2e9440b395943e4b25ae8ee458b59114fce90ef57f350d13b94b",
             "scenarios": [
                 "registry направляет текстовые документы в typed Word handler",
                 "docx → представление pdf с meta.tool=libreoffice, документ не терминален",
@@ -5302,7 +5302,7 @@
         },
         {
             "path": "tests/Unit/Procurement/Prepare/XlsxResourceGuardTest.php",
-            "sha256": "bc87ffc6328dc8e3a468103aa2c0605ef3b990daa3b2482063de0a7c6813c132",
+            "sha256": "46b67a01a62640e0d127512281e6fcb7027ef5b44e890a96bf1e5206743fd1ea",
             "scenarios": [
                 "xlsx guard отклоняет compressed decoded-byte bomb до PhpSpreadsheet",
                 "xlsx guard считает cell nodes потоково до metadata и full load",

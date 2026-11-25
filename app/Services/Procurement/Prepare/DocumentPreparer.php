@@ -40,7 +40,8 @@ final readonly class DocumentPreparer
         /** @var PreparationStrategy $strategy */
         $strategy = $this->container->make($evidence->strategy);
 
-        if ($strategy instanceof ScanStrategy || $strategy instanceof ArchiveStrategy || $strategy instanceof GsfxStrategy) {
+        if ($strategy instanceof ScanStrategy || $strategy instanceof ArchiveStrategy || $strategy instanceof GsfxStrategy
+            || $strategy instanceof SpreadsheetStrategy || $strategy instanceof WordStrategy) {
             return $strategy->process(document: $document, version: $version, deadlineAt: $deadlineAt);
         }
 

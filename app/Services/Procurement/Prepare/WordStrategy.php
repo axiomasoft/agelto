@@ -8,6 +8,8 @@ use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
 use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
+use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
+use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
@@ -29,9 +31,10 @@ final readonly class WordStrategy implements PreparationStrategy
         private MarkDocumentUnprocessableAction $markUnprocessable,
         private LibreOfficeConverter $converter,
         private FileLocationResolver $locationResolver,
+        private XlsxResourceGuard $xlsxResourceGuard,
     ) {}
 
-    public function process(Document $document, DocumentVersion $version): PreparationResult
+    public function process(Document $document, DocumentVersion $version, ?float $deadlineAt = null): PreparationResult
     {
         if ($this->representations->find($version, RepresentationKind::Pdf) !== null) {
             return PreparationResult::ReadyForScreening;
@@ -47,8 +50,24 @@ final readonly class WordStrategy implements PreparationStrategy
         try {
             file_put_contents($localInput, $sourceDisk->get($version->storage_path));
 
+            if (in_array($version->extension, ['docx', 'odt'], true)) {
+                try {
+                    $this->xlsxResourceGuard->assertSafeXmlEntries($localInput);
+                } catch (RuntimeException $exception) {
+                    $this->markUnprocessable->execute(
+                        document: $document,
+                        reason: UnprocessableReason::UnreadableFormat,
+                        detail: $exception->getMessage(),
+                    );
+
+                    return PreparationResult::Unprocessable;
+                }
+            }
+
             try {
-                $localOutput = $this->converter->toPdf($localInput, $outputDir);
+                $localOutput = $this->converter->toPdf(inputPath: $localInput, outputDir: $outputDir, deadlineAt: $deadlineAt);
+            } catch (OperationBudgetExceeded|ToolCleanupUnconfirmed $exception) {
+                throw $exception;
             } catch (RuntimeException $e) {
                 $this->markUnprocessable($document, $e->getMessage());
 
@@ -64,7 +83,7 @@ final readonly class WordStrategy implements PreparationStrategy
                 'mime' => 'application/pdf',
                 'meta' => [
                     'tool' => 'libreoffice',
-                    'tool_version' => $this->converter->version(),
+                    'tool_version' => $this->converter->version(deadlineAt: $deadlineAt),
                 ],
                 'generated_at' => now(),
             ]);
