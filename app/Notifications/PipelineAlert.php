@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\Cache;
  */
 final readonly class PipelineAlert
 {
+    private const int MAX_MESSAGE_LENGTH = 4096;
+
     /**
      * @param  array<string, string>  $findings  ключ находки → человекочитаемое сообщение
      */
@@ -33,12 +35,13 @@ final readonly class PipelineAlert
         $antispamMinutes = is_int($configuredMinutes) || is_float($configuredMinutes) || is_string($configuredMinutes)
             ? (int) $configuredMinutes
             : 60;
+        $ttl = now()->addMinutes($antispamMinutes);
         $due = [];
         $dueKeys = [];
 
         foreach ($findings as $key => $message) {
             $cacheKey = "pipeline_alert:{$key}";
-            if (! Cache::has($cacheKey)) {
+            if (Cache::add(key: $cacheKey, value: true, ttl: $ttl)) {
                 $due[] = $message;
                 $dueKeys[] = $cacheKey;
             }
@@ -48,10 +51,9 @@ final readonly class PipelineAlert
             return;
         }
 
-        if ($this->send($this->buildMessage($due))) {
-            $ttl = now()->addMinutes($antispamMinutes);
+        if (! $this->send($this->buildMessage($due))) {
             foreach ($dueKeys as $cacheKey) {
-                Cache::put(key: $cacheKey, value: true, ttl: $ttl);
+                Cache::forget($cacheKey);
             }
         }
     }
@@ -65,13 +67,21 @@ final readonly class PipelineAlert
         $envName = is_string($configuredEnv) ? $configuredEnv : 'unknown';
         $env = $envName !== 'production' ? ' ['.mb_strtoupper($envName).']' : '';
 
-        return implode("\n", [
-            "⚠️ <b>[AGELTO{$env}] Проблемы пайплайна</b>",
-            '',
-            ...array_map(static fn (string $message): string => '• '.$message, $messages),
-            '',
-            'Проверьте Horizon или запустите <code>php artisan process:status</code> / <code>php artisan pipeline:status</code>',
-        ]);
+        $header = "⚠️ <b>[AGELTO{$env}] Проблемы пайплайна</b>\n\n";
+        $footer = "\n\nПроверьте Horizon или запустите <code>php artisan process:status</code> / <code>php artisan pipeline:status</code>";
+        $body = implode("\n", array_map(
+            static fn (string $message): string => '• '.htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            $messages,
+        ));
+
+        $maxBodyLength = self::MAX_MESSAGE_LENGTH - mb_strlen($header, 'UTF-8') - mb_strlen($footer, 'UTF-8');
+        if (mb_strlen($body, 'UTF-8') > $maxBodyLength) {
+            $body = mb_substr($body, 0, max(0, $maxBodyLength - 1), 'UTF-8');
+            $body = preg_replace('/&[a-zA-Z0-9#]*$/u', '', $body) ?? $body;
+            $body .= '…';
+        }
+
+        return $header.$body.$footer;
     }
 
     private function send(string $message): bool
@@ -96,8 +106,11 @@ final readonly class PipelineAlert
                 new HttpRequestPayload(['content-type' => 'application/json'], json_encode([
                     'chat_id' => $chatId, 'text' => $message, 'parse_mode' => 'HTML',
                 ], JSON_THROW_ON_ERROR)));
-        } catch (\Throwable) {
-            LogChannel::Alerts->error('PipelineAlert: не удалось отправить уведомление', ['message' => $message]);
+        } catch (\Throwable $e) {
+            LogChannel::Alerts->error('PipelineAlert: не удалось отправить уведомление', [
+                'message' => $message,
+                'exception_class' => $e::class,
+            ]);
 
             return false;
         }

@@ -95,6 +95,7 @@ test('runtime schedule contains only the five adopted maintenance and producer e
     sort($commands);
     expect($commands)->toBe([
         ['partitions:maintain', '0 0 * * *'],
+        ['process:diagnostics', '*/5 * * * *'],
         ['process:health-report', '*/5 * * * *'],
         ['process:retention', '0 * * * *'],
         ['process:schedule-acquisition', '* * * * *'],

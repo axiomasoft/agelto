@@ -69,3 +69,7 @@ Schedule::command('process:health-report')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->when(static fn (): bool => $hasTable('prc_process_transitions'));
+Schedule::command('process:diagnostics')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->when(static fn (): bool => $hasTable('prc_process_transitions'));

@@ -82,7 +82,8 @@ final readonly class TelemetrySanitizer
         if ($parts === false || ! isset($parts['scheme'])) {
             return '[url]';
         }
-        $safe = $parts['scheme'].'://'.($parts['host'] ?? '').(isset($parts['port']) ? ':'.$parts['port'] : '').($parts['path'] ?? '');
+        $path = isset($parts['path']) ? SecretRedactor::text($parts['path']) : '';
+        $safe = $parts['scheme'].'://'.($parts['host'] ?? '').(isset($parts['port']) ? ':'.$parts['port'] : '').$path;
         if (isset($parts['query'])) {
             $safe .= '?'.self::REDACTED;
         }

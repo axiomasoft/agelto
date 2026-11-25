@@ -11,6 +11,7 @@ final readonly class SecretRedactor
     public static function text(string $message): string
     {
         $message = preg_replace('~([a-z][a-z0-9+.-]*://)(?:[^\s/@]+:[^\s/@]*|[^\s/@]*:[^\s/@]+)@~i', '$1[redacted]@', $message) ?? '';
+        $message = preg_replace('~/bot\d+:[A-Za-z0-9_-]+~i', '/bot[redacted]', $message) ?? '';
         $message = preg_replace('~-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----~s', '[redacted]', $message) ?? '';
         $message = preg_replace('~\bSQL:.*$~s', 'SQL: [redacted]', $message) ?? '';
         $message = preg_replace('~\b((?:Proxy-Authorization|Authorization)\s*:\s*(?:Bearer|Basic)\s+)\S+~i', '$1[redacted]', $message) ?? '';
