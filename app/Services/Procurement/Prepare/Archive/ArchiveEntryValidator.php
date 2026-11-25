@@ -13,10 +13,15 @@ final class ArchiveEntryValidator
      * @param  list<ArchiveEntry>  $entries
      * @return list<ArchiveEntry>
      */
-    public function validate(array $entries, ArchiveBudget $budget): array
+    public function validate(array $entries, ArchiveBudget $budget, ?int $archiveSizeBytes = null): array
     {
+        if ($archiveSizeBytes !== null && $archiveSizeBytes < 0) {
+            throw new ArchiveValidationException('архив содержит запись с невозможным размером');
+        }
+
         $totalBytes = 0;
         $knownCompressedBytes = 0;
+        $hasUnknownCompressedSize = false;
         $count = 0;
         $seen = [];
         $validated = [];
@@ -50,7 +55,14 @@ final class ArchiveEntryValidator
             if ($entry->declaredSize > 0 && $entry->compressedSize === 0) {
                 throw new ArchiveValidationException('невозможное соотношение размеров записи архива');
             }
-            if ($entry->compressedSize !== null && $entry->compressedSize > 0 && $entry->declaredSize / $entry->compressedSize > $budget->maxCompressionRatio) {
+            $entryCompressedBytes = $entry->compressedSize ?? $archiveSizeBytes;
+            if (! $entry->isDirectory && $entry->compressedSize === null) {
+                $hasUnknownCompressedSize = true;
+                if ($archiveSizeBytes !== null && $entry->declaredSize > 0 && $archiveSizeBytes === 0) {
+                    throw new ArchiveValidationException('невозможное соотношение размеров записи архива');
+                }
+            }
+            if ($entryCompressedBytes !== null && $entryCompressedBytes > 0 && $entry->declaredSize / $entryCompressedBytes > $budget->maxCompressionRatio) {
                 throw new ArchiveValidationException('превышен коэффициент сжатия записи архива');
             }
             $knownCompressedBytes += $entry->compressedSize ?? 0;
@@ -68,8 +80,14 @@ final class ArchiveEntryValidator
             );
         }
 
-        if ($totalBytes > 0 && $knownCompressedBytes > 0 && $totalBytes / $knownCompressedBytes > $budget->maxCompressionRatio) {
-            throw new ArchiveValidationException('превышен суммарный коэффициент сжатия архива');
+        if ($totalBytes > 0) {
+            $denominator = $knownCompressedBytes > 0 ? $knownCompressedBytes : $archiveSizeBytes;
+            if ($denominator === null || $denominator <= 0 || $totalBytes / $denominator > $budget->maxCompressionRatio) {
+                throw new ArchiveValidationException('превышен суммарный коэффициент сжатия архива');
+            }
+            if ($hasUnknownCompressedSize && $archiveSizeBytes !== null && ($archiveSizeBytes <= 0 || $totalBytes / $archiveSizeBytes > $budget->maxCompressionRatio)) {
+                throw new ArchiveValidationException('превышен суммарный коэффициент сжатия архива');
+            }
         }
 
         return $validated;

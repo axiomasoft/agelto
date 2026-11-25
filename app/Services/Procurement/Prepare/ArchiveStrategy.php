@@ -62,7 +62,12 @@ final readonly class ArchiveStrategy implements PreparationStrategy
         try {
             try {
                 ArchiveWorkspaceHelper::copyToLocal(Storage::disk($location->disk), $location->path, $localArchive, $budget, $deadlineAt);
-                $entries = $this->entryValidator->validate($this->extractor->listEntries(archivePath: $localArchive, format: $version->extension, deadlineAt: $deadlineAt), $budget);
+                $archiveSize = @filesize($localArchive);
+                $entries = $this->entryValidator->validate(
+                    entries: $this->extractor->listEntries(archivePath: $localArchive, format: $version->extension, deadlineAt: $deadlineAt),
+                    budget: $budget,
+                    archiveSizeBytes: $archiveSize === false ? null : $archiveSize,
+                );
                 $this->extractChildren($document, $version, $localArchive, $entries, $budget, $deadlineAt);
             } catch (ArchivePasswordProtectedException $exception) {
                 $this->markUnprocessable($document, UnprocessableReason::PasswordProtected, $exception->getMessage());

@@ -10,6 +10,8 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
 use App\Services\Procurement\Document\StoredDocumentWriter;
 use App\Services\Storage\FileLocationResolver;
+use App\Support\Files\MimeDetector;
+use App\Support\Files\ShardedBlobPath;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -22,17 +24,33 @@ final readonly class ExpandArchiveEntryAction
 
     public function execute(Document $parent, DocumentVersion $parentVersion, string $entryPath, string $localPath, int $childOrdinal = 0): DocumentVersion
     {
-        $content = file_get_contents($localPath);
-        if ($content === false) {
+        $stream = is_file($localPath) ? @fopen($localPath, 'rb') : false;
+        if (! is_resource($stream)) {
             throw new \RuntimeException("Не удалось прочитать извлечённую запись архива: {$entryPath}");
         }
 
-        $hash = hash(algo: 'sha256', data: $content);
-        $storagePath = $this->store(content: $content, hash: $hash);
+        try {
+            $prefix = fread($stream, 8192);
+            if ($prefix === false) {
+                throw new \RuntimeException("Не удалось прочитать извлечённую запись архива: {$entryPath}");
+            }
+
+            $context = hash_init('sha256');
+            hash_update($context, $prefix);
+            $remainingBytes = hash_update_stream($context, $stream);
+
+            $sizeBytes = strlen($prefix) + $remainingBytes;
+            $hash = hash_final($context);
+            $mime = MimeDetector::of($prefix);
+            $diskName = $this->locations->currentDocumentsDisk();
+            $storagePath = $this->store(diskName: $diskName, stream: $stream, hash: $hash, sizeBytes: $sizeBytes);
+        } finally {
+            fclose($stream);
+        }
 
         return app(StoredDocumentWriter::class)->archiveEntry($parent, $parentVersion, $entryPath, $childOrdinal, [
-            'content_hash' => $hash, 'size_bytes' => strlen($content), 'filename' => basename($entryPath),
-            'mime' => $this->mimeOf($content), 'storage_path' => $storagePath, 'disk' => $this->locations->currentDocumentsDisk(),
+            'content_hash' => $hash, 'size_bytes' => $sizeBytes, 'filename' => basename($entryPath),
+            'mime' => $mime, 'storage_path' => $storagePath, 'disk' => $diskName,
         ]);
     }
 
@@ -43,31 +61,65 @@ final readonly class ExpandArchiveEntryAction
         });
     }
 
-    private function store(string $content, string $hash): string
+    /** @param resource $stream */
+    private function store(string $diskName, mixed $stream, string $hash, int $sizeBytes): string
     {
-        $path = 'documents/'.substr($hash, 0, 2)."/{$hash}";
-        $disk = Storage::disk($this->locations->currentDocumentsDisk());
-
-        $alreadyStored = $disk->exists($path);
-
-        if (! $alreadyStored && $disk->put($path, $content) !== true) {
-            throw new \RuntimeException("Не удалось сохранить запись архива в object storage: {$path}");
+        $path = ShardedBlobPath::for($hash);
+        $disk = Storage::disk($diskName);
+        $lockPath = sys_get_temp_dir().'/agelto_archive_blob_'.$hash.'.lock';
+        $lock = @fopen($lockPath, 'c');
+        if (is_resource($lock)) {
+            @flock($lock, LOCK_EX);
         }
 
-        $stored = $alreadyStored ? $disk->get($path) : $content;
+        try {
+            if (! $disk->exists($path)) {
+                if (! @rewind($stream)) {
+                    throw new \RuntimeException("Не удалось перемотать поток записи архива: {$path}");
+                }
+                if ($disk->put($path, $stream) !== true) {
+                    throw new \RuntimeException("Не удалось сохранить запись архива в object storage: {$path}");
+                }
+            }
 
-        if (! is_string($stored) || ! hash_equals($hash, hash('sha256', $stored))) {
-            throw new \RuntimeException("Object storage вернул неполную или другую запись архива: {$path}");
+            if (! $this->verifyStored(diskName: $diskName, path: $path, expectedHash: $hash, expectedSize: $sizeBytes)) {
+                throw new \RuntimeException("Object storage вернул неполную или другую запись архива: {$path}");
+            }
+
+            return $path;
+        } finally {
+            if (is_resource($lock)) {
+                @flock($lock, LOCK_UN);
+                fclose($lock);
+            }
         }
-
-        return $path;
     }
 
-    private function mimeOf(string $content): string
+    private function verifyStored(string $diskName, string $path, string $expectedHash, int $expectedSize): bool
     {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = $finfo !== false ? finfo_buffer($finfo, $content) : false;
+        $stored = Storage::disk($diskName)->readStream($path);
+        if (! is_resource($stored)) {
+            return false;
+        }
 
-        return is_string($mime) ? $mime : 'application/octet-stream';
+        try {
+            $context = hash_init('sha256');
+            $actualSize = 0;
+            while (! feof($stored)) {
+                $chunk = fread($stored, 8192);
+                if ($chunk === false || ($chunk === '' && ! feof($stored))) {
+                    return false;
+                }
+                $actualSize += strlen($chunk);
+                if ($actualSize > $expectedSize) {
+                    return false;
+                }
+                hash_update($context, $chunk);
+            }
+
+            return $actualSize === $expectedSize && hash_equals($expectedHash, hash_final($context));
+        } finally {
+            fclose($stored);
+        }
     }
 }

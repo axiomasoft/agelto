@@ -9,6 +9,7 @@ use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Str;
 
 final readonly class RepresentationWriter
@@ -56,6 +57,7 @@ final readonly class RepresentationWriter
         [$contentHash] = $this->hash($stream);
         $storagePath = $this->contentAddressedPath(path: $path, contentHash: $contentHash);
         $stagingPath = "{$storagePath}.staging.".Str::uuid();
+        $stagedWritten = false;
 
         try {
             $this->rewind($stream);
@@ -63,6 +65,7 @@ final readonly class RepresentationWriter
             if ($disk->writeStream(path: $stagingPath, resource: $stream) !== true) {
                 throw new \RuntimeException("Не удалось сохранить staging representation: {$stagingPath}");
             }
+            $stagedWritten = true;
 
             [$stagedHash] = $this->hashStored(disk: $disk, path: $stagingPath);
 
@@ -95,6 +98,10 @@ final readonly class RepresentationWriter
         } finally {
             if ($disk->exists(path: $stagingPath)) {
                 $disk->delete($stagingPath);
+            }
+
+            if ($stagedWritten || $disk instanceof FilesystemAdapter) {
+                $this->cleanupOrphanedStaging(disk: $disk, path: $path, storagePath: $storagePath, currentStagingPath: $stagingPath);
             }
         }
 
@@ -171,5 +178,27 @@ final readonly class RepresentationWriter
         $stem = substr($path, 0, -strlen($extension) - 1);
 
         return "{$stem}.{$contentHash}.{$extension}";
+    }
+
+    private function cleanupOrphanedStaging(Filesystem $disk, string $path, string $storagePath, string $currentStagingPath): void
+    {
+        foreach ($disk->files(dirname($storagePath)) as $candidate) {
+            if ($candidate !== $currentStagingPath && $this->isStagingPathFor(candidate: $candidate, path: $path, storagePath: $storagePath)) {
+                $disk->delete($candidate);
+            }
+        }
+    }
+
+    private function isStagingPathFor(string $candidate, string $path, string $storagePath): bool
+    {
+        if (str_starts_with($candidate, "{$storagePath}.staging.") || str_starts_with($candidate, "{$path}.staging.")) {
+            return true;
+        }
+
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
+        $prefix = $extension === '' ? "{$path}." : substr($path, 0, -strlen($extension) - 1).'.';
+        $suffix = $extension === '' ? '.staging.' : ".{$extension}.staging.";
+
+        return str_starts_with($candidate, $prefix) && str_contains($candidate, $suffix);
     }
 }

@@ -23,9 +23,13 @@ function archiveEntry(string $path, int $size = 1, ?int $compressed = 1, string 
 }
 
 test('нормализует допустимый путь', function () {
-    $entries = app(ArchiveEntryValidator::class)->validate([archiveEntry('nested/file.txt')], archiveBudget());
+    $entries = app(ArchiveEntryValidator::class)->validate([
+        archiveEntry('nested/file.txt'),
+        archiveEntry('win\\file.txt'),
+    ], archiveBudget());
 
-    expect($entries[0]->path)->toBe('nested/file.txt');
+    expect($entries[0]->path)->toBe('nested/file.txt')
+        ->and($entries[1]->path)->toBe('win/file.txt');
 });
 
 test('отклоняет hostile пути, коллизии и special entry', function (ArchiveEntry $entry) {
@@ -33,7 +37,7 @@ test('отклоняет hostile пути, коллизии и special entry', f
 })->with([
     'absolute' => [archiveEntry('/file.txt')],
     'drive' => [archiveEntry('C:/file.txt')],
-    'backslash' => [archiveEntry('nested\\file.txt')],
+    'backslash' => [archiveEntry('\\file.txt')],
     'nul' => [archiveEntry("file\0.txt")],
     'dot dot' => [archiveEntry('../file.txt')],
     'empty segment' => [archiveEntry('nested//file.txt')],

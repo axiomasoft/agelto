@@ -14,13 +14,31 @@ use RuntimeException;
 use ZipArchive;
 
 /** Adapter metadata/byte stream only: security policy lives in ArchiveEntryValidator. */
-final readonly class ArchiveExtractor
+final class ArchiveExtractor
 {
-    public function __construct(private BoundedToolProcess $tools) {}
+    private ?ZipArchive $openZip = null;
+
+    private ?string $openZipKey = null;
+
+    /** @var array<string, int> */
+    private array $openZipIndices = [];
+
+    /** @var array<string, array<string, string>> */
+    private array $rawMemberPaths = [];
+
+    public function __construct(private readonly BoundedToolProcess $tools) {}
+
+    public function __destruct()
+    {
+        $this->closeZip();
+    }
 
     /** @return list<ArchiveEntry> */
     public function listEntries(string $archivePath, string $format, ?float $deadlineAt = null): array
     {
+        $this->closeZip();
+        unset($this->rawMemberPaths[$archivePath]);
+
         return match ($format) {
             'zip' => $this->listZip(archivePath: $archivePath, deadlineAt: $deadlineAt),
             '7z' => $this->listSevenZip(archivePath: $archivePath, deadlineAt: $deadlineAt),
@@ -47,34 +65,34 @@ final readonly class ArchiveExtractor
     /** @return list<ArchiveEntry> */
     private function listZip(string $archivePath, ?float $deadlineAt): array
     {
-        $zip = new ZipArchive;
-        if ($zip->open($archivePath, ZipArchive::CHECKCONS) !== true) {
-            throw new ArchiveUnsupportedException("не удалось открыть ZIP-архив: {$archivePath}");
-        }
+        $zip = $this->openZipArchive($archivePath);
 
         try {
             $entries = [];
             for ($index = 0; $index < $zip->numFiles; $index++) {
                 $this->assertWithinDeadline(deadlineAt: $deadlineAt);
-                $stat = $zip->statIndex($index);
+                $stat = $zip->statIndex($index, ZipArchive::FL_ENC_RAW);
                 if ($stat === false) {
                     throw new ArchiveUnsupportedException('ZIP metadata неполна');
                 }
                 $opsys = 0;
                 $attributes = 0;
-                $zip->getExternalAttributesIndex($index, $opsys, $attributes);
+                $zip->getExternalAttributesIndex($index, $opsys, $attributes, ZipArchive::FL_ENC_RAW);
                 if (! is_int($attributes)) {
                     throw new ArchiveUnsupportedException('ZIP attributes не содержат режим файла');
                 }
+                $rawName = $this->requiredString($stat['name'], 'ZIP name');
+                $name = $this->decodeEntryName($rawName);
                 $mode = ($attributes >> 16) & 0170000;
-                $isDirectory = str_ends_with($this->requiredString($stat['name'], 'ZIP name'), '/') || $mode === 0040000;
+                $isDirectory = str_ends_with($name, '/') || str_ends_with($name, '\\') || $mode === 0040000;
                 $type = match ($mode) {
                     0, 0100000, 0040000 => $isDirectory ? 'directory' : 'file',
                     0120000 => 'symlink',
                     default => 'special',
                 };
+                $this->rememberZipIndex($name, $index);
                 $entries[] = new ArchiveEntry(
-                    path: $this->requiredString($stat['name'], 'ZIP name'),
+                    path: $name,
                     declaredSize: $this->nonNegativeInt($stat['size'], 'ZIP size'),
                     compressedSize: $this->nonNegativeInt($stat['comp_size'], 'ZIP compressed size'),
                     isDirectory: $isDirectory,
@@ -84,29 +102,35 @@ final readonly class ArchiveExtractor
             }
 
             return $entries;
-        } finally {
-            $zip->close();
+        } catch (\Throwable $exception) {
+            $this->closeZip();
+
+            throw $exception;
         }
     }
 
     private function extractZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
-        $zip = new ZipArchive;
-        if ($zip->open($archivePath, ZipArchive::CHECKCONS) !== true) {
-            throw new ArchiveUnsupportedException("не удалось открыть ZIP-архив: {$archivePath}");
-        }
-
-        $input = $zip->getStream($entry->path);
+        $zip = $this->zipFor($archivePath);
+        $index = $this->openZipIndices[$entry->path]
+            ?? $this->openZipIndices[rtrim(str_replace('\\', '/', $entry->path), '/')]
+            ?? null;
+        $input = $index !== null
+            ? $zip->getStreamIndex($index)
+            : $zip->getStream($entry->path);
         if ($input === false) {
-            $zip->close();
+            $this->closeZip();
             throw new ArchiveUnsupportedException("не удалось открыть ZIP entry: {$entry->path}");
         }
 
         try {
             $this->copyBounded($input, $targetPath, $entry, $budget, $totalBytes, $deadlineAt);
+        } catch (\Throwable $exception) {
+            $this->closeZip();
+
+            throw $exception;
         } finally {
             fclose($input);
-            $zip->close();
         }
     }
 
@@ -133,7 +157,7 @@ final readonly class ArchiveExtractor
 
         $entries = [];
         foreach (preg_split('/\n{2,}/', trim($afterSeparator)) ?: [] as $block) {
-            $parsed = $this->parseSevenZipEntryBlock($block);
+            $parsed = $this->parseSevenZipEntryBlock($block, $archivePath);
             if ($parsed !== null) {
                 $entries[] = $parsed;
             }
@@ -142,7 +166,7 @@ final readonly class ArchiveExtractor
         return $entries;
     }
 
-    private function parseSevenZipEntryBlock(string $block): ?ArchiveEntry
+    private function parseSevenZipEntryBlock(string $block, string $archivePath): ?ArchiveEntry
     {
         $values = [];
         foreach (explode("\n", $block) as $line) {
@@ -154,12 +178,17 @@ final readonly class ArchiveExtractor
         if (! isset($values['Path'])) {
             return null;
         }
+        $rawPath = (string) $values['Path'];
+        $path = $this->decodeEntryName($rawPath);
+        $this->rememberRawMemberPath($archivePath, $rawPath, $path);
         $attributes = (string) ($values['Attributes'] ?? '');
-        $isDirectory = str_contains($attributes, 'D');
-        $type = str_contains($attributes, 'L') || isset($values['Symbolic Link']) ? 'symlink' : ($isDirectory ? 'directory' : 'file');
+        $isDirectory = str_contains($attributes, 'D') || (($values['Folder'] ?? '') === '+') || str_ends_with($path, '/') || str_ends_with($path, '\\');
+        $isSymlink = str_contains($attributes, 'L') || (($values['Symbolic Link'] ?? '') !== '');
+        $isHardLink = ($values['Hard Link'] ?? '') !== '';
+        $type = $isSymlink ? 'symlink' : ($isHardLink ? 'hardlink' : ($isDirectory ? 'directory' : 'file'));
 
         return new ArchiveEntry(
-            path: (string) $values['Path'],
+            path: $path,
             declaredSize: (int) ($values['Size'] ?? 0),
             // Solid 7z stores Packed Size on the block, not on every member.
             compressedSize: isset($values['Packed Size']) ? (int) $values['Packed Size'] : null,
@@ -185,7 +214,7 @@ final readonly class ArchiveExtractor
     private function extractRarEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void
     {
         $this->extractProcessEntry(
-            command: [$this->configString('ai.tools.unar_bin'), '-o', '-', '-D', '-q'],
+            command: [$this->configString('ai.tools.unar_bin'), '-o', '-', '-D', '-q', '--'],
             archivePath: $archivePath,
             entry: $entry,
             targetPath: $targetPath,
@@ -206,7 +235,7 @@ final readonly class ArchiveExtractor
             command: $command,
             archivePath: $archivePath,
             deadlineAt: $deadlineAt,
-            member: $entry->path,
+            member: $this->rawMemberPath($archivePath, $entry->path),
             consumeOutput: function ($input) use ($targetPath, $entry, $budget, &$totalBytes, $deadlineAt): void {
                 $this->copyBounded($input, $targetPath, $entry, $budget, $totalBytes, $deadlineAt);
             },
@@ -218,7 +247,7 @@ final readonly class ArchiveExtractor
     private function listRar(string $archivePath, ?float $deadlineAt): array
     {
         $output = $this->runTool(
-            command: [$this->requiredString(config('ai.tools.lsar_bin', 'lsar'), 'ai.tools.lsar_bin'), '-json'],
+            command: [$this->requiredString(config('ai.tools.lsar_bin', 'lsar'), 'ai.tools.lsar_bin'), '-json', '--'],
             archivePath: $archivePath,
             deadlineAt: $deadlineAt,
         );
@@ -232,11 +261,14 @@ final readonly class ArchiveExtractor
             if (! is_array($entry)) {
                 throw new ArchiveUnsupportedException('RAR metadata содержит не объект записи');
             }
-            $isDirectory = $this->rarBool($entry['XADIsDirectory'] ?? false);
-            $isLink = $this->rarBool($entry['XADIsLink'] ?? false);
+            $rawPath = $this->requiredString($entry['XADFileName'] ?? null, 'RAR filename');
+            $path = $this->decodeEntryName($rawPath);
+            $this->rememberRawMemberPath($archivePath, $rawPath, $path);
+            $isDirectory = $this->rarBool($entry['XADIsDirectory'] ?? false) || str_ends_with($path, '/') || str_ends_with($path, '\\');
+            $isLink = $this->rarBool($entry['XADIsLink'] ?? false) || $this->rarBool($entry['XADIsHardLink'] ?? false);
             $isEncrypted = $this->rarBool($entry['XADIsEncrypted'] ?? false);
             $entries[] = new ArchiveEntry(
-                path: $this->requiredString($entry['XADFileName'] ?? null, 'RAR filename'),
+                path: $path,
                 declaredSize: $this->nonNegativeInt($entry['XADFileSize'] ?? ($isDirectory ? 0 : null), 'RAR size'),
                 compressedSize: $this->nonNegativeInt($entry['XADCompressedSize'] ?? ($isDirectory ? 0 : null), 'RAR compressed size'),
                 isDirectory: $isDirectory,
@@ -246,6 +278,107 @@ final readonly class ArchiveExtractor
         }
 
         return $entries;
+    }
+
+    private function openZipArchive(string $archivePath): ZipArchive
+    {
+        $this->closeZip();
+        $zip = new ZipArchive;
+        if ($zip->open($archivePath, ZipArchive::CHECKCONS) !== true) {
+            throw new ArchiveUnsupportedException("не удалось открыть ZIP-архив: {$archivePath}");
+        }
+        $this->openZip = $zip;
+        $this->openZipKey = $this->zipCacheKey($archivePath);
+        $this->openZipIndices = [];
+
+        return $zip;
+    }
+
+    private function zipFor(string $archivePath): ZipArchive
+    {
+        if ($this->openZip !== null && $this->openZipKey === $this->zipCacheKey($archivePath)) {
+            return $this->openZip;
+        }
+
+        $zip = $this->openZipArchive($archivePath);
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $stat = $zip->statIndex($index, ZipArchive::FL_ENC_RAW);
+            if (is_array($stat) && $stat['name'] !== '') {
+                $this->rememberZipIndex($this->decodeEntryName($stat['name']), $index);
+            }
+        }
+
+        return $zip;
+    }
+
+    private function rememberZipIndex(string $decodedName, int $index): void
+    {
+        $this->openZipIndices[$decodedName] = $index;
+        $normalized = rtrim(str_replace('\\', '/', $decodedName), '/');
+        if ($normalized !== '') {
+            $this->openZipIndices[$normalized] = $index;
+        }
+    }
+
+    private function zipCacheKey(string $archivePath): string
+    {
+        clearstatcache(true, $archivePath);
+        $stat = @stat($archivePath);
+        if ($stat === false) {
+            return $archivePath;
+        }
+
+        return sprintf('%s:%d:%d:%d', $archivePath, $stat['ino'], $stat['size'], $stat['mtime']);
+    }
+
+    private function closeZip(): void
+    {
+        if ($this->openZip !== null) {
+            try {
+                $this->openZip->close();
+            } catch (\Throwable) {
+            }
+        }
+        $this->openZip = null;
+        $this->openZipKey = null;
+        $this->openZipIndices = [];
+    }
+
+    private function rememberRawMemberPath(string $archivePath, string $rawPath, string $decodedPath): void
+    {
+        $this->rawMemberPaths[$archivePath][$rawPath] = $rawPath;
+        $this->rawMemberPaths[$archivePath][$decodedPath] = $rawPath;
+        $normalized = rtrim(str_replace('\\', '/', $decodedPath), '/');
+        if ($normalized !== '') {
+            $this->rawMemberPaths[$archivePath][$normalized] = $rawPath;
+        }
+    }
+
+    private function rawMemberPath(string $archivePath, string $entryPath): string
+    {
+        return $this->rawMemberPaths[$archivePath][$entryPath]
+            ?? $this->rawMemberPaths[$archivePath][rtrim(str_replace('\\', '/', $entryPath), '/')]
+            ?? $entryPath;
+    }
+
+    private function decodeEntryName(string $rawName): string
+    {
+        if (mb_check_encoding($rawName, 'UTF-8')) {
+            return $rawName;
+        }
+
+        $isWindows1251 = preg_match('/[\xB0-\xDF\xF2-\xFB\xFD-\xFF]/', $rawName) === 1
+            && preg_match('/[\x80-\xA7\xA9-\xAF]/', $rawName) !== 1;
+        $encodings = $isWindows1251 ? ['Windows-1251', 'CP866'] : ['CP866', 'Windows-1251'];
+
+        foreach ($encodings as $encoding) {
+            $converted = @iconv($encoding, 'UTF-8', $rawName);
+            if (is_string($converted) && $converted !== '' && mb_check_encoding($converted, 'UTF-8')) {
+                return $converted;
+            }
+        }
+
+        throw new ArchiveUnsupportedException('не удалось декодировать имя записи архива');
     }
 
     private function rarBool(mixed $value): bool
