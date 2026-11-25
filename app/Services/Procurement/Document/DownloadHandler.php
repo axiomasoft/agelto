@@ -76,13 +76,13 @@ final readonly class DownloadHandler implements StageHandler
         if ($reservations === null) {
             return $this->defer(DeferralReason::StorageUnavailable);
         }
-        $initialSends = $this->storage->sends($execution->lease());
-        $sendCeiling = $plan->request->sendLimit ?? $plan->request->maxAttempts() * ($plan->request->profile->redirects + 1);
         $binary = null;
         $stream = null;
         $published = false;
         $refreshed = false;
         try {
+            $initialSends = $this->storage->sends($execution->lease());
+            $sendCeiling = $plan->request->sendLimit ?? $plan->request->maxAttempts() * ($plan->request->profile->redirects + 1);
             while (true) {
                 $remaining = $sendCeiling - ($this->storage->sends($execution->lease()) - $initialSends);
                 if ($remaining < 1) {

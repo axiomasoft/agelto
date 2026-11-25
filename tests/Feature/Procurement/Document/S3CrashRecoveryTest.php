@@ -156,6 +156,70 @@ test('загрузка в S3 прекращается, если попытку �
     expect(crashRecoveryStatus($reservations->output))->toBe('cleaned');
 });
 
+test('запоздавший writer S3 после сверки завершает работу с потерей lease', function (bool $putConfirmed): void {
+    $disk = crashRecoveryS3();
+    $f = new PrepareFixtures;
+    $context = $f->context();
+    $reservations = app(PrepareStorageRepository::class)->reserve($context->lease());
+    $output = $reservations->output;
+    $key = $output->objectKey();
+    $recover = function () use ($f, $context, $output): void {
+        expect(FinalizeFixtures::revoke($f->work, cancel: true))->toBeTrue();
+        DB::update("UPDATE prc_process_attempts SET started_at=clock_timestamp()-interval '10 minutes',
+            finished_at=clock_timestamp()-interval '2 minutes' WHERE id=?", [$context->lease()->attemptId->value]);
+        app(DocumentStorageReconciler::class)->reconcile();
+        expect(crashRecoveryStatus($output))->toBe('cleaned');
+    };
+    if ($putConfirmed) {
+        $disk->shouldReceive('put')->once()->with($key, Mockery::type('resource'), Mockery::type('array'))
+            ->andReturnUsing(function () use ($disk, $key, $recover): bool {
+                $disk->getDriver()->write($key, 'данные');
+                $recover();
+
+                return true;
+            });
+    } else {
+        $disk->shouldReceive('exists')->twice()->with($key)->andReturnUsing(function () use ($recover): bool {
+            $recover();
+
+            return false;
+        }, fn (): bool => false);
+        $disk->shouldNotReceive('put');
+    }
+
+    $stream = fopen('php://memory', 'w+b');
+    try {
+        fwrite($stream, 'данные');
+        rewind($stream);
+        expect(fn () => app(BlobStore::class)->put($output, $stream, $reservations->spool, $context))
+            ->toThrow(ArtifactUnavailable::class, 'Remote upload requires a live writer lease.');
+    } finally {
+        fclose($stream);
+    }
+
+    expect($disk->getDriver()->fileExists($key))->toBeFalse()
+        ->and(crashRecoveryStatus($reservations->spool))->toBe('cleaned');
+})->with(['до отправки' => false, 'после подтверждения S3' => true]);
+
+test('сбой маркера временного файла освобождает резерв загрузки', function (): void {
+    $output = DocumentStorageFixtures::reservation(DocumentStorageFixtures::domain(), 1024);
+    $temporary = DocumentStorageFixtures::reservation(DocumentStorageFixtures::domain(), 1024, disk: 'p31_tmp');
+    $disk = Mockery::mock(Storage::disk($temporary->disk))->makePartial();
+    $disk->shouldReceive('makeDirectory')->once()->with(dirname($temporary->objectKey()))->andReturnFalse();
+    Storage::set($temporary->disk, $disk);
+
+    $stream = fopen('php://memory', 'w+b');
+    try {
+        expect(fn () => app(BlobStore::class)->put($output, $stream, $temporary))
+            ->toThrow(ArtifactUnavailable::class, 'Local writer directory unavailable.');
+    } finally {
+        fclose($stream);
+    }
+
+    expect(crashRecoveryStatus($temporary))->toBe('cleaned')
+        ->and(crashRecoveryStatus($output))->toBe('reserved');
+});
+
 test('запись большого объекта S3 укладывается в один HTTP-запрос даже при ответе 503', function (): void {
     $requests = [];
     $config = [
@@ -356,6 +420,28 @@ test('неперематываемый поток откладывает заг�
             ->and($reservations[config('documents.download.durable_domain')])->toBe('cleaned')
             ->and($reservations[config('documents.download.temporary_domain')])->toBe('reserved')
             ->and(is_resource($read))->toBeFalse();
+    } finally {
+        $wire->stop();
+    }
+});
+
+test('сбой чтения счётчика запросов освобождает оба резерва загрузки', function (): void {
+    $wire = new WireFixture;
+    try {
+        $f = new DownloadFixtures($wire);
+        [$input, $work, $context] = $f->running();
+        $outbound = Mockery::mock(PlatformOutbound::class);
+        $outbound->shouldNotReceive('execute');
+        $handler = app()->makeWith(DownloadHandler::class, ['access' => $f->access, 'outbound' => $outbound]);
+        DB::connection()->beforeExecuting(static function (string $query): void {
+            if (str_starts_with($query, 'SELECT count(*) AS sends FROM prc_request_attempts')) {
+                throw new RuntimeException('fixture send counter failure');
+            }
+        });
+
+        expect(fn () => $handler->execute($input, $context))->toThrow(RuntimeException::class, 'fixture send counter failure');
+        expect(DB::table('prc_storage_reservations')->where('work_id', $work->value->value)->orderBy('id')->pluck('status')->all())
+            ->toBe(['cleaned', 'cleaned']);
     } finally {
         $wire->stop();
     }

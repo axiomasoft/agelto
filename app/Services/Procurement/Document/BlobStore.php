@@ -52,10 +52,12 @@ final readonly class BlobStore
         $workspace = $prepareSpool ? $this->workspace->open($temporary) : null;
         if (! $prepareSpool) {
             $this->capacity->beginWrite($temporary);
-            $this->workspace->recordFileWriter($temporary);
         }
         $spool = null;
         try {
+            if (! $prepareSpool) {
+                $this->workspace->recordFileWriter($temporary);
+            }
             $tmpDisk = Storage::disk($temporary->disk);
             if (! $tmpDisk->makeDirectory(dirname($temporary->objectKey()))) {
                 throw new ArtifactUnavailable('Temporary directory unavailable.');
@@ -111,10 +113,17 @@ final readonly class BlobStore
                 }
             } finally {
                 // A failed remote response can leave a request in flight after the caller exits.
-                if (! $remote || ! $putStarted || $confirmed) {
+                if (! $remote) {
                     $this->capacity->finishWrite($reservation);
                     $this->workspace->clearFileWriter($reservation);
+                } elseif (! $putStarted || $confirmed) {
+                    // Reconciliation may already have acknowledged this stopped writer.
+                    $this->capacity->finishStoppedWrite($reservation);
                 }
+            }
+
+            if ($remote) {
+                $this->assertRemoteWriter($reservation);
             }
 
             return $this->verify($reservation, $expected, $size, $execution);
