@@ -15,6 +15,7 @@ use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Prepare\Archive\ArchiveWorkspaceHelper;
 use App\Services\Procurement\Prepare\Gsfx\GsfxReader;
+use App\Services\Procurement\Prepare\Gsfx\GsfxUnreadableException;
 use App\Services\Procurement\Prepare\GsfxStrategy;
 use App\Services\Procurement\Prepare\SpreadsheetStrategy;
 use App\Services\Procurement\Prepare\TextGridRenderer;
@@ -62,12 +63,30 @@ function buildXlsFile(callable $fill): string
 test('конфигурация documents унифицирует disk, prepare.disk и download.disk через DOCUMENTS_DISK', function (): void {
     $configSource = (string) file_get_contents(config_path('documents.php'));
 
-    expect(substr_count($configSource, "env('DOCUMENTS_DISK'"))->toBe(3)
+    expect(substr_count($configSource, "env('DOCUMENTS_DISK'"))->toBe(1)
         ->and(config('documents.disk'))->toBe('s3')
         ->and(config('documents.prepare.disk'))->toBe(config('documents.disk'))
         ->and(config('documents.download.disk'))->toBe(config('documents.disk'))
         ->and(config('documents.prepare.temporary_disk'))->toBe('local')
         ->and(config('documents.download.temporary_disk'))->toBe('local');
+});
+
+test('копирование оригинала проверяет лимит по байтам потока', function (): void {
+    config(['documents.download.max_bytes' => 4]);
+    $localPath = PipelineTemporaryFile::create(prefix: 'workspace_limit_', extension: 'rtf');
+    $disk = Mockery::mock(Filesystem::class);
+    $disk->shouldReceive('readStream')->once()->with('exact.rtf')->andReturnUsing(fn () => streamFromString('1234'));
+    $disk->shouldReceive('readStream')->once()->with('oversized.rtf')->andReturnUsing(fn () => streamFromString('12345'));
+    $disk->shouldNotReceive('get');
+
+    try {
+        ArchiveWorkspaceHelper::copyToLocal(disk: $disk, storagePath: 'exact.rtf', localPath: $localPath);
+        expect(file_get_contents($localPath))->toBe('1234')
+            ->and(fn () => ArchiveWorkspaceHelper::copyToLocal(disk: $disk, storagePath: 'oversized.rtf', localPath: $localPath))
+            ->toThrow(RuntimeException::class, 'превышен допустимый размер оригинала');
+    } finally {
+        @unlink($localPath);
+    }
 });
 
 test('ArchiveWorkspaceHelper копирует файл потоком и не откатывается на безлимитный get в память при отказе readStream', function (): void {
@@ -280,6 +299,14 @@ test('GsfxStrategy::renderText вычисляет итоговую сумму п
                         price_base: null,
                         price_curr: null,
                     ),
+                    new GsfxPosition(
+                        name: 'Материал с дробной ценой',
+                        number: '4',
+                        code: 'ФСБЦ-04',
+                        unit: 'кг',
+                        quantity: '0,1',
+                        price_curr: "1\u{202F}000,05",
+                    ),
                 ],
             ),
         ],
@@ -294,7 +321,22 @@ test('GsfxStrategy::renderText вычисляет итоговую сумму п
         ->and($text)->not->toContain('x 6741,15 = 6741,15')
         ->and($text)->toContain('2. Кирпич керамический [ФСБЦ-02] — 2,5 1000 шт x 120,00 = 300.00')
         ->and($text)->not->toContain('x 120,00 = 120,00')
-        ->and($text)->toContain('3. Работа без прямой цены [ГЭСН-03] — 10 м2 x — = —');
+        ->and($text)->toContain('3. Работа без прямой цены [ГЭСН-03] — 10 м2 x — = —')
+        ->and($text)->toContain("4. Материал с дробной ценой [ФСБЦ-04] — 0,1 кг x 1\u{202F}000,05 = 100.01");
+});
+
+test('текстовая сетка отклоняет слишком большой результат после разворачивания объединённых ячеек', function (): void {
+    $path = buildXlsFile(function (Spreadsheet $spreadsheet): void {
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setCellValue('A1', str_repeat('A', 32_000));
+        $sheet->mergeCells('A1:P20');
+    });
+
+    try {
+        expect(app(TextGridRenderer::class)->render($path, 'xls'))->toBeFalse();
+    } finally {
+        @unlink($path);
+    }
 });
 
 test('GsfxReader распознаёт UTF-8 пролог и BOM без повреждения кириллицы и объединяет несколько блоков Resources и Koefficients', function (): void {
@@ -365,4 +407,15 @@ XML;
     expect($parsedFromBom->chapters[0]->positions[0]->name)->toBe('Монтаж конструкций')
         ->and($parsedFromBom->chapters[0]->positions[0]->resources)->toHaveCount(2)
         ->and($parsedFromBom->chapters[0]->positions[0]->coefficients)->toHaveCount(2);
+});
+
+test('объявленная кодировка XML определяет интерпретацию байтов GSFX', function (): void {
+    $reader = new GsfxReader;
+    $legacyXml = '<?xml version="1.0" encoding="windows-1251"?>'
+        .'<Document><Chapters><Chapter Caption="'."\xD0\xB0".'"/></Chapters></Document>';
+    $expectedCaption = mb_convert_encoding("\xD0\xB0", 'UTF-8', 'Windows-1251');
+    $invalidUtf8 = str_replace(['windows-1251', "\xD0\xB0"], ['UTF-8', "\xDF"], $legacyXml);
+
+    expect($reader->parse('', $legacyXml)->chapters[0]->caption)->toBe($expectedCaption)
+        ->and(fn () => $reader->parse('', $invalidUtf8))->toThrow(GsfxUnreadableException::class, 'объявлено как UTF-8');
 });

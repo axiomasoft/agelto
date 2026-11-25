@@ -291,7 +291,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
             return null;
         }
 
-        return bcadd(bcmul($normalizedQuantity, $normalizedUnitPrice, 10), '0', 2);
+        return bcround(bcmul($normalizedQuantity, $normalizedUnitPrice, scale: 3), precision: 2);
     }
 
     /**
@@ -303,7 +303,7 @@ final readonly class GsfxStrategy implements PreparationStrategy
             return null;
         }
 
-        $normalized = str_replace(',', '.', str_replace([' ', "\u{00A0}"], '', trim($raw)));
+        $normalized = str_replace(',', '.', str_replace([' ', "\u{00A0}", "\u{202F}"], '', trim($raw)));
 
         if (str_starts_with($normalized, '+')) {
             $normalized = substr($normalized, 1);

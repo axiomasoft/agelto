@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Prepare;
 
 use App\Services\Procurement\Gold\WorksheetCellReader;
 use App\Support\Files\PipelineTemporaryFile;
+use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Support\Facades\Process;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
@@ -58,34 +59,41 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  */
 final readonly class TextGridRenderer
 {
+    private const int MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
+
     public function __construct(private XlsxResourceGuard $xlsxResourceGuard) {}
 
     /**
      * @return array{text: string, sheets: int, rows: int}|false
      */
-    public function render(string $localPath, string $extension): array|false
+    public function render(string $localPath, string $extension, ?float $deadlineAt = null): array|false
     {
-        if (! is_file($localPath) || ! $this->xlsxResourceGuard->accepts(path: $localPath, extension: $extension)) {
+        if (! in_array($extension, ['xls', 'xlsx'], true) || ! is_file($localPath)) {
             return false;
         }
 
         $maxMb = $this->positiveFloatConfig(key: 'ai.prepare.xlsx_max_mb', default: 25.0);
         $fileSize = @filesize($localPath);
-        if (! is_int($fileSize) || $fileSize > $maxMb * 1024 * 1024) {
+        if (! is_int($fileSize) || $fileSize > $maxMb * 1024 * 1024
+            || ! $this->xlsxResourceGuard->accepts(path: $localPath, extension: $extension)) {
             return false;
         }
 
         $maxRows = $this->positiveIntConfig(key: 'ai.prepare.xlsx_max_rows', default: 20_000);
         $maxCells = $this->positiveIntConfig(key: 'ai.prepare.xlsx_max_cells', default: 2_000_000);
-        $memoryLimit = $this->nonEmptyStringConfig(key: 'ai.prepare.xlsx_convert_memory_limit', default: '512M');
+        $memoryLimit = $this->memoryLimitConfig(key: 'ai.prepare.xlsx_convert_memory_limit', default: '512M');
         $timeout = $this->positiveIntConfig(key: 'ai.prepare.xlsx_convert_timeout_seconds', default: 120);
-
+        $remaining = $deadlineAt === null ? $timeout : (int) floor($deadlineAt - microtime(true));
+        if ($remaining < 1) {
+            return false;
+        }
         $outputPath = PipelineTemporaryFile::create(prefix: 'text_grid_', extension: 'json');
 
         try {
             $script = 'require $argv[1]; exit(\App\Services\Procurement\Prepare\TextGridRenderer::runSubprocess($argv[2], $argv[3], (int) $argv[4], (int) $argv[5], $argv[6]));';
             $result = Process::path(base_path())
-                ->timeout($timeout)
+                ->timeout(min($timeout, $remaining))
+                ->quietly()
                 ->run([
                     PHP_BINARY,
                     '-d',
@@ -100,33 +108,33 @@ final readonly class TextGridRenderer
                     (string) $maxCells,
                     $outputPath,
                 ]);
-
-            if ($result->failed() || ! is_file($outputPath)) {
+            if ($result->failed() || is_link($outputPath) || ! is_file($outputPath)) {
                 return false;
             }
-
-            $rawOutput = @file_get_contents($outputPath);
-            if (! is_string($rawOutput) || $rawOutput === '') {
+            $rawOutput = @file_get_contents(filename: $outputPath, length: self::MAX_OUTPUT_BYTES + 1);
+            if ($rawOutput === false || strlen($rawOutput) > self::MAX_OUTPUT_BYTES) {
                 return false;
             }
-
-            $decoded = json_decode($rawOutput, true);
-            if (! is_array($decoded)
-                || ! isset($decoded['text'], $decoded['sheets'], $decoded['rows'])
-                || ! is_string($decoded['text'])
-                || ! is_int($decoded['sheets'])
-                || ! is_int($decoded['rows'])) {
-                return false;
-            }
-
-            return [
-                'text' => $decoded['text'],
-                'sheets' => $decoded['sheets'],
-                'rows' => $decoded['rows'],
-            ];
+        } catch (ProcessTimedOutException) {
+            return false;
         } finally {
             @unlink($outputPath);
         }
+
+        $decoded = json_decode($rawOutput, true);
+        if (! is_array($decoded)
+            || ! isset($decoded['text'], $decoded['sheets'], $decoded['rows'])
+            || ! is_string($decoded['text'])
+            || ! is_int($decoded['sheets'])
+            || ! is_int($decoded['rows'])) {
+            return false;
+        }
+
+        return [
+            'text' => $decoded['text'],
+            'sheets' => $decoded['sheets'],
+            'rows' => $decoded['rows'],
+        ];
     }
 
     public static function runSubprocess(string $localPath, string $extension, int $maxRows, int $maxCells, string $outputPath): int
@@ -144,6 +152,9 @@ final readonly class TextGridRenderer
         }
 
         $json = json_encode($rendered, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        if (strlen($json) > self::MAX_OUTPUT_BYTES) {
+            return 1;
+        }
 
         return @file_put_contents($outputPath, $json) === strlen($json) ? 0 : 1;
     }
@@ -371,12 +382,12 @@ final readonly class TextGridRenderer
         return $value;
     }
 
-    private function nonEmptyStringConfig(string $key, string $default): string
+    private function memoryLimitConfig(string $key, string $default): string
     {
         $value = config($key, $default);
 
-        if (! is_string($value) || trim($value) === '') {
-            throw new \UnexpectedValueException("{$key} must be a non-empty string.");
+        if (! is_string($value) || preg_match('/^[1-9][0-9]*[KMG]?$/iD', $value) !== 1 || ini_parse_quantity($value) < 1) {
+            throw new \UnexpectedValueException("{$key} must be a positive PHP memory limit.");
         }
 
         return $value;

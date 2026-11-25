@@ -21,15 +21,13 @@ use Composer\InstalledVersions;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
-use PhpOffice\PhpSpreadsheet\Reader\Xls as XlsReader;
-use PhpOffice\PhpSpreadsheet\Reader\Xlsx as XlsxReader;
 use RuntimeException;
 
 /**
  * Excel → PDF (landscape + fitToWidth(1)/fitToHeight(0), v1-урок против обрезки по столбцам,
  * `Old/.../Strategies/ExcelStrategy.php`) — xlsx size-gate:
- * строки/размер проверяются ДЁШЕВО (`size_bytes` из БД + `listWorksheetInfo` — метаданные
- * листа без загрузки данных в память) ДО полной загрузки. Сама конверсия — в ИЗОЛИРОВАННОМ
+ * размер проверяется в воркере, а метаданные строк — внутри отдельного процесса
+ * до полной загрузки книги. Конверсия выполняется в ИЗОЛИРОВАННОМ
  * PHP-процессе с явным `memory_limit` ({@see ConvertXlsxToPdfCommand}), чтобы OOM не убивал
  * соседние jobs воркера.
  *
@@ -74,7 +72,12 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         $localInput = PipelineTemporaryFile::create(prefix: 'xlsx_', extension: $version->extension);
 
         try {
-            ArchiveWorkspaceHelper::copyToLocal($sourceDisk, $version->storage_path, $localInput);
+            ArchiveWorkspaceHelper::copyToLocal(
+                disk: $sourceDisk,
+                storagePath: $version->storage_path,
+                localPath: $localInput,
+                deadlineAt: $deadlineAt,
+            );
 
             if ($version->extension === 'xlsx') {
                 try {
@@ -89,12 +92,12 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             $withinToolLimits = $this->withinToolLimits($version, $localInput);
 
             if (! $hasPdf) {
-                $hasPdf = ($withinToolLimits && $this->tryPhpSpreadsheet($version, $disk, $diskName, $localInput))
+                $hasPdf = ($withinToolLimits && $this->tryPhpSpreadsheet($version, $disk, $diskName, $localInput, $deadlineAt))
                     || $this->tryLibreOffice($version, $disk, $diskName, $localInput, $deadlineAt);
             }
 
             if (! $hasTextGrid && $withinToolLimits) {
-                $this->storeTextGrid($version, $disk, $diskName, $localInput);
+                $this->storeTextGrid($version, $disk, $diskName, $localInput, $deadlineAt);
             }
 
             if (! $hasPdf) {
@@ -114,16 +117,12 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         }
 
         $maxMb = $this->floatConfig(key: 'ai.prepare.xlsx_max_mb', default: 25);
-        if ($version->size_bytes > $maxMb * 1024 * 1024) {
-            return false;
-        }
+        $actualBytes = filesize($localInput);
 
-        $maxRows = $this->integerConfig(key: 'ai.prepare.xlsx_max_rows', default: 20000);
-
-        return $this->countRows($localInput, $version->extension) <= $maxRows;
+        return $actualBytes !== false && max($version->size_bytes, $actualBytes) <= $maxMb * 1024 * 1024;
     }
 
-    private function tryPhpSpreadsheet(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput): bool
+    private function tryPhpSpreadsheet(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput, ?float $deadlineAt): bool
     {
         $localOutput = PipelineTemporaryFile::create(prefix: 'xlsx_pdf_', extension: 'pdf');
 
@@ -131,7 +130,9 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
             $startedAt = microtime(as_float: true);
 
             try {
-                $this->convert($localInput, $localOutput);
+                $this->convert(input: $localInput, output: $localOutput, deadlineAt: $deadlineAt);
+            } catch (OperationBudgetExceeded $exception) {
+                throw $exception;
             } catch (RuntimeException) {
                 return false;
             }
@@ -185,7 +186,7 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
 
     private function acceptsPdfFile(string $path): bool
     {
-        if (! is_file($path)) {
+        if (is_link($path) || ! is_file($path)) {
             return false;
         }
 
@@ -231,9 +232,9 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         }
     }
 
-    private function storeTextGrid(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput): void
+    private function storeTextGrid(DocumentVersion $version, Filesystem $disk, string $diskName, string $localInput, ?float $deadlineAt): void
     {
-        $rendered = $this->textGridRenderer->render($localInput, $version->extension);
+        $rendered = $this->textGridRenderer->render(localPath: $localInput, extension: $version->extension, deadlineAt: $deadlineAt);
 
         if ($rendered === false) {
             return;
@@ -255,30 +256,23 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
         ]);
     }
 
-    private function countRows(string $path, string $extension): int
-    {
-        $reader = $extension === 'xls' ? new XlsReader : new XlsxReader;
-
-        try {
-            $info = $reader->listWorksheetInfo($path);
-        } catch (\Throwable) {
-            return PHP_INT_MAX;
-        }
-
-        return array_sum(array_column($info, 'totalRows'));
-    }
-
-    private function convert(string $input, string $output): void
+    private function convert(string $input, string $output, ?float $deadlineAt): void
     {
         $memoryLimit = $this->stringConfig(key: 'ai.prepare.xlsx_convert_memory_limit', default: '512M');
         $timeout = $this->integerConfig(key: 'ai.prepare.xlsx_convert_timeout_seconds', default: 120);
+        $maxRows = $this->integerConfig(key: 'ai.prepare.xlsx_max_rows', default: 20_000);
+        $remaining = $deadlineAt === null ? $timeout : (int) floor($deadlineAt - microtime(true));
+        if ($remaining < 1) {
+            throw OperationBudgetExceeded::forOperation(operation: 'конвертации Excel', availableSeconds: $remaining, requiredSeconds: 1);
+        }
 
         $result = Process::path(base_path())
-            ->timeout($timeout)
-            ->run([PHP_BINARY, '-d', "memory_limit={$memoryLimit}", 'artisan', 'procurement:convert-xlsx-to-pdf', $input, $output]);
+            ->timeout(min($timeout, $remaining))
+            ->quietly()
+            ->run([PHP_BINARY, '-d', "memory_limit={$memoryLimit}", 'artisan', 'procurement:convert-xlsx-to-pdf', $input, $output, "--max-rows={$maxRows}"]);
 
         if ($result->failed() || ! file_exists($output)) {
-            throw new RuntimeException('Конвертация Excel→PDF провалилась: '.$result->errorOutput());
+            throw new RuntimeException('Конвертация Excel→PDF провалилась.');
         }
     }
 
@@ -323,8 +317,8 @@ final readonly class SpreadsheetStrategy implements PreparationStrategy
     {
         $value = config($key, $default);
 
-        if (! is_string($value)) {
-            throw new RuntimeException("{$key} must be a string.");
+        if (! is_string($value) || preg_match('/^[1-9][0-9]*[KMG]?$/iD', $value) !== 1 || ini_parse_quantity($value) < 1) {
+            throw new RuntimeException("{$key} must be a positive PHP memory limit.");
         }
 
         return $value;

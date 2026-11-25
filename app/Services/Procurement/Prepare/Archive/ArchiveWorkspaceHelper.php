@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Prepare\Archive;
 
 use App\Dto\Procurement\Prepare\Archive\ArchiveBudget;
+use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\AwsS3V3Adapter;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 final readonly class ArchiveWorkspaceHelper
@@ -18,41 +21,19 @@ final readonly class ArchiveWorkspaceHelper
         ?ArchiveBudget $budget = null,
         ?float $deadlineAt = null,
     ): void {
-        if ($budget === null) {
-            $source = $disk->readStream($storagePath);
-
-            if (! is_resource($source)) {
-                throw new RuntimeException("Оригинал недоступен на диске: {$storagePath}");
-            }
-
-            $target = null;
-
-            try {
-                $target = fopen($localPath, 'wb');
-
-                if (! is_resource($target)) {
-                    throw new RuntimeException("Не удалось открыть временный файл: {$localPath}");
-                }
-
-                if (stream_copy_to_stream($source, $target) === false) {
-                    throw new RuntimeException("Не удалось скопировать поток во временный файл: {$localPath}");
-                }
-            } finally {
-                if (is_resource($target)) {
-                    fclose($target);
-                }
-
-                fclose($source);
-            }
-
-            return;
+        self::assertWithinCopyDeadline(budget: $budget, deadlineAt: $deadlineAt);
+        $maxBytes = $budget->maxTotalBytes ?? config()->integer('documents.download.max_bytes');
+        if ($maxBytes < 0) {
+            throw new \InvalidArgumentException('Лимит размера оригинала должен быть неотрицательным.');
         }
-
-        self::assertWithinDeadline($deadlineAt);
-        $stream = $disk->readStream($storagePath);
+        $reader = $disk instanceof AwsS3V3Adapter
+            ? Storage::build([...$disk->getConfig(), 'stream_reads' => true])
+            : $disk;
+        $stream = $reader->readStream($storagePath);
 
         if (! is_resource($stream)) {
-            throw new RuntimeException("Оригинал архива недоступен на диске: {$storagePath}");
+            $subject = $budget === null ? 'Оригинал' : 'Оригинал архива';
+            throw new RuntimeException("{$subject} недоступен на диске: {$storagePath}");
         }
 
         $target = fopen($localPath, 'wb');
@@ -66,21 +47,19 @@ final readonly class ArchiveWorkspaceHelper
             $written = 0;
 
             while (! feof($stream)) {
-                self::assertWithinDeadline($deadlineAt);
-                $chunk = fread($stream, 65536);
+                self::assertWithinCopyDeadline(budget: $budget, deadlineAt: $deadlineAt);
+                $chunk = fread($stream, max(1, min(65536, $maxBytes - $written + 1)));
 
-                if ($chunk === false) {
-                    throw new RuntimeException("Ошибка чтения потока архива: {$storagePath}");
-                }
-
-                if ($chunk === '') {
-                    continue;
+                if ($chunk === false || ($chunk === '' && ! feof($stream))) {
+                    throw new RuntimeException("Ошибка чтения потока: {$storagePath}");
                 }
 
                 $written += strlen($chunk);
 
-                if ($written > $budget->maxTotalBytes) {
-                    throw new ArchiveValidationException('превышен суммарный размер архива');
+                if ($written > $maxBytes) {
+                    throw $budget === null
+                        ? new RuntimeException('превышен допустимый размер оригинала')
+                        : new ArchiveValidationException('превышен суммарный размер архива');
                 }
 
                 if (fwrite($target, $chunk) !== strlen($chunk)) {
@@ -90,6 +69,19 @@ final readonly class ArchiveWorkspaceHelper
         } finally {
             fclose($target);
             fclose($stream);
+        }
+    }
+
+    private static function assertWithinCopyDeadline(?ArchiveBudget $budget, ?float $deadlineAt): void
+    {
+        if ($budget !== null) {
+            self::assertWithinDeadline($deadlineAt);
+
+            return;
+        }
+
+        if ($deadlineAt !== null && microtime(true) >= $deadlineAt) {
+            throw OperationBudgetExceeded::forOperation(operation: 'копирования оригинала', availableSeconds: 0, requiredSeconds: 1);
         }
     }
 

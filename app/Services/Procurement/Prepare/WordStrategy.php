@@ -49,7 +49,12 @@ final readonly class WordStrategy implements PreparationStrategy
         $outputDir = PipelineTemporaryFile::createDirectory(prefix: 'word_pdf_');
 
         try {
-            ArchiveWorkspaceHelper::copyToLocal($sourceDisk, $version->storage_path, $localInput);
+            ArchiveWorkspaceHelper::copyToLocal(
+                disk: $sourceDisk,
+                storagePath: $version->storage_path,
+                localPath: $localInput,
+                deadlineAt: $deadlineAt,
+            );
 
             if (in_array($version->extension, ['docx', 'odt'], true)) {
                 try {
@@ -120,7 +125,7 @@ final readonly class WordStrategy implements PreparationStrategy
 
     private function acceptsPdfFile(string $path): bool
     {
-        if (! is_file($path)) {
+        if (is_link($path) || ! is_file($path)) {
             return false;
         }
 

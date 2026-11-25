@@ -8,6 +8,8 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\Xls;
+use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf as MpdfWriter;
 
@@ -17,14 +19,24 @@ use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf as MpdfWriter;
  * и fitToHeight(0) сохраняет колонки на одной ширине, перенося строки между страницами.
  */
 #[Description('Конвертирует Excel-файл в PDF (landscape, fitToWidth) для стадии подготовки документа')]
-#[Signature('procurement:convert-xlsx-to-pdf {input} {output}')]
+#[Signature('procurement:convert-xlsx-to-pdf {input} {output} {--max-rows= : Maximum total worksheet rows}')]
 final class ConvertXlsxToPdfCommand extends Command
 {
     public function handle(): int
     {
         IOFactory::registerWriter('Pdf', MpdfWriter::class);
 
-        $spreadsheet = IOFactory::load((string) $this->argument('input'));
+        $input = (string) $this->argument('input');
+        $reader = IOFactory::createReaderForFile($input);
+        $maxRows = $this->option('max-rows');
+        if ($maxRows !== null && (
+            (! $reader instanceof Xls && ! $reader instanceof Xlsx)
+            || preg_match('/^[1-9][0-9]*$/D', $maxRows) !== 1
+            || array_sum(array_column($reader->listWorksheetInfo($input), 'totalRows')) > (int) $maxRows
+        )) {
+            return self::FAILURE;
+        }
+        $spreadsheet = $reader->load($input);
 
         foreach ($spreadsheet->getAllSheets() as $sheet) {
             $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);

@@ -31,7 +31,7 @@ final readonly class GsfxReader
     {
         $this->guardAgainstXxe($dataXmlRaw);
 
-        $xml = $this->loadXml($this->decode($dataXmlRaw));
+        $xml = $this->loadXml($this->decode(raw: $dataXmlRaw, xml: true));
 
         $unmapped = [];
 
@@ -43,7 +43,9 @@ final readonly class GsfxReader
         $indexCatalog = $this->xmlParser->parseIndexCatalog($xml, $unmapped);
         $coefficients = [];
         foreach ($xml->Koefficients ?? [] as $koefficientsNode) {
-            $coefficients = [...$coefficients, ...$this->xmlParser->parseCoefficients($koefficientsNode, $unmapped)];
+            foreach ($this->xmlParser->parseCoefficients($koefficientsNode, $unmapped) as $coefficient) {
+                $coefficients[] = $coefficient;
+            }
         }
         $this->tallyUnmappedTopLevel($xml, $unmapped);
 
@@ -65,20 +67,32 @@ final readonly class GsfxReader
         }
     }
 
-    private function decode(string $raw): string
+    private function decode(string $raw, bool $xml = false): string
     {
-        $withoutBom = (string) preg_replace('/^\xEF\xBB\xBF/', '', $raw, limit: 1);
-
-        if ($withoutBom !== $raw || $this->hasUtf8Prolog($withoutBom) || mb_check_encoding($withoutBom, 'UTF-8')) {
-            return $withoutBom;
+        if (str_starts_with($raw, "\xEF\xBB\xBF")) {
+            return $this->requireUtf8(substr($raw, 3));
         }
 
-        return mb_convert_encoding($withoutBom, 'UTF-8', 'Windows-1251');
+        if ($xml && preg_match('/^\s*<\?xml\b[^>]*\bencoding\s*=\s*(["\'])([\w-]+)\1[^>]*\?>/i', $raw, $matches) === 1) {
+            $encoding = strtolower($matches[2]);
+            if (in_array($encoding, ['utf-8', 'utf8'], true)) {
+                return $this->requireUtf8($raw);
+            }
+            if (in_array($encoding, ['windows-1251', 'cp1251'], true)) {
+                return mb_convert_encoding($raw, 'UTF-8', 'Windows-1251');
+            }
+        }
+
+        return mb_check_encoding($raw, 'UTF-8') ? $raw : mb_convert_encoding($raw, 'UTF-8', 'Windows-1251');
     }
 
-    private function hasUtf8Prolog(string $raw): bool
+    private function requireUtf8(string $raw): string
     {
-        return preg_match('/^\s*(?:\xEF\xBB\xBF)?<\?xml\b[^>]*\bencoding\s*=\s*["\']utf-?8["\'][^>]*\?>/i', $raw) === 1;
+        if (! mb_check_encoding($raw, 'UTF-8')) {
+            throw new GsfxUnreadableException('Содержимое GSFX объявлено как UTF-8, но содержит недопустимые байты.');
+        }
+
+        return $raw;
     }
 
     private function loadXml(string $utf8Xml): SimpleXMLElement
