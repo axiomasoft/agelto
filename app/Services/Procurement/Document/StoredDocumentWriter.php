@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Document;
 
 use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Document\SourceDocumentMetadata;
+use App\Dto\Procurement\Document\VerifiedArtifact;
 use App\Dto\Procurement\Document\VerifiedStoredArtifact;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
@@ -76,11 +77,13 @@ final readonly class StoredDocumentWriter
     }
 
     /** @param array<string,mixed> $attributes */
-    public function archiveEntry(Document $parent, DocumentVersion $parentVersion, string $entryPath, int $ordinal, array $attributes): DocumentVersion
+    public function archiveEntry(Document $parent, DocumentVersion $parentVersion, string $entryPath, int $ordinal, array $attributes, ?VerifiedArtifact $upload = null): DocumentVersion
     {
         $inputDisk = is_string($attributes['disk'] ?? null) ? $attributes['disk'] : '';
         $inputPath = is_string($attributes['storage_path'] ?? null) ? $attributes['storage_path'] : '';
-        $verified = $this->verify($attributes);
+        $verified = $upload ?? $this->verify($attributes);
+        $domain = $verified instanceof VerifiedArtifact ? $verified->reservation->domainId : $verified->blob->domainId;
+        $duplicate = $upload === null ? null : $this->verifiedArchiveDuplicate($upload);
         $filename = $attributes['filename'] ?? null;
         $mime = $attributes['mime'] ?? null;
         if (! is_string($filename) || ! is_string($mime) || $parentVersion->document_id !== $parent->id) {
@@ -88,8 +91,8 @@ final readonly class StoredDocumentWriter
         }
         $metadata = new SourceDocumentMetadata($filename, $mime, parentVersionId: $parentVersion->id, normalizedEntryPath: $entryPath, childOrdinal: $ordinal);
         /** @var array{int,BlobReference} $committed */
-        $committed = $this->transactions->run(function () use ($parent, $parentVersion, $entryPath, $verified, $metadata): array {
-            $this->capacity->lockDomains([$verified->blob->domainId]);
+        $committed = $this->transactions->run(function () use ($parent, $parentVersion, $entryPath, $verified, $metadata, $domain, $duplicate): array {
+            $this->capacity->lockDomains([$domain]);
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$parent->id]);
             if (! DB::table('prc_document_versions')->where('id', $parentVersion->id)->where('document_id', $parent->id)->exists()) {
                 throw new DocumentHeadChanged('Archive parent mapping changed.');
@@ -99,14 +102,36 @@ final readonly class StoredDocumentWriter
             ], ['platform_id' => $parent->platform_id, 'title' => basename($entryPath), 'status' => DocumentStatus::Downloaded]);
             // Parent lock serializes the identity even for NULL procurement_id; child+version commit together.
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$child->id]);
-            $stored = $this->artifacts->adoptStoredLocked($verified);
+            if ($verified instanceof VerifiedArtifact) {
+                $this->capacity->assertStoredUploadLease($verified->reservation);
+                $stored = $this->artifacts->acquireLocked($verified);
+                if ($duplicate !== null && $stored->id != $verified->reservation->id && $stored != $duplicate) {
+                    throw new ArtifactUnavailable('Canonical archive entry changed during publication.');
+                }
+            } else {
+                $stored = $this->artifacts->adoptStoredLocked($verified);
+            }
 
             return [$this->versions->observeBlobLocked($this->versions->head($child->id), $stored, $metadata)->id, $stored];
         });
         [$id, $stored] = $committed;
-        $this->cleanupUnreferencedDuplicate($inputDisk, $inputPath, $stored);
+        if ($upload === null) {
+            $this->cleanupUnreferencedDuplicate($inputDisk, $inputPath, $stored);
+        }
 
         return DocumentVersion::query()->findOrFail($id);
+    }
+
+    private function verifiedArchiveDuplicate(VerifiedArtifact $upload): ?BlobReference
+    {
+        $reservation = $upload->reservation;
+        $existing = $this->artifacts->storedReferenceByHash(domain: $reservation->domainId, hash: $upload->hash);
+        if ($existing !== null && ($existing->disk !== $reservation->disk
+            || $this->digestObject(disk: $existing->disk, path: $existing->objectKey) !== [$upload->hash->hex, $upload->sizeBytes])) {
+            throw new ArtifactUnavailable('Canonical deduplicated object is unavailable.');
+        }
+
+        return $existing;
     }
 
     /** @param array<string,mixed> $attributes */

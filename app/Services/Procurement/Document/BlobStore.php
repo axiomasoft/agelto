@@ -16,7 +16,6 @@ use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
-use App\Support\Files\ShardedBlobPath;
 use Aws\CommandInterface;
 use Aws\Middleware;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -33,9 +32,8 @@ final readonly class BlobStore
 
     /**
      * @param  resource  $source
-     * @return ($reservation is StoredBlobUpload ? string : VerifiedArtifact)
      */
-    public function put(StorageReservationRequest|StoredBlobUpload $reservation, $source, ?StorageReservationRequest $temporary = null, ?ExecutionContext $execution = null, bool $cleanupTemporary = true): VerifiedArtifact|string
+    public function put(StorageReservationRequest|StoredBlobUpload $reservation, $source, ?StorageReservationRequest $temporary = null, ?ExecutionContext $execution = null, bool $cleanupTemporary = true): VerifiedArtifact
     {
         $this->outsideTransaction();
         if (! is_resource($source) || get_resource_type($source) !== 'stream') {
@@ -146,34 +144,53 @@ final readonly class BlobStore
     }
 
     /** @param resource $source */
-    private function putStored(StoredBlobUpload $upload, $source): string
+    private function putStored(StoredBlobUpload $upload, $source): VerifiedArtifact
     {
-        $path = ShardedBlobPath::for($upload->hash->hex);
-        $disk = Storage::disk($upload->disk);
-        $lock = @fopen(sys_get_temp_dir()."/agelto_archive_blob_{$upload->hash->hex}.lock", 'c');
-        if (! is_resource($lock)) {
-            throw new ArtifactUnavailable("Не удалось открыть блокировку записи блоба: {$path}");
+        $reservation = $upload->reservation;
+        $disk = Storage::disk($reservation->disk);
+        $key = $reservation->objectKey();
+        $remote = ! $disk->getAdapter() instanceof LocalFilesystemAdapter;
+        if ($remote && config("filesystems.disks.{$reservation->disk}.driver") !== 's3') {
+            throw new ArtifactUnavailable('Stored upload requires a local or S3 disk.');
         }
+        if ($upload->sizeBytes < 0 || $upload->sizeBytes > $reservation->byteUpperBound
+            || (fstat($source)['size'] ?? null) !== $upload->sizeBytes || ! rewind($source)) {
+            throw new ArtifactUnavailable('Stored upload requires a seekable stream of the verified size.');
+        }
+        $this->capacity->assertStoredUploadLease($reservation);
+        $options = $remote ? $this->remoteWriteOptions(
+            disk: $reservation->disk, writer: $reservation, source: $source, size: $upload->sizeBytes, storedUpload: true,
+        ) : [];
 
+        if ($remote) {
+            $this->capacity->beginWrite($reservation);
+        } else {
+            $this->workspace->beginStoredFileWrite($reservation);
+        }
+        $started = false;
+        $confirmed = false;
         try {
-            if (! flock($lock, LOCK_EX)) {
-                throw new ArtifactUnavailable("Не удалось получить блокировку записи блоба: {$path}");
-            }
-            if (! $disk->exists($path) && (! rewind($source) || ! $disk->put($path, $source))) {
-                throw new ArtifactUnavailable("Не удалось сохранить запись архива в object storage: {$path}");
-            }
-
-            $reader = $disk instanceof AwsS3V3Adapter
-                ? Storage::build([...$disk->getConfig(), 'stream_reads' => true])
-                : $disk;
-            if (! $this->matchesBlob(disk: $reader, key: $path, expectedHash: $upload->hash, expectedSize: $upload->sizeBytes, execution: null)) {
-                throw new ArtifactUnavailable("Object storage вернул неполную или другую запись архива: {$path}");
-            }
-
-            return $path;
+            $this->capacity->assertStoredUploadLease($reservation);
+            $started = true;
+            $confirmed = $remote ? $disk->put(path: $key, contents: $source, options: $options) : $disk->put(path: $key, contents: $source);
         } finally {
-            fclose($lock);
+            if (! $remote || ! $started || $confirmed) {
+                $this->capacity->finishStoppedWrite($reservation);
+            }
+            if (! $remote) {
+                $this->workspace->clearFileWriter($reservation);
+            }
         }
+        if (! $confirmed) {
+            throw new ArtifactUnavailable("Не удалось сохранить запись архива в object storage: {$key}");
+        }
+        $this->capacity->assertStoredUploadLease($reservation);
+        $reader = $disk instanceof AwsS3V3Adapter ? Storage::build([...$disk->getConfig(), 'stream_reads' => true]) : $disk;
+        if (! $this->matchesBlob(disk: $reader, key: $key, expectedHash: $upload->hash, expectedSize: $upload->sizeBytes, execution: null)) {
+            throw new ArtifactUnavailable("Object storage вернул неполную или другую запись архива: {$key}");
+        }
+
+        return new VerifiedArtifact(reservation: $reservation, hash: $upload->hash, sizeBytes: $upload->sizeBytes);
     }
 
     public function verify(StorageReservationRequest $reservation, ContentHash $expected, int $size, ?ExecutionContext $execution = null): VerifiedArtifact
@@ -269,7 +286,7 @@ final readonly class BlobStore
      * @param  resource  $source
      * @return array{mup_threshold: int, before_upload: \Closure(CommandInterface): void}
      */
-    private function remoteWriteOptions(string $disk, StorageReservationRequest $writer, $source, int $size): array
+    private function remoteWriteOptions(string $disk, StorageReservationRequest $writer, $source, int $size, bool $storedUpload = false): array
     {
         $timeout = config("filesystems.disks.{$disk}.http.timeout");
         if ((! is_float($timeout) && ! is_int($timeout)) || ! is_finite($timeout) || $timeout <= 0) {
@@ -278,17 +295,20 @@ final readonly class BlobStore
         if ((fstat($source)['size'] ?? null) !== $size) {
             throw new ArtifactUnavailable('Remote upload requires a stream of the verified size.');
         }
-        $this->assertRemoteWriter($writer);
+        $assertWriter = $storedUpload
+            ? fn () => $this->capacity->assertStoredUploadLease($writer)
+            : fn () => $this->assertRemoteWriter($writer);
+        $assertWriter();
 
         // Recovery waits for one request timeout after the lease. An unknown size, multipart
         // upload or SDK retry could extend writes past that window.
         return [
             'mup_threshold' => PHP_INT_MAX,
-            'before_upload' => function (CommandInterface $command) use ($writer, $timeout): void {
+            'before_upload' => static function (CommandInterface $command) use ($assertWriter, $timeout): void {
                 $command['@retries'] = 0;
                 $httpOptions = $command['@http'];
                 $command['@http'] = ['timeout' => $timeout] + (is_array($httpOptions) ? $httpOptions : []);
-                $command->getHandlerList()->appendAttempt(Middleware::tap(fn () => $this->assertRemoteWriter($writer)));
+                $command->getHandlerList()->appendAttempt(Middleware::tap($assertWriter));
             },
         ];
     }

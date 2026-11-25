@@ -15,10 +15,16 @@ use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Repositories\Procurement\Process\LedgerRow;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /** Capacity tier precedes subjects/work. Slot release never releases storage reservations. */
 final readonly class StorageCapacityRepository
 {
+    private const int IMPORT_LEASE_SECONDS = 120;
+
+    private const string STORED_UPLOAD = "s.work_id IS NULL AND s.operation_id IS NULL AND s.phase = 'prepare'
+        AND EXISTS (SELECT 1 FROM prc_storage_domains d WHERE d.id = s.domain_id AND d.domain_key = 'documents.import:' || s.disk)";
+
     public function __construct(private ProcessTransaction $transactions) {}
 
     /** Explicit provisioning only, never boot-time schema/catalog mutation. */
@@ -51,6 +57,51 @@ final readonly class StorageCapacityRepository
         return $domain;
     }
 
+    public function reserveStoredUpload(string $disk, int $sizeBytes): StorageReservationRequest
+    {
+        if (DB::transactionLevel() !== 0) {
+            throw new \LogicException('Stored upload reservation requires its own transaction.');
+        }
+        if ($sizeBytes < 0 || $sizeBytes > config()->integer('documents.download.max_bytes')) {
+            throw new ArtifactUnavailable('Stored object exceeds the document byte ceiling.');
+        }
+        $request = new StorageReservationRequest(
+            id: new ProcessUuid((string) Str::uuid()),
+            domainId: $this->provisionImportDomain($disk),
+            ownerToken: new ProcessUuid((string) Str::uuid()),
+            generation: 1,
+            byteUpperBound: max(1, $sizeBytes),
+            phase: StoragePhase::Prepare,
+            disk: $disk,
+        );
+        $this->transactions->run(function () use ($request): void {
+            $this->lockDomains([$request->domainId]);
+            if (! $this->reserveLocked(request: $request, useHighWatermark: true)) {
+                throw new ArtifactUnavailable('Stored object capacity unavailable.');
+            }
+        });
+
+        return $request;
+    }
+
+    public function assertStoredUploadLease(StorageReservationRequest $request): void
+    {
+        if ($this->storedUploadLeaseExpired(request: $request, graceSeconds: 0) !== false) {
+            throw new ArtifactUnavailable('Stored upload requires a live writer lease.');
+        }
+    }
+
+    public function storedUploadLeaseExpired(StorageReservationRequest $request, int $graceSeconds): ?bool
+    {
+        $predicate = self::STORED_UPLOAD;
+
+        return LedgerRow::one(
+            sql: "SELECT (s.status NOT IN ('reserved', 'writing', 'staged') OR clock_timestamp() >= s.created_at + make_interval(secs => ?)) AS expired
+             FROM prc_storage_reservations s WHERE s.id = ? AND s.owner_token = ? AND s.generation = ? AND {$predicate}",
+            bindings: [self::IMPORT_LEASE_SECONDS + $graceSeconds, $request->id->value, $request->ownerToken->value, $request->generation],
+        )?->bool('expired');
+    }
+
     /** Caller holds the blob's capacity domain; accounting and import publication commit together. */
     public function accountStoredLocked(BlobReference $blob): void
     {
@@ -76,7 +127,7 @@ final readonly class StorageCapacityRepository
     }
 
     /** Caller holds this domain in the complete early capacity tier. False means storage_capacity. */
-    public function reserveLocked(StorageReservationRequest $request): bool
+    public function reserveLocked(StorageReservationRequest $request, bool $useHighWatermark = false): bool
     {
         CallerTransaction::require('Storage reservation');
         $existing = LedgerRow::one('SELECT * FROM prc_storage_reservations WHERE id=?', [$request->id->value]);
@@ -87,7 +138,8 @@ final readonly class StorageCapacityRepository
         }
         $domain = LedgerRow::one('SELECT * FROM prc_storage_domains WHERE id=?', [$request->domainId->value]) ?? throw new \LogicException('Missing storage domain.');
         $used = LedgerRow::one("SELECT COALESCE(SUM(byte_upper_bound),0)::bigint AS bytes FROM prc_storage_reservations WHERE domain_id=? AND status IN ('reserved','writing','staged','cleaning')", [$request->domainId->value])?->int('bytes') ?? 0;
-        $available = $domain->int('capacity_bytes') - $domain->int('accounted_durable_bytes') - $used;
+        $limit = $useHighWatermark ? $domain->int('high_watermark_bytes') : $domain->int('capacity_bytes');
+        $available = $limit - $domain->int('accounted_durable_bytes') - $used;
         if ($request->byteUpperBound > $available) {
             return false;
         }
@@ -159,6 +211,7 @@ final readonly class StorageCapacityRepository
     /** @return list<StorageCleanupCandidate> */
     public function cleanupCandidates(?ProcessUuid $afterId = null, int $limit = 50): array
     {
+        $storedUpload = self::STORED_UPLOAD;
         $rows = LedgerRow::all(
             "SELECT s.* FROM prc_storage_reservations s
              LEFT JOIN prc_process_work w ON w.id = s.work_id
@@ -168,11 +221,12 @@ final readonly class StorageCapacityRepository
                AND (
                    (s.work_id IS NOT NULL AND (w.state<>'running' OR w.generation<>s.generation OR w.owner_token IS DISTINCT FROM s.owner_token))
                    OR (s.work_id IS NULL AND s.operation_id IS NOT NULL AND o.state<>'open')
+                   OR (({$storedUpload}) AND clock_timestamp() >= s.created_at + make_interval(secs => ?))
                )
                AND (s.operation_id IS NULL OR o.state<>'open')
                AND (?::uuid IS NULL OR s.id>?::uuid)
              ORDER BY s.id LIMIT ?",
-            [$afterId?->value, $afterId?->value, max(1, min(100, $limit))],
+            [self::IMPORT_LEASE_SECONDS, $afterId?->value, $afterId?->value, max(1, min(100, $limit))],
         );
 
         return array_map(static fn (LedgerRow $row): StorageCleanupCandidate => new StorageCleanupCandidate(

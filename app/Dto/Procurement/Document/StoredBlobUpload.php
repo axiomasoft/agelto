@@ -6,11 +6,11 @@ namespace App\Dto\Procurement\Document;
 
 use App\Dto\Procurement\Process\ContentHash;
 
-/** Content-addressed upload for the synchronous stored-document import path. */
+/** Bounded upload for a synchronous stored-document import. */
 final readonly class StoredBlobUpload
 {
     public function __construct(
-        public string $disk,
+        public StorageReservationRequest $reservation,
         public ContentHash $hash,
         public int $sizeBytes,
     ) {}

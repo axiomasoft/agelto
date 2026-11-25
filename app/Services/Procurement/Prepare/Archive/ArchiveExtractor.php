@@ -188,6 +188,9 @@ final class ArchiveExtractor
             }
             $parts = explode(' = ', $line, 2);
             if (isset($parts[1])) {
+                if (array_key_exists($parts[0], $fields)) {
+                    throw new ArchiveUnsupportedException('повторяющееся поле записи 7z');
+                }
                 $fields[$parts[0]] = $parts[1];
             }
         }
@@ -217,16 +220,35 @@ final class ArchiveExtractor
         $isSymlink = str_contains($attributes, 'L') || (($values['Symbolic Link'] ?? '') !== '');
         $isHardLink = isset($values['Hard Link']);
         $type = $isSymlink ? 'symlink' : ($isHardLink ? 'hardlink' : ($isDirectory ? 'directory' : 'file'));
+        $size = $this->sevenZipNumber($values['Size'] ?? '', 'Size') ?? 0;
+        $packedSize = $this->sevenZipNumber($values['Packed Size'] ?? '', 'Packed Size');
+        $block = $this->sevenZipNumber($values['Block'] ?? '', 'Block');
+        if ($type === 'file' && $size > 0 && $packedSize === null && $block === null) {
+            throw new ArchiveValidationException('неизвестен solid-блок записи 7z без Packed Size');
+        }
 
         return new ArchiveEntry(
             path: $path,
-            declaredSize: (int) ($values['Size'] ?? 0),
-            // Solid 7z stores Packed Size on the block, not on every member.
-            compressedSize: ($values['Packed Size'] ?? '') !== '' ? (int) $values['Packed Size'] : null,
+            declaredSize: $size,
+            compressedSize: $packedSize,
             isDirectory: $isDirectory,
             isEncrypted: ($values['Encrypted'] ?? '') === '+',
             type: $type,
+            compressionBlock: $block,
         );
+    }
+
+    private function sevenZipNumber(string $value, string $field): ?int
+    {
+        if ($value === '') {
+            return null;
+        }
+        $number = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+        if (! ctype_digit($value) || ! is_int($number)) {
+            throw new ArchiveValidationException("невалидный размер или номер блока 7z ({$field})");
+        }
+
+        return $number;
     }
 
     private function extractSevenZipEntry(string $archivePath, ArchiveEntry $entry, string $targetPath, ArchiveBudget $budget, int &$totalBytes, ?float $deadlineAt): void

@@ -11,6 +11,7 @@ use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Document\DocumentStorageReconciler;
 use App\Services\Procurement\Prepare\Archive\ArchiveEntryPath;
 use App\Services\Procurement\Prepare\Archive\ArchiveEntryValidator;
 use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
@@ -18,11 +19,13 @@ use App\Services\Procurement\Prepare\Archive\ArchiveValidationException;
 use App\Services\Procurement\Prepare\ArchiveStrategy;
 use App\Services\Procurement\Prepare\RepresentationWriter;
 use App\Support\Files\PipelineTemporaryFile;
-use App\Support\Files\ShardedBlobPath;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\FilesystemAdapter as FlysystemAdapter;
 use League\Flysystem\UnableToRetrieveMetadata;
+use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\FakePrepareTools;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;
 
@@ -73,8 +76,6 @@ test('запись архива размером 100 МиБ сохраняетс
 
         $expectedHash = hash_file('sha256', $localFile);
         expect($expectedHash)->toBeString();
-        $expectedPath = ShardedBlobPath::for($expectedHash);
-
         memory_reset_peak_usage();
         $initialMemory = memory_get_usage();
         $childVersion = app(ExpandArchiveEntryAction::class)->execute(
@@ -86,16 +87,18 @@ test('запись архива размером 100 МиБ сохраняетс
         );
         $extraMemory = memory_get_peak_usage() - $initialMemory;
 
+        $reservation = DB::table('prc_storage_reservations')->where('id', $childVersion->blob_id)->sole();
         expect($childVersion->content_hash)->toBe($expectedHash)
             ->and($childVersion->size_bytes)->toBe($sizeBytes)
             ->and($childVersion->mime)->toContain('pdf')
-            ->and($childVersion->storage_path)->toBe($expectedPath)
-            ->and(hash_file('sha256', $disk->path($expectedPath)))->toBe($expectedHash)
+            ->and($childVersion->storage_path)->toBe($reservation->object_key)
+            ->and($reservation->status)->toBe('transferred')
+            ->and(hash_file('sha256', $disk->path($childVersion->storage_path)))->toBe($expectedHash)
             ->and($extraMemory)->toBeLessThan(32 * 1024 * 1024);
     } finally {
         @unlink($localFile);
-        if (isset($expectedPath)) {
-            $disk->delete($expectedPath);
+        if (isset($childVersion)) {
+            $disk->delete($childVersion->storage_path);
         }
     }
 });
@@ -110,13 +113,10 @@ test('ExpandArchiveEntryAction отклоняет загрузку при рас
     $localFile = PipelineTemporaryFile::create(prefix: 'entry_corrupt_', extension: 'txt');
     $payload = 'оригинальное содержимое сметы для проверки read-back';
     file_put_contents($localFile, $payload);
-    $expectedHash = hash('sha256', $payload);
-    $expectedPath = ShardedBlobPath::for($expectedHash);
-
     $mockDisk = Mockery::mock($baseDisk)->makePartial();
     $mockDisk->shouldReceive('put')
         ->once()
-        ->with($expectedPath, Mockery::type('resource'))
+        ->with(Mockery::on(fn (string $key): bool => str_starts_with($key, 'documents/uploads/')), Mockery::type('resource'))
         ->andReturnUsing(function (string $path) use ($baseDisk, $payload): bool {
             $baseDisk->getDriver()->write($path, str_repeat('x', strlen($payload)));
 
@@ -132,11 +132,110 @@ test('ExpandArchiveEntryAction отклоняет загрузку при рас
             localPath: $localFile,
         ))->toThrow(RuntimeException::class, 'Object storage вернул неполную или другую запись архива');
 
-        expect(DocumentVersion::query()->where('parent_version_id', $parentVersion->id)->count())->toBe(0);
+        $reservation = DB::table('prc_storage_reservations')->sole();
+        expect(DocumentVersion::query()->where('parent_version_id', $parentVersion->id)->count())->toBe(0)
+            ->and($reservation->status)->toBe('cleaned')
+            ->and($baseDisk->exists($reservation->object_key))->toBeFalse();
     } finally {
         @unlink($localFile);
     }
 });
+
+test('сверка освобождает резерв дочерней записи после SIGKILL до коммита или во время одиночного PUT', function (bool $duringPut): void {
+    $diskName = 'archive-crash';
+    $disk = Storage::fake($diskName);
+    $parent = Document::factory()->create(['status' => DocumentStatus::Downloaded]);
+    $parentVersion = DocumentVersion::factory()->create(['document_id' => $parent->id]);
+    $localFile = PipelineTemporaryFile::create(prefix: 'archive_crash_', extension: 'pdf');
+    try {
+        file_put_contents($localFile, '%PDF-1.4');
+        if ($duringPut) {
+            $stream = fopen($localFile, 'r+b');
+            try {
+                // Above the AWS SDK default multipart threshold.
+                expect(ftruncate($stream, 17 * 1024 * 1024))->toBeTrue();
+            } finally {
+                fclose($stream);
+            }
+        }
+        $worker = strtr(<<<'PHP'
+            $localConfig = ['driver' => 'local', 'root' => __ROOT__, 'throw' => true];
+            $kill = static function (): never {
+                fwrite(STDERR, 'archive import interrupted at the expected boundary');
+                posix_kill(getmypid(), SIGKILL);
+                throw new RuntimeException('Fixture worker survived SIGKILL.');
+            };
+            $config = $localConfig;
+            if (__DURING_PUT__) {
+                $mirror = \Illuminate\Support\Facades\Storage::build($localConfig);
+                $config = [
+                    'driver' => 's3', 'bucket' => 'archive-crash', 'region' => 'us-east-1',
+                    'credentials' => ['key' => 'fixture', 'secret' => 'fixture'],
+                    'http' => ['timeout' => 15], 'retries' => 2, 'throw' => true,
+                    'http_handler' => static function (\Psr\Http\Message\RequestInterface $request, array $options) use ($mirror, $kill): never {
+                        if ($request->getMethod() !== 'PUT' || $request->getUri()->getQuery() !== '' || $options['timeout'] !== 15) {
+                            throw new RuntimeException('Expected one bounded PutObject request.');
+                        }
+                        $key = ltrim($request->getUri()->getPath(), '/');
+                        if (! str_starts_with($key, 'documents/uploads/') || ! $mirror->put($key, 'accepted before PHP stopped')) {
+                            throw new RuntimeException('Fixture could not persist the object accepted by S3.');
+                        }
+                        $kill();
+                    },
+                ];
+            } else {
+                \Illuminate\Support\Facades\DB::connection()->beforeExecuting(static function (string $query) use ($kill): void {
+                    if (str_starts_with(strtolower(ltrim($query)), 'insert into prc_document_blobs')) {
+                        $kill();
+                    }
+                });
+            }
+            config(['documents.disk' => 'archive-crash', 'filesystems.disks.archive-crash' => $config]);
+            app(\App\Actions\Procurement\Document\ExpandArchiveEntryAction::class)->execute(
+                parent: \App\Models\Procurement\Document\Document::query()->findOrFail(__PARENT__),
+                parentVersion: \App\Models\Procurement\Document\DocumentVersion::query()->findOrFail(__VERSION__),
+                entryPath: 'documents/child.pdf',
+                localPath: __FILE_PATH__,
+            );
+            return [];
+            PHP, [
+            '__ROOT__' => var_export($disk->path(''), true),
+            '__PARENT__' => var_export($parent->id, true),
+            '__VERSION__' => var_export($parentVersion->id, true),
+            '__FILE_PATH__' => var_export($localFile, true),
+            '__DURING_PUT__' => var_export($duringPut, true),
+        ]);
+        expect(fn () => ConcurrentTransactions::execute($worker))
+            ->toThrow(RuntimeException::class, 'PostgreSQL worker failed: archive import interrupted at the expected boundary');
+
+        $reservation = DB::table('prc_storage_reservations')->sole();
+        $status = $duringPut ? 'writing' : 'staged';
+        expect($reservation->status)->toBe($status)
+            ->and($disk->exists($reservation->object_key))->toBeTrue()
+            ->and(DocumentVersion::query()->where('parent_version_id', $parentVersion->id)->exists())->toBeFalse();
+        if ($duringPut) {
+            $remoteDisk = Mockery::mock($disk)->makePartial();
+            $remoteDisk->shouldReceive('getAdapter')->andReturn(Mockery::mock(FlysystemAdapter::class));
+            Storage::set($diskName, $remoteDisk);
+            config(['filesystems.disks.archive-crash' => ['driver' => 's3', 'http' => ['timeout' => 15]]]);
+        }
+
+        $reconciler = app(DocumentStorageReconciler::class);
+        expect($reconciler->reconcile())->toBe(0);
+        if ($duringPut) {
+            DB::update("UPDATE prc_storage_reservations SET created_at=clock_timestamp()-interval '130 seconds' WHERE id=?", [$reservation->id]);
+            expect($reconciler->reconcile())->toBe(0)
+                ->and($disk->exists($reservation->object_key))->toBeTrue();
+        }
+        DB::update("UPDATE prc_storage_reservations SET created_at=clock_timestamp()-interval '3 minutes' WHERE id=?", [$reservation->id]);
+        expect($reconciler->reconcile())->toBe(1)
+            ->and($disk->exists($reservation->object_key))->toBeFalse()
+            ->and(DB::table('prc_storage_reservations')->where('id', $reservation->id)->value('status'))->toBe('cleaned')
+            ->and($reconciler->reconcile())->toBe(0);
+    } finally {
+        @unlink($localFile);
+    }
+})->with(['до коммита' => false, 'во время записи S3' => true]);
 
 test('архив ЕИС с кириллическими именами в CP866 и Windows-1251 и обратными слэшами Windows распаковывается без ложного ZipBomb', function (): void {
     $diskName = (string) config('documents.disk');
@@ -423,6 +522,49 @@ test('solid 7z с превышением коэффициента сжатия �
                     archiveSizeBytes: $archiveSize,
                 ))->toThrow(ArchiveValidationException::class, 'special entry');
         }
+    } finally {
+        File::deleteDirectory($workDir);
+    }
+});
+
+test('солидный архив отклоняется по одному блоку при допустимом общем коэффициенте сжатия', function (): void {
+    $workDir = PipelineTemporaryFile::createDirectory(prefix: 'solid_7z_blocks_');
+    try {
+        $files = [
+            '01_header.bin' => 'header',
+            '02_zeroes.bin' => str_repeat("\0", 64 * 1024),
+            '03_data.bin' => random_bytes(64 * 1024),
+            '04_data.bin' => random_bytes(64 * 1024),
+        ];
+        foreach ($files as $name => $content) {
+            file_put_contents("{$workDir}/{$name}", $content);
+        }
+        $archivePath = "{$workDir}/solid.7z";
+        $result = Process::path($workDir)->timeout(30)->run([
+            config()->string('ai.tools.sevenzip_bin'), 'a', '-t7z', '-ms=2f', $archivePath, ...array_keys($files),
+        ]);
+        expect($result->successful())->toBeTrue($result->errorOutput());
+
+        $entries = app(ArchiveExtractor::class)->listEntries(archivePath: $archivePath, format: '7z');
+        $byPath = array_column($entries, null, 'path');
+        $first = $byPath['01_header.bin'];
+        $second = $byPath['02_zeroes.bin'];
+        $third = $byPath['03_data.bin'];
+        $archiveSize = filesize($archivePath);
+        $maxRatio = 5;
+        expect($first->compressionBlock)->toBeInt()->toBe($second->compressionBlock)
+            ->and($third->compressionBlock)->not->toBe($first->compressionBlock)
+            ->and($first->compressedSize)->toBeGreaterThan(0)
+            ->and($second->compressedSize)->toBeNull()
+            ->and($first->declaredSize / $first->compressedSize)->toBeLessThan($maxRatio)
+            ->and(array_sum(array_column($entries, 'declaredSize')) / $archiveSize)->toBeLessThan($maxRatio);
+
+        $budget = new ArchiveBudget(
+            maxDepth: 2, maxEntries: 10, maxEntryBytes: 1024 * 1024, maxTotalBytes: 1024 * 1024,
+            maxCompressionRatio: $maxRatio, maxPathLength: 240,
+        );
+        expect(fn () => app(ArchiveEntryValidator::class)->validate($entries, $budget, archiveSizeBytes: $archiveSize))
+            ->toThrow(ArchiveValidationException::class, 'коэффициент сжатия solid-блока 7z');
     } finally {
         File::deleteDirectory($workDir);
     }

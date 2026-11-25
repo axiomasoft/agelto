@@ -14,5 +14,6 @@ final readonly class ArchiveEntry
         public bool $isDirectory = false,
         public bool $isEncrypted = false,
         public string $type = 'file',
+        public ?int $compressionBlock = null,
     ) {}
 }

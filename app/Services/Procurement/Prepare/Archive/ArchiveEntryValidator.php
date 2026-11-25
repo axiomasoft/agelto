@@ -22,6 +22,7 @@ final class ArchiveEntryValidator
         $totalBytes = 0;
         $knownCompressedBytes = 0;
         $hasUnknownCompressedSize = false;
+        $blocks = [];
         $count = 0;
         $seen = [];
         $validated = [];
@@ -52,23 +53,22 @@ final class ArchiveEntryValidator
             if ($entry->declaredSize > $budget->maxEntryBytes) {
                 throw new ArchiveValidationException('превышен лимит размера записи архива');
             }
-            if ($entry->declaredSize > 0 && $entry->compressedSize === 0) {
-                throw new ArchiveValidationException('невозможное соотношение размеров записи архива');
-            }
-            $entryCompressedBytes = $entry->compressedSize ?? $archiveSizeBytes;
-            if ($entry->declaredSize > 0 && $entry->compressedSize === null) {
-                $hasUnknownCompressedSize = true;
-                if ($archiveSizeBytes === null || $archiveSizeBytes === 0) {
-                    throw new ArchiveValidationException('неизвестен физический размер архива для записи без Packed Size');
-                }
-            }
-            if ($entryCompressedBytes !== null && $entryCompressedBytes > 0 && $entry->declaredSize / $entryCompressedBytes > $budget->maxCompressionRatio) {
-                throw new ArchiveValidationException('превышен коэффициент сжатия записи архива');
-            }
-            $knownCompressedBytes += $entry->compressedSize ?? 0;
             $totalBytes += $entry->declaredSize;
             if ($totalBytes > $budget->maxTotalBytes) {
                 throw new ArchiveValidationException('превышен суммарный размер архива');
+            }
+            if ($entry->compressionBlock !== null) {
+                $block = $blocks[$entry->compressionBlock] ?? ['expanded' => 0, 'packed' => null];
+                if ($entry->compressedSize !== null && $block['packed'] !== null) {
+                    throw new ArchiveValidationException('повторяющийся Packed Size solid-блока 7z');
+                }
+                $blocks[$entry->compressionBlock] = [
+                    'expanded' => $block['expanded'] + $entry->declaredSize,
+                    'packed' => $entry->compressedSize ?? $block['packed'],
+                ];
+            } else {
+                $hasUnknownCompressedSize = $this->validateEntryRatio(entry: $entry, budget: $budget, archiveSizeBytes: $archiveSizeBytes) || $hasUnknownCompressedSize;
+                $knownCompressedBytes += $entry->compressedSize ?? 0;
             }
             $validated[] = new ArchiveEntry(
                 path: $path,
@@ -77,7 +77,16 @@ final class ArchiveEntryValidator
                 isDirectory: $entry->isDirectory,
                 isEncrypted: $entry->isEncrypted,
                 type: $entry->type,
+                compressionBlock: $entry->compressionBlock,
             );
+        }
+
+        foreach ($blocks as $block) {
+            $packed = $block['packed'] ?? 0;
+            if ($block['expanded'] > 0 && ($packed === 0 || $budget->maxCompressionRatio < $block['expanded'] / $packed)) {
+                throw new ArchiveValidationException('превышен коэффициент сжатия solid-блока 7z или неизвестен его Packed Size');
+            }
+            $knownCompressedBytes += $packed;
         }
 
         if ($totalBytes > 0) {
@@ -90,5 +99,25 @@ final class ArchiveEntryValidator
         }
 
         return $validated;
+    }
+
+    /** Returns true when the entry uses the physical archive size as its denominator. */
+    private function validateEntryRatio(ArchiveEntry $entry, ArchiveBudget $budget, ?int $archiveSizeBytes): bool
+    {
+        if ($entry->declaredSize === 0) {
+            return false;
+        }
+        if ($entry->compressedSize === 0) {
+            throw new ArchiveValidationException('невозможное соотношение размеров записи архива');
+        }
+        $compressed = $entry->compressedSize ?? $archiveSizeBytes;
+        if ($compressed === null || $compressed === 0) {
+            throw new ArchiveValidationException('неизвестен физический размер архива для записи без Packed Size');
+        }
+        if ($entry->declaredSize / $compressed > $budget->maxCompressionRatio) {
+            throw new ArchiveValidationException('превышен коэффициент сжатия записи архива');
+        }
+
+        return $entry->compressedSize === null;
     }
 }

@@ -29,6 +29,16 @@ final readonly class PrepareWorkspace
 
     public function open(StorageReservationRequest $reservation): string
     {
+        return $this->initialize(reservation: $reservation, directory: true);
+    }
+
+    public function beginStoredFileWrite(StorageReservationRequest $reservation): void
+    {
+        $this->initialize(reservation: $reservation, directory: false);
+    }
+
+    private function initialize(StorageReservationRequest $reservation, bool $directory): string
+    {
         $disk = Storage::disk($reservation->disk);
         if ($reservation->phase !== StoragePhase::Prepare || ! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
             throw new \InvalidArgumentException('Local prepare workspace required.');
@@ -57,16 +67,21 @@ final readonly class PrepareWorkspace
                 if ($row->string('status') !== 'reserved') {
                     throw new \LogicException('Upload already claimed; verify or reconcile instead of overwriting.');
                 }
+                if (! $directory) {
+                    $this->capacity->assertStoredUploadLease($reservation);
+                }
                 $cleanupOnFailure = true;
                 // Publish a recoverable writer identity before there can be a writing reservation.
                 $this->writeFileOwner($reservation, $dir.'.owner');
                 $this->capacity->beginWrite($reservation);
                 $writing = true;
-                if (! $disk->makeDirectory($key)) {
-                    throw new ArtifactUnavailable('Prepare workspace unavailable.');
-                }
-                if (! @rename($dir.'.owner', $dir.'/owner.json')) {
-                    throw new ArtifactUnavailable('Workspace owner proof unavailable.');
+                if ($directory) {
+                    if (! $disk->makeDirectory($key)) {
+                        throw new ArtifactUnavailable('Prepare workspace unavailable.');
+                    }
+                    if (! @rename($dir.'.owner', $dir.'/owner.json')) {
+                        throw new ArtifactUnavailable('Workspace owner proof unavailable.');
+                    }
                 }
             } finally {
                 fclose($lock);
@@ -165,7 +180,10 @@ final readonly class PrepareWorkspace
     {
         $disk = Storage::disk($reservation->disk);
         if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
-            if ($reservation->attemptId === null || ! $this->remoteWriterStopped($reservation->disk, $reservation->attemptId)) {
+            $stopped = $reservation->attemptId !== null
+                ? $this->remoteWriterStopped($reservation->disk, $reservation->attemptId)
+                : $this->remoteStoredUploadStopped($reservation);
+            if (! $stopped) {
                 return false;
             }
             $this->capacity->finishStoppedWrite($reservation);
@@ -318,11 +336,10 @@ final readonly class PrepareWorkspace
 
     public function remoteWriterStopped(string $disk, ?ProcessUuid $attemptId, ?string $unownedSince = null): bool
     {
-        $timeout = config("filesystems.disks.{$disk}.http.timeout");
-        if (config("filesystems.disks.{$disk}.driver") !== 's3' || (! is_float($timeout) && ! is_int($timeout)) || ! is_finite($timeout) || $timeout <= 0) {
+        $margin = $this->remoteStopMargin($disk);
+        if ($margin === null) {
             return false;
         }
-        $margin = (int) ceil($timeout) + self::S3_GRACE_SECONDS;
         if ($attemptId === null) {
             // Legacy repair holds have no owner. Observe the hold for a full worker lease.
             $maxLease = max(array_map($this->policy->leaseSeconds(...), StageCode::cases()));
@@ -351,6 +368,23 @@ final readonly class PrepareWorkspace
         }
 
         return new \DateTimeImmutable($attempt->string('db_now')) >= $until->modify("+{$margin} seconds");
+    }
+
+    private function remoteStoredUploadStopped(StorageReservationRequest $reservation): bool
+    {
+        $margin = $this->remoteStopMargin($reservation->disk);
+
+        return $margin !== null && $this->capacity->storedUploadLeaseExpired(request: $reservation, graceSeconds: $margin) === true;
+    }
+
+    private function remoteStopMargin(string $disk): ?int
+    {
+        $timeout = config("filesystems.disks.{$disk}.http.timeout");
+        if (config("filesystems.disks.{$disk}.driver") !== 's3' || (! is_float($timeout) && ! is_int($timeout)) || ! is_finite($timeout) || $timeout <= 0) {
+            return null;
+        }
+
+        return (int) ceil($timeout) + self::S3_GRACE_SECONDS;
     }
 
     private function writeFileOwner(StorageReservationRequest $reservation, string $path): void

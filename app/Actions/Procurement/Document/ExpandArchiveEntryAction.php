@@ -10,8 +10,11 @@ use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\DocumentStoreRepository;
+use App\Repositories\Procurement\Document\StorageCapacityRepository;
+use App\Services\Procurement\Document\ArtifactGarbageCollector;
 use App\Services\Procurement\Document\BlobStore;
 use App\Services\Procurement\Document\StoredDocumentWriter;
+use App\Services\Procurement\Process\ProcessLog;
 use App\Services\Storage\FileLocationResolver;
 use App\Support\Files\MimeDetector;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +26,8 @@ final readonly class ExpandArchiveEntryAction
         private FileLocationResolver $locations,
         private BlobStore $blobs,
         private StoredDocumentWriter $writer,
+        private StorageCapacityRepository $capacity,
+        private ArtifactGarbageCollector $gc,
     ) {}
 
     public function execute(Document $parent, DocumentVersion $parentVersion, string $entryPath, string $localPath, int $childOrdinal = 0): DocumentVersion
@@ -32,6 +37,7 @@ final readonly class ExpandArchiveEntryAction
             throw new \RuntimeException("Не удалось прочитать извлечённую запись архива: {$entryPath}");
         }
 
+        $reservation = null;
         try {
             $sizeBytes = fstat($stream)['size'] ?? null;
             $prefix = fread($stream, 8192);
@@ -49,25 +55,30 @@ final readonly class ExpandArchiveEntryAction
 
             $hash = new ContentHash(hex: hash_final($context));
             $mime = MimeDetector::of($prefix);
-            $diskName = $this->locations->currentDocumentsDisk();
-            $storagePath = $this->blobs->put(
-                reservation: new StoredBlobUpload(disk: $diskName, hash: $hash, sizeBytes: $sizeBytes),
+            $reservation = $this->capacity->reserveStoredUpload(disk: $this->locations->currentDocumentsDisk(), sizeBytes: $sizeBytes);
+            $upload = $this->blobs->put(
+                reservation: new StoredBlobUpload(reservation: $reservation, hash: $hash, sizeBytes: $sizeBytes),
                 source: $stream,
+            );
+
+            return $this->writer->archiveEntry(
+                parent: $parent,
+                parentVersion: $parentVersion,
+                entryPath: $entryPath,
+                ordinal: $childOrdinal,
+                attributes: ['filename' => basename($entryPath), 'mime' => $mime],
+                upload: $upload,
             );
         } finally {
             fclose($stream);
+            if ($reservation !== null) {
+                try {
+                    $this->gc->cleanup($reservation);
+                } catch (\Throwable $failure) {
+                    ProcessLog::dependencyUnavailable('storage', $failure);
+                }
+            }
         }
-
-        return $this->writer->archiveEntry(
-            parent: $parent,
-            parentVersion: $parentVersion,
-            entryPath: $entryPath,
-            ordinal: $childOrdinal,
-            attributes: [
-                'content_hash' => $hash->hex, 'size_bytes' => $sizeBytes, 'filename' => basename($entryPath),
-                'mime' => $mime, 'storage_path' => $storagePath, 'disk' => $diskName,
-            ],
-        );
     }
 
     public function markParentExpanded(Document $parent): void
