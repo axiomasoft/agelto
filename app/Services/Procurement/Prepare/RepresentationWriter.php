@@ -9,8 +9,8 @@ use App\Enums\Procurement\Document\RepresentationKind;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use Illuminate\Contracts\Filesystem\Filesystem;
-use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Str;
+use League\Flysystem\FilesystemException;
 
 final readonly class RepresentationWriter
 {
@@ -57,7 +57,6 @@ final readonly class RepresentationWriter
         [$contentHash] = $this->hash($stream);
         $storagePath = $this->contentAddressedPath(path: $path, contentHash: $contentHash);
         $stagingPath = "{$storagePath}.staging.".Str::uuid();
-        $stagedWritten = false;
 
         try {
             $this->rewind($stream);
@@ -65,7 +64,6 @@ final readonly class RepresentationWriter
             if ($disk->writeStream(path: $stagingPath, resource: $stream) !== true) {
                 throw new \RuntimeException("Не удалось сохранить staging representation: {$stagingPath}");
             }
-            $stagedWritten = true;
 
             [$stagedHash] = $this->hashStored(disk: $disk, path: $stagingPath);
 
@@ -99,15 +97,13 @@ final readonly class RepresentationWriter
             if ($disk->exists(path: $stagingPath)) {
                 $disk->delete($stagingPath);
             }
-
-            if ($stagedWritten || $disk instanceof FilesystemAdapter) {
-                $this->cleanupOrphanedStaging(disk: $disk, path: $path, storagePath: $storagePath, currentStagingPath: $stagingPath);
-            }
         }
 
         if (! hash_equals($contentHash, $storedHash)) {
             throw new \RuntimeException("Object storage вернул неполный representation: {$storagePath}");
         }
+
+        $this->cleanupOrphanedStaging(disk: $disk, path: $path, currentStagingPath: $stagingPath);
 
         $attributes['storage_path'] = $storagePath;
         $attributes['size_bytes'] = $storedSize;
@@ -180,25 +176,32 @@ final readonly class RepresentationWriter
         return "{$stem}.{$contentHash}.{$extension}";
     }
 
-    private function cleanupOrphanedStaging(Filesystem $disk, string $path, string $storagePath, string $currentStagingPath): void
+    private function cleanupOrphanedStaging(Filesystem $disk, string $path, string $currentStagingPath): void
     {
-        foreach ($disk->files(dirname($storagePath)) as $candidate) {
-            if ($candidate !== $currentStagingPath && $this->isStagingPathFor(candidate: $candidate, path: $path, storagePath: $storagePath)) {
-                $disk->delete($candidate);
+        $cutoff = now()->getTimestamp() - config()->integer('documents.temporary_stale_seconds');
+
+        try {
+            foreach ($disk->files(dirname($path)) as $candidate) {
+                if ($candidate !== $currentStagingPath
+                    && $this->isStagingPathFor(candidate: $candidate, path: $path)
+                    && $disk->lastModified($candidate) < $cutoff) {
+                    $disk->delete($candidate);
+                }
             }
+        } catch (FilesystemException $exception) {
+            report($exception);
         }
     }
 
-    private function isStagingPathFor(string $candidate, string $path, string $storagePath): bool
+    private function isStagingPathFor(string $candidate, string $path): bool
     {
-        if (str_starts_with($candidate, "{$storagePath}.staging.") || str_starts_with($candidate, "{$path}.staging.")) {
-            return true;
-        }
-
         $extension = pathinfo($path, PATHINFO_EXTENSION);
-        $prefix = $extension === '' ? "{$path}." : substr($path, 0, -strlen($extension) - 1).'.';
-        $suffix = $extension === '' ? '.staging.' : ".{$extension}.staging.";
+        $stem = $extension === '' ? $path : substr($path, 0, -strlen($extension) - 1);
+        $suffix = $extension === '' ? '' : '\\.'.preg_quote($extension, '~');
+        $hashedPath = preg_quote($stem, '~').'\\.[a-f0-9]{64}'.$suffix;
+        $legacyPath = preg_quote($path, '~');
 
-        return str_starts_with($candidate, $prefix) && str_contains($candidate, $suffix);
+        return preg_match("~^(?:{$hashedPath}|{$legacyPath})\\.staging\\.([0-9a-fA-F-]{36})$~D", $candidate, $matches) === 1
+            && Str::isUuid($matches[1]);
     }
 }

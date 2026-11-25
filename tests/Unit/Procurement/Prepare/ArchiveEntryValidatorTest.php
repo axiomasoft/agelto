@@ -125,13 +125,18 @@ test('просроченный archive deadline не запускает новы
 });
 
 test('solid 7z member без собственного Packed Size не считается zero-byte metadata', function (): void {
-    $entries = app(ArchiveEntryValidator::class)->validate([
+    $validator = app(ArchiveEntryValidator::class);
+    $entries = [
         archiveEntry('first.txt', size: 4, compressed: 2),
-        archiveEntry('second.txt', size: 1, compressed: null),
-    ], archiveBudget());
+        archiveEntry('second.txt', size: 4, compressed: null),
+    ];
+    $budget = archiveBudget();
+    $validated = $validator->validate($entries, $budget, archiveSizeBytes: 3);
 
-    expect($entries)->toHaveCount(2)
-        ->and($entries[1]->compressedSize)->toBeNull();
+    expect($validated)->toHaveCount(2)
+        ->and($validated[1]->compressedSize)->toBeNull()
+        ->and(fn () => $validator->validate($entries, $budget))->toThrow(ArchiveValidationException::class, 'физический размер архива')
+        ->and(fn () => $validator->validate($entries, $budget, archiveSizeBytes: 2))->toThrow(ArchiveValidationException::class, 'суммарный коэффициент сжатия');
 });
 
 test('реальные solid 7z, non-solid 7z и zip проходят listing, validation и bounded extraction', function (string $format, array $options): void {
@@ -166,6 +171,7 @@ test('реальные solid 7z, non-solid 7z и zip проходят listing, v
         $entries = app(ArchiveEntryValidator::class)->validate(
             $extractor->listEntries(archivePath: $archive, format: $format),
             $budget,
+            archiveSizeBytes: filesize($archive),
         );
         $files = array_values(array_filter($entries, fn (ArchiveEntry $entry): bool => ! $entry->isDirectory));
         $totalBytes = 0;

@@ -233,6 +233,7 @@ return [
         'soffice_bin' => env('AI_TOOLS_SOFFICE_BIN', 'soffice'),
         'sevenzip_bin' => env('AI_TOOLS_SEVENZIP_BIN', '7z'),
         'unar_bin' => env('AI_TOOLS_UNAR_BIN', 'unar'),
+        'lsar_bin' => env('AI_TOOLS_LSAR_BIN', 'lsar'),
         'tesseract_bin' => env('AI_TOOLS_TESSERACT_BIN', 'tesseract'),
         'ocrmypdf_bin' => env('AI_TOOLS_OCRMYPDF_BIN', 'ocrmypdf'),
         'pdftotext_bin' => env('AI_TOOLS_PDFTOTEXT_BIN', 'pdftotext'),

@@ -137,7 +137,8 @@ final class ArchiveExtractor
     /** @return list<ArchiveEntry> */
     private function listSevenZip(string $archivePath, ?float $deadlineAt): array
     {
-        $output = $this->runTool(
+        $entries = [];
+        $this->runTool(
             command: [
                 $this->configString('ai.tools.sevenzip_bin'),
                 'l',
@@ -148,40 +149,70 @@ final class ArchiveExtractor
             ],
             archivePath: $archivePath,
             deadlineAt: $deadlineAt,
+            consumeOutput: function ($input) use ($archivePath, $deadlineAt, &$entries): void {
+                $entries = $this->readSevenZipListing($input, $archivePath, $deadlineAt);
+            },
         );
 
-        [$headerSection, $afterSeparator] = array_pad(explode('----------', $output, 2), 2, '');
-        if (preg_match('/^Encrypted\s*=\s*\+/m', $headerSection) === 1) {
-            throw new ArchivePasswordProtectedException('архив содержит зашифрованные заголовки');
+        return $entries;
+    }
+
+    /**
+     * @param  resource  $input
+     * @return list<ArchiveEntry>
+     */
+    private function readSevenZipListing($input, string $archivePath, ?float $deadlineAt): array
+    {
+        $entries = [];
+        $fields = [];
+        $readingEntries = false;
+        while (($line = fgets($input)) !== false) {
+            $this->assertWithinDeadline(deadlineAt: $deadlineAt);
+            $line = rtrim($line, "\r\n");
+            if (! $readingEntries) {
+                if (preg_match('/^Encrypted\s*=\s*\+/', $line) === 1) {
+                    throw new ArchivePasswordProtectedException('архив содержит зашифрованные заголовки');
+                }
+                $readingEntries = $line === '----------';
+
+                continue;
+            }
+            if ($line === '') {
+                $entry = $this->parseSevenZipEntry($fields, $archivePath);
+                if ($entry !== null) {
+                    $entries[] = $entry;
+                }
+                $fields = [];
+
+                continue;
+            }
+            $parts = explode(' = ', $line, 2);
+            if (isset($parts[1])) {
+                $fields[$parts[0]] = $parts[1];
+            }
         }
 
-        $entries = [];
-        foreach (preg_split('/\n{2,}/', trim($afterSeparator)) ?: [] as $block) {
-            $parsed = $this->parseSevenZipEntryBlock($block, $archivePath);
-            if ($parsed !== null) {
-                $entries[] = $parsed;
-            }
+        if (! feof($input)) {
+            throw new ArchiveUnsupportedException('ошибка чтения списка записей 7z');
+        }
+        $entry = $this->parseSevenZipEntry($fields, $archivePath);
+        if ($entry !== null) {
+            $entries[] = $entry;
         }
 
         return $entries;
     }
 
-    private function parseSevenZipEntryBlock(string $block, string $archivePath): ?ArchiveEntry
+    /** @param array<string, string> $values */
+    private function parseSevenZipEntry(array $values, string $archivePath): ?ArchiveEntry
     {
-        $values = [];
-        foreach (explode("\n", $block) as $line) {
-            [$key, $value] = array_pad(explode(' = ', trim($line), 2), 2, null);
-            if ($key !== null && $value !== null) {
-                $values[$key] = $value;
-            }
-        }
         if (! isset($values['Path'])) {
             return null;
         }
-        $rawPath = (string) $values['Path'];
+        $rawPath = $values['Path'];
         $path = $this->decodeEntryName($rawPath);
         $this->rememberRawMemberPath($archivePath, $rawPath, $path);
-        $attributes = (string) ($values['Attributes'] ?? '');
+        $attributes = $values['Attributes'] ?? '';
         $isDirectory = str_contains($attributes, 'D') || (($values['Folder'] ?? '') === '+') || str_ends_with($path, '/') || str_ends_with($path, '\\');
         $isSymlink = str_contains($attributes, 'L') || (($values['Symbolic Link'] ?? '') !== '');
         $isHardLink = ($values['Hard Link'] ?? '') !== '';
@@ -191,7 +222,7 @@ final class ArchiveExtractor
             path: $path,
             declaredSize: (int) ($values['Size'] ?? 0),
             // Solid 7z stores Packed Size on the block, not on every member.
-            compressedSize: isset($values['Packed Size']) ? (int) $values['Packed Size'] : null,
+            compressedSize: ($values['Packed Size'] ?? '') !== '' ? (int) $values['Packed Size'] : null,
             isDirectory: $isDirectory,
             isEncrypted: ($values['Encrypted'] ?? '') === '+',
             type: $type,
@@ -247,7 +278,7 @@ final class ArchiveExtractor
     private function listRar(string $archivePath, ?float $deadlineAt): array
     {
         $output = $this->runTool(
-            command: [$this->requiredString(config('ai.tools.lsar_bin', 'lsar'), 'ai.tools.lsar_bin'), '-json', '--'],
+            command: [$this->configString('ai.tools.lsar_bin'), '-json', '--'],
             archivePath: $archivePath,
             deadlineAt: $deadlineAt,
         );
@@ -284,7 +315,7 @@ final class ArchiveExtractor
     {
         $this->closeZip();
         $zip = new ZipArchive;
-        if ($zip->open($archivePath, ZipArchive::CHECKCONS) !== true) {
+        if ($zip->open($archivePath, ZipArchive::RDONLY | ZipArchive::CHECKCONS) !== true) {
             throw new ArchiveUnsupportedException("не удалось открыть ZIP-архив: {$archivePath}");
         }
         $this->openZip = $zip;
@@ -404,12 +435,11 @@ final class ArchiveExtractor
             while (! feof($input)) {
                 $this->assertWithinDeadline(deadlineAt: $deadlineAt);
                 $chunk = fread($input, 65536);
-                if ($chunk === false) {
-                    throw new ArchiveUnsupportedException('ошибка чтения ZIP entry');
+                if ($chunk === false || ($chunk === '' && ! feof($input))) {
+                    throw new ArchiveUnsupportedException('ошибка чтения записи архива');
                 }
                 $bytes += strlen($chunk);
-                $totalBytes += strlen($chunk);
-                if ($bytes > $entry->declaredSize || $bytes > $budget->maxEntryBytes || $totalBytes > $budget->maxTotalBytes) {
+                if ($bytes > $entry->declaredSize || $bytes > $budget->maxEntryBytes || $totalBytes + $bytes > $budget->maxTotalBytes) {
                     throw new ArchiveValidationException('фактические байты записи архива превысили бюджет');
                 }
                 if (fwrite($output, $chunk) !== strlen($chunk)) {
@@ -425,6 +455,7 @@ final class ArchiveExtractor
             throw $exception;
         }
         fclose($output);
+        $totalBytes += $bytes;
     }
 
     private function rejectByOutput(string $output): never

@@ -49,7 +49,7 @@ function buildRawEncodedZip(array $rawEntries): string
     return $archivePath;
 }
 
-test('ExpandArchiveEntryAction записывает файл потоком, определяет MIME по префиксу 8 KiB и проверяет реальный read-back из хранилища', function (): void {
+test('запись архива размером 100 МиБ сохраняется потоком с определением MIME и проверкой SHA-256', function (): void {
     $diskName = (string) config('documents.disk');
     $disk = Storage::fake($diskName);
 
@@ -57,10 +57,25 @@ test('ExpandArchiveEntryAction записывает файл потоком, о�
     $parentVersion = DocumentVersion::factory()->create(['document_id' => $parent->id]);
 
     $localFile = PipelineTemporaryFile::create(prefix: 'entry_stream_', extension: 'pdf');
-    $pdfContent = "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n".str_repeat('A', 20000)."\n%%EOF";
-    file_put_contents($localFile, $pdfContent);
+    $pdfPrefix = "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF";
+    $sizeBytes = 100 * 1024 * 1024;
 
     try {
+        $file = fopen($localFile, 'wb');
+        expect($file)->toBeResource();
+        try {
+            expect(fwrite($file, $pdfPrefix))->toBe(strlen($pdfPrefix))
+                ->and(ftruncate($file, $sizeBytes))->toBeTrue();
+        } finally {
+            fclose($file);
+        }
+
+        $expectedHash = hash_file('sha256', $localFile);
+        expect($expectedHash)->toBeString();
+        $expectedPath = ShardedBlobPath::for($expectedHash);
+
+        memory_reset_peak_usage();
+        $initialMemory = memory_get_usage();
         $childVersion = app(ExpandArchiveEntryAction::class)->execute(
             parent: $parent,
             parentVersion: $parentVersion,
@@ -68,17 +83,19 @@ test('ExpandArchiveEntryAction записывает файл потоком, о�
             localPath: $localFile,
             childOrdinal: 1,
         );
-
-        $expectedHash = hash('sha256', $pdfContent);
-        $expectedPath = ShardedBlobPath::for($expectedHash);
+        $extraMemory = memory_get_peak_usage() - $initialMemory;
 
         expect($childVersion->content_hash)->toBe($expectedHash)
-            ->and($childVersion->size_bytes)->toBe(strlen($pdfContent))
+            ->and($childVersion->size_bytes)->toBe($sizeBytes)
             ->and($childVersion->mime)->toContain('pdf')
             ->and($childVersion->storage_path)->toBe($expectedPath)
-            ->and($disk->get($expectedPath))->toBe($pdfContent);
+            ->and(hash_file('sha256', $disk->path($expectedPath)))->toBe($expectedHash)
+            ->and($extraMemory)->toBeLessThan(32 * 1024 * 1024);
     } finally {
         @unlink($localFile);
+        if (isset($expectedPath)) {
+            $disk->delete($expectedPath);
+        }
     }
 });
 
@@ -99,8 +116,8 @@ test('ExpandArchiveEntryAction отклоняет загрузку при рас
     $mockDisk->shouldReceive('put')
         ->once()
         ->with($expectedPath, Mockery::type('resource'))
-        ->andReturnUsing(function (string $path) use ($baseDisk): bool {
-            $baseDisk->getDriver()->write($path, 'обрезанные или подменённые байты');
+        ->andReturnUsing(function (string $path) use ($baseDisk, $payload): bool {
+            $baseDisk->getDriver()->write($path, str_repeat('x', strlen($payload)));
 
             return true;
         });
@@ -237,6 +254,40 @@ test('ArchiveExtractor передаёт разделитель опций -- в 
     }
 });
 
+test('расхождение фактического размера записи не оставляет выходной файл и не расходует общий бюджет', function (string $payload): void {
+    FakePrepareTools::instance()->configure(
+        key: 'unar_bin',
+        code: 'sys.stdout.write(data["payload"])',
+        data: ['payload' => $payload],
+    );
+    $archive = PipelineTemporaryFile::create(prefix: 'rar_size_', extension: 'rar');
+    $directory = PipelineTemporaryFile::createDirectory(prefix: 'rar_output_');
+    $target = "{$directory}/entry.txt";
+    $totalBytes = 2;
+
+    try {
+        expect(function () use ($archive, $target, &$totalBytes): void {
+            app(ArchiveExtractor::class)->extractEntry(
+                archivePath: $archive,
+                format: 'rar',
+                entry: new ArchiveEntry(path: 'entry.txt', declaredSize: 7, compressedSize: 7),
+                targetPath: $target,
+                budget: ArchiveBudget::fromConfig(),
+                totalBytes: $totalBytes,
+            );
+        })->toThrow(ArchiveValidationException::class);
+
+        expect(file_exists($target))->toBeFalse()
+            ->and($totalBytes)->toBe(2);
+    } finally {
+        @unlink($archive);
+        File::deleteDirectory($directory);
+    }
+})->with([
+    'лишние байты' => ['12345678'],
+    'неполная запись' => ['123456'],
+]);
+
 test('solid 7z с превышением коэффициента сжатия относительно физического размера архива и записи Hard Link отклоняются', function (): void {
     $diskName = (string) config('documents.disk');
     $disk = Storage::fake($diskName);
@@ -326,7 +377,7 @@ test('solid 7z с превышением коэффициента сжатия �
     }
 });
 
-test('RepresentationWriter очищает осиротевшие .staging.<uuid> объекты после аварийного завершения предыдущей попытки', function (): void {
+test('повторная запись представления удаляет старые staging-объекты и сохраняет свежие записи и соседние файлы', function (): void {
     $version = DocumentVersion::factory()->create();
     $disk = Storage::fake('representation-orphan-cleanup');
     $content = '%PDF-1.4 cleaned representation';
@@ -337,11 +388,17 @@ test('RepresentationWriter очищает осиротевшие .staging.<uuid>
 
     $orphanSameHash = "{$storagePath}.staging.11111111-1111-4111-8111-111111111111";
     $orphanOtherHash = "documents/ab/sample.prepared.{$otherHash}.pdf.staging.22222222-2222-4222-8222-222222222222";
-    $unrelatedFile = 'documents/ab/unrelated.pdf';
+    $activeStaging = "{$storagePath}.staging.33333333-3333-4333-8333-333333333333";
+    $unrelatedFile = 'documents/ab/sample.prepared.other.pdf.staging.44444444-4444-4444-8444-444444444444';
 
     $disk->put($orphanSameHash, 'crashed partial 1');
     $disk->put($orphanOtherHash, 'crashed partial 2');
+    $disk->put($activeStaging, 'active bytes');
     $disk->put($unrelatedFile, 'keep me');
+    $stale = now()->getTimestamp() - config()->integer('documents.temporary_stale_seconds') - 1;
+    foreach ([$orphanSameHash, $orphanOtherHash, $unrelatedFile] as $oldFile) {
+        expect(touch($disk->path($oldFile), $stale))->toBeTrue();
+    }
 
     $representation = app(RepresentationWriter::class)->write(
         disk: $disk,
@@ -362,7 +419,8 @@ test('RepresentationWriter очищает осиротевшие .staging.<uuid>
     expect($representation->storage_path)->toBe($storagePath)
         ->and($disk->exists($orphanSameHash))->toBeFalse()
         ->and($disk->exists($orphanOtherHash))->toBeFalse()
-        ->and($disk->exists($unrelatedFile))->toBeTrue()
+        ->and($disk->get($activeStaging))->toBe('active bytes')
+        ->and($disk->get($unrelatedFile))->toBe('keep me')
         ->and($disk->get($storagePath))->toBe($content)
-        ->and(collect($disk->allFiles())->contains(fn (string $file): bool => str_contains($file, '.staging.')))->toBeFalse();
+        ->and($disk->allFiles())->toEqualCanonicalizing([$storagePath, $activeStaging, $unrelatedFile]);
 });

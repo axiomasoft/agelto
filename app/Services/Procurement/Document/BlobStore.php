@@ -6,6 +6,7 @@ namespace App\Services\Procurement\Document;
 
 use App\Dto\Procurement\Document\BlobReference;
 use App\Dto\Procurement\Document\StorageReservationRequest;
+use App\Dto\Procurement\Document\StoredBlobUpload;
 use App\Dto\Procurement\Document\VerifiedArtifact;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionContext;
@@ -15,9 +16,11 @@ use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Repositories\Procurement\Process\LedgerRow;
+use App\Support\Files\ShardedBlobPath;
 use Aws\CommandInterface;
 use Aws\Middleware;
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Local\LocalFilesystemAdapter;
@@ -28,14 +31,20 @@ final readonly class BlobStore
     public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc,
         private PrepareWorkspace $workspace, private ArtifactRepository $artifacts) {}
 
-    /** @param resource $source */
-    public function put(StorageReservationRequest $reservation, $source, StorageReservationRequest $temporary, ?ExecutionContext $execution = null, bool $cleanupTemporary = true): VerifiedArtifact
+    /**
+     * @param  resource  $source
+     * @return ($reservation is StoredBlobUpload ? string : VerifiedArtifact)
+     */
+    public function put(StorageReservationRequest|StoredBlobUpload $reservation, $source, ?StorageReservationRequest $temporary = null, ?ExecutionContext $execution = null, bool $cleanupTemporary = true): VerifiedArtifact|string
     {
         $this->outsideTransaction();
         if (! is_resource($source) || get_resource_type($source) !== 'stream') {
             throw new \InvalidArgumentException('Expected a readable stream.');
         }
-        if ($temporary->domainId == $reservation->domainId || $temporary->byteUpperBound < $reservation->byteUpperBound
+        if ($reservation instanceof StoredBlobUpload) {
+            return $this->putStored($reservation, $source);
+        }
+        if ($temporary === null || $temporary->domainId == $reservation->domainId || $temporary->byteUpperBound < $reservation->byteUpperBound
             || ! Storage::disk($temporary->disk)->getAdapter() instanceof LocalFilesystemAdapter) {
             throw new \InvalidArgumentException('Upload spool needs a separate local temporary capacity reservation.');
         }
@@ -124,6 +133,37 @@ final readonly class BlobStore
                     $this->gc->cleanup($temporary);
                 }
             }
+        }
+    }
+
+    /** @param resource $source */
+    private function putStored(StoredBlobUpload $upload, $source): string
+    {
+        $path = ShardedBlobPath::for($upload->hash->hex);
+        $disk = Storage::disk($upload->disk);
+        $lock = @fopen(sys_get_temp_dir()."/agelto_archive_blob_{$upload->hash->hex}.lock", 'c');
+        if (! is_resource($lock)) {
+            throw new ArtifactUnavailable("Не удалось открыть блокировку записи блоба: {$path}");
+        }
+
+        try {
+            if (! flock($lock, LOCK_EX)) {
+                throw new ArtifactUnavailable("Не удалось получить блокировку записи блоба: {$path}");
+            }
+            if (! $disk->exists($path) && (! rewind($source) || ! $disk->put($path, $source))) {
+                throw new ArtifactUnavailable("Не удалось сохранить запись архива в object storage: {$path}");
+            }
+
+            $reader = $disk instanceof AwsS3V3Adapter
+                ? Storage::build([...$disk->getConfig(), 'stream_reads' => true])
+                : $disk;
+            if (! $this->matchesBlob(disk: $reader, key: $path, expectedHash: $upload->hash, expectedSize: $upload->sizeBytes, execution: null)) {
+                throw new ArtifactUnavailable("Object storage вернул неполную или другую запись архива: {$path}");
+            }
+
+            return $path;
+        } finally {
+            fclose($lock);
         }
     }
 

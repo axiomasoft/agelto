@@ -5286,7 +5286,7 @@
         },
         {
             "path": "tests/Unit/Procurement/Prepare/ArchiveEntryValidatorTest.php",
-            "sha256": "35e614ce15c6c521fea8f914b80d532608ffa979b30a231d18c65c3223b2f6de",
+            "sha256": "ae85101ec24e4b40ea2430fb84191a8856cfe33f430a69636d0c1dc36630f004",
             "scenarios": [
                 "нормализует допустимый путь",
                 "отклоняет hostile пути, коллизии и special entry",
