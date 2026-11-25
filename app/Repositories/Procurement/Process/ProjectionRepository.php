@@ -285,55 +285,85 @@ final readonly class ProjectionRepository
     }
 
     /**
-     * Необратимо помечает историю projector неполной (первое значение pruned_at сохраняется); вызывается
-     * retention writer-ом под FOR UPDATE этих state rows, в одной tx с удалением событий.
-     *
      * @param  list<string>  $projectorKeys
+     * @return array<string, ProjectionMode> режимы существующих и заблокированных projectors
      */
-    public function markHistoryPruned(array $projectorKeys): void
+    public function lockPruneStates(array $projectorKeys): array
     {
-        CallerTransaction::require('Projection history pruned mark');
-        if ($projectorKeys === []) {
-            return;
+        CallerTransaction::require('Projection history state locks');
+        $states = [];
+        foreach (LedgerRow::all(
+            sql: 'SELECT projector_key, mode FROM prc_process_projection_states
+                  WHERE projector_key IN ('.LedgerRow::placeholders(count($projectorKeys)).')
+                  ORDER BY projector_key COLLATE "C" FOR UPDATE',
+            bindings: $projectorKeys,
+        ) as $row) {
+            $states[$row->string('projector_key')] = ProjectionMode::from($row->string('mode'));
         }
-        DB::update(
-            'UPDATE prc_process_projection_states
-             SET history_complete = false, history_pruned_at = COALESCE(history_pruned_at, clock_timestamp())
-             WHERE projector_key IN ('.LedgerRow::placeholders(count($projectorKeys)).')',
-            $projectorKeys,
-        );
+
+        return $states;
     }
 
     /**
-     * @param  list<string>  $projectorKeys
-     * @return list<string> ключи, у которых receipt события уже есть
+     * Читается после захвата state locks. Параллельный prune мог уже удалить события из batch.
+     *
+     * @param  list<ProcessUuid>  $eventIds
+     * @return array<string, array{receiptKeys: list<string>, fanoutPending: bool}>
      */
-    public function receiptKeys(ProcessUuid $eventId, array $projectorKeys): array
+    public function pruneEventStatus(array $eventIds): array
     {
-        return array_map(
-            static fn (LedgerRow $row): string => $row->string('projector_key'),
-            LedgerRow::all(
-                'SELECT projector_key FROM prc_process_projection_receipts WHERE event_id = ? AND projector_key IN ('.LedgerRow::placeholders(count($projectorKeys)).')',
-                [$eventId->value, ...$projectorKeys],
-            ),
-        );
+        CallerTransaction::require('Projection history eligibility');
+        $events = [];
+        foreach (LedgerRow::all(sql: <<<'SQL'
+            SELECT t.event_id::text AS event_id, r.projector_key, o.message_id IS NOT NULL AS fanout_pending
+            FROM prc_process_transitions t
+            LEFT JOIN prc_process_projection_receipts r ON r.event_id = t.event_id
+            LEFT JOIN prc_process_outbox o ON o.dedup_key = 'project:' || t.event_id::text
+                 AND o.kind = 'projection' AND o.published_at IS NULL
+            WHERE t.event_id = ANY(?::uuid[])
+            SQL, bindings: [self::uuidArray($eventIds)]) as $row) {
+            $id = $row->string('event_id');
+            $events[$id] ??= ['receiptKeys' => [], 'fanoutPending' => $row->bool('fanout_pending')];
+            $key = $row->nullableString('projector_key');
+            if ($key !== null) {
+                $events[$id]['receiptKeys'][] = $key;
+            }
+        }
+
+        return $events;
     }
 
-    /** Unpublished projection fanout события: retention не удаляет source, пока consumer не подтверждён. */
-    public function fanoutPending(ProcessUuid $eventId): bool
-    {
-        return LedgerRow::one(
-            "SELECT 1 AS pending FROM prc_process_outbox WHERE dedup_key = ? AND kind = 'projection' AND published_at IS NULL",
-            ['project:'.$eventId->value],
-        ) !== null;
-    }
-
-    /** Удаление истории: receipts (RESTRICT FK) затем событие; только из retention writer. */
-    public function deleteEvent(ProcessUuid $eventId): void
+    /**
+     * Под state locks удаляет receipts и их события одним statement (RESTRICT проверяется в конце
+     * statement), необратимо помечает историю затронутых projectors и сохраняет первое pruned_at.
+     *
+     * @param  list<ProcessUuid>  $eventIds
+     * @param  list<string>  $projectorKeys
+     */
+    public function pruneEvents(array $eventIds, array $projectorKeys): int
     {
         CallerTransaction::require('Projection history delete');
-        DB::delete('DELETE FROM prc_process_projection_receipts WHERE event_id = ?', [$eventId->value]);
-        DB::delete('DELETE FROM prc_process_transitions WHERE event_id = ?', [$eventId->value]);
+        if ($eventIds === []) {
+            return 0;
+        }
+        $keys = LedgerRow::placeholders(count($projectorKeys));
+        $ids = self::uuidArray($eventIds);
+
+        return (LedgerRow::one(sql: <<<SQL
+            WITH removed_receipts AS (
+                DELETE FROM prc_process_projection_receipts WHERE event_id = ANY(?::uuid[])
+            ),
+            removed_events AS (
+                DELETE FROM prc_process_transitions WHERE event_id = ANY(?::uuid[])
+                RETURNING event_id
+            ),
+            marked AS (
+                UPDATE prc_process_projection_states
+                SET history_complete = false, history_pruned_at = COALESCE(history_pruned_at, clock_timestamp())
+                WHERE projector_key IN ({$keys}) AND EXISTS (SELECT 1 FROM removed_events)
+            )
+            SELECT count(*) AS pruned FROM removed_events
+            SQL, bindings: [$ids, $ids, ...$projectorKeys]) ?? throw new \LogicException('Aggregate query always returns a row.'))->int('pruned');
     }
 
     private function fetchState(string $projectorKey, string $lock): ?ProjectionState

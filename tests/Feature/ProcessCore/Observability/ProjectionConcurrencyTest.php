@@ -732,12 +732,12 @@ test('cleanup неактивных generation ждёт идущий apply под
         ->and(Fixture::total('work_transitions', 'work_transition_total', Fixture::workDimension('listing', 'succeeded')))->toBe(1);
 });
 
-/** Prune двух событий в отдельном процессе; first DELETE ledger event уже выполнен, когда listener убивает процесс. */
+/** Prune двух событий в отдельном процессе; bulk DELETE ledger events выполнен, когда listener убивает процесс. */
 function projConcKillDuringPruneCode(string $marker, ProcessUuid $first, ProcessUuid $second): string
 {
     return str_replace('__KILL__', projConcSelfKill($marker, 'during-prune'), <<<'PHP'
         \Illuminate\Support\Facades\DB::listen(static function ($query): void {
-            if (str_starts_with($query->sql, 'DELETE FROM prc_process_transitions')) {
+            if (str_contains($query->sql, 'DELETE FROM prc_process_transitions')) {
                 __KILL__
             }
         });
@@ -756,7 +756,7 @@ function projConcPrunable(): array
     return ['first' => $scenario['running'], 'second' => $scenario['succeeded']];
 }
 
-test('retention: SIGKILL после первого DELETE ledger event откатывает весь batch; история полна; повтор prune завершает, затем no-op', function (): void {
+test('retention: SIGKILL после удаления ledger events откатывает весь batch; история полна; повтор prune завершает, затем no-op', function (): void {
     $events = projConcPrunable();
     $marker = (string) tempnam(sys_get_temp_dir(), 'p118-kill-');
 

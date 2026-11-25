@@ -23,6 +23,23 @@ final readonly class OutboxRepository
 {
     public function __construct(private ProcessPayloadCodec $codec) {}
 
+    public function prunePublished(int $retentionDays, int $limit): int
+    {
+        if ($retentionDays < 1 || $limit < 1) {
+            throw new \InvalidArgumentException('Outbox retention needs a positive age and batch limit.');
+        }
+
+        return DB::delete(query: <<<'SQL'
+            WITH picked AS (
+                SELECT message_id FROM prc_process_outbox
+                WHERE published_at IS NOT NULL
+                  AND published_at < (SELECT clock_timestamp() - make_interval(secs => ?::double precision * 86400))
+                ORDER BY published_at, message_id LIMIT ? FOR UPDATE SKIP LOCKED
+            )
+            DELETE FROM prc_process_outbox o USING picked WHERE o.message_id = picked.message_id
+            SQL, bindings: [$retentionDays, $limit]);
+    }
+
     /**
      * Wake одной delivery generation: dedup `wake:<work>:<dispatch_generation>`; конфликт — ошибка,
      * два wake одного admission невозможны. Задержка считается от DB clock.

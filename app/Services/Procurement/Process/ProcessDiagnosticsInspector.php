@@ -120,7 +120,7 @@ final readonly class ProcessDiagnosticsInspector
         $rows = Document::query()
             ->whereIn('status', [DocumentStatus::Discovered->value, DocumentStatus::Downloaded->value, DocumentStatus::Prepared->value, DocumentStatus::Screened->value])
             ->where('failed_permanently', false)
-            ->where('updated_at', '<=', now()->subMinutes($minutes))
+            ->whereRaw(sql: "updated_at <= clock_timestamp() - (? * interval '1 minute')", bindings: [$minutes])
             ->toBase()
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
@@ -152,7 +152,7 @@ final readonly class ProcessDiagnosticsInspector
 
         $count = Analysis::query()
             ->where('step', AnalysisStep::Screening->value)
-            ->where('updated_at', '>=', now()->subHours($windowHours))
+            ->whereRaw(sql: "updated_at >= clock_timestamp() - (? * interval '1 hour')", bindings: [$windowHours])
             ->whereRaw("result->'decision'->>'reason' = ?", [ScreeningDecisionReason::UnknownType->value])
             ->count();
 
@@ -176,7 +176,7 @@ final readonly class ProcessDiagnosticsInspector
 
         $count = Document::query()
             ->where('status', DocumentStatus::Unprocessable->value)
-            ->where('updated_at', '>=', now()->subHours($windowHours))
+            ->whereRaw(sql: "updated_at >= clock_timestamp() - (? * interval '1 hour')", bindings: [$windowHours])
             ->count();
 
         if ($count <= $threshold) {
@@ -199,7 +199,7 @@ final readonly class ProcessDiagnosticsInspector
 
         $count = Estimate::query()
             ->whereIn('validation_status', [EstimateValidationStatus::Suspicious->value, EstimateValidationStatus::Invalid->value])
-            ->where('updated_at', '>=', now()->subHours($windowHours))
+            ->whereRaw(sql: "updated_at >= clock_timestamp() - (? * interval '1 hour')", bindings: [$windowHours])
             ->count();
 
         if ($count <= $threshold) {
@@ -291,11 +291,9 @@ final readonly class ProcessDiagnosticsInspector
     {
         $windowHours = $this->intConfig('process.diagnostic_thresholds.failure_rate_window_hours', 1);
         $thresholdPercent = $this->floatConfig('process.diagnostic_thresholds.failure_rate_threshold_percent', 50.0);
-        $since = now()->subHours($windowHours);
-
         $counts = DB::table('prc_process_transitions as t')->join('prc_process_work as w', 'w.id', '=', 't.work_id')
             ->where('t.entity_kind', 'work')->whereIn('w.stage', ['screening', 'extraction'])
-            ->where('t.occurred_at', '>=', $since)
+            ->whereRaw(sql: "t.occurred_at >= clock_timestamp() - (? * interval '1 hour')", bindings: [$windowHours])
             ->whereIn('t.new_state', ['succeeded', 'failed_item'])
             ->selectRaw("COUNT(*) AS total, COUNT(*) FILTER (WHERE t.new_state = 'failed_item') AS failed")
             ->first();
@@ -336,7 +334,8 @@ final readonly class ProcessDiagnosticsInspector
 
         $recentCompletions = DB::table('prc_process_transitions as t')->join('prc_process_work as w', 'w.id', '=', 't.work_id')
             ->where('t.entity_kind', 'work')->whereIn('w.stage', ['screening', 'extraction'])
-            ->where('t.new_state', 'succeeded')->where('t.occurred_at', '>=', now()->subMinutes($minutes))
+            ->where('t.new_state', 'succeeded')
+            ->whereRaw(sql: "t.occurred_at >= clock_timestamp() - (? * interval '1 minute')", bindings: [$minutes])
             ->exists();
 
         if ($recentCompletions) {
@@ -387,7 +386,7 @@ final readonly class ProcessDiagnosticsInspector
 
         $count = DB::table('prc_process_outbox')
             ->whereNull('published_at')
-            ->where('available_at', '<', now()->subMinutes(15))
+            ->whereRaw("available_at < clock_timestamp() - interval '15 minutes'")
             ->count();
 
         if ($count === 0) {

@@ -38,48 +38,46 @@ final readonly class ProjectionRetention
         $eventIds = array_values(array_unique($eventIds, SORT_REGULAR));
         // Kind неизменяем: безопасно читать до locks, чтобы выбрать state rows для блокировки.
         $kinds = $this->projections->entityKinds($eventIds);
-        $keys = [];
-        foreach ($kinds as $kind) {
-            foreach ($this->registry->forEntityKind($kind) as $reducer) {
-                $keys[$reducer->key()] = true;
-            }
+        if ($kinds === []) {
+            return new PruneResult(0, 0, false);
         }
-        $keys = array_keys($keys);
-        sort($keys);
+        $requiredByKind = [];
+        foreach (array_unique($kinds) as $kind) {
+            $requiredByKind[$kind] = array_map(
+                static fn (ProjectionReducer $reducer): string => $reducer->key(),
+                $this->registry->forEntityKind($kind),
+            );
+        }
+        $keys = array_values(array_unique(array_merge(...array_values($requiredByKind))));
 
-        return $this->transaction->run(function () use ($eventIds, $kinds, $keys): PruneResult {
-            $locked = [];
-            foreach ($keys as $key) {
-                $state = $this->projections->stateForUpdate($key);
-                if ($state !== null && $state->mode === ProjectionMode::Maintenance) {
-                    return PruneResult::maintenance();
-                }
-                $locked[$key] = $state !== null;
+        return $this->transaction->run(function () use ($eventIds, $kinds, $requiredByKind, $keys): PruneResult {
+            $locked = $this->projections->lockPruneStates($keys);
+            if (in_array(ProjectionMode::Maintenance, $locked, strict: true)) {
+                return PruneResult::maintenance();
             }
-            $pruned = 0;
+            $lockedKeys = array_keys($locked);
+            $status = $this->projections->pruneEventStatus($eventIds);
+            $eligible = [];
             $ineligible = 0;
             $touched = [];
             foreach ($eventIds as $eventId) {
                 $kind = $kinds[$eventId->value] ?? null;
-                if ($kind === null) {
+                $event = $status[$eventId->value] ?? null;
+                if ($kind === null || $event === null) {
                     continue; // уже удалено: идемпотентный повтор
                 }
-                $required = array_map(static fn (ProjectionReducer $reducer): string => $reducer->key(), $this->registry->forEntityKind($kind));
-                $complete = array_diff($required, $this->projections->receiptKeys($eventId, $required)) === []
-                    && array_reduce($required, static fn (bool $all, string $key): bool => $all && ($locked[$key] ?? false), true)
-                    && ! $this->projections->fanoutPending($eventId);
-                if (! $complete) {
+                $required = $requiredByKind[$kind];
+                if ($event['fanoutPending'] || array_diff($required, $event['receiptKeys']) !== [] || array_diff($required, $lockedKeys) !== []) {
                     $ineligible++;
 
                     continue;
                 }
-                $this->projections->deleteEvent($eventId);
-                $pruned++;
+                $eligible[] = $eventId;
                 foreach ($required as $key) {
                     $touched[$key] = true;
                 }
             }
-            $this->projections->markHistoryPruned(array_keys($touched));
+            $pruned = $this->projections->pruneEvents(eventIds: $eligible, projectorKeys: array_keys($touched));
 
             return new PruneResult($pruned, $ineligible, false);
         });
