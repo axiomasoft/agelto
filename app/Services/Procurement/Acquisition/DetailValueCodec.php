@@ -113,7 +113,12 @@ final readonly class DetailValueCodec
                 throw new \InvalidArgumentException('Unsupported detail value.');
             }
 
-            return ['type' => $value::class, 'value' => array_map($this->pack(...), get_object_vars($value))];
+            $fields = get_object_vars($value);
+            if ($value instanceof ProcurementSnapshot && $value->initialPrice === null) {
+                unset($fields['initialPrice']);
+            }
+
+            return ['type' => $value::class, 'value' => array_map($this->pack(...), $fields)];
         }
 
         return $value;
@@ -169,6 +174,9 @@ final readonly class DetailValueCodec
         $class = new \ReflectionClass($type);
         if (! $class->isReadOnly()) {
             throw new \InvalidArgumentException('Immutable detail type required.');
+        }
+        if ($type === ProcurementSnapshot::class) {
+            $data += ['initialPrice' => null];
         }
         $params = $class->getConstructor()?->getParameters() ?? [];
         $keys = array_keys($data);

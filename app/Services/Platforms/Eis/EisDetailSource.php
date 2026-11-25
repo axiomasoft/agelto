@@ -164,7 +164,7 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
         return new DetailFetched(new ProcurementSnapshot($s->identity, $s->title, $s->sourceStage,
             $s->parties, $s->items, $s->financing, $s->documents,
             array_values(array_filter($s->parts, static fn (SnapshotPart $p): bool => in_array($p->name, $names, true))),
-            $s->extension, $s->sourceRevision, $s->events, $s->results));
+            $s->extension, $s->sourceRevision, $s->events, $s->results, initialPrice: $s->initialPrice));
     }
 
     private function executePlan(OutboundRequestPlan $plan, string $tab, DetailRequest $request, ExecutionContext|OutboundExecutionContext $context): ResponseEnvelope|FetchDeferred|FetchBlocked
@@ -298,7 +298,8 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
                         $results = $this->parser->supplierResults($body, strict: true);
                         $count = count($results->bids);
                         // An unrecognized/empty layout is partial, never an implicit NotApplicable.
-                        $rows = $dom->filter('div[id^="supplier-def-result-participant-table-"] table.tableBlock tbody tr')->count();
+                        $tables = $dom->filter('div[id^="supplier-def-result-participant-table-"] table.tableBlock');
+                        $rows = $tables->filter('tbody tr')->count();
                         $failedReason = mb_strtolower(CardDomHelper::readDefinitionValue($dom, 'Основание признания торгов несостоявшимися') ?? '');
                         $noBidsExpected = str_contains($failedReason, 'не подано ни одной заявки')
                             || str_contains($failedReason, 'все поданные заявки отклонены')
@@ -306,7 +307,9 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
                             || str_contains($failedReason, 'признан уклонившимся')
                             || str_contains($failedReason, 'признаны уклонившимися')
                             || str_contains($failedReason, 'отказался от заключения контракта');
-                        $complete = $results->protocol !== null && $rows === $count
+                        // Publication supports one group of bids and one award, with no lot identity.
+                        $ambiguous = $tables->count() > 1 || $results->hasMultipleWinners();
+                        $complete = ! $ambiguous && $results->protocol !== null && $rows === $count
                             && ($count > 0 || $results->protocol->type === ProtocolType::Failed->value || $noBidsExpected);
                         break;
                 }
@@ -336,6 +339,6 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
         }
 
         return new DetailFetched(new ProcurementSnapshot($request->identity, $title, $stage, $parties, $common->items,
-            $common->financingRows, $documents, $parts, $common->extension, events: $events, results: $results));
+            $common->financingRows, $documents, $parts, $common->extension, events: $events, results: $results, initialPrice: $common->initialPrice));
     }
 }

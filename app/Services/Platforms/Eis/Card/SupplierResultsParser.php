@@ -215,13 +215,15 @@ final readonly class SupplierResultsParser
      */
     private function buildAward(array $bids, ?ProtocolData $protocol, ?Carbon $formedAt): ?AwardData
     {
-        $winningBid = collect($bids)->first(
+        $winners = array_values(array_filter($bids,
             static fn (BidData $bid): bool => $bid->status === BidStatus::Winner,
-        );
+        ));
 
-        if (! $winningBid instanceof BidData) {
+        if (count($winners) !== 1) {
             return null;
         }
+
+        $winningBid = $winners[0];
 
         return new AwardData(
             winner: $winningBid->organization,

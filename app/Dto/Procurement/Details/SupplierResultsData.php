@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Details;
 
+use App\Enums\Procurement\BidStatus;
+
 /**
  * Итоги вкладки `supplier-results` карточки закупки ЕИС (`SupplierResultsParser::parse()`):
  * протокол, построчные заявки участников и итог (победитель + цена). Пустая вкладка
@@ -19,4 +21,9 @@ final readonly class SupplierResultsData
         public array $bids,
         public ?AwardData $award,
     ) {}
+
+    public function hasMultipleWinners(): bool
+    {
+        return count(array_filter($this->bids, static fn (BidData $bid): bool => $bid->status === BidStatus::Winner)) > 1;
+    }
 }

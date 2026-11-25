@@ -16,7 +16,8 @@ final readonly class HeadSnapshot
     public function __construct(private PlatformRegistry $platforms,
         private ProcurementReadRepository $read) {}
 
-    public function make(Procurement $p, SourceIdentity $identity, ?string $title = null, ?string $stage = null, ?object $extension = null): ProcurementSnapshotData
+    public function make(Procurement $p, SourceIdentity $identity, ?string $title = null, ?string $stage = null,
+        ?object $extension = null, ?string $initialPrice = null): ProcurementSnapshotData
     {
         if ($extension === null) {
             $saved = $this->read->findLatestRevision($p->id)?->snapshot['extension'] ?? null;
@@ -43,7 +44,7 @@ final readonly class HeadSnapshot
             $p->published_at, $p->source_updated_at ?? $p->published_at,
             sourceUpdatedAtHasDayPrecision: $p->source_updated_has_day_precision,
             extension: $extension, procedureType: $p->procedure_type, procedureTypeRaw: $p->procedure_type_raw,
-            initialPrice: $p->initial_price, currency: $p->currency, advancePercent: $p->advance_percent,
+            initialPrice: $initialPrice ?? $p->initial_price, currency: $p->currency, advancePercent: $p->advance_percent,
             okvedCode: $p->okved_code, okvedAdditional: $p->okved_additional, regionCode: $p->region_code,
             biddingStartsAt: $p->bidding_starts_at, biddingEndsAt: $p->bidding_ends_at, summaryAt: $p->summary_at,
             detailUrl: $p->detail_url, attributes: $attributes, sourceUpdatedBefore: $p->source_updated_before);

@@ -73,13 +73,17 @@ test('результаты читают все таблицы с точными 
           <tbody><tr><td>21</td><td>ООО «Победитель»</td><td>7701234567</td><td>770101001</td><td>1</td><td>9 007 199 254 740 993,01</td><td>Победитель</td></tr></tbody>
         </table></div>
         HTML;
-    $results = (new SupplierResultsParser)->parse(html: $html, strict: true);
+    $parser = new SupplierResultsParser;
+    $results = $parser->parse(html: $html, strict: true);
 
     expect(array_column($results->bids, 'bidNumber'))->toBe(['11', '12', '21'])
         ->and(array_column($results->bids, 'status'))->toBe([BidStatus::Rejected, BidStatus::Withdrawn, BidStatus::Winner])
         ->and(array_column($results->bids, 'price'))->toBe(['12.30', null, '9007199254740993.01'])
         ->and($results->award?->finalPrice)->toBe('9007199254740993.01')
         ->and($results->award?->winner?->inn)->toBe('7701234567');
+
+    $twoWinners = $parser->parse(html: str_replace('1 — заявка отклонена', '1 — победитель', $html), strict: true);
+    expect($twoWinners->bids)->toHaveCount(3)->and($twoWinners->award)->toBeNull();
 });
 
 test('старые числовые цены результатов читаются как десятичные строки', function (): void {

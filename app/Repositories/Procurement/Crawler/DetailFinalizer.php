@@ -19,6 +19,8 @@ use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\DetailSnapshotStatus;
 use App\Enums\Procurement\Platform\Completeness;
+use App\Enums\Procurement\Process\BlockedReason;
+use App\Exceptions\Procurement\Process\PublicationBlocked;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Document\DocumentCatalogRepository;
 use App\Repositories\Procurement\Document\DocumentReferenceLocks;
@@ -54,11 +56,16 @@ final readonly class DetailFinalizer implements StagePublicationPreparation, Sta
         }
         $snapshot = $result->snapshot;
         $complete = $this->completeParts($snapshot);
+        $results = isset($complete['results']) ? $snapshot->results : null;
+        // Older checkpoints can contain flattened bids that were incorrectly marked complete.
+        if ($results?->hasMultipleWinners()) {
+            throw new PublicationBlocked(BlockedReason::PolicyReview);
+        }
         if (isset($complete['events'])) {
             $this->events->ensurePartitions($snapshot->events);
         }
-        if ($snapshot->results !== null && isset($complete['results'])) {
-            $this->results->ensurePartitions(data: $snapshot->results, observedAt: Carbon::instance($result->observedAt));
+        if ($results !== null) {
+            $this->results->ensurePartitions(data: $results, observedAt: Carbon::instance($result->observedAt));
         }
     }
 
@@ -101,11 +108,12 @@ final readonly class DetailFinalizer implements StagePublicationPreparation, Sta
         $observedAt = Carbon::instance($result->observedAt);
         $hasAttributes = isset($complete['attributes']);
         $p = $this->snapshots->persistLocked($this->heads->make(
-            $p,
-            $s->identity,
-            $hasAttributes ? $s->title : null,
-            $hasAttributes ? $s->sourceStage : null,
-            $hasAttributes ? $s->extension : null,
+            p: $p,
+            identity: $s->identity,
+            title: $hasAttributes ? $s->title : null,
+            stage: $hasAttributes ? $s->sourceStage : null,
+            extension: $hasAttributes ? $s->extension : null,
+            initialPrice: $hasAttributes ? $s->initialPrice : null,
         ),
             new LockedProcurement($identity, $p, $tx->string('id')),
             processRunId: AcquisitionProvenance::runFor($input), observedAt: $observedAt);

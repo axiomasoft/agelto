@@ -498,7 +498,7 @@
             "adapter_version": "1",
             "provenance": "Synthetic deterministic canonical snapshots and real PostgreSQL ownership/barriers; manually authored assertions.",
             "captured_at": "2026-10-31",
-            "sha256": "63dd1103134a2305641e5794e5d2c93b0e30490ad2908c532b8c6a7ffc5351a0",
+            "sha256": "38b1cb492efa092cc6883527221f58fa2353897a304d7b54ea0be4787d738148",
             "expected": {
                 "schema_version": 1,
                 "assessment": "Independent parts survive failure; unstable source bounded; stale owner and journal rollback cannot publish."
@@ -7948,7 +7948,7 @@
         {
             "path": "app/Services/Platforms/Eis/Card/SupplierResultsParser.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Card\\SupplierResultsParser",
-            "sha256": "ed98a0bd0b8cc99b8902795b0df5dacbba878fded9620955f4eaf159e689cf49",
+            "sha256": "d582885d2f268ff5fb9a731aa43de6b1dd79ef51abee64179a269a8fea5cc8a2",
             "original_path": "app/Services/Procurement/Eis/Card/SupplierResultsParser.php",
             "original_sha256": "11f1baa359ad34ba3d4d5d5aa5c5bd5ff4e6ddb02742dcaa115012677d871243",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\SupplierResultsParser",

@@ -29,8 +29,11 @@ final readonly class ProcurementSnapshot
         public SourceIdentity $identity, public string $title, public string $sourceStage,
         public array $parties, public array $items, public array $financing, public array $documents,
         public array $parts, public ?object $extension = null, public ?string $sourceRevision = null,
-        public array $events = [], public ?SupplierResultsData $results = null,
+        public array $events = [], public ?SupplierResultsData $results = null, public ?string $initialPrice = null,
     ) {
+        if ($initialPrice !== null && ! preg_match('/^\d{1,16}(?:\.\d{1,2})?$/D', $initialPrice)) {
+            throw new \InvalidArgumentException('Invalid decimal price.');
+        }
         foreach (['parties' => PartyData::class, 'items' => PurchaseItemRowData::class, 'financing' => FinancingRowData::class,
             'documents' => DocumentReference::class, 'parts' => SnapshotPart::class, 'events' => JournalEntryData::class] as $field => $type) {
             CollectionGuard::check($this->{$field}, $type);

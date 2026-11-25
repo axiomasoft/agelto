@@ -100,7 +100,8 @@ final readonly class DetailHandler implements StageHandler
             return new StagePartial(new DetailProgress(pass: $progress->pass + 1), new MissingParts($parts));
         }
 
-        return new StageSucceeded(new DetailResult($this->combine($snapshots), $progress,
+        // The fresh control can carry the price even if the saved common-info predates this field.
+        return new StageSucceeded(new DetailResult($this->combine(snapshots: $snapshots, initialPrice: $control->snapshot->initialPrice), $progress,
             $first->sourceRevision === null ? SnapshotConsistency::BoundedRevalidated : SnapshotConsistency::SourceRevisionVerified, new \DateTimeImmutable));
     }
 
@@ -128,7 +129,7 @@ final readonly class DetailHandler implements StageHandler
     }
 
     /** @param non-empty-list<ProcurementSnapshot> $snapshots */
-    private function combine(array $snapshots): ProcurementSnapshot
+    private function combine(array $snapshots, ?string $initialPrice): ProcurementSnapshot
     {
         $first = $snapshots[0];
         $parties = $items = $financing = $documents = $parts = $events = [];
@@ -143,6 +144,7 @@ final readonly class DetailHandler implements StageHandler
             $results = $s->results ?? $results;
         }
 
-        return new ProcurementSnapshot($first->identity, $first->title, $first->sourceStage, $parties, $items, $financing, $documents, $parts, $first->extension, $first->sourceRevision, $events, $results);
+        return new ProcurementSnapshot($first->identity, $first->title, $first->sourceStage, $parties, $items, $financing, $documents,
+            $parts, $first->extension, $first->sourceRevision, $events, $results, initialPrice: $initialPrice);
     }
 }
