@@ -77,7 +77,7 @@ test('пересмотр итогов снимает роль winner со ста
         bids: [],
         award: new AwardData(
             winner: new OrganizationData(fullName: $oldWinner->full_name, inn: $oldWinner->inn, kpp: $oldWinner->kpp),
-            finalPrice: 100.00,
+            finalPrice: '100.00',
             status: AwardStatus::Awarded,
             awardedAt: now(),
         ),
@@ -88,7 +88,7 @@ test('пересмотр итогов снимает роль winner со ста
         bids: [],
         award: new AwardData(
             winner: new OrganizationData(fullName: $newWinner->full_name, inn: $newWinner->inn, kpp: $newWinner->kpp),
-            finalPrice: 90.00,
+            finalPrice: '90.00',
             status: AwardStatus::Awarded,
             awardedAt: now(),
         ),
@@ -121,7 +121,7 @@ test('снятие роли winner не задевает другие роли �
         bids: [],
         award: new AwardData(
             winner: new OrganizationData(fullName: $oldWinner->full_name, inn: $oldWinner->inn, kpp: $oldWinner->kpp),
-            finalPrice: 100.00,
+            finalPrice: '100.00',
             status: AwardStatus::Awarded,
             awardedAt: now(),
         ),
@@ -132,7 +132,7 @@ test('снятие роли winner не задевает другие роли �
         bids: [],
         award: new AwardData(
             winner: new OrganizationData(fullName: $newWinner->full_name, inn: $newWinner->inn, kpp: $newWinner->kpp),
-            finalPrice: 90.00,
+            finalPrice: '90.00',
             status: AwardStatus::Awarded,
             awardedAt: now(),
         ),

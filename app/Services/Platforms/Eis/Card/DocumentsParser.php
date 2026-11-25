@@ -50,16 +50,16 @@ final readonly class DocumentsParser
                     return;
                 }
 
-                $documents[] = $document;
+                $documents[$document->externalId ?? throw new \LogicException('Missing parsed document uid.')] ??= $document;
             });
 
-            if ($this->hasSuppressedFilestoreLinks(crawler: $crawler, recognized: count($documents))) {
+            if ($this->hasSuppressedFilestoreLinks(container: $block, recognized: array_keys($documents))) {
                 $incomplete = true;
             }
 
             return $this->snapshot(
                 status: $incomplete ? DetailSnapshotStatus::Incomplete : DetailSnapshotStatus::Complete,
-                documents: $documents,
+                documents: array_values($documents),
             );
         } catch (\Throwable $exception) {
             if ($strict) {
@@ -110,18 +110,29 @@ final readonly class DocumentsParser
      * Тихий отказ (research/10-p4-remediation.md §3.6): страница несёт ссылки `filestore`, а
      * распознано 0 документов — признак разошедшейся вёрстки, обязан быть виден в логе.
      */
-    private function hasSuppressedFilestoreLinks(Crawler $crawler, int $recognized): bool
+    /** @param list<array-key> $recognized */
+    private function hasSuppressedFilestoreLinks(Crawler $container, array $recognized): bool
     {
-        $filestoreLinks = $crawler->filter('a[href*="filestore"]')->count();
-
-        if ($filestoreLinks !== $recognized) {
+        $uids = [];
+        $unidentified = 0;
+        foreach ($container->filter('a[href*="filestore"]') as $link) {
+            $uid = $this->externalIdFromHref((new Crawler($link))->attr('href'));
+            if ($uid === null) {
+                $unidentified++;
+            } else {
+                $uids[$uid] = true;
+            }
+        }
+        $incomplete = $unidentified > 0 || count($uids) !== count($recognized) || array_diff(array_keys($uids), $recognized) !== [];
+        if ($incomplete) {
             CardDomHelper::logWarning('На вкладке documents есть нераспознанные ссылки filestore; snapshot неполный', [
-                'filestore_links' => $filestoreLinks,
-                'recognized' => $recognized,
+                'filestore_uids' => count($uids),
+                'unidentified' => $unidentified,
+                'recognized' => count($recognized),
             ]);
         }
 
-        return $filestoreLinks !== $recognized;
+        return $incomplete;
     }
 
     /** @param list<DocumentData> $documents */

@@ -80,11 +80,15 @@ final readonly class EisSourceClock
      */
     public function timezoneFromMskLabel(string $label): ?CarbonTimeZone
     {
+        $label = str_replace('−', '-', $label);
         if (preg_match('/^\s*МСК\s*(?:([+-])\s*(\d{1,2}))?\s*$/u', $label, $m) !== 1) {
             return null;
         }
 
         $offset = 3 + (isset($m[1], $m[2]) && $m[1] !== '' ? ($m[1] === '-' ? -1 : 1) * (int) $m[2] : 0);
+        if ($offset < -12 || $offset > 14) {
+            return null;
+        }
 
         $timezone = CarbonTimeZone::createFromHourOffset($offset);
 

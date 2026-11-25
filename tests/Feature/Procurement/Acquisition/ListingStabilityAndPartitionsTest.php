@@ -157,7 +157,7 @@ test('исторические партиции журнала, протокол
         events: [new JournalEntryData(occurredAt: Carbon::parse('2012-02-01T00:30:00+03:00'), rawText: 'Закупка переведена на этап «Подача заявок»')],
         results: new SupplierResultsData(
             protocol: new ProtocolData(type: 'итоговый', sourceNumber: '№1', signedAt: Carbon::parse('2012-02-05T00:00:00Z'), publishedAt: null),
-            bids: [], award: new AwardData(winner: null, finalPrice: 1000.0, status: AwardStatus::Awarded, awardedAt: Carbon::parse('2012-03-10T00:00:00Z'))));
+            bids: [], award: new AwardData(winner: null, finalPrice: '1000.00', status: AwardStatus::Awarded, awardedAt: Carbon::parse('2012-03-10T00:00:00Z'))));
     $result = new DetailResult(snapshot: $snapshot, progress: new DetailProgress, consistency: SnapshotConsistency::BoundedRevalidated, observedAt: $observedAt);
     $lease = FinalizeFixtures::running($fixture['work']);
     $finalizer = app(WorkFinalizer::class);

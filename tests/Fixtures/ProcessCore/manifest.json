@@ -4188,7 +4188,7 @@
         },
         {
             "path": "tests/Feature/Procurement/ProcurementSucceededEventTest.php",
-            "sha256": "77770581da1d7e64ca5913136ea75d8bc2ac0094814ddc3f27a0770022282631",
+            "sha256": "107d0c786ff5d8bae693b2942a91f9cfdd5fb0993543a91ff25c827c245e39ab",
             "scenarios": [
                 "переход в completed рождает событие успешной закупки",
                 "award с идентифицированным победителем рождает событие без смены статуса",
@@ -4203,7 +4203,7 @@
         },
         {
             "path": "tests/Feature/Procurement/ProtocolAwardTest.php",
-            "sha256": "1a07fcafb667215c28c28a1adb0de55a2f4492ed04da3de841c4644b7afc2005",
+            "sha256": "5eb66e06a30e9ce80575186b6860222c058df45cea0f2f1a7c60a233ff68360a",
             "scenarios": [
                 "размещение протокола и определение победителя фиксируются протоколом, заявками, итогом и ролью winner",
                 "пересмотр итогов снимает роль winner со старой организации и оставляет её у новой",
@@ -4278,7 +4278,7 @@
         },
         {
             "path": "tests/Feature/Procurement/SupplierResultsProcessorTest.php",
-            "sha256": "3cbe2bf0d9dc2838164fdf373b9dab2b22f76280026fa805d3fe174e7ca616e5",
+            "sha256": "df40beea9705fb811b01db27aaf2c24b48270030f9881ef78e254c63c282e749",
             "scenarios": [
                 "process сохраняет протокол, анонимную заявку и award из живой success-фикстуры",
                 "повторный process живой success-фикстуры не задваивает данные и события",
@@ -5010,7 +5010,7 @@
         },
         {
             "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
-            "sha256": "9cdb225a048dd4885fcd0303009c80489ba5e0acf03c6d857aa2c0accd469222",
+            "sha256": "11e7c175c9bc661e43590d511dc13d47dd843c8fdcb46d9fe946b02f7bf30f38",
             "scenarios": [
                 "parse разбирает ИКЗ на 8 разрядов по вычисленной раскладке (реальная вкладка common-info)",
                 "parse разбирает площадку и контактное лицо из раздельных section (не общий dd со ссылкой)",
@@ -5085,7 +5085,7 @@
         },
         {
             "path": "tests/Unit/Platforms/Eis/Card/SupplierResultsParserTest.php",
-            "sha256": "6f55a42a66c506c36e725ec03c1320cf86c12fa2d5ee5307d71f71086d3cac85",
+            "sha256": "cc049b009a70365e21ca0c922c347a58b12615d2557a5e4d1ca880946b42123a",
             "scenarios": [
                 "parse разбирает протокол из живой success-фикстуры",
                 "parse разбирает анонимную заявку победителя и цену из живой success-фикстуры",
@@ -6291,7 +6291,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Acquisition/AcquisitionRawEvidenceTest.php",
-            "sha256": "10ee876e9035a1b2f17c86213191f0bfdef1bb489742bd15c2abfb98ae77678f",
+            "sha256": "dc129e72c178aac27a83037a2c9cd0e815202563258ea4cf528757ec160d37ed",
             "scenarios": [
                 "actual acquisition retains the last invalid CSV response bytes under its physical identity",
                 "an intermediate HTTP error followed by success retains only final decoded input evidence",
@@ -7906,7 +7906,7 @@
         {
             "path": "app/Services/Platforms/Eis/Card/CommonInfoParser.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Card\\CommonInfoParser",
-            "sha256": "b0b442c95dedff2f3ffbd70ef759f59891aeafd8579aaf557950d9729a6ccf8e",
+            "sha256": "a030ede3e3ea6e548a938918a73a305844e32b812aa243273da9d07e2528c647",
             "original_path": "app/Services/Procurement/Eis/Card/CommonInfoParser.php",
             "original_sha256": "3652b366991a0e1b0d724b054ad7ec9762386039beafa19a06dc60b87f451b0c",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\CommonInfoParser",
@@ -7917,7 +7917,7 @@
         {
             "path": "app/Services/Platforms/Eis/Card/DocumentsParser.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Card\\DocumentsParser",
-            "sha256": "efd159e69889acb21e566001b1a69beb444f551866fe7ffe6d9ecce4c4f6b6d7",
+            "sha256": "a9cb11d2da115c7d689b4eaea84f01d1245de1cd12b0908c96339521306667c1",
             "original_path": "app/Services/Procurement/Eis/Card/DocumentsParser.php",
             "original_sha256": "df8b0e7c965660e92dd2e68c563d1d42327b7f1e0899e885fca8cebde81d3ab3",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\DocumentsParser",
@@ -7928,7 +7928,7 @@
         {
             "path": "app/Services/Platforms/Eis/Card/EventJournalParser.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Card\\EventJournalParser",
-            "sha256": "aba335e13181c146a60e02b951cd2790faea2ed3eae5e27a11013902b7317806",
+            "sha256": "e7fe43617fa83e80e39e0d7602f45f8791ef64e72d81018a7b36e217af21349e",
             "original_path": "app/Services/Procurement/Eis/Card/EventJournalParser.php",
             "original_sha256": "6dfa3b302489cf021fd9a35a1ad96d96b1402e578848eedef2afa1772075e4c3",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\EventJournalParser",
@@ -7938,7 +7938,7 @@
         {
             "path": "app/Services/Platforms/Eis/Card/PartiesParser.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Card\\PartiesParser",
-            "sha256": "4cefc717b536177f641c7070ad13f3332e21605d9608c43dcc6e209bc11fdff5",
+            "sha256": "1d2a6bf520bfb0be9ff58c0e3af346d2706450cad077d8482425ef9a8293ce84",
             "original_path": "app/Services/Procurement/Eis/Card/PartiesParser.php",
             "original_sha256": "1bf577b7eeea4a7792f26a92f6d63c96a58be2046fefc072e29566f00731cbd7",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\PartiesParser",
@@ -7948,7 +7948,7 @@
         {
             "path": "app/Services/Platforms/Eis/Card/SupplierResultsParser.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Card\\SupplierResultsParser",
-            "sha256": "da20b8779319338eaa05eb5e6c03787f537a7c711ffbc70d416db93123c02789",
+            "sha256": "ed98a0bd0b8cc99b8902795b0df5dacbba878fded9620955f4eaf159e689cf49",
             "original_path": "app/Services/Procurement/Eis/Card/SupplierResultsParser.php",
             "original_sha256": "11f1baa359ad34ba3d4d5d5aa5c5bd5ff4e6ddb02742dcaa115012677d871243",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\Card\\SupplierResultsParser",
@@ -7970,7 +7970,7 @@
         {
             "path": "app/Services/Platforms/Eis/Csv/EisCsvParser.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\Csv\\EisCsvParser",
-            "sha256": "757f471f9da16e959042f1251675cc56bf83ea276956960234791aeee6fef07d",
+            "sha256": "147e0c6b4926889d6c8e30cc2695448f3b2e52a444bd6d9619a552a87a05ea5e",
             "original_path": "app/Services/Procurement/Eis/EisCsvParser.php",
             "original_sha256": "9f6e6543e4b0dd6e7f99c3f541d1efe07c8f502794af73e9d9e53d98507157a3",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\EisCsvParser",
@@ -7990,7 +7990,7 @@
         {
             "path": "app/Services/Platforms/Eis/EisSourceClock.php",
             "fqcn": "App\\Services\\Platforms\\Eis\\EisSourceClock",
-            "sha256": "957adbd05845b52860b9cbcfd8063ba8d79201cc116f84605272524f3cd88de3",
+            "sha256": "14f4d17b162461439fb1161f4ef89415b574511a4b056fc3dcbdbb3bcb5aad4f",
             "original_path": "app/Services/Procurement/Eis/EisSourceClock.php",
             "original_sha256": "934aa8d3b38495977e937af423dece55c083f1d6a3eb77095f495df1e6e685ab",
             "original_fqcn": "App\\Services\\Procurement\\Eis\\EisSourceClock",
@@ -8522,7 +8522,7 @@
         {
             "path": "app/Services/Procurement/Acquisition/AcquisitionPlatformOutbound.php",
             "fqcn": "App\\Services\\Procurement\\Acquisition\\AcquisitionPlatformOutbound",
-            "sha256": "b96ecc3d21c6fa726ce3599644c94b984324df0b58b83047aa1477d3f318ff5f",
+            "sha256": "8492618d32076d89c6f4ddd4d145654f63ff97e98652f440603e48dd156f52a6",
             "change_reason": "Proxyma:P10.3 explicit consumer adapter or migration-only carrier.",
             "before_proxyma_runtime_removal_sha256": "5fd88ec71a6106bf1cdc260cc2779326b874b3f695b998bafdba1dbfe052c437",
             "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay."
@@ -8664,7 +8664,7 @@
         {
             "path": "app/Dto/Procurement/Network/OutboundExecutionContext.php",
             "fqcn": "App\\Dto\\Procurement\\Network\\OutboundExecutionContext",
-            "sha256": "b87a04840201950c77eada007eb55663c75a4692e8b11a31295ec052f3a2e59f"
+            "sha256": "89c96bb7ef6e8c8b786daf1fb5c0b21b38bd19299b116ac310cd9d00967166f9"
         },
         {
             "path": "app/Services/Procurement/Proxyma/AgeltoPhysicalHttpTransport.php",

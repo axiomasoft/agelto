@@ -117,6 +117,11 @@ final class ExecutionContext
         return Duration::nanoseconds($this->sliceDeadlineNs - $this->clock->monotonicNs());
     }
 
+    public function dbNow(): DbInstant
+    {
+        return $this->clock->dbNow();
+    }
+
     /** Effect длительностью $needed помещается целиком с finalization reserve; timeout не укорачивается. */
     public function canStart(Duration $needed): bool
     {

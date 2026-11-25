@@ -14,6 +14,7 @@ use App\Dto\Procurement\Process\StageFailedItem;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Enums\Procurement\Process\StageCode;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Models\Procurement\Crawler\RawArtifact;
@@ -181,6 +182,21 @@ test('actual Process detail identity rejection persists matching assessed bytes 
             ->and(DB::table('prc_process_work')->where('id', $f['work']->value->value)->value('state'))->toBe('deferred')
             ->and(PackageNetworkFacts::attempts()->count())->toBe(1)
             ->and(DB::table('prc_eis_details')->count())->toBe(0);
+
+        app()->instance(EisCardRoutes::class, new EisCardRoutes([]));
+        $retry = app(ExecutionContextFactory::class)->open(FinalizeFixtures::rerun($f['work']));
+        $unmapped = $handler->execute($f['input'], $retry);
+        if (! $unmapped instanceof StageFailedItem) {
+            throw new LogicException('Ожидалось отклонение неизвестной процедуры');
+        }
+        $proof = Storage::disk($unmapped->evidence->disk)->get($unmapped->evidence->key);
+        expect($unmapped->reason)->toBe(ItemFailureReason::InvalidInput)
+            ->and($unmapped->evidence->key)->toStartWith('raw/acquisition/input/')
+            ->and($unmapped->evidence->sha256->hex)->toBe(ContentHash::of($proof ?? '')->hex)
+            ->and(json_decode($proof ?? '', true, flags: JSON_THROW_ON_ERROR)['reason'])->toBe('unmapped_procedure');
+        app(WorkFinalizer::class)->finish($retry->lease(), $unmapped);
+        expect(DB::table('prc_process_work')->where('id', $f['work']->value->value)->value('item_failures'))->toBe(2)
+            ->and(PackageNetworkFacts::attempts()->count())->toBe(1);
     } finally {
         // This wire test commits fixture rows; remove only its own purchase after ledger cleanup.
         PermitFixtures::clean();

@@ -62,7 +62,7 @@ test('parse разбирает анонимную заявку победите�
         ->and($data->bids[0]->organization)->toBeNull()
         ->and($data->bids[0]->bidNumber)->toBe('2')
         ->and($data->bids[0]->participantOrdinal)->toBe(1)
-        ->and($data->bids[0]->price)->toBe(10000000.0)
+        ->and($data->bids[0]->price)->toBe('10000000.00')
         ->and($data->bids[0]->status)->toBe(BidStatus::Winner);
 });
 
@@ -71,7 +71,7 @@ test('parse создаёт award без выдуманной организац�
 
     expect($data->award)->not->toBeNull()
         ->and($data->award->winner)->toBeNull()
-        ->and($data->award->finalPrice)->toBe(10000000.0)
+        ->and($data->award->finalPrice)->toBe('10000000.00')
         ->and($data->award->status)->toBe(AwardStatus::Awarded)
         ->and($data->award->awardedAt?->toDateString())->toBe('2026-08-07');
 });

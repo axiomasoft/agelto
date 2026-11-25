@@ -10,6 +10,8 @@ use App\Exceptions\Procurement\Crawler\SourceResponseLimitExceeded;
 /** Strict CSV records: quoted newlines and doubled quotes are data, never record boundaries. */
 final readonly class EisCsvParser
 {
+    private const int READ_BYTES = 64 * 1024;
+
     private static function assertTime(?float $deadlineAt): void
     {
         if ($deadlineAt !== null && microtime(true) >= $deadlineAt) {
@@ -109,70 +111,74 @@ final readonly class EisCsvParser
         $afterCr = false;
         $bytes = 0;
 
-        while (($char = fgetc($stream)) !== false) {
-            if (++$bytes % 8192 === 0) {
-                $tick?->__invoke();
-                self::assertTime($deadlineAt);
+        while (! feof($stream)) {
+            $chunk = fread($stream, self::READ_BYTES);
+            if ($chunk === false || ($chunk === '' && ! feof($stream))) {
+                throw new \RuntimeException('Incomplete CSV stream read.');
             }
-            if (strlen($field) > $maxFieldBytes || count($fields) > 255) {
-                throw new SourceResponseLimitExceeded('CSV field or column count exceeds the configured limit.');
-            }
-            if ($afterCr && $char === "\n") {
+            $length = strlen($chunk);
+            for ($index = 0; $index < $length; $index++) {
+                $char = $chunk[$index];
+                if (++$bytes % 8192 === 0) {
+                    $tick?->__invoke();
+                    self::assertTime($deadlineAt);
+                }
+                if (strlen($field) > $maxFieldBytes || count($fields) > 255) {
+                    throw new SourceResponseLimitExceeded('CSV field or column count exceeds the configured limit.');
+                }
+                if ($afterCr && $char === "\n") {
+                    $afterCr = false;
+
+                    continue;
+                }
                 $afterCr = false;
 
-                continue;
-            }
-            $afterCr = false;
+                if ($state === 'quoted') {
+                    if ($char === '"') {
+                        $state = 'closed';
+                    } else {
+                        $field .= $char;
+                    }
 
-            if ($state === 'quoted') {
+                    continue;
+                }
+
+                if ($state === 'closed' && $char === '"') {
+                    $field .= '"';
+                    $state = 'quoted';
+
+                    continue;
+                }
+
+                if ($char === ';' || $char === "\r" || $char === "\n") {
+                    if ($char === ';') {
+                        $fields[] = $field;
+                        $recordStarted = true;
+                    } else {
+                        $fields[] = $field;
+                        yield $fields;
+                        $fields = [];
+                        $recordStarted = false;
+                        $afterCr = $char === "\r";
+                    }
+                    $field = '';
+                    $state = 'start';
+
+                    continue;
+                }
+
+                if ($state === 'closed' || ($char === '"' && $state !== 'start')) {
+                    throw new \UnexpectedValueException('Invalid EIS CSV quoting.');
+                }
+
+                $recordStarted = true;
                 if ($char === '"') {
-                    $state = 'closed';
+                    $state = 'quoted';
                 } else {
                     $field .= $char;
+                    $state = 'plain';
                 }
-
-                continue;
             }
-
-            if ($state === 'closed' && $char === '"') {
-                $field .= '"';
-                $state = 'quoted';
-
-                continue;
-            }
-
-            if ($char === ';' || $char === "\r" || $char === "\n") {
-                if ($char === ';') {
-                    $fields[] = $field;
-                    $recordStarted = true;
-                } else {
-                    $fields[] = $field;
-                    yield $fields;
-                    $fields = [];
-                    $recordStarted = false;
-                    $afterCr = $char === "\r";
-                }
-                $field = '';
-                $state = 'start';
-
-                continue;
-            }
-
-            if ($state === 'closed' || ($char === '"' && $state !== 'start')) {
-                throw new \UnexpectedValueException('Invalid EIS CSV quoting.');
-            }
-
-            $recordStarted = true;
-            if ($char === '"') {
-                $state = 'quoted';
-            } else {
-                $field .= $char;
-                $state = 'plain';
-            }
-        }
-
-        if (! feof($stream)) {
-            throw new \RuntimeException('Incomplete CSV stream read.');
         }
 
         if ($state === 'quoted') {

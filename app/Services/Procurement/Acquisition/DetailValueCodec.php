@@ -181,6 +181,11 @@ final readonly class DetailValueCodec
         $args = [];
         foreach ($params as $p) {
             $v = $this->unpack($data[$p->getName()]);
+            // Version 1 checkpoints initially wrote supplier money as JSON numbers.
+            if ((is_float($v) || is_int($v)) && (($type === BidData::class && $p->getName() === 'price')
+                || ($type === AwardData::class && $p->getName() === 'finalPrice'))) {
+                $v = number_format($v, 2, '.', '');
+            }
             $t = $p->getType();
             if (! $t instanceof \ReflectionNamedType) {
                 throw new \LogicException('Unsupported detail schema type.');

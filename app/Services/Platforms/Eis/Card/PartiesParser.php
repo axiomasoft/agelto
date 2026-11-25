@@ -37,7 +37,16 @@ final readonly class PartiesParser
     public function parse(string $html, bool $strict = false): array
     {
         try {
-            return $this->snapshot($html)['parties'];
+            $snapshot = $this->snapshot($html);
+            if (! $snapshot['complete']) {
+                CardDomHelper::logWarning('Вкладка common-info не содержит подтверждённый полный набор сторон.');
+            }
+
+            return $snapshot['parties'];
+        } catch (\UnexpectedValueException $exception) {
+            CardDomHelper::logWarning($exception->getMessage());
+
+            return [];
         } catch (\Throwable $exception) {
             if ($strict) {
                 throw $exception;
@@ -54,6 +63,8 @@ final readonly class PartiesParser
             $snapshot = $this->snapshot($html);
 
             return $snapshot['complete'] && $snapshot['parties'] == $parties;
+        } catch (\UnexpectedValueException) {
+            return false;
         } catch (\Throwable $exception) {
             if ($strict) {
                 throw $exception;
@@ -77,37 +88,46 @@ final readonly class PartiesParser
             return ['parties' => $parties, 'complete' => count($parties) === $rows->count()];
         }
 
-        return ['parties' => $this->parseReal($crawler), 'complete' => true];
+        return $this->parseReal($crawler);
     }
 
-    /** @return list<PartyData> */
+    /** @return array{parties: list<PartyData>, complete: bool} */
     private function parseReal(Crawler $crawler): array
     {
-        $placement = $crawler->filter('section.blockInfo__section')->reduce(function (Crawler $section): bool {
-            return $this->definition($section, 'Размещение осуществляет') !== null
+        $placement = $crawler->filter('section.blockInfo__section, p.blockInfo__section')->reduce(function (Crawler $section): bool {
+            return ($this->definition($section, 'Размещение осуществляет') !== null
+                || $section->filter('.section__title')->reduce(fn (Crawler $label): bool => $this->normalize($label->text()) === 'Размещение осуществляет')->count() === 1)
                 && $section->filter('a[href*="/epz/organization/view/info.html?"]')->count() > 0;
         });
-        $this->requireComplete($placement->count() === 1);
+        if ($placement->count() === 0) {
+            return $this->customerWithoutOrganizationLink($crawler);
+        }
         $link = $placement->filter('a[href*="/epz/organization/view/info.html?"]');
         $this->requireComplete($link->count() === 1);
-        $name = $this->normalize($link->text());
-        $roleText = $this->normalize(str_replace($name, '', $this->definition($placement, 'Размещение осуществляет') ?? ''));
+        $name = $this->normalize($link->text()) ?: $this->placementName($crawler) ?? '';
+        $roleText = $this->normalize(str_replace($name, '', $this->definition($placement, 'Размещение осуществляет')
+            ?? $this->definition($crawler, 'Размещение осуществляет') ?? ''));
         $role = self::ROLE_MAP[$roleText] ?? null;
-        $this->requireComplete($name !== '' && $role !== null);
+        $this->requireComplete($name !== '');
+        $complete = $role !== null;
         parse_str(parse_url($link->attr('href') ?? '', PHP_URL_QUERY) ?: '', $query);
         $code = $query['organizationCode'] ?? null;
         $this->requireComplete(is_string($code) && preg_match('/^\d+$/D', $code) === 1);
 
         $customers = [];
-        $crawler->filter('.lots-block')->each(function (Crawler $block) use (&$customers): void {
+        $crawler->filter('.lots-block')->each(function (Crawler $block) use (&$customers, &$complete): void {
             $title = $block->filter('.lots-block-title .collapse__title_text');
             $this->requireComplete($title->count() === 1);
             $text = $this->normalize($title->text());
-            $this->requireComplete(preg_match('/^Требования заказчика\s*«(.+)»$/uD', $text, $match) === 1);
+            if (preg_match('/^Требования заказчика\s*(?:«(.+)»|"(.+)"|“(.+)”)$/uD', $text, $match, PREG_UNMATCHED_AS_NULL) !== 1) {
+                $complete = false;
+
+                return;
+            }
             $codes = $this->customerCodes($block);
             $this->requireComplete(count($codes) === 1);
             $customerCode = $codes[0];
-            $customerName = trim($match[1]);
+            $customerName = trim($match[1] ?? $match[2] ?? $match[3] ?? '');
             $this->requireComplete($customerName !== '' && (! isset($customers[$customerCode]) || $customers[$customerCode] === $customerName));
             $customers[$customerCode] = $customerName;
         });
@@ -129,12 +149,12 @@ final readonly class PartiesParser
         $customerCodes = array_map('strval', array_keys($customers));
         sort($customerCodes);
         sort($allCodes);
-        $this->requireComplete($customerCodes === $allCodes);
+        $complete = $complete && $customerCodes === $allCodes;
 
         // truInfo is only a cross-check. Its names are not global organization identities.
         $allowedCustomerNames = $unlinkedCustomerPlan ? [$name] : $customers;
-        $crawler->filter('tr[class*="truInfo_"] > td.tableBlock__col_header')->each(function (Crawler $cell) use ($allowedCustomerNames): void {
-            $this->requireComplete(in_array($this->normalize($cell->text()), $allowedCustomerNames, true));
+        $crawler->filter('tr[class*="truInfo_"] > td.tableBlock__col_header')->each(function (Crawler $cell) use ($allowedCustomerNames, &$complete): void {
+            $complete = $complete && in_array($this->normalize($cell->text()), $allowedCustomerNames, true);
         });
 
         $contactBlocks = $crawler->filter('.row.blockInfo')->reduce(fn (Crawler $block): bool => $block->filter('h2.blockInfo__title')->count() === 1
@@ -157,7 +177,9 @@ final readonly class PartiesParser
         );
         $person = $this->definition($contact, 'Ответственное должностное лицо');
         $parties = [new PartyData(role: ProcurementPartyRole::Placer, organization: $organization, contactPersonName: $person)];
-        $parties[] = new PartyData(role: $role, organization: $organization, contactPersonName: $person);
+        if ($role !== null && $role !== ProcurementPartyRole::Placer) {
+            $parties[] = new PartyData(role: $role, organization: $organization, contactPersonName: $person);
+        }
 
         if ($role !== ProcurementPartyRole::Customer) {
             foreach ($customers as $customerCode => $customerName) {
@@ -170,7 +192,33 @@ final readonly class PartiesParser
             }
         }
 
-        return $parties;
+        return ['parties' => $parties, 'complete' => $complete];
+    }
+
+    /** @return array{parties: list<PartyData>, complete: bool} */
+    private function customerWithoutOrganizationLink(Crawler $crawler): array
+    {
+        $name = $this->placementName($crawler);
+        $codes = $this->customerCodes($crawler);
+        if ($name === null || count($codes) !== 1 || $this->definition($crawler, 'Размещение осуществляет') !== 'Заказчик') {
+            return ['parties' => [], 'complete' => false];
+        }
+
+        $organization = new OrganizationData(fullName: $name, identifiers: [
+            new OrganizationIdentifierData(platformCode: 'eis', type: 'customer_code', value: $codes[0]),
+        ]);
+
+        return ['parties' => [
+            new PartyData(role: ProcurementPartyRole::Placer, organization: $organization),
+            new PartyData(role: ProcurementPartyRole::Customer, organization: $organization),
+        ], 'complete' => true];
+    }
+
+    private function placementName(Crawler $crawler): ?string
+    {
+        return $this->definition($crawler, 'Организация, осуществляющая размещение')
+            ?? CardDomHelper::readDefinitionValue(crawler: $crawler, term: 'Наименование заказчика')
+            ?? CardDomHelper::readDefinitionValue(crawler: $crawler, term: 'Заказчик');
     }
 
     /** @return list<string> */
@@ -195,10 +243,10 @@ final readonly class PartiesParser
 
     private function definition(Crawler $crawler, string $title): ?string
     {
-        $sections = $crawler->filter('section.blockInfo__section');
+        $sections = $crawler->filter('section.blockInfo__section, p.blockInfo__section');
 
         // filter() searches descendants; include a section passed as the root itself.
-        if ($crawler->count() === 1 && $crawler->nodeName() === 'section') {
+        if ($crawler->count() === 1 && in_array($crawler->nodeName(), ['section', 'p'], true)) {
             $sections = $crawler;
         }
 
@@ -212,7 +260,7 @@ final readonly class PartiesParser
             }
         });
 
-        return count($values) === 1 && $values[0] !== '' ? $values[0] : null;
+        return count(array_unique($values)) === 1 && $values[0] !== '' ? $values[0] : null;
     }
 
     private function normalize(string $value): string
@@ -245,13 +293,20 @@ final readonly class PartiesParser
             return null;
         }
 
+        $name = $this->normalize($cells->eq(1)->text());
+        $inn = CardDomHelper::extractInn($cells->eq(2)->text());
+        $ogrn = $this->nullableCell($cells, 4);
+        if ($name === '' || ($inn === null && $ogrn === null)) {
+            return null;
+        }
+
         return new PartyData(
             role: $role,
             organization: new OrganizationData(
-                fullName: trim($cells->eq(1)->text()),
-                inn: $this->nullableCell($cells, 2),
+                fullName: $name,
+                inn: $inn,
                 kpp: $this->nullableCell($cells, 3),
-                ogrn: $this->nullableCell($cells, 4),
+                ogrn: $ogrn,
             ),
             contactPersonName: $cells->count() > 5 ? $this->nullableCell($cells, 5) : null,
             contactPersonPosition: $cells->count() > 6 ? $this->nullableCell($cells, 6) : null,

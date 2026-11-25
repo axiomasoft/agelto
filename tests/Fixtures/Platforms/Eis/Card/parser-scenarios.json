@@ -250,7 +250,7 @@
         },
         {
             "path": "tests/Unit/Platforms/Eis/Card/CommonInfoParserTest.php",
-            "sha256": "9cdb225a048dd4885fcd0303009c80489ba5e0acf03c6d857aa2c0accd469222",
+            "sha256": "11e7c175c9bc661e43590d511dc13d47dd843c8fdcb46d9fe946b02f7bf30f38",
             "original_sha256": "4d2b73018d6c8571a9d903b7953098408c46a69447ac117cf54d65f919dc0265",
             "accepted_change_item": "P2.14",
             "change_reason": "Assertions read typed EIS extension fields; original scenarios and expected values preserved.",
@@ -315,7 +315,7 @@
         },
         {
             "path": "tests/Unit/Platforms/Eis/Card/SupplierResultsParserTest.php",
-            "sha256": "6f55a42a66c506c36e725ec03c1320cf86c12fa2d5ee5307d71f71086d3cac85",
+            "sha256": "cc049b009a70365e21ca0c922c347a58b12615d2557a5e4d1ca880946b42123a",
             "scenarios": [
                 "parse разбирает протокол из живой success-фикстуры",
                 "parse разбирает анонимную заявку победителя и цену из живой success-фикстуры",

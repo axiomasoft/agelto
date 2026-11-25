@@ -25,7 +25,7 @@ function supplierResultsSuccessDataForProcessorTest(): SupplierResultsData
     return app(SupplierResultsParser::class)->parse($html);
 }
 
-function identifiedAwardDataForProcessorTest(Organization $winner, float $price = 9000000.0): SupplierResultsData
+function identifiedAwardDataForProcessorTest(Organization $winner, string $price = '9000000.00'): SupplierResultsData
 {
     return new SupplierResultsData(
         protocol: null,

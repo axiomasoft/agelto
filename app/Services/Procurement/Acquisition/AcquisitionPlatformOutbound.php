@@ -12,6 +12,7 @@ use App\Dto\Procurement\Network\TransferBudget;
 use App\Dto\Procurement\Network\TransportOutcome;
 use App\Dto\Procurement\Network\TransportSucceeded;
 use App\Dto\Procurement\Platform\ResponseAssessment;
+use App\Dto\Procurement\Process\ArtifactRef;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Services\Procurement\Network\UrlPolicy;
@@ -58,15 +59,23 @@ final class AcquisitionPlatformOutbound implements PlatformOutbound
             return $rejection;
         }
         $assessment = $rejection->assessment;
+        $artifact = $rejection->inputEvidence === null
+            ? $this->rejectedResponse($assessment)
+            : $this->artifacts->rejectedInput($rejection->inputEvidence);
+
+        return new FetchItemRejected($rejection->reason,
+            new ResponseAssessment($assessment->completeness, $assessment->reason,
+                $assessment->bodyHash, $assessment->confidence, $artifact, $assessment->failureScope));
+    }
+
+    private function rejectedResponse(ResponseAssessment $assessment): ArtifactRef
+    {
         $response = $this->responses[$assessment->bodyHash->hex] ?? throw new \LogicException('Assessment lacks a physical response.');
         $body = $response->response->body;
         if (! $body instanceof DecodedTextBody) {
             throw new \LogicException('Item assessment requires bounded text.');
         }
-        $artifact = $this->artifacts->rejected($response->physicalRequestId ?? throw new \LogicException('Missing physical identity.'), $body);
 
-        return new FetchItemRejected($rejection->reason,
-            new ResponseAssessment($assessment->completeness, $assessment->reason,
-                $assessment->bodyHash, $assessment->confidence, $artifact, $assessment->failureScope));
+        return $this->artifacts->rejected($response->physicalRequestId ?? throw new \LogicException('Missing physical identity.'), $body);
     }
 }

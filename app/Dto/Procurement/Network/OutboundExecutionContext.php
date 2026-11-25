@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement\Network;
 
+use App\Dto\Procurement\Process\DbInstant;
 use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
+use App\Services\Procurement\Process\Contracts\ProcessClock;
+use App\Services\Procurement\Process\SystemProcessClock;
 use Closure;
 
 /** Bounded cooperative bridge context; the send gate remains the sole effect authority. */
@@ -62,6 +65,7 @@ final class OutboundExecutionContext
         private readonly ?Closure $checkpoint,
         int $deadlineSeconds,
         private readonly int $renewIntervalSeconds,
+        private readonly ProcessClock $clock = new SystemProcessClock,
     ) {
         $this->lastRenewedNs = hrtime(true);
         $this->deadlineNs = $this->lastRenewedNs + $deadlineSeconds * 1_000_000_000;
@@ -75,6 +79,11 @@ final class OutboundExecutionContext
     public function remainingSlice(): Duration
     {
         return Duration::nanoseconds($this->deadlineNs - hrtime(true));
+    }
+
+    public function dbNow(): DbInstant
+    {
+        return $this->clock->dbNow();
     }
 
     public function canStart(Duration $needed): bool

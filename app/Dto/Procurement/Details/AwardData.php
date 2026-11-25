@@ -20,7 +20,7 @@ final readonly class AwardData
 {
     public function __construct(
         public ?OrganizationData $winner,
-        public ?float $finalPrice,
+        public ?string $finalPrice,
         public AwardStatus $status,
         public ?Carbon $awardedAt = null,
     ) {}

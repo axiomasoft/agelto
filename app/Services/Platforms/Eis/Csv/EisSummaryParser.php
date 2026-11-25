@@ -35,8 +35,8 @@ final readonly class EisSummaryParser
         $updated = $this->date($row['Дата обновления'] ?? '', sourceDay: true);
         $dayPrecision = preg_match('/^\d{2}\.\d{2}\.\d{4}$/D', trim($row['Дата обновления'])) === 1;
         $price = str_replace([' ', "\u{00A0}", "\u{202F}", ','], ['', '', '', '.'], trim($row['Начальная (максимальная) цена контракта'] ?? ''));
-        if ($price === '' || ! preg_match('/^\\d{1,12}(?:\\.\\d{1,2})?$/D', $price)) {
-            throw new \UnexpectedValueException('Missing or invalid EIS price.');
+        if ($price !== '' && ! preg_match('/^\\d{1,12}(?:\\.\\d{1,2})?$/D', $price)) {
+            throw new \UnexpectedValueException('Invalid EIS price.');
         }
         // Include all source columns (not just identities), with stable column order.
         ksort($row, SORT_STRING);
@@ -58,7 +58,7 @@ final readonly class EisSummaryParser
             new SourceIdentity(new PlatformCode('eis'), new SourceIdentifierType('registry:44fz'), new SourceIdentifierValue($number)),
             trim($row['Наименование закупки'] ?? ''), trim($row['Этап закупки'] ?? ''),
             $published, $updated, ContentHash::of(json_encode($row, JSON_THROW_ON_ERROR)),
-            initialPrice: $price, currency: $row['Валюта'] ?? null,
+            initialPrice: $price === '' ? null : $price, currency: $row['Валюта'] ?? null,
             detailLocator: $procedure === '' ? null : new CursorEnvelope('eis.procedure', 1, $procedure),
             updatedAtDayPrecision: $dayPrecision,
             facts: new ListingFacts(EisProcedureType::fromRawLabel($procedure)?->value, $procedure === '' ? null : $procedure,

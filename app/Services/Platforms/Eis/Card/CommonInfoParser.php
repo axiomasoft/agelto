@@ -76,6 +76,7 @@ final readonly class CommonInfoParser
                     contactPersonEmail: $contactPerson['email'] ?? null,
                     financingRows: $financingRows,
                     items: $items,
+                    initialPrice: $this->parseInitialPrice($crawler),
                 ),
             );
         } catch (\Throwable $exception) {
@@ -91,6 +92,20 @@ final readonly class CommonInfoParser
                 commonInfo: new CommonInfoData,
             );
         }
+    }
+
+    private function parseInitialPrice(Crawler $crawler): ?string
+    {
+        foreach (['Начальная (максимальная) цена контракта', 'Максимальное значение цены контракта',
+            'Начальная сумма цен единиц товара, работы, услуги'] as $label) {
+            $value = CardDomHelper::readDefinitionValue(crawler: $crawler, term: $label);
+            $amount = CardDomHelper::normalizeMoney($value ?? '');
+            if ($amount !== null) {
+                return $amount;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -154,55 +169,62 @@ final readonly class CommonInfoParser
     private function parseItems(Crawler $crawler, bool $strict): array
     {
         try {
-            $table = CardDomHelper::itemTables($crawler);
-            $itemRows = CardDomHelper::itemRows($table);
-            if ($itemRows->count() === 0) {
-                return [];
+            $rows = [];
+            $reservedPositions = [];
+            foreach (CardDomHelper::itemTables($crawler) as $node) {
+                $table = new Crawler($node);
+                $itemRows = CardDomHelper::itemRows($table);
+                if ($itemRows->count() === 0) {
+                    continue;
+                }
+                $headerCount = $table->children('thead')->children('tr')->first()->children()->count();
+                $expectedColumns = match ($headerCount) {
+                    5 => 5,
+                    6 => 6,
+                    default => 7,
+                };
+
+                $itemRows->each(static function (Crawler $tr) use (&$rows, &$reservedPositions, $expectedColumns): void {
+                    $cells = $tr->children('td');
+
+                    if ($cells->count() < $expectedColumns) {
+                        return;
+                    }
+
+                    $positionNumber = trim($cells->eq(0)->text());
+                    $explicitPosition = $positionNumber !== '' && ctype_digit($positionNumber) ? (int) $positionNumber : null;
+                    if ($explicitPosition !== null) {
+                        if ($explicitPosition < 1 || $explicitPosition > 2_147_483_647 || isset($reservedPositions[$explicitPosition])) {
+                            $explicitPosition = null;
+                        } else {
+                            $reservedPositions[$explicitPosition] = true;
+                        }
+                    }
+                    [$okpd2Code, $ktruCode] = CardDomHelper::splitClassifierCode(trim($cells->eq(1)->text()));
+
+                    $rows[] = [
+                        'explicitPosition' => $explicitPosition,
+                        'name' => trim($cells->eq(2)->text()),
+                        'scheme' => CardDomHelper::classifierScheme(okpd2Code: $okpd2Code, ktruCode: $ktruCode),
+                        'okpd2' => $okpd2Code,
+                        'ktru' => $ktruCode,
+                        'unit' => $expectedColumns === 5 ? null : (trim($cells->eq(3)->text()) ?: null),
+                        'quantity' => match ($expectedColumns) {
+                            5 => CardDomHelper::normalizeAmount(trim($cells->eq(3)->text())),
+                            6 => null,
+                            default => CardDomHelper::normalizeAmount(trim($cells->eq(4)->text())),
+                        },
+                        'unitPrice' => match ($expectedColumns) {
+                            5 => null,
+                            6 => CardDomHelper::normalizeAmount(trim($cells->eq(4)->text())),
+                            default => CardDomHelper::normalizeAmount(trim($cells->eq(5)->text())),
+                        },
+                        'totalCost' => CardDomHelper::normalizeAmount(trim($cells->eq($expectedColumns - 1)->text())),
+                    ];
+                });
             }
 
-            $headerCount = $table->first()->children('thead')->children('tr')->first()->children()->count();
-            $expectedColumns = match ($headerCount) {
-                5 => 5,
-                6 => 6,
-                default => 7,
-            };
-            $rows = [];
-            $hasExplicitPosition = false;
-
-            $itemRows->each(static function (Crawler $tr) use (&$rows, &$hasExplicitPosition, $expectedColumns): void {
-                $cells = $tr->children('td');
-
-                if ($cells->count() < $expectedColumns) {
-                    return;
-                }
-
-                $positionNumber = trim($cells->eq(0)->text());
-                $explicitPosition = $positionNumber !== '' && ctype_digit($positionNumber) ? (int) $positionNumber : null;
-                $hasExplicitPosition = $hasExplicitPosition || $explicitPosition !== null;
-                [$okpd2Code, $ktruCode] = CardDomHelper::splitClassifierCode(trim($cells->eq(1)->text()));
-
-                $rows[] = [
-                    'explicitPosition' => $explicitPosition,
-                    'name' => trim($cells->eq(2)->text()),
-                    'scheme' => CardDomHelper::classifierScheme(okpd2Code: $okpd2Code, ktruCode: $ktruCode),
-                    'okpd2' => $okpd2Code,
-                    'ktru' => $ktruCode,
-                    'unit' => $expectedColumns === 5 ? null : (trim($cells->eq(3)->text()) ?: null),
-                    'quantity' => match ($expectedColumns) {
-                        5 => CardDomHelper::normalizeAmount(trim($cells->eq(3)->text())),
-                        6 => null,
-                        default => CardDomHelper::normalizeAmount(trim($cells->eq(4)->text())),
-                    },
-                    'unitPrice' => match ($expectedColumns) {
-                        5 => null,
-                        6 => CardDomHelper::normalizeAmount(trim($cells->eq(4)->text())),
-                        default => CardDomHelper::normalizeAmount(trim($cells->eq(5)->text())),
-                    },
-                    'totalCost' => CardDomHelper::normalizeAmount(trim($cells->eq($expectedColumns - 1)->text())),
-                ];
-            });
-
-            if (! $hasExplicitPosition && count($rows) > 1) {
+            if ($reservedPositions === [] && count($rows) > 1) {
                 usort($rows, static fn (array $a, array $b): int => [
                     $a['ktru'] ?? '',
                     $a['okpd2'] ?? '',
@@ -222,8 +244,16 @@ final readonly class CommonInfoParser
 
             $items = [];
             foreach ($rows as $index => $row) {
+                $position = $row['explicitPosition'];
+                if ($position === null) {
+                    $position = $index + 1;
+                    while (isset($reservedPositions[$position])) {
+                        $position++;
+                    }
+                    $reservedPositions[$position] = true;
+                }
                 $items[] = new PurchaseItemRowData(
-                    positionNumber: $row['explicitPosition'] ?? ($index + 1),
+                    positionNumber: $position,
                     name: $row['name'],
                     characteristics: null,
                     classifierScheme: $row['scheme'],

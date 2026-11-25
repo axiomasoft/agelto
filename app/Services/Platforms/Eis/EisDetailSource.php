@@ -35,6 +35,7 @@ use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Enums\Procurement\Platform\AssessmentReason;
 use App\Enums\Procurement\Platform\Completeness;
+use App\Enums\Procurement\Platform\FailureScope;
 use App\Enums\Procurement\Process\ItemFailureReason;
 use App\Enums\Procurement\ProtocolType;
 use App\Services\Platforms\Eis\Card\CardDomHelper;
@@ -58,15 +59,34 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
     /** @return array<string,OutboundRequestPlan|null> */
     public function plans(DetailRequest $request): array
     {
-        $procedure = match ($request->locator?->codecId) {
-            'eis.card' => $request->locator->serializedPayload,
-            'eis.procedure' => $this->routes->procedureTypes[$request->locator->serializedPayload] ?? null,
-            default => null,
-        };
+        $plans = $this->planTabs($request);
+        if ($plans instanceof FetchItemRejected) {
+            throw new \InvalidArgumentException('Unmapped EIS detail procedure.');
+        }
+
+        return $plans;
+    }
+
+    /** @return array<string,OutboundRequestPlan|null>|FetchItemRejected */
+    private function planTabs(DetailRequest $request): array|FetchItemRejected
+    {
+        $locator = $request->locator;
         if ($request->registry !== 'fz44' || $request->identity->platform->value !== 'eis'
-            || $request->identity->type->value !== 'registry:44fz' || $request->locator?->schemaVersion !== 1
-            || $procedure === null || ! isset($this->routes->procedures[$procedure])) {
+            || $request->identity->type->value !== 'registry:44fz' || $locator?->schemaVersion !== 1
+            || ! in_array($locator->codecId, ['eis.card', 'eis.procedure'], true)) {
             throw new \InvalidArgumentException('EIS detail identity/locator mismatch.');
+        }
+        $procedure = match ($locator->codecId) {
+            'eis.card' => $locator->serializedPayload,
+            default => $this->routes->procedureTypes[$locator->serializedPayload] ?? null,
+        };
+        if ($procedure === null || ! isset($this->routes->procedures[$procedure])) {
+            $evidence = json_encode(['identity' => $request->identity->toArray(), 'locator_sha256' => $locator->payloadHash->hex,
+                'reason' => 'unmapped_procedure'], JSON_THROW_ON_ERROR);
+
+            return new FetchItemRejected(reason: ItemFailureReason::InvalidInput,
+                assessment: new ResponseAssessment(Completeness::Unavailable, AssessmentReason::SchemaMismatch,
+                    ContentHash::of($evidence), failureScope: FailureScope::Item), inputEvidence: $evidence);
         }
         $endpoint = $this->policy->endpoints->get('card');
         $plans = [];
@@ -89,8 +109,12 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
 
     public function fetch(DetailRequest $request, ExecutionContext|OutboundExecutionContext $context): DetailFetchResult
     {
+        $plans = $this->planTabs($request);
+        if ($plans instanceof FetchItemRejected) {
+            return $plans;
+        }
         $responses = [];
-        foreach ($this->plans($request) as $tab => $plan) {
+        foreach ($plans as $tab => $plan) {
             if ($plan === null) {
                 continue;
             }
@@ -111,7 +135,10 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
 
     public function fetchPart(DetailRequest $request, string $part, ExecutionContext|OutboundExecutionContext $context): DetailFetchResult
     {
-        $plans = $this->plans($request);
+        $plans = $this->planTabs($request);
+        if ($plans instanceof FetchItemRejected) {
+            return $plans;
+        }
         if (! array_key_exists($part, $plans)) {
             throw new \InvalidArgumentException('Unknown EIS part.');
         }
@@ -158,7 +185,8 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
                 'reg_number' => $request->identity->value->value, 'tab' => $tab, 'http_status' => $outcome->response->status,
             ]);
 
-            return new FetchDeferred(NetworkDeferralReason::RateLimit, new RetryAt(new \DateTimeImmutable('+60 seconds')));
+            return new FetchDeferred(reason: NetworkDeferralReason::RateLimit,
+                retryAt: new RetryAt($context->dbNow()->value->add(new \DateInterval('PT60S'))));
         }
 
         return $outcome->response;
@@ -167,7 +195,10 @@ final readonly class EisDetailSource implements DetailPartsSource, StatusSource
     /** @param array<string,ResponseEnvelope> $responses */
     public function parse(DetailRequest $request, array $responses): DetailFetchResult
     {
-        $plans = $this->plans($request);
+        $plans = $this->planTabs($request);
+        if ($plans instanceof FetchItemRejected) {
+            return $plans;
+        }
         if (array_diff(array_keys($responses), array_keys($plans)) !== []) {
             throw new \InvalidArgumentException('Unexpected EIS response part.');
         }

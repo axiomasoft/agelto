@@ -25,7 +25,7 @@ final readonly class BidData
     public function __construct(
         public ?OrganizationData $organization,
         public ?int $participantOrdinal,
-        public ?float $price,
+        public ?string $price,
         public BidStatus $status,
         public ?string $bidNumber = null,
     ) {}

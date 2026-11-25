@@ -22,8 +22,6 @@ final readonly class EventJournalParser
 {
     public function __construct(private EisSourceClock $clock = new EisSourceClock) {}
 
-    private const string DATE_FORMAT = '!d.m.Y H:i';
-
     /**
      * @return list<JournalEntryData>
      */
@@ -119,6 +117,11 @@ final readonly class EventJournalParser
 
         if (preg_match('/\(([^()]*)\)\s*$/u', $value, $matches) === 1) {
             $timezone = $this->clock->timezoneFromMskLabel(label: $matches[1]);
+            if ($timezone === null) {
+                CardDomHelper::logWarning('Неизвестная метка часового пояса журнала ЕИС, использован пояс источника', [
+                    'timezone' => $matches[1],
+                ]);
+            }
         }
 
         $value = trim((string) preg_replace('/\s*\(.*\)\s*$/u', '', $value));
@@ -127,6 +130,7 @@ final readonly class EventJournalParser
             return null;
         }
 
-        return $this->clock->parseDateTime(format: self::DATE_FORMAT, value: $value, timezone: $timezone);
+        return $this->clock->parseDateTime(format: '!d.m.Y H:i:s', value: $value, timezone: $timezone)
+            ?? $this->clock->parseDateTime(format: '!d.m.Y H:i', value: $value, timezone: $timezone);
     }
 }

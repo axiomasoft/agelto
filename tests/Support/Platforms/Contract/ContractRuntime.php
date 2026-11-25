@@ -24,13 +24,14 @@ final readonly class ContractRuntime
     }
 
     /** Pure fetch tests only; real ledger tests use the WorkRunner context. */
-    public static function context(): ExecutionContext
+    public static function context(?\DateTimeImmutable $databaseTime = null): ExecutionContext
     {
+        $databaseTime ??= new \DateTimeImmutable;
         $clock = \Mockery::mock(ProcessClock::class);
         $clock->shouldReceive('monotonicNs')->andReturn(1000000000);
         $lease = new ExecutionLease(new WorkId(ContractFixtures::id()), ContractFixtures::id(2), 1, ContractFixtures::id(3),
-            new \DateTimeImmutable('+360 seconds'), 1, ContractFixtures::hash(), 0, null, StageCode::Listing, 'fixture/1');
-        $clock->shouldReceive('dbNow')->andReturn(new DbInstant($lease->leaseUntil->modify('-360 seconds')));
+            $databaseTime->modify('+360 seconds'), 1, ContractFixtures::hash(), 0, null, StageCode::Listing, 'fixture/1');
+        $clock->shouldReceive('dbNow')->andReturn(new DbInstant($databaseTime));
 
         return new ExecutionContext($lease, \Mockery::mock(LeaseKeeper::class), $clock, Duration::seconds(240),
             Duration::seconds(360), Duration::seconds(15), Duration::seconds(15), Duration::seconds(30));

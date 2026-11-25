@@ -83,6 +83,22 @@ final readonly class CardDomHelper
         return is_numeric($normalized) ? $normalized : null;
     }
 
+    public static function normalizeMoney(string $text): ?string
+    {
+        $amount = self::normalizeAmount(preg_replace('/\s*(?:₽|руб\.?|RUB)\s*$/ui', '', $text) ?? $text);
+
+        return $amount !== null && preg_match('/^\d{1,16}(?:\.\d{1,2})?$/D', $amount) === 1 ? $amount : null;
+    }
+
+    public static function extractInn(string $text): ?string
+    {
+        if (preg_match('/\bИНН\s*:?\s*(\d{12}|\d{10})(?!\d)/ui', $text, $match) === 1) {
+            return $match[1];
+        }
+
+        return preg_match('/(?<!\d)(\d{12}|\d{10})(?!\d)/u', $text, $match) === 1 ? $match[1] : null;
+    }
+
     public static function warnIfBlockInfoSuppressed(Crawler $crawler, string $message): void
     {
         $sections = $crawler->filter('section.blockInfo__section')->count();
@@ -136,25 +152,20 @@ final readonly class CardDomHelper
             return null;
         }
 
-        $totals = $tables->children('tfoot')->filter('.tableBlock__resultTitle');
-
-        if ($totals->count() !== $tables->count()) {
-            return null;
-        }
-
-        $pageSizeNode = $tables->first()->ancestors()->filter('div#positionKTRU')->filter('.select-record-per-page--number')->first();
-        $pageSize = $pageSizeNode->count() > 0
-            ? (int) ($pageSizeNode->attr('data-selected-value') ?: trim($pageSizeNode->text()))
-            : null;
         $expected = 0;
-
-        foreach ($totals as $node) {
-            if (preg_match('/^(?:Итого|Начальная\s+сумма\s+цен\s+единиц\s+товара,\s*работы,\s*услуги)\s*\((\d+)\s+запис(?:ь|и|ей)\)\s*:/u', self::normalizeWhitespace($node->textContent), $match) !== 1) {
+        foreach ($tables as $node) {
+            $table = new Crawler($node);
+            $total = $table->children('tfoot')->filter('.tableBlock__resultTitle');
+            if ($total->count() !== 1 || preg_match('/^(?:Итого|Начальная\s+сумма\s+цен\s+единиц\s+товара,\s*работы,\s*услуги)\s*\((\d+)\s+запис(?:ь|и|ей)\)\s*:/u',
+                self::normalizeWhitespace($total->text()), $match) !== 1) {
                 return null;
             }
 
             $tableCount = (int) $match[1];
-            $expected += $pageSize !== null && $pageSize > 0 ? min($tableCount, $pageSize) : $tableCount;
+            if (self::itemRows($table)->count() !== $tableCount) {
+                return null;
+            }
+            $expected += $tableCount;
         }
 
         return $expected;

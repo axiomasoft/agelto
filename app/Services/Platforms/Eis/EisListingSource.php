@@ -138,10 +138,13 @@ final readonly class EisListingSource implements ListingSource, ResponseValidato
                 $context?->tick();
                 $summary = $parser->parse($row);
                 $dateValue = $row[$dateColumn];
-                $price = explode('.', $summary->initialPrice ?? '');
-                $cents = (int) $price[0] * 100 + (int) substr(str_pad($price[1] ?? '', 2, '0'), 0, 2);
-                if (! str_starts_with(trim($dateValue), $day) || $cents < $cursor->lowCents
-                    || ($cursor->highCents !== null && $cents > $cursor->highCents)
+                $priceMatches = true;
+                if ($summary->initialPrice !== null) {
+                    $price = explode('.', $summary->initialPrice);
+                    $cents = (int) $price[0] * 100 + (int) str_pad($price[1] ?? '', 2, '0');
+                    $priceMatches = $cents >= $cursor->lowCents && ($cursor->highCents === null || $cents <= $cursor->highCents);
+                }
+                if (! str_starts_with(trim($dateValue), $day) || ! $priceMatches
                     || ! $filter->acceptsStage($summary->sourceStage)) {
                     return $invalid(AssessmentReason::FilterMismatch, $count);
                 }

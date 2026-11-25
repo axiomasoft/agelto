@@ -11,5 +11,6 @@ enum BidStatus: string
 {
     case Admitted = 'admitted';
     case Rejected = 'rejected';
+    case Withdrawn = 'withdrawn';
     case Winner = 'winner';
 }

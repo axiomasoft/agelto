@@ -42,7 +42,7 @@ function successfulAwardData(Organization $winner): SupplierResultsData
         bids: [],
         award: new AwardData(
             winner: new OrganizationData(fullName: $winner->full_name, inn: $winner->inn, kpp: $winner->kpp),
-            finalPrice: 9000000.0,
+            finalPrice: '9000000.00',
             status: AwardStatus::Awarded,
             awardedAt: now(),
         ),

@@ -15,5 +15,6 @@ final readonly class CommonInfoData
         public array $financingRows = [],
         /** @var list<PurchaseItemRowData> */
         public array $items = [],
+        public ?string $initialPrice = null,
     ) {}
 }

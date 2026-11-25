@@ -6,6 +6,7 @@ namespace App\Services\Platforms\Eis\Card;
 
 use App\Dto\Procurement\Details\AwardData;
 use App\Dto\Procurement\Details\BidData;
+use App\Dto\Procurement\Details\OrganizationData;
 use App\Dto\Procurement\Details\ProtocolData;
 use App\Dto\Procurement\Details\SupplierResultsData;
 use App\Enums\Procurement\AwardStatus;
@@ -118,50 +119,84 @@ final readonly class SupplierResultsParser
      */
     private function parseBids(Crawler $crawler): array
     {
-        $table = $crawler
-            ->filter('div[id^="supplier-def-result-participant-table-"] table.tableBlock')
-            ->first();
-
-        if ($table->count() === 0) {
-            return [];
-        }
-
         $bids = [];
-
-        $table->filter('tbody tr')->each(function (Crawler $row) use (&$bids): void {
-            $bid = $this->parseBidRow($row);
-
-            if ($bid !== null) {
-                $bids[] = $bid;
-            }
+        $crawler->filter('div[id^="supplier-def-result-participant-table-"] table.tableBlock')->each(function (Crawler $table) use (&$bids): void {
+            $columns = $this->bidColumns($table);
+            $table->children('tbody')->children('tr')->each(function (Crawler $row) use ($columns, &$bids): void {
+                $bid = $this->parseBidRow(row: $row, columns: $columns);
+                if ($bid !== null) {
+                    $bids[] = $bid;
+                }
+            });
         });
 
         return $bids;
     }
 
-    private function parseBidRow(Crawler $row): ?BidData
+    /** @return array<string, int> */
+    private function bidColumns(Crawler $table): array
     {
-        $cells = $row->filter('td');
+        $columns = ['number' => 0, 'rank' => 1, 'price' => 2];
+        $table->children('thead')->filter('th')->each(static function (Crawler $header, int $index) use (&$columns): void {
+            $label = mb_strtolower(CardDomHelper::normalizeWhitespace($header->text()));
+            $key = match (true) {
+                str_contains($label, 'идентификационный номер'), str_contains($label, 'идентификационные номера'),
+                str_contains($label, 'номер заявки') => 'number',
+                str_contains($label, 'порядков'), str_contains($label, 'место') => 'rank',
+                str_contains($label, 'статус'), str_contains($label, 'результат рассмотрения') => 'status',
+                str_contains($label, 'предложени'), str_contains($label, 'цена') => 'price',
+                preg_match('/\bинн\b/u', $label) === 1 => 'inn',
+                preg_match('/\bкпп\b/u', $label) === 1 => 'kpp',
+                preg_match('/\bогрн(?:ип)?\b/u', $label) === 1 => 'ogrn',
+                str_contains($label, 'наименование'), str_contains($label, 'участник') => 'name',
+                default => null,
+            };
+            if ($key !== null) {
+                $columns[$key] = $index;
+            }
+        });
+
+        return $columns;
+    }
+
+    /** @param array<string, int> $columns */
+    private function parseBidRow(Crawler $row, array $columns): ?BidData
+    {
+        $cells = $row->children('td');
 
         if ($cells->count() < 3) {
             return null;
         }
 
-        $bidNumber = trim($cells->eq(0)->text());
-        $rank = trim($cells->eq(1)->text());
-        $price = $this->parseAmount(trim($cells->eq(2)->text()));
-        $isWinner = str_contains(mb_strtolower($rank), 'победител');
+        $cell = static fn (string $key): string => isset($columns[$key])
+            ? CardDomHelper::normalizeWhitespace($cells->eq($columns[$key])->text('')) : '';
+        $bidNumber = $cell('number');
+        $rank = $cell('rank');
+        $price = CardDomHelper::normalizeMoney($cell('price'));
+        $description = mb_strtolower($rank.' '.$cell('status'));
+        $status = match (true) {
+            str_contains($description, 'отозва'), str_contains($description, 'отзыв') => BidStatus::Withdrawn,
+            str_contains($description, 'отклон'), str_contains($description, 'не допущ') => BidStatus::Rejected,
+            str_contains($description, 'победител') => BidStatus::Winner,
+            default => BidStatus::Admitted,
+        };
         $participantOrdinal = $this->parseLeadingInteger($rank);
+        $name = $cell('name');
+        $inn = CardDomHelper::extractInn($cell('inn'));
+        $ogrn = preg_match('/(?<!\d)(\d{15}|\d{13})(?!\d)/u', $cell('ogrn'), $match) === 1 ? $match[1] : null;
+        $kpp = preg_match('/(?<!\d)(\d{9})(?!\d)/u', $cell('kpp'), $match) === 1 ? $match[1] : null;
+        $organization = $name !== '' && ($inn !== null || $ogrn !== null)
+            ? new OrganizationData(fullName: $name, inn: $inn, kpp: $kpp, ogrn: $ogrn) : null;
 
-        if ($bidNumber === '' && $rank === '' && $price === null) {
+        if ($bidNumber === '' && trim($description) === '' && $price === null && $organization === null) {
             return null;
         }
 
         return new BidData(
-            organization: null,
+            organization: $organization,
             participantOrdinal: $participantOrdinal,
             price: $price,
-            status: $isWinner ? BidStatus::Winner : BidStatus::Admitted,
+            status: $status,
             bidNumber: $bidNumber !== '' ? $bidNumber : null,
         );
     }
@@ -196,13 +231,6 @@ final readonly class SupplierResultsParser
                 ? $formedAt
                 : ($protocol->publishedAt ?? $protocol->signedAt ?? $formedAt),
         );
-    }
-
-    private function parseAmount(string $value): ?float
-    {
-        $normalized = CardDomHelper::normalizeAmount($value);
-
-        return $normalized !== null ? (float) $normalized : null;
     }
 
     private function parseDate(string $value): ?Carbon

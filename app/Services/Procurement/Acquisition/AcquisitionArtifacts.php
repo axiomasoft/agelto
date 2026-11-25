@@ -16,7 +16,7 @@ use App\Enums\Procurement\Network\TrafficClass;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use Illuminate\Contracts\Config\Repository;
 
-/** Immutable decoded evidence for the final physical response; no URL, headers or platform branches. */
+/** Immutable evidence for physical responses and pre-send input rejections. */
 final readonly class AcquisitionArtifacts
 {
     private string $disk;
@@ -72,5 +72,14 @@ final readonly class AcquisitionArtifacts
         } catch (DependencyUnavailable $failure) {
             throw new DependencyUnavailable('storage', $failure);
         }
+    }
+
+    public function rejectedInput(string $evidence): ArtifactRef
+    {
+        $hash = ContentHash::of($evidence);
+        $path = $this->store->execute(disk: $this->disk, prefix: 'raw/acquisition/input',
+            requestIdentity: ['input_sha256' => $hash->hex], contents: $evidence, extension: 'json');
+
+        return new ArtifactRef($this->disk, $path, $hash);
     }
 }

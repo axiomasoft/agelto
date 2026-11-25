@@ -341,7 +341,7 @@ test('parse разбирает 6-колоночную таблицу неопр�
 
     $snapshot = app(CommonInfoParser::class)->parse($html);
 
-    expect($snapshot->status)->toBe(DetailSnapshotStatus::Complete)
+    expect($snapshot->status)->toBe(DetailSnapshotStatus::Incomplete)
         ->and($snapshot->commonInfo->items)->toHaveCount(2)
         ->and($snapshot->commonInfo->items[0]->classifierCodeOkpd2)->toBe('43.21.10.110')
         ->and($snapshot->commonInfo->items[0]->positionNumber)->toBe(1)
