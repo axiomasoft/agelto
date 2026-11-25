@@ -12,6 +12,7 @@ services:
       - no-new-privileges:true
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -21,6 +22,7 @@ services:
       APP_URL: ${APP_URL}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       APP_KEY_FILE: /run/secrets/app_key
+      PROXYMA_WIRE_DIGEST_KEY_FILE: /run/secrets/proxyma_wire_digest_key
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -71,6 +73,7 @@ services:
     # File-backed secrets are generated into ignored local/secrets/.
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -106,6 +109,7 @@ services:
       AWS_ESTIMATES_BUCKET: ${MINIO_ESTIMATES_BUCKET:-agelto-estimates}
       # Указываем пути к файлам secrets — entrypoint читает их в APP_KEY / DB_PASSWORD / REDIS_PASSWORD / AWS_SECRET_ACCESS_KEY
       APP_KEY_FILE: /run/secrets/app_key
+      PROXYMA_WIRE_DIGEST_KEY_FILE: /run/secrets/proxyma_wire_digest_key
       DB_PASSWORD_FILE: /run/secrets/db_password
       REDIS_PASSWORD_FILE: /run/secrets/redis_password
       AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
@@ -153,6 +157,7 @@ services:
     command: ["php", "artisan", "horizon"]
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -187,6 +192,7 @@ services:
     command: ["php", "artisan", "schedule:work"]
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -223,6 +229,7 @@ services:
     environment: *prod_env
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -425,6 +432,8 @@ volumes:
 secrets:
   app_key:
     file: ./local/secrets/app_key
+  proxyma_wire_digest_key:
+    file: ./local/secrets/proxyma_wire_digest_key
   db_password:
     file: ./local/secrets/db_password
   redis_password:

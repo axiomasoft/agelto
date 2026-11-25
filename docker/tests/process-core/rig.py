@@ -38,6 +38,7 @@ SUITE_PATHS = {"ai": ["tests/Feature/ProcessCore/Llm"], "documents": ["tests/Fea
                "observability": ["tests/Feature/ProcessCore/Observability",
                                  "tests/Feature/Health/PrivatePackagesArePinnedTest.php"],
                "network": ["tests/Feature/ProcessCore/Network",
+                            "tests/Feature/Procurement/Network/ProxymaCutoverTest.php",
                             "tests/Integration/ProcessCore/Concurrency/CatalogConcurrencyTest.php"],
                "platforms": ["tests/Feature/ProcessCore/Platforms",
                              "tests/Unit/Architecture/PlatformsDomainLayoutTest.php",
@@ -463,7 +464,7 @@ def composer_on_bridge(folder, name, *arguments, install=False):
 def composer_audit(folder):
     for name in ("composer-audit", "composer-audit-retry-1", "composer-audit-retry-2"):
         result = composer_on_bridge(folder, name, "audit", "--locked", "--no-interaction")
-        if result != 100 or not re.search(r"curl error (6|28) while downloading", (folder / f"{name}.log").read_text()):
+        if result != 100 or not re.search(r"curl error (6|28|56) while downloading", (folder / f"{name}.log").read_text()):
             return result
     return result
 

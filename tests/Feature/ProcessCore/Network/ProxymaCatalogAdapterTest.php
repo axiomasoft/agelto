@@ -201,7 +201,7 @@ test('guard держит только adapter tier и сохраняет hold ep
         ->and(DB::table('prc_observations')->where('kind', 'adapter_validation')->count())->toBe(0);
 })->with(['none', 'missing', 'held', 'epoch', 'owner', 'canary', 'probe_token', 'wire']);
 
-test('registered slots исключают finance и inactive provider не подключает package migrations', function (): void {
+test('слоты исключают финансовые настройки, а регистрация миграций Proxyma сохраняет действующий legacy selector', function (): void {
     $registry = app(DefinitionRegistry::class);
     $slots = [];
     foreach (['acquisition', 'document', 'reference', 'provider', 'notification'] as $id) {
@@ -211,7 +211,11 @@ test('registered slots исключают finance и inactive provider не по
         }
     }
     expect($slots)->toBe(['detail', 'listing', 'status_refresh', 'download', 'reference', 'llm', 'notification']);
-    expect(implode(',', app('migrator')->paths()))->not->toContain('proxyma');
+    $migrator = app('migrator');
+    expect($migrator->getMigrationFiles($migrator->paths()))->toHaveKeys([
+        '2026_11_09_000001_create_pxm_authority_tables',
+        '2026_11_10_000014_restore_binding_audit_type',
+    ]);
     expect(DB::table('prc_network_authorities')->sole()->authority)->toBe('legacy');
 });
 

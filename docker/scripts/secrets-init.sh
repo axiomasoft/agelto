@@ -27,6 +27,7 @@ chmod 700 "$secrets_dir"
 
 declare -A allowed_names=(
     [app_key]=1
+    [proxyma_wire_digest_key]=1
     [db_password]=1
     [redis_password]=1
     [redis_acl]=1

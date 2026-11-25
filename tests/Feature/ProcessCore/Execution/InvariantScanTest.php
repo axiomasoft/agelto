@@ -100,7 +100,7 @@ test('invariant cadence: зарегистрирован один шестой sc
     foreach (app(RecoveryReconciler::class)->categories() as $category) {
         $daemon->register($category);
     }
-    expect($daemon->categories())->toBe(['document_storage_cleanup', 'outbound_expired_owners', 'outbound_probes', 'expired_running', 'admitted', 'blocked_release', 'blocked_provider', 'handler_fault_sweep', 'invariant']);
+    expect($daemon->categories())->toBe(['document_storage_cleanup', 'outbound_expired_owners', 'outbound_probes', 'proxyma_reconcile', 'expired_running', 'admitted', 'blocked_release', 'blocked_provider', 'handler_fault_sweep', 'invariant']);
     $scans = 0;
     DB::listen(function (QueryExecuted $query) use (&$scans): void {
         if (str_contains($query->sql, 'WITH required(')) {

@@ -13,6 +13,7 @@ services:
     environment:
       APP_ENV: ${APP_ENV}
       APP_KEY_FILE: /run/secrets/app_key
+      PROXYMA_WIRE_DIGEST_KEY_FILE: /run/secrets/proxyma_wire_digest_key
       DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: 5432
@@ -26,6 +27,7 @@ services:
       AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/minio_app_password
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -63,6 +65,7 @@ services:
       APP_NAME: ${APP_NAME}
       APP_ENV: ${APP_ENV}
       APP_KEY_FILE: /run/secrets/app_key
+      PROXYMA_WIRE_DIGEST_KEY_FILE: /run/secrets/proxyma_wire_digest_key
       APP_DEBUG: ${APP_DEBUG}
       # APP_URL — только из смонтированного .env: иначе значение «застывает» при create контейнера.
       DB_CONNECTION: pgsql
@@ -90,6 +93,7 @@ services:
       AWS_ESTIMATES_BUCKET: ${MINIO_ESTIMATES_BUCKET:-agelto-estimates}
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -127,6 +131,7 @@ services:
     environment: *app_env
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -163,6 +168,7 @@ services:
     environment: *app_env
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -194,6 +200,7 @@ services:
     environment: *app_env
     secrets:
       - app_key
+      - proxyma_wire_digest_key
       - db_password
       - redis_password
       - minio_app_password
@@ -385,6 +392,8 @@ volumes:
 secrets:
   app_key:
     file: ./local/secrets/app_key
+  proxyma_wire_digest_key:
+    file: ./local/secrets/proxyma_wire_digest_key
   db_password:
     file: ./local/secrets/db_password
   redis_password:

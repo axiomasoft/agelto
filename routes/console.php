@@ -6,8 +6,11 @@ use App\Enums\Telemetry\LogChannel;
 use App\Services\Health\ApplicationReadiness;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
+use Proxyma\Infrastructure\Database\PackageSchema;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -25,26 +28,28 @@ Schedule::call(ApplicationReadiness::recordSchedulerHeartbeat(...))->everyMinute
 // `schedule:work` при временном отказе БД: отказ кэшируется на тик и логируется один раз без сырого
 // текста исключения (чтобы не раскрывать DSN/секреты).
 $hasTable = (static function (): Closure {
-    $databaseAvailable = null;
+    /** @var array<string, true> $unavailableConnections */
+    $unavailableConnections = [];
     /** @var array<string, bool> $tableCache */
     $tableCache = [];
 
-    return static function (string $table) use (&$databaseAvailable, &$tableCache): bool {
-        if ($databaseAvailable === false) {
+    return static function (string $table, ?string $connection = null) use (&$unavailableConnections, &$tableCache): bool {
+        $connection ??= DB::getDefaultConnection();
+        if (isset($unavailableConnections[$connection])) {
             return false;
         }
-        if (array_key_exists($table, $tableCache)) {
-            return $tableCache[$table];
+        $cacheKey = $connection.':'.$table;
+        if (array_key_exists($cacheKey, $tableCache)) {
+            return $tableCache[$cacheKey];
         }
 
         try {
-            $exists = Schema::hasTable($table);
-            $databaseAvailable = true;
-            $tableCache[$table] = $exists;
+            $exists = Schema::connection($connection)->hasTable($table);
+            $tableCache[$cacheKey] = $exists;
 
             return $exists;
         } catch (Throwable $exception) {
-            $databaseAvailable = false;
+            $unavailableConnections[$connection] = true;
             LogChannel::Alerts->warning('Планировщик: БД недоступна, задачи, зависящие от таблиц, пропущены.', [
                 'error_code' => 'scheduler_schema_unavailable',
                 'exception_class' => $exception::class,
@@ -65,6 +70,10 @@ Schedule::command('process:retention')
     ->hourly()
     ->withoutOverlapping()
     ->when(static fn (): bool => $hasTable('prc_process_transitions'));
+Schedule::command('proxyma:prune')
+    ->hourly()
+    ->withoutOverlapping()
+    ->when(static fn (): bool => $hasTable(table: PackageSchema::tables()['operations'], connection: Config::string('proxyma.connection')));
 Schedule::command('process:health-report')
     ->everyFiveMinutes()
     ->withoutOverlapping()

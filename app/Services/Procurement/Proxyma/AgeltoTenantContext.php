@@ -9,10 +9,10 @@ use Proxyma\Domain\Policy\TenantContext;
 
 final readonly class AgeltoTenantContext implements TenantContextResolver
 {
-    public function __construct(private RuntimeCaller $runtime, private UiTenantContext $operators) {}
+    public function __construct(private RuntimeCaller $runtime, private UiTenantContext $operators, private ProxymaMaintenanceContext $maintenance) {}
 
     public function resolve(): TenantContext
     {
-        return $this->runtime->context() ?? $this->operators->resolve();
+        return $this->maintenance->context() ?? $this->runtime->context() ?? $this->operators->resolve();
     }
 }

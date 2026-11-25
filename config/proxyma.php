@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use App\Services\Procurement\Proxyma\PanelProvider;
+use App\Support\SecretValue;
 
 return [
     'connection' => env('DB_CONNECTION', 'pgsql'),
+    'wire' => ['digest_key' => SecretValue::resolve(name: 'PROXYMA_WIRE_DIGEST_KEY', default: env('PROXYMA_WIRE_DIGEST_KEY'))],
     'scheduler' => ['enabled' => false],
     'extensions' => [
         'approved_providers' => ['agelto' => PanelProvider::class],

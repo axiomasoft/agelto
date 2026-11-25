@@ -87,6 +87,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | artifacts | Mark + deletion generation под lock, object delete вне tx, CAS finalize. New refs используют общий deletion gate; staged objects живого intent/lease защищены; grace >= max lease + retry horizon. |
 | projection | Receipts обязательных consumers защищают source event; totals не уменьшаются от retention, active generation не удаляется; rebuild после source prune явно unavailable. |
 | runtime | Кеш/queue/session/runtime TTL по framework policy; это не authority business work. |
+| proxyma | По правилам Proxyma. Пакетная очистка после 30 дней удаляет только завершённые записи до авторизации, сохраняя факты отправки и результаты с неопределённым исходом. |
 
 ### Schema support and handler activation
 
@@ -6159,6 +6160,1171 @@ Constraints:
 
 Indexes:
 - `prc_proxyma_state_archive_pkey`: `CREATE UNIQUE INDEX prc_proxyma_state_archive_pkey ON public.prc_proxyma_state_archive USING btree (source_table, source_key)`
+
+#### pxm_attempts
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| permit_id | uuid / uuid | NO | uuid NOT NULL |
+| physical_attempt_id | uuid / uuid | NO | uuid NOT NULL |
+| receipt_id | uuid / uuid | YES | uuid |
+| wire_fingerprint | text / text | NO | text NOT NULL |
+| status | text / text | NO | text NOT NULL |
+| authorized_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| completed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| snapshot | jsonb / jsonb | NO | jsonb NOT NULL |
+| dispatch_outcome | text / text | NO | text DEFAULT 'unknown'::text NOT NULL |
+| dispatch_refused_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| receipt_key | text / text | YES | text |
+| receipt_digest | text / text | YES | text |
+| result_digest | text / text | YES | text |
+| result_summary | jsonb / jsonb | YES | jsonb |
+
+Constraints:
+- `pxm_attempts_check`: `CHECK (((dispatch_outcome = 'not_dispatched'::text) = (dispatch_refused_at IS NOT NULL)))`
+- `pxm_attempts_dispatch_outcome_check`: `CHECK ((dispatch_outcome = ANY (ARRAY['unknown'::text, 'not_dispatched'::text])))`
+- `pxm_attempts_pkey`: `PRIMARY KEY (id)`
+- `pxm_attempts_receipt_digest_check`: `CHECK ((receipt_digest ~ '^[0-9a-f]{64}$'::text))`
+- `pxm_attempts_receipt_key_check`: `CHECK ((receipt_key ~ '^[0-9a-f]{64}$'::text))`
+- `pxm_attempts_result_digest_check`: `CHECK ((result_digest ~ '^[0-9a-f]{64}$'::text))`
+- `pxm_attempts_snapshot_check`: `CHECK ((jsonb_typeof(snapshot) = 'object'::text))`
+- `pxm_attempts_status_check`: `CHECK ((status = ANY (ARRAY['authorized'::text, 'completed'::text, 'unknown_after_authorization'::text])))`
+- `pxm_attempts_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_attempts_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_attempts_tenant_key_operation_id_physical_attempt_id_key`: `UNIQUE (tenant_key, operation_id, physical_attempt_id)`
+- `pxm_attempts_tenant_key_permit_id_operation_id_physical_at_fkey`: `FOREIGN KEY (tenant_key, permit_id, operation_id, physical_attempt_id) REFERENCES pxm_permits(tenant_key, id, operation_id, physical_attempt_id)`
+- `pxm_attempts_tenant_key_receipt_id_key`: `UNIQUE (tenant_key, receipt_id)`
+- `pxm_attempts_wire_fingerprint_check`: `CHECK ((wire_fingerprint ~ '^[0-9a-f]{64}$'::text))`
+- `pxm_receipt_key_unique`: `UNIQUE (tenant_key, receipt_key)`
+- `pxm_receipt_pair`: `CHECK ((((receipt_key IS NULL) AND (receipt_digest IS NULL) AND (result_digest IS NULL)) OR ((receipt_key IS NOT NULL) AND (receipt_digest IS NOT NULL) AND (result_digest IS NOT NULL))))`
+
+Indexes:
+- `pxm_attempt_unknown_idx`: `CREATE INDEX pxm_attempt_unknown_idx ON public.pxm_attempts USING btree (tenant_key, authorized_at, id) WHERE (status = 'unknown_after_authorization'::text)`
+- `pxm_attempts_pkey`: `CREATE UNIQUE INDEX pxm_attempts_pkey ON public.pxm_attempts USING btree (id)`
+- `pxm_attempts_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_attempts_tenant_key_id_key ON public.pxm_attempts USING btree (tenant_key, id)`
+- `pxm_attempts_tenant_key_operation_id_physical_attempt_id_key`: `CREATE UNIQUE INDEX pxm_attempts_tenant_key_operation_id_physical_attempt_id_key ON public.pxm_attempts USING btree (tenant_key, operation_id, physical_attempt_id)`
+- `pxm_attempts_tenant_key_receipt_id_key`: `CREATE UNIQUE INDEX pxm_attempts_tenant_key_receipt_id_key ON public.pxm_attempts USING btree (tenant_key, receipt_id)`
+- `pxm_receipt_key_unique`: `CREATE UNIQUE INDEX pxm_receipt_key_unique ON public.pxm_attempts USING btree (tenant_key, receipt_key)`
+
+#### pxm_audit_events
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| actor_type | text / text | NO | text NOT NULL |
+| actor_id | text / text | NO | text NOT NULL |
+| reason | text / text | NO | text NOT NULL |
+| ability | text / text | NO | text NOT NULL |
+| entity_type | text / text | NO | text NOT NULL |
+| entity_id | uuid / uuid | NO | uuid NOT NULL |
+| previous_revision | bigint / int8 | NO | bigint NOT NULL |
+| revision | bigint / int8 | NO | bigint NOT NULL |
+| idempotency_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| command_hash | text / text | NO | text NOT NULL |
+| result | jsonb / jsonb | NO | jsonb NOT NULL |
+| event_kind | text / text | NO | text DEFAULT 'mutation'::text NOT NULL |
+
+Constraints:
+- `pxm_audit_events_actor_id_check`: `CHECK (((octet_length(actor_id) >= 1) AND (octet_length(actor_id) <= 128)))`
+- `pxm_audit_events_actor_type_check`: `CHECK ((actor_type ~ '^[a-z][a-z0-9_.:-]{0,63}$'::text))`
+- `pxm_audit_events_check`: `CHECK ((((event_kind = 'mutation'::text) AND (revision = (previous_revision + 1))) OR ((event_kind = 'read'::text) AND (revision = previous_revision) AND (revision >= 0))))`
+- `pxm_audit_events_command_hash_check`: `CHECK ((command_hash ~ '^[0-9a-f]{64}$'::text))`
+- `pxm_audit_events_entity_type_check`: `CHECK ((entity_type = ANY (ARRAY['endpoints'::text, 'routes'::text, 'route_profiles'::text, 'targets'::text, 'shared_route_grants'::text, 'policy_heads'::text, 'bindings'::text, 'budgets'::text, 'route_health'::text, 'route_target_health'::text, 'target_health'::text])))`
+- `pxm_audit_events_event_kind_check`: `CHECK ((event_kind = ANY (ARRAY['mutation'::text, 'read'::text])))`
+- `pxm_audit_events_idempotency_key_check`: `CHECK ((idempotency_key ~ '^[!-~]{1,128}$'::text))`
+- `pxm_audit_events_pkey`: `PRIMARY KEY (id)`
+- `pxm_audit_events_previous_revision_check`: `CHECK ((previous_revision >= 0))`
+- `pxm_audit_events_reason_check`: `CHECK (((octet_length(reason) >= 1) AND (octet_length(reason) <= 512)))`
+- `pxm_audit_events_result_check`: `CHECK ((jsonb_typeof(result) = 'object'::text))`
+- `pxm_audit_events_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_audit_events_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_audit_events_tenant_key_idempotency_key_key`: `UNIQUE (tenant_key, idempotency_key)`
+
+Indexes:
+- `pxm_audit_entity_idx`: `CREATE INDEX pxm_audit_entity_idx ON public.pxm_audit_events USING btree (tenant_key, entity_type, entity_id, revision)`
+- `pxm_audit_events_pkey`: `CREATE UNIQUE INDEX pxm_audit_events_pkey ON public.pxm_audit_events USING btree (id)`
+- `pxm_audit_events_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_audit_events_tenant_key_id_key ON public.pxm_audit_events USING btree (tenant_key, id)`
+- `pxm_audit_events_tenant_key_idempotency_key_key`: `CREATE UNIQUE INDEX pxm_audit_events_tenant_key_idempotency_key_key ON public.pxm_audit_events USING btree (tenant_key, idempotency_key)`
+
+#### pxm_binding_revisions
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| binding_id | uuid / uuid | NO | uuid NOT NULL |
+| revision | bigint / int8 | NO | bigint NOT NULL |
+| policy_revision_id | uuid / uuid | NO | uuid NOT NULL |
+| head_id | uuid / uuid | NO | uuid NOT NULL |
+| profile_id | uuid / uuid | YES | uuid |
+| policy_key | text / text | NO | text NOT NULL |
+| retired | boolean / bool | NO | boolean NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+
+Constraints:
+- `pxm_binding_revisions_pkey`: `PRIMARY KEY (id)`
+- `pxm_binding_revisions_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_binding_revisions_tenant_key_binding_id_fkey`: `FOREIGN KEY (tenant_key, binding_id) REFERENCES pxm_bindings(tenant_key, id)`
+- `pxm_binding_revisions_tenant_key_binding_id_revision_key`: `UNIQUE (tenant_key, binding_id, revision)`
+- `pxm_binding_revisions_tenant_key_head_id_policy_revision_i_fkey`: `FOREIGN KEY (tenant_key, head_id, policy_revision_id) REFERENCES pxm_policy_revisions(tenant_key, head_id, id)`
+- `pxm_binding_revisions_tenant_key_profile_id_fkey`: `FOREIGN KEY (tenant_key, profile_id) REFERENCES pxm_route_profiles(tenant_key, id)`
+
+Indexes:
+- `pxm_binding_revisions_pkey`: `CREATE UNIQUE INDEX pxm_binding_revisions_pkey ON public.pxm_binding_revisions USING btree (id)`
+- `pxm_binding_revisions_tenant_key_binding_id_revision_key`: `CREATE UNIQUE INDEX pxm_binding_revisions_tenant_key_binding_id_revision_key ON public.pxm_binding_revisions USING btree (tenant_key, binding_id, revision)`
+
+#### pxm_bindings
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| subject_type | text / text | NO | text NOT NULL |
+| subject_id | text / text | NO | text NOT NULL |
+| head_id | uuid / uuid | NO | uuid NOT NULL |
+| profile_id | uuid / uuid | YES | uuid |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| retired_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| panel_key | text / text | NO | text DEFAULT 'default'::text NOT NULL COLLATE pg_catalog."C" |
+| slot_key | text / text | NO | text DEFAULT 'default'::text NOT NULL COLLATE pg_catalog."C" |
+| policy_key | text / text | NO | text DEFAULT 'default'::text NOT NULL COLLATE pg_catalog."C" |
+
+Constraints:
+- `pxm_binding_scope_unique`: `UNIQUE (tenant_key, panel_key, subject_type, subject_id, slot_key)`
+- `pxm_bindings_panel_key_check`: `CHECK ((panel_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_bindings_pkey`: `PRIMARY KEY (id)`
+- `pxm_bindings_policy_key_check`: `CHECK ((policy_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_bindings_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_bindings_slot_key_check`: `CHECK ((slot_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_bindings_subject_id_check`: `CHECK (((octet_length(subject_id) >= 1) AND (octet_length(subject_id) <= 255)))`
+- `pxm_bindings_subject_type_check`: `CHECK ((subject_type ~ '^[a-z][a-z0-9_.:-]{0,63}$'::text))`
+- `pxm_bindings_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_bindings_tenant_key_head_id_fkey`: `FOREIGN KEY (tenant_key, head_id) REFERENCES pxm_policy_heads(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_bindings_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_bindings_tenant_key_profile_id_fkey`: `FOREIGN KEY (tenant_key, profile_id) REFERENCES pxm_route_profiles(tenant_key, id) ON DELETE RESTRICT`
+
+Indexes:
+- `pxm_binding_scope_unique`: `CREATE UNIQUE INDEX pxm_binding_scope_unique ON public.pxm_bindings USING btree (tenant_key, panel_key, subject_type, subject_id, slot_key)`
+- `pxm_bindings_pkey`: `CREATE UNIQUE INDEX pxm_bindings_pkey ON public.pxm_bindings USING btree (id)`
+- `pxm_bindings_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_bindings_tenant_key_id_key ON public.pxm_bindings USING btree (tenant_key, id)`
+
+#### pxm_budgets
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| scope_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| emission_interval_us | bigint / int8 | NO | bigint NOT NULL |
+| burst | bigint / int8 | NO | bigint NOT NULL |
+| max_inflight | bigint / int8 | NO | bigint NOT NULL |
+| mandatory | boolean / bool | NO | boolean DEFAULT false NOT NULL |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| tat | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT '-infinity'::timestamp with time zone NOT NULL |
+| send_tat | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT '-infinity'::timestamp with time zone NOT NULL |
+| inflight | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| hour_limit | bigint / int8 | YES | bigint |
+| day_limit | bigint / int8 | YES | bigint |
+| quota_policy_key | text / text | NO | text DEFAULT 'default'::text NOT NULL |
+| traffic_class | text / text | YES | text |
+| traffic_parent_id | uuid / uuid | YES | uuid |
+| traffic_percent | integer / int4 | YES | integer |
+| cooldown_until | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT '-infinity'::timestamp with time zone NOT NULL |
+
+Constraints:
+- `pxm_budget_lock_idx`: `UNIQUE (tenant_key, scope_key)`
+- `pxm_budgets_burst_check`: `CHECK ((burst > 0))`
+- `pxm_budgets_check`: `CHECK ((((traffic_class IS NULL) AND (traffic_parent_id IS NULL) AND (traffic_percent IS NULL)) OR ((traffic_class IS NOT NULL) AND (traffic_percent IS NOT NULL) AND (traffic_class ~ '^[a-z][a-z0-9_.:-]{0,63}$'::text) AND (traffic_parent_id IS NOT NULL) AND (traffic_parent_id <> id) AND ((traffic_percent >= 0) AND (traffic_percent <= 100)))))`
+- `pxm_budgets_day_limit_check`: `CHECK ((day_limit >= 0))`
+- `pxm_budgets_emission_interval_us_check`: `CHECK ((emission_interval_us > 0))`
+- `pxm_budgets_hour_limit_check`: `CHECK ((hour_limit >= 0))`
+- `pxm_budgets_inflight_check`: `CHECK ((inflight >= 0))`
+- `pxm_budgets_max_inflight_check`: `CHECK ((max_inflight > 0))`
+- `pxm_budgets_pkey`: `PRIMARY KEY (id)`
+- `pxm_budgets_quota_policy_key_check`: `CHECK ((quota_policy_key ~ '^[a-z][a-z0-9_.:-]{0,63}$'::text))`
+- `pxm_budgets_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_budgets_scope_key_check`: `CHECK ((scope_key ~ '^[a-z0-9][a-z0-9_.:-]{0,254}$'::text))`
+- `pxm_budgets_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_budgets_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_budgets_tenant_key_traffic_parent_id_fkey`: `FOREIGN KEY (tenant_key, traffic_parent_id) REFERENCES pxm_budgets(tenant_key, id)`
+- `pxm_cooldown_finite`: `CHECK ((cooldown_until <> 'infinity'::timestamp with time zone))`
+
+Indexes:
+- `pxm_budget_lock_idx`: `CREATE UNIQUE INDEX pxm_budget_lock_idx ON public.pxm_budgets USING btree (tenant_key, scope_key)`
+- `pxm_budgets_pkey`: `CREATE UNIQUE INDEX pxm_budgets_pkey ON public.pxm_budgets USING btree (id)`
+- `pxm_budgets_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_budgets_tenant_key_id_key ON public.pxm_budgets USING btree (tenant_key, id)`
+
+#### pxm_catalog_command_receipts
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| audit_event_id | uuid / uuid | NO | uuid NOT NULL |
+| idempotency_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| command_hash | text / text | NO | text NOT NULL |
+| result | jsonb / jsonb | NO | jsonb NOT NULL |
+
+Constraints:
+- `pxm_catalog_command_receipts_command_hash_check`: `CHECK ((command_hash ~ '^[0-9a-f]{64}$'::text))`
+- `pxm_catalog_command_receipts_pkey`: `PRIMARY KEY (id)`
+- `pxm_catalog_command_receipts_result_check`: `CHECK ((jsonb_typeof(result) = 'object'::text))`
+- `pxm_catalog_command_receipts_tenant_key_audit_event_id_fkey`: `FOREIGN KEY (tenant_key, audit_event_id) REFERENCES pxm_audit_events(tenant_key, id)`
+- `pxm_catalog_command_receipts_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_catalog_command_receipts_tenant_key_idempotency_key_key`: `UNIQUE (tenant_key, idempotency_key)`
+
+Indexes:
+- `pxm_catalog_command_receipts_pkey`: `CREATE UNIQUE INDEX pxm_catalog_command_receipts_pkey ON public.pxm_catalog_command_receipts USING btree (id)`
+- `pxm_catalog_command_receipts_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_catalog_command_receipts_tenant_key_id_key ON public.pxm_catalog_command_receipts USING btree (tenant_key, id)`
+- `pxm_catalog_command_receipts_tenant_key_idempotency_key_key`: `CREATE UNIQUE INDEX pxm_catalog_command_receipts_tenant_key_idempotency_key_key ON public.pxm_catalog_command_receipts USING btree (tenant_key, idempotency_key)`
+
+#### pxm_demand_scopes
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| demand_id | uuid / uuid | NO | uuid NOT NULL |
+| budget_tenant_key | text / text | NO | text NOT NULL |
+| budget_id | uuid / uuid | NO | uuid NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+
+Constraints:
+- `pxm_demand_scopes_budget_tenant_key_budget_id_fkey`: `FOREIGN KEY (budget_tenant_key, budget_id) REFERENCES pxm_budgets(tenant_key, id)`
+- `pxm_demand_scopes_check`: `CHECK (((budget_tenant_key = tenant_key) OR (budget_tenant_key = 'system'::text)))`
+- `pxm_demand_scopes_pkey`: `PRIMARY KEY (id)`
+- `pxm_demand_scopes_tenant_key_demand_id_budget_tenant_key_bu_key`: `UNIQUE (tenant_key, demand_id, budget_tenant_key, budget_id)`
+- `pxm_demand_scopes_tenant_key_demand_id_fkey`: `FOREIGN KEY (tenant_key, demand_id) REFERENCES pxm_demands(tenant_key, id)`
+- `pxm_scope_exact_guard`: `TRIGGER DEFERRABLE INITIALLY DEFERRED`
+
+Indexes:
+- `pxm_demand_scope_conflict_idx`: `CREATE INDEX pxm_demand_scope_conflict_idx ON public.pxm_demand_scopes USING btree (budget_id, demand_id)`
+- `pxm_demand_scopes_pkey`: `CREATE UNIQUE INDEX pxm_demand_scopes_pkey ON public.pxm_demand_scopes USING btree (id)`
+- `pxm_demand_scopes_tenant_key_demand_id_budget_tenant_key_bu_key`: `CREATE UNIQUE INDEX pxm_demand_scopes_tenant_key_demand_id_budget_tenant_key_bu_key ON public.pxm_demand_scopes USING btree (tenant_key, demand_id, budget_tenant_key, budget_id)`
+
+#### pxm_demands
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| profile_id | uuid / uuid | NO | uuid NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| purpose | text / text | NO | text NOT NULL |
+| state | text / text | NO | text DEFAULT 'active'::text NOT NULL |
+| sequence | bigint / int8 | NO | bigint NOT NULL |
+| cost | bigint / int8 | NO | bigint NOT NULL |
+| deadline | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| physical_attempt_id | uuid / uuid | YES | uuid |
+| wire_fingerprint | text / text | YES | text |
+| intent_hash | text / text | YES | text |
+| scope_hash | text / text | YES | text |
+| expires_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| admitted_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| traffic_class | text / text | NO | text DEFAULT 'default'::text NOT NULL |
+
+Constraints:
+- `pxm_demand_identity_check`: `CHECK ((((physical_attempt_id IS NULL) AND (wire_fingerprint IS NULL) AND (intent_hash IS NULL) AND (scope_hash IS NULL) AND (expires_at IS NULL)) OR ((physical_attempt_id IS NOT NULL) AND (wire_fingerprint ~ '^[0-9a-f]{64}$'::text) AND (wire_fingerprint IS NOT NULL) AND (intent_hash ~ '^[0-9a-f]{64}$'::text) AND (intent_hash IS NOT NULL) AND (scope_hash ~ '^[0-9a-f]{64}$'::text) AND (scope_hash IS NOT NULL) AND (expires_at IS NOT NULL) AND isfinite(expires_at) AND (expires_at <= deadline))))`
+- `pxm_demand_physical_unique`: `UNIQUE (tenant_key, operation_id, physical_attempt_id)`
+- `pxm_demand_scope_exact_guard`: `TRIGGER DEFERRABLE INITIALLY DEFERRED`
+- `pxm_demands_cost_check`: `CHECK ((cost > 0))`
+- `pxm_demands_deadline_check`: `CHECK (isfinite(deadline))`
+- `pxm_demands_pkey`: `PRIMARY KEY (id)`
+- `pxm_demands_purpose_check`: `CHECK ((purpose = ANY (ARRAY['normal'::text, 'probe'::text])))`
+- `pxm_demands_state_check`: `CHECK ((state = ANY (ARRAY['active'::text, 'admitted'::text, 'completed'::text, 'cancelled'::text, 'expired'::text])))`
+- `pxm_demands_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_demands_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_demands_tenant_key_id_operation_id_target_id_key`: `UNIQUE (tenant_key, id, operation_id, target_id)`
+- `pxm_demands_tenant_key_operation_id_profile_id_target_id_fkey`: `FOREIGN KEY (tenant_key, operation_id, profile_id, target_id) REFERENCES pxm_operations(tenant_key, id, profile_id, target_id)`
+- `pxm_demands_traffic_class_check`: `CHECK ((traffic_class ~ '^[a-z][a-z0-9_.:-]{0,63}$'::text))`
+
+Indexes:
+- `pxm_demand_deadline_idx`: `CREATE INDEX pxm_demand_deadline_idx ON public.pxm_demands USING btree (tenant_key, deadline, id) WHERE (state = ANY (ARRAY['active'::text, 'admitted'::text]))`
+- `pxm_demand_fifo_active_idx`: `CREATE INDEX pxm_demand_fifo_active_idx ON public.pxm_demands USING btree (sequence, id) WHERE ((physical_attempt_id IS NOT NULL) AND (state = 'active'::text))`
+- `pxm_demand_fifo_idx`: `CREATE INDEX pxm_demand_fifo_idx ON public.pxm_demands USING btree (tenant_key, profile_id, target_id, sequence) WHERE (state = 'active'::text)`
+- `pxm_demand_physical_unique`: `CREATE UNIQUE INDEX pxm_demand_physical_unique ON public.pxm_demands USING btree (tenant_key, operation_id, physical_attempt_id)`
+- `pxm_demands_pkey`: `CREATE UNIQUE INDEX pxm_demands_pkey ON public.pxm_demands USING btree (id)`
+- `pxm_demands_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_demands_tenant_key_id_key ON public.pxm_demands USING btree (tenant_key, id)`
+- `pxm_demands_tenant_key_id_operation_id_target_id_key`: `CREATE UNIQUE INDEX pxm_demands_tenant_key_id_operation_id_target_id_key ON public.pxm_demands USING btree (tenant_key, id, operation_id, target_id)`
+
+#### pxm_encrypted_secrets
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| reference | text / text | NO | text NOT NULL |
+| endpoint_id | uuid / uuid | NO | uuid NOT NULL |
+| version | bigint / int8 | NO | bigint NOT NULL |
+| ciphertext | text / text | NO | text NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+
+Constraints:
+- `pxm_encrypted_secrets_ciphertext_check`: `CHECK ((octet_length(ciphertext) > 0))`
+- `pxm_encrypted_secrets_pkey`: `PRIMARY KEY (tenant_key, reference)`
+- `pxm_encrypted_secrets_reference_check`: `CHECK ((reference ~ '^[0-9a-f-]{36}$'::text))`
+- `pxm_encrypted_secrets_tenant_key_endpoint_id_fkey`: `FOREIGN KEY (tenant_key, endpoint_id) REFERENCES pxm_endpoints(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_encrypted_secrets_tenant_key_endpoint_id_key`: `UNIQUE (tenant_key, endpoint_id)`
+- `pxm_encrypted_secrets_version_check`: `CHECK ((version >= 1))`
+
+Indexes:
+- `pxm_encrypted_secrets_pkey`: `CREATE UNIQUE INDEX pxm_encrypted_secrets_pkey ON public.pxm_encrypted_secrets USING btree (tenant_key, reference)`
+- `pxm_encrypted_secrets_tenant_key_endpoint_id_key`: `CREATE UNIQUE INDEX pxm_encrypted_secrets_tenant_key_endpoint_id_key ON public.pxm_encrypted_secrets USING btree (tenant_key, endpoint_id)`
+
+#### pxm_endpoints
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| protocol | text / text | NO | text NOT NULL |
+| host | text / text | NO | text NOT NULL |
+| port | integer / int4 | NO | integer NOT NULL |
+| credential_ref | text / text | YES | text |
+| credential_version | bigint / int8 | YES | bigint |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| retired_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `pxm_endpoints_check`: `CHECK (((credential_ref IS NULL) = (credential_version IS NULL)))`
+- `pxm_endpoints_credential_ref_check`: `CHECK ((((octet_length(credential_ref) >= 1) AND (octet_length(credential_ref) <= 255)) AND (credential_ref !~ '[[:space:]]'::text)))`
+- `pxm_endpoints_credential_version_check`: `CHECK ((credential_version >= 1))`
+- `pxm_endpoints_host_check`: `CHECK ((((length(host) >= 1) AND (length(host) <= 253)) AND (host = lower(host)) AND (host !~ '[[:space:]]'::text)))`
+- `pxm_endpoints_pkey`: `PRIMARY KEY (id)`
+- `pxm_endpoints_port_check`: `CHECK (((port >= 1) AND (port <= 65535)))`
+- `pxm_endpoints_protocol_check`: `CHECK ((protocol = ANY (ARRAY['http'::text, 'https'::text, 'socks5'::text, 'socks5h'::text])))`
+- `pxm_endpoints_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_endpoints_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_endpoints_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+
+Indexes:
+- `pxm_endpoints_pkey`: `CREATE UNIQUE INDEX pxm_endpoints_pkey ON public.pxm_endpoints USING btree (id)`
+- `pxm_endpoints_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_endpoints_tenant_key_id_key ON public.pxm_endpoints USING btree (tenant_key, id)`
+
+#### pxm_imported_health_samples
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| tenant_key | text / text | NO | text NOT NULL |
+| observation_id | uuid / uuid | NO | uuid NOT NULL |
+| attempt_id | uuid / uuid | NO | uuid NOT NULL |
+| application_key | text / text | NO | text NOT NULL |
+| health_epoch | bigint / int8 | NO | bigint NOT NULL |
+| signal | text / text | NO | text NOT NULL |
+| independence_group | text / text | YES | text |
+| reducer_allowed | boolean / bool | NO | boolean NOT NULL |
+| observed_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `pxm_imported_health_samples_health_epoch_check`: `CHECK ((health_epoch > 0))`
+- `pxm_imported_health_samples_pkey`: `PRIMARY KEY (tenant_key, observation_id, application_key)`
+- `pxm_imported_health_samples_signal_check`: `CHECK ((signal = ANY (ARRAY['success'::text, 'failure'::text, 'maintenance'::text])))`
+
+Indexes:
+- `pxm_imported_health_samples_pkey`: `CREATE UNIQUE INDEX pxm_imported_health_samples_pkey ON public.pxm_imported_health_samples USING btree (tenant_key, observation_id, application_key)`
+- `pxm_imported_window`: `CREATE INDEX pxm_imported_window ON public.pxm_imported_health_samples USING btree (tenant_key, application_key, health_epoch, observed_at)`
+
+#### pxm_observation_applications
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| observation_id | uuid / uuid | NO | uuid NOT NULL |
+| application_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| health_epoch | bigint / int8 | NO | bigint NOT NULL |
+| reducer_allowed | boolean / bool | NO | boolean DEFAULT true NOT NULL |
+
+Constraints:
+- `pxm_observation_applications_application_key_check`: `CHECK ((application_key ~ '^[a-z0-9][a-z0-9_.:-]{0,254}$'::text))`
+- `pxm_observation_applications_health_epoch_check`: `CHECK ((health_epoch >= 1))`
+- `pxm_observation_applications_pkey`: `PRIMARY KEY (id)`
+- `pxm_observation_applications_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_observation_applications_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_observation_applications_tenant_key_observation_id_appl_key`: `UNIQUE (tenant_key, observation_id, application_key)`
+- `pxm_observation_applications_tenant_key_observation_id_fkey`: `FOREIGN KEY (tenant_key, observation_id) REFERENCES pxm_observations(tenant_key, id) ON DELETE RESTRICT`
+
+Indexes:
+- `pxm_observation_applications_pkey`: `CREATE UNIQUE INDEX pxm_observation_applications_pkey ON public.pxm_observation_applications USING btree (id)`
+- `pxm_observation_applications_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_observation_applications_tenant_key_id_key ON public.pxm_observation_applications USING btree (tenant_key, id)`
+- `pxm_observation_applications_tenant_key_observation_id_appl_key`: `CREATE UNIQUE INDEX pxm_observation_applications_tenant_key_observation_id_appl_key ON public.pxm_observation_applications USING btree (tenant_key, observation_id, application_key)`
+
+#### pxm_observations
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| attempt_id | uuid / uuid | NO | uuid NOT NULL |
+| receipt_id | uuid / uuid | NO | uuid NOT NULL |
+| classification | text / text | NO | text NOT NULL |
+| evidence | jsonb / jsonb | NO | jsonb NOT NULL |
+| observed_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+
+Constraints:
+- `pxm_observations_classification_check`: `CHECK (((octet_length(classification) >= 1) AND (octet_length(classification) <= 64)))`
+- `pxm_observations_evidence_check`: `CHECK ((jsonb_typeof(evidence) = 'object'::text))`
+- `pxm_observations_pkey`: `PRIMARY KEY (id)`
+- `pxm_observations_tenant_key_attempt_id_fkey`: `FOREIGN KEY (tenant_key, attempt_id) REFERENCES pxm_attempts(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_observations_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_observations_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_observations_tenant_key_receipt_id_key`: `UNIQUE (tenant_key, receipt_id)`
+
+Indexes:
+- `pxm_observation_attempt_idx`: `CREATE INDEX pxm_observation_attempt_idx ON public.pxm_observations USING btree (tenant_key, attempt_id)`
+- `pxm_observation_kind_once`: `CREATE UNIQUE INDEX pxm_observation_kind_once ON public.pxm_observations USING btree (tenant_key, attempt_id, classification)`
+- `pxm_observations_pkey`: `CREATE UNIQUE INDEX pxm_observations_pkey ON public.pxm_observations USING btree (id)`
+- `pxm_observations_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_observations_tenant_key_id_key ON public.pxm_observations USING btree (tenant_key, id)`
+- `pxm_observations_tenant_key_receipt_id_key`: `CREATE UNIQUE INDEX pxm_observations_tenant_key_receipt_id_key ON public.pxm_observations USING btree (tenant_key, receipt_id)`
+
+#### pxm_operations
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| profile_id | uuid / uuid | NO | uuid NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| owner_type | text / text | NO | text NOT NULL |
+| owner_id | text / text | NO | text NOT NULL |
+| owner_token | text / text | NO | text NOT NULL |
+| owner_generation | bigint / int8 | NO | bigint NOT NULL |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| status | text / text | NO | text DEFAULT 'active'::text NOT NULL |
+| deadline | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| revoked_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| connect_timeout_ms | integer / int4 | NO | integer DEFAULT 1000 NOT NULL |
+| request_timeout_ms | integer / int4 | NO | integer DEFAULT 10000 NOT NULL |
+| max_physical_attempts | integer / int4 | NO | integer NOT NULL |
+| authorized_attempts | integer / int4 | NO | integer DEFAULT 0 NOT NULL |
+| external_operation_key | text / text | YES | text |
+| parent_attempt_id | uuid / uuid | YES | uuid |
+| intent_hash | text / text | YES | text |
+| purpose | text / text | NO | text DEFAULT 'ordinary'::text NOT NULL |
+| probe_token | uuid / uuid | YES | uuid |
+
+Constraints:
+- `pxm_operation_correlation_check`: `CHECK (((external_operation_key IS NULL) OR (((octet_length(external_operation_key) >= 1) AND (octet_length(external_operation_key) <= 255)) AND (external_operation_key !~ '[[:space:]]'::text))))`
+- `pxm_operation_intent_check`: `CHECK (((intent_hash IS NULL) OR (intent_hash ~ '^[0-9a-f]{64}$'::text)))`
+- `pxm_operation_probe_token_check`: `CHECK (((purpose = 'probe'::text) = (probe_token IS NOT NULL)))`
+- `pxm_operations_check`: `CHECK (((request_timeout_ms > 0) AND (request_timeout_ms >= connect_timeout_ms)))`
+- `pxm_operations_check1`: `CHECK (((authorized_attempts >= 0) AND (authorized_attempts <= max_physical_attempts)))`
+- `pxm_operations_connect_timeout_ms_check`: `CHECK ((connect_timeout_ms > 0))`
+- `pxm_operations_deadline_check`: `CHECK (isfinite(deadline))`
+- `pxm_operations_max_physical_attempts_check`: `CHECK ((max_physical_attempts > 0))`
+- `pxm_operations_owner_generation_check`: `CHECK ((owner_generation >= 1))`
+- `pxm_operations_owner_id_check`: `CHECK (((octet_length(owner_id) >= 1) AND (octet_length(owner_id) <= 255)))`
+- `pxm_operations_owner_token_check`: `CHECK (((octet_length(owner_token) >= 1) AND (octet_length(owner_token) <= 255)))`
+- `pxm_operations_owner_type_check`: `CHECK (((octet_length(owner_type) >= 1) AND (octet_length(owner_type) <= 64)))`
+- `pxm_operations_pkey`: `PRIMARY KEY (id)`
+- `pxm_operations_purpose_check`: `CHECK ((purpose = ANY (ARRAY['ordinary'::text, 'probe'::text, 'diagnostic'::text])))`
+- `pxm_operations_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_operations_status_check`: `CHECK ((status = ANY (ARRAY['active'::text, 'completed'::text, 'cancelled'::text, 'expired'::text])))`
+- `pxm_operations_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_operations_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_operations_tenant_key_id_profile_id_target_id_key`: `UNIQUE (tenant_key, id, profile_id, target_id)`
+- `pxm_operations_tenant_key_profile_id_fkey`: `FOREIGN KEY (tenant_key, profile_id) REFERENCES pxm_route_profiles(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_operations_tenant_key_target_id_fkey`: `FOREIGN KEY (tenant_key, target_id) REFERENCES pxm_targets(tenant_key, id) ON DELETE RESTRICT`
+
+Indexes:
+- `pxm_operation_deadline_idx`: `CREATE INDEX pxm_operation_deadline_idx ON public.pxm_operations USING btree (tenant_key, deadline, id) WHERE (status = 'active'::text)`
+- `pxm_operations_pkey`: `CREATE UNIQUE INDEX pxm_operations_pkey ON public.pxm_operations USING btree (id)`
+- `pxm_operations_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_operations_tenant_key_id_key ON public.pxm_operations USING btree (tenant_key, id)`
+- `pxm_operations_tenant_key_id_profile_id_target_id_key`: `CREATE UNIQUE INDEX pxm_operations_tenant_key_id_profile_id_target_id_key ON public.pxm_operations USING btree (tenant_key, id, profile_id, target_id)`
+
+#### pxm_permits
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| demand_id | uuid / uuid | NO | uuid NOT NULL |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| physical_attempt_id | uuid / uuid | NO | uuid NOT NULL |
+| wire_fingerprint | text / text | NO | text NOT NULL |
+| state | text / text | NO | text DEFAULT 'reserved'::text NOT NULL |
+| cost | bigint / int8 | NO | bigint NOT NULL |
+| not_before | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| expires_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| authorized_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| completed_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| claim_id | uuid / uuid | YES | uuid |
+| reservation_intent | text / text | YES | text |
+| reservation_evidence | jsonb / jsonb | NO | jsonb DEFAULT '{}'::jsonb NOT NULL |
+| reservation_limits | jsonb / jsonb | NO | jsonb DEFAULT '{}'::jsonb NOT NULL |
+| lease_released_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `pxm_permit_artifact_identity`: `UNIQUE (tenant_key, id, operation_id)`
+- `pxm_permit_reservation_intent_check`: `CHECK (((reservation_intent IS NULL) OR (reservation_intent ~ '^[0-9a-f]{64}$'::text)))`
+- `pxm_permits_check`: `CHECK ((isfinite(not_before) AND isfinite(expires_at) AND (expires_at > not_before)))`
+- `pxm_permits_check1`: `CHECK ((((state = ANY (ARRAY['reserved'::text, 'cancelled_before_send'::text, 'expired_before_send'::text])) AND (authorized_at IS NULL) AND (claim_id IS NULL)) OR ((state = ANY (ARRAY['authorized'::text, 'completed'::text, 'unknown_after_authorization'::text])) AND (authorized_at IS NOT NULL) AND (claim_id IS NOT NULL))))`
+- `pxm_permits_check2`: `CHECK (((state = 'completed'::text) = (completed_at IS NOT NULL)))`
+- `pxm_permits_cost_check`: `CHECK ((cost > 0))`
+- `pxm_permits_pkey`: `PRIMARY KEY (id)`
+- `pxm_permits_state_check`: `CHECK ((state = ANY (ARRAY['reserved'::text, 'authorized'::text, 'completed'::text, 'unknown_after_authorization'::text, 'cancelled_before_send'::text, 'expired_before_send'::text])))`
+- `pxm_permits_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_permits_tenant_key_claim_id_key`: `UNIQUE (tenant_key, claim_id)`
+- `pxm_permits_tenant_key_demand_id_key`: `UNIQUE (tenant_key, demand_id)`
+- `pxm_permits_tenant_key_demand_id_operation_id_target_id_fkey`: `FOREIGN KEY (tenant_key, demand_id, operation_id, target_id) REFERENCES pxm_demands(tenant_key, id, operation_id, target_id)`
+- `pxm_permits_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_permits_tenant_key_id_operation_id_physical_attempt_id_key`: `UNIQUE (tenant_key, id, operation_id, physical_attempt_id)`
+- `pxm_permits_tenant_key_operation_id_fkey`: `FOREIGN KEY (tenant_key, operation_id) REFERENCES pxm_operations(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_permits_tenant_key_operation_id_physical_attempt_id_key`: `UNIQUE (tenant_key, operation_id, physical_attempt_id)`
+- `pxm_permits_tenant_key_route_id_fkey`: `FOREIGN KEY (tenant_key, route_id) REFERENCES pxm_routes(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_permits_tenant_key_target_id_fkey`: `FOREIGN KEY (tenant_key, target_id) REFERENCES pxm_targets(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_permits_wire_fingerprint_check`: `CHECK ((wire_fingerprint ~ '^[0-9a-f]{64}$'::text))`
+
+Indexes:
+- `pxm_permit_artifact_identity`: `CREATE UNIQUE INDEX pxm_permit_artifact_identity ON public.pxm_permits USING btree (tenant_key, id, operation_id)`
+- `pxm_permit_due_idx`: `CREATE INDEX pxm_permit_due_idx ON public.pxm_permits USING btree (tenant_key, expires_at, id) WHERE (state = ANY (ARRAY['reserved'::text, 'authorized'::text]))`
+- `pxm_permit_operation_idx`: `CREATE INDEX pxm_permit_operation_idx ON public.pxm_permits USING btree (tenant_key, operation_id, id)`
+- `pxm_permits_pkey`: `CREATE UNIQUE INDEX pxm_permits_pkey ON public.pxm_permits USING btree (id)`
+- `pxm_permits_tenant_key_claim_id_key`: `CREATE UNIQUE INDEX pxm_permits_tenant_key_claim_id_key ON public.pxm_permits USING btree (tenant_key, claim_id)`
+- `pxm_permits_tenant_key_demand_id_key`: `CREATE UNIQUE INDEX pxm_permits_tenant_key_demand_id_key ON public.pxm_permits USING btree (tenant_key, demand_id)`
+- `pxm_permits_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_permits_tenant_key_id_key ON public.pxm_permits USING btree (tenant_key, id)`
+- `pxm_permits_tenant_key_id_operation_id_physical_attempt_id_key`: `CREATE UNIQUE INDEX pxm_permits_tenant_key_id_operation_id_physical_attempt_id_key ON public.pxm_permits USING btree (tenant_key, id, operation_id, physical_attempt_id)`
+- `pxm_permits_tenant_key_operation_id_physical_attempt_id_key`: `CREATE UNIQUE INDEX pxm_permits_tenant_key_operation_id_physical_attempt_id_key ON public.pxm_permits USING btree (tenant_key, operation_id, physical_attempt_id)`
+- `pxm_recovery_permit_idx`: `CREATE INDEX pxm_recovery_permit_idx ON public.pxm_permits USING btree (operation_id, expires_at) WHERE (lease_released_at IS NULL)`
+
+#### pxm_policy_heads
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| scope_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| current_revision_id | uuid / uuid | YES | uuid |
+
+Constraints:
+- `pxm_policy_current_fk`: `FOREIGN KEY (tenant_key, id, current_revision_id) REFERENCES pxm_policy_revisions(tenant_key, head_id, id) DEFERRABLE INITIALLY DEFERRED`
+- `pxm_policy_heads_pkey`: `PRIMARY KEY (id)`
+- `pxm_policy_heads_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_policy_heads_scope_key_check`: `CHECK ((scope_key ~ '^[a-z0-9][a-z0-9_.:-]{0,254}$'::text))`
+- `pxm_policy_heads_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_policy_heads_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_policy_heads_tenant_key_scope_key_key`: `UNIQUE (tenant_key, scope_key)`
+
+Indexes:
+- `pxm_policy_heads_pkey`: `CREATE UNIQUE INDEX pxm_policy_heads_pkey ON public.pxm_policy_heads USING btree (id)`
+- `pxm_policy_heads_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_policy_heads_tenant_key_id_key ON public.pxm_policy_heads USING btree (tenant_key, id)`
+- `pxm_policy_heads_tenant_key_scope_key_key`: `CREATE UNIQUE INDEX pxm_policy_heads_tenant_key_scope_key_key ON public.pxm_policy_heads USING btree (tenant_key, scope_key)`
+
+#### pxm_policy_revisions
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| head_id | uuid / uuid | NO | uuid NOT NULL |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| definition | jsonb / jsonb | NO | jsonb NOT NULL |
+
+Constraints:
+- `pxm_policy_revisions_definition_check`: `CHECK ((jsonb_typeof(definition) = 'object'::text))`
+- `pxm_policy_revisions_pkey`: `PRIMARY KEY (id)`
+- `pxm_policy_revisions_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_policy_revisions_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_policy_revisions_tenant_key_head_id_fkey`: `FOREIGN KEY (tenant_key, head_id) REFERENCES pxm_policy_heads(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_policy_revisions_tenant_key_head_id_id_key`: `UNIQUE (tenant_key, head_id, id)`
+- `pxm_policy_revisions_tenant_key_head_id_revision_key`: `UNIQUE (tenant_key, head_id, revision)`
+- `pxm_policy_revisions_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+
+Indexes:
+- `pxm_policy_revisions_pkey`: `CREATE UNIQUE INDEX pxm_policy_revisions_pkey ON public.pxm_policy_revisions USING btree (id)`
+- `pxm_policy_revisions_tenant_key_head_id_id_key`: `CREATE UNIQUE INDEX pxm_policy_revisions_tenant_key_head_id_id_key ON public.pxm_policy_revisions USING btree (tenant_key, head_id, id)`
+- `pxm_policy_revisions_tenant_key_head_id_revision_key`: `CREATE UNIQUE INDEX pxm_policy_revisions_tenant_key_head_id_revision_key ON public.pxm_policy_revisions USING btree (tenant_key, head_id, revision)`
+- `pxm_policy_revisions_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_policy_revisions_tenant_key_id_key ON public.pxm_policy_revisions USING btree (tenant_key, id)`
+
+#### pxm_probe_claims
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| epochs | jsonb / jsonb | NO | jsonb NOT NULL |
+| purpose | text / text | NO | text DEFAULT 'probe'::text NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| expires_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| physical_attempt_id | uuid / uuid | YES | uuid |
+
+Constraints:
+- `pxm_probe_claims_check`: `CHECK ((isfinite(created_at) AND isfinite(expires_at) AND (expires_at > created_at) AND (expires_at <= (created_at + '00:05:00'::interval))))`
+- `pxm_probe_claims_epochs_check`: `CHECK (((jsonb_typeof(epochs) = 'object'::text) AND (epochs <> '{}'::jsonb)))`
+- `pxm_probe_claims_pkey`: `PRIMARY KEY (id)`
+- `pxm_probe_claims_purpose_check`: `CHECK ((purpose = 'probe'::text))`
+- `pxm_probe_claims_tenant_key_operation_id_fkey`: `FOREIGN KEY (tenant_key, operation_id) REFERENCES pxm_operations(tenant_key, id) ON DELETE RESTRICT`
+
+Indexes:
+- `pxm_probe_claims_pkey`: `CREATE UNIQUE INDEX pxm_probe_claims_pkey ON public.pxm_probe_claims USING btree (id)`
+
+#### pxm_profile_health
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| profile_id | uuid / uuid | NO | uuid NOT NULL |
+| state | text / text | NO | text DEFAULT 'unknown'::text NOT NULL |
+| health_epoch | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| state_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| consecutive_failures | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| recent_openings | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| reason_code | text / text | YES | text |
+| last_success_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| open_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| probe_token | uuid / uuid | YES | uuid |
+| probe_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| stable_since | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `pxm_profile_health_check`: `CHECK (((probe_token IS NULL) = (probe_until IS NULL)))`
+- `pxm_profile_health_consecutive_failures_check`: `CHECK ((consecutive_failures >= 0))`
+- `pxm_profile_health_health_epoch_check`: `CHECK ((health_epoch >= 1))`
+- `pxm_profile_health_pkey`: `PRIMARY KEY (id)`
+- `pxm_profile_health_recent_openings_check`: `CHECK ((recent_openings >= 0))`
+- `pxm_profile_health_state_check`: `CHECK ((state = ANY (ARRAY['unknown'::text, 'closed'::text, 'open'::text, 'half_open'::text])))`
+- `pxm_profile_health_state_version_check`: `CHECK ((state_version >= 1))`
+- `pxm_profile_health_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_profile_health_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_profile_health_tenant_key_profile_id_fkey`: `FOREIGN KEY (tenant_key, profile_id) REFERENCES pxm_route_profiles(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_profile_health_tenant_key_profile_id_key`: `UNIQUE (tenant_key, profile_id)`
+
+Indexes:
+- `pxm_profile_health_pkey`: `CREATE UNIQUE INDEX pxm_profile_health_pkey ON public.pxm_profile_health USING btree (id)`
+- `pxm_profile_health_probe_idx`: `CREATE INDEX pxm_profile_health_probe_idx ON public.pxm_profile_health USING btree (tenant_key, open_until, id) WHERE (state = ANY (ARRAY['open'::text, 'half_open'::text]))`
+- `pxm_profile_health_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_profile_health_tenant_key_id_key ON public.pxm_profile_health USING btree (tenant_key, id)`
+- `pxm_profile_health_tenant_key_profile_id_key`: `CREATE UNIQUE INDEX pxm_profile_health_tenant_key_profile_id_key ON public.pxm_profile_health USING btree (tenant_key, profile_id)`
+
+#### pxm_quota_reservations
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| permit_id | uuid / uuid | NO | uuid NOT NULL |
+| budget_tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| budget_id | uuid / uuid | NO | uuid NOT NULL |
+| window_id | uuid / uuid | NO | uuid NOT NULL |
+| cost | bigint / int8 | NO | bigint NOT NULL |
+| state | text / text | NO | text NOT NULL |
+
+Constraints:
+- `pxm_quota_reservations_budget_tenant_key_window_id_budget__fkey`: `FOREIGN KEY (budget_tenant_key, window_id, budget_id) REFERENCES pxm_quota_windows(tenant_key, id, budget_id)`
+- `pxm_quota_reservations_check`: `CHECK (((budget_tenant_key = tenant_key) OR (budget_tenant_key = 'system'::text)))`
+- `pxm_quota_reservations_cost_check`: `CHECK ((cost > 0))`
+- `pxm_quota_reservations_pkey`: `PRIMARY KEY (id)`
+- `pxm_quota_reservations_state_check`: `CHECK ((state = ANY (ARRAY['reserved'::text, 'consumed'::text, 'released'::text])))`
+- `pxm_quota_reservations_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_quota_reservations_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_quota_reservations_tenant_key_permit_id_fkey`: `FOREIGN KEY (tenant_key, permit_id) REFERENCES pxm_permits(tenant_key, id)`
+- `pxm_quota_reservations_tenant_key_permit_id_window_id_key`: `UNIQUE (tenant_key, permit_id, window_id)`
+
+Indexes:
+- `pxm_quota_reservations_pkey`: `CREATE UNIQUE INDEX pxm_quota_reservations_pkey ON public.pxm_quota_reservations USING btree (id)`
+- `pxm_quota_reservations_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_quota_reservations_tenant_key_id_key ON public.pxm_quota_reservations USING btree (tenant_key, id)`
+- `pxm_quota_reservations_tenant_key_permit_id_window_id_key`: `CREATE UNIQUE INDEX pxm_quota_reservations_tenant_key_permit_id_window_id_key ON public.pxm_quota_reservations USING btree (tenant_key, permit_id, window_id)`
+
+#### pxm_quota_windows
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| budget_id | uuid / uuid | NO | uuid NOT NULL |
+| starts_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| ends_at | timestamp with time zone / timestamptz | NO | timestamp with time zone NOT NULL |
+| quota_limit | bigint / int8 | NO | bigint NOT NULL |
+| reserved | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| spent | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| window_kind | text / text | NO | text DEFAULT 'hour'::text NOT NULL |
+| policy_key | text / text | NO | text DEFAULT 'default'::text NOT NULL |
+
+Constraints:
+- `pxm_quota_windows_check`: `CHECK ((isfinite(starts_at) AND isfinite(ends_at) AND (ends_at > starts_at)))`
+- `pxm_quota_windows_check1`: `CHECK (((starts_at = (date_trunc(window_kind, (starts_at AT TIME ZONE 'UTC'::text)) AT TIME ZONE 'UTC'::text)) AND (ends_at = (starts_at + CASE window_kind WHEN 'hour'::text THEN '01:00:00'::interval ELSE '24:00:00'::interval END))))`
+- `pxm_quota_windows_pkey`: `PRIMARY KEY (id)`
+- `pxm_quota_windows_policy_key_check`: `CHECK ((policy_key ~ '^[a-z][a-z0-9_.:-]{0,63}$'::text))`
+- `pxm_quota_windows_quota_limit_check`: `CHECK ((quota_limit >= 0))`
+- `pxm_quota_windows_reserved_check`: `CHECK ((reserved >= 0))`
+- `pxm_quota_windows_spent_check`: `CHECK ((spent >= 0))`
+- `pxm_quota_windows_tenant_key_budget_id_fkey`: `FOREIGN KEY (tenant_key, budget_id) REFERENCES pxm_budgets(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_quota_windows_tenant_key_budget_id_window_kind_starts_a_key`: `UNIQUE (tenant_key, budget_id, window_kind, starts_at, policy_key)`
+- `pxm_quota_windows_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_quota_windows_tenant_key_id_budget_id_key`: `UNIQUE (tenant_key, id, budget_id)`
+- `pxm_quota_windows_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_quota_windows_window_kind_check`: `CHECK ((window_kind = ANY (ARRAY['hour'::text, 'day'::text])))`
+
+Indexes:
+- `pxm_quota_windows_pkey`: `CREATE UNIQUE INDEX pxm_quota_windows_pkey ON public.pxm_quota_windows USING btree (id)`
+- `pxm_quota_windows_tenant_key_budget_id_window_kind_starts_a_key`: `CREATE UNIQUE INDEX pxm_quota_windows_tenant_key_budget_id_window_kind_starts_a_key ON public.pxm_quota_windows USING btree (tenant_key, budget_id, window_kind, starts_at, policy_key)`
+- `pxm_quota_windows_tenant_key_id_budget_id_key`: `CREATE UNIQUE INDEX pxm_quota_windows_tenant_key_id_budget_id_key ON public.pxm_quota_windows USING btree (tenant_key, id, budget_id)`
+- `pxm_quota_windows_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_quota_windows_tenant_key_id_key ON public.pxm_quota_windows USING btree (tenant_key, id)`
+
+#### pxm_reconcile_cursors
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| after_id | uuid / uuid | YES | uuid |
+| lease_token | uuid / uuid | YES | uuid |
+| lease_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `pxm_reconcile_cursors_check`: `CHECK (((lease_token IS NULL) = (lease_until IS NULL)))`
+- `pxm_reconcile_cursors_lease_until_check`: `CHECK (isfinite(lease_until))`
+- `pxm_reconcile_cursors_pkey`: `PRIMARY KEY (id)`
+- `pxm_reconcile_cursors_tenant_key_key`: `UNIQUE (tenant_key)`
+
+Indexes:
+- `pxm_reconcile_cursors_pkey`: `CREATE UNIQUE INDEX pxm_reconcile_cursors_pkey ON public.pxm_reconcile_cursors USING btree (id)`
+- `pxm_reconcile_cursors_tenant_key_key`: `CREATE UNIQUE INDEX pxm_reconcile_cursors_tenant_key_key ON public.pxm_reconcile_cursors USING btree (tenant_key)`
+
+#### pxm_reservations
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| permit_id | uuid / uuid | NO | uuid NOT NULL |
+| budget_id | uuid / uuid | NO | uuid NOT NULL |
+| quota_window_id | uuid / uuid | YES | uuid |
+| cost | bigint / int8 | NO | bigint NOT NULL |
+| state | text / text | NO | text NOT NULL |
+| budget_tenant_key | text / text | NO | text NOT NULL |
+
+Constraints:
+- `pxm_reservation_budget_owner_fk`: `FOREIGN KEY (budget_tenant_key, budget_id) REFERENCES pxm_budgets(tenant_key, id)`
+- `pxm_reservation_owner_check`: `CHECK (((budget_tenant_key = tenant_key) OR (budget_tenant_key = 'system'::text)))`
+- `pxm_reservation_window_owner_fk`: `FOREIGN KEY (budget_tenant_key, quota_window_id, budget_id) REFERENCES pxm_quota_windows(tenant_key, id, budget_id)`
+- `pxm_reservations_cost_check`: `CHECK ((cost > 0))`
+- `pxm_reservations_pkey`: `PRIMARY KEY (id)`
+- `pxm_reservations_state_check`: `CHECK ((state = ANY (ARRAY['reserved'::text, 'spent'::text, 'released'::text])))`
+- `pxm_reservations_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_reservations_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_reservations_tenant_key_permit_id_budget_id_key`: `UNIQUE (tenant_key, permit_id, budget_id)`
+- `pxm_reservations_tenant_key_permit_id_fkey`: `FOREIGN KEY (tenant_key, permit_id) REFERENCES pxm_permits(tenant_key, id) ON DELETE RESTRICT`
+
+Indexes:
+- `pxm_reservation_budget_idx`: `CREATE INDEX pxm_reservation_budget_idx ON public.pxm_reservations USING btree (tenant_key, budget_id, state)`
+- `pxm_reservations_pkey`: `CREATE UNIQUE INDEX pxm_reservations_pkey ON public.pxm_reservations USING btree (id)`
+- `pxm_reservations_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_reservations_tenant_key_id_key ON public.pxm_reservations USING btree (tenant_key, id)`
+- `pxm_reservations_tenant_key_permit_id_budget_id_key`: `CREATE UNIQUE INDEX pxm_reservations_tenant_key_permit_id_budget_id_key ON public.pxm_reservations USING btree (tenant_key, permit_id, budget_id)`
+
+#### pxm_route_health
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+| state | text / text | NO | text DEFAULT 'unknown'::text NOT NULL |
+| health_epoch | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| state_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| consecutive_failures | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| recent_openings | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| reason_code | text / text | YES | text |
+| last_success_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| open_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| probe_token | uuid / uuid | YES | uuid |
+| probe_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| stable_since | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| credential_endpoint_id | uuid / uuid | YES | uuid |
+| credential_version | bigint / int8 | YES | bigint |
+
+Constraints:
+- `pxm_credential_hold_identity`: `CHECK ((((credential_endpoint_id IS NULL) = (credential_version IS NULL)) AND (credential_version >= 1)))`
+- `pxm_route_health_check`: `CHECK (((probe_token IS NULL) = (probe_until IS NULL)))`
+- `pxm_route_health_consecutive_failures_check`: `CHECK ((consecutive_failures >= 0))`
+- `pxm_route_health_health_epoch_check`: `CHECK ((health_epoch >= 1))`
+- `pxm_route_health_pkey`: `PRIMARY KEY (id)`
+- `pxm_route_health_recent_openings_check`: `CHECK ((recent_openings >= 0))`
+- `pxm_route_health_state_check`: `CHECK ((state = ANY (ARRAY['unknown'::text, 'closed'::text, 'open'::text, 'half_open'::text])))`
+- `pxm_route_health_state_version_check`: `CHECK ((state_version >= 1))`
+- `pxm_route_health_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_route_health_tenant_key_credential_endpoint_id_fkey`: `FOREIGN KEY (tenant_key, credential_endpoint_id) REFERENCES pxm_endpoints(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_route_health_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_route_health_tenant_key_route_id_fkey`: `FOREIGN KEY (tenant_key, route_id) REFERENCES pxm_routes(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_route_health_tenant_key_route_id_key`: `UNIQUE (tenant_key, route_id)`
+
+Indexes:
+- `pxm_route_health_pkey`: `CREATE UNIQUE INDEX pxm_route_health_pkey ON public.pxm_route_health USING btree (id)`
+- `pxm_route_health_probe_idx`: `CREATE INDEX pxm_route_health_probe_idx ON public.pxm_route_health USING btree (tenant_key, open_until, id) WHERE (state = ANY (ARRAY['open'::text, 'half_open'::text]))`
+- `pxm_route_health_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_route_health_tenant_key_id_key ON public.pxm_route_health USING btree (tenant_key, id)`
+- `pxm_route_health_tenant_key_route_id_key`: `CREATE UNIQUE INDEX pxm_route_health_tenant_key_route_id_key ON public.pxm_route_health USING btree (tenant_key, route_id)`
+
+#### pxm_route_profile_members
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| profile_id | uuid / uuid | NO | uuid NOT NULL |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+| position | integer / int4 | NO | integer NOT NULL |
+| route_owner_tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| shared_grant_id | uuid / uuid | YES | uuid |
+
+Constraints:
+- `pxm_route_profile_members_check`: `CHECK ((((route_owner_tenant_key = tenant_key) AND (shared_grant_id IS NULL)) OR ((route_owner_tenant_key <> tenant_key) AND (shared_grant_id IS NOT NULL))))`
+- `pxm_route_profile_members_pkey`: `PRIMARY KEY (id)`
+- `pxm_route_profile_members_position_check`: `CHECK (("position" >= 0))`
+- `pxm_route_profile_members_route_owner_tenant_key_route_id_fkey`: `FOREIGN KEY (route_owner_tenant_key, route_id) REFERENCES pxm_routes(tenant_key, id)`
+- `pxm_route_profile_members_route_owner_tenant_key_tenant_ke_fkey`: `FOREIGN KEY (route_owner_tenant_key, tenant_key, route_id, shared_grant_id) REFERENCES pxm_shared_route_grants(tenant_key, consumer_tenant_key, route_id, id)`
+- `pxm_route_profile_members_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_route_profile_members_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_route_profile_members_tenant_key_profile_id_fkey`: `FOREIGN KEY (tenant_key, profile_id) REFERENCES pxm_route_profiles(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_route_profile_members_tenant_key_profile_id_position_key`: `UNIQUE (tenant_key, profile_id, "position")`
+- `pxm_route_profile_members_tenant_key_profile_id_route_id_key`: `UNIQUE (tenant_key, profile_id, route_id)`
+
+Indexes:
+- `pxm_member_route_idx`: `CREATE INDEX pxm_member_route_idx ON public.pxm_route_profile_members USING btree (tenant_key, route_id)`
+- `pxm_route_profile_members_pkey`: `CREATE UNIQUE INDEX pxm_route_profile_members_pkey ON public.pxm_route_profile_members USING btree (id)`
+- `pxm_route_profile_members_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_route_profile_members_tenant_key_id_key ON public.pxm_route_profile_members USING btree (tenant_key, id)`
+- `pxm_route_profile_members_tenant_key_profile_id_position_key`: `CREATE UNIQUE INDEX pxm_route_profile_members_tenant_key_profile_id_position_key ON public.pxm_route_profile_members USING btree (tenant_key, profile_id, "position")`
+- `pxm_route_profile_members_tenant_key_profile_id_route_id_key`: `CREATE UNIQUE INDEX pxm_route_profile_members_tenant_key_profile_id_route_id_key ON public.pxm_route_profile_members USING btree (tenant_key, profile_id, route_id)`
+
+#### pxm_route_profiles
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| profile_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| strategy_key | text / text | NO | text NOT NULL |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| retired_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `pxm_route_profiles_pkey`: `PRIMARY KEY (id)`
+- `pxm_route_profiles_profile_key_check`: `CHECK ((profile_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_route_profiles_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_route_profiles_strategy_key_check`: `CHECK ((strategy_key ~ '^[a-z][a-z0-9_.:-]{0,63}$'::text))`
+- `pxm_route_profiles_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_route_profiles_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_route_profiles_tenant_key_profile_key_key`: `UNIQUE (tenant_key, profile_key)`
+
+Indexes:
+- `pxm_route_profiles_pkey`: `CREATE UNIQUE INDEX pxm_route_profiles_pkey ON public.pxm_route_profiles USING btree (id)`
+- `pxm_route_profiles_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_route_profiles_tenant_key_id_key ON public.pxm_route_profiles USING btree (tenant_key, id)`
+- `pxm_route_profiles_tenant_key_profile_key_key`: `CREATE UNIQUE INDEX pxm_route_profiles_tenant_key_profile_key_key ON public.pxm_route_profiles USING btree (tenant_key, profile_key)`
+
+#### pxm_route_target_health
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| state | text / text | NO | text DEFAULT 'unknown'::text NOT NULL |
+| health_epoch | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| state_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| consecutive_failures | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| recent_openings | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| reason_code | text / text | YES | text |
+| last_success_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| open_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| probe_token | uuid / uuid | YES | uuid |
+| probe_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| stable_since | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `pxm_route_target_health_check`: `CHECK (((probe_token IS NULL) = (probe_until IS NULL)))`
+- `pxm_route_target_health_consecutive_failures_check`: `CHECK ((consecutive_failures >= 0))`
+- `pxm_route_target_health_health_epoch_check`: `CHECK ((health_epoch >= 1))`
+- `pxm_route_target_health_pkey`: `PRIMARY KEY (id)`
+- `pxm_route_target_health_recent_openings_check`: `CHECK ((recent_openings >= 0))`
+- `pxm_route_target_health_state_check`: `CHECK ((state = ANY (ARRAY['unknown'::text, 'closed'::text, 'open'::text, 'half_open'::text])))`
+- `pxm_route_target_health_state_version_check`: `CHECK ((state_version >= 1))`
+- `pxm_route_target_health_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_route_target_health_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_route_target_health_tenant_key_route_id_fkey`: `FOREIGN KEY (tenant_key, route_id) REFERENCES pxm_routes(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_route_target_health_tenant_key_route_id_target_id_key`: `UNIQUE (tenant_key, route_id, target_id)`
+- `pxm_route_target_health_tenant_key_target_id_fkey`: `FOREIGN KEY (tenant_key, target_id) REFERENCES pxm_targets(tenant_key, id) ON DELETE RESTRICT`
+
+Indexes:
+- `pxm_route_target_health_pkey`: `CREATE UNIQUE INDEX pxm_route_target_health_pkey ON public.pxm_route_target_health USING btree (id)`
+- `pxm_route_target_health_probe_idx`: `CREATE INDEX pxm_route_target_health_probe_idx ON public.pxm_route_target_health USING btree (tenant_key, open_until, id) WHERE (state = ANY (ARRAY['open'::text, 'half_open'::text]))`
+- `pxm_route_target_health_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_route_target_health_tenant_key_id_key ON public.pxm_route_target_health USING btree (tenant_key, id)`
+- `pxm_route_target_health_tenant_key_route_id_target_id_key`: `CREATE UNIQUE INDEX pxm_route_target_health_tenant_key_route_id_target_id_key ON public.pxm_route_target_health USING btree (tenant_key, route_id, target_id)`
+- `pxm_route_target_target_idx`: `CREATE INDEX pxm_route_target_target_idx ON public.pxm_route_target_health USING btree (tenant_key, target_id, route_id)`
+
+#### pxm_routes
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| route_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| kind | text / text | NO | text NOT NULL |
+| endpoint_id | uuid / uuid | YES | uuid |
+| enabled | boolean / bool | NO | boolean DEFAULT true NOT NULL |
+| egress_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| conservative_pool | boolean / bool | NO | boolean DEFAULT false NOT NULL |
+| independence_group | text / text | YES | text |
+| shared_grant | boolean / bool | NO | boolean DEFAULT false NOT NULL |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| retired_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `pxm_routes_check`: `CHECK ((((kind = 'proxy'::text) AND (endpoint_id IS NOT NULL)) OR ((kind = 'direct'::text) AND (endpoint_id IS NULL))))`
+- `pxm_routes_check1`: `CHECK (((egress_key <> route_key) AND ((independence_group IS NULL) OR (egress_key <> independence_group))))`
+- `pxm_routes_egress_key_check`: `CHECK ((egress_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_routes_independence_group_check`: `CHECK ((independence_group ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_routes_pkey`: `PRIMARY KEY (id)`
+- `pxm_routes_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_routes_route_key_check`: `CHECK ((route_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_routes_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_routes_tenant_key_endpoint_id_fkey`: `FOREIGN KEY (tenant_key, endpoint_id) REFERENCES pxm_endpoints(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_routes_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_routes_tenant_key_route_key_key`: `UNIQUE (tenant_key, route_key)`
+
+Indexes:
+- `pxm_route_endpoint_idx`: `CREATE INDEX pxm_route_endpoint_idx ON public.pxm_routes USING btree (tenant_key, endpoint_id)`
+- `pxm_routes_pkey`: `CREATE UNIQUE INDEX pxm_routes_pkey ON public.pxm_routes USING btree (id)`
+- `pxm_routes_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_routes_tenant_key_id_key ON public.pxm_routes USING btree (tenant_key, id)`
+- `pxm_routes_tenant_key_route_key_key`: `CREATE UNIQUE INDEX pxm_routes_tenant_key_route_key_key ON public.pxm_routes USING btree (tenant_key, route_key)`
+
+#### pxm_shared_route_grants
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| consumer_tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| route_id | uuid / uuid | NO | uuid NOT NULL |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| retired_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+
+Constraints:
+- `pxm_shared_route_grants_check`: `CHECK ((tenant_key <> consumer_tenant_key))`
+- `pxm_shared_route_grants_consumer_tenant_key_check`: `CHECK ((consumer_tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_shared_route_grants_pkey`: `PRIMARY KEY (id)`
+- `pxm_shared_route_grants_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_shared_route_grants_tenant_key_consumer_tenant_key_rout_key`: `UNIQUE (tenant_key, consumer_tenant_key, route_id, id)`
+- `pxm_shared_route_grants_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_shared_route_grants_tenant_key_route_id_fkey`: `FOREIGN KEY (tenant_key, route_id) REFERENCES pxm_routes(tenant_key, id) ON DELETE RESTRICT`
+
+Indexes:
+- `pxm_grant_active_idx`: `CREATE UNIQUE INDEX pxm_grant_active_idx ON public.pxm_shared_route_grants USING btree (tenant_key, route_id, consumer_tenant_key) WHERE (retired_at IS NULL)`
+- `pxm_grant_consumer_idx`: `CREATE INDEX pxm_grant_consumer_idx ON public.pxm_shared_route_grants USING btree (consumer_tenant_key, route_id) WHERE (retired_at IS NULL)`
+- `pxm_shared_route_grants_pkey`: `CREATE UNIQUE INDEX pxm_shared_route_grants_pkey ON public.pxm_shared_route_grants USING btree (id)`
+- `pxm_shared_route_grants_tenant_key_consumer_tenant_key_rout_key`: `CREATE UNIQUE INDEX pxm_shared_route_grants_tenant_key_consumer_tenant_key_rout_key ON public.pxm_shared_route_grants USING btree (tenant_key, consumer_tenant_key, route_id, id)`
+- `pxm_shared_route_grants_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_shared_route_grants_tenant_key_id_key ON public.pxm_shared_route_grants USING btree (tenant_key, id)`
+
+#### pxm_target_health
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| target_id | uuid / uuid | NO | uuid NOT NULL |
+| state | text / text | NO | text DEFAULT 'unknown'::text NOT NULL |
+| health_epoch | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| state_version | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| consecutive_failures | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| recent_openings | bigint / int8 | NO | bigint DEFAULT 0 NOT NULL |
+| reason_code | text / text | YES | text |
+| last_success_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| last_failure_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| open_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| probe_token | uuid / uuid | YES | uuid |
+| probe_until | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| stable_since | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+| availability | text / text | NO | text DEFAULT 'unknown'::text NOT NULL |
+
+Constraints:
+- `pxm_target_health_availability_check`: `CHECK ((availability = ANY (ARRAY['unknown'::text, 'available'::text, 'suspect'::text, 'unavailable'::text])))`
+- `pxm_target_health_check`: `CHECK (((probe_token IS NULL) = (probe_until IS NULL)))`
+- `pxm_target_health_consecutive_failures_check`: `CHECK ((consecutive_failures >= 0))`
+- `pxm_target_health_health_epoch_check`: `CHECK ((health_epoch >= 1))`
+- `pxm_target_health_pkey`: `PRIMARY KEY (id)`
+- `pxm_target_health_recent_openings_check`: `CHECK ((recent_openings >= 0))`
+- `pxm_target_health_state_check`: `CHECK ((state = ANY (ARRAY['unknown'::text, 'closed'::text, 'open'::text, 'half_open'::text])))`
+- `pxm_target_health_state_version_check`: `CHECK ((state_version >= 1))`
+- `pxm_target_health_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_target_health_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_target_health_tenant_key_target_id_fkey`: `FOREIGN KEY (tenant_key, target_id) REFERENCES pxm_targets(tenant_key, id) ON DELETE RESTRICT`
+- `pxm_target_health_tenant_key_target_id_key`: `UNIQUE (tenant_key, target_id)`
+
+Indexes:
+- `pxm_target_health_pkey`: `CREATE UNIQUE INDEX pxm_target_health_pkey ON public.pxm_target_health USING btree (id)`
+- `pxm_target_health_probe_idx`: `CREATE INDEX pxm_target_health_probe_idx ON public.pxm_target_health USING btree (tenant_key, open_until, id) WHERE (state = ANY (ARRAY['open'::text, 'half_open'::text]))`
+- `pxm_target_health_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_target_health_tenant_key_id_key ON public.pxm_target_health USING btree (tenant_key, id)`
+- `pxm_target_health_tenant_key_target_id_key`: `CREATE UNIQUE INDEX pxm_target_health_tenant_key_target_id_key ON public.pxm_target_health USING btree (tenant_key, target_id)`
+
+#### pxm_targets
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid DEFAULT gen_random_uuid() NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| updated_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| target_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| canonical_origin | text / text | NO | text NOT NULL |
+| destination_policy_key | text / text | NO | text NOT NULL COLLATE pg_catalog."C" |
+| revision | bigint / int8 | NO | bigint DEFAULT 1 NOT NULL |
+| retired_at | timestamp with time zone / timestamptz | YES | timestamp with time zone |
+
+Constraints:
+- `pxm_targets_canonical_origin_check`: `CHECK (((octet_length(canonical_origin) <= 280) AND (canonical_origin = lower(canonical_origin)) AND (canonical_origin ~ '^https?://[^/@[:space:]]+:[1-9][0-9]{0,4}$'::text) AND ((("substring"(canonical_origin, ':([0-9]+)$'::text))::integer >= 1) AND (("substring"(canonical_origin, ':([0-9]+)$'::text))::integer <= 65535))))`
+- `pxm_targets_destination_policy_key_check`: `CHECK ((destination_policy_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_targets_pkey`: `PRIMARY KEY (id)`
+- `pxm_targets_revision_check`: `CHECK ((revision >= 1))`
+- `pxm_targets_target_key_check`: `CHECK ((target_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_targets_tenant_key_check`: `CHECK ((tenant_key ~ '^[a-z0-9][a-z0-9_.:-]{0,127}$'::text))`
+- `pxm_targets_tenant_key_id_key`: `UNIQUE (tenant_key, id)`
+- `pxm_targets_tenant_key_target_key_key`: `UNIQUE (tenant_key, target_key)`
+
+Indexes:
+- `pxm_targets_pkey`: `CREATE UNIQUE INDEX pxm_targets_pkey ON public.pxm_targets USING btree (id)`
+- `pxm_targets_tenant_key_id_key`: `CREATE UNIQUE INDEX pxm_targets_tenant_key_id_key ON public.pxm_targets USING btree (tenant_key, id)`
+- `pxm_targets_tenant_key_target_key_key`: `CREATE UNIQUE INDEX pxm_targets_tenant_key_target_key_key ON public.pxm_targets USING btree (tenant_key, target_key)`
+
+#### pxm_temporary_artifacts
+
+Owner: Proxyma; retention: proxyma.
+
+| Column | PostgreSQL type | Nullable | Exact column definition |
+| --- | --- | --- | --- |
+| id | uuid / uuid | NO | uuid NOT NULL |
+| tenant_key | text / text | NO | text NOT NULL |
+| operation_id | uuid / uuid | NO | uuid NOT NULL |
+| permit_id | uuid / uuid | NO | uuid NOT NULL |
+| ownership_token | text / text | NO | text NOT NULL |
+| created_at | timestamp with time zone / timestamptz | NO | timestamp with time zone DEFAULT clock_timestamp() NOT NULL |
+| delete_pending | boolean / bool | NO | boolean DEFAULT false NOT NULL |
+
+Constraints:
+- `pxm_temporary_artifacts_ownership_token_check`: `CHECK ((ownership_token ~ '^[0-9a-f]{64}$'::text))`
+- `pxm_temporary_artifacts_pkey`: `PRIMARY KEY (id)`
+- `pxm_temporary_artifacts_tenant_key_permit_id_operation_id_fkey`: `FOREIGN KEY (tenant_key, permit_id, operation_id) REFERENCES pxm_permits(tenant_key, id, operation_id)`
+
+Indexes:
+- `pxm_temporary_artifacts_pkey`: `CREATE UNIQUE INDEX pxm_temporary_artifacts_pkey ON public.pxm_temporary_artifacts USING btree (id)`
 
 <!-- schema-inventory:end -->
 

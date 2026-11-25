@@ -4607,7 +4607,7 @@
         },
         {
             "path": "tests/TestCase.php",
-            "sha256": "607d59c8625fa538aba17d2b23b40dceb143f9c680ad5a73f573dd5591d497c6",
+            "sha256": "aebcfef529595bf756d220625e5a8014971ad68cfe976661450a9db4f44f63ec",
             "original_sha256": "63312f076231d00f83b03076bb3df9dd19bd6fe7cffcf46f6d03e4b986fa865d",
             "accepted_change_item": "P3.17",
             "change_reason": "Final legacy UI/schema/config cutover; canonical successor assertions and original provenance retained."
@@ -5912,7 +5912,7 @@
         },
         {
             "path": "config/proxyma.php",
-            "sha256": "c8185981240240a13d290292924110e476cbcee557d923f991b0494e091df1d0",
+            "sha256": "01bec3b85eacbf4ad9d35f32e59d02234cc5f6e4279ff0d61f7353d9fc4546b2",
             "accepted_change_item": "Proxyma:P9.2",
             "current_change_reason": "Inactive package adapters preserve Agelto process/adapter/TLS ownership; historical executed scenarios unchanged."
         },
@@ -5935,7 +5935,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Network/ProxymaCatalogAdapterTest.php",
-            "sha256": "0d4ef8c9ae1d5d4285bfb07e9e00d79bb1c9c9e38359169429ff73425ab4291c",
+            "sha256": "8dc697e4a0de59daf5ce280eedf4ead0a7789b2d34ee3bc9440b87fb73072327",
             "accepted_change_item": "Proxyma:P9.5",
             "current_change_reason": "P10.3 sole package runtime, explicit historical compatibility and consumer contract replay.",
             "scenarios": [
@@ -5945,7 +5945,7 @@
                 "старые snapshots сохраняют stage profile ID и version через явные immutable mappings",
                 "crawler procurement mapping сохраняет конфликт нескольких активных профилей",
                 "guard держит только adapter tier и сохраняет hold epoch claim ownership и canary semantics",
-                "registered slots исключают finance и inactive provider не подключает package migrations",
+                "слоты исключают финансовые настройки, а регистрация миграций Proxyma сохраняет действующий legacy selector",
                 "TLS adapter следует единственной SourceTlsTrust authority и запрещает работу внутри transaction",
                 "новый worker scope получает прежние definitions без старых owner contexts и SQL при регистрации",
                 "mapping schema отвергает duplicate target и некорректные selector transitions",
@@ -5968,7 +5968,7 @@
         },
         {
             "path": "docker/tests/process-core/test_schema_inventory.py",
-            "sha256": "c90e721cd5e821d6ceda047091cb0cd8ebdf0e71bfd6e3e1d63cfec61382b386",
+            "sha256": "c6cd67ff1b63be071e829e3e1e2321df95797726804502cec4167f7e4afbdd1b",
             "accepted_change_item": "Proxyma:P10.1",
             "current_change_reason": "Refresh stale isolated package discovery before application boot; preserve exact additive schema inventory expectations."
         },
@@ -6140,12 +6140,12 @@
         },
         {
             "path": "app/Services/Procurement/Proxyma/AgeltoAuthorizer.php",
-            "sha256": "551223293bad68d3389cd97557225990f240ef47a9cf1e06455321082a7d74e3",
+            "sha256": "2b321ecd7f55803516fa72132d72ec5236b5af65fe7d962a0eba69625f6d993c",
             "accepted_change_item": "Proxyma:P9.5"
         },
         {
             "path": "app/Services/Procurement/Proxyma/AgeltoTenantContext.php",
-            "sha256": "d6616608ee61fd6904fb65381944b960b0adfdd5c9b6d991ef3f4b41ddba1f8e",
+            "sha256": "84c6bbd7277dcf2e193cf0a141c31179ec0e523b0a20d572f47b8398bf9110ed",
             "accepted_change_item": "Proxyma:P9.5"
         },
         {
@@ -6206,7 +6206,7 @@
         },
         {
             "path": "docs/dev/process-schema.md",
-            "sha256": "b88eeb8b0fe98869ad76a51ca59522e4e06f923217ec68d3208dfcdcac7708c3",
+            "sha256": "ba92cf3b88cd05a499abeca81345828727b65a5bdc775d6c0edf3c74656bf5a0",
             "accepted_change_item": "Proxyma:P10.2",
             "current_change_reason": "PLAN2:P2.4 audit index inventory and migration rollback reconciliation.",
             "before_proxyma_runtime_removal_sha256": "bcd17541a0c246165dfbb1c9dd181e6341a5211fcf66521a9c45cf74460db842"
@@ -6249,7 +6249,7 @@
         },
         {
             "path": "tests/Support/ProcessCore/schema-inventory.json",
-            "sha256": "c453e30a532b08a260752d0e73294ce8a6e508ed734b80ff8a458eff3a85e62c",
+            "sha256": "c6e0b0051c8f529077d13c4b877a1c7b78e994ecd55840037062c18d1660bc7a",
             "accepted_change_item": "Proxyma:P10.2",
             "current_change_reason": "PLAN2:P2.4 audit index inventory and migration rollback reconciliation.",
             "before_proxyma_runtime_removal_sha256": "50a2393d95ed5f32d01dd9d908333ae597d029588fa99f087dd3ea1b352d160a"
@@ -8150,14 +8150,14 @@
         },
         {
             "path": "app/Providers/InactiveProxymaServiceProvider.php",
-            "sha256": "66ee5af385115a5a21bed89dbbcb228c721ff541775ca5b4bcace31c45357935",
+            "sha256": "97073153a658ba7b366b3555e02b30668e6ac814e36374a0de97855c1df011d0",
             "accepted_change_item": "Proxyma:P9.2",
             "current_change_reason": "Inactive package adapters preserve Agelto process/adapter/TLS ownership; historical executed scenarios unchanged.",
             "fqcn": "App\\Providers\\InactiveProxymaServiceProvider"
         },
         {
             "path": "app/Providers/ProxymaServiceProvider.php",
-            "sha256": "f1b81ef1d4eef77c5ef03da6a1d710af922f1780b99a01678f54997ef261b29f",
+            "sha256": "f6f20fbba903857628bce905c48026b6c66e5c6ec1bdadb779a13cd9002fbe53",
             "accepted_change_item": "Proxyma:P9.5",
             "current_change_reason": "F1/F2/F3: production runtime identity, owner panel/slot settings and current active profile; historical mappings preserved.",
             "fqcn": "App\\Providers\\ProxymaServiceProvider",

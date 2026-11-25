@@ -28,6 +28,11 @@ final class SecretContractIsReady extends Diagnostic
             }
         }
 
+        $wireDigestKey = config(key: 'proxyma.wire.digest_key');
+        if (! is_string($wireDigestKey) || strlen($wireDigestKey) < 32 || trim($wireDigestKey) === '') {
+            return $this->fail('wire_digest_key');
+        }
+
         return $this->pass('ready');
     }
 
@@ -36,6 +41,7 @@ final class SecretContractIsReady extends Diagnostic
         return [
             'ready' => 'Required secrets are configured without exposing values.',
             'missing' => 'A required secret is unavailable. Run make secrets:init and verify Compose secret grants.',
+            'wire_digest_key' => 'Configure PROXYMA_WIRE_DIGEST_KEY with at least 32 bytes. Run make secrets:init and verify Compose secret grants.',
         ];
     }
 }

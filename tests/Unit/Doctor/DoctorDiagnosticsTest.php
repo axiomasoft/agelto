@@ -24,6 +24,7 @@ test('SecretContractIsReady проходит при заполненных се�
         'database.connections.pgsql.password' => 'pg-secret',
         'database.redis.default.password' => 'redis-secret',
         'filesystems.disks.s3.secret' => 's3-secret',
+        'proxyma.wire.digest_key' => str_repeat('a', 32),
     ]);
 
     $diagnostic = new SecretContractIsReady;
@@ -31,6 +32,14 @@ test('SecretContractIsReady проходит при заполненных се�
     expect($passed->status)->toBe(Status::Pass)
         ->and($passed->code)->toBe('secret-contract-is-ready.ready');
 
+    foreach ([null, str_repeat('a', 31), str_repeat(' ', 32)] as $invalidKey) {
+        config(['proxyma.wire.digest_key' => $invalidKey]);
+        $failed = $diagnostic->check();
+        expect($failed->status)->toBe(Status::Fail)
+            ->and($failed->code)->toBe('secret-contract-is-ready.wire_digest_key');
+    }
+
+    config(['proxyma.wire.digest_key' => str_repeat('a', 32)]);
     config(['filesystems.disks.s3.secret' => '   ']);
     $failed = $diagnostic->check();
     expect($failed->status)->toBe(Status::Fail)

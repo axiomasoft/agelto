@@ -31,7 +31,9 @@ class RigGuardsTest(unittest.TestCase):
     def test_аудит_composer_повторяет_только_ошибку_транспорта(self):
         scenarios = [
             ([(100, "curl error 28 while downloading"), (0, "")], 0),
+            ([(100, "curl error 28 while downloading"), (100, "curl error 56 while downloading"), (0, "")], 0),
             ([(100, "curl error 6 while downloading")] * 3, 100),
+            ([(100, "curl error 56 while downloading")] * 3, 100),
             ([(1, "Found a security advisory")], 1),
         ]
         for attempts, expected in scenarios:
@@ -418,6 +420,7 @@ class RigGuardsTest(unittest.TestCase):
         self.assertEqual(rig.FUTURE, set())
         self.assertEqual(rig.SUITE_PATHS["network"], [
             "tests/Feature/ProcessCore/Network",
+            "tests/Feature/Procurement/Network/ProxymaCutoverTest.php",
             "tests/Integration/ProcessCore/Concurrency/CatalogConcurrencyTest.php",
         ])
         calls = []

@@ -11,7 +11,7 @@ if [ "${APP_ENV:-}" = "production" ]; then
         echo "APP_DEBUG must be false in production" >&2
         exit 1
     fi
-    for required_secret_file in APP_KEY_FILE DB_PASSWORD_FILE REDIS_PASSWORD_FILE AWS_SECRET_ACCESS_KEY_FILE; do
+    for required_secret_file in APP_KEY_FILE PROXYMA_WIRE_DIGEST_KEY_FILE DB_PASSWORD_FILE REDIS_PASSWORD_FILE AWS_SECRET_ACCESS_KEY_FILE; do
         eval "secret_path=\${$required_secret_file:-}"
         if [ -z "$secret_path" ]; then
             echo "$required_secret_file is required in production" >&2
@@ -27,9 +27,10 @@ fi
 runtime_dir=/run/agelto-secrets
 install -d -m 0700 -o www-data -g www-data "$runtime_dir"
 
-for secret_var in APP_KEY DB_PASSWORD REDIS_PASSWORD REDIS_CACHE_PASSWORD REDIS_SESSION_PASSWORD AWS_SECRET_ACCESS_KEY MINIO_APP_PASSWORD; do
+for secret_var in APP_KEY PROXYMA_WIRE_DIGEST_KEY DB_PASSWORD REDIS_PASSWORD REDIS_CACHE_PASSWORD REDIS_SESSION_PASSWORD AWS_SECRET_ACCESS_KEY MINIO_APP_PASSWORD; do
     case "$secret_var" in
         APP_KEY) file_path="${APP_KEY_FILE:-}" ;;
+        PROXYMA_WIRE_DIGEST_KEY) file_path="${PROXYMA_WIRE_DIGEST_KEY_FILE:-}" ;;
         DB_PASSWORD) file_path="${DB_PASSWORD_FILE:-}" ;;
         REDIS_PASSWORD) file_path="${REDIS_PASSWORD_FILE:-}" ;;
         REDIS_CACHE_PASSWORD) file_path="${REDIS_CACHE_PASSWORD_FILE:-}" ;;

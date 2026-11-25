@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Services\Procurement\Proxyma\AgeltoPhysicalHttpTransport;
+use Composer\InstalledVersions;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Support\Facades\Config;
 use Proxyma\Application\Admission\ClaimSend;
 use Proxyma\Application\Admission\OperationCommands;
 use Proxyma\Application\Admission\ReservationService;
@@ -25,19 +27,19 @@ use Proxyma\Application\Recovery\CompletionCoordinator;
 use Proxyma\Application\Routing\RouteSelector;
 use Proxyma\Contracts\CatalogQueries;
 use Proxyma\Contracts\DestinationResolver;
+use Proxyma\Contracts\OutcomePolicy;
 use Proxyma\Contracts\PhysicalTransport;
 use Proxyma\Contracts\PolicyResolver as PolicyResolverContract;
 use Proxyma\Contracts\SecretResolver;
 use Proxyma\Contracts\TlsTrustPolicy;
+use Proxyma\Domain\Panels\ExtensionKind;
 use Proxyma\Infrastructure\Cache\PolicyResolutionCache;
 use Proxyma\Infrastructure\Database\ConnectionScope;
 use Proxyma\Infrastructure\Telemetry\OperationsTelemetry;
+use Proxyma\Laravel\Console;
 use Proxyma\Laravel\ProxymaServiceProvider;
 
-/**
- * До переключения authority доступны ports и definitions, без package DDL, scheduler и UI.
- * Полный package provider подключает отдельный cutover после переноса состояния.
- */
+/** Package services with Agelto-owned scheduling and scoped extension definitions. */
 final class InactiveProxymaServiceProvider extends ProxymaServiceProvider
 {
     public function register(): void
@@ -109,6 +111,41 @@ final class InactiveProxymaServiceProvider extends ProxymaServiceProvider
 
     public function boot(): void
     {
-        $this->app->booted(fn () => $this->app->make(DefinitionRegistry::class));
+        $this->app->booted(function (): void {
+            $registry = $this->app->make(DefinitionRegistry::class);
+            $outcomes = $this->app->make(OutcomePolicyRegistry::class);
+            /** @var list<string> $policyIds */
+            $policyIds = Config::array(key: 'proxyma.extensions.outcome_policies', default: []);
+
+            foreach ($registry->selectExtensions(kind: ExtensionKind::OutcomePolicy, ids: $policyIds) as $definition) {
+                $policy = $definition->implementation;
+                assert($policy instanceof OutcomePolicy);
+                $outcomes->register(key: $definition->id, policy: $policy, priority: $definition->priority);
+            }
+            $outcomes->freeze();
+        });
+
+        if ($this->app->runningInConsole()) {
+            $packagePath = InstalledVersions::getInstallPath('axiomasoft/proxyma')
+                ?? throw new \LogicException('Proxyma package migration path is unavailable.');
+            $providerDirectory = realpath($packagePath.'/src/Laravel')
+                ?: throw new \LogicException('Proxyma package provider directory is unavailable.');
+            // Laravel deduplicates literal paths. Match the upstream provider's registration.
+            $this->loadMigrationsFrom([
+                $providerDirectory.'/../../database/migrations',
+                $providerDirectory.'/Migrations',
+            ]);
+
+            $this->commands([
+                Console\ReconcileCommand::class,
+                Console\TransportDoctorCommand::class,
+                Console\DoctorCommand::class,
+                Console\DiagnoseCommand::class,
+                Console\PruneCommand::class,
+                Console\MetricsCommand::class,
+                Console\HealthResetCommand::class,
+                Console\ProbeCommand::class,
+            ]);
+        }
     }
 }
