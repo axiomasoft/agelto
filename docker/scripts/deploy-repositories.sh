@@ -235,7 +235,7 @@ sync() {
     vendor_values="$(python3 -B "$candidate_vendor_parser" --rows)" || fail 'invalid candidate vendor manifest'
     while IFS=$'\t' read -r key repository sha; do
         case "$key:$repository" in
-            azguard:axiomasoft/azguard-private|proxyma:axiomasoft/proxyma) ;;
+            azguard:axiomasoft/azguard|proxyma:axiomasoft/proxyma) ;;
             *) fail 'vendor repository/alias is not allowlisted' ;;
         esac
         ensure_clean_checkout "${PROFILE[AGELTO_CHECKOUT_DIR]}/local/vendors/$key" "$repository" "$sha" "github-$key"

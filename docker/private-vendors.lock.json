@@ -5,7 +5,7 @@
       "key": "azguard",
       "repository": {
         "host": "github.com",
-        "path": "axiomasoft/azguard-private"
+        "path": "axiomasoft/azguard"
       },
       "commit": "ebd613cb99b1d72b7b303032e0d7ed0dd7774f4f",
       "packages": [
