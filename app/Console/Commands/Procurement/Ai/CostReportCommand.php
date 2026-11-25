@@ -135,7 +135,12 @@ final class CostReportCommand extends Command
 
     private function formatRub(int $micros, float $rubPerUsd): string
     {
-        $rub = bcmul(bcdiv((string) $micros, '1000000', 8), (string) $rubPerUsd, 4);
+        $rate = (string) $rubPerUsd;
+        if (! is_numeric($rate)) {
+            throw new \UnexpectedValueException('ai.cost_report.rub_per_usd must be numeric.');
+        }
+
+        $rub = bcmul(num1: bcdiv(num1: (string) $micros, num2: '1000000', scale: 8), num2: $rate, scale: 4);
         $rounded = bcdiv(bcadd($rub, '0.005', 4), '1', 2);
 
         return $rounded.' ₽';

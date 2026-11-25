@@ -80,8 +80,9 @@ final readonly class DownloadHandler implements StageHandler
         $binary = null;
         $stream = null;
         $published = false;
+        $refreshed = false;
         try {
-            for ($refresh = 0; $refresh <= 1; $refresh++) {
+            while (true) {
                 $remaining = $sendCeiling - ($this->storage->sends($execution->lease()) - $initialSends);
                 if ($remaining < 1) {
                     return $this->defer(DeferralReason::TargetCooldown);
@@ -102,7 +103,7 @@ final readonly class DownloadHandler implements StageHandler
                 }
                 $binary = $outcome->response->body;
                 $response = $outcome->response;
-                if ($refresh === 0 && in_array($response->status, [401, 403, 410], true)) {
+                if (! $refreshed && in_array($response->status, [401, 403, 410], true)) {
                     if (! $this->removeBinary($binary)) {
                         throw new ArtifactUnavailable('Cannot clean expired reference response.');
                     }
@@ -115,6 +116,7 @@ final readonly class DownloadHandler implements StageHandler
                         throw new \LogicException('Signed reference refresh cannot change the download resource policy.');
                     }
                     $plan = $resolved;
+                    $refreshed = true;
 
                     continue;
                 }
@@ -158,7 +160,6 @@ final readonly class DownloadHandler implements StageHandler
                     $this->filename($plan->filename, $response->header('Content-Disposition')), $mime,
                     $response->header('ETag'), $lastModified === false ? null : $lastModified)));
             }
-            throw new \LogicException('Signed reference refresh exceeded its bound.');
         } catch (ArtifactUnavailable|FilesystemException) {
             return $this->defer(DeferralReason::StorageUnavailable);
         } finally {

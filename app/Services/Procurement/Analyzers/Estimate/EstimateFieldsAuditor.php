@@ -165,16 +165,22 @@ final readonly class EstimateFieldsAuditor
     private function formatTree(array $tree): array
     {
         ksort($tree);
+        $formatted = [];
 
-        foreach ($tree as &$branch) {
-            foreach ($branch['fields'] as &$field) {
-                $field['completeness'] = $branch['items'] === 0
-                    ? 0.0
-                    : round($field['filled'] / $branch['items'], 6);
+        foreach ($tree as $type => $branch) {
+            $fields = [];
+            foreach ($branch['fields'] as $name => $field) {
+                $fields[$name] = [
+                    'filled' => $field['filled'],
+                    'completeness' => $branch['items'] === 0
+                        ? 0.0
+                        : round($field['filled'] / $branch['items'], precision: 6),
+                ];
             }
+            $formatted[$type] = ['items' => $branch['items'], 'fields' => $fields];
         }
 
-        return $tree;
+        return $formatted;
     }
 
     /** @param array<string, mixed> $passport */

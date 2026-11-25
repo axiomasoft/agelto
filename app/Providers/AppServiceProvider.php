@@ -127,6 +127,14 @@ class AppServiceProvider extends ServiceProvider
             throw new \RuntimeException('Unsafe production configuration detected.');
         }
 
+        $appUrl = config('app.url');
+        if ($this->app->environment('production')
+            && is_string($appUrl)
+            && str_starts_with(strtolower($appUrl), 'https://')
+            && config('session.secure') !== true) {
+            throw new \RuntimeException('SESSION_SECURE_COOKIE must be true when APP_URL uses HTTPS in production.');
+        }
+
         if ($this->app->environment('testing')) {
             ParallelTesting::setUpProcess(function (string $token): void {
                 TestFilesystemIsolation::prepare(process: $token);

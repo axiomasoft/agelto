@@ -36,6 +36,7 @@ services:
       READINESS_SCHEDULER_CACHE_STORE: readiness
       SESSION_DRIVER: redis
       SESSION_CONNECTION: session
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
       QUEUE_CONNECTION: redis
       FILESYSTEM_DISK: s3
       AWS_ACCESS_KEY_ID: ${MINIO_APP_USER:-agelto_app}
@@ -87,6 +88,7 @@ services:
       READINESS_SCHEDULER_CACHE_STORE: readiness
       SESSION_DRIVER: redis
       SESSION_CONNECTION: session
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
       QUEUE_CONNECTION: redis
       LOG_CHANNEL: json
       LOG_LEVEL: ${LOG_LEVEL:-warning}
