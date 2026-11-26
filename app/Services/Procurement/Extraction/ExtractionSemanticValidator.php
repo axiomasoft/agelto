@@ -131,7 +131,8 @@ final readonly class ExtractionSemanticValidator implements SemanticValidator
             return true;
         }
         $actual = self::roundHalfUpCents((new MoneyDecimal($total))->numeric());
-        $expected = $this->multiply(left: $quantity, right: (new MoneyDecimal($price))->numeric());
+        $priceNormalized = (new MoneyDecimal($price))->numeric();
+        $expected = $this->multiply(left: $quantity, right: $priceNormalized);
         if ($this->withinTolerance(expected: $expected, actual: $actual, tolerance: $rounding)) {
             return true;
         }
@@ -141,8 +142,20 @@ final readonly class ExtractionSemanticValidator implements SemanticValidator
         if ($indexed !== null && $this->withinTolerance(expected: $indexed, actual: $actual, tolerance: $coefficient)) {
             return true;
         }
+        $combinedFactor = '1';
         foreach ($factors as $factor) {
             $expected = bcmul($expected, $factor, 16);
+            $combinedFactor = bcmul($combinedFactor, $factor, 16);
+        }
+        if ($factors !== []) {
+            $roundedFactor = self::roundHalfUp($combinedFactor, 7);
+            $expected421 = $this->multiply(
+                left: $this->multiply(left: $quantity, right: $roundedFactor),
+                right: $priceNormalized,
+            );
+            if ($this->withinTolerance(expected: $expected421, actual: $actual, tolerance: $coefficient)) {
+                return true;
+            }
         }
 
         return $factors !== [] && $this->withinTolerance(expected: $expected, actual: $actual, tolerance: $coefficient);
@@ -269,8 +282,26 @@ final readonly class ExtractionSemanticValidator implements SemanticValidator
      */
     private static function roundHalfUpCents(string $decimal): string
     {
-        $offset = bccomp($decimal, '0', self::fractionLength($decimal)) < 0 ? '-0.005' : '0.005';
+        return self::roundHalfUp($decimal, 2);
+    }
 
-        return bcadd($decimal, $offset, 2);
+    /**
+     * @param  numeric-string  $value
+     * @return numeric-string
+     */
+    public static function roundHalfUp(string $value, int $precision): string
+    {
+        if ($precision < 0) {
+            throw new \InvalidArgumentException('Rounding precision must be non-negative.');
+        }
+        $offset = '0.'.str_repeat('0', $precision).'5';
+        if (bccomp($value, '0', self::fractionLength($value)) < 0) {
+            $offset = '-'.$offset;
+        }
+        if (! is_numeric($offset)) {
+            throw new \LogicException('Invalid rounding offset.');
+        }
+
+        return bcadd($value, $offset, $precision);
     }
 }

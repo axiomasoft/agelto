@@ -136,7 +136,7 @@
     },
     {
       "path": "app/Dto/Procurement/Ai/MoneyDecimal.php",
-      "sha256": "72641495dde638e7d4b9446da09598e4e83fe197b424e69227ef88c5c0789cb1"
+      "sha256": "c238660d3f5df9a9afdfa389ef88f39eb097b86a52f945561944d3c6e652e6b8"
     },
     {
       "path": "app/Dto/Procurement/Ai/PageDiscoveryOutput.php",
