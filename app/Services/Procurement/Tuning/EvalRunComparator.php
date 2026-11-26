@@ -7,7 +7,9 @@ namespace App\Services\Procurement\Tuning;
 use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;
 use App\Repositories\Llm\LlmCallReadRepository;
+use App\Repositories\Llm\Request\ProviderRow;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
@@ -17,6 +19,7 @@ use RuntimeException;
  *
  * @phpstan-type PerFieldMetrics array<string, array{f1: float}>
  * @phpstan-type ResultRow array{code: string, f1: float, row_coverage: float, per_field: PerFieldMetrics}
+ * @phpstan-type RunResults array{rows: Collection<int, ResultRow>, example_ids: list<int>}
  * @phpstan-type SubsampleAggregate array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int}
  * @phpstan-type SubsampleDelta array{base: SubsampleAggregate, candidate: SubsampleAggregate, delta: array{f1: float, row_coverage: float, per_field: array<string, float>}}
  * @phpstan-type Subsamples array<string, SubsampleDelta>
@@ -77,15 +80,18 @@ final readonly class EvalRunComparator
         $holdoutCodes = $this->loadHoldoutCodes();
 
         $subsamples = $this->gateEvaluator->buildSubsamples(
-            baseResults: $baseResults,
-            candidateResults: $candidateResults,
+            baseResults: $baseResults['rows'],
+            candidateResults: $candidateResults['rows'],
             holdoutCodes: $holdoutCodes,
             baseId: $base->id,
             candidateId: $candidate->id,
             includeOverall: $criterion === self::CRITERION_NOISE_AWARE,
         );
 
-        $perFixture = $this->gateEvaluator->perFixtureDeltas($baseResults, $candidateResults);
+        $perFixture = $this->gateEvaluator->perFixtureDeltas(
+            baseResults: $baseResults['rows'],
+            candidateResults: $candidateResults['rows'],
+        );
 
         $noiseThresholds = null;
         $noisePairIds = null;
@@ -95,7 +101,29 @@ final readonly class EvalRunComparator
             /** @var EvalRun $noisePairBase */
             /** @var EvalRun $noisePairCandidate */
             [$noiseBaseResults, $noiseCandidateResults] = $this->loadComparablePair($noisePairBase, $noisePairCandidate);
-            $noiseThresholds = $this->gateEvaluator->computeNoiseThresholds($noiseBaseResults, $noiseCandidateResults, $holdoutCodes);
+            $this->assertComparable(base: $base, candidate: $noisePairBase);
+
+            foreach ([$candidate, $noisePairBase, $noisePairCandidate] as $run) {
+                if ($run->task !== $base->task || $run->document_type !== $base->document_type) {
+                    throw new RuntimeException('Нулевая пара и сравниваемые прогоны должны использовать одинаковую задачу и тип документа.');
+                }
+            }
+
+            if ($noisePairBase->prompt_version_set?->sortKeys()->all() !== $noisePairCandidate->prompt_version_set?->sortKeys()->all()) {
+                throw new RuntimeException('Прогоны нулевой пары должны использовать одинаковый prompt_version_set.');
+            }
+
+            foreach ([$candidateResults, $noiseBaseResults, $noiseCandidateResults] as $results) {
+                if ($results['example_ids'] !== $baseResults['example_ids']) {
+                    throw new RuntimeException('Состав эталонов нулевой пары должен совпадать с составом сравниваемых прогонов.');
+                }
+            }
+
+            $noiseThresholds = $this->gateEvaluator->computeNoiseThresholds(
+                noiseBaseResults: $noiseBaseResults['rows'],
+                noiseCandidateResults: $noiseCandidateResults['rows'],
+                holdoutCodes: $holdoutCodes,
+            );
             $noisePairIds = ['base' => $noisePairBase->id, 'candidate' => $noisePairCandidate->id];
             $profile = $this->buildProfile($base, $candidate, $noisePairBase, $noisePairCandidate);
         }
@@ -143,7 +171,7 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * @return array{0: Collection<int, ResultRow>, 1: Collection<int, ResultRow>}
+     * @return array{0: RunResults, 1: RunResults}
      */
     private function loadComparablePair(EvalRun $a, EvalRun $b): array
     {
@@ -152,8 +180,8 @@ final readonly class EvalRunComparator
         $aResults = $this->loadResults($a);
         $bResults = $this->loadResults($b);
 
-        $aCodes = $aResults->pluck('code')->sort()->values()->all();
-        $bCodes = $bResults->pluck('code')->sort()->values()->all();
+        $aCodes = $aResults['rows']->pluck('code')->sort()->values()->all();
+        $bCodes = $bResults['rows']->pluck('code')->sort()->values()->all();
 
         if ($aCodes !== $bCodes) {
             throw new RuntimeException("Прогоны #{$a->id}/#{$b->id} несравнимы: разный состав эталонов подвыборки.");
@@ -163,21 +191,26 @@ final readonly class EvalRunComparator
     }
 
     /**
-     * @return Collection<int, ResultRow>
+     * @return RunResults
      */
-    private function loadResults(EvalRun $run): Collection
+    private function loadResults(EvalRun $run): array
     {
-        return EvalResult::query()
+        $results = EvalResult::query()
             ->where('eval_run_id', $run->id)
             ->where('metric', 'f1')
             ->with('datasetExample.fixture')
-            ->get()
-            ->map(fn (EvalResult $result): array => $this->gateEvaluator->parseResultRow(
-                resultId: $result->id,
-                code: $result->datasetExample?->fixture?->code,
-                value: $result->value,
-                rawDetails: $result->details?->all() ?? [],
-            ));
+            ->get();
+
+        $rows = $results->map(fn (EvalResult $result): array => $this->gateEvaluator->parseResultRow(
+            resultId: $result->id,
+            code: $result->datasetExample?->fixture?->code,
+            value: $result->value,
+            rawDetails: $result->details?->all() ?? [],
+        ));
+        $exampleIds = $results->map(fn (EvalResult $result): int => $result->datasetExample->id
+            ?? throw new RuntimeException("EvalResult #{$result->id} не имеет эталона."));
+
+        return ['rows' => $rows, 'example_ids' => array_values($exampleIds->sort()->all())];
     }
 
     /**
@@ -245,15 +278,28 @@ final readonly class EvalRunComparator
             throw new RuntimeException("Прогон #{$run->id} не завершён (нет started_at/finished_at) — профиль вызовов не посчитать.");
         }
 
-        $rows = $this->llmCalls->usageByAxes(from: $run->started_at, to: $run->finished_at, axes: []);
-        $row = $rows[0] ?? ['calls' => 0, 'prompt_tokens' => 0, 'completion_tokens' => 0, 'cost_micros' => 0];
+        // Durable eval calls must carry this consumer correlation. Dry runs have no provider requests.
+        $requests = DB::table('llm_provider_requests')
+            ->where(column: 'consumer_correlation_id', operator: "eval-run:{$run->id}")
+            ->select('logical_request_id');
+        $query = $this->llmCalls->query()->toBase()
+            ->whereIn(column: 'logical_request_id', values: $requests)
+            ->where(column: 'called_at', operator: '>=', value: $run->started_at->format('Y-m-d H:i:s.uP'))
+            ->where(column: 'called_at', operator: '<', value: $run->finished_at->format('Y-m-d H:i:s.uP'))
+            ->where(column: 'currency', operator: 'USD')
+            ->selectRaw('count(*) as calls, coalesce(sum(prompt_tokens), 0) as prompt_tokens,
+                coalesce(sum(completion_tokens), 0) as completion_tokens, coalesce(sum(cost_micros), 0) as cost_micros');
+        $row = ProviderRow::one(sql: $query->toSql(), bindings: $query->getBindings())
+            ?? throw new \LogicException('Агрегат расхода EvalRun не вернул строку.');
+        $calls = $row->int('calls');
+        $promptTokens = $row->int('prompt_tokens');
 
         return [
-            'calls' => $row['calls'],
-            'prompt_tokens' => $row['prompt_tokens'],
-            'completion_tokens' => $row['completion_tokens'],
-            'avg_prompt_tokens' => $row['calls'] > 0 ? round($row['prompt_tokens'] / $row['calls'], 1) : 0.0,
-            'cost_micros' => $row['cost_micros'],
+            'calls' => $calls,
+            'prompt_tokens' => $promptTokens,
+            'completion_tokens' => $row->int('completion_tokens'),
+            'avg_prompt_tokens' => $calls > 0 ? round($promptTokens / $calls, 1) : 0.0,
+            'cost_micros' => $row->int('cost_micros'),
         ];
     }
 }

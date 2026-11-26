@@ -45,7 +45,8 @@ final class ProviderReportFixtures implements ReceiptPolicy
         $purpose = OperationPurpose::tryFrom($attributes['purpose'] ?? 'generate') ?? OperationPurpose::Generate;
         $seed = LedgerFixtures::uuid()->value;
         $plan = new ProviderOperationPlan(new RequestIdentity(hash('sha256', 'report-fixture'), hash('sha256', $seed), $purpose, 0, $seed),
-            $context, FinancialFixtures::pricing($purpose, fixed: 100_000_000, validUntil: '2099-01-01T00:00:00Z'), 'report:'.$seed);
+            $context, FinancialFixtures::pricing($purpose, fixed: 100_000_000, validUntil: '2099-01-01T00:00:00Z'),
+            $attributes['consumer_correlation_id'] ?? 'report:'.$seed);
         $ids = ProviderOperationIds::allocate();
         $ledger = app(RequestLedger::class);
         $op = DB::transaction(fn () => $ledger->authorize($plan, LedgerFixtures::uuid()->value, 1, $period, $ids));

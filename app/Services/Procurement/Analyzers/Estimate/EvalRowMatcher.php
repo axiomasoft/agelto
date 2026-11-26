@@ -108,12 +108,13 @@ final readonly class EvalRowMatcher
     /**
      * @param  list<array<string, mixed>>  $estimates
      * @param  list<array{slot: int, gold_index: ?int, predicted_index: ?int, rule: ?string}>  $matches
-     * @return array<string, array<string, mixed>> ключ "{слот}:{row_index}"
+     * @return array<string, array<string, mixed>> первая строка по ключу "{слот}:{row_index}", повторные по порядку
      */
     public function flattenRows(array $estimates, array $matches, bool $forGold): array
     {
         $slotByIndex = $this->slotByOriginalIndex($matches, $forGold);
         $flat = [];
+        $occurrences = [];
 
         foreach ($estimates as $estimateIndex => $estimate) {
             $slot = $slotByIndex[$estimateIndex] ?? null;
@@ -140,7 +141,8 @@ final readonly class EvalRowMatcher
                     continue;
                 }
 
-                $flat["{$slot}:{$rowIndex}"] = $row;
+                $key = $this->occurrenceKey(key: "{$slot}:{$rowIndex}", occurrences: $occurrences);
+                $flat[$key] = $row;
             }
         }
 
@@ -200,6 +202,7 @@ final readonly class EvalRowMatcher
     {
         $slotByIndex = $this->slotByOriginalIndex($matches, $forGold);
         $flat = [];
+        $occurrences = [];
 
         foreach ($estimates as $estimateIndex => $estimate) {
             $slot = $slotByIndex[$estimateIndex] ?? null;
@@ -210,7 +213,7 @@ final readonly class EvalRowMatcher
 
             $totals = $estimate['totals'] ?? [];
             $footer = is_array($totals) && is_array($totals['footer'] ?? null) ? array_values($totals['footer']) : [];
-            $this->flattenTotalLines($footer, $slot, $flat);
+            $this->flattenTotalLines(lines: $footer, slot: $slot, flat: $flat, occurrences: $occurrences);
         }
 
         return $flat;
@@ -336,10 +339,21 @@ final readonly class EvalRowMatcher
     }
 
     /**
+     * @param  array<string, int>  $occurrences
+     */
+    private function occurrenceKey(string $key, array &$occurrences): string
+    {
+        $occurrence = $occurrences[$key] = ($occurrences[$key] ?? 0) + 1;
+
+        return $occurrence === 1 ? $key : "duplicate:{$occurrence}:{$key}";
+    }
+
+    /**
      * @param  list<mixed>  $lines
      * @param  array<string, array{estimate_index: int, label: string, value: mixed, kind: mixed, chapter_number: mixed, rate: mixed}>  $flat
+     * @param  array<string, int>  $occurrences
      */
-    private function flattenTotalLines(array $lines, int $slot, array &$flat): void
+    private function flattenTotalLines(array $lines, int $slot, array &$flat, array &$occurrences): void
     {
         foreach ($lines as $line) {
             if (! is_array($line)) {
@@ -349,7 +363,10 @@ final readonly class EvalRowMatcher
             /** @var array<string, mixed> $line */
             $label = is_string($line['label'] ?? null) ? $line['label'] : '';
             $kind = $line['kind'] ?? null;
-            $key = $slot.'::'.$this->normalizeText($label).'::'.($this->scalarString($kind ?? ''));
+            $key = $this->occurrenceKey(
+                key: $slot.'::'.$this->normalizeText($label).'::'.$this->scalarString($kind ?? ''),
+                occurrences: $occurrences,
+            );
 
             $flat[$key] = [
                 'estimate_index' => $slot,
@@ -361,7 +378,12 @@ final readonly class EvalRowMatcher
             ];
 
             $children = $line['children'] ?? [];
-            $this->flattenTotalLines(is_array($children) ? array_values($children) : [], $slot, $flat);
+            $this->flattenTotalLines(
+                lines: is_array($children) ? array_values($children) : [],
+                slot: $slot,
+                flat: $flat,
+                occurrences: $occurrences,
+            );
         }
     }
 }

@@ -97,7 +97,8 @@ class ViewAnalysis extends ViewRecord
             ->label('Отклонить с коррекцией')
             ->color('danger')
             ->authorize('update')
-            ->visible(fn (Analysis $record): bool => $record->document_type !== null)
+            ->visible(fn (Analysis $record): bool => $record->status === AnalysisStatus::Succeeded
+                && $record->document_type !== null)
             ->form([
                 TextInput::make('field_path')
                     ->label('Поле (JSONPath)')
@@ -129,7 +130,7 @@ class ViewAnalysis extends ViewRecord
                 );
                 $record->refresh();
                 if (! $changed) {
-                    Notification::make()->title('Нельзя создать коррекцию: скрининг ещё не определил тип документа')->danger()->send();
+                    Notification::make()->title('Для коррекции нужен успешно завершённый анализ с определённым типом документа')->danger()->send();
 
                     return;
                 }

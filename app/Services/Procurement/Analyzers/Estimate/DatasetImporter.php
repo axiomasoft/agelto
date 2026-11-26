@@ -148,6 +148,7 @@ final readonly class DatasetImporter
         string $task,
         string $source,
         int $goldVersion,
+        bool $verified = false,
     ): void {
         $content = file_get_contents($sourceFile);
 
@@ -181,11 +182,18 @@ final readonly class DatasetImporter
                 'downloaded_at' => now(),
             ]);
 
-        $this->examples->storeOrUpdate($version->id, $task, $goldVersion, [
-            'document_type' => $documentType->value,
-            'gold' => $normalizedGold,
-            'source' => $source,
-        ]);
+        $this->examples->storeOrUpdate(
+            documentVersionId: $version->id,
+            task: $task,
+            version: $goldVersion,
+            attributes: [
+                'document_type' => $documentType->value,
+                'gold' => $normalizedGold,
+                'source' => $source,
+                'verified_by' => null,
+                'verified_at' => $verified ? now() : null,
+            ],
+        );
     }
 
     private function store(string $hash, string $content): string

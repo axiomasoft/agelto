@@ -7,6 +7,7 @@ namespace App\Actions\Procurement\Ai;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\ReviewStatus;
 use App\Repositories\Procurement\Ai\AnalysisReviewRepository;
+use App\Repositories\Procurement\Ai\DatasetExampleStoreRepository;
 use App\Services\Procurement\Analyzers\Estimate\GoldExampleRecorder;
 use App\Services\Procurement\Process\ProcessTransaction;
 use Illuminate\Support\Str;
@@ -18,6 +19,7 @@ final readonly class ReviewAnalysisAction
         private AnalysisReviewRepository $reviews,
         private GoldExampleRecorder $gold,
         private ProcessTransaction $transactions,
+        private DatasetExampleStoreRepository $examples,
     ) {}
 
     /** False means already approved; its original reviewer audit is preserved. */
@@ -55,7 +57,7 @@ final readonly class ReviewAnalysisAction
 
         return $this->transactions->run(function () use ($analysisId, $reviewerId, $correction, $correctionUuid): bool {
             $analysis = $this->reviews->lockForReview($analysisId);
-            if ($analysis->document_type === null) {
+            if ($analysis->status !== AnalysisStatus::Succeeded || $analysis->document_type === null) {
                 return false;
             }
             $this->reviews->storeCorrectionLocked($analysis, $reviewerId, $correctionUuid, $correction);
@@ -65,6 +67,7 @@ final readonly class ReviewAnalysisAction
                 'reviewed_at' => now(),
                 'operator_comment' => $correction['content'],
             ]);
+            $this->examples->revokeAnalysisVerification($analysis);
 
             return true;
         });

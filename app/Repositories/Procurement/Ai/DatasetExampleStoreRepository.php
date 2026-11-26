@@ -6,9 +6,11 @@ namespace App\Repositories\Procurement\Ai;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStep;
+use App\Enums\Procurement\Ai\ReviewStatus;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Repositories\Procurement\Process\CallerTransaction;
 use App\Services\Procurement\Process\ProcessTransaction;
 
 /**
@@ -49,6 +51,13 @@ final readonly class DatasetExampleStoreRepository
                     throw new \LogicException('Analysis gold snapshot identity changed.');
                 }
 
+                if ($analysis->review_status === ReviewStatus::Approved) {
+                    $example->update([
+                        'verified_by' => $analysis->reviewed_by,
+                        'verified_at' => $analysis->reviewed_at,
+                    ]);
+                }
+
                 return $example;
             }
             $maxVersion = DatasetExample::query()
@@ -70,6 +79,15 @@ final readonly class DatasetExampleStoreRepository
                 'version' => $version,
             ]);
         });
+    }
+
+    public function revokeAnalysisVerification(Analysis $analysis): void
+    {
+        CallerTransaction::require('Analysis gold verification');
+
+        DatasetExample::query()
+            ->where(column: 'analysis_id', operator: $analysis->id)
+            ->update(['verified_at' => null, 'verified_by' => null]);
     }
 
     private function lockVersion(int $documentVersionId): void

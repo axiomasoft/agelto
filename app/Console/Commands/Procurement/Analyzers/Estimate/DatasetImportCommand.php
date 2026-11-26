@@ -22,6 +22,7 @@ use Illuminate\Console\Command;
         {path : путь к папке с парами <name>.<ext> + <name>.gold.json}
         {--task=extraction : значение prc_ai_dataset_examples.task}
         {--source=manual : значение prc_ai_dataset_examples.source}
+        {--verified : отметить импортируемые эталоны как проверенные}
         {--document-type=estimate : тип документа из AiDocumentType для эталонов вне реестра prc_ai_fixtures}
         {--gold-version=1 : версия эталона (upsert-ключ вместе с document_version_id+task; `--version` зарезервирован Symfony Console)}')]
 final class DatasetImportCommand extends Command
@@ -55,6 +56,11 @@ final class DatasetImportCommand extends Command
             $this->error("Неизвестный --document-type={$this->option('document-type')}.");
 
             return self::FAILURE;
+        }
+
+        $verified = (bool) $this->option('verified');
+        if (! $verified) {
+            $this->warn('Импорт без --verified сохраняет эталоны без отметки проверки.');
         }
 
         $imported = 0;
@@ -94,13 +100,14 @@ final class DatasetImportCommand extends Command
 
             /** @var array<string, mixed> $normalizedGold */
             $this->importer->importPair(
-                $baseName,
-                $sourceFile,
-                $normalizedGold,
-                $documentType,
-                (string) $this->option('task'),
-                (string) $this->option('source'),
-                (int) $this->option('gold-version'),
+                baseName: $baseName,
+                sourceFile: $sourceFile,
+                normalizedGold: $normalizedGold,
+                documentType: $documentType,
+                task: (string) $this->option('task'),
+                source: (string) $this->option('source'),
+                goldVersion: (int) $this->option('gold-version'),
+                verified: $verified,
             );
             $this->info("{$baseName}: импортирован.");
             $imported++;

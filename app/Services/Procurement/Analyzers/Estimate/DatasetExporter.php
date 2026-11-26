@@ -42,19 +42,22 @@ final readonly class DatasetExporter
      */
     public function export(string $format, string $task, string $split, array $sources, string $dpoSchema): array
     {
+        [$holdoutCodes, $warnings] = $this->loadHoldoutCodes($split);
+
         return $format === 'sft'
-            ? $this->writeSft($task, $split, $sources)
-            : $this->writeDpo($task, $split, $sources, $dpoSchema);
+            ? $this->writeSft(task: $task, split: $split, sources: $sources, holdoutCodes: $holdoutCodes, warnings: $warnings)
+            : $this->writeDpo(task: $task, split: $split, sources: $sources, dpoSchema: $dpoSchema, holdoutCodes: $holdoutCodes, warnings: $warnings);
     }
 
     /**
      * @param  list<string>  $sources
+     * @param  list<string>|null  $holdoutCodes
+     * @param  list<string>  $warnings
      * @return array{0: array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>}, 1: resource}
      */
-    private function writeSft(string $task, string $split, array $sources): array
+    private function writeSft(string $task, string $split, array $sources, ?array $holdoutCodes, array $warnings): array
     {
         $composed = $this->inputBuilder->composePrompt();
-        [$holdoutCodes, $warnings] = $this->loadHoldoutCodes();
 
         $stream = $this->temporaryStream();
         $count = 0;
@@ -129,12 +132,13 @@ final readonly class DatasetExporter
 
     /**
      * @param  list<string>  $sources
+     * @param  list<string>|null  $holdoutCodes
+     * @param  list<string>  $warnings
      * @return array{0: array{examples: int, skipped: array<string, int>, by_source: array<string, int>, by_split: array<string, int>, by_representation_kind: array<string, int>, prompt_version_set: array<string, int>, rules_hash: string, warnings: list<string>}, 1: resource}
      */
-    private function writeDpo(string $task, string $split, array $sources, string $dpoSchema): array
+    private function writeDpo(string $task, string $split, array $sources, string $dpoSchema, ?array $holdoutCodes, array $warnings): array
     {
         $composed = $this->inputBuilder->composePrompt();
-        [$holdoutCodes, $warnings] = $this->loadHoldoutCodes();
 
         $stream = $this->temporaryStream();
         $count = 0;
@@ -303,13 +307,13 @@ final readonly class DatasetExporter
     }
 
     /**
-     * @param  list<string>  $holdoutCodes
+     * @param  list<string>|null  $holdoutCodes
      */
-    private function splitOf(DatasetExample $example, array $holdoutCodes): string
+    private function splitOf(DatasetExample $example, ?array $holdoutCodes): string
     {
         $code = $example->fixture?->code;
 
-        if ($code === null) {
+        if ($holdoutCodes === null || $code === null) {
             return 'none';
         }
 
@@ -317,18 +321,21 @@ final readonly class DatasetExporter
     }
 
     /**
-     * `estimates/eval-splits.json` отсутствует → `split=none` у ВСЕХ строк + предупреждение в
-     * сводке — не СТОП: экспорт легален и без файла разбиения.
-     *
-     * @return array{0: list<string>, 1: list<string>}
+     * @return array{0: list<string>|null, 1: list<string>}
      */
-    private function loadHoldoutCodes(): array
+    private function loadHoldoutCodes(string $split): array
     {
-        try {
-            return [$this->splitPlanner->loadHoldoutCodes(), []];
-        } catch (RuntimeException) {
-            return [[], ['estimates/eval-splits.json не найден — все строки помечены split=none.']];
+        $path = config('ai.fixtures.splits_path');
+
+        if (is_string($path) && $path !== '' && ! is_file($path)) {
+            if ($split !== 'all') {
+                throw new RuntimeException("Файл разбиения не найден: {$path}. Для --split={$split} прогони `estimate:eval:run --write-splits`.");
+            }
+
+            return [null, ["Файл разбиения не найден: {$path}. Все строки помечены split=none."]];
         }
+
+        return [$this->splitPlanner->loadHoldoutCodes(), []];
     }
 
     public static function exporterVersion(): int
