@@ -21,7 +21,7 @@ Agelto healthy, readiness 7/7, Doctor 27 diagnostics без failures/warnings. �
 пару images и обратно прошло без изменения identities PostgreSQL/Redis/MinIO; PostgreSQL
 backup восстановлен в отдельной rehearsal DB. Это исторический результат, не текущий мониторинг.
 
-Остаются осознанные ограничения: `BACKUP_ENABLED=false` ([backup](manual-backups.md)),
+Остаются осознанные ограничения: `BACKUP_ENABLED=false` ([backup](backups.md)),
 `MAIL_MAILER=log`, внешняя SMTP доставка не проверена из-за TCP 25 timeout ([почта](server-mail.md));
 Gemini key подключён, но управляемый proxy pool пуст и реальный LLM request не проверен.
 Mermaid SVG rendering не подтверждён, полный browser E2E не объявлен успешным.
@@ -818,12 +818,10 @@ runtime paths и web работает. Не делайте original secrets worl
 [verified PostgreSQL backup](rollback-restore.md#ручная-локальная-postgresql-rehearsal).
 Возьмите один scoped release lock: parallel deploy и backup недопустимы.
 
-Для автоматического локального backup сначала выполните
-[проверенный host-only runbook](manual-backups.md); original fixture templates не имеют
-production apply implementation. По решению владельца default `BACKUP_ENABLED=false` в
-отдельном ignored `.env.backup`: launcher/watchdog не выполняют payload до включения,
-работа приложения от flag не зависит. Off-host destination/credentials и внешние alerts — отдельные
-реальные внешние зависимости, а не подразумеваемые результаты enabled timer.
+Для новой установки настройте [автоматические бэкапы с age и внешним Restic](backups.md).
+По умолчанию `BACKUP_ENABLED=false` в отдельном `.env.backup`. Launcher и watchdog
+начинают работу после включения флага, независимо от приложения. Для прежних локальных
+копий используйте [восстановление архивов OpenSSL](manual-backups.md).
 
 1. `git pull --ff-only origin main`, verify clean tree/vendor pin, full candidate SHA.
 2. Соберите **новый** tag по разделу 4. До успеха env остаётся на previous tag.

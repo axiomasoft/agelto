@@ -6,6 +6,9 @@ readonly HOST_DIR="${SCRIPT_DIR%/scripts}/host"
 readonly SSH_FRAGMENT_SOURCE="$HOST_DIR/sshd_config.d/90-agelto.conf"
 readonly DAEMON_SOURCE="$HOST_DIR/docker-daemon.json"
 
+# shellcheck source=docker/scripts/production-profile-check.sh
+source "$SCRIPT_DIR/production-profile-check.sh"
+
 mode=""
 profile=""
 confirm=0
@@ -29,36 +32,6 @@ done
 [[ -n "$mode" && -n "$profile" && "$profile" = /* ]] || { usage >&2; exit 2; }
 
 declare -A PROFILE=()
-readonly REQUIRED_KEYS=(DEPLOY_USER DEPLOY_AUTHORIZED_KEY_FILE SSH_PORT PUBLIC_HTTP_PORT PUBLIC_HTTPS_PORT APP_BIND_ADDRESS APP_BIND_PORT DISK_MIN_FREE_GB DOCKER_DATA_ROOT REGISTRY_PASSWORD_FILE BACKUP_ALERT_URL_FILE)
-readonly OPTIONAL_KEYS=(AGELTO_REPOSITORY AGELTO_CANDIDATE_SHA AGELTO_CHECKOUT_DIR GITHUB_ED25519_HOST_KEY)
-readonly SECRET_FILE_KEYS=(REGISTRY_PASSWORD_FILE BACKUP_ALERT_URL_FILE)
-
-read_profile() {
-    [[ -f "$profile" && ! -L "$profile" ]] || fail 'profile must be a regular non-symlink file'
-    local permissions
-    permissions="$(stat -c '%a' "$profile")"
-    (( 8#${permissions: -2} == 0 )) || fail 'profile must not be group/world-readable'
-    local line key value
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        [[ -z "$line" || "$line" == \#* ]] && continue
-        [[ "$line" == *=* ]] || fail 'profile lines must be KEY=value'
-        key="${line%%=*}"; value="${line#*=}"
-        [[ "$key" =~ ^[A-Z][A-Z0-9_]*$ ]] || fail 'profile has invalid key'
-        case " ${REQUIRED_KEYS[*]} ${OPTIONAL_KEYS[*]} " in *" $key "*) ;; *) fail "profile has unknown key $key";; esac
-        [[ ! -v "PROFILE[$key]" ]] || fail "profile has duplicate key $key"
-        [[ -n "$value" && "$value" != *CHANGE_ME* && "$value" != *'<'* && "$value" != *'>'* ]] || fail "profile has placeholder for $key"
-        [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || fail "profile has control character in $key"
-        PROFILE["$key"]="$value"
-    done < "$profile"
-    local key
-    for key in "${REQUIRED_KEYS[@]}"; do [[ -v "PROFILE[$key]" ]] || fail "profile misses $key"; done
-    [[ "${PROFILE[DEPLOY_USER]}" == deploy ]] || fail 'DEPLOY_USER must be deploy'
-    [[ "${PROFILE[APP_BIND_ADDRESS]}" == 127.0.0.1 || "${PROFILE[APP_BIND_ADDRESS]}" == ::1 ]] || fail 'APP_BIND_ADDRESS must be loopback'
-    [[ "${PROFILE[SSH_PORT]}" =~ ^[0-9]{1,5}$ && "${PROFILE[PUBLIC_HTTP_PORT]}" == 80 && "${PROFILE[PUBLIC_HTTPS_PORT]}" == 443 ]] || fail 'public ports must be SSH, 80 and 443 only'
-    [[ "${PROFILE[DISK_MIN_FREE_GB]}" =~ ^[1-9][0-9]*$ ]] || fail 'DISK_MIN_FREE_GB must be positive'
-    for key in "${SECRET_FILE_KEYS[@]}"; do [[ "${PROFILE[$key]}" = /* ]] || fail "$key must be an absolute path"; done
-    pass 'PROFILE closed schema and permissions are valid (values redacted)'
-}
 
 check_platform() {
     # shellcheck disable=SC1091
@@ -173,9 +146,10 @@ install_backup_service() {
 }
 
 main() {
+    production_profile_read "$profile" PROFILE
+    pass 'PROFILE closed schema and permissions are valid (values redacted)'
     check_platform
     check_sources
-    read_profile
     if [[ "$mode" == check ]]; then pass 'CHECK completed without mutation'; return; fi
     [[ "$EUID" -eq 0 && "$confirm" -eq 1 ]] || fail 'apply requires root and --confirm'
     install_docker
