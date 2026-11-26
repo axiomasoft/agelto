@@ -488,14 +488,15 @@ bash docker/scripts/vendor-sync.sh
 candidate_sha=$(git rev-parse HEAD)
 candidate_tag="manual-$candidate_sha-$(date -u +%Y%m%dT%H%M%SZ)"
 ! docker image inspect "agelto/app:$candidate_tag" >/dev/null 2>&1
+! docker image inspect "agelto/worker-prepare:$candidate_tag" >/dev/null 2>&1
 ! docker image inspect "agelto/doctor:$candidate_tag" >/dev/null 2>&1
 ```
 
 `make image:build` до Docker build вызывает Composer platform dry-run на host. Если там нет
-Composer **с полной требуемой PHP platform**, сначала соберите runtime-base по tracked Dockerfile:
+Composer **с полной требуемой PHP platform**, сначала соберите app-base по tracked Dockerfile:
 
 ```bash
-docker build --target runtime-base --tag "agelto/composer-preflight:$candidate_sha" \
+docker build --target app-base --tag "agelto/composer-preflight:$candidate_sha" \
   --file docker/php/Dockerfile .
 ```
 
@@ -519,10 +520,11 @@ checkout read-only. Выполните:
 PATH=/srv/agelto/bin:/usr/local/bin:/usr/bin:/bin BUILDKIT_PROGRESS=plain \
   make image:build IMAGE_TAG="$candidate_tag"
 docker image inspect --format '{{.Id}} {{index .Config.Labels "org.opencontainers.image.revision"}} {{index .Config.Labels "io.agelto.vendor-lock-sha"}}' \
-  "agelto/app:$candidate_tag" "agelto/doctor:$candidate_tag"
+  "agelto/app:$candidate_tag" "agelto/worker-prepare:$candidate_tag" "agelto/doctor:$candidate_tag"
 ```
 
-Ожидается `Image pair ready`, exit 0, одинаковые revision/vendor labels. Запишите оба IDs.
+Ожидается `Image set ready`, exit 0 и одинаковые revision/vendor labels для app, doctor и
+worker-prepare. Сохраните IDs всех образов релиза. Контейнер Horizon использует worker-prepare.
 Не пересобирайте прежний tag: он нужен для rollback. Build context исключает `.env*`,
 `local/secrets`, `.git`, host vendor/node_modules согласно `.dockerignore`.
 После успеха внесите candidate tag в `.env.production`, не затрагивая остальные ключи.
@@ -564,7 +566,7 @@ PATH=/srv/agelto/bin:/usr/local/bin:/usr/bin:/bin \
   make image:build IMAGE_TAG="$candidate_tag"
 ```
 
-Ожидается `Image pair ready`, затем проверьте image labels/IDs как выше. Без этой переменной
+Ожидается `Image set ready`, затем проверьте image labels/IDs как выше. Без этой переменной
 wrapper делегирует Docker без изменения; rollback build override — убрать command-local
 переменную, не менять системный resolver или `/usr/bin/docker`.
 
@@ -836,6 +838,9 @@ production apply implementation. По решению владельца default 
 Команды повторного релиза (от deploy). Сначала сохраните предыдущий runtime и получите
 новую пару по разделу 4; не source-ите env-файл как shell script:
 
+Команды ниже предполагают, что предыдущий релиз уже использует `worker-prepare`. Перед
+первым переходом сохраните предыдущие Compose-файлы и IDs образов из действующего релиза.
+
 ```bash
 cd /srv/agelto/repository
 umask 077
@@ -849,7 +854,7 @@ mkdir -p "$operation_dir"
 cp .env.production "$operation_dir/env.previous"
 cp docker-compose.override.yml "$operation_dir/compose.previous"
 docker image inspect --format '{{.Id}}' "agelto/app:$previous_tag" \
-  "agelto/doctor:$previous_tag" > "$operation_dir/pair.previous.ids"
+  "agelto/worker-prepare:$previous_tag" "agelto/doctor:$previous_tag" > "$operation_dir/pair.previous.ids"
 printf '%s\n' "$previous_tag" > "$operation_dir/tag.previous"
 git pull --ff-only origin main
 test -z "$(git status --porcelain)"
@@ -857,6 +862,7 @@ bash docker/scripts/vendor-sync.sh
 candidate_sha=$(git rev-parse HEAD)
 candidate_tag="manual-$candidate_sha-$(date -u +%Y%m%dT%H%M%SZ)"
 ! docker image inspect "agelto/app:$candidate_tag" >/dev/null 2>&1
+! docker image inspect "agelto/worker-prepare:$candidate_tag" >/dev/null 2>&1
 ! docker image inspect "agelto/doctor:$candidate_tag" >/dev/null 2>&1
 PATH=/srv/agelto/bin:/usr/local/bin:/usr/bin:/bin BUILDKIT_PROGRESS=plain \
   make image:build IMAGE_TAG="$candidate_tag"
@@ -914,6 +920,9 @@ App HTTP service может оставаться доступен во врем�
 Rollback кода: только при известном previous image pair и подтверждённой совместимости
 текущей schema. Проверьте сохранённые IDs, верните previous tag в env, затем те же scoped
 worker stop/recreate/check команды. Secrets не ротируются и data volumes не удаляются.
+Для отката к tag, выпущенному до появления `worker-prepare`, нужен сохранённый Compose
+того релиза, в котором Horizon использует `agelto/app`. Совместимость schema и конфигурации
+для первого перехода проверьте до переключения.
 Точный rollback после подтверждения schema compatibility (подставьте **проверенный**
 operation directory, содержащий previous snapshot; не выбирайте его по glob):
 
@@ -923,7 +932,7 @@ operation_dir=/srv/agelto/operations/REPLACE_WITH_VERIFIED_UTC_STAMP
 previous_tag=$(<"$operation_dir/tag.previous")
 test "$previous_tag" != latest
 cmp "$operation_dir/pair.previous.ids" <(docker image inspect --format '{{.Id}}' \
-  "agelto/app:$previous_tag" "agelto/doctor:$previous_tag")
+  "agelto/app:$previous_tag" "agelto/worker-prepare:$previous_tag" "agelto/doctor:$previous_tag")
 test -d "/srv/agelto/releases/$previous_tag/public"
 exec 9>/srv/agelto/.release.lock
 flock -n 9

@@ -1,7 +1,9 @@
 .git
 .env*
 local/secrets/
-plans/
+plan
+plans
+tasks
 .ai/
 .claude/
 vendor/

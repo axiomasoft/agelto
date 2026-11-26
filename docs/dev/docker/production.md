@@ -9,11 +9,11 @@ status: living
 ## Prebuilt image, не build-on-deploy
 
 `docker-compose.prod.yml` требует оба значения: `COMPOSE_PROJECT_NAME` и неизменяемый `IMAGE_TAG`.
-`app`, `horizon` и `scheduler` используют ровно `agelto/app:${IMAGE_TAG}`; production host выполняет
-только `pull` + `up -d`, а не build. В production нет host bind-mount для source или `vendor` и нет
-`container_name`, поэтому два Compose-проекта изолированы. Образ имеет stages `runtime-base` и
-`application`, запускается как `www-data`; private Composer closure остаётся gate P2, а production
-frontend artifact — gate P1.4/P3. P1 ещё не является доказательством готовности релиза.
+Веб, scheduler и четыре демона используют `agelto/app:${IMAGE_TAG}` на основе `app-base`.
+Horizon использует `agelto/worker-prepare:${IMAGE_TAG}` с утилитами подготовки документов.
+`IMAGE_REGISTRY` задаёт необязательный префикс реестра в обеих командах promotion и deploy.
+Production host загружает образы и ждёт их готовности с `up -d --wait --no-build`.
+Два Compose-проекта изолированы. Исходники и `vendor` входят в образ приложения.
 
 ## Private Composer packages
 
@@ -21,7 +21,7 @@ Before a build, run `make vendor:sync`. It clones the immutable AzGuard commit d
 `docker/private-vendors.lock.json` to ignored `local/vendors/azguard`; the checkout is neither a
 submodule nor an image runtime artifact. The Dockerfile copies only the allowlisted package paths into
 the dependency stage and excludes the raw checkout from the final `application` stage.
-Both final images carry the exact manifest SHA as an OCI label and a non-secret build attestation;
+The app, worker and Doctor images carry the exact manifest SHA as an OCI label and a non-secret build attestation;
 the production Doctor validates that attestation and the installed allowlisted packages without
 requiring the checkout or `.git` in the image.
 

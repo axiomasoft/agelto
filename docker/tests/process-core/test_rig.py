@@ -1108,6 +1108,21 @@ class VendorDeliveryTest(unittest.TestCase):
         self.manifest.write_text("{broken")
         self.sync("--check", succeeds=False)
 
+    def test_проверяет_semver_пакетов_proxyma(self):
+        for version, valid in (("0.2.0", True), ("1.2.3-rc.1+build.7", True),
+                               ("01.2.3", False), ("1.2.3-01", False), ("^1.2", False)):
+            with self.subTest(version=version):
+                value = {"version": 2, "repositories": copy.deepcopy(self.rows)}
+                for package in value["repositories"][1]["packages"]:
+                    package["version"] = version
+                self.save(value)
+                self.sync("--check", succeeds=valid)
+
+        value["repositories"][1]["packages"][0]["version"] = "1.2.3"
+        value["repositories"][1]["packages"][1]["version"] = "1.2.4"
+        self.save(value)
+        self.sync("--check", succeeds=False)
+
     def test_composer_offline_copies_both_repositories_and_rejects_forged_lock(self):
         composer = shutil.which("composer")
         self.assertIsNotNone(composer, "Composer is required for the offline installation contract")

@@ -2,13 +2,13 @@
 Description=Verify freshness of the latest Agelto off-host backup
 After=agelto-backup.service
 OnFailure=agelto-backup-alert@%n.service
-ConditionPathExists=/srv/agelto/backups/latest.status
+ConditionPathExists=/etc/agelto/operator-rehearsal-authority
 
 [Service]
 Type=oneshot
 User=deploy
 Group=deploy
-ExecStart=/usr/local/bin/agelto-backup-watchdog check --status-file /srv/agelto/backups/latest.status --max-age 129600
+ExecStart=/srv/agelto/bin/backup-env-gate /srv/agelto/repository/.env.backup -- /usr/local/bin/agelto-backup-watchdog check --status-file /srv/agelto/backups/latest.status --max-age 129600
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

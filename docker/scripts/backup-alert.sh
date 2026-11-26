@@ -9,7 +9,28 @@ fail() {
 
 case ${1:-} in
     check) ;;
-    apply) fail 'apply requires the follow-up operator rehearsal authority' ;;
+    apply)
+        [[ $# -eq 7 && $2 == --event && $4 == --endpoint-file && $5 == /etc/agelto/backup-alert-url \
+            && $6 == --authority-file && $7 == /etc/agelto/operator-rehearsal-authority \
+            && -s $7 && -f $7 && ! -L $7 ]] || fail 'apply requires the operator rehearsal authority'
+        read -r owner permissions < <(stat -c '%u %a' "$7")
+        [[ $owner == 0 ]] && (( (8#$permissions & 022) == 0 )) || fail 'operator authority must be controlled by root'
+        [[ $(id -un) == deploy ]] || fail 'apply must run as deploy'
+        case "$3" in
+            agelto-backup.service) event='backup:failed:BACKUP_FAILED' ;;
+            agelto-backup-watchdog.service) event='watchdog:stale:BACKUP_STALE' ;;
+            *) fail 'unknown backup unit' ;;
+        esac
+        [[ -f $5 && ! -L $5 && -s $5 ]] || fail 'endpoint must be a regular nonempty file'
+        permissions=$(stat -c '%a' "$5")
+        (( (8#$permissions & 077) == 0 )) || fail 'endpoint file must be owner-only'
+        endpoint=$(<"$5")
+        [[ $endpoint =~ ^https://[^[:space:]\"\\]+$ ]] || fail 'endpoint must be an HTTPS URL'
+        printf 'url = "%s"\n' "$endpoint" | curl -q --config - --proto '=https' --max-time 30 \
+            --silent --fail --output /dev/null --header 'Content-Type: application/json' \
+            --data-binary "{\"event\":\"$event\"}" 2>/dev/null || fail 'alert delivery failed'
+        exit 0
+        ;;
     *) printf 'Usage: backup-alert.sh check --event-file /absolute/path --endpoint-file /absolute/path [--adapter /absolute/fake-tool]\n' >&2; exit 2 ;;
 esac
 shift

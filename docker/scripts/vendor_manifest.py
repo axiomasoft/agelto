@@ -12,6 +12,12 @@ import subprocess
 import sys
 
 REPOSITORIES = {"azguard": "axiomasoft/azguard", "proxyma": "axiomasoft/proxyma"}
+SEMVER = re.compile(
+    r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+    r"(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+)
 
 
 def require(condition, message):
@@ -50,10 +56,13 @@ def load(path):
             expected = {"packages/core": f"axiomasoft/{key}", "packages/filament": f"axiomasoft/{key}-filament"}
             require(isinstance(subpath, str) and subpath in expected and name == expected[subpath]
                     and name not in names and subpath not in paths, "invalid/duplicate package or path traversal")
-            require(version == ("0.1.0" if key == "proxyma" else "dev-main"), "invalid package version")
+            require(isinstance(version, str)
+                    and (SEMVER.fullmatch(version) is not None if key == "proxyma" else version == "dev-main"),
+                    "invalid package version")
             paths.add(subpath)
             names.add(name)
         require(paths == {"packages/core", "packages/filament"}, "both package subpaths are required")
+        require(len({package["version"] for package in packages}) == 1, "UI/core versions must match")
     return rows
 
 
@@ -91,7 +100,8 @@ def check_checkout(path, row, *, exact=True):
         actual = json.loads(file.read_text())
         require(actual.get("name") == package["name"], "vendor package name differs")
         if row["key"] == "proxyma" and package["path"] == "packages/filament":
-            require(actual.get("require", {}).get("axiomasoft/proxyma") in {"self.version", "0.1.0"}, "UI/core versions must match")
+            require(actual.get("require", {}).get("axiomasoft/proxyma") in {"self.version", package["version"]},
+                    "UI/core versions must match")
 
 
 def serialized(value):

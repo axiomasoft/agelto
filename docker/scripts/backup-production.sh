@@ -14,15 +14,24 @@ usage() {
     cat >&2 <<'EOF'
 Usage:
   backup-production.sh check
+  backup-production.sh apply --profile /absolute/profile --authority-file /etc/agelto/operator-rehearsal-authority
   backup-production.sh fixture --fixture-root /tmp/path --profile /absolute/profile --adapter /absolute/fake-tool [--backup-id fixture-N] [--retention N]
 
-The production apply path is intentionally owned by the follow-up operator rehearsal plan.
 EOF
 }
 
 mode=${1:-}
+if [[ $mode == apply ]]; then
+    [[ $# -eq 5 && $2 == --profile && $3 = /* && $4 == --authority-file \
+        && $5 == /etc/agelto/operator-rehearsal-authority && -s $5 && -f $5 && ! -L $5 ]] \
+        || fail 'apply requires the operator rehearsal authority'
+    read -r owner permissions < <(stat -c '%u %a' "$5")
+    [[ $owner == 0 ]] && (( (8#$permissions & 022) == 0 )) || fail 'operator authority must be controlled by root'
+    [[ $(id -un) == deploy ]] || fail 'apply must run as deploy'
+    bash "$profile_checker" check --profile "$3" >/dev/null
+    exec /srv/agelto/bin/backup-local
+fi
 [[ $mode == check || $mode == fixture ]] || {
-    [[ $mode != apply ]] || fail 'apply requires the follow-up operator rehearsal authority'
     usage
     exit 2
 }

@@ -17,8 +17,10 @@ TLS template до реального certificate: сначала отдельн�
 NGINX 1.28: `listen 443 ssl;`, `listen [::]:443 ssl;`, `http2 on;` вместо deprecated
 `listen ... http2`. Сохраните собственный backup, проверьте `nginx -t`, затем reload.
 Не меняйте чужие sites/default/certificates. Full commands: [manual TLS](manual-deployment.md#6-dns-nginx-и-tls).
-Проверяйте не только `/up`, но HTTPS asset/Livewire URLs: текущий Laravel bootstrap не
-настраивает trusted proxies, поэтому production TLS offload нужен и в app FastCGI config.
+Проверяйте `/up`, HTTPS-ссылки на assets и запросы Livewire. Если приложение видит подключение
+хостового NGINX с адреса Docker-шлюза, задайте этот точный адрес в `TRUSTED_PROXIES`.
+По умолчанию Laravel доверяет loopback. Внешний NGINX публикует HSTS для HTTPS и принимает
+запросы размером до 200 MiB с таймаутом чтения прокси 300 секунд.
 
 The operator rehearsal owns every external action in this order:
 

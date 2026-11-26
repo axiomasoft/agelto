@@ -10,9 +10,14 @@ log_file="$temp_dir/docker.argv"
 cat > "$temp_dir/bin/docker" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "${DOCKER_LOG:?}"
+if [[ "$*" == *'config --environment' && -n ${IMAGE_REGISTRY:-} ]]; then
+    printf 'IMAGE_REGISTRY=%s\n' "$IMAGE_REGISTRY"
+fi
 if [[ "${1:-} ${2:-}" == 'image inspect' ]]; then
     if [[ "$*" == *'agelto/doctor:'* && -v FAKE_DOCTOR_IMAGE_LABELS ]]; then
         printf '%s\n' "${FAKE_DOCTOR_IMAGE_LABELS:-:}"
+    elif [[ "$*" == *'agelto/worker-prepare:'* && -v FAKE_WORKER_IMAGE_LABELS ]]; then
+        printf '%s\n' "$FAKE_WORKER_IMAGE_LABELS"
     elif [[ "$*" == *'agelto/postgres:'* ]]; then
         if [[ -v FAKE_POSTGRES_IMAGE_REVISION ]]; then
             printf '%s\n' "${FAKE_POSTGRES_IMAGE_REVISION}"
@@ -40,34 +45,50 @@ for target in prod:deploy:code prod:deploy:php-deps prod:deploy:frontend prod:de
     run_release_target "$target"
     grep -F 'compose --project-directory ' "$log_file" | grep -F -- '--project-name agelto_contract' | grep -F 'docker-compose.prod.yml config' >/dev/null
     grep -F 'pull app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
-    grep -F 'up -d --no-build --remove-orphans app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
+    grep -F 'up -d --no-build --wait --remove-orphans app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
     grep -F 'exec -T app php artisan app:readiness --format=agent' "$log_file" >/dev/null
     ! grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"
 done
 
 run_release_target prod:image:promote
 grep -Fx 'pull agelto/app:2026.08.10.1' "$log_file" >/dev/null
+grep -Fx 'pull agelto/worker-prepare:2026.08.10.1' "$log_file" >/dev/null
 grep -Fx 'pull agelto/doctor:2026.08.10.1' "$log_file" >/dev/null
 grep -Fx 'pull agelto/postgres:2026.08.10.1' "$log_file" >/dev/null
 grep -F 'image inspect --format {{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}} agelto/app:2026.08.10.1' "$log_file" >/dev/null
 grep -F 'image inspect --format {{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}} agelto/doctor:2026.08.10.1' "$log_file" >/dev/null
+grep -F 'image inspect --format {{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}} agelto/worker-prepare:2026.08.10.1' "$log_file" >/dev/null
 grep -F 'image inspect --format {{index .Config.Labels "org.opencontainers.image.revision"}} agelto/postgres:2026.08.10.1' "$log_file" >/dev/null
 ! grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"
 
 ! FAKE_IMAGE_LABELS='' run_release_target prod:image:promote >/dev/null 2>&1
 ! FAKE_IMAGE_LABELS='deadbeef:' run_release_target prod:image:promote >/dev/null 2>&1
 ! FAKE_DOCTOR_IMAGE_LABELS='1111111111111111111111111111111111111111:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' run_release_target prod:image:promote >/dev/null 2>&1
+! FAKE_WORKER_IMAGE_LABELS='1111111111111111111111111111111111111111:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' run_release_target prod:image:promote >/dev/null 2>&1
 ! FAKE_POSTGRES_IMAGE_REVISION='1111111111111111111111111111111111111111' run_release_target prod:image:promote >/dev/null 2>&1
 ! EXPECTED_SOURCE_SHA='1111111111111111111111111111111111111111' run_release_target prod:image:promote >/dev/null 2>&1
 
+IMAGE_REGISTRY=registry.example.test:5000 run_release_target prod:image:promote
+for image in app worker-prepare doctor postgres; do
+    grep -Fx "pull registry.example.test:5000/agelto/$image:2026.08.10.1" "$log_file" >/dev/null
+done
+! IMAGE_REGISTRY=ambiguous_namespace run_release_target prod:image:promote >/dev/null 2>&1
+! grep -Eq '^pull ' "$log_file"
+
 run_release_target prod:deploy:image
 grep -Fx 'pull agelto/app:2026.08.10.1' "$log_file" >/dev/null
+grep -Fx 'pull agelto/worker-prepare:2026.08.10.1' "$log_file" >/dev/null
 grep -Fx 'pull agelto/doctor:2026.08.10.1' "$log_file" >/dev/null
 grep -Fx 'pull agelto/postgres:2026.08.10.1' "$log_file" >/dev/null
 grep -F 'pull app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
-grep -F 'up -d --no-build --remove-orphans app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
+grep -F 'up -d --no-build --wait --remove-orphans app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
 grep -F 'exec -T app php artisan app:readiness --format=agent' "$log_file" >/dev/null
 ! grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"
+
+if [[ ${1:-} == --deploy-only ]]; then
+    printf '%s\n' 'Релиз ожидает готовности и проверяет все образы выбранного реестра'
+    exit 0
+fi
 
 bash "$root_dir/docker/tests/make-contract.sh"
 bash "$root_dir/docker/tests/compose-contract.sh"

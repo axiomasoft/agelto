@@ -17,4 +17,4 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/srv/agelto/backups
+ReadWritePaths=/srv/agelto/backups /srv/agelto/.release.lock

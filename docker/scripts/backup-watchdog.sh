@@ -28,7 +28,7 @@ done
 
 declare -A state=()
 while IFS='=' read -r key value; do
-    case "$key" in completed_at|verified|verified_local|offhost|manifest_sha256|backup_dir|rehearsal_db) ;; *) fail "unknown status key $key" ;; esac
+        case "$key" in completed_at|verified|verified_local|offhost|manifest_sha256|backup_dir|rehearsal_db|restic_snapshot) ;; *) fail "unknown status key $key" ;; esac
     [[ ! -v "state[$key]" ]] || fail "duplicate status key $key"
     state["$key"]=$value
 done < "$status_file"
@@ -36,6 +36,9 @@ done < "$status_file"
 [[ ${state[completed_at]:-} =~ ^[0-9]+$ ]] || fail 'completed_at is missing or invalid'
 [[ ${state[verified]:-} == 1 && ${state[offhost]:-} == 1 ]] || fail 'latest backup is not verified and off-host'
 [[ ${state[manifest_sha256]:-} =~ ^[0-9a-f]{64}$ ]] || fail 'manifest hash is missing or invalid'
+if [[ -v state[restic_snapshot] ]]; then
+    [[ ${state[restic_snapshot]} =~ ^[0-9a-f]{8,64}$ ]] || fail 'Restic snapshot ID is invalid'
+fi
 (( now >= state[completed_at] && now - state[completed_at] <= max_age )) || fail 'latest verified backup is stale'
 
 printf '[PASS] BACKUP-WATCHDOG latest verified off-host backup is fresh\n'

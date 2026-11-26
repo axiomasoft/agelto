@@ -1,8 +1,10 @@
-name: ${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME is required}
+# Permit config inspection without deployment inputs. The fallback project and
+# .invalid image references cannot select a deployed release.
+name: ${COMPOSE_PROJECT_NAME:-agelto_unconfigured}
 
 services:
   doctor:
-    image: agelto/doctor:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/doctor:}${IMAGE_TAG:-image-tag-required.invalid/agelto/doctor:unconfigured}
     profiles: [doctor]
     working_dir: /var/www/html
     mem_limit: 512m
@@ -56,7 +58,7 @@ services:
         max-file: "5"
 
   app:
-    image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/app:}${IMAGE_TAG:-image-tag-required.invalid/agelto/app:unconfigured}
     restart: unless-stopped
     stop_signal: SIGTERM
     stop_grace_period: 30s
@@ -131,7 +133,7 @@ services:
     logging: *default_logging
 
   horizon:
-    image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/worker-prepare:}${IMAGE_TAG:-image-tag-required.invalid/agelto/worker-prepare:unconfigured}
     restart: unless-stopped
     # The FPM/Nginx base image uses SIGQUIT; Horizon listens for SIGTERM.
     stop_signal: SIGTERM
@@ -178,7 +180,7 @@ services:
     logging: *default_logging
 
   scheduler:
-    image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/app:}${IMAGE_TAG:-image-tag-required.invalid/agelto/app:unconfigured}
     restart: unless-stopped
     stop_signal: SIGTERM
     stop_grace_period: 60s
@@ -213,7 +215,7 @@ services:
     logging: *default_logging
 
   process-relay: &process_daemon
-    image: agelto/app:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/app:}${IMAGE_TAG:-image-tag-required.invalid/agelto/app:unconfigured}
     restart: unless-stopped
     stop_signal: SIGTERM
     stop_grace_period: 60s
@@ -279,8 +281,11 @@ services:
       start_period: 40s
 
   postgres:
-    image: agelto/postgres:${IMAGE_TAG:?IMAGE_TAG is required}
+    image: ${IMAGE_TAG:+${IMAGE_REGISTRY:+${IMAGE_REGISTRY}/}agelto/postgres:}${IMAGE_TAG:-image-tag-required.invalid/agelto/postgres:unconfigured}
     restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     mem_limit: 4g
     cpus: 2.0
     pids_limit: 256
@@ -322,8 +327,11 @@ services:
     logging: *default_logging
 
   redis:
-    image: redis:7-alpine
+    image: &redis_image redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     mem_limit: 1g
     cpus: 1.0
     pids_limit: 128
@@ -351,8 +359,11 @@ services:
     logging: *default_logging
 
   redis-cache:
-    image: redis:7-alpine
+    image: *redis_image
     restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     mem_limit: 768m
     cpus: 1.0
     pids_limit: 128
@@ -372,8 +383,11 @@ services:
     logging: *default_logging
 
   redis-session:
-    image: redis:7-alpine
+    image: *redis_image
     restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     mem_limit: 512m
     cpus: 1.0
     pids_limit: 128
@@ -394,8 +408,11 @@ services:
     logging: *default_logging
 
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
     restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     mem_limit: 2g
     cpus: 2.0
     pids_limit: 256

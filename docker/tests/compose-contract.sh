@@ -28,6 +28,11 @@ grep -F 'target: development' "$rendered" >/dev/null
 grep -F 'condition: service_healthy' "$rendered" >/dev/null
 grep -F 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB' "$compose_file" >/dev/null
 
+if grep -Eq '^[[:space:]]+network:[[:space:]]+host$' "$rendered"; then
+    echo 'Контракт Compose нарушен: сборка образов запрашивает доступ к сети хоста' >&2
+    exit 1
+fi
+
 if grep -q 'container_name:' "$compose_file"; then
     echo 'Compose contract failed: fixed container_name is forbidden' >&2
     exit 1

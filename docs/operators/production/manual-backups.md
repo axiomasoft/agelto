@@ -6,6 +6,10 @@ status: living
 
 # Автоматический локальный backup для manual deployment
 
+Этот порядок описывает прежнюю установку. Для новой установки и перехода на
+внешний зашифрованный репозиторий используйте [Backup and recovery preparation](backups.md).
+Сохраните старый ключ OpenSSL для чтения архивов `.tar.enc`.
+
 Это проверенный host-only путь рядом с другими проектами. Он не использует fixture-only
 `backup-production.sh apply`, не меняет соседние projects и не заявляет off-host DR readiness.
 Границы фактически проверенного deployment и ссылка на историю в Git находятся в

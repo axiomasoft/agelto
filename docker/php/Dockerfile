@@ -1,30 +1,20 @@
-# syntax=docker/dockerfile:1.19
+# syntax=docker/dockerfile:1.19@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 
-FROM minio/minio:RELEASE.2025-04-22T22-12-26Z AS mc
+FROM minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e AS mc
 
-FROM serversideup/php:8.5-fpm-nginx AS runtime-base
+FROM serversideup/php:8.5-fpm-nginx@sha256:185968e90401e65990a6f822225c46f1c79658e43bdf602f9cd13188f7af6295 AS app-base
 
 USER root
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    PHP_UPLOAD_MAX_FILE_SIZE=200M \
+    PHP_POST_MAX_SIZE=200M \
+    PHP_MAX_EXECUTION_TIME=300
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libicu-dev \
     libpq-dev \
-    qpdf \
-    libreoffice-calc \
-    libreoffice-writer \
-    fonts-dejavu-core \
-    fonts-liberation \
-    7zip \
-    unar \
-    poppler-utils \
-    tesseract-ocr \
-    tesseract-ocr-rus \
-    tesseract-ocr-eng \
-    ocrmypdf \
-    ghostscript \
     && docker-php-ext-install -j"$(nproc)" intl pdo_pgsql pgsql bcmath pcntl \
     && apt-mark manual $(apt-cache depends libicu-dev libpq-dev | awk '/Depends:/{print $2}' | grep -E '^lib(icu|pq)[0-9]') \
     && apt-get purge -y --auto-remove libicu-dev libpq-dev \
@@ -82,7 +72,7 @@ CMD ["/init"]
 
 # Development keeps its source bind mount. Production copies only the filtered build context;
 # Composer/vendor closure and framework readiness remain explicit P2/P3 gates.
-FROM runtime-base AS development
+FROM app-base AS development
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && if ! php -m | grep -qi '^pcov$'; then pecl install pcov && docker-php-ext-enable pcov; fi \
     # ./:/var/www/html — bind-mount с хоста (uid 1000), процесс www-data — uid 33; git считает
@@ -98,7 +88,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 COPY docker/php/conf.d/pcov.ini /usr/local/etc/php/conf.d/pcov.ini
 USER root
 
-FROM node:24-bookworm AS frontend
+FROM development AS development-prepare
+RUN --mount=type=bind,source=docker/php/install-prepare-tools.sh,target=/tmp/install-prepare-tools.sh \
+    sh /tmp/install-prepare-tools.sh
+
+FROM node:24-bookworm@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584 AS frontend
 WORKDIR /build
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile --ignore-scripts
@@ -108,7 +102,7 @@ COPY docs ./docs
 COPY scripts/documentation ./scripts/documentation
 RUN pnpm build && pnpm documentation:build
 
-FROM runtime-base AS dependencies
+FROM app-base AS dependencies
 WORKDIR /var/www/html
 COPY --exclude=local/vendors/azguard --exclude=local/vendors/proxyma . /var/www/html
 COPY local/vendors/azguard/packages/core /var/www/html/local/vendors/azguard/packages/core
@@ -119,7 +113,7 @@ RUN --mount=type=cache,id=agelto-composer-cache,target=/tmp/composer-cache \
     COMPOSER_CACHE_DIR=/tmp/composer-cache \
     composer install --no-dev --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
 
-FROM runtime-base AS application
+FROM app-base AS application
 ARG SOURCE_SHA
 ARG VENDOR_LOCK_SHA
 COPY --exclude=local/vendors/azguard --exclude=local/vendors/proxyma . /var/www/html
@@ -142,7 +136,11 @@ LABEL org.opencontainers.image.revision="${SOURCE_SHA}" \
       io.agelto.vendor-lock-sha="${VENDOR_LOCK_SHA}"
 USER root
 
-FROM runtime-base AS doctor-dependencies
+FROM application AS worker-prepare
+RUN --mount=type=bind,source=docker/php/install-prepare-tools.sh,target=/tmp/install-prepare-tools.sh \
+    sh /tmp/install-prepare-tools.sh
+
+FROM app-base AS doctor-dependencies
 WORKDIR /var/www/html
 COPY --exclude=local/vendors/azguard --exclude=local/vendors/proxyma . /var/www/html
 COPY local/vendors/azguard/packages/core /var/www/html/local/vendors/azguard/packages/core
@@ -151,7 +149,7 @@ COPY local/vendors/proxyma/packages/core /var/www/html/local/vendors/proxyma/pac
 COPY local/vendors/proxyma/packages/filament /var/www/html/local/vendors/proxyma/packages/filament
 RUN composer install --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
 
-FROM runtime-base AS doctor
+FROM app-base AS doctor
 ARG SOURCE_SHA
 ARG VENDOR_LOCK_SHA
 COPY --exclude=local/vendors/azguard --exclude=local/vendors/proxyma . /var/www/html

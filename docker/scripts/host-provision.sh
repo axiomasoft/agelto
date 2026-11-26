@@ -88,7 +88,7 @@ check_public_ports() {
 
 install_docker() {
     apt-get update
-    apt-get install -y ca-certificates curl gnupg openssh-server ufw unattended-upgrades
+    apt-get install -y ca-certificates curl gnupg openssh-server ufw unattended-upgrades age restic jq
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
@@ -121,6 +121,57 @@ EOF
     pass 'DEPLOY installed; docker group membership is root-equivalent privilege'
 }
 
+install_backup_service() {
+    local backup="$HOST_DIR/backup" destination source name permissions
+    mkdir -p -m 0755 /srv/agelto/bin /etc/agelto
+    install -d -m 0700 -o deploy -g deploy /srv/agelto/backups /srv/agelto/backups/local
+    [[ ! -L /srv/agelto/.release.lock ]] || fail 'release lock must not be a symlink'
+    if [[ ! -e /srv/agelto/.release.lock ]]; then
+        install -m 0600 -o deploy -g deploy /dev/null /srv/agelto/.release.lock
+    fi
+
+    for name in backup-env-gate backup-local backup-local-enabled backup-local-watchdog backup-local-watchdog-enabled; do
+        install -m 0755 "$backup/$name.sh" "/srv/agelto/bin/$name"
+    done
+    install -m 0644 "$backup/backup-objects.php" /srv/agelto/bin/backup-objects.php
+    install -m 0755 "$SCRIPT_DIR/production-profile-check.sh" /usr/local/bin/production-profile-check.sh
+    install -m 0755 "$SCRIPT_DIR/backup-production.sh" /usr/local/bin/agelto-backup
+    install -m 0755 "$SCRIPT_DIR/backup-watchdog.sh" /usr/local/bin/agelto-backup-watchdog
+    install -m 0755 "$SCRIPT_DIR/backup-alert.sh" /usr/local/bin/agelto-backup-alert
+
+    destination=/etc/agelto/production-profile
+    if [[ ! "$profile" -ef "$destination" ]]; then
+        install -m 0400 -o deploy -g deploy "$profile" "$destination"
+    else
+        chown deploy:deploy "$destination"
+        chmod 0400 "$destination"
+    fi
+    source=${PROFILE[BACKUP_ALERT_URL_FILE]}
+    destination=/etc/agelto/backup-alert-url
+    if [[ -f $source && ! -L $source ]]; then
+        permissions=$(stat -c '%a' "$source")
+        (( (8#$permissions & 077) == 0 )) || fail 'backup alert URL file must be owner-only'
+        if [[ ! "$source" -ef "$destination" ]]; then
+            install -m 0400 -o deploy -g deploy "$source" "$destination"
+        fi
+    fi
+    destination=/srv/agelto/repository/.env.backup
+    if [[ -d ${destination%/*} && ! -e $destination && ! -L $destination ]]; then
+        install -m 0600 -o deploy -g deploy "$backup/backup.env.example" "$destination"
+    fi
+
+    local units=()
+    for source in "$HOST_DIR"/systemd/agelto-backup*.service "$HOST_DIR"/systemd/agelto-backup*.timer; do
+        destination="/etc/systemd/system/${source##*/}"
+        install -m 0644 "$source" "$destination"
+        units+=("$destination")
+    done
+    systemd-analyze verify "${units[@]}"
+    systemctl daemon-reload
+    systemctl enable --now agelto-backup.timer agelto-backup-watchdog.timer
+    pass 'BACKUP installed timers with explicit operator authority and BACKUP_ENABLED gates'
+}
+
 main() {
     check_platform
     check_sources
@@ -129,6 +180,7 @@ main() {
     [[ "$EUID" -eq 0 && "$confirm" -eq 1 ]] || fail 'apply requires root and --confirm'
     install_docker
     install_deploy_user
+    install_backup_service
     dpkg-reconfigure -f noninteractive unattended-upgrades
     systemctl enable --now apt-daily-upgrade.timer
     check_docker_tcp

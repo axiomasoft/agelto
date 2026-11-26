@@ -25,6 +25,13 @@ expect_fail() {
     fi
 }
 
+expect_no_matches() {
+    local pattern=$1 status=0
+    shift
+    grep -Ern -- "$pattern" "$@" || status=$?
+    [[ $status == 1 ]] || fail "Expected grep to find no matches (exit $status): $pattern"
+}
+
 for script in "$profile_checker" "$backup" "$watchdog" "$alert"; do
     bash -n "$script"
 done
@@ -101,7 +108,14 @@ nginx -t -p "$nginx_fixture" -c "$nginx_fixture/nginx.conf" >/dev/null 2>&1
 grep -F 'proxy_pass http://127.0.0.1:8080;' "$nginx_fixture/agelto.conf" >/dev/null
 grep -F 'proxy_set_header Upgrade $http_upgrade;' "$nginx_fixture/agelto.conf" >/dev/null
 grep -F 'proxy_set_header X-Forwarded-Proto https;' "$nginx_fixture/agelto.conf" >/dev/null
-! rg -n 'proxy_pass http://(0\.0\.0\.0|app:|[a-z0-9_-]+:8080)' "$nginx_fixture/agelto.conf" >/dev/null
+grep -F 'client_max_body_size 200M;' "$nginx_fixture/agelto.conf" >/dev/null
+grep -F 'proxy_read_timeout 300s;' "$nginx_fixture/agelto.conf" >/dev/null
+grep -F 'proxy_hide_header X-Frame-Options;' "$nginx_fixture/agelto.conf" >/dev/null
+grep -F 'ssl_protocols TLSv1.2 TLSv1.3;' "$nginx_fixture/agelto.conf" >/dev/null
+grep -F 'add_header Strict-Transport-Security "max-age=31536000" always;' "$nginx_fixture/agelto.conf" >/dev/null
+grep -F 'fastcgi_read_timeout 300s;' "$root/docker/nginx/default.conf" >/dev/null
+[[ $(grep -c 'add_header X-Content-Type-Options nosniff always;' "$root/docker/nginx/default.conf") == 2 ]]
+expect_no_matches 'proxy_pass http://(0\.0\.0\.0|app:|[a-z0-9_-]+:8080)' "$nginx_fixture/agelto.conf" >/dev/null
 pass 'NGINX syntax, loopback upstream, forwarded headers and WebSocket policy'
 
 units="$fixture_root/units"
@@ -166,6 +180,7 @@ expect_fail 'backup lock contention' \
     "$backup" fixture --fixture-root "$backup_root" --profile "$profile" --adapter "$adapter" --backup-id fixture-0004 --retention 1
 flock -u 8
 pass 'custom dump, isolated verify, object/config set, lock and verified-copy-before-prune fixtures'
+bash "$root/docker/tests/backup-offhost-contract.sh"
 
 status="$fixture_root/latest.status"
 cat > "$status" <<'EOF'
@@ -193,12 +208,12 @@ printf '%s\n' "$*" > "${ALERT_LOG:?}"
 EOF
 chmod 0700 "$alert_adapter"
 ALERT_LOG="$alert_log" "$alert" check --event-file "$event" --endpoint-file "$endpoint" --adapter "$alert_adapter" >/dev/null
-! rg -n 'sentinel-value' "$alert_log" >/dev/null
+expect_no_matches 'sentinel-value' "$alert_log" >/dev/null
 chmod 0644 "$endpoint"
 expect_fail 'weak alert endpoint permissions' "$alert" check --event-file "$event" --endpoint-file "$endpoint"
 pass 'watchdog freshness/failure and secret-file alert redaction fixtures'
 
-! rg -n -- '--no-check-certificate|curl[[:space:]]*\|[[:space:]]*sh|eval|\|\| true|pg_restore[[:space:]]+--clean' \
+expect_no_matches '--no-check-certificate|curl[[:space:]]*\|[[:space:]]*sh|eval|\|\| true|pg_restore[[:space:]]+--clean' \
     "$root/docker/scripts/production-profile-check.sh" \
     "$root/docker/scripts/backup-production.sh" \
     "$root/docker/scripts/backup-watchdog.sh" \

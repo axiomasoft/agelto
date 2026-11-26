@@ -4,14 +4,16 @@ set -euo pipefail
 
 root_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 compose_file="$root_dir/docker-compose.yml"
-project_name="agelto_p1_2_$(date +%s)_$RANDOM"
+project_name="agelto_core_test_code_sync_$(date +%s)_$RANDOM"
 temp_dir=$(mktemp -d)
 sentinel=".code-sync-$RANDOM"
+compose=(docker compose --project-directory "$root_dir" --project-name "$project_name"
+    --env-file "$temp_dir/.env" -f "$compose_file" -f "$temp_dir/secrets.yml")
 
 cleanup() {
     rm -f "$root_dir/$sentinel"
-    docker compose --project-directory "$root_dir" --project-name "$project_name" --env-file "$temp_dir/.env" -f "$compose_file" kill >/dev/null 2>&1 || true
-    docker compose --project-directory "$root_dir" --project-name "$project_name" --env-file "$temp_dir/.env" -f "$compose_file" down --volumes --remove-orphans >/dev/null 2>&1 || true
+    "${compose[@]}" kill >/dev/null 2>&1 || true
+    "${compose[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
     rm -rf "$temp_dir"
 }
 trap cleanup EXIT
@@ -19,14 +21,10 @@ trap cleanup EXIT
 cat > "$temp_dir/.env" <<'EOF'
 APP_NAME=agelto-validation
 APP_ENV=testing
-APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
 APP_DEBUG=false
 DB_DATABASE=agelto_validation
 DB_USERNAME=agelto
-DB_PASSWORD=agelto-validation-password
-REDIS_PASSWORD=
 MINIO_ROOT_USER=agelto
-MINIO_ROOT_PASSWORD=agelto-validation-password
 APP_PORT=0
 PGSQL_PORT=0
 REDIS_PORT=0
@@ -34,7 +32,17 @@ MINIO_PORT=0
 MINIO_CONSOLE_PORT=0
 EOF
 
-compose=(docker compose --project-directory "$root_dir" --project-name "$project_name" --env-file "$temp_dir/.env" -f "$compose_file")
+mkdir "$temp_dir/docker"
+cp "$root_dir/docker/secrets.contract" "$temp_dir/docker/"
+bash "$root_dir/docker/scripts/secrets-init.sh" --root "$temp_dir"
+export CODE_SYNC_SECRET_DIR="$temp_dir/local/secrets"
+{
+    printf 'secrets:\n'
+    for name in app_key proxyma_wire_digest_key db_password redis_password redis_acl minio_root_password minio_app_password; do
+        printf '  %s:\n    file: "${CODE_SYNC_SECRET_DIR:?}/%s"\n' "$name" "$name"
+    done
+} > "$temp_dir/secrets.yml"
+
 "${compose[@]}" up --detach --no-deps --build app
 
 for service in app; do

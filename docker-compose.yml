@@ -40,7 +40,6 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
       target: development
-      network: host
     restart: unless-stopped
     stop_signal: SIGTERM
     stop_grace_period: 30s
@@ -114,8 +113,7 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-      target: development
-      network: host
+      target: development-prepare
     restart: unless-stopped
     stop_signal: SIGTERM
     # Цепочка таймаутов Process Core: ExecuteWorkJob::$timeout (320s) < supervisor-process-download (340s)
@@ -153,7 +151,6 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
       target: development
-      network: host
     restart: unless-stopped
     stop_signal: SIGTERM
     stop_grace_period: 60s
@@ -248,7 +245,7 @@ services:
       start_period: 40s
 
   vite:
-    image: node:24-bookworm
+    image: node:24-bookworm@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584
     working_dir: /var/www/html
     command: ["sh", "-lc", "corepack enable && pnpm install --frozen-lockfile && pnpm dev --host=0.0.0.0 --port=${VITE_PORT:-5173}"]
     volumes:
@@ -272,6 +269,9 @@ services:
       dockerfile: Dockerfile
     image: agelto_postgres:17-partman
     restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     # P7.4 (F-10/F-11/F-12, research/08-db-review.md §11): текущее значение — база образа
     # (shared_preload_libraries пуст, /dev/shm — дефолтные 64 МБ) — снято `SHOW`/`df -h /dev/shm`
     # на 2026-08-05, findings/rag-2026-07-31.md §7.
@@ -324,8 +324,11 @@ services:
       - agelto_network
 
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
     restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
@@ -344,8 +347,11 @@ services:
       - agelto_network
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     restart: unless-stopped
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
     command: ["server", "/data", "--console-address", ":9001"]
     ports:
       - "127.0.0.1:${MINIO_PORT:-9000}:9000"
@@ -369,7 +375,7 @@ services:
   # рендер-сервис для площадок с клиентским рендерингом. Для ЕИС HTTP-first достаточен
   # (см. 02-crawling.md) — сервис НЕ на критическом пути, здесь только пустой контейнер.
   browser:
-    image: node:22-alpine
+    image: node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2
     restart: unless-stopped
     command: ["tail", "-f", "/dev/null"]
     networks:

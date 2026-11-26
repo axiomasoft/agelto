@@ -6,7 +6,23 @@ root_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 temp_dir=$(mktemp -d)
 trap 'rm -rf "$temp_dir"' EXIT
 
-mkdir -p "$temp_dir/bin"
+preflight_root="$temp_dir/preflight"
+mkdir -p "$temp_dir/bin" "$preflight_root/docker/scripts" "$preflight_root/storage"
+install -d -m 0700 "$preflight_root/local/secrets"
+cp "$root_dir/Makefile" "$root_dir/docker-compose.yml" "$preflight_root/"
+cp "$root_dir/docker/"{Makefile,private-vendors.lock.json,secrets.contract} "$preflight_root/docker/"
+cp "$root_dir/docker/scripts/preflight.sh" "$preflight_root/docker/scripts/"
+while IFS= read -r secret; do
+    [[ -n "$secret" && "${secret#\#}" == "$secret" ]] || continue
+    (umask 077; printf 'fixture-%s\n' "$secret" > "$preflight_root/local/secrets/$secret")
+done < "$preflight_root/docker/secrets.contract"
+
+# This contract tests Make dispatch. The vendor check has its own contract.
+cat > "$preflight_root/docker/scripts/vendor-sync.sh" <<'EOF'
+#!/usr/bin/env bash
+test "$#" -eq 1 && test "$1" = --check
+EOF
+
 log_file="$temp_dir/docker.argv"
 preflight_env="$temp_dir/preflight.env"
 cp "$root_dir/.env.example" "$preflight_env"
@@ -24,6 +40,13 @@ printf '%s\n' "$*" >> "${DOCKER_LOG:?}"
 if [[ "$1 $2" == 'compose version' ]]; then
     exit 0
 fi
+if [[ "$1 $2" == 'image inspect' ]]; then
+    if [[ "$*" == *'agelto/postgres:'* ]]; then
+        printf '%s\n' 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
+    else
+        printf '%s\n' 'deadbeefdeadbeefdeadbeefdeadbeefdeadbeef:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+    fi
+fi
 exit 0
 EOF
 chmod +x "$temp_dir/bin/docker"
@@ -32,7 +55,8 @@ run_make() {
     PATH="$temp_dir/bin:$PATH" DOCKER_LOG="$log_file" make -s -C "$root_dir" "$@"
 }
 
-run_make infra:preflight MODE=dev ENV_FILE="$preflight_env"
+PATH="$temp_dir/bin:$PATH" DOCKER_LOG="$log_file" \
+    make -s -C "$preflight_root" infra:preflight MODE=dev ENV_FILE="$preflight_env"
 run_make agent:artisan ARGS='about'
 run_make prod:config ENV_FILE=.env.example IMAGE_TAG=contract-tag COMPOSE_PROJECT_NAME=agelto_contract
 
@@ -66,9 +90,10 @@ for target in prod:deploy:code prod:deploy:php-deps prod:deploy:frontend prod:de
 done
 grep -F 'pull app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
 grep -Fx 'pull agelto/app:contract-tag' "$log_file" >/dev/null
+grep -Fx 'pull agelto/worker-prepare:contract-tag' "$log_file" >/dev/null
 grep -Fx 'pull agelto/doctor:contract-tag' "$log_file" >/dev/null
 grep -Fx 'pull agelto/postgres:contract-tag' "$log_file" >/dev/null
-grep -F 'up -d --no-build --remove-orphans app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
+grep -F 'up -d --no-build --wait --remove-orphans app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
 if grep -Eq '(^| )(build|down|latest)( |$)' "$log_file"; then
     echo 'Contract failed: a production release target built, tore down, or used latest' >&2
     exit 1

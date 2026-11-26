@@ -201,6 +201,13 @@ jobs:
           cache: false
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          image-ref: agelto/worker-prepare:${{ env.IMAGE_TAG }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: false
+          cache: false
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
           image-ref: agelto/postgres:${{ env.IMAGE_TAG }}
           severity: HIGH,CRITICAL
           exit-code: '1'
@@ -208,14 +215,14 @@ jobs:
           cache: false
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: redis:7-alpine
+          image-ref: redis:7-alpine@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: false
           cache: false
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          image-ref: minio/minio:RELEASE.2025-04-22T22-12-26Z
+          image-ref: minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: false

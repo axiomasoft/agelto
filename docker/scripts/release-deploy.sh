@@ -38,29 +38,41 @@ compose=(
 "${compose[@]}" config >/dev/null
 
 if [[ "$deploy_class" == 'image-promotion' ]]; then
-    docker pull "agelto/app:$IMAGE_TAG"
-    docker pull "agelto/doctor:$IMAGE_TAG"
-    docker pull "agelto/postgres:$IMAGE_TAG"
-    app_labels=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}}' "agelto/app:$IMAGE_TAG")
-    doctor_labels=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}:{{index .Config.Labels "io.agelto.vendor-lock-sha"}}' "agelto/doctor:$IMAGE_TAG")
-    postgres_revision=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "agelto/postgres:$IMAGE_TAG")
-    if [[ -n "$app_labels" || -n "$doctor_labels" || -n "$postgres_revision" || -n "${EXPECTED_SOURCE_SHA:-}" ]]; then
-        if [[ -z "$app_labels" || "$app_labels" != *:* || "${app_labels#:}" != "$app_labels" || "${app_labels%:}" != "$app_labels" ]]; then
-            echo "Image agelto/app:$IMAGE_TAG is missing required revision or vendor-lock labels" >&2
+    registry=$("${compose[@]}" config --environment | sed -n 's/^IMAGE_REGISTRY=//p')
+    [[ -z "$registry" || ( "$registry" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]+)?$ \
+        && ( "$registry" == *.* || "$registry" == *:* || "$registry" == localhost ) ) ]] || {
+        echo 'IMAGE_REGISTRY must be a qualified hostname or host:port' >&2
+        exit 2
+    }
+    prefix="${registry:+$registry/}agelto"
+    app_image="$prefix/app:$IMAGE_TAG"
+    worker_image="$prefix/worker-prepare:$IMAGE_TAG"
+    doctor_image="$prefix/doctor:$IMAGE_TAG"
+    postgres_image="$prefix/postgres:$IMAGE_TAG"
+    for image in "$app_image" "$worker_image" "$doctor_image" "$postgres_image"; do
+        docker pull "$image"
+    done
+
+    revision_label='{{index .Config.Labels "org.opencontainers.image.revision"}}'
+    image_labels="$revision_label:{{index .Config.Labels \"io.agelto.vendor-lock-sha\"}}"
+    app_labels=$(docker image inspect --format "$image_labels" "$app_image")
+    if [[ ! "$app_labels" =~ ^[0-9a-f]{40}:[0-9a-f]{64}$ ]]; then
+        echo "Image $app_image is missing required revision or vendor-lock labels" >&2
+        exit 2
+    fi
+    for image in "$worker_image" "$doctor_image"; do
+        if [[ "$(docker image inspect --format "$image_labels" "$image")" != "$app_labels" ]]; then
+            echo "Image $image revision or vendor-lock label mismatch" >&2
             exit 2
         fi
-        if [[ "$app_labels" != "$doctor_labels" ]]; then
-            echo "Image pair agelto/app:$IMAGE_TAG and agelto/doctor:$IMAGE_TAG label mismatch" >&2
-            exit 2
-        fi
-        if [[ -z "$postgres_revision" || "$postgres_revision" != "${app_labels%%:*}" ]]; then
-            echo "Image agelto/postgres:$IMAGE_TAG revision label mismatch" >&2
-            exit 2
-        fi
-        if [[ -n "${EXPECTED_SOURCE_SHA:-}" && "${app_labels%%:*}" != "$EXPECTED_SOURCE_SHA" ]]; then
-            echo "Image agelto/app:$IMAGE_TAG revision does not match EXPECTED_SOURCE_SHA" >&2
-            exit 2
-        fi
+    done
+    if [[ "$(docker image inspect --format "$revision_label" "$postgres_image")" != "${app_labels%%:*}" ]]; then
+        echo "Image $postgres_image revision label mismatch" >&2
+        exit 2
+    fi
+    if [[ -n "${EXPECTED_SOURCE_SHA:-}" && "${app_labels%%:*}" != "$EXPECTED_SOURCE_SHA" ]]; then
+        echo "Image $app_image revision does not match EXPECTED_SOURCE_SHA" >&2
+        exit 2
     fi
     exit 0
 fi
@@ -69,5 +81,5 @@ fi
 # build application images: the class selects operator intent/preflight, not a host-side build path.
 services=(app horizon scheduler process-relay process-reconciler process-feeder process-projector)
 "${compose[@]}" pull "${services[@]}"
-"${compose[@]}" up -d --no-build --remove-orphans "${services[@]}"
+"${compose[@]}" up -d --no-build --wait --remove-orphans "${services[@]}"
 "${compose[@]}" exec -T app php artisan app:readiness --format=agent

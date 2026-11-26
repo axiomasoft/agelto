@@ -8,7 +8,7 @@ registry=''
 publish=false
 
 usage() {
-    echo 'usage: image-pair.sh --root <repository> --tag <immutable-tag> [--registry <host:port> --publish]' >&2
+    echo 'usage: image-pair.sh --root <repository> --tag <immutable-tag> [--registry <host[:port]> --publish]' >&2
 }
 
 while (($#)); do
@@ -24,7 +24,9 @@ done
 [ -n "$root" ] && [ -n "$tag" ] || { usage; exit 2; }
 [ "$tag" != latest ] || { echo 'latest tag is forbidden' >&2; exit 2; }
 [[ "$tag" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || { echo 'tag is unsafe' >&2; exit 2; }
-[[ -z "$registry" || "$registry" =~ ^[A-Za-z0-9.-]+:[0-9]+$ ]] || { echo 'registry must be host:port' >&2; exit 2; }
+[[ -z "$registry" || ( "$registry" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]+)?$ \
+    && ( "$registry" == *.* || "$registry" == *:* || "$registry" == localhost ) ) ]] \
+    || { echo 'registry must be a qualified hostname or host:port' >&2; exit 2; }
 [[ "$publish" == false || -n "$registry" ]] || { echo '--publish requires --registry for an isolated registry' >&2; exit 2; }
 
 root="$(cd "$root" && pwd -P)"
@@ -67,22 +69,28 @@ build_postgres_image() {
 
 image_prefix="${registry:+$registry/}agelto"
 app_image="$image_prefix/app:$tag"
+worker_image="$image_prefix/worker-prepare:$tag"
 doctor_image="$image_prefix/doctor:$tag"
 postgres_image="$image_prefix/postgres:$tag"
 build_image application "$app_image"
+build_image worker-prepare "$worker_image"
 build_image doctor "$doctor_image"
 build_postgres_image "$postgres_image"
 
 docker run --rm --entrypoint sh "$app_image" -c 'test ! -d vendor/pestphp && test ! -d vendor/laravel/doctor'
+docker run --rm --entrypoint sh "$app_image" -ec 'if command -v libreoffice || command -v tesseract; then exit 1; fi'
+docker run --rm --entrypoint sh "$worker_image" -ec 'command -v libreoffice && command -v tesseract && command -v ocrmypdf && command -v qpdf'
 docker run --rm --entrypoint sh "$doctor_image" -c 'test -d vendor/pestphp && test -d vendor/laravel/doctor'
 
 if "$publish"; then
     docker push "$app_image"
+    docker push "$worker_image"
     docker push "$doctor_image"
     docker push "$postgres_image"
 
-    docker image rm "$app_image" "$doctor_image" "$postgres_image" >/dev/null
+    docker image rm "$app_image" "$worker_image" "$doctor_image" "$postgres_image" >/dev/null
     docker pull "$app_image" >/dev/null
+    docker pull "$worker_image" >/dev/null
     docker pull "$doctor_image" >/dev/null
     docker pull "$postgres_image" >/dev/null
     docker run --rm --entrypoint sh "$app_image" -c 'test ! -d vendor/pestphp && test ! -d vendor/laravel/doctor'
@@ -90,4 +98,4 @@ if "$publish"; then
     [ "$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$postgres_image")" = "$source_sha" ]
 fi
 
-printf 'Image pair ready: %s %s %s\n' "$app_image" "$doctor_image" "$postgres_image"
+printf 'Image set ready: %s %s %s %s\n' "$app_image" "$worker_image" "$doctor_image" "$postgres_image"
