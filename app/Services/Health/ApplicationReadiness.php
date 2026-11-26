@@ -6,6 +6,7 @@ namespace App\Services\Health;
 
 use App\Dto\Health\ReadinessCheckResult;
 use App\Enums\Health\ReadinessCheckCode;
+use App\Services\PartitionCoverage;
 use App\Services\Procurement\Process\DaemonReadiness;
 use Carbon\CarbonImmutable;
 use Filament\Support\Assets\Asset;
@@ -29,6 +30,7 @@ final readonly class ApplicationReadiness
         private MasterSupervisorRepository $masters,
         private ReleaseStateReadiness $releaseState,
         private DaemonReadiness $daemons,
+        private ?PartitionCoverage $partitions = null,
     ) {}
 
     /**
@@ -223,6 +225,26 @@ final readonly class ApplicationReadiness
         return $this->attempt(code: ReadinessCheckCode::Database, callback: function () use ($deadlineNs): void {
             $this->runWithPgTimeouts($deadlineNs, function (Connection $connection): void {
                 $connection->select(query: 'select 1');
+
+                if ($connection->getDriverName() !== 'pgsql') {
+                    return;
+                }
+
+                $tables = config(key: 'partitioning.tables', default: []);
+                if (! is_array($tables)) {
+                    throw new \RuntimeException('Invalid partitioning table configuration');
+                }
+
+                $now = now()->utc();
+                $nextMonth = $now->copy()->startOfMonth()->addMonthNoOverflow();
+                $partitions = $this->partitions ?? new PartitionCoverage;
+                foreach (array_keys($tables) as $table) {
+                    if (! is_string($table)
+                        || ! $partitions->hasCoverageFor($table, $now)
+                        || ! $partitions->hasCoverageFor($table, $nextMonth)) {
+                        throw new \RuntimeException("missing_partition:{$table}");
+                    }
+                }
             });
         });
     }

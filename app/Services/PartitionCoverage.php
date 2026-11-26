@@ -35,6 +35,7 @@ final readonly class PartitionCoverage
             throw new RuntimeException('Invalid partition parent identifier.');
         }
         DB::transaction(function () use ($table, $from, $to): void {
+            DB::statement("SET LOCAL lock_timeout = '3s'");
             DB::statement("LOCK TABLE {$table} IN SHARE UPDATE EXCLUSIVE MODE");
             $rows = DB::select('SELECT pg_get_expr(c.relpartbound, c.oid) AS bounds FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = to_regclass(?)', [$table]);
             $intervals = [];
@@ -64,6 +65,30 @@ final readonly class PartitionCoverage
                 $this->createGap(table: $table, from: $cursor, to: $to);
             }
         });
+    }
+
+    public function hasCoverageFor(string $table, Carbon $date): bool
+    {
+        if (preg_match('/^[a-z][a-z0-9_]*$/D', $table) !== 1) {
+            throw new RuntimeException('Invalid partition parent identifier.');
+        }
+
+        $date = $date->copy()->utc();
+        $rows = DB::select('SELECT pg_get_expr(c.relpartbound, c.oid) AS bounds FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = to_regclass(?)', [$table]);
+        foreach ($rows as $row) {
+            $bounds = is_object($row) ? ($row->bounds ?? null) : null;
+            if (! is_string($bounds) || $bounds === 'DEFAULT') {
+                continue;
+            }
+            if (preg_match("/FROM \\('([^']+)'\\) TO \\('([^']+)'\\)/", $bounds, $match) !== 1) {
+                throw new RuntimeException("Unsupported partition bounds for {$table}.");
+            }
+            if (Carbon::parse($match[1])->utc()->lte($date) && $date->lt(Carbon::parse($match[2])->utc())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function createGap(string $table, Carbon $from, Carbon $to): void
