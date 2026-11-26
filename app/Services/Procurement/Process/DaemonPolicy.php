@@ -53,8 +53,12 @@ final readonly class DaemonPolicy
 
     public int $projectClaimSeconds;
 
-    public function __construct(Repository $config)
+    public function __construct(Repository $config, public ?int $maxTicks = null)
     {
+        if ($maxTicks !== null && $maxTicks < 1) {
+            throw new \InvalidArgumentException('Invalid daemon policy: max_ticks');
+        }
+
         $daemons = $config->get('process.daemons');
         self::closed($daemons, ['heartbeat_seconds', 'live_seconds', 'max_runtime_seconds', 'memory_limit_mb', 'error_backoff_min_seconds', 'error_backoff_max_seconds', 'relay', 'reconcile', 'feed', 'project'], 'process.daemons');
         $this->heartbeatSeconds = self::positive($daemons['heartbeat_seconds'], 'process.daemons.heartbeat_seconds');

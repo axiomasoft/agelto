@@ -17,7 +17,8 @@ use Closure;
  * heartbeat_seconds (DB clock в repository) и сразу при смене кода ошибки, в том числе во время
  * длинной паузы backoff. Неожиданное исключение tick не убивает loop и не выдаётся за успех:
  * sanitized лог, degraded код в heartbeat и экспоненциальный backoff 1→30 s. Loop завершается
- * только по stop-флагу (SIGTERM/SIGINT ставит command), max runtime или memory limit —
+ * по stop-флагу (SIGTERM/SIGINT/SIGQUIT ставит command), max runtime, memory limit
+ * или опциональному max ticks —
  * процесс перезапускает docker. Сбой самого heartbeat (DB недоступна) не ломает loop: liveness
  * честно устареет, readiness покажет Down. Сетевой I/O внутри DB transaction здесь невозможен:
  * loop сам транзакций не открывает.
@@ -29,6 +30,8 @@ final class DaemonLoop
     public const string STOP_MAX_RUNTIME = 'max_runtime';
 
     public const string STOP_MEMORY = 'memory_limit';
+
+    public const string STOP_MAX_TICKS = 'max_ticks';
 
     /** Пауза режется на куски: stop-флаг и heartbeat проверяются, а не ждут конца backoff. */
     private const int SLEEP_CHUNK_MS = 250;
@@ -57,6 +60,7 @@ final class DaemonLoop
         $lastBeat = $started;
         $reportedError = null;
         $failures = 0;
+        $ticks = 0;
         try {
             $this->heartbeats->register($instance, $daemon->kind());
         } catch (\Throwable $failure) {
@@ -84,6 +88,10 @@ final class DaemonLoop
                     $tick = new DaemonTick(0, self::errorCode($failure));
                     ProcessLog::daemonError($daemon->kind()->value, (string) $tick->errorCode, $failure);
                     $delayMs = $this->policy->backoffMs($failures);
+                } finally {
+                    libxml_clear_errors();
+                    gc_collect_cycles();
+                    $ticks++;
                 }
                 if ($tick->errorCode !== $reportedError) {
                     $reportedError = $tick->errorCode;
@@ -91,6 +99,14 @@ final class DaemonLoop
                     $lastBeat = $this->clock->monotonicNs();
                 } else {
                     $heartbeat();
+                }
+                if ($this->policy->maxTicks !== null && $ticks >= $this->policy->maxTicks) {
+                    $stop = $this->stopReason($started, $shouldStop);
+                    if ($stop !== null) {
+                        return $stop;
+                    }
+
+                    return self::STOP_MAX_TICKS;
                 }
                 while ($delayMs > 0) {
                     if ($this->stopReason($started, $shouldStop) !== null) {

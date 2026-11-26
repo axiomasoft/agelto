@@ -20,6 +20,7 @@ use App\Services\Procurement\Process\StageQueueMap;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -62,6 +63,7 @@ final class ProcessDaemonCommand extends Command
         $this->trapSignals();
         $instance = new ProcessUuid(Str::lower((string) Str::uuid()));
         $this->info("Process daemon {$kind->value} запущен: instance {$instance->value}.");
+        DB::disableQueryLog();
         $reason = $loop->run($daemon, $instance, fn (): bool => $this->stopping);
         $this->info("Process daemon {$kind->value} остановлен: {$reason}.");
 
@@ -93,7 +95,7 @@ final class ProcessDaemonCommand extends Command
         return $daemon;
     }
 
-    /** TERM/INT ставят флаг: текущий короткий tick завершается, выход 0. */
+    /** TERM/INT/QUIT ставят флаг: текущий короткий tick завершается, выход 0. */
     private function trapSignals(): void
     {
         if (! function_exists('pcntl_async_signals') || ! function_exists('pcntl_signal')) {
@@ -107,5 +109,8 @@ final class ProcessDaemonCommand extends Command
         };
         pcntl_signal(SIGTERM, $stop);
         pcntl_signal(SIGINT, $stop);
+        if (defined('SIGQUIT')) {
+            pcntl_signal(SIGQUIT, $stop);
+        }
     }
 }
