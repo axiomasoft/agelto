@@ -139,4 +139,4 @@ project_context.txt
 .claude/agent-pack.lock.json
 
 # Локальные материалы аудитов и артефакты прогонов
-/Audits/
+/audits/local/

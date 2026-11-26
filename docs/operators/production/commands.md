@@ -22,19 +22,19 @@ make prod:doctor COMPOSE_PROD=/srv/agelto/bin/compose
 production env и оба Compose files. Не выполняйте `prod:config` с выводом всего environment
 после добавления external credentials. Registry-oriented `prod:deploy:*` здесь не используются.
 
-Локальный автоматический backup (root, подробности и restore receipts:
-[manual backups](manual-backups.md)):
+Установленный `host-provision.sh` сервис backup работает от `deploy`.
+Проверка состояния таймеров и последнего прогона:
 
 ```bash
-systemctl show agelto-backup-local.service -p Result -p ExecMainStatus
-systemctl list-timers --all --no-pager 'agelto-backup-local*'
-journalctl -u agelto-backup-local.service -u agelto-backup-local-watchdog.service --since today --no-pager
+systemctl show agelto-backup.service -p Result -p ExecMainStatus
+systemctl list-timers --all --no-pager 'agelto-backup*'
+journalctl -u agelto-backup.service -u agelto-backup-watchdog.service --since today --no-pager
 ```
 
-`BACKUP_ENABLED=false` в `.env.backup` пропускает backup/watchdog без обновления receipt;
-`Result=success` в этом случае означает успешный no-op, не новую копию. Включение —
-`BACKUP_ENABLED=true` по [runbook](manual-backups.md). Verified local receipt не означает
-автоматический off-host backup. Для собственной отправки почты — [SMTP/DNS](server-mail.md).
+При `BACKUP_ENABLED=false` сервис пропускает работу. Завершение подтверждает
+`offhost=1` и ID снимка Restic в `/srv/agelto/backups/latest.status`.
+Условия включения, age-шифрование и проверка восстановления описаны в [runbook backup](backups.md).
+Старые локальные копии разбирает [исторический runbook](manual-backups.md).
 
 ## Current command inventory
 

@@ -10,6 +10,7 @@ use App\Dto\Procurement\Process\DownloadInput;
 use App\Dto\Procurement\Process\ListingInput;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\StatusRefreshInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
@@ -99,7 +100,7 @@ final class LedgerFixtures
     public static function storeWork(WorkInput $input, ?ProcessUuid $intentId = null, ?ProcessUuid $originRunId = null, ?WorkId $id = null): WorkId
     {
         $id ??= new WorkId(self::uuid());
-        app(WorkStoreRepository::class)->storeWork(
+        app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
             id: $id,
             input: $input,
             inputRevision: 1,
@@ -110,7 +111,7 @@ final class LedgerFixtures
             priority: 100,
             eventId: self::uuid(),
             projectionMessageId: self::uuid(),
-        );
+        ));
 
         return $id;
     }

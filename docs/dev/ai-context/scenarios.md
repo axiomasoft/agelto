@@ -61,7 +61,7 @@ status: living
    - Итерация 3 (`delta` и `status_refresh`): проверить отслеживание обновлений по
      `sortBy = UPDATE_DATE` и регламентный опрос `php artisan process:schedule-acquisition`
      (`next_status_due_at <= now()`).
-5. Все замеры, сверки и найденные расхождения фиксировать в локальной папке `/Audits/`
+5. Все замеры, сверки и найденные расхождения фиксировать в локальной папке `audits/local/`
    (в `.gitignore`).
 
 ## Комплексная/неоднозначная задача

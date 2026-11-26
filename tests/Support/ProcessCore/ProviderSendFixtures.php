@@ -17,6 +17,7 @@ use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\TaskPurpose;
@@ -78,8 +79,18 @@ final class ProviderSendFixtures
         $this->run = $window->run->id;
         $this->work = new WorkId(LedgerFixtures::uuid());
         $input = new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash);
-        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork($this->work, $input,
-            $window->run->expectedAnalysisGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
+            id: $this->work,
+            input: $input,
+            inputRevision: $window->run->expectedAnalysisGeneration,
+            intentId: null,
+            cohortKey: 'manual',
+            platformId: null,
+            originRunId: null,
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        )));
         $this->lease = FinalizeFixtures::running($this->work);
         $snapshot = $window->run->recipe->tasks->task(TaskPurpose::Screening);
         $task = (new ScreeningContract)->task($snapshot->prompt);

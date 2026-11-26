@@ -6,27 +6,36 @@ status: living
 
 # Тестирование
 
-Маршрут, не копия содержимого — источники истины ниже.
-
 ## Запуск
 
+Поднимите изолированный стенд `agelto_core_test` и выберите файл или предметную группу.
+
 ```bash
-make db:create-test   # разово: настройка agelto_test
-make test-php         # ENV=dev по умолчанию; test-preflight + db:create-test + artisan test --compact
-make quality          # release-local carrier: audit + static/style/refactor guards + full PHP suite
+make core-test-up
+make core-test-file TEST_FILE=tests/Feature/Filament/FilamentTableContractTest.php
+make core-test-observability
+make core-quality
 ```
 
-Точечный прогон одного класса/фильтра — `make artisan ARGS="test --filter=<Subject>"`
-(**один `--filter` за прогон** — второй игнорируется Symfony Console, не Laravel-баг).
+Раннер привязывает команды к отдельным PostgreSQL, Redis и объектному хранилищу,
+блокирует внешний трафик и сохраняет JUnit и вывод в
+`storage/app/testing/process-core/reports/`. Остальные цели перечислены в [ранбуке стенда](../runbooks/process-test-rig.md).
 
-Browser acceptance uses pinned `@playwright/test` 1.62.1 with Chromium. The setup project stores
-ignored `storageState` files for SuperAdmin, Operator and Analyst; the responsive admin suite reuses
-them and checks desktop/mobile role routes, ordered navigation groups, representative Sections and
-table actions, role-specific direct-URL denial and a separate unauthenticated context.
-`bash docker/tests/clean-install-e2e.sh` creates a detached worktree from exact `HEAD`, its own
-Compose project, database/media volumes, auth state, traces and teardown. By default it creates
-candidate-local one-time administrator credentials; `E2E_ADMIN_EMAIL` and
-`E2E_ADMIN_PASSWORD_FILE` are optional explicit overrides. It never uses the owner's running stack.
+`make core-manifest-sync` обновляет SHA-256 контрактных фикстур и `estimates/gold/`.
+Манифест сохраняет инвентарь сценариев и историческое происхождение исходников. При изменении
+других staged inputs обновите их записи в `tests/Fixtures/ProcessCore/runtime-inputs.json`.
+Для миграций используется собственный inventory схемы и проверка каталога PostgreSQL.
+
+### Браузерные сценарии
+
+`@playwright/test` и образ браузерного профиля стенда используют Playwright 1.62.1.
+Проект setup сохраняет отдельные состояния SuperAdmin, Operator и Analyst. Сценарии
+оператора проверяют поиск и открытие соответствия статусов, а также исправление адреса
+AI-провайдера и сохранение записи без вызова провайдера.
+
+Release-проверка `bash docker/tests/clean-install-e2e.sh` использует отдельный checkout
+точного `HEAD`, одноразовый Compose project, собственные БД, тома и учётные данные.
+`E2E_ADMIN_EMAIL` и `E2E_ADMIN_PASSWORD_FILE` позволяют явно задать тестовые данные входа.
 
 Private-documentation release acceptance is `make documentation:acceptance` without required
 external credential inputs. It composes active-SVG rejection, the focused Pest corpus, clean
@@ -44,77 +53,17 @@ candidate and image anchors are printed for the release evidence report.
 - Персистентные модели — фабрики `X::factory()`; статусы — states (`->pending()`,
   `->primaryAnalysisFailed()`); цепочки связей — `->for()`/`->has()` или именованный билдер.
 
-## Tia (Test Impact Analysis)
+## TIA (Test Impact Analysis)
 
-`tests/Pest.php`: `pest()->tia()->locally()->baselined()` — TIA включается только в локальном
-edit-loop, а при отсутствии или устаревании graph может получить trusted `pest-tia-baseline` artifact
-из `tia-baseline.yml`. `always()` и `filtered()` намеренно отсутствуют: `always()` является
-альтернативой `locally()`, а `filtered()` не даёт полного набора. Ordinary CI и acceptance по-прежнему
-передают `--ci --no-tia` (D40/D42).
+`make core-test-tia` записывает граф зависимостей для изолированного стенда. Используйте
+его для диагностики затронутых тестов. Для приёмки используйте указанный в задании
+`core-test-*`: целевые файлы, предметные и регрессионные наборы запускаются с `--no-tia`.
+Результаты replay служат диагностике, а приёмка подтверждает выполнение выбранных тестов
+на текущем дереве.
 
-- **Обычный прогон в разработке** — `make test:edit`: TIA реплеит незатронутые тесты и запускает
-  затронутые. `make test:tia-refresh` создаёт свежий graph, а `make test:tia-reset` удаляет только
-  project-scoped graph.
-- **Приёмочный прогон item'а/фазы — только `make test:full`, `test:junit`, `test:profile` или
-  `test:coverage`**: каждый несёт `--ci --no-tia`. Replay, focused run и отдельный shard не являются
-  evidence приёмки.
-- **Sharding и parallel** — release default остаётся serial. `test:shard` остаётся диагностической
-  командой с `--no-tia`; `make test:parallel PROCESSES=2|4` — отдельное доказательство изоляции,
-  не acceptance replacement. До первой migration каждый worker обязан пройти exact token DB guard
-  в Laravel `setUpTestDatabaseBeforeMigrating`; все app-owned disks переписаны в local root
-  `storage/framework/testing/<process>/disks`. Bootstrap выбирает `<process>` из ParaTest
-  `TEST_TOKEN` до autoload, поэтому `TMPDIR`, log/auth/artifact roots также process-scoped;
-  teardown удаляет только этот root. `Storage::fake()` остаётся явным тестовым double, не safety
-  boundary.
-- **Кэш графа** — именованный том `app_pest_tia:/var/www/.pest` (не `~/.pest`, домашний `/var/www`
-  контейнера не смонтирован volume'ом целиком), переживает `docker compose up -d --force-recreate`.
-  Владелец тома и `git safe.directory` для bind-mount `html` (uid хоста ≠ www-data) заданы на
-  уровне образа (`docker/php/Dockerfile`) — если граф не пишется после ручной правки Dockerfile,
-  проверить `docker exec agelto_app ls -la /var/www/.pest` (должен быть `www-data:www-data`).
-- **PCOV включён ПОСТОЯННО в dev** (bind-mount `docker/php/conf.d/pcov-dev.ini` поверх
-  `/usr/local/etc/php/conf.d/pcov.ini` — только в `docker-compose.yml`, dev; в проде и в самом
-  образе (`Dockerfile`) `docker/php/conf.d/pcov.ini` остаётся `pcov.enabled=0`, zero-cost,
-  без изменений). Решение: `pcov.enabled`, переданный флагом `-d` на КАЖДЫЙ вызов, терялся при
-  перезапуске воркера (`Pest\Restarters\PcovRestarter` перезапускает процесс с
-  `-d pcov.directory=<root>` ТОЛЬКО, не `-d pcov.enabled=1`, — новый процесс читает `pcov.enabled`
-  заново из файла на диске, где он снова `0`); постоянный `pcov.enabled=1` в примонтированном
-  ini-файле убирает саму причину — `PcovRestarter` находит `pcov.directory` уже верным (задан там
-  же явно, не `auto`) и не перезапускает процесс вовсе. Обычный
-  `docker exec agelto_app php artisan test` (без `--filter`, без `-d`) теперь сам подхватывает
-  pcov — проверено: `Pest\Plugins\Tia\Recorder` детектит драйвер через `ini_get('pcov.enabled')`
-  в рантайме, ручной флаг/обходной путь через `./vendor/bin/pest` больше не нужен.
-  После правки `docker/php/conf.d/pcov-dev.ini` — `docker compose up -d --force-recreate --no-deps
-  app` (bind-mount отдельного ФАЙЛА не подхватывает правку хоста без пересоздания контейнера).
-- **Известное ограничение (не от pcov, орфографически смежное).** Полный сюит (`artisan test` без
-  `--filter`) сегодня почти целиком «uncached» на КАЖДОМ прогоне, даже без изменений в дереве:
-  `Pest\Plugins\Tia\ChangedFiles::workingTreeChanges()` считает «изменёнными» ВСЕ untracked-файлы
-  (`git status --porcelain --untracked-files=all`), включая чужой незакоммиченный `config/cms.php`
-  (Execution Rules плана `2026.07.31-SYS-INTEGRITY` — «не трогать»); `config/*.php` грузится
-  Laravel-бутстрапом на КАЖДОМ тесте, поэтому его «изменённость» инвалидирует edge почти всей
-  матрицы. Фикс — не докер/pcov: `config/cms.php` либо коммитится владельцем, либо уходит в
-  `.gitignore` (тогда `ChangedFiles::filterIgnored()` его исключит через `git check-ignore`).
-  Точечные `--filter`-прогоны затронуты НЕ бывают (изолированный тест-файл реплеится стабильно —
-  проверено 3× подряд).
-- **Инвалидация** — по git-диффу рабочего дерева относительно последнего записанного графа;
-  структурный fingerprint игнорирует чисто косметические правки (комментарий, пробелы) — 0
-  незакэшированных тестов на `pint --dirty` без смысловых изменений.
-
-## `--agent`
-
-Выполняет произвольный PHP-сниппет в реальном тестовом контексте (наследует `tests/Pest.php`:
-`RefreshDatabase`, `Tests\TestCase`, гейт `TestEnvironmentGuard`) без создания постоянного файла:
-
-```bash
-docker exec agelto_app ./vendor/bin/pest --agent='expect(true)->toBeTrue();'
-```
-
-- Не заменяет постоянный тест (D10) — только разовая проверка «работает ли то, что я сейчас
-  написал»; на изменённое поведение всё равно нужен тест в `tests/`.
-- Реальный LLM-вызов внутри сниппета (не `Tests\Support\Doubles\FakeLlmProvider`) —
-  блокирующее замечание на тех же основаниях, что и обычный тест.
-- `php artisan boost:install` не запускался при установке плагина (D9): Laravel Boost в проекте —
-  только MCP, не источник guidelines; правила `--agent` живут в
-  `.claude/rules/agelto-reviewer-overrides.md`, а не в сгенерированном Boost-контуре.
+Постоянные проверки поведения хранятся в `tests/`. Одноразовый Pest `--agent`
+подходит для эксперимента в изолированном тестовом контексте. Фейки внешних
+сервисов обязательны и для таких экспериментов.
 
 ## Agent-optimized output
 
@@ -127,8 +76,7 @@ success и failure.
 
 ## Стиль кода
 
-`docker compose exec app ./vendor/bin/pint --dirty --test` — `--dirty` не видит untracked-файлы,
-для новых файлов передавать явный список путей.
+`make core-quality` запускает Pint в режиме проверки и PHPStan на `level: max`.
 
 ## Смежное
 

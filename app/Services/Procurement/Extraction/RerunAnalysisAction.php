@@ -8,6 +8,7 @@ use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
 use App\Dto\Procurement\Ai\ReanalysisSource;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
@@ -125,7 +126,7 @@ final readonly class RerunAnalysisAction
             eventId: ListingStoreRepository::id('analysis-command-event:'.$commandId->value),
             projectionMessageId: ListingStoreRepository::id('analysis-command-project:'.$commandId->value),
         );
-        $this->works->storeWork(
+        $this->works->storeWork(new StoreWorkData(
             id: $workId,
             input: $input,
             inputRevision: $run->expectedAnalysisGeneration,
@@ -137,7 +138,7 @@ final readonly class RerunAnalysisAction
             eventId: ListingStoreRepository::id('analysis-command-work-event:'.$commandId->value),
             projectionMessageId: ListingStoreRepository::id('analysis-command-work-project:'.$commandId->value),
             identity: $identity,
-        );
+        ));
         $this->works->linkRun(
             runId: $run->id,
             workId: $workId,

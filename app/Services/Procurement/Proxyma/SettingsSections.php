@@ -27,10 +27,10 @@ final readonly class SettingsSections
     public function forRecord(?Model $record): array
     {
         if (! $this->authority->active('proxyma')) {
-            return [TextEntry::make('legacy_authority')->state('До переключения маршруты редактируются в действующем legacy каталоге.')];
+            return [TextEntry::make('legacy_authority')->hiddenLabel()->state('До переключения маршруты редактируются в действующем legacy каталоге.')];
         }
         if (! $record?->exists || (! $record instanceof Crawler && ! $record instanceof Platform)) {
-            return [TextEntry::make('save_first')->state('Сначала сохраните запись владельца.')];
+            return [TextEntry::make('save_first')->hiddenLabel()->state('Сначала сохраните запись владельца.')];
         }
         if (! (Auth::user()?->hasPermission(permission: ProxyPermission::View, panelId: 'admin') ?? false)) {
             return [];
@@ -66,7 +66,7 @@ final readonly class SettingsSections
             }
         }
 
-        return $actions === [] ? [TextEntry::make('unmapped')->state('Нет актуального target mapping. Настройки недоступны.')]
+        return $actions === [] ? [TextEntry::make('unmapped')->hiddenLabel()->state('Нет актуального target mapping. Настройки недоступны.')]
             : [Actions::make($actions)];
     }
 }

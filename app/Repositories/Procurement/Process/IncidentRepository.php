@@ -6,6 +6,7 @@ namespace App\Repositories\Procurement\Process;
 
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\OperatorCommandStatus;
@@ -62,7 +63,16 @@ final readonly class IncidentRepository
         ) ?? throw new \LogicException('Incident upsert returned no row.');
         $id = new ProcessUuid($row->string('id'));
         if ($row->bool('inserted')) {
-            $this->transitions->recordIncident($eventId, $projectionMessageId, $id, 1, null, 'open', $kind, ActorKind::System);
+            $this->transitions->recordIncident(new TransitionData(
+                eventId: $eventId,
+                projectionMessageId: $projectionMessageId,
+                entityId: $id,
+                entitySeq: 1,
+                previousState: null,
+                newState: 'open',
+                reasonCode: $kind,
+                actor: ActorKind::System,
+            ));
             LogChannel::Process->error('process.incident_opened', ['incident_id' => $id->value, 'scope_key' => $scopeKey, 'kind' => $kind, 'evidence' => $evidence]);
         }
 
@@ -107,10 +117,18 @@ final readonly class IncidentRepository
              WHERE id = ? RETURNING transition_seq",
             [$actorId, $incidentId->value],
         ) ?? throw new \LogicException('Incident row vanished under its own lock.');
-        $this->transitions->recordIncident(
-            $eventId, $projectionMessageId, $incidentId, $changed->int('transition_seq'), 'open', 'acknowledged',
-            'manual_acknowledge', ActorKind::Operator, $actorId, ['reason' => $reason],
-        );
+        $this->transitions->recordIncident(new TransitionData(
+            eventId: $eventId,
+            projectionMessageId: $projectionMessageId,
+            entityId: $incidentId,
+            entitySeq: $changed->int('transition_seq'),
+            previousState: 'open',
+            newState: 'acknowledged',
+            reasonCode: 'manual_acknowledge',
+            actor: ActorKind::Operator,
+            actorId: $actorId,
+            details: ['reason' => $reason],
+        ));
 
         return OperatorCommandStatus::Applied;
     }

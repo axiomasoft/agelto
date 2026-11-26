@@ -12,11 +12,12 @@ status: living
 Там host build явно разрешён владельцем, но runtime всё равно использует закрытую immutable
 пару app/doctor без source bind mounts. Описанные ниже pull helpers — только registry path.
 
-All release commands require an explicit `COMPOSE_PROJECT_NAME`, an existing `ENV_FILE`, and an
-immutable `IMAGE_TAG` other than `latest`. The production host only pulls and recreates the three
-application services with `--no-build`; it never mounts source/vendor/frontend artifacts, builds an
-image, or removes volumes. Migration and queue lifecycle orchestration remain separate owner-gated
-work, outside this P1 carrier.
+Для registry-деплоя задайте `COMPOSE_PROJECT_NAME`, путь к существующему `ENV_FILE`
+и неизменяемый `IMAGE_TAG`. При использовании registry укажите в production env
+`IMAGE_REGISTRY` с квалифицированным именем хоста или адресом `хост:порт`.
+`release-deploy.sh` подтягивает образы и пересоздаёт `app`, `horizon` и `scheduler`
+через `up -d --no-build --wait`. Схема БД и оркестрация очереди имеют отдельные
+операторские процедуры.
 
 The release tag is produced beforehand as a same-SHA `agelto/app` + `agelto/doctor` pair. The build
 carrier verifies private vendor closure, both final filesystem contracts, and an isolated local
@@ -48,7 +49,7 @@ candidate SHA/application image digest; a source-only deployment cannot publish 
 
 ## Проверка после деплоя
 
-Проверить liveness `/up` и статус трёх контейнеров через выбранный Compose project. Наличие `vendor`
+После завершения Compose `--wait` проверьте liveness `/up` и статус трёх контейнеров через выбранный Compose project. Наличие `vendor`
 или frontend artifacts на host не является release condition: они входят в immutable image.
 
 После owner-gated миграции выполните идемпотентный production base seed: `make prod:seed-base`.

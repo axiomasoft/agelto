@@ -39,6 +39,7 @@ final class PromptInfolist
                     ->description('Версии той же пары «тип документа + ключ», до 100 последних.')
                     ->schema([
                         RepeatableEntry::make('versions')
+                            ->hiddenLabel()
                             ->state(static fn (Prompt $record) => Prompt::query()
                                 ->where('document_type', $record->document_type)
                                 ->where('key', $record->key)

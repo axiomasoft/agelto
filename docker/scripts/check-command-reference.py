@@ -160,7 +160,9 @@ def classify_target(name: str, recipe: str) -> CommandRow:
     elif operator and mutation != "read-only/check":
         prerequisites += "; follow-up rehearsal authority"
 
-    if name.startswith("test"):
+    if name == "core-manifest-sync":
+        output = "updated contract and gold fixture hashes"
+    elif name.startswith("test"):
         output = "test result/evidence"
     elif name.startswith("documentation:"):
         output = "documentation artifact/check"

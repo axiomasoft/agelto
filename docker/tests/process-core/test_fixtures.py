@@ -41,10 +41,10 @@ class ManifestTest(unittest.TestCase):
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes((ROOT / entry["path"]).read_bytes())
 
-    def verify(self):
+    def verify(self, **sections):
         target = self.root / "tests/Fixtures/ProcessCore/manifest.json"
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps({"contract_fixtures": self.entries}))
+        target.write_text(json.dumps({"contract_fixtures": self.entries, **sections}))
         return manifest.verify(self.root)
 
     def test_versioned_inputs_have_manual_provenance_and_hashes(self):
@@ -52,6 +52,42 @@ class ManifestTest(unittest.TestCase):
         self.assertEqual(len(proof["fixtures"]), len(self.entries))
         self.assertTrue(any(entry["id"] == "local-wire-v1" for entry in proof["fixtures"]))
         self.assertEqual(len(proof["manifest_sha256"]), 64)
+
+    def test_current_hashes_cannot_pin_application_or_test_source(self):
+        entry = self.entries[0]
+        with self.assertRaisesRegex(ValueError, "mutable pins in files"):
+            self.verify(files=[{"path": "tests/Pest.php", "sha256": entry["sha256"]}])
+
+        self.entries[0]["path"] = "app/Example.php"
+        with self.assertRaisesRegex(ValueError, "not a contract fixture"):
+            self.verify()
+
+    def test_sync_updates_fixture_and_preserves_provenance(self):
+        self.verify()
+        fixture = self.entries[0]
+        (self.root / fixture["path"]).write_bytes(b"new fixture bytes")
+        proof = manifest.verify(self.root, sync=True)
+
+        actual = manifest.verify(self.root)
+        self.assertEqual(proof, actual)
+        self.assertNotEqual(fixture["sha256"], actual["fixtures"][0]["sha256"])
+        self.assertEqual(fixture["coverage"], actual["fixtures"][0]["coverage"])
+
+    def test_sync_updates_gold_without_accepting_other_runtime_inputs(self):
+        self.verify()
+        gold = self.root / "estimates/gold/example.gold.json"
+        gold.parent.mkdir(parents=True)
+        gold.write_bytes(b"new gold bytes")
+        runtime = self.root / manifest.RUNTIME_MANIFEST
+        runtime.write_text(json.dumps({"files": [
+            {"source": "estimates/gold/example.gold.json", "sha256": "old"},
+            {"source": "resources/ai/prompts/example.md", "sha256": "kept"},
+        ]}))
+
+        self.assertEqual(manifest.sync_gold(self.root), 1)
+        entries = json.loads(runtime.read_text())["files"]
+        self.assertEqual(entries[0]["sha256"], hashlib.sha256(gold.read_bytes()).hexdigest())
+        self.assertEqual(entries[1]["sha256"], "kept")
 
     def test_missing_changed_and_symlink_inputs_are_rejected(self):
         target = self.root / self.entries[0]["path"]

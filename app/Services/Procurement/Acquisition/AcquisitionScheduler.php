@@ -8,6 +8,8 @@ use App\Dto\Procurement\Acquisition\AcquisitionConfiguration;
 use App\Dto\Procurement\Acquisition\AcquisitionLaunch;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\StoreWorkData;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\AccountingRole;
@@ -146,8 +148,18 @@ final readonly class AcquisitionScheduler
         foreach ($inputs as $input) {
             $key = $input->crawlBlockId->value;
             $work = new WorkId(ListingStoreRepository::id('root-work:'.$key));
-            $this->works->storeWork($work, $input, 1, null, 'platform:'.$launch->platformId, $launch->platformId, $id, 100,
-                ListingStoreRepository::id('root-event:'.$key), ListingStoreRepository::id('root-project:'.$key));
+            $this->works->storeWork(new StoreWorkData(
+                id: $work,
+                input: $input,
+                inputRevision: 1,
+                intentId: null,
+                cohortKey: 'platform:'.$launch->platformId,
+                platformId: $launch->platformId,
+                originRunId: $id,
+                priority: 100,
+                eventId: ListingStoreRepository::id('root-event:'.$key),
+                projectionMessageId: ListingStoreRepository::id('root-project:'.$key),
+            ));
             $this->works->linkRun($id, $work, RunWorkRelation::Created, AccountingRole::Required);
         }
         if ($inputs === []) {
@@ -155,8 +167,16 @@ final readonly class AcquisitionScheduler
             $reason = $outcome === 'complete' ? null : 'root_allocation_bound';
             DB::update('UPDATE prc_process_runs SET discovery_outcome=?,discovery_reason_code=?,
                 discovery_closed_at=clock_timestamp(),transition_seq=2 WHERE id=?', [$outcome, $reason, $id->value]);
-            $this->transitions->recordRun(ListingStoreRepository::id('close-event:'.$trigger), ListingStoreRepository::id('close-project:'.$trigger),
-                $id, 2, 'collecting', $outcome, $reason, ActorKind::System);
+            $this->transitions->recordRun(new TransitionData(
+                eventId: ListingStoreRepository::id('close-event:'.$trigger),
+                projectionMessageId: ListingStoreRepository::id('close-project:'.$trigger),
+                entityId: $id,
+                entitySeq: 2,
+                previousState: 'collecting',
+                newState: $outcome,
+                reasonCode: $reason,
+                actor: ActorKind::System,
+            ));
         }
 
         return $id;

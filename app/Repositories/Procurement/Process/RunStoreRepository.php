@@ -6,6 +6,7 @@ namespace App\Repositories\Procurement\Process;
 
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\RunKind;
@@ -44,7 +45,16 @@ final readonly class RunStoreRepository
                 ContentHash::of($configuration->json)->hex, $requestedBy,
             ],
         );
-        $this->transitions->recordRun($eventId, $projectionMessageId, $id, 1, null, 'collecting', null, ActorKind::System);
+        $this->transitions->recordRun(new TransitionData(
+            eventId: $eventId,
+            projectionMessageId: $projectionMessageId,
+            entityId: $id,
+            entitySeq: 1,
+            previousState: null,
+            newState: 'collecting',
+            reasonCode: null,
+            actor: ActorKind::System,
+        ));
     }
 
     /** Close discovery in the same transaction that created and linked this run's required work. */
@@ -61,16 +71,16 @@ final readonly class RunStoreRepository
              SET discovery_outcome='complete',discovery_closed_at=clock_timestamp(),transition_seq=2 WHERE id=?",
             [$runId->value],
         );
-        $this->transitions->recordRun(
+        $this->transitions->recordRun(new TransitionData(
             eventId: $eventId,
             projectionMessageId: $projectionMessageId,
-            runId: $runId,
+            entityId: $runId,
             entitySeq: 2,
             previousState: 'collecting',
             newState: 'complete',
             reasonCode: null,
             actor: $actor,
             actorId: $actorId,
-        );
+        ));
     }
 }

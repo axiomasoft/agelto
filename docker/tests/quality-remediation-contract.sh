@@ -25,6 +25,6 @@ if [[ "${QUALITY_REMEDIATION_NESTED:-}" != '1' ]]; then
     docker compose exec -T app ./vendor/bin/pint --test
     make test-php
     test -z "$(git status --porcelain=v1 -- app config database routes resources tests \
-        composer.json composer.lock phpstan.neon rector.php Makefile docker/Makefile \
+        composer.json composer.lock phpstan.neon Makefile docker/Makefile \
         docker/scripts docker/tests)"
 fi

@@ -18,6 +18,7 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\RetryAt;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
 use App\Enums\Procurement\Network\AdapterVerdict;
 use App\Enums\Procurement\Network\DemandPurpose;
@@ -263,9 +264,18 @@ final readonly class AdapterHealthRepository
         AdapterHealthSqlHelper::recordResetObservation($contract, $row->string('id'), $epoch, $version, $actorId, $reason);
         $controlVersion = $system->int('control_version') + 1;
         DB::update('UPDATE prc_control_scopes SET control_version = ? WHERE id = ?', [$controlVersion, $system->string('id')]);
-        $this->transitions->recordControl(ProcessUuid::random(), ProcessUuid::random(), new ProcessUuid($system->string('id')),
-            $controlVersion, $system->string('desired_mode'), $system->string('desired_mode'), 'adapter_validation_reset',
-            ActorKind::Operator, $actorId, ['reason' => $reason, 'adapter_health_id' => $row->string('id')]);
+        $this->transitions->recordControl(new TransitionData(
+            eventId: ProcessUuid::random(),
+            projectionMessageId: ProcessUuid::random(),
+            entityId: new ProcessUuid($system->string('id')),
+            entitySeq: $controlVersion,
+            previousState: $system->string('desired_mode'),
+            newState: $system->string('desired_mode'),
+            reasonCode: 'adapter_validation_reset',
+            actor: ActorKind::Operator,
+            actorId: $actorId,
+            details: ['reason' => $reason, 'adapter_health_id' => $row->string('id')],
+        ));
 
         return new NetworkChangeResult(NetworkChangeStatus::Applied, $version);
     }

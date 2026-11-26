@@ -19,7 +19,7 @@
 ## Runtime
 
 - Process-core checks use only the dedicated `agelto_core_test` Compose project and its internal network. Local HTTP/proxy/fake LLM fixtures are the only outbound targets; `Http::preventStrayRequests()` supplements network isolation. Deterministic checks never run live crawling, paid model calls or external schedulers.
-- Fixture inputs have versioned manifests with hashes and sanitized provenance. HTTP sequences and request logs are server-owned. Implemented suites require executed assertions without skips; future suites fail explicitly with `suite_not_implemented` (exit 78).
+- Immutable contract and gold fixtures have versioned hashes and sanitized provenance. Run `make core-manifest-sync` after deliberately changing them. HTTP sequences and request logs are server-owned. Implemented suites require executed assertions without skips; future suites fail explicitly with `suite_not_implemented` (exit 78).
 - Browser automation runs only in the `horizon` worker (`shm_size`, `CHROME_BIN`).
 - Development keeps source bind-mounted and Vite runs with pinned `pnpm`; production consumes a promoted immutable `IMAGE_TAG` without source, `vendor`, or frontend bind mounts and never builds on the host. The deploy class is explicit: `code`, `php-deps`, `frontend`, `runtime`, or `image-promotion`.
 - Internal VitePress output is built in the frontend stage into `var/private-documentation/site` with its manifest beside it; the application image copies it read-only outside `public` and writable volumes. Documentation source changes require an image artifact, never `prod:deploy:code`.

@@ -16,11 +16,13 @@ use App\Dto\Procurement\Process\LeaseRenewal;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ProviderRecoveryPlan;
 use App\Dto\Procurement\Process\StageCheckpoint;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
+use App\Dto\Procurement\Process\WorkClaimIds;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkIdentity;
-use App\Dto\Procurement\Process\WorkInput;
 use App\Enums\Procurement\Process\AccountingRole;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\AuthorityGap;
@@ -131,10 +133,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
 
     public function claim(WorkId $id, DeliveryGeneration $delivery): ClaimResult
     {
-        $ids = [
-            'token' => ProcessUuid::random(), 'attempt' => ProcessUuid::random(), 'event' => ProcessUuid::random(), 'projection' => ProcessUuid::random(),
-            'wake' => ProcessUuid::random(), 'incident' => ProcessUuid::random(), 'incident_event' => ProcessUuid::random(), 'incident_projection' => ProcessUuid::random(),
-        ];
+        $ids = WorkClaimIds::allocate();
         for ($reload = 0; $reload < self::MAX_RELOADS; $reload++) {
             $snapshot = $this->authority->readAuthoritySnapshot($id);
             if ($snapshot instanceof AuthorityGap) {
@@ -150,7 +149,7 @@ final readonly class WorkStoreRepository implements LeaseKeeper
                 if ($corrupt) {
                     $this->transaction->run(fn () => $this->incidents->openMembershipIncident(
                         $snapshot->workId, 'lane:'.$this->policy->parentLane($snapshot->handler->stage), 'claim',
-                        $ids['incident'], $ids['incident_event'], $ids['incident_projection'],
+                        $ids->incidentId, $ids->incidentEventId, $ids->incidentProjectionMessageId,
                     ));
                 }
 
@@ -182,10 +181,17 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         if ($prefix->group !== null) {
             $this->releaseGroupLocked($prefix->group, count($prefix->members), 'superseded');
         }
-        $this->transitions->recordWork(
-            $eventId, $projectionMessageId, $snapshot->workId->value, $row->int('transition_seq'),
-            $previous, WorkState::Superseded->value, 'input_invalidated', $actor, $row->int('generation'),
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $eventId,
+            projectionMessageId: $projectionMessageId,
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: $previous,
+            newState: WorkState::Superseded->value,
+            reasonCode: 'input_invalidated',
+            actor: $actor,
+            generation: $row->int('generation'),
+        ));
         $this->helper()->carrySupersededRequirement($snapshot, $prefix, $eventId, $this->storeWork(...));
     }
 
@@ -241,25 +247,15 @@ final readonly class WorkStoreRepository implements LeaseKeeper
         );
     }
 
-    public function storeWork(
-        WorkId $id,
-        WorkInput $input,
-        int $inputRevision,
-        ?ProcessUuid $intentId,
-        string $cohortKey,
-        ?int $platformId,
-        ?ProcessUuid $originRunId,
-        int $priority,
-        ProcessUuid $eventId,
-        ProcessUuid $projectionMessageId,
-        ?WorkIdentity $identity = null,
-    ): void {
+    public function storeWork(StoreWorkData $work): void
+    {
         CallerTransaction::require('Work insert');
+        $input = $work->input;
         $stage = $input->stage();
         $ownerColumn = SchemaSupportedStages::ownerColumn($stage);
         $payload = $this->codec->encodeInput($input);
-        $identity ??= new WorkIdentity($input);
-        if ($identity->input != $input || ($identity->manualRetryIntentId !== null && $identity->manualRetryIntentId != $intentId)) {
+        $identity = $work->identity ?? new WorkIdentity($input);
+        if ($identity->input != $input || ($identity->manualRetryIntentId !== null && $identity->manualRetryIntentId != $work->intentId)) {
             throw new \InvalidArgumentException('Work identity must match its immutable input and manual intent.');
         }
         $identityPayload = $identity->payload();
@@ -281,12 +277,22 @@ final readonly class WorkStoreRepository implements LeaseKeeper
              VALUES (?, ?, decode(?, 'hex'), ?::jsonb, ?, ?, ?, decode(?, 'hex'), ?::jsonb, ?, ?, ?, ?, ?, ?, ?, 1,
                      clock_timestamp(), clock_timestamp())",
             [
-                $id->value->value, $stage->value, $identity->key()->hex, $identityPayload->json, $identityPayload->schemaVersion,
-                $intentId?->value, $inputRevision, self::inputHash($payload->json)->hex, $payload->json, $payload->schemaVersion,
-                WorkState::Ready->value, $priority, $platformId, $cohortKey, $originRunId?->value, $ownerId,
+                $work->id->value->value, $stage->value, $identity->key()->hex, $identityPayload->json, $identityPayload->schemaVersion,
+                $work->intentId?->value, $work->inputRevision, self::inputHash($payload->json)->hex, $payload->json, $payload->schemaVersion,
+                WorkState::Ready->value, $work->priority, $work->platformId, $work->cohortKey, $work->originRunId?->value, $ownerId,
             ],
         );
-        $this->transitions->recordWork($eventId, $projectionMessageId, $id->value, 1, null, WorkState::Ready->value, null, ActorKind::System, 0);
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $work->eventId,
+            projectionMessageId: $work->projectionMessageId,
+            entityId: $work->id->value,
+            entitySeq: 1,
+            previousState: null,
+            newState: WorkState::Ready->value,
+            reasonCode: null,
+            actor: ActorKind::System,
+            generation: 0,
+        ));
     }
 
     public function linkRun(ProcessUuid $runId, WorkId $workId, RunWorkRelation $relation, AccountingRole $role): void
@@ -310,11 +316,9 @@ final readonly class WorkStoreRepository implements LeaseKeeper
     }
 
     /**
-     * @param  array<string, ProcessUuid>  $ids
-     *
      * @param-out bool $corrupt
      */
-    private function claimLocked(AuthoritySnapshot $snapshot, DeliveryGeneration $delivery, array $ids, bool &$corrupt): ClaimResult|PrefixFailure
+    private function claimLocked(AuthoritySnapshot $snapshot, DeliveryGeneration $delivery, WorkClaimIds $ids, bool &$corrupt): ClaimResult|PrefixFailure
     {
         $prefix = $this->authority->lockPrefix($snapshot, skipLockedWork: false);
         if ($prefix === PrefixFailure::WorkMissing) {
@@ -342,8 +346,8 @@ final readonly class WorkStoreRepository implements LeaseKeeper
             return ClaimResult::refused(ClaimStatus::InvariantViolation);
         }
         if (! $prefix->intentActive || $this->resolver->inputInvalidated($snapshot->input, $snapshot->inputRevision, $prefix->subjects)) {
-            $this->supersedeLocked($snapshot, $prefix, $ids['event'], $ids['projection'], ActorKind::Worker);
-            $this->outbox->enqueueFeederWake($ids['wake'], $this->policy->parentLane($snapshot->handler->stage));
+            $this->supersedeLocked($snapshot, $prefix, $ids->eventId, $ids->projectionMessageId, ActorKind::Worker);
+            $this->outbox->enqueueFeederWake($ids->wakeMessageId, $this->policy->parentLane($snapshot->handler->stage));
 
             return ClaimResult::refused(ClaimStatus::WorkTerminal);
         }

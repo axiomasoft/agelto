@@ -10,17 +10,13 @@ status: living
 
 `phpstan.neon` анализирует `app/` на `level: max`. В репозитории **нет**
 `phpstan-baseline.neon`, `ignoreErrors` или `excludePaths`: новая ошибка исправляется в её
-реальном контракте, а не скрывается конфигурацией. Полный проверяемый carrier —
-`make quality`; точечная команда — `docker compose exec -T app ./vendor/bin/phpstan analyse
---memory-limit=1G --no-progress`.
+реальном контракте. `make core-quality` запускает анализ в изолированном `agelto_core_test`.
 
 GitHub Actions не дублирует эти команды: required `Quality and static analysis` job вызывает
-`make quality`; `docker/tests/ci-contract.sh` проверяет именно этот local carrier и immutable
+`make core-quality`; `docker/tests/ci-contract.sh` проверяет этот carrier и immutable
 SHA-pinned workflow boundary.
 
-Rector зафиксирован зависимостями `rector/rector 2.6.2` и
-`driftingly/rector-laravel 2.5.0`; разрешён только `--dry-run`. Pint — dry gate
-`docker compose exec -T app ./vendor/bin/pint --test`.
+Pint исполняется в режиме проверки в `make core-quality`.
 
 ## Историческая baseline-политика до P10.6
 

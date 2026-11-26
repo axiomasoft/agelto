@@ -8,6 +8,7 @@ use App\Dto\Procurement\Document\DocumentHead;
 use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\PrepareInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\StageCode;
 use App\Repositories\Procurement\Document\PrepareFinalizer;
@@ -40,7 +41,18 @@ final class PrepareFixtures
         $revision = DocumentStorageFixtures::observe(new DocumentHead($document->id, 1, null), DocumentStorageFixtures::upload($bytes, $domain));
         $this->input = new PrepareInput($revision->id, $policy->hash);
         $this->work = new WorkId(LedgerFixtures::uuid());
-        DB::transaction(fn () => app(WorkStoreRepository::class)->storeWork($this->work, $this->input, $revision->head->generation, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+        DB::transaction(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
+            id: $this->work,
+            input: $this->input,
+            inputRevision: $revision->head->generation,
+            intentId: null,
+            cohortKey: 'manual',
+            platformId: null,
+            originRunId: null,
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        )));
         ExecutionFixtures::ensureWorkScopes(StageCode::Prepare, 'manual');
     }
 

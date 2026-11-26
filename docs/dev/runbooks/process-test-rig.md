@@ -35,6 +35,7 @@ CONNECT/TLS и полноценный Gemini protocol получают assertion
 | `make core-test-unit` | Fixture manifest/wire assertions и существующий Unit suite без TIA; zero cases, skips и отсутствие assertions не проходят |
 | `make core-test-regression` | Clean reset и весь project PHP suite без TIA; actual JUnit scenario inventory |
 | `make core-quality` / `make quality` | Pint `--test`, configured PHPStan level max, Architecture suite и baseline/schema/docs checks |
+| `make core-manifest-sync` | Локальное обновление SHA-256 неизменяемых контрактных и gold-фикстур |
 | `make core-test-report` | Проверка наличия результатов всех текущих gates и совпадения candidate input tree |
 | `make core-test-down` | Identity guard, удаление только test project и его volumes |
 
@@ -177,8 +178,10 @@ PromptApply/PromptRoot могут менять файлы, host canon остаё
 
 ## Baseline и сохранение сценариев
 
-`tests/Fixtures/ProcessCore/manifest.json` хранит исходные пути/hashes и текущие носители
-тестов, миграций и классов. `original-executed-scenarios.json` сохраняет 2014 исторических
+`tests/Fixtures/ProcessCore/manifest.json` хранит историческое происхождение и текущие носители
+сценариев. Активные SHA-256 в нём относятся к неизменяемым контрактным данным.
+`make core-manifest-sync` обновляет их и хэши `estimates/gold/` в runtime-манифесте.
+`original-executed-scenarios.json` сохраняет 2014 исторических
 executed cases с dataset labels и provenance исходных reports. Этот baseline не переписывается
 при переименовании или замене теста.
 

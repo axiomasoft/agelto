@@ -84,7 +84,6 @@ x-runtime: &runtime
     - ../composer.lock:/var/www/html/composer.lock:ro
     - ../phpunit.xml:/var/www/html/phpunit.xml:ro
     - ../phpstan.neon:/var/www/html/phpstan.neon:ro
-    - ../rector.php:/var/www/html/rector.php:ro
     - ../Makefile:/var/www/html/Makefile:ro
     - ../docker-compose.yml:/var/www/html/docker-compose.yml:ro
     - ../docker-compose.prod.yml:/var/www/html/docker-compose.prod.yml:ro
@@ -213,7 +212,7 @@ services:
     networks: [core]
 
   browser:
-    image: mcr.microsoft.com/playwright:v1.56.1-noble
+    image: mcr.microsoft.com/playwright:v1.62.1-noble
     command: [sleep, infinity]
     networks: [core]
     profiles: [browser]

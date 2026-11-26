@@ -2,111 +2,116 @@
 
 declare(strict_types=1);
 
+use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\RunResultSchema;
+use App\Filament\Resources\Procurement\Ai\PromptSuggestions\Schemas\PromptSuggestionInfolist;
+use App\Filament\Resources\Procurement\Procurements\Schemas\ProcurementInfolist;
+use App\Models\Procurement\Ai\AnalysisRun;
+use App\Models\Procurement\Ai\Fixture;
+use App\Models\Procurement\Ai\PromptSuggestion;
+use App\Models\Procurement\Procurement;
+use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\Entry;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Concerns\InteractsWithSchemas;
+use Filament\Schemas\Contracts\HasSchemas;
+use Filament\Schemas\Schema;
 use Illuminate\Support\Facades\File;
+use Livewire\Component as LivewireComponent;
+
+function filamentTestSchema(): Schema
+{
+    $livewire = new class extends LivewireComponent implements HasSchemas
+    {
+        use InteractsWithSchemas;
+
+        /** @var array<string, mixed> */
+        public array $data = [];
+    };
+
+    return Schema::make($livewire)->statePath('data');
+}
+
+/** @return iterable<class-string, Schema> */
+function filamentApplicationSchemas(): iterable
+{
+    foreach (File::allFiles(app_path('Filament/Resources')) as $file) {
+        if ($file->getExtension() !== 'php' || basename($file->getPath()) !== 'Schemas') {
+            continue;
+        }
+
+        $class = 'App\\Filament\\Resources\\'.str_replace('/', '\\', substr($file->getRelativePathname(), 0, -4));
+        if (! is_callable([$class, 'configure'])) {
+            continue;
+        }
+
+        $schema = filamentTestSchema();
+        yield $class => match ($class) {
+            ProcurementInfolist::class => $class::configure($schema->record(new Procurement)),
+            PromptSuggestionInfolist::class => $class::configure($schema->record(new PromptSuggestion)),
+            RunResultSchema::class => $class::configure(
+                schema: $schema,
+                fixture: new Fixture,
+                run: (new AnalysisRun)->setRelation('analyses', collect()),
+            ),
+            default => $class::configure($schema),
+        };
+    }
+}
+
+function filamentSchemaHasOperatorSection(Schema $schema): bool
+{
+    return collect($schema->getComponents(withActions: false))
+        ->contains(fn (Component $component): bool => $component instanceof Section);
+}
+
+/** @return list<string> */
+function filamentUnlabelledFields(Schema $schema): array
+{
+    $failures = [];
+    foreach ($schema->getComponents(withActions: false, withHidden: true) as $component) {
+        if (($component instanceof Field || $component instanceof Entry)
+            && ! $component instanceof Hidden
+            && ! $component->hasCustomLabel()
+            && ! $component->isLabelHidden()) {
+            $failures[] = $component->getName();
+        }
+
+        $child = $component->getChildSchema();
+        if ($child !== null) {
+            $failures = [...$failures, ...filamentUnlabelledFields($child)];
+        }
+    }
+
+    return $failures;
+}
 
 test('все application schemas имеют операторскую Section', function (): void {
-    $schemaSources = collect(File::allFiles(app_path('Filament/Resources')))
-        ->filter(static fn (SplFileInfo $file): bool => str_contains($file->getPathname(), '/Schemas/'))
-        ->map(static fn (SplFileInfo $file): string => $file->getContents())
-        ->filter(static fn (string $source): bool => str_contains($source, 'function configure(Schema $schema)'));
+    $schemas = iterator_to_array(filamentApplicationSchemas());
+    expect($schemas)->not->toBeEmpty();
 
-    expect($schemaSources)->not->toBeEmpty();
+    foreach ($schemas as $class => $schema) {
+        expect(filamentSchemaHasOperatorSection($schema), $class)->toBeTrue();
+    }
 
-    $schemaSources->each(function (string $source): void {
-        expect($source)->toContain('Section::make(');
-    });
-
-    $flatFixture = <<<'PHP'
-        <?php
-
-        final class FlatSchema
-        {
-            public static function configure(Schema $schema): Schema
-            {
-                return $schema->components([
-                    TextInput::make('name'),
-                ]);
-            }
-        }
-        PHP;
-
-    expect(str_contains($flatFixture, 'Section::make('))->toBeFalse();
+    expect(filamentSchemaHasOperatorSection(filamentTestSchema()->components([TextInput::make('name')])))->toBeFalse();
+    expect(filamentSchemaHasOperatorSection(filamentTestSchema()->components([Section::make('Контакты')->hidden()])))->toBeFalse();
 });
 
 test('все поля application schemas имеют явную операторскую метку', function (): void {
-    $componentClasses = implode('|', [
-        'CheckboxList',
-        'DatePicker',
-        'FileUpload',
-        'IconEntry',
-        'KeyValue',
-        'KeyValueEntry',
-        'Placeholder',
-        'RepeatableEntry',
-        'Repeater',
-        'Select',
-        'TagsInput',
-        'TextColumn',
-        'TextEntry',
-        'TextInput',
-        'Textarea',
-        'Toggle',
-        'ViewEntry',
+    $unlabelledFields = [];
+    foreach (filamentApplicationSchemas() as $class => $schema) {
+        foreach (filamentUnlabelledFields($schema) as $field) {
+            $unlabelledFields[] = "$class: $field";
+        }
+    }
+    expect($unlabelledFields)->toBe([]);
+
+    $unlabelled = filamentTestSchema()->components([
+        Section::make('Контакты')->schema([TextInput::make('name')]),
     ]);
 
-    /** @return list<string> */
-    $unlabelledComponents = static function (string $source, string $path) use ($componentClasses): array {
-        $lines = preg_split('/\R/', $source) ?: [];
-        $failures = [];
-
-        foreach ($lines as $lineIndex => $line) {
-            if (preg_match("/^(\\s*)(?:{$componentClasses})::make\\(/", $line, $component) !== 1) {
-                continue;
-            }
-
-            $indent = strlen($component[1]);
-            $declaration = $line;
-
-            for ($nextIndex = $lineIndex + 1; $nextIndex < count($lines); $nextIndex++) {
-                $nextLine = $lines[$nextIndex];
-
-                if (
-                    preg_match("/^(\\s*)(?:{$componentClasses})::make\\(/", $nextLine, $nextComponent) === 1
-                    && strlen($nextComponent[1]) <= $indent
-                ) {
-                    break;
-                }
-
-                if (preg_match('/^(\s*)[\]\)]/', $nextLine, $closing) === 1 && strlen($closing[1]) < $indent) {
-                    break;
-                }
-
-                $declaration .= "\n{$nextLine}";
-            }
-
-            if (! str_contains($declaration, '->label(') && ! str_contains($declaration, '->hiddenLabel(')) {
-                $failures[] = "{$path}:".($lineIndex + 1).' '.trim($line);
-            }
-        }
-
-        return $failures;
-    };
-
-    $failures = collect(File::allFiles(app_path('Filament/Resources')))
-        ->filter(static fn (SplFileInfo $file): bool => str_contains($file->getPathname(), '/Schemas/'))
-        ->flatMap(static fn (SplFileInfo $file): array => $unlabelledComponents(
-            source: $file->getContents(),
-            path: $file->getRelativePathname(),
-        ))
-        ->values()
-        ->all();
-
-    expect($failures)->toBe([]);
-
-    $unlabelledFixture = <<<'PHP'
-        TextInput::make('name')
-            ->required(),
-        PHP;
-
-    expect($unlabelledComponents($unlabelledFixture, 'fixture.php'))->toHaveCount(1);
+    expect(filamentUnlabelledFields($unlabelled))->toBe(['name']);
 });

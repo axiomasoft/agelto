@@ -8,6 +8,7 @@ use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Procurement\Process\StageCode;
@@ -46,8 +47,18 @@ final class ScreeningRuntimeFixtures
         $window = AiFixtures::window();
         $work = new WorkId(LedgerFixtures::uuid());
         $input = new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash);
-        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork($work, $input,
-            $window->run->expectedAnalysisGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
+            id: $work,
+            input: $input,
+            inputRevision: $window->run->expectedAnalysisGeneration,
+            intentId: null,
+            cohortKey: 'manual',
+            platformId: null,
+            originRunId: null,
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        )));
 
         return [$work, FinalizeFixtures::running($work), $window, $period];
     }

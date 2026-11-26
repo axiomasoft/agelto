@@ -8,6 +8,7 @@ use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\AccountingRole;
 use App\Enums\Procurement\Process\CompletionStatus;
@@ -71,9 +72,18 @@ function documentFixtureScreeningWork(DocumentRepresentation $representation, st
     $work = new WorkId(LedgerFixtures::uuid());
     app(ProcessTransaction::class)->run(function () use ($work, $input, $analysis, $cohort, $platformId, $run): void {
         $works = app(WorkStoreRepository::class);
-        $works->storeWork(id: $work, input: $input, inputRevision: $analysis->expectedAnalysisGeneration, intentId: null,
-            cohortKey: $cohort, platformId: $platformId, originRunId: $run, priority: 100,
-            eventId: LedgerFixtures::uuid(), projectionMessageId: LedgerFixtures::uuid());
+        $works->storeWork(new StoreWorkData(
+            id: $work,
+            input: $input,
+            inputRevision: $analysis->expectedAnalysisGeneration,
+            intentId: null,
+            cohortKey: $cohort,
+            platformId: $platformId,
+            originRunId: $run,
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        ));
         $works->linkRun(runId: $run, workId: $work, relation: RunWorkRelation::Created, role: AccountingRole::Required);
     });
 

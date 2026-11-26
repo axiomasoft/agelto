@@ -12,6 +12,7 @@ use App\Dto\Procurement\Ai\RowRange;
 use App\Dto\Procurement\Document\RepresentationCoverage;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ExtractionWindowInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Procurement\Process\StageCode;
@@ -55,8 +56,18 @@ final class ExtractionRuntimeFixtures
         $window = AiFixtures::window(range: $range, recipe: $recipe, coverage: $coverage, sealPlan: $sealPlan);
         $work = new WorkId(LedgerFixtures::uuid());
         $input = new ExtractionWindowInput($window->run->id, $window->windowKey, $window->run->recipe->hash);
-        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork($work, $input,
-            $window->run->expectedDocumentHeadGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
+            id: $work,
+            input: $input,
+            inputRevision: $window->run->expectedDocumentHeadGeneration,
+            intentId: null,
+            cohortKey: 'manual',
+            platformId: null,
+            originRunId: null,
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        )));
 
         return [$work, FinalizeFixtures::running($work), $window, $period];
     }

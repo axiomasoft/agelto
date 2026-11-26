@@ -11,6 +11,7 @@ use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\FairnessCursor;
 use App\Dto\Procurement\Process\HandlerAuthoritySnapshot;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ActorKind;
@@ -329,10 +330,17 @@ final readonly class AdmissionRepository
         if ($cursorUpdated !== 1) {
             throw new \LogicException('Parent fairness cursor must change with the admission.');
         }
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            $prefix->work->string('state'), WorkState::Admitted->value, null, ActorKind::System, $prefix->work->int('generation'),
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids['event'],
+            projectionMessageId: $ids['projection'],
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: $prefix->work->string('state'),
+            newState: WorkState::Admitted->value,
+            reasonCode: null,
+            actor: ActorKind::System,
+            generation: $prefix->work->int('generation'),
+        ));
         $generation = new DeliveryGeneration($dispatchGeneration);
         $this->outbox->enqueueWorkWake($ids['wake'], $snapshot->workId, $generation, $code);
 

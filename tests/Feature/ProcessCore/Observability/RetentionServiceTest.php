@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\AccountingRole;
 use App\Enums\Procurement\Process\ActorKind;
@@ -74,7 +75,18 @@ test('retention: последнее transition сущности и operator audi
     $work = cancelledWork();
     $system = Fixture::transition($work, 'ready');
     $operator = LedgerFixtures::uuid();
-    app(TransitionRepository::class)->recordWork($operator, LedgerFixtures::uuid(), $work->value, (int) DB::table('prc_process_transitions')->where('work_id', $work->value->value)->max('entity_seq') + 1, 'ready', 'ready', 'manual', ActorKind::Operator, 1, 9);
+    app(TransitionRepository::class)->recordWork(new TransitionData(
+        eventId: $operator,
+        projectionMessageId: LedgerFixtures::uuid(),
+        entityId: $work->value,
+        entitySeq: (int) DB::table('prc_process_transitions')->where('work_id', $work->value->value)->max('entity_seq') + 1,
+        previousState: 'ready',
+        newState: 'ready',
+        reasonCode: 'manual',
+        actor: ActorKind::Operator,
+        generation: 1,
+        actorId: 9,
+    ));
     $tail = Fixture::transition($work, 'cancelled', 'cancelled', 'ready');
     ageEvent($system, 500);
     ageEvent($operator, 500);
@@ -94,7 +106,16 @@ test('retention: нерешённый incident хранит историю, reso
     $events = [LedgerFixtures::uuid(), LedgerFixtures::uuid()];
     app(ProcessTransaction::class)->run(function () use ($incident, $events): void {
         app(IncidentRepository::class)->open(LedgerFixtures::hash('retention'), 'acquisition', 'operator_test', ['k' => 1], $incident, $events[0], LedgerFixtures::uuid());
-        app(TransitionRepository::class)->recordIncident($events[1], LedgerFixtures::uuid(), $incident, 2, 'open', 'acknowledged', 'manual_acknowledge', ActorKind::System);
+        app(TransitionRepository::class)->recordIncident(new TransitionData(
+            eventId: $events[1],
+            projectionMessageId: LedgerFixtures::uuid(),
+            entityId: $incident,
+            entitySeq: 2,
+            previousState: 'open',
+            newState: 'acknowledged',
+            reasonCode: 'manual_acknowledge',
+            actor: ActorKind::System,
+        ));
     });
     foreach ($events as $event) {
         ageEvent($event, 500);
@@ -219,7 +240,16 @@ function nextRunEvent(ProcessUuid $run, ActorKind $actor = ActorKind::System): P
 {
     $seq = (int) DB::table('prc_process_transitions')->where('run_id', $run->value)->max('entity_seq') + 1;
     $event = LedgerFixtures::uuid();
-    app(TransitionRepository::class)->recordRun($event, LedgerFixtures::uuid(), $run, $seq, 'collecting', 'collecting', null, $actor);
+    app(TransitionRepository::class)->recordRun(new TransitionData(
+        eventId: $event,
+        projectionMessageId: LedgerFixtures::uuid(),
+        entityId: $run,
+        entitySeq: $seq,
+        previousState: 'collecting',
+        newState: 'collecting',
+        reasonCode: null,
+        actor: $actor,
+    ));
 
     return $event;
 }
@@ -287,7 +317,17 @@ test('retention: события control — кандидат только non-la
     }
     $record = static function (ProcessUuid $control, int $version, ActorKind $actor): ProcessUuid {
         $event = LedgerFixtures::uuid();
-        app(TransitionRepository::class)->recordControl($event, LedgerFixtures::uuid(), $control, $version, 'enabled', 'paused', 'manual_paused', $actor, $actor === ActorKind::Operator ? 7 : null);
+        app(TransitionRepository::class)->recordControl(new TransitionData(
+            eventId: $event,
+            projectionMessageId: LedgerFixtures::uuid(),
+            entityId: $control,
+            entitySeq: $version,
+            previousState: 'enabled',
+            newState: 'paused',
+            reasonCode: 'manual_paused',
+            actor: $actor,
+            actorId: $actor === ActorKind::Operator ? 7 : null,
+        ));
         ageEvent($event, 400);
 
         return $event;
@@ -312,7 +352,19 @@ function confirmedPrunableEvent(ActorKind $actor = ActorKind::System, array $det
     $work = cancelledWork();
     $old = LedgerFixtures::uuid();
     $seq = (int) DB::table('prc_process_transitions')->where('work_id', $work->value->value)->max('entity_seq') + 1;
-    app(TransitionRepository::class)->recordWork($old, LedgerFixtures::uuid(), $work->value, $seq, 'ready', 'ready', 'manual', $actor, 1, $actor === ActorKind::Operator ? 9 : null, $details);
+    app(TransitionRepository::class)->recordWork(new TransitionData(
+        eventId: $old,
+        projectionMessageId: LedgerFixtures::uuid(),
+        entityId: $work->value,
+        entitySeq: $seq,
+        previousState: 'ready',
+        newState: 'ready',
+        reasonCode: 'manual',
+        actor: $actor,
+        generation: 1,
+        actorId: $actor === ActorKind::Operator ? 9 : null,
+        details: $details,
+    ));
     Fixture::transition($work, 'cancelled', 'cancelled', 'ready');
     ageEvent($old, 400);
     app(MetricProjector::class)->ensureStates();

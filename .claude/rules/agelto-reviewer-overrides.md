@@ -10,14 +10,23 @@ Upgrade: harness agent-packs upgrade --pack backend-laravel --target .
 
 Сюда — проектные оси ревью; пак этот файл не перезаписывает.
 
-## Тесты (дополняет `.claude/rules/tests.md`)
+## Тесты
+
+Этот раздел имеет приоритет над сгенерированным `.claude/rules/tests.md` в Agelto.
+
+- Запускай проверки приложения только в стенде `agelto_core_test`. Используй
+  `make core-test-file TEST_FILE=tests/Feature/…`, `make core-quality` и нужный
+  `make core-test-*` из [runbook](../../docs/dev/runbooks/process-test-rig.md).
+- Обновляй SHA-256 намеренно изменённых контрактных и gold-фикстур через
+  `make core-manifest-sync`. Приложение и тесты сверяются по поведению, миграции
+  дополнительно проходят проверку inventory схемы.
 
 - Только `test('<интент по-русски>', fn)` — без `it()` (весь текущий сюит уже на `test()`, канон
   зафиксирован в `.ai/guidelines/glossary.md`).
 - Изоляция от прод/dev БД и media — гейт `Tests\Support\TestEnvironmentGuard`
   (`tests/Support/TestEnvironmentGuard.php`, покрыт `tests/Feature/Support/TestEnvironmentGuardTest.php`);
   падение теста на «не та БД» — сначала проверь этот гейт, не патчи симптом.
-- Приёмочный прогон item'а/фазы плана — только `--no-tia` (D8, раздел «Tia» в
+- Приёмочный прогон — в изолированном стенде с `--no-tia` (раздел «TIA» в
   `docs/dev/process/testing.md`);
   реплей закэшированного результата (`X replayed` в выводе), поданный как приёмка, —
   блокирующее замечание: он ничего не доказывает про текущее состояние дерева.

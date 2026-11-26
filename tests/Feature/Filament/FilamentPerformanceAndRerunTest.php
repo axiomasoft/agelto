@@ -7,6 +7,7 @@ use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
 use App\Dto\Procurement\Platform\RequestProfile;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Document\RepresentationKind;
@@ -150,7 +151,7 @@ test('перезапуск анализа открывает список с с�
         screeningRecipeHash: $run->recipe->hash,
     );
     $oldWork = new WorkId(LedgerFixtures::uuid());
-    app(WorkStoreRepository::class)->storeWork(
+    app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
         id: $oldWork,
         input: $input,
         inputRevision: $run->expectedAnalysisGeneration,
@@ -161,7 +162,7 @@ test('перезапуск анализа открывает список с с�
         priority: 100,
         eventId: LedgerFixtures::uuid(),
         projectionMessageId: LedgerFixtures::uuid(),
-    );
+    ));
     WorkItem::query()->whereKey($oldWork->value->value)->update([
         'state' => WorkState::Succeeded->value,
     ]);

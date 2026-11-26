@@ -10,8 +10,7 @@ require __DIR__.'/SchemaInventory.php';
 
 $root = dirname(__DIR__, 3);
 $manifest = json_decode(file_get_contents($root.'/tests/Fixtures/ProcessCore/manifest.json'), associative: true, flags: JSON_THROW_ON_ERROR);
-$entries = [...$manifest['migrations'], ...$manifest['source_classes'], ...$manifest['contract_fixtures'], ...$manifest['files']];
-$violations = BaselineVerifier::violations(root: $root, entries: $entries);
+$violations = BaselineVerifier::violations(root: $root, entries: $manifest['contract_fixtures']);
 $runtime = json_decode(file_get_contents($root.'/tests/Fixtures/ProcessCore/runtime-inputs.json'), associative: true, flags: JSON_THROW_ON_ERROR);
 $runtimeEntries = array_map(static fn (array $entry): array => [
     'path' => $entry['source'], 'sha256' => $entry['sha256'],

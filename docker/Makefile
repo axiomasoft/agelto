@@ -13,6 +13,7 @@ AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CLAUDE_CODE)
 .PHONY: help infra\:preflight secrets\:init bootstrap host\:check host\:apply host\:preflight dev\:vpn-bypass dev\:up dev\:down dev\:ps dev\:logs dev\:shell dev\:artisan dev\:composer dev\:storage-init dev\:health
 .PHONY: agent\:artisan vendor\:sync vendor\:check repositories\:prepare repositories\:sync doctor\:local readiness\:check assets\:check assets\:sync assets\:repair documentation\:check documentation\:acceptance quality prod\:doctor prod\:infra\:up prod\:app\:up prod\:storage\:init prod\:workers\:up prod\:admin\:create prod\:readiness dev\:migrate dev\:seed-base dev\:seed-demo dev\:admin-create dev\:admin-reset dev\:composer-bootstrap prod\:config prod\:ps prod\:deploy\:code prod\:deploy\:php-deps prod\:deploy\:frontend prod\:deploy\:runtime prod\:image\:promote prod\:deploy\:image prod\:migrate prod\:seed-base image\:build test-preflight test-php test\:edit test\:full test\:junit test\:profile test\:coverage test\:release test\:tia-reset test\:tia-refresh test\:tia-baseline-export test\:shard test\:parallel db\:create-test preparation\:check
 .PHONY: profile\:check backup\:check first-deploy\:check release\:check rollback\:check restore\:check rotation\:check commands\:check
+.PHONY: core-manifest-sync
 
 help:
 	@echo "Agelto command surface"
@@ -45,6 +46,7 @@ help:
 	@echo "  make test:parallel PROCESSES=2|4            Guarded isolated parallel Pest proof"
 	@echo "  make test:tia-reset                         Remove only the project TIA graph"
 	@echo "  make quality                                Run the deterministic local release-quality gate"
+	@echo "  make core-manifest-sync                     Refresh immutable contract and gold fixture hashes"
 	@echo ""
 	@echo "Agent and production inspection:"
 	@echo "  make agent:artisan ARGS=\"test --compact\"  Non-TTY app command"
@@ -64,6 +66,9 @@ help:
 
 infra\:preflight:
 	bash $(ROOT_DIR)/docker/scripts/preflight.sh --root $(ROOT_DIR) --mode $(MODE) --env-file $(abspath $(ENV_FILE))
+
+core-manifest-sync:
+	python3 $(ROOT_DIR)/docker/tests/process-core/fixture_manifest.py $(ROOT_DIR) --sync
 
 secrets\:init:
 	bash $(ROOT_DIR)/docker/scripts/secrets-init.sh --root $(ROOT_DIR)

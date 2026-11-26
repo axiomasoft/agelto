@@ -12,6 +12,7 @@ use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
@@ -63,8 +64,18 @@ final class FinancialFixtures implements ReceiptPolicy
         $window = AiFixtures::window();
         $input = new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash);
         $work = new WorkId(LedgerFixtures::uuid());
-        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork($work, $input,
-            $window->run->expectedAnalysisGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
+            id: $work,
+            input: $input,
+            inputRevision: $window->run->expectedAnalysisGeneration,
+            intentId: null,
+            cohortKey: 'manual',
+            platformId: null,
+            originRunId: null,
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        )));
         $lease = FinalizeFixtures::running($work);
         $plan = self::plan($window, $lease, $purpose);
         $authorization = app(AnalysisCallCoordinator::class)->authorize($lease, $window->run->id, $plan, $period);

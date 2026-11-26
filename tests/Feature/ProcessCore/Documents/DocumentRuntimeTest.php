@@ -14,6 +14,7 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\StageBlocked;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\BlockedReason;
 use App\Enums\Procurement\Process\ControlMode;
@@ -157,13 +158,19 @@ test('registered runtime проводит reference download prepare через 
         DB::statement('CREATE TEMP TABLE p36_fixture_publications(work_id uuid PRIMARY KEY,version_id bigint NOT NULL,disk text NOT NULL,object_key text NOT NULL,content_hash text NOT NULL)');
         $this->beforeApplicationDestroyed(fn () => DB::statement('DROP TABLE IF EXISTS p36_fixture_publications'));
         app(StageRegistry::class)->bindFinalization(StageCode::Screening, new FixtureStagePayloadCodec(StageCode::Screening), new PreparedFixturePublicationRepository($screening));
-        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(
-            id: $screening, input: new ScreeningInput(documentVersionId: $representation->document_version_id,
+        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
+            id: $screening,
+            input: new ScreeningInput(documentVersionId: $representation->document_version_id,
                 representationHash: new ContentHash($representation->content_hash), screeningRecipeHash: $analysis->recipe->hash),
-            inputRevision: $analysis->expectedAnalysisGeneration, intentId: null, cohortKey: $prepare->cohort_key,
-            platformId: $registry->platform_id, originRunId: new ProcessUuid($prepare->origin_run_id), priority: 100,
-            eventId: LedgerFixtures::uuid(), projectionMessageId: LedgerFixtures::uuid(),
-        ));
+            inputRevision: $analysis->expectedAnalysisGeneration,
+            intentId: null,
+            cohortKey: $prepare->cohort_key,
+            platformId: $registry->platform_id,
+            originRunId: new ProcessUuid($prepare->origin_run_id),
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        )));
         app(WorkFeeder::class)->tick('analysis');
         $job = new ExecuteWorkJob(workId: $screening->value->value, dispatchGeneration: ExecutionFixtures::delivery($screening)->value,
             messageId: LedgerFixtures::uuid()->value);

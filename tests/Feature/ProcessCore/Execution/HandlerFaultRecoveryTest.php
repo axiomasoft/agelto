@@ -11,6 +11,7 @@ use App\Dto\Procurement\Process\RetryAt;
 use App\Dto\Procurement\Process\StageDeferred;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\StagePartial;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkIdentity;
@@ -242,7 +243,7 @@ test('identity ручного retry требует одновременно inte
         ->and((new WorkIdentity($input))->key()->hex)->toBe(ContentHash::of('work-identity:v1:'.(new ProcessPayloadCodec)->encodeInput($input)->json)->hex)
         ->and((new WorkIdentity($input, $intent, $predecessor))->key()->hex)->not->toBe((new WorkIdentity($input))->key()->hex);
     $count = DB::table('prc_process_work')->count();
-    expect(fn () => app(WorkStoreRepository::class)->storeWork(
+    expect(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
         id: new WorkId(LedgerFixtures::uuid()),
         input: $input,
         inputRevision: 1,
@@ -254,7 +255,7 @@ test('identity ручного retry требует одновременно inte
         eventId: LedgerFixtures::uuid(),
         projectionMessageId: LedgerFixtures::uuid(),
         identity: new WorkIdentity($input, $intent, $predecessor),
-    ))->toThrow(InvalidArgumentException::class)
+    )))->toThrow(InvalidArgumentException::class)
         ->and(DB::table('prc_process_work')->count())->toBe($count);
 });
 

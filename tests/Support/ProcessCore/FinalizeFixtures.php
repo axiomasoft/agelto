@@ -10,6 +10,7 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\HandlerFaultEvidence;
 use App\Dto\Procurement\Process\StageSucceeded;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\StageCode;
@@ -140,10 +141,17 @@ final class FinalizeFixtures
             if ($prefix->group !== null) {
                 app(WorkStoreRepository::class)->releaseGroupLocked($prefix->group, count($prefix->members), $cancel ? 'cancelled' : 'lease_recovery');
             }
-            app(TransitionRepository::class)->recordWork(
-                LedgerFixtures::uuid(), LedgerFixtures::uuid(), $work->value, $row->int('transition_seq'),
-                'running', $state, $cancel ? 'cancelled' : 'lease_recovery', $cancel ? ActorKind::Operator : ActorKind::Reconciler, $row->int('generation'),
-            );
+            app(TransitionRepository::class)->recordWork(new TransitionData(
+                eventId: LedgerFixtures::uuid(),
+                projectionMessageId: LedgerFixtures::uuid(),
+                entityId: $work->value,
+                entitySeq: $row->int('transition_seq'),
+                previousState: 'running',
+                newState: $state,
+                reasonCode: $cancel ? 'cancelled' : 'lease_recovery',
+                actor: $cancel ? ActorKind::Operator : ActorKind::Reconciler,
+                generation: $row->int('generation'),
+            ));
 
             return true;
         });

@@ -9,7 +9,9 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\StatusRefreshInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
@@ -151,12 +153,30 @@ final readonly class RefreshRepository
         $work = new WorkId(ListingStoreRepository::id('refresh-work:'.$intent->value));
         $this->runs->storeRun($run, RunKind::Schedule, 'refresh:'.$intent->value, null, $configuration, null,
             ListingStoreRepository::id('run-event:'.$intent->value), ListingStoreRepository::id('run-project:'.$intent->value));
-        $this->works->storeWork($work, $input, 1, $intent, $cohort, $p->platform_id, $run, 100,
-            ListingStoreRepository::id('work-event:'.$intent->value), ListingStoreRepository::id('work-project:'.$intent->value));
+        $this->works->storeWork(new StoreWorkData(
+            id: $work,
+            input: $input,
+            inputRevision: 1,
+            intentId: $intent,
+            cohortKey: $cohort,
+            platformId: $p->platform_id,
+            originRunId: $run,
+            priority: 100,
+            eventId: ListingStoreRepository::id('work-event:'.$intent->value),
+            projectionMessageId: ListingStoreRepository::id('work-project:'.$intent->value),
+        ));
         $this->works->linkRun($run, $work, RunWorkRelation::Created, AccountingRole::Required);
         DB::update("UPDATE prc_process_runs SET discovery_outcome='complete', discovery_closed_at=clock_timestamp(),transition_seq=2 WHERE id=?", [$run->value]);
-        $this->transitions->recordRun(ListingStoreRepository::id('close-event:'.$intent->value), ListingStoreRepository::id('close-project:'.$intent->value),
-            $run, 2, 'collecting', 'complete', null, ActorKind::System);
+        $this->transitions->recordRun(new TransitionData(
+            eventId: ListingStoreRepository::id('close-event:'.$intent->value),
+            projectionMessageId: ListingStoreRepository::id('close-project:'.$intent->value),
+            entityId: $run,
+            entitySeq: 2,
+            previousState: 'collecting',
+            newState: 'complete',
+            reasonCode: null,
+            actor: ActorKind::System,
+        ));
 
         return $work;
     }

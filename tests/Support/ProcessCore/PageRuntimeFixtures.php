@@ -16,6 +16,7 @@ use App\Dto\Procurement\Document\RepresentationCoverage;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ExecutionLease;
 use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\TaskPurpose;
@@ -80,8 +81,18 @@ final class PageRuntimeFixtures
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$documentId]);
             DB::select('SELECT id FROM prc_document_versions WHERE id=? FOR UPDATE', [$run->documentVersionId]);
             app(AnalysisRepository::class)->storeRunLocked($run);
-            app(WorkStoreRepository::class)->storeWork($work, new ScreeningInput($run->documentVersionId, $run->representationHash, $run->recipe->hash),
-                $run->expectedAnalysisGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid());
+            app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
+                id: $work,
+                input: new ScreeningInput($run->documentVersionId, $run->representationHash, $run->recipe->hash),
+                inputRevision: $run->expectedAnalysisGeneration,
+                intentId: null,
+                cohortKey: 'manual',
+                platformId: null,
+                originRunId: null,
+                priority: 100,
+                eventId: LedgerFixtures::uuid(),
+                projectionMessageId: LedgerFixtures::uuid(),
+            ));
         });
 
         return [$work, FinalizeFixtures::running($work), $run, $period];

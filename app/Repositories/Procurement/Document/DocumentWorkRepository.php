@@ -8,7 +8,9 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DownloadInput;
 use App\Dto\Procurement\Process\PrepareInput;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkIdentity;
@@ -167,12 +169,30 @@ final readonly class DocumentWorkRepository
         $this->runs->storeRun($run, $manual ? RunKind::Manual : RunKind::Profile, 'document:'.$key, null,
             new VersionedPayload('{"pipeline":"documents","version":1}', 1), $requestedBy,
             ListingStoreRepository::id('document-run-event:'.$key), ListingStoreRepository::id('document-run-project:'.$key));
-        $this->works->storeWork($id, $input, $generation, $intent, $cohort, $platformId, $run, 100,
-            ListingStoreRepository::id('document-event:'.$key), ListingStoreRepository::id('document-project:'.$key));
+        $this->works->storeWork(new StoreWorkData(
+            id: $id,
+            input: $input,
+            inputRevision: $generation,
+            intentId: $intent,
+            cohortKey: $cohort,
+            platformId: $platformId,
+            originRunId: $run,
+            priority: 100,
+            eventId: ListingStoreRepository::id('document-event:'.$key),
+            projectionMessageId: ListingStoreRepository::id('document-project:'.$key),
+        ));
         $this->works->linkRun($run, $id, RunWorkRelation::Created, AccountingRole::Required);
         DB::update("UPDATE prc_process_runs SET discovery_outcome='complete',discovery_closed_at=clock_timestamp(),transition_seq=2 WHERE id=?", [$run->value]);
-        $this->transitions->recordRun(ListingStoreRepository::id('document-close:'.$key), ListingStoreRepository::id('document-close-project:'.$key),
-            $run, 2, 'collecting', 'complete', null, ActorKind::System);
+        $this->transitions->recordRun(new TransitionData(
+            eventId: ListingStoreRepository::id('document-close:'.$key),
+            projectionMessageId: ListingStoreRepository::id('document-close-project:'.$key),
+            entityId: $run,
+            entitySeq: 2,
+            previousState: 'collecting',
+            newState: 'complete',
+            reasonCode: null,
+            actor: ActorKind::System,
+        ));
 
         return true;
     }

@@ -12,6 +12,7 @@ use App\Dto\Procurement\Ai\ScreeningPolicySnapshot;
 use App\Dto\Procurement\Process\ExtractionWindowInput;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\StageBlocked;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\StructuredDisposition;
@@ -101,10 +102,30 @@ test('one run authorizes its distinct pinned screening and rows contracts and re
     $rows = new WorkId(LedgerFixtures::uuid());
     app(ProcessTransaction::class)->run(function () use ($window, $screen, $rows): void {
         $works = app(WorkStoreRepository::class);
-        $works->storeWork($screen, new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash),
-            $window->run->expectedAnalysisGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid());
-        $works->storeWork($rows, new ExtractionWindowInput($window->run->id, $window->windowKey, $window->run->recipe->hash),
-            $window->run->expectedDocumentHeadGeneration, null, 'manual', null, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid());
+        $works->storeWork(new StoreWorkData(
+            id: $screen,
+            input: new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash),
+            inputRevision: $window->run->expectedAnalysisGeneration,
+            intentId: null,
+            cohortKey: 'manual',
+            platformId: null,
+            originRunId: null,
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        ));
+        $works->storeWork(new StoreWorkData(
+            id: $rows,
+            input: new ExtractionWindowInput($window->run->id, $window->windowKey, $window->run->recipe->hash),
+            inputRevision: $window->run->expectedDocumentHeadGeneration,
+            intentId: null,
+            cohortKey: 'manual',
+            platformId: null,
+            originRunId: null,
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        ));
     });
     $screenLease = FinalizeFixtures::running($screen);
     $rowsLease = FinalizeFixtures::running($rows);

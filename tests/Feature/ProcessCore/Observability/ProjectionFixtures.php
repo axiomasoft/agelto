@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\ProcessCore\Observability;
 
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Repositories\Procurement\Process\TransitionRepository;
@@ -41,7 +42,17 @@ final class ProjectionFixtures
     {
         $seq = (int) DB::table('prc_process_transitions')->where('work_id', $work->value->value)->max('entity_seq') + 1;
         $event = LedgerFixtures::uuid();
-        app(TransitionRepository::class)->recordWork($event, LedgerFixtures::uuid(), $work->value, $seq, $previous, $new, $reason, ActorKind::System, 1);
+        app(TransitionRepository::class)->recordWork(new TransitionData(
+            eventId: $event,
+            projectionMessageId: LedgerFixtures::uuid(),
+            entityId: $work->value,
+            entitySeq: $seq,
+            previousState: $previous,
+            newState: $new,
+            reasonCode: $reason,
+            actor: ActorKind::System,
+            generation: 1,
+        ));
 
         return $event;
     }

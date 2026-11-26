@@ -10,6 +10,7 @@ use App\Dto\Procurement\Ai\CoverageStrategy;
 use App\Dto\Procurement\Ai\PreparedAnalysisCandidate;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkId;
@@ -143,7 +144,7 @@ final readonly class AnalysisFeeder implements ReconcileCategory
         );
 
         $workId = new WorkId(ListingStoreRepository::id('analysis-work:'.$key->hex));
-        $this->works->storeWork(
+        $this->works->storeWork(new StoreWorkData(
             id: $workId,
             input: $input,
             inputRevision: $run->expectedAnalysisGeneration,
@@ -154,7 +155,7 @@ final readonly class AnalysisFeeder implements ReconcileCategory
             priority: 100,
             eventId: ListingStoreRepository::id('analysis-work-event:'.$key->hex),
             projectionMessageId: ListingStoreRepository::id('analysis-work-project:'.$key->hex),
-        );
+        ));
         $this->works->linkRun(
             runId: $processRunId,
             workId: $workId,

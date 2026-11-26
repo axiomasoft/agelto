@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2ca9bc3cf8d9a556910aed72f1d54064",
+    "content-hash": "316c2ab835ce84ad8ea3a283fa93cebe",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -8715,16 +8715,16 @@
         },
         {
             "name": "symfony/html-sanitizer",
-            "version": "v8.1.11",
+            "version": "v8.1.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/html-sanitizer.git",
-                "reference": "1ecf13d98b75f5d8a2dcc1ffecde7184d29506ef"
+                "reference": "dabda9c20d51beaaeadb08f1bd50c124fa08bfb9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/html-sanitizer/zipball/1ecf13d98b75f5d8a2dcc1ffecde7184d29506ef",
-                "reference": "1ecf13d98b75f5d8a2dcc1ffecde7184d29506ef",
+                "url": "https://api.github.com/repos/symfony/html-sanitizer/zipball/dabda9c20d51beaaeadb08f1bd50c124fa08bfb9",
+                "reference": "dabda9c20d51beaaeadb08f1bd50c124fa08bfb9",
                 "shasum": ""
             },
             "require": {
@@ -8763,7 +8763,7 @@
                 "sanitizer"
             ],
             "support": {
-                "source": "https://github.com/symfony/html-sanitizer/tree/v8.1.11"
+                "source": "https://github.com/symfony/html-sanitizer/tree/v8.1.12"
             },
             "funding": [
                 {
@@ -8783,20 +8783,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-11-04T08:39:20+00:00"
+            "time": "2026-11-24T18:01:43+00:00"
         },
         {
             "name": "symfony/http-foundation",
-            "version": "v8.1.11",
+            "version": "v8.1.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-foundation.git",
-                "reference": "30fa3efe6e736b0d06f5331cc6abe813582c0a26"
+                "reference": "8061f6d6b6ec8fc5075b5f39c8ddca83110da9c6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-foundation/zipball/30fa3efe6e736b0d06f5331cc6abe813582c0a26",
-                "reference": "30fa3efe6e736b0d06f5331cc6abe813582c0a26",
+                "url": "https://api.github.com/repos/symfony/http-foundation/zipball/8061f6d6b6ec8fc5075b5f39c8ddca83110da9c6",
+                "reference": "8061f6d6b6ec8fc5075b5f39c8ddca83110da9c6",
                 "shasum": ""
             },
             "require": {
@@ -8844,7 +8844,7 @@
             "description": "Defines an object-oriented layer for the HTTP specification",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/http-foundation/tree/v8.1.11"
+                "source": "https://github.com/symfony/http-foundation/tree/v8.1.12"
             },
             "funding": [
                 {
@@ -8864,20 +8864,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-11-04T08:39:20+00:00"
+            "time": "2026-11-24T18:01:43+00:00"
         },
         {
             "name": "symfony/http-kernel",
-            "version": "v8.1.11",
+            "version": "v8.1.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-kernel.git",
-                "reference": "460658504e26a2794aa614b4fbe6cf9bac2076fe"
+                "reference": "cd6146b67375122b050c25cfb1a49b6fe6fc4adb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-kernel/zipball/460658504e26a2794aa614b4fbe6cf9bac2076fe",
-                "reference": "460658504e26a2794aa614b4fbe6cf9bac2076fe",
+                "url": "https://api.github.com/repos/symfony/http-kernel/zipball/cd6146b67375122b050c25cfb1a49b6fe6fc4adb",
+                "reference": "cd6146b67375122b050c25cfb1a49b6fe6fc4adb",
                 "shasum": ""
             },
             "require": {
@@ -8886,11 +8886,11 @@
                 "symfony/deprecation-contracts": "^2.5|^3",
                 "symfony/error-handler": "^7.4|^8.0",
                 "symfony/event-dispatcher": "^7.4|^8.0",
-                "symfony/http-foundation": "^7.4|^8.0",
+                "symfony/http-foundation": "^7.4.24|^8.1.12",
                 "symfony/polyfill-ctype": "^1.8"
             },
             "conflict": {
-                "symfony/dependency-injection": "<8.1",
+                "symfony/dependency-injection": "<8.1.12",
                 "symfony/flex": "<2.10",
                 "symfony/http-client-contracts": "<2.5",
                 "symfony/serializer": "<7.4.15|>=8.0,<8.0.15|>=8.1,<8.1.2",
@@ -8954,7 +8954,7 @@
             "description": "Provides a structured process for converting a Request into a Response",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/http-kernel/tree/v8.1.11"
+                "source": "https://github.com/symfony/http-kernel/tree/v8.1.12"
             },
             "funding": [
                 {
@@ -8974,20 +8974,20 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-11-04T11:29:46+00:00"
+            "time": "2026-11-25T09:27:11+00:00"
         },
         {
             "name": "symfony/mailer",
-            "version": "v8.1.2",
+            "version": "v8.1.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/mailer.git",
-                "reference": "221c7f326ace1ac2baee8331d829d5b7f04f4d53"
+                "reference": "535515ab0bdc7efbfb7161fe23c6bf7434e26b93"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/mailer/zipball/221c7f326ace1ac2baee8331d829d5b7f04f4d53",
-                "reference": "221c7f326ace1ac2baee8331d829d5b7f04f4d53",
+                "url": "https://api.github.com/repos/symfony/mailer/zipball/535515ab0bdc7efbfb7161fe23c6bf7434e26b93",
+                "reference": "535515ab0bdc7efbfb7161fe23c6bf7434e26b93",
                 "shasum": ""
             },
             "require": {
@@ -9034,7 +9034,7 @@
             "description": "Helps sending emails",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/mailer/tree/v8.1.2"
+                "source": "https://github.com/symfony/mailer/tree/v8.1.12"
             },
             "funding": [
                 {
@@ -9054,7 +9054,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-28T07:35:25+00:00"
+            "time": "2026-11-24T18:01:43+00:00"
         },
         {
             "name": "symfony/mime",
@@ -10276,16 +10276,16 @@
         },
         {
             "name": "symfony/routing",
-            "version": "v8.1.11",
+            "version": "v8.1.12",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/routing.git",
-                "reference": "f3fefc6cad3748d538be970ca81b71f06d7aa8b3"
+                "reference": "55df7515cdd7769113e46dbeba7942c1ccab8590"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/routing/zipball/f3fefc6cad3748d538be970ca81b71f06d7aa8b3",
-                "reference": "f3fefc6cad3748d538be970ca81b71f06d7aa8b3",
+                "url": "https://api.github.com/repos/symfony/routing/zipball/55df7515cdd7769113e46dbeba7942c1ccab8590",
+                "reference": "55df7515cdd7769113e46dbeba7942c1ccab8590",
                 "shasum": ""
             },
             "require": {
@@ -10332,7 +10332,7 @@
                 "url"
             ],
             "support": {
-                "source": "https://github.com/symfony/routing/tree/v8.1.11"
+                "source": "https://github.com/symfony/routing/tree/v8.1.12"
             },
             "funding": [
                 {
@@ -10352,7 +10352,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-11-04T08:39:20+00:00"
+            "time": "2026-11-24T18:01:43+00:00"
         },
         {
             "name": "symfony/service-contracts",
@@ -11390,42 +11390,6 @@
                 }
             ],
             "time": "2025-08-20T19:15:30+00:00"
-        },
-        {
-            "name": "driftingly/rector-laravel",
-            "version": "2.5.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/driftingly/rector-laravel.git",
-                "reference": "0dbdd842dfdbc821cfe5f47ca7326e2502b2a107"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/driftingly/rector-laravel/zipball/0dbdd842dfdbc821cfe5f47ca7326e2502b2a107",
-                "reference": "0dbdd842dfdbc821cfe5f47ca7326e2502b2a107",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^7.4 || ^8.0",
-                "rector/rector": "^2.2.7",
-                "webmozart/assert": "^1.11 || ^2.0"
-            },
-            "type": "rector-extension",
-            "autoload": {
-                "psr-4": {
-                    "RectorLaravel\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "description": "Rector upgrades rules for Laravel Framework",
-            "support": {
-                "issues": "https://github.com/driftingly/rector-laravel/issues",
-                "source": "https://github.com/driftingly/rector-laravel/tree/2.5.0"
-            },
-            "time": "2026-06-02T16:22:14+00:00"
         },
         {
             "name": "fakerphp/faker",
@@ -13824,66 +13788,6 @@
                 }
             ],
             "time": "2026-07-28T14:00:09+00:00"
-        },
-        {
-            "name": "rector/rector",
-            "version": "2.6.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/rectorphp/rector.git",
-                "reference": "03cd615cdd5648abb5f10ff3a684fdb976687190"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/rectorphp/rector/zipball/03cd615cdd5648abb5f10ff3a684fdb976687190",
-                "reference": "03cd615cdd5648abb5f10ff3a684fdb976687190",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^7.4|^8.0",
-                "phpstan/phpstan": "^2.2.6"
-            },
-            "conflict": {
-                "rector/rector-doctrine": "*",
-                "rector/rector-downgrade-php": "*",
-                "rector/rector-phpunit": "*",
-                "rector/rector-symfony": "*"
-            },
-            "suggest": {
-                "ext-dom": "To manipulate phpunit.xml via the custom-rule command"
-            },
-            "bin": [
-                "bin/rector"
-            ],
-            "type": "library",
-            "autoload": {
-                "files": [
-                    "bootstrap.php"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "description": "Instant Upgrade and Automated Refactoring of any PHP code",
-            "homepage": "https://getrector.com/",
-            "keywords": [
-                "automation",
-                "dev",
-                "migration",
-                "refactoring"
-            ],
-            "support": {
-                "issues": "https://github.com/rectorphp/rector/issues",
-                "source": "https://github.com/rectorphp/rector/tree/2.6.2"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/tomasvotruba",
-                    "type": "github"
-                }
-            ],
-            "time": "2026-08-12T06:23:05+00:00"
         },
         {
             "name": "sebastian/cli-parser",

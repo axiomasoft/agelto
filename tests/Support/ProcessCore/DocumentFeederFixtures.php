@@ -9,6 +9,7 @@ use App\Dto\Procurement\Document\DocumentRange;
 use App\Dto\Procurement\Document\RepresentationCoverage;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Document\CoverageUnit;
 use App\Enums\Procurement\Document\RepresentationKind;
@@ -55,8 +56,18 @@ final class DocumentFeederFixtures
         $analysis = AiFixtures::pinScreening($representationId);
         $input = new ScreeningInput($revision->id, $analysis->representationHash, $analysis->recipe->hash);
         $id = new WorkId(LedgerFixtures::uuid());
-        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork($id, $input,
-            $analysis->expectedAnalysisGeneration, null, $cohort, $platform->id, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+        app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
+            id: $id,
+            input: $input,
+            inputRevision: $analysis->expectedAnalysisGeneration,
+            intentId: null,
+            cohortKey: $cohort,
+            platformId: $platform->id,
+            originRunId: null,
+            priority: 100,
+            eventId: LedgerFixtures::uuid(),
+            projectionMessageId: LedgerFixtures::uuid(),
+        )));
 
         return $id;
     }

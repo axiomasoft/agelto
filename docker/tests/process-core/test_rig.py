@@ -402,6 +402,7 @@ class RigGuardsTest(unittest.TestCase):
             "tests/Integration/ProcessCore/Concurrency/StorageCapacityTest.php",
             "tests/Integration/ProcessCore/Concurrency/DocumentStorageTest.php",
             "tests/Feature/Procurement/Prepare",
+            "tests/Feature/Procurement/Document/S3CrashRecoveryTest.php",
             "tests/Feature/Document/DocumentDownloaderTest.php",
         ])
         calls = []

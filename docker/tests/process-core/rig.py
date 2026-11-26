@@ -849,7 +849,9 @@ def quality(folder):
     schema_tests = run(["env", "PROCESS_CORE_SCHEMA_RIG=1", sys.executable, "-B", "-m", "unittest", "discover", "-s",
                         "docker/tests/process-core", "-p", "test_schema_inventory.py", "-v"], check=False)
     (folder / "schema-tests.log").write_text(schema_tests.stdout + schema_tests.stderr)
-    results = {"schema-tests": schema_tests.returncode}
+    fixture_catalog = run([sys.executable, "-B", "docker/tests/process-core/fixture_manifest.py", ROOT], check=False)
+    (folder / "fixture-manifest.log").write_text(fixture_catalog.stdout + fixture_catalog.stderr)
+    results = {"schema-tests": schema_tests.returncode, "fixture-manifest": fixture_catalog.returncode}
     for name, command in [("pint", ["./vendor/bin/pint", "--test"]),
                           ("phpstan", ["./vendor/bin/phpstan", "analyse", "--memory-limit=1G", "--no-progress"]),
                           ("architecture", ["./vendor/bin/pest", "--no-tia",

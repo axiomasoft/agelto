@@ -9,6 +9,7 @@ use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DeliveryGeneration;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ProviderRecoveryPlan;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\BlockedReason;
@@ -183,10 +184,17 @@ final readonly class RecoveryRepository
             throw new \LogicException('Recovery must close exactly the expired attempt.');
         }
         $this->works->releaseGroupLocked($group, count($prefix->members), 'lease_recovery');
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            WorkState::Running->value, $state->value, $reason ?? 'lease_recovery', ActorKind::Reconciler, $row->int('generation'),
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids['event'],
+            projectionMessageId: $ids['projection'],
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: WorkState::Running->value,
+            newState: $state->value,
+            reasonCode: $reason ?? 'lease_recovery',
+            actor: ActorKind::Reconciler,
+            generation: $row->int('generation'),
+        ));
         if ($state === WorkState::Ready) {
             $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($stage));
         }
@@ -229,10 +237,17 @@ final readonly class RecoveryRepository
                 [$hold->value, $snapshot->workId->value->value, $dispatch],
             ) ?? throw new \LogicException('Admitted release fence did not match the locked work.');
             $this->works->releaseGroupLocked($group, count($prefix->members), $hold->value);
-            $this->transitions->recordWork(
-                $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-                WorkState::Admitted->value, WorkState::Blocked->value, $hold->value, ActorKind::Reconciler, $work->int('generation'),
-            );
+            $this->transitions->recordWork(new TransitionData(
+                eventId: $ids['event'],
+                projectionMessageId: $ids['projection'],
+                entityId: $snapshot->workId->value,
+                entitySeq: $row->int('transition_seq'),
+                previousState: WorkState::Admitted->value,
+                newState: WorkState::Blocked->value,
+                reasonCode: $hold->value,
+                actor: ActorKind::Reconciler,
+                generation: $work->int('generation'),
+            ));
 
             return RecoveryOutcome::Recovered;
         }
@@ -255,10 +270,17 @@ final readonly class RecoveryRepository
         ) !== 1) {
             throw new \LogicException('Redelivery must move the whole admission group to the new delivery generation.');
         }
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            WorkState::Admitted->value, WorkState::Admitted->value, 'claim_redelivery', ActorKind::Reconciler, $work->int('generation'),
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids['event'],
+            projectionMessageId: $ids['projection'],
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: WorkState::Admitted->value,
+            newState: WorkState::Admitted->value,
+            reasonCode: 'claim_redelivery',
+            actor: ActorKind::Reconciler,
+            generation: $work->int('generation'),
+        ));
         $this->outbox->enqueueWorkWake($ids['wake'], $snapshot->workId, new DeliveryGeneration($row->int('dispatch_generation')), $stage);
 
         return RecoveryOutcome::Recovered;
@@ -297,10 +319,17 @@ final readonly class RecoveryRepository
              RETURNING transition_seq",
             [$snapshot->workId->value->value, $reason],
         ) ?? throw new \LogicException('Blocked release fence did not match the locked work.');
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            WorkState::Blocked->value, WorkState::Ready->value, 'control_released', ActorKind::Reconciler, $work->int('generation'),
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids['event'],
+            projectionMessageId: $ids['projection'],
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: WorkState::Blocked->value,
+            newState: WorkState::Ready->value,
+            reasonCode: 'control_released',
+            actor: ActorKind::Reconciler,
+            generation: $work->int('generation'),
+        ));
         $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($stage));
 
         return RecoveryOutcome::Recovered;
@@ -376,10 +405,17 @@ final readonly class RecoveryRepository
              RETURNING transition_seq",
             [$next->value, $hold?->value, $payload->json, $payload->schemaVersion, $snapshot->workId->value->value, $pinnedSeq],
         ) ?? throw new \LogicException('Provider recovery fence did not match the locked blocked work.');
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            WorkState::Blocked->value, $next->value, $hold->value ?? 'provider_outcome_verified', ActorKind::Reconciler, $work->int('generation'),
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids['event'],
+            projectionMessageId: $ids['projection'],
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: WorkState::Blocked->value,
+            newState: $next->value,
+            reasonCode: $hold->value ?? 'provider_outcome_verified',
+            actor: ActorKind::Reconciler,
+            generation: $work->int('generation'),
+        ));
         if ($next === WorkState::Ready) {
             $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($stage));
         }

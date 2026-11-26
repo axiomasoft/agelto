@@ -18,6 +18,7 @@ use App\Dto\Procurement\Platform\PlatformCode;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Platform\AssessmentReason;
@@ -243,7 +244,7 @@ test('DetailSnapshotRepository::request изолирует запрос по int
         LedgerFixtures::hash('access'),
         'fixture-detail/1',
     );
-    app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(
+    app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
         id: $workB,
         input: $inputB,
         inputRevision: $procurement->head_generation,
@@ -254,7 +255,7 @@ test('DetailSnapshotRepository::request изолирует запрос по int
         priority: 100,
         eventId: LedgerFixtures::uuid(),
         projectionMessageId: LedgerFixtures::uuid(),
-    ));
+    )));
     DB::table('prc_process_work')->where('id', $workB->value->value)->update([
         'state' => 'blocked',
         'reason_code' => 'handler_fault_limit',

@@ -12,6 +12,7 @@ use App\Dto\Procurement\Network\ProviderTargetDefinitions;
 use App\Dto\Procurement\Platform\CanonicalOrigin;
 use App\Dto\Procurement\Platform\SourceTargetDefinitions;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Enums\Procurement\Network\NetworkChangeStatus;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Repositories\Procurement\Process\CallerTransaction;
@@ -182,9 +183,17 @@ final readonly class SourceCatalogRepository
             [$system->string('id'), $system->int('control_version')],
         ) ?? throw new \LogicException('System authority fence did not match the locked row.');
         $mode = $system->string('desired_mode');
-        $this->transitions->recordControl(
-            $eventId, $projectionMessageId, new ProcessUuid($system->string('id')), $changed->int('control_version'),
-            $mode, $mode, $reasonCode, $actor, $actorId, $details,
-        );
+        $this->transitions->recordControl(new TransitionData(
+            eventId: $eventId,
+            projectionMessageId: $projectionMessageId,
+            entityId: new ProcessUuid($system->string('id')),
+            entitySeq: $changed->int('control_version'),
+            previousState: $mode,
+            newState: $mode,
+            reasonCode: $reasonCode,
+            actor: $actor,
+            actorId: $actorId,
+            details: $details,
+        ));
     }
 }

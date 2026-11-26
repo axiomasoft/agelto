@@ -7,6 +7,7 @@ namespace Tests\Support\ProcessCore;
 use App\Dto\Procurement\Process\ContentHash;
 use App\Dto\Procurement\Process\ControlChangeResult;
 use App\Dto\Procurement\Process\DeliveryGeneration;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
@@ -123,7 +124,7 @@ final class ExecutionFixtures
     public static function store(WorkInput $input, string $cohort, int $priority): WorkId
     {
         $id = new WorkId(LedgerFixtures::uuid());
-        app(WorkStoreRepository::class)->storeWork(
+        app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
             id: $id,
             input: $input,
             inputRevision: 1,
@@ -134,7 +135,7 @@ final class ExecutionFixtures
             priority: $priority,
             eventId: LedgerFixtures::uuid(),
             projectionMessageId: LedgerFixtures::uuid(),
-        );
+        ));
 
         return $id;
     }

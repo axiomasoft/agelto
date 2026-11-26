@@ -7,13 +7,41 @@ import re
 import sys
 
 
-def verify(root):
+BASELINE_MANIFEST = "tests/Fixtures/ProcessCore/manifest.json"
+RUNTIME_MANIFEST = "tests/Fixtures/ProcessCore/runtime-inputs.json"
+
+
+def fixture_path(root, relative, fixture_id):
+    path = PurePosixPath(relative)
+    if not relative or path.is_absolute() or ".." in path.parts or "\\" in relative:
+        raise ValueError(f"fixture_manifest: unsafe path: {fixture_id}")
+    fixture_roots = ("tests/Fixtures/", "docker/tests/process-core/fixtures/", "estimates/gold/")
+    catalog_paths = {BASELINE_MANIFEST, RUNTIME_MANIFEST}
+    if relative in catalog_paths or path.suffix == ".php" or not (
+        relative.startswith(fixture_roots) or relative == "tests/Support/ProcessCore/contracts-v1.json"
+    ):
+        raise ValueError(f"fixture_manifest: not a contract fixture: {fixture_id}")
+    target = root
+    for part in path.parts:
+        target = target / part
+        if target.is_symlink():
+            raise ValueError(f"fixture_manifest: symlink: {fixture_id}")
+    if not target.is_file() or not target.resolve().is_relative_to(root):
+        raise ValueError(f"fixture_manifest: missing/outside file: {fixture_id}")
+    return target
+
+
+def verify(root, *, sync=False):
     root = Path(root).resolve()
-    manifest_path = root / "tests/Fixtures/ProcessCore/manifest.json"
+    manifest_path = root / BASELINE_MANIFEST
     manifest_bytes = manifest_path.read_bytes()
     manifest = json.loads(manifest_bytes)
     if not isinstance(manifest, dict):
         raise ValueError("fixture_manifest: expected object")
+    for section in ("files", "migrations", "source_classes", "contract_references",
+                    "retired_files", "retired_migrations", "retired_source_classes"):
+        if any("sha256" in entry for entry in manifest.get(section, [])):
+            raise ValueError(f"fixture_manifest: mutable pins in {section}")
     entries = manifest.get("contract_fixtures")
     if not isinstance(entries, list) or not entries:
         raise ValueError("fixture_manifest: empty contract_fixtures")
@@ -27,19 +55,11 @@ def verify(root):
             raise ValueError("fixture_manifest: invalid/duplicate id")
         seen.add(fixture_id)
         relative = entry.get("path", "")
-        path = PurePosixPath(relative)
-        if not relative or path.is_absolute() or ".." in path.parts or "\\" in relative:
-            raise ValueError(f"fixture_manifest: unsafe path: {fixture_id}")
-        target = root
-        for part in path.parts:
-            target = target / part
-            if target.is_symlink():
-                raise ValueError(f"fixture_manifest: symlink: {fixture_id}")
-        if not target.is_file() or not target.resolve().is_relative_to(root):
-            raise ValueError(f"fixture_manifest: missing/outside file: {fixture_id}")
-        expected_hash = entry.get("sha256", "")
-        if not re.fullmatch(r"[a-f0-9]{64}", expected_hash) or hashlib.sha256(target.read_bytes()).hexdigest() != expected_hash:
+        target = fixture_path(root, relative, fixture_id)
+        actual_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+        if not sync and entry.get("sha256") != actual_hash:
             raise ValueError(f"fixture_manifest: hash mismatch: {fixture_id}")
+        entry["sha256"] = actual_hash
         for key in ("kind", "provenance", "coverage"):
             if not isinstance(entry.get(key), str) or not entry[key].strip():
                 raise ValueError(f"fixture_manifest: missing {key}: {fixture_id}")
@@ -62,13 +82,38 @@ def verify(root):
         scenarios = entry.get("scenario_ids")
         if not isinstance(scenarios, list) or not scenarios or any(not isinstance(s, str) or not re.fullmatch(r"T(?:0[1-9]|[1-3][0-9]|4[0-8])", s) for s in scenarios):
             raise ValueError(f"fixture_manifest: invalid scenarios: {fixture_id}")
-        verified.append({"id": fixture_id, "path": relative, "sha256": expected_hash, "scenario_ids": scenarios, "coverage": entry["coverage"]})
+        verified.append({"id": fixture_id, "path": relative, "sha256": actual_hash, "scenario_ids": scenarios, "coverage": entry["coverage"]})
+    if sync:
+        updated = (json.dumps(manifest, ensure_ascii=False, indent=4) + "\n").encode()
+        if updated != manifest_bytes:
+            manifest_path.write_bytes(updated)
+            manifest_bytes = updated
     return {"manifest_sha256": hashlib.sha256(manifest_bytes).hexdigest(), "fixtures": verified}
+
+
+def sync_gold(root):
+    runtime_path = root / RUNTIME_MANIFEST
+    updated = json.loads(runtime_path.read_bytes())
+    gold = [entry for entry in updated["files"] if entry["source"].startswith("estimates/gold/")]
+    changed = False
+    for entry in gold:
+        target = fixture_path(root, entry["source"], entry["source"])
+        actual_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+        if entry.get("sha256") != actual_hash:
+            entry["sha256"] = actual_hash
+            changed = True
+    if changed:
+        runtime_path.write_text(json.dumps(updated, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return len(gold)
 
 
 if __name__ == "__main__":
     try:
-        print(json.dumps(verify(sys.argv[1])))
+        sync = sys.argv[2:] == ["--sync"]
+        proof = verify(sys.argv[1], sync=sync)
+        if sync:
+            proof = {"synced_contract_fixtures": len(proof["fixtures"]), "synced_gold_fixtures": sync_gold(Path(sys.argv[1]).resolve())}
+        print(json.dumps(proof))
     except (ValueError, KeyError, TypeError, OSError) as error:
         print(json.dumps({"error": "fixture_manifest_invalid", "detail": str(error)}))
         sys.exit(1)

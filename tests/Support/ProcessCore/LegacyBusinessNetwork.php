@@ -26,7 +26,7 @@ use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Network\ResponseDecoder;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxy\RoutePolicy;
+use App\Services\Procurement\Proxyma\ProfileBindings;
 use Closure;
 use GuzzleHttp\Psr7\Response as PsrResponse;
 use Illuminate\Http\Client\Response;
@@ -99,7 +99,7 @@ final class LegacyBusinessNetwork implements LegacyOutbound
     }
 
     public function request(string $callerCode, ?int $platformId, ?ProviderKey $providerKey, string $capability,
-        SafeUrl $url, TrafficClass $trafficClass, RoutePolicy $routePolicy, array $controls, int $deadlineSeconds,
+        SafeUrl $url, TrafficClass $trafficClass, ProfileBindings $routePolicy, array $controls, int $deadlineSeconds,
         string $method = 'GET', HttpRequestPayload $payload = new HttpRequestPayload,
         IdempotencyClass $idempotency = IdempotencyClass::ReadOnly, ?Closure $checkpoint = null, ?int $sendLimit = null, ?OutboundExecutionContext $context = null): Response
     {

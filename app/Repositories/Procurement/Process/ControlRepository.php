@@ -7,6 +7,7 @@ namespace App\Repositories\Procurement\Process;
 use App\Dto\Procurement\Process\ControlChangeResult;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ScopeDefinition;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Enums\Procurement\Process\ActorKind;
 use App\Enums\Procurement\Process\ControlChangeStatus;
 use App\Enums\Procurement\Process\ControlMode;
@@ -138,11 +139,18 @@ final readonly class ControlRepository
              WHERE id = ? AND control_version = ? RETURNING control_version',
             [$mode->value, $changedBy, $reason, $target->string('id'), $version],
         ) ?? throw new \LogicException('Control version fence did not match the locked scope.');
-        $this->transitions->recordControl(
-            $eventId, $projectionMessageId, new ProcessUuid($target->string('id')), $changed->int('control_version'),
-            $previous, $mode->value, 'manual_'.$mode->value, $changedBy === null ? ActorKind::System : ActorKind::Operator, $changedBy,
-            ['reason' => $reason],
-        );
+        $this->transitions->recordControl(new TransitionData(
+            eventId: $eventId,
+            projectionMessageId: $projectionMessageId,
+            entityId: new ProcessUuid($target->string('id')),
+            entitySeq: $changed->int('control_version'),
+            previousState: $previous,
+            newState: $mode->value,
+            reasonCode: 'manual_'.$mode->value,
+            actor: $changedBy === null ? ActorKind::System : ActorKind::Operator,
+            actorId: $changedBy,
+            details: ['reason' => $reason],
+        ));
 
         return new ControlChangeResult(ControlChangeStatus::Applied, $changed->int('control_version'));
     }

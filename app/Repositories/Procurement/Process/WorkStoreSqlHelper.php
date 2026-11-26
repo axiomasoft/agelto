@@ -15,8 +15,11 @@ use App\Dto\Procurement\Process\NoProviderRecovery;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ProviderRecoveryPlan;
 use App\Dto\Procurement\Process\StageCheckpoint;
+use App\Dto\Procurement\Process\StoreWorkData;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\VersionedPayload;
 use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
+use App\Dto\Procurement\Process\WorkClaimIds;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkIdentity;
 use App\Enums\Procurement\Process\AccountingRole;
@@ -85,7 +88,7 @@ final readonly class WorkStoreSqlHelper
     }
 
     /**
-     * @param  \Closure(WorkId, DetailInput, int, ProcessUuid, string, ?int, ?ProcessUuid, int, ProcessUuid, ProcessUuid, WorkIdentity): void  $storeWork
+     * @param  \Closure(StoreWorkData): void  $storeWork
      */
     public function carrySupersededRequirement(
         AuthoritySnapshot $snapshot,
@@ -129,19 +132,19 @@ final readonly class WorkStoreSqlHelper
             $successor = new WorkId(self::derivedId($eventId, 'superseded-successor:work'));
             $work = $prefix->work;
             $origin = $work->nullableString('origin_run_id');
-            $storeWork(
-                $successor,
-                $repinned,
-                $snapshot->inputRevision,
-                $intentId,
-                $work->string('cohort_key'),
-                $work->nullableInt('platform_id'),
-                $origin === null ? null : new ProcessUuid($origin),
-                $work->int('priority'),
-                self::derivedId($eventId, 'superseded-successor:event'),
-                self::derivedId($eventId, 'superseded-successor:projection'),
-                $identity,
-            );
+            $storeWork(new StoreWorkData(
+                id: $successor,
+                input: $repinned,
+                inputRevision: $snapshot->inputRevision,
+                intentId: $intentId,
+                cohortKey: $work->string('cohort_key'),
+                platformId: $work->nullableInt('platform_id'),
+                originRunId: $origin === null ? null : new ProcessUuid($origin),
+                priority: $work->int('priority'),
+                eventId: self::derivedId($eventId, 'superseded-successor:event'),
+                projectionMessageId: self::derivedId($eventId, 'superseded-successor:projection'),
+                identity: $identity,
+            ));
             DB::update(
                 'UPDATE prc_operation_intents SET expected_head_generation = ? WHERE id = ?',
                 [$owner->headGeneration, $intentId->value],
@@ -221,8 +224,7 @@ final readonly class WorkStoreSqlHelper
         );
     }
 
-    /** @param array<string, ProcessUuid> $ids */
-    public function grantLocked(AuthoritySnapshot $snapshot, LockedPrefix $prefix, array $ids): ExecutionLease
+    public function grantLocked(AuthoritySnapshot $snapshot, LockedPrefix $prefix, WorkClaimIds $ids): ExecutionLease
     {
         $workId = $snapshot->workId->value->value;
         $dispatchGeneration = $prefix->work->int('dispatch_generation');
@@ -234,20 +236,20 @@ final readonly class WorkStoreSqlHelper
                  transition_seq = transition_seq + 1, updated_at = clock_timestamp()
              WHERE id = ? AND state = 'admitted' AND dispatch_generation = ?
              RETURNING generation, lease_until::text AS lease_until, transition_seq",
-            [$ids['token']->value, $this->policy->leaseSeconds($snapshot->handler->stage), $workId, $dispatchGeneration],
+            [$ids->token->value, $this->policy->leaseSeconds($snapshot->handler->stage), $workId, $dispatchGeneration],
         ) ?? throw new \LogicException('Claim fence did not match the locked admitted work.');
         $generation = $row->int('generation');
         DB::insert(
             "INSERT INTO prc_process_attempts
                (id, work_id, generation, owner_token_fingerprint, handler_version, started_at, worker_host, worker_pid)
              VALUES (?, ?, ?, decode(?, 'hex'), ?, clock_timestamp(), ?, ?)",
-            [$ids['attempt']->value, $workId, $generation, hash('sha256', $ids['token']->value), $snapshot->handler->handlerVersion, gethostname() ?: 'unknown', getmypid() ?: 0],
+            [$ids->attemptId->value, $workId, $generation, hash('sha256', $ids->token->value), $snapshot->handler->handlerVersion, gethostname() ?: 'unknown', getmypid() ?: 0],
         );
         $group = $prefix->group ?? throw new \LogicException('Claim requires the exact admission group.');
         $groupUpdated = DB::update(
             "UPDATE prc_admission_groups SET state = 'running', attempt_id = ?, version = version + 1
              WHERE id = ? AND state = 'admitted' AND dispatch_generation = ? AND version = ?",
-            [$ids['attempt']->value, $group->string('id'), $dispatchGeneration, $group->int('version')],
+            [$ids->attemptId->value, $group->string('id'), $dispatchGeneration, $group->int('version')],
         );
         $membersUpdated = DB::update(
             "UPDATE prc_process_reservations SET state = 'running' WHERE admission_group_id = ? AND state = 'admitted'",
@@ -256,16 +258,23 @@ final readonly class WorkStoreSqlHelper
         if ($groupUpdated !== 1 || $membersUpdated !== count($prefix->members)) {
             throw new \LogicException('Claim must move the whole admission group to running.');
         }
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            WorkState::Admitted->value, WorkState::Running->value, null, ActorKind::Worker, $generation,
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids->eventId,
+            projectionMessageId: $ids->projectionMessageId,
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: WorkState::Admitted->value,
+            newState: WorkState::Running->value,
+            reasonCode: null,
+            actor: ActorKind::Worker,
+            generation: $generation,
+        ));
 
         return new ExecutionLease(
             workId: $snapshot->workId,
-            attemptId: $ids['attempt'],
+            attemptId: $ids->attemptId,
             generation: $generation,
-            token: $ids['token'],
+            token: $ids->token,
             leaseUntil: new \DateTimeImmutable($row->string('lease_until')),
             inputRevision: $snapshot->inputRevision,
             inputHash: $snapshot->inputHash,
@@ -276,8 +285,7 @@ final readonly class WorkStoreSqlHelper
         );
     }
 
-    /** @param array<string, ProcessUuid> $ids */
-    public function waitForCapacityLocked(AuthoritySnapshot $snapshot, LockedPrefix $prefix, array $ids): void
+    public function waitForCapacityLocked(AuthoritySnapshot $snapshot, LockedPrefix $prefix, WorkClaimIds $ids): void
     {
         $stage = $snapshot->handler->stage;
         $previous = $prefix->work->int('dispatch_generation');
@@ -298,12 +306,19 @@ final readonly class WorkStoreSqlHelper
         if ($updated !== 1) {
             throw new \LogicException('CapacityWait must move the whole admission group to the new delivery generation.');
         }
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            WorkState::Admitted->value, WorkState::Admitted->value, DeferralReason::CapacityWait->value, ActorKind::Worker, $prefix->work->int('generation'),
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids->eventId,
+            projectionMessageId: $ids->projectionMessageId,
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: WorkState::Admitted->value,
+            newState: WorkState::Admitted->value,
+            reasonCode: DeferralReason::CapacityWait->value,
+            actor: ActorKind::Worker,
+            generation: $prefix->work->int('generation'),
+        ));
         $delayMs = random_int($this->policy->capacityWaitMinMs, $this->policy->capacityWaitMaxMs);
-        $this->outbox->enqueueWorkWake($ids['wake'], $snapshot->workId, new DeliveryGeneration($row->int('dispatch_generation')), $stage, $delayMs / 1000);
+        $this->outbox->enqueueWorkWake($ids->wakeMessageId, $snapshot->workId, new DeliveryGeneration($row->int('dispatch_generation')), $stage, $delayMs / 1000);
     }
 
     public function persistCheckpointCas(

@@ -50,6 +50,7 @@ class PlatformForm
                                     ->minValue(0)
                                     ->helperText('Пусто — использовать проверенный дефолт конфига.'),
                                 TextEntry::make('origin_quota_explanation')
+                                    ->hiddenLabel()
                                     ->state('Добавка на прокси устарела и не применяется. Origin quota общая для всех маршрутов; число прокси её не увеличивает.'),
                                 TextInput::make('throttle.maxWaitSeconds')
                                     ->label('Максимальное ожидание слота, сек')

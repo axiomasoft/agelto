@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Console\Commands\Process\ProcessDiagnosticsCommand;
 use App\Dto\Procurement\Process\ScreeningInput;
 use App\Dto\Procurement\Process\StageFailedItem;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Procurement\Document\DocumentStatus;
@@ -32,9 +33,18 @@ test('PipelineStagesCard считает succeeded/failed по стадиям pre
             $window = AiFixtures::window();
             $first = new WorkId(LedgerFixtures::uuid());
             $input = new ScreeningInput($window->run->documentVersionId, $window->run->representationHash, $window->run->recipe->hash);
-            app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(
-                $first, $input, $window->run->expectedAnalysisGeneration, null, 'manual', null, null, 100,
-                LedgerFixtures::uuid(), LedgerFixtures::uuid()));
+            app(ProcessTransaction::class)->run(fn () => app(WorkStoreRepository::class)->storeWork(new StoreWorkData(
+                id: $first,
+                input: $input,
+                inputRevision: $window->run->expectedAnalysisGeneration,
+                intentId: null,
+                cohortKey: 'manual',
+                platformId: null,
+                originRunId: null,
+                priority: 100,
+                eventId: LedgerFixtures::uuid(),
+                projectionMessageId: LedgerFixtures::uuid(),
+            )));
             $lease = FinalizeFixtures::running($first);
         }
         $finalizer = app(WorkFinalizer::class);

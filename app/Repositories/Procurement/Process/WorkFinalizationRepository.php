@@ -19,6 +19,8 @@ use App\Dto\Procurement\Process\StageFailedItem;
 use App\Dto\Procurement\Process\StageOutcome;
 use App\Dto\Procurement\Process\StagePartial;
 use App\Dto\Procurement\Process\StageSucceeded;
+use App\Dto\Procurement\Process\StoreWorkData;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkIdentity;
@@ -213,10 +215,17 @@ final readonly class WorkFinalizationRepository
                 incidentId: $ids['incident'], eventId: $ids['incident_event'], projectionMessageId: $ids['incident_projection'],
             );
         }
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $lease->workId->value, $row->int('transition_seq'),
-            WorkState::Running->value, $decision['state']->value, $decision['reason'], ActorKind::Worker, $lease->generation,
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids['event'],
+            projectionMessageId: $ids['projection'],
+            entityId: $lease->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: WorkState::Running->value,
+            newState: $decision['state']->value,
+            reasonCode: $decision['reason'],
+            actor: ActorKind::Worker,
+            generation: $lease->generation,
+        ));
         $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($lease->stage));
         $accepted = $this->acceptedDecision($lease->workId, $decision['state'], $decision['item_increment']);
 
@@ -330,7 +339,7 @@ final readonly class WorkFinalizationRepository
             $successor = $successorIds($index);
             $successorId = $existing === null ? new WorkId($successor['work']) : new WorkId(new ProcessUuid($existing->string('id')));
             if ($existing === null) {
-                $this->works->storeWork(
+                $this->works->storeWork(new StoreWorkData(
                     id: $successorId,
                     input: $input,
                     inputRevision: 1,
@@ -343,7 +352,7 @@ final readonly class WorkFinalizationRepository
                     eventId: $successor['event'],
                     projectionMessageId: $successor['projection'],
                     identity: $identity,
-                );
+                ));
             }
             foreach ($runs as $run) {
                 if ($run->bool('cancelled') && $run->string('accounting_role') === 'required') {

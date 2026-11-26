@@ -31,9 +31,9 @@
 ## 4. Fast Verification & Diagnostic Tricks
 
 - **Isolated rig lifecycle**: `make core-test-up` → `make core-quality` → `make core-test-file TEST_FILE=tests/Feature/...` or suite targets (`make core-test-execution`, `core-test-concurrency`, `core-test-network`, `core-test-platforms`, `core-test-acquisition`, `core-test-documents`, `core-test-ai`, `core-test-observability`, `core-test-install`, `core-test-regression`).
-- **Source hash & architecture sync**:
-  - If editing a file tracked in `tests/Fixtures/ProcessCore/manifest.json` (`source_classes`, `migrations`, `contract_fixtures`, `files`), update its SHA-256 in `manifest.json` (and `tests/Support/ProcessCore/schema-inventory.json` for migrations) before running `make core-quality` / `make core-test-regression`.
-  - If editing prompts or gold fixtures in `tests/Fixtures/ProcessCore/runtime-inputs.json`, sync their SHA-256 there.
+- **Fixture and schema updates**:
+  - Run `make core-manifest-sync` after an intentional change to a contract fixture or an `estimates/gold/` file. The baseline manifest checks the bytes of immutable fixtures and keeps scenario inventory for code and tests.
+  - Sync other staged input hashes in `tests/Fixtures/ProcessCore/runtime-inputs.json` when their contents change. Update `tests/Support/ProcessCore/schema-inventory.json` when changing migrations.
   - If adding/removing classes under `App\{Enums,Exceptions,Dto,Repositories}\Procurement` or core namespaces, check `DomainLayoutTest.php` and `CoreKnowsNoDocumentTypeTest.php`.
 - **CLI diagnostics**: `php artisan process:status --platform=eis`, `php artisan process:diagnose <uuid>`, `php artisan process:control {pause|resume|cancel-run|cancel-work|retry-work|retry-failed-item|reconcile-unknown}`.
 
@@ -41,7 +41,7 @@
 
 - **Provisioning without LLM spend**: seed base catalogs (`BaseSeeder`, `EisCrawlerProxySeeder`, `EisAuditSeeder`), then run `php artisan platform:sync-catalog` and `php artisan process:sync-documents`. **Do not** run `php artisan process:sync-analysis` locally (leaves `screening`/`extraction`/`publication` handler holds unregistered and `llm_budget_periods` closed). Legacy `.env` flags (`AI_SCREENING_ENABLED`, `CRAWLER_DOWNSTREAM_ENABLED`) do not gate Process Core stages.
 - **VDS proxy & VPN bypass**: `EisCrawlerProxySeeder` binds `PLAYWRIGHT_MCP_PROXY_SERVER` to route profiles `eis.audit` and `default` (routing `listing`, `detail`, `status_refresh`, and `download`). When host VPN (`amn0`) is active, route the VDS IP directly via LAN gateway (`sudo ip route replace <VDS_IP>/32 via <LAN_GW> dev <LAN_IF>`).
-- **Iterative stage-by-stage verification** (log each iteration in `/Audits/`):
+- **Iterative stage-by-stage verification** (log each iteration in `audits/local/`):
   1. **Listing only**: pause `acquisition:stage:detail` and `documents` via `php artisan process:control pause <scope> --user=<id> --reason="..." --expected=<ver>`. Run a bounded window (`php artisan process:run <profile_id> --kind=archive --from=YYYY-MM-DD --to=YYYY-MM-DD`), wait for 2-pass block completion (`prc_crawl_blocks.status = complete`), and reconcile `COUNT(*)` in `prc_procurements` against `zakupki.gov.ru` via Playwright using identical filters.
   2. **Detail cards**: `process:control resume acquisition:stage:detail ...` (keep `documents` paused or pause `documents:stage:prepare` / `documents:stage:screening`). Verify 4 card tabs + control pass, `prc_revisions`, `prc_procurement_parties`, `prc_events`, and `prc_documents` / `prc_document_versions`.
   3. **Change tracking (`fresh` / `delta` & `status_refresh`)**: test `AcquisitionKind::Delta` (`sortBy = UPDATE_DATE`) and `php artisan process:schedule-acquisition` (`next_status_due_at <= now()`); verify `prc_procurements.head_generation` increments and updated cards/documents are re-ingested. Full runbook: `docs/dev/runbooks/archive-run.md`.

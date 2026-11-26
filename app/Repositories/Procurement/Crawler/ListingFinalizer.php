@@ -14,6 +14,7 @@ use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\ListingInput;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\StageCheckpoint;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\ValidatedStageResult;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkInput;
@@ -251,9 +252,16 @@ final class ListingFinalizer implements StagePublicationRepository
             $reason = $outcome === 'incomplete' ? 'listing_coverage_debt' : null;
             DB::update('UPDATE prc_process_runs SET discovery_outcome=?, discovery_reason_code=?, discovery_closed_at=clock_timestamp(),
                 transition_seq=transition_seq+1 WHERE id=?', [$outcome, $reason, $run->string('id')]);
-            $this->transitions->recordRun(ListingStoreRepository::id($eventId->value.':'.$run->string('id')),
-                ListingStoreRepository::id($projectionId->value.':'.$run->string('id')), new ProcessUuid($run->string('id')),
-                $run->int('transition_seq') + 1, 'collecting', $outcome, $reason, ActorKind::Worker);
+            $this->transitions->recordRun(new TransitionData(
+                eventId: ListingStoreRepository::id($eventId->value.':'.$run->string('id')),
+                projectionMessageId: ListingStoreRepository::id($projectionId->value.':'.$run->string('id')),
+                entityId: new ProcessUuid($run->string('id')),
+                entitySeq: $run->int('transition_seq') + 1,
+                previousState: 'collecting',
+                newState: $outcome,
+                reasonCode: $reason,
+                actor: ActorKind::Worker,
+            ));
         }
     }
 

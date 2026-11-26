@@ -10,6 +10,8 @@ use App\Dto\Procurement\Process\DetailInput;
 use App\Dto\Procurement\Process\DownloadInput;
 use App\Dto\Procurement\Process\ProcessUuid;
 use App\Dto\Procurement\Process\ProviderRecoveryPlan;
+use App\Dto\Procurement\Process\StoreWorkData;
+use App\Dto\Procurement\Process\TransitionData;
 use App\Dto\Procurement\Process\WorkId;
 use App\Dto\Procurement\Process\WorkIdentity;
 use App\Dto\Procurement\Process\WorkMutationResult;
@@ -125,11 +127,19 @@ final readonly class WorkMutationRepository
         if ($prefix->group !== null) {
             $this->works->releaseGroupLocked($prefix->group, count($prefix->members), 'cancelled');
         }
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            $state->value, WorkState::Cancelled->value, 'cancelled', $actorId === null ? ActorKind::System : ActorKind::Operator,
-            $row->int('generation'), $actorId, ['reason' => $reason],
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids['event'],
+            projectionMessageId: $ids['projection'],
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: $state->value,
+            newState: WorkState::Cancelled->value,
+            reasonCode: 'cancelled',
+            actor: $actorId === null ? ActorKind::System : ActorKind::Operator,
+            generation: $row->int('generation'),
+            actorId: $actorId,
+            details: ['reason' => $reason],
+        ));
         // Cancelled work без successor освобождает свой intent: очередь subject/stage не зависает.
         if (($intentId = $work->nullableString('intent_id')) !== null) {
             $this->intents->releaseLocked($intentId);
@@ -174,11 +184,18 @@ final readonly class WorkMutationRepository
              RETURNING discovery_outcome, transition_seq",
             [$runId->value],
         ) ?? throw new \LogicException('Run cancel fence did not match the locked run.');
-        $this->transitions->recordRun(
-            $ids['event'], $ids['projection'], $runId, $row->int('transition_seq'),
-            $run->string('discovery_outcome'), $row->string('discovery_outcome'), 'cancelled',
-            $actorId === null ? ActorKind::System : ActorKind::Operator, $actorId, ['reason' => $reason],
-        );
+        $this->transitions->recordRun(new TransitionData(
+            eventId: $ids['event'],
+            projectionMessageId: $ids['projection'],
+            entityId: $runId,
+            entitySeq: $row->int('transition_seq'),
+            previousState: $run->string('discovery_outcome'),
+            newState: $row->string('discovery_outcome'),
+            reasonCode: 'cancelled',
+            actor: $actorId === null ? ActorKind::System : ActorKind::Operator,
+            actorId: $actorId,
+            details: ['reason' => $reason],
+        ));
 
         return new WorkMutationResult(WorkMutationStatus::Applied);
     }
@@ -300,16 +317,23 @@ final readonly class WorkMutationRepository
             [$snapshot->workId->value->value, $generation],
         );
         $row ??= throw new \LogicException('Manual retry fence did not match the locked work.');
-        $this->transitions->recordWork(
-            $ids['event'], $ids['projection'], $snapshot->workId->value, $row->int('transition_seq'),
-            $failedItem ? WorkState::FailedItem->value : WorkState::Blocked->value,
-            $failedItem ? WorkState::FailedItem->value : WorkState::Superseded->value, 'manual_retry', ActorKind::Operator,
-            $row->int('generation'), $actorId, ['reason' => $reason, 'command_id' => $commandId->value, 'successor_work_id' => $ids['work']->value],
-        );
+        $this->transitions->recordWork(new TransitionData(
+            eventId: $ids['event'],
+            projectionMessageId: $ids['projection'],
+            entityId: $snapshot->workId->value,
+            entitySeq: $row->int('transition_seq'),
+            previousState: $failedItem ? WorkState::FailedItem->value : WorkState::Blocked->value,
+            newState: $failedItem ? WorkState::FailedItem->value : WorkState::Superseded->value,
+            reasonCode: 'manual_retry',
+            actor: ActorKind::Operator,
+            generation: $row->int('generation'),
+            actorId: $actorId,
+            details: ['reason' => $reason, 'command_id' => $commandId->value, 'successor_work_id' => $ids['work']->value],
+        ));
 
         $successor = new WorkId($ids['work']);
         $originRun = $work->nullableString('origin_run_id');
-        $this->works->storeWork(
+        $this->works->storeWork(new StoreWorkData(
             id: $successor,
             input: $input,
             inputRevision: $snapshot->inputRevision,
@@ -321,7 +345,7 @@ final readonly class WorkMutationRepository
             eventId: $ids['work_event'],
             projectionMessageId: $ids['work_projection'],
             identity: new WorkIdentity($input, $newIntent, $snapshot->workId),
-        );
+        ));
         $this->works->carryRunLinks($snapshot->workId, $successor);
         $this->outbox->enqueueFeederWake($ids['feed'], $this->policy->parentLane($stage));
 

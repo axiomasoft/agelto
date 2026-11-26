@@ -16,6 +16,7 @@ use App\Dto\Procurement\Process\DownloadInput;
 use App\Dto\Procurement\Process\Duration;
 use App\Dto\Procurement\Process\ExecutionContext;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\StoreWorkData;
 use App\Dto\Procurement\Process\SubjectKey;
 use App\Dto\Procurement\Process\WorkId;
 use App\Enums\Procurement\Network\IdempotencyClass;
@@ -131,7 +132,18 @@ final class DownloadFixtures
                 DB::table('prc_operation_intents')->where('id', $intent->value)->update(['state' => 'active', 'pending_reason' => null]);
             }
             $platformId = (int) DB::table('prc_platforms')->where('code', $this->network->code)->value('id');
-            $works->storeWork($work, $input, 1, $intent, 'platform:'.$this->network->code, $platformId, null, 100, LedgerFixtures::uuid(), LedgerFixtures::uuid());
+            $works->storeWork(new StoreWorkData(
+                id: $work,
+                input: $input,
+                inputRevision: 1,
+                intentId: $intent,
+                cohortKey: 'platform:'.$this->network->code,
+                platformId: $platformId,
+                originRunId: null,
+                priority: 100,
+                eventId: LedgerFixtures::uuid(),
+                projectionMessageId: LedgerFixtures::uuid(),
+            ));
         });
         ExecutionFixtures::ensureWorkScopes(StageCode::Download, 'platform:'.$this->network->code);
         $lease = FinalizeFixtures::running($work);
