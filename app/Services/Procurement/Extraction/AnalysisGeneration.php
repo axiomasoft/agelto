@@ -137,7 +137,9 @@ final readonly class AnalysisGeneration
                 range: $range === null ? null : new PageRange(start: $range['start'], end: $range['end']),
             );
         }
-        $user = CanonicalJson::encode([...$fields, 'semantic_reask_ordinal' => $ordinal, 'untrusted_document' => $text]);
+        $token = substr(hash('sha256', $run->recipe->hash->hex.':'.$run->representationHash->hex), 0, 12);
+        $document = (new UntrustedDocumentSanitizer)->wrap(text: $text, delimiterToken: $token);
+        $user = $document."\n\n".CanonicalJson::encode([...$fields, 'semantic_reask_ordinal' => $ordinal]);
         $identity = new RequestIdentity(
             recipeHash: $run->recipe->hash->hex,
             inputHash: $inputHash->hex,

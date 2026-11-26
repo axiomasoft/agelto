@@ -95,7 +95,8 @@ test('периметр ядра собран правилом вычитания
     // adds twelve provider-neutral wire, send capability and joint owner classes.
     // adds five provider-neutral asset lifecycle/policy components and Gemini codecs.
     // 164 = 165 - two provider stubs + CatalogOnlyProvider.
-    expect($classes)->toHaveCount(164)
+    // 165 = 164 + type-neutral UntrustedDocumentSanitizer at the extraction boundary.
+    expect($classes)->toHaveCount(165)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->toContain('App\Services\Llm\Providers\CatalogOnlyProvider')

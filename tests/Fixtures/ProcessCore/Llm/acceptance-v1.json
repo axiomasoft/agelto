@@ -50,7 +50,7 @@
   "inputs": [
     {
       "path": "docker/compose.core-test.yml",
-      "sha256": "987bd8184c2a9371211e3efbdb2962e5288850e00602d3fe4af9891354ca758d",
+      "sha256": "bcaf9fd5e138c7d730437b7b5949c38b9398f2ce623fde1b8c8ce362635893e0",
       "original_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111",
       "before_polish_sha256": "bf900f2ba4c70f9606be34da22fae835c6698b19fd766ac4de6e5d531b60c111"
     },
@@ -298,7 +298,7 @@
     },
     {
       "path": "app/Services/Procurement/Extraction/AnalysisGeneration.php",
-      "sha256": "a35d023c693327bc0c87e1ec807c19258201843f9d82021e819f6c5f520dc116",
+      "sha256": "2716f48bb1d5ff23e1c3968a8d61adcf40f0cb411e97e75b32a8a40a8824e9ff",
       "before_proxyma_runtime_removal_sha256": "c7ba0f37f37c8b8651714fd5bcad90489eda8826afeff0459509bf143b792134"
     },
     {
@@ -324,7 +324,7 @@
     },
     {
       "path": "composer.lock",
-      "sha256": "b427a15b61005f1f2ce3ee6b94abdf94975a4c23deb17e5e72407ead4b9a282c",
+      "sha256": "7081602cbfe6aec6deb0486742bbb3e0ad0d5294e616fda4a543d118a03d4ec7",
       "original_sha256": "e5981e6030590ce94182e8d364f1b6c0dfa9ed571e2642bc899a98e3435d912f",
       "before_proxyma_runtime_removal_sha256": "261267132daf469821d596ae4a0a9ddd3f2c422800f7b40aec6727d80d4d5d05"
     },
@@ -545,7 +545,7 @@
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/StructuredChainAcceptanceTest.php",
-      "sha256": "10dec61de847af7c94291e4e1f0a688ddc6ddd39df868db4e74e892be4f8b3bb",
+      "sha256": "2c7a8efd8791277d32b6e162e910e9a19453e74daea243f4fe77eb9fb0208cc8",
       "original_path": "tests/Feature/ProcessCore/Llm/T22StructuredChainAcceptanceTest.php",
       "original_sha256": "46e77f62c780d331ce490c88dbc34b8abadff23dfbfe0e924f387bd95f4a1be3",
       "before_polish_sha256": "ee495e95ec8cdc92f53f358a144838f536c02a96e48173bbac92382baea93961",

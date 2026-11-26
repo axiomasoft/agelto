@@ -11,6 +11,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Llm\Dto\ComposedPrompt;
 use App\Services\Llm\PromptComposer;
+use App\Services\Procurement\Extraction\UntrustedDocumentSanitizer;
 use App\Services\Storage\FileLocationResolver;
 use Illuminate\Support\Facades\Storage;
 
@@ -56,6 +57,7 @@ final readonly class DatasetInputBuilder
         }
 
         [$kind, $text] = $resolved;
+        $text = (new UntrustedDocumentSanitizer)->sanitize($text);
 
         $configuredLimit = config('ai.dataset_export.max_input_chars');
         $maxInputChars = is_int($configuredLimit) || is_float($configuredLimit) || is_string($configuredLimit)
@@ -72,6 +74,7 @@ final readonly class DatasetInputBuilder
     public function userTurn(string $text, ?int $ordinal, ?string $estimateNumber): string
     {
         $label = $estimateNumber !== null ? " №{$estimateNumber}" : ($ordinal !== null ? " #{$ordinal}" : '');
+        $text = (new UntrustedDocumentSanitizer)->sanitize($text);
 
         return "Извлеки все строки сметы{$label} из документа ниже.\n\n---\n\n{$text}";
     }
