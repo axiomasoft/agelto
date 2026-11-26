@@ -227,7 +227,7 @@
     },
     {
       "path": "app/Repositories/Procurement/Ai/PublicationRepository.php",
-      "sha256": "4527b8e4b5aff09875441a18d67c516c628034a4a46e457bb913c3bf0e14e54a"
+      "sha256": "9d79bed5a68b6f3a85d83494649a317646c94d6b42f83df89b496ba3c267ebd5"
     },
     {
       "path": "app/Services/Llm/Execution/ReceiptStore.php",
