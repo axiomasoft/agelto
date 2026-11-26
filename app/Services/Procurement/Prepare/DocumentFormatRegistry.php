@@ -16,6 +16,7 @@ final class DocumentFormatRegistry
             'pdf' => $this->entry(DocumentFormat::Pdf, ['application/pdf'], ScanStrategy::class),
             'xls' => $this->entry(DocumentFormat::Xls, ['application/vnd.ms-excel'], SpreadsheetStrategy::class),
             'xlsx' => $this->entry(DocumentFormat::Xlsx, ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'], SpreadsheetStrategy::class),
+            'ods' => $this->entry(DocumentFormat::Ods, ['application/vnd.oasis.opendocument.spreadsheet'], SpreadsheetStrategy::class),
             'doc' => $this->entry(DocumentFormat::Doc, ['application/msword'], WordStrategy::class),
             'docx' => $this->entry(DocumentFormat::Docx, ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'], WordStrategy::class),
             'rtf' => $this->entry(DocumentFormat::Rtf, ['application/rtf', 'text/rtf'], WordStrategy::class),

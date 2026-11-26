@@ -56,6 +56,7 @@ test('download переключает недоступный proxy на разр
         DB::table('prc_network_route_profile_members')->insert(['profile_id' => $profile->id, 'route_id' => $route->route_id]);
     }
     HistoricalNetworkFixtures::synchronize();
+    config()->set('proxyma.private_proxies', ['127.0.0.1' => ['127.0.0.1']]);
     ProxymaCallerFixtures::install($this->wire, routeStrategy: 'least_recent_authorized');
     [$input, $work, $context] = $f->running();
     $outcome = $f->handler()->execute($input, $context);

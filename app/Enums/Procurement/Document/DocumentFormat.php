@@ -9,6 +9,7 @@ enum DocumentFormat: string
     case Pdf = 'pdf';
     case Xls = 'xls';
     case Xlsx = 'xlsx';
+    case Ods = 'ods';
     case Doc = 'doc';
     case Docx = 'docx';
     case Rtf = 'rtf';

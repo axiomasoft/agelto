@@ -27,6 +27,7 @@ final class DocumentFormatContract
             DocumentFormat::Pdf->value => self::entry(['pdf'], ['application/pdf'], ScanStrategy::class, 'text/plain'),
             DocumentFormat::Xls->value => self::entry(['xls'], ['application/vnd.ms-excel'], SpreadsheetStrategy::class, 'application/pdf'),
             DocumentFormat::Xlsx->value => self::entry(['xlsx'], ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'], SpreadsheetStrategy::class, 'application/zip'),
+            DocumentFormat::Ods->value => self::entry(['ods'], ['application/vnd.oasis.opendocument.spreadsheet'], SpreadsheetStrategy::class, 'application/zip'),
             DocumentFormat::Doc->value => self::entry(['doc'], ['application/msword'], WordStrategy::class, 'application/pdf'),
             DocumentFormat::Docx->value => self::entry(['docx'], ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'], WordStrategy::class, 'application/zip'),
             DocumentFormat::Rtf->value => self::entry(['rtf'], ['application/rtf', 'text/rtf'], WordStrategy::class, 'application/pdf'),
