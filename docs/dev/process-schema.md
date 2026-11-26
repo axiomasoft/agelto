@@ -202,6 +202,7 @@ Source: `tests/Support/ProcessCore/schema-inventory.json` (`process-schema-inven
 | `2026_11_25_100000_add_audit_performance_indexes.php` | alter | PLAN2:P2.4 | Add indexes for retention, diagnostics and operator queries with reversible DDL. |
 | `2026_11_25_100001_add_document_repair_ownership.php` | alter | PLAN2:P3.1 | Persist the actual canonical repair attempt and fence recovery from newer repairs. |
 | `2026_11_25_100002_add_attributes_observed_at_to_org_organizations.php` | alter | PLAN2:P5.3 | Record when organization attributes were observed so archive imports preserve newer data. |
+| `2026_11_26_100000_tune_process_tables_autovacuum_and_fillfactor.php` | alter | PLAN1:P2.1 | Tune fillfactor and autovacuum for hot process queue tables with reversible reloptions. |
 
 ### Legacy lifecycle
 

@@ -134,7 +134,7 @@ class SchemaInventoryTest(unittest.TestCase):
     def test_complete_inventory_and_full_document_pass(self):
         # Приложение загружает также таблицы пакета Proxyma.
         self.assertEqual(self.inventory["current_item"], "P3.17")
-        self.assertEqual(len(self.inventory["migrations"]), 84)
+        self.assertEqual(len(self.inventory["migrations"]), 85)
         self.assertEqual(len(self.inventory["baseline"]["tables"]), 162)
         # Sealed coverage/publication metadata, estimate provenance and repair ownership are required.
         self.assertEqual(sum(len(t["columns"]) for t in self.inventory["baseline"]["tables"].values()), 1889)
