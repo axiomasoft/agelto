@@ -14,6 +14,7 @@ use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\FixtureForm;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\FixtureInfolist;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Tables\FixturesTable;
 use App\Models\Procurement\Ai\Fixture;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Navigation\NavigationItem;
 use Filament\Resources\Pages\Page;
@@ -23,6 +24,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Реестр эталонных документов обучающего контура: загрузка файла,
@@ -31,6 +33,10 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class FixtureResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'fixture';
+
     protected static ?string $model = Fixture::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
@@ -62,9 +68,13 @@ class FixtureResource extends Resource
         return FixturesTable::configure($table);
     }
 
-    public static function getEloquentQuery(): Builder
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    protected static function modifyEloquentQuery(Builder $query): Builder
     {
-        return parent::getEloquentQuery()->with(['document', 'datasetExamples']);
+        return $query->with(['document', 'datasetExamples']);
     }
 
     public static function getRelations(): array

@@ -50,6 +50,7 @@ class ViewAnalysis extends ViewRecord
         return Action::make('finalPrompt')
             ->label('Финальный промт')
             ->color('gray')
+            ->authorize(fn (): bool => FinalPromptPage::canAccess())
             ->visible(fn (Analysis $record): bool => $record->analysis_run_id !== null && FinalPromptPage::canAccess())
             ->url(fn (Analysis $record): ?string => $record->analysis_run_id === null ? null : FinalPromptPage::getUrl(['run' => $record->analysis_run_id]))
             ->openUrlInNewTab();

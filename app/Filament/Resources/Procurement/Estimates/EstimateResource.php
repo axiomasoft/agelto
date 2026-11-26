@@ -10,6 +10,7 @@ use App\Filament\Resources\Procurement\Estimates\RelationManagers\ItemsRelationM
 use App\Filament\Resources\Procurement\Estimates\Schemas\EstimateInfolist;
 use App\Filament\Resources\Procurement\Estimates\Tables\EstimatesTable;
 use App\Models\Procurement\Estimate\Estimate;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -24,6 +25,10 @@ use Illuminate\Database\Eloquent\Model;
  */
 class EstimateResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'estimate';
+
     protected static ?string $model = Estimate::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
@@ -51,10 +56,14 @@ class EstimateResource extends Resource
     // Счётчик "помечено N из M" — агрегатом в основном запросе (withCount), не выборкой позиций
     // в цикле: список открывается константным числом запросов
     // независимо от числа позиций в смете.
-    public static function getEloquentQuery(): Builder
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    protected static function modifyEloquentQuery(Builder $query): Builder
     {
         /** @var Builder<Estimate> $baseQuery */
-        $baseQuery = parent::getEloquentQuery();
+        $baseQuery = $query;
 
         /** @var Builder<Model> $query */
         $query = $baseQuery

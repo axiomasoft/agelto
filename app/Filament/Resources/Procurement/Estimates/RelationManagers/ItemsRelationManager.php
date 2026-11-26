@@ -6,6 +6,8 @@ namespace App\Filament\Resources\Procurement\Estimates\RelationManagers;
 
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Enums\Procurement\Estimate\RowQualityReason;
+use App\Filament\Concerns\AuthorizesReadOnlyRelation;
+use App\Filament\Resources\Procurement\Estimates\Related\EstimateItemResource;
 use App\Models\Procurement\Estimate\Item;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
@@ -21,6 +23,10 @@ use Illuminate\Support\Collection;
  */
 class ItemsRelationManager extends RelationManager
 {
+    use AuthorizesReadOnlyRelation;
+
+    protected static ?string $azguardResource = EstimateItemResource::class;
+
     protected static string $relationship = 'items';
 
     public function table(Table $table): Table

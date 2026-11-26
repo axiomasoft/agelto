@@ -19,12 +19,6 @@ final class FixturePolicy
         return $user->hasPermission(FixturePermission::ViewAny);
     }
 
-    #[Decides(FixturePermission::View)]
-    public function view(User $user, ?Fixture $fixture = null): bool
-    {
-        return $user->hasPermission(FixturePermission::View);
-    }
-
     #[Decides(FixturePermission::Create)]
     public function create(User $user): bool
     {
@@ -45,7 +39,7 @@ final class FixturePolicy
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasPermission(FixturePermission::Delete);
+        return false;
     }
 
     #[Decides(FixturePermission::Restore)]

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Procurements\RelationManagers;
 
+use App\Filament\Concerns\AuthorizesReadOnlyRelation;
+use App\Filament\Resources\Procurement\Procurements\Related\ProcurementRevisionResource;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementRevision;
 use App\Services\Procurement\History\RevisionDiffService;
@@ -25,6 +27,10 @@ use Illuminate\Support\HtmlString;
  */
 class RevisionsRelationManager extends RelationManager
 {
+    use AuthorizesReadOnlyRelation;
+
+    protected static ?string $azguardResource = ProcurementRevisionResource::class;
+
     protected static string $relationship = 'revisions';
 
     public function table(Table $table): Table
@@ -65,6 +71,7 @@ class RevisionsRelationManager extends RelationManager
     {
         return Action::make('comparePrevious')
             ->label('Сравнить с предыдущей')
+            ->authorize(fn (ProcurementRevision $record): bool => $this->getAuthorizationResponse(action: 'view', record: $record)->allowed())
             ->visible(fn (ProcurementRevision $record): bool => $record->revision_number > 1)
             ->modalHeading('Изменения редакции')
             ->modalSubmitAction(false)

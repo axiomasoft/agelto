@@ -9,6 +9,7 @@ use App\Filament\Resources\Procurement\OperationLogs\Tables\OperationLogsTable;
 use App\Guards\Admin\Permissions\OperationLogPermission;
 use App\Models\Procurement\Process\Transition;
 use App\Models\User;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -17,6 +18,10 @@ use Illuminate\Database\Eloquent\Model;
 
 final class OperationLogResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'operation_log';
+
     protected static ?string $model = Transition::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Система';

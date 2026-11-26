@@ -10,6 +10,7 @@ use App\Filament\Resources\Procurement\Platform\Registries\Pages\ListRegistries;
 use App\Filament\Resources\Procurement\Platform\Registries\Schemas\RegistryForm;
 use App\Filament\Resources\Procurement\Platform\Registries\Tables\RegistriesTable;
 use App\Models\Procurement\Platform\Registry;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -18,6 +19,10 @@ use Filament\Tables\Table;
 
 class RegistryResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'registry';
+
     protected static ?string $model = Registry::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Площадки';

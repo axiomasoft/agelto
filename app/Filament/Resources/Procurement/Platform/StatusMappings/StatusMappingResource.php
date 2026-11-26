@@ -11,6 +11,7 @@ use App\Filament\Resources\Procurement\Platform\StatusMappings\Schemas\StatusMap
 use App\Filament\Resources\Procurement\Platform\StatusMappings\Tables\StatusMappingsTable;
 use App\Guards\Admin\Permissions\StatusMappingPermission;
 use App\Models\Procurement\Platform\StatusMapping;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -20,6 +21,10 @@ use Illuminate\Support\Facades\Auth;
 
 final class StatusMappingResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'status_mapping';
+
     protected static ?string $model = StatusMapping::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;

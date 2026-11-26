@@ -53,7 +53,7 @@ final class PromptPolicy
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasPermission(PromptPermission::Delete);
+        return false;
     }
 
     #[Decides(PromptPermission::Restore)]

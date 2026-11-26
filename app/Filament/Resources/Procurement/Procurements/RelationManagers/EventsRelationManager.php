@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Filament\Resources\Procurement\Procurements\RelationManagers;
 
 use App\Enums\Procurement\ProcurementEventType;
+use App\Filament\Concerns\AuthorizesReadOnlyRelation;
+use App\Filament\Resources\Procurement\Procurements\Related\ProcurementEventResource;
 use Filament\Forms\Components\DatePicker;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
@@ -21,6 +23,10 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class EventsRelationManager extends RelationManager
 {
+    use AuthorizesReadOnlyRelation;
+
+    protected static ?string $azguardResource = ProcurementEventResource::class;
+
     protected static string $relationship = 'events';
 
     public function table(Table $table): Table

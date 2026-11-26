@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Ai\Analyses\RelationManagers;
 
+use App\Filament\Concerns\AuthorizesReadOnlyRelation;
+use App\Filament\Resources\Procurement\Ai\Analyses\Related\CorrectionResource;
 use App\Models\Procurement\Ai\Correction;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\IconColumn;
@@ -17,6 +19,10 @@ use Filament\Tables\Table;
  */
 class CorrectionsRelationManager extends RelationManager
 {
+    use AuthorizesReadOnlyRelation;
+
+    protected static ?string $azguardResource = CorrectionResource::class;
+
     protected static string $relationship = 'corrections';
 
     public function table(Table $table): Table

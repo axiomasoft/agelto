@@ -10,6 +10,7 @@ use App\Filament\Resources\Procurement\Ai\LlmRoutes\Pages\ListAiRoutes;
 use App\Filament\Resources\Procurement\Ai\LlmRoutes\Schemas\AiRouteForm;
 use App\Filament\Resources\Procurement\Ai\LlmRoutes\Tables\AiRoutesTable;
 use App\Models\Llm\LlmRoute;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -18,6 +19,10 @@ use Filament\Tables\Table;
 
 class LlmRouteResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'ai_route';
+
     protected static ?string $model = LlmRoute::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Настройка AI';

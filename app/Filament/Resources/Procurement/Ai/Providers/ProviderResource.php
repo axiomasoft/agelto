@@ -10,6 +10,7 @@ use App\Filament\Resources\Procurement\Ai\Providers\Pages\ListProviders;
 use App\Filament\Resources\Procurement\Ai\Providers\Schemas\ProviderForm;
 use App\Filament\Resources\Procurement\Ai\Providers\Tables\ProvidersTable;
 use App\Models\Llm\Provider;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -18,6 +19,10 @@ use Filament\Tables\Table;
 
 class ProviderResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'provider';
+
     protected static ?string $model = Provider::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Настройка AI';

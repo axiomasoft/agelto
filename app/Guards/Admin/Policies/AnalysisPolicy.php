@@ -24,12 +24,6 @@ final class AnalysisPolicy
         return $user->hasPermission(AnalysisPermission::ViewAny);
     }
 
-    #[Decides(AnalysisPermission::View)]
-    public function view(User $user, ?Analysis $analysis = null): bool
-    {
-        return $user->hasPermission(AnalysisPermission::View);
-    }
-
     #[Decides(AnalysisPermission::Create)]
     public function create(User $user): bool
     {
@@ -62,7 +56,7 @@ final class AnalysisPolicy
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasPermission(AnalysisPermission::Delete);
+        return false;
     }
 
     public function restoreAny(User $user): bool

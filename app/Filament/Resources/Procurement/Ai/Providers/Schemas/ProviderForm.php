@@ -6,6 +6,7 @@ namespace App\Filament\Resources\Procurement\Ai\Providers\Schemas;
 
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -27,8 +28,9 @@ class ProviderForm
                             ->label('Драйвер')
                             ->required()
                             ->columnSpanFull(),
-                        Textarea::make('base_url')
+                        TextInput::make('base_url')
                             ->label('Базовый адрес')
+                            ->url()
                             ->helperText('Оставьте пустым, чтобы драйвер использовал свой стандартный endpoint.')
                             ->columnSpanFull(),
                     ]),

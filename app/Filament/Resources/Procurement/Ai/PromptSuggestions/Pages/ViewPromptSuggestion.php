@@ -45,6 +45,7 @@ class ViewPromptSuggestion extends ViewRecord
             ->color('success')
             ->requiresConfirmation()
             ->modalDescription('Одобрение НЕ меняет файл промта: патч применяет команда ai:prompts:apply.')
+            ->authorize(fn (): bool => $this->canDecide())
             ->visible(fn (PromptSuggestion $record): bool => $this->canDecide() && $this->isPending($record))
             ->form([
                 Textarea::make('decision_note')
@@ -69,6 +70,7 @@ class ViewPromptSuggestion extends ViewRecord
         return Action::make('reject')
             ->label('Отклонить')
             ->color('danger')
+            ->authorize(fn (): bool => $this->canDecide())
             ->visible(fn (PromptSuggestion $record): bool => $this->canDecide() && $this->isPending($record))
             ->form([
                 Textarea::make('decision_note')

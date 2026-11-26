@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Documentation;
 
+use Illuminate\Support\Facades\Cache;
 use JsonException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -59,15 +60,13 @@ final readonly class PrivateDocumentationLocator
      */
     private function resolveRequestPath(?string $requestedPath, array $manifest): string
     {
-        if ($requestedPath === null || $requestedPath === '') {
-            return 'index.html';
-        }
-
-        $candidates = str_ends_with($requestedPath, '/')
-            ? ["{$requestedPath}index.html"]
-            : (pathinfo($requestedPath, PATHINFO_EXTENSION) === ''
-                ? ["{$requestedPath}/index.html", "{$requestedPath}.html"]
-                : [$requestedPath]);
+        $requestedPath ??= '';
+        $candidates = match (true) {
+            $requestedPath === '' => ['index.html'],
+            str_ends_with($requestedPath, '/') => ["{$requestedPath}index.html"],
+            pathinfo($requestedPath, PATHINFO_EXTENSION) === '' => ["{$requestedPath}/index.html", "{$requestedPath}.html"],
+            default => [$requestedPath],
+        };
 
         foreach ($candidates as $path) {
             if (! $this->isSafePath($path)) {
@@ -93,8 +92,33 @@ final readonly class PrivateDocumentationLocator
             $this->notFound();
         }
 
+        clearstatcache(filename: $manifestPath);
+        $mtime = @filemtime($manifestPath);
+        $size = @filesize($manifestPath);
+        $mimeTypes = config('documentation.mime_types');
+
+        if ($mtime === false || $size === false) {
+            $this->notFound();
+        }
+
+        $cacheKey = 'documentation.manifest.v1.'.hash('sha256', serialize([$manifestPath, $mtime, $size, $mimeTypes]));
+
+        /** @var array<string, array{mime: string}> $entries */
+        $entries = Cache::remember(key: $cacheKey, ttl: 300, callback: fn (): array => $this->readManifest($manifestPath));
+
+        return $entries;
+    }
+
+    /** @return array<string, array{mime: string}> */
+    private function readManifest(string $manifestPath): array
+    {
+        $contents = @file_get_contents($manifestPath);
+        if ($contents === false) {
+            $this->notFound();
+        }
+
         try {
-            $entries = json_decode((string) file_get_contents($manifestPath), associative: true, flags: JSON_THROW_ON_ERROR);
+            $entries = json_decode($contents, associative: true, flags: JSON_THROW_ON_ERROR);
         } catch (JsonException) {
             $this->notFound();
         }

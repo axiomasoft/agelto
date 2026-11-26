@@ -57,7 +57,9 @@ final class CrawlersTable
                     }
                     Notification::make()->title('Запуск зарегистрирован')->body($id->value)->success()->send();
                 }),
-            Action::make('runs')->label('Прогоны')->url(ProcessRunResource::getUrl()),
+            Action::make('runs')->label('Прогоны')
+                ->authorize(fn (): bool => ProcessRunResource::canViewAny())
+                ->url(ProcessRunResource::getUrl()),
             EditAction::make(),
         ]);
     }

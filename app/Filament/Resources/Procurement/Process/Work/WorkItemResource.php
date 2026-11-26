@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Procurement\Process\Work;
 use App\Filament\Resources\Procurement\Process\Work\Pages\ListWorkItems;
 use App\Filament\Resources\Procurement\Process\Work\Tables\WorkItemsTable;
 use App\Models\Procurement\Process\WorkItem;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -19,6 +20,10 @@ use Filament\Tables\Table;
  */
 final class WorkItemResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'work_item';
+
     protected static ?string $model = WorkItem::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Система';

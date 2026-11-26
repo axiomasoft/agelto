@@ -10,6 +10,7 @@ use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\ListCrawlers;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas\CrawlerForm;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Tables\CrawlersTable;
 use App\Models\Procurement\Crawler\Crawler;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -18,6 +19,10 @@ use Filament\Tables\Table;
 
 class CrawlerResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'crawler';
+
     protected static ?string $model = Crawler::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Сбор данных';

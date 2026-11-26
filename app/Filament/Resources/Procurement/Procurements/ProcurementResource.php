@@ -11,6 +11,7 @@ use App\Filament\Resources\Procurement\Procurements\RelationManagers\RevisionsRe
 use App\Filament\Resources\Procurement\Procurements\Schemas\ProcurementInfolist;
 use App\Filament\Resources\Procurement\Procurements\Tables\ProcurementsTable;
 use App\Models\Procurement\Procurement;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -27,6 +28,10 @@ use Illuminate\Support\Facades\DB;
  */
 class ProcurementResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'procurement';
+
     protected static ?string $model = Procurement::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
@@ -52,10 +57,14 @@ class ProcurementResource extends Resource
     }
 
     // Eager-load связи, показанной в таблице (registry.name) — против N+1 в реестре.
-    public static function getEloquentQuery(): Builder
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    protected static function modifyEloquentQuery(Builder $query): Builder
     {
         /** @var Builder<Procurement> $baseQuery */
-        $baseQuery = parent::getEloquentQuery();
+        $baseQuery = $query;
 
         $query = $baseQuery->publicPlatform()->with('registry.platform')->addSelect([
             'detail_fetched_at' => DB::table('prc_detail_snapshots')->selectRaw('max(created_at)')

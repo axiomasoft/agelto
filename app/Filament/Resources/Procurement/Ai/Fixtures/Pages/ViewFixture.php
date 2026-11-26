@@ -43,6 +43,7 @@ class ViewFixture extends ViewRecord
             ->label('Прогнать')
             ->color('primary')
             ->requiresConfirmation()
+            ->authorize(fn (): bool => $this->canRun())
             ->visible(fn (Fixture $record): bool => $this->canRun() && ! $this->hasActiveRun($record))
             ->action(function (Fixture $record): void {
                 if (! $this->canRun()) {

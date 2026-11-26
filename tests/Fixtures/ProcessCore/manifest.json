@@ -3538,7 +3538,7 @@
         },
         {
             "path": "tests/Feature/Procurement/ContourTest.php",
-            "sha256": "817e2ee2b004d4b7330c25a338f780a3df6d008e9cec0b24ae02a952a9a7bc69",
+            "sha256": "7f99f928036ee2f449f32878af376fb7409056e3ed5458ab67df8fd16172cd1d",
             "scenarios": [
                 "документ без platform_id не создаётся (NOT NULL)",
                 "выборка витрины не содержит смету и документ площадки «Обучалка»",
@@ -8378,7 +8378,7 @@
         {
             "path": "app/Filament/Resources/Procurement/Crawler/Crawlers/Tables/CrawlersTable.php",
             "fqcn": "App\\Filament\\Resources\\Procurement\\Crawler\\Crawlers\\Tables\\CrawlersTable",
-            "sha256": "8c5d443ba414613917237eb4adc5bef76167bdb9cf918ae5d85fa583e0fd76ee",
+            "sha256": "0ac7a219d82cd6393223d02877c17a912dba282a35da19236dfefc557015d749",
             "change_reason": "Proxyma:P10.3 explicit consumer adapter or migration-only carrier."
         },
         {

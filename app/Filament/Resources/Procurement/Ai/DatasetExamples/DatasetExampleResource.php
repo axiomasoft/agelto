@@ -9,6 +9,7 @@ use App\Filament\Resources\Procurement\Ai\DatasetExamples\Pages\ViewDatasetExamp
 use App\Filament\Resources\Procurement\Ai\DatasetExamples\Schemas\DatasetExampleInfolist;
 use App\Filament\Resources\Procurement\Ai\DatasetExamples\Tables\DatasetExamplesTable;
 use App\Models\Procurement\Ai\DatasetExample;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -19,6 +20,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class DatasetExampleResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'dataset_example';
+
     protected static ?string $model = DatasetExample::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Качество анализа';
@@ -43,9 +48,13 @@ class DatasetExampleResource extends Resource
         return DatasetExampleInfolist::configure($schema);
     }
 
-    public static function getEloquentQuery(): Builder
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    protected static function modifyEloquentQuery(Builder $query): Builder
     {
-        return parent::getEloquentQuery()->with(['fixture', 'analysis', 'documentVersion.document', 'verifiedBy']);
+        return $query->with(['fixture', 'analysis', 'documentVersion.document', 'verifiedBy']);
     }
 
     public static function getRelations(): array

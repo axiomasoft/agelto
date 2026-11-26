@@ -10,12 +10,14 @@ use App\Filament\Resources\Procurement\Ai\Analyses\RelationManagers\CorrectionsR
 use App\Filament\Resources\Procurement\Ai\Analyses\Schemas\AnalysisInfolist;
 use App\Filament\Resources\Procurement\Ai\Analyses\Tables\AnalysesTable;
 use App\Models\Procurement\Ai\Analysis;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * AI-анализы (screening/extraction) — read-only реестр (index + view),. Продукт пайплайна:
@@ -24,6 +26,10 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class AnalysisResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'analysis';
+
     protected static ?string $model = Analysis::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
@@ -49,9 +55,19 @@ class AnalysisResource extends Resource
     }
 
     // Eager-load связей, показанных в таблице/инфолисте (документ + кто проверил) — против N+1.
-    public static function getEloquentQuery(): Builder
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    protected static function modifyEloquentQuery(Builder $query): Builder
     {
-        return parent::getEloquentQuery()->with(['documentVersion.document.fixture', 'estimates.platform', 'reviewedBy']);
+        /** @var Builder<Analysis> $analyses */
+        $analyses = $query;
+
+        /** @var Builder<Model> $result */
+        $result = $analyses->publicPlatform()->with(['documentVersion.document.fixture', 'estimates.platform', 'reviewedBy']);
+
+        return $result;
     }
 
     public static function getRelations(): array

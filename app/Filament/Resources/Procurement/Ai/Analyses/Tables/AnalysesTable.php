@@ -11,11 +11,13 @@ use App\Enums\Procurement\Ai\EstimateCardinality;
 use App\Enums\Procurement\Ai\ReviewStatus;
 use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Ai\ScreeningDisposition;
+use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Support\LlmPresentation;
 use App\Models\Procurement\Ai\Analysis;
 use BackedEnum;
-use Filament\Actions\ViewAction;
+use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -26,7 +28,12 @@ class AnalysesTable
 {
     public static function configure(Table $table): Table
     {
+        // Строки фильтруются запросом ресурса, а URL карточки заново проверяет доступ.
+        $viewUrl = static fn (Analysis $record): string => AnalysisResource::getUrl(name: 'view', parameters: ['record' => $record]);
+
         return $table
+            ->recordUrl($viewUrl)
+            ->recordAction(null)
             ->columns([
                 TextColumn::make('documentVersion.document.title')
                     ->label('Документ')
@@ -159,7 +166,12 @@ class AnalysesTable
                     }),
             ])
             ->recordActions([
-                ViewAction::make(),
+                Action::make('view')
+                    ->label(__('filament-actions::view.single.label'))
+                    ->icon(Heroicon::Eye)
+                    ->color('gray')
+                    ->url($viewUrl)
+                    ->authorize(true),
             ])
             ->toolbarActions([
                 //

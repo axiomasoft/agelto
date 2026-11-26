@@ -10,6 +10,7 @@ use App\Filament\Resources\Procurement\Platform\Platforms\Pages\ListPlatforms;
 use App\Filament\Resources\Procurement\Platform\Platforms\Schemas\PlatformForm;
 use App\Filament\Resources\Procurement\Platform\Platforms\Tables\PlatformsTable;
 use App\Models\Procurement\Platform\Platform;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -18,6 +19,10 @@ use Filament\Tables\Table;
 
 class PlatformResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'platform';
+
     protected static ?string $model = Platform::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Площадки';

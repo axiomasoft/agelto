@@ -10,6 +10,7 @@ use App\Filament\Resources\Procurement\Ai\PromptSuggestions\Schemas\PromptSugges
 use App\Filament\Resources\Procurement\Ai\PromptSuggestions\Tables\PromptSuggestionsTable;
 use App\Guards\Admin\Permissions\PromptSuggestionPermission;
 use App\Models\Procurement\Ai\PromptSuggestion;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -27,6 +28,10 @@ use Illuminate\Support\Facades\Auth;
  */
 class PromptSuggestionResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'prompt_suggestion';
+
     protected static ?string $model = PromptSuggestion::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedInboxStack;
@@ -53,9 +58,13 @@ class PromptSuggestionResource extends Resource
     }
 
     // Eager-load автора решения — он показан и в списке, и в блоке аудита карточки (против N+1).
-    public static function getEloquentQuery(): Builder
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    protected static function modifyEloquentQuery(Builder $query): Builder
     {
-        return parent::getEloquentQuery()->with(['decidedBy']);
+        return $query->with(['decidedBy']);
     }
 
     public static function canViewAny(): bool

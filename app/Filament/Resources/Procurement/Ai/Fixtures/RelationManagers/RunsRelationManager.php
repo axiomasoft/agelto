@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Ai\Fixtures\RelationManagers;
 
+use App\Filament\Concerns\AuthorizesReadOnlyRelation;
 use App\Filament\Pages\FinalPromptPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
+use App\Filament\Resources\Procurement\Ai\Fixtures\Related\FixtureRunResource;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Schemas\RunResultSchema;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
@@ -22,6 +24,10 @@ use Illuminate\Database\Eloquent\Builder;
 /** Canonical run history: immutable recipe identity, derived work state and original ledger spend. */
 class RunsRelationManager extends RelationManager
 {
+    use AuthorizesReadOnlyRelation;
+
+    protected static ?string $azguardResource = FixtureRunResource::class;
+
     protected static string $relationship = 'runs';
 
     protected static ?string $title = 'Прогоны';
@@ -100,14 +106,16 @@ class RunsRelationManager extends RelationManager
                 $this->resultAction(),
                 Action::make('viewAnalysis')
                     ->label('Анализ')
-                    ->visible(fn (AnalysisRun $record): bool => $record->analyses->isNotEmpty())
+                    ->authorize(fn (): bool => AnalysisResource::canViewAny())
+                    ->visible(fn (AnalysisRun $record): bool => $record->analyses->isNotEmpty()
+                        && $this->ownerFixture()->document?->platform?->is_public === true)
                     ->url(fn (AnalysisRun $record): string => AnalysisResource::getUrl('view', [
                         'record' => $record->analyses->sortByDesc('id')->first(),
                     ]))
                     ->openUrlInNewTab(),
                 Action::make('finalPrompt')
                     ->label('Финальный промт')
-                    ->visible(fn (): bool => FinalPromptPage::canAccess())
+                    ->authorize(fn (): bool => FinalPromptPage::canAccess())
                     ->url(fn (AnalysisRun $record): string => FinalPromptPage::getUrl(['run' => $record->id]))
                     ->openUrlInNewTab(),
             ])
@@ -126,6 +134,7 @@ class RunsRelationManager extends RelationManager
     {
         return Action::make('result')
             ->label('Результат')
+            ->authorize(fn (AnalysisRun $record): bool => $this->getAuthorizationResponse(action: 'view', record: $record)->allowed())
             ->modalHeading('Результат прогона')
             ->modalSubmitAction(false)
             ->modalCancelActionLabel('Закрыть')

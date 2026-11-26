@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Procurement\Process\ControlScopes;
 use App\Filament\Resources\Procurement\Process\ControlScopes\Pages\ListControlScopes;
 use App\Filament\Resources\Procurement\Process\ControlScopes\Tables\ControlScopesTable;
 use App\Models\Procurement\Process\ControlScope;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -18,6 +19,10 @@ use Filament\Tables\Table;
  */
 final class ControlScopeResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'control_scope';
+
     protected static ?string $model = ControlScope::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Система';

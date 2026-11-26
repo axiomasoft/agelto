@@ -2,11 +2,19 @@
 
 declare(strict_types=1);
 
-use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
+use Proxyma\Filament\Pages\AttemptsPage;
+use Proxyma\Filament\Pages\AuditPage;
+use Proxyma\Filament\Pages\BindingsPage;
+use Proxyma\Filament\Pages\BudgetsPage;
+use Proxyma\Filament\Pages\HealthPage;
+use Proxyma\Filament\Pages\PolicyInspector;
+use Proxyma\Filament\Resources\Pages\Endpoints;
+use Proxyma\Filament\Resources\Pages\RouteProfiles;
+use Proxyma\Filament\Resources\Pages\Routes;
 
 return [
 
@@ -14,7 +22,7 @@ return [
 
     'manages' => null,
 
-    'enforce' => false,
+    'enforce' => true,
 
     'definitions' => 'enums',
 
@@ -37,11 +45,21 @@ return [
 
     'exclude' => [
         'resources' => [
+            // Авторизация канонических промтов зависит от поля is_protected.
             PromptResource::class,
-            AnalysisResource::class,
         ],
         'pages' => [
             CreateRecord::class,
+            // Proxyma проверяет чтение и мутации через собственный UiAuthorizer.
+            Endpoints::class,
+            Routes::class,
+            RouteProfiles::class,
+            BindingsPage::class,
+            PolicyInspector::class,
+            BudgetsPage::class,
+            HealthPage::class,
+            AttemptsPage::class,
+            AuditPage::class,
         ],
         'widgets' => [
             AccountWidget::class,

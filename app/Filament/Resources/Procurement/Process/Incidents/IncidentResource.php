@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Procurement\Process\Incidents;
 use App\Filament\Resources\Procurement\Process\Incidents\Pages\ListIncidents;
 use App\Filament\Resources\Procurement\Process\Incidents\Tables\IncidentsTable;
 use App\Models\Procurement\Process\Incident;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -18,6 +19,10 @@ use Filament\Tables\Table;
  */
 final class IncidentResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'incident';
+
     protected static ?string $model = Incident::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Система';

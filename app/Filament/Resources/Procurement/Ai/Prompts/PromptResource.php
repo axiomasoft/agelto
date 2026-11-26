@@ -12,14 +12,25 @@ use App\Filament\Resources\Procurement\Ai\Prompts\Schemas\PromptForm;
 use App\Filament\Resources\Procurement\Ai\Prompts\Schemas\PromptInfolist;
 use App\Filament\Resources\Procurement\Ai\Prompts\Tables\PromptsTable;
 use App\Models\Llm\Prompt;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Auth\Access\Response;
 
 class PromptResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'prompt';
+
+    public static function getDeleteAnyAuthorizationResponse(): Response
+    {
+        return Response::deny();
+    }
+
     protected static ?string $model = Prompt::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Настройка AI';

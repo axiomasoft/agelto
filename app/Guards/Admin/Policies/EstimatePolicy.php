@@ -23,12 +23,6 @@ final class EstimatePolicy
         return $user->hasPermission(EstimatePermission::ViewAny);
     }
 
-    #[Decides(EstimatePermission::View)]
-    public function view(User $user, ?Estimate $estimate = null): bool
-    {
-        return $user->hasPermission(EstimatePermission::View);
-    }
-
     #[Decides(EstimatePermission::Create)]
     public function create(User $user): bool
     {
@@ -49,7 +43,7 @@ final class EstimatePolicy
 
     public function deleteAny(User $user): bool
     {
-        return $user->hasPermission(EstimatePermission::Delete);
+        return false;
     }
 
     #[Decides(EstimatePermission::Restore)]

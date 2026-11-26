@@ -83,6 +83,7 @@ services:
       APP_URL: ${APP_URL}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       DB_CONNECTION: pgsql
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-127.0.0.1,::1}
       DB_HOST: postgres
       DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE}

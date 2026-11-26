@@ -7,13 +7,13 @@ namespace App\Filament\Pages;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Llm\PromptStep;
 use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Filament\Resources\Procurement\Ai\Prompts\PromptResource;
 use App\Filament\Support\LlmPresentation;
 use App\Models\Llm\Prompt;
 use App\Repositories\Llm\PromptReadRepository;
 use App\Services\Llm\Dto\ComposedPrompt;
 use App\Services\Llm\PromptComposer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
+use AzGuard\Filament\Concerns\AuthorizesPage;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
@@ -21,12 +21,11 @@ use Illuminate\Support\Collection;
 /**
  * Показывает только текущую RULES-часть `PromptComposer`: schema-блок приходит от места вызова,
  * поэтому этот экран не является и не пытается пересобрать финальный payload LLM-вызова.
- *
- * URL защищён явно через PromptResource::canViewAny(): скрытие navigation-пункта не защищает
- * кастомную Filament-страницу, а право страницы само по себе не заменяет PromptPermission::ViewAny.
  */
 final class PromptCompositionPage extends Page
 {
+    use AuthorizesPage;
+
     protected static ?string $slug = 'prompt-composition';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Настройка AI';
@@ -42,11 +41,6 @@ final class PromptCompositionPage extends Page
     public string $documentType = DocumentTypeScope::Any->value;
 
     public string $step = 'global';
-
-    public static function canAccess(): bool
-    {
-        return PromptResource::canViewAny();
-    }
 
     public function getTitle(): string
     {

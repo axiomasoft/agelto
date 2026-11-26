@@ -9,15 +9,21 @@ use App\Filament\Resources\Procurement\Health\PlatformChecks\Pages\ViewPlatformC
 use App\Filament\Resources\Procurement\Health\PlatformChecks\Schemas\PlatformCheckInfolist;
 use App\Filament\Resources\Procurement\Health\PlatformChecks\Tables\PlatformChecksTable;
 use App\Models\Procurement\Health\PlatformCheck;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class PlatformCheckResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'platform_check';
+
     protected static ?string $model = PlatformCheck::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedHeart;
@@ -42,9 +48,13 @@ class PlatformCheckResource extends Resource
         return PlatformChecksTable::configure($table);
     }
 
-    public static function getEloquentQuery(): Builder
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    protected static function modifyEloquentQuery(Builder $query): Builder
     {
-        return parent::getEloquentQuery()->with('platform');
+        return $query->with('platform');
     }
 
     public static function getPages(): array

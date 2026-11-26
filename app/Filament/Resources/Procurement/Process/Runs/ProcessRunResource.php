@@ -7,6 +7,7 @@ namespace App\Filament\Resources\Procurement\Process\Runs;
 use App\Filament\Resources\Procurement\Process\Runs\Pages\ListProcessRuns;
 use App\Filament\Resources\Procurement\Process\Runs\Tables\ProcessRunsTable;
 use App\Models\Procurement\Process\ProcessRun;
+use AzGuard\Filament\Concerns\AuthorizesResource;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -18,6 +19,10 @@ use Filament\Tables\Table;
  */
 final class ProcessRunResource extends Resource
 {
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'process_run';
+
     protected static ?string $model = ProcessRun::class;
 
     protected static string|\UnitEnum|null $navigationGroup = 'Система';
