@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Procurements;
 
+use App\Enums\Procurement\Process\StageCode;
 use App\Filament\Resources\Procurement\Procurements\Pages\ListProcurements;
 use App\Filament\Resources\Procurement\Procurements\Pages\ViewProcurement;
 use App\Filament\Resources\Procurement\Procurements\RelationManagers\EventsRelationManager;
@@ -66,19 +67,28 @@ class ProcurementResource extends Resource
         /** @var Builder<Procurement> $baseQuery */
         $baseQuery = $query;
 
-        $query = $baseQuery->publicPlatform()->with('registry.platform')->addSelect([
-            'detail_fetched_at' => DB::table('prc_detail_snapshots')->selectRaw('max(created_at)')
-                ->whereColumn('procurement_id', 'prc_procurements.id')->where('part_key', 'like', '%:published')
-                ->where('completeness', 'complete'),
-        ])->withCasts(['detail_fetched_at' => 'datetime']);
-        foreach (['state', 'reason_code', 'due_at'] as $field) {
-            $query->addSelect(['detail_work_'.$field => DB::table('prc_process_work')
-                ->select($field)->whereColumn('procurement_id', 'prc_procurements.id')->where('stage', 'detail')
-                ->orderByDesc('created_at')->orderByDesc('id')->limit(1)]);
-        }
+        $latestDetailWork = DB::table('prc_process_work')
+            ->select(['state as detail_work_state', 'reason_code as detail_work_reason_code', 'due_at as detail_work_due_at'])
+            ->whereColumn(first: 'procurement_id', operator: '=', second: 'prc_procurements.id')
+            ->where(column: 'stage', operator: '=', value: StageCode::Detail->value)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(1);
+
+        $latestPublishedSnapshot = DB::table('prc_detail_snapshots')
+            ->select('created_at as detail_fetched_at')
+            ->whereColumn(first: 'procurement_id', operator: '=', second: 'prc_procurements.id')
+            ->where(column: 'part_key', operator: 'like', value: '%:published')
+            ->where(column: 'completeness', operator: '=', value: 'complete')
+            ->orderByDesc('created_at')
+            ->limit(1);
 
         /** @var Builder<Model> $result */
-        $result = $query;
+        $result = $baseQuery->publicPlatform()->with('registry.platform')
+            ->addSelect(['prc_procurements.*', 'detail_work.*', 'published_snapshot.detail_fetched_at'])
+            ->leftJoinLateral(query: $latestDetailWork, as: 'detail_work')
+            ->leftJoinLateral(query: $latestPublishedSnapshot, as: 'published_snapshot')
+            ->withCasts(['detail_fetched_at' => 'datetime']);
 
         return $result;
     }

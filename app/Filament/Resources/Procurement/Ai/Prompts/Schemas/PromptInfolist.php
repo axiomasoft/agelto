@@ -36,13 +36,14 @@ final class PromptInfolist
                             ->columnSpanFull(),
                     ]),
                 Section::make('Все версии этого промта')
-                    ->description('Версии той же пары «тип документа + ключ».')
+                    ->description('Версии той же пары «тип документа + ключ», до 100 последних.')
                     ->schema([
                         RepeatableEntry::make('versions')
                             ->state(static fn (Prompt $record) => Prompt::query()
                                 ->where('document_type', $record->document_type)
                                 ->where('key', $record->key)
                                 ->orderByDesc('version')
+                                ->limit(100)
                                 ->get())
                             ->schema([
                                 TextEntry::make('version')

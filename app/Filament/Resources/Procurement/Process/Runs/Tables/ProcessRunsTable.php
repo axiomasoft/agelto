@@ -6,7 +6,10 @@ namespace App\Filament\Resources\Procurement\Process\Runs\Tables;
 
 use App\Dto\Procurement\Process\OperatorCommandResult;
 use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\RunFacts;
+use App\Dto\Procurement\Process\WorkStateCounts;
 use App\Enums\Procurement\Process\AccountingRole;
+use App\Enums\Procurement\Process\DiscoveryOutcome;
 use App\Enums\Procurement\Process\ProcessRunState;
 use App\Enums\Procurement\Process\WorkState;
 use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
@@ -14,17 +17,17 @@ use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Process\ProcessRun;
 use App\Models\User;
 use App\Services\Procurement\Process\ProcessOperatorCommands;
-use App\Services\Procurement\Process\RunProjector;
+use App\Services\Procurement\Process\RunStateReducer;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Contracts\Database\Eloquent\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 final class ProcessRunsTable
 {
@@ -33,14 +36,7 @@ final class ProcessRunsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(static fn (Builder $query): Builder => $query
-                ->withCount([
-                    'workLinks as required_total' => static fn (BuilderContract $links) => $links->where('accounting_role', AccountingRole::Required->value),
-                    'workLinks as required_active' => static fn (BuilderContract $links) => $links->where('accounting_role', AccountingRole::Required->value)
-                        ->whereIn('work_id', self::workIds([WorkState::Ready, WorkState::Admitted, WorkState::Running])),
-                    'workLinks as required_waiting' => static fn (BuilderContract $links) => $links->where('accounting_role', AccountingRole::Required->value)
-                        ->whereIn('work_id', self::workIds([WorkState::Deferred, WorkState::Blocked])),
-                ]))
+            ->modifyQueryUsing(self::withWorkCounts(...))
             ->columns([
                 TextColumn::make('requested_at')->label('Запрошен')->dateTime()->sortable(),
                 TextColumn::make('kind')->label('Вид')->badge()->formatStateUsing(fn (mixed $state): string => $state instanceof \BackedEnum ? (string) $state->value : '—'),
@@ -52,7 +48,12 @@ final class ProcessRunsTable
                 TextColumn::make('discovery_outcome')->label('Обнаружение')
                     ->formatStateUsing(fn (mixed $state): string => is_string($state) ? (self::DISCOVERY[$state] ?? $state) : '—')
                     ->description(static fn (ProcessRun $record): ?string => $record->discovery_reason_code),
-                TextColumn::make('required_total')->label('Required work')->description(static fn (ProcessRun $record): string => sprintf('в работе %d, ждут %d', self::count($record, 'required_active'), self::count($record, 'required_waiting'))),
+                TextColumn::make('required_total')->label('Required work')
+                    ->description(static function (ProcessRun $record): string {
+                        $counts = self::requiredCounts($record);
+
+                        return sprintf('в работе %d, ждут %d', $counts->active(), $counts->waiting());
+                    }),
                 TextColumn::make('cancel_requested_at')->label('Отмена запрошена')->dateTime()->placeholder('—')->toggleable(),
                 TextColumn::make('requested_by')->label('Кто (user id)')->placeholder('—')->toggleable(),
                 TextColumn::make('transition_seq')->label('Версия')->toggleable(isToggledHiddenByDefault: true),
@@ -66,7 +67,7 @@ final class ProcessRunsTable
                     ->color('danger')
                     ->authorize(static fn (): bool => self::actor()->hasPermission(ProcessControlPermission::CancelRun))
                     ->visible(static fn (ProcessRun $record): bool => $record->cancel_requested_at === null
-                        && ! (self::runState($record)?->terminal() ?? true))
+                        && ! self::runState($record)->terminal())
                     ->schema([OperatorActionInput::versionField('cancel_run'), Textarea::make('reason')->label('Причина')->required()->maxLength(OperatorActionInput::REASON_LIMIT)])
                     ->requiresConfirmation()
                     ->modalDescription('Отменяется намерение запуска. Общая работа, нужная другим запускам, не отменяется.')
@@ -81,12 +82,38 @@ final class ProcessRunsTable
     }
 
     /**
-     * @param  list<WorkState>  $states
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
      */
-    private static function workIds(array $states): \Closure
+    private static function withWorkCounts(Builder $query): Builder
     {
-        return static fn (QueryBuilder $query) => $query->select('id')->from('prc_process_work')
-            ->whereIn('state', array_map(static fn (WorkState $state): string => $state->value, $states));
+        $required = AccountingRole::Required->value;
+        $counts = DB::table(table: 'prc_process_run_work', as: 'links')
+            ->join(table: 'prc_process_work as work', first: 'work.id', operator: '=', second: 'links.work_id')
+            ->whereColumn(first: 'links.run_id', operator: '=', second: 'prc_process_runs.id')
+            ->selectRaw('count(*) as linked_total')
+            ->selectRaw(expression: 'count(*) filter (where links.accounting_role = ?) as required_total', bindings: [$required]);
+
+        foreach (WorkState::cases() as $state) {
+            $counts->selectRaw(
+                expression: "count(*) filter (where links.accounting_role = ? and work.state = ?) as required_{$state->value}",
+                bindings: [$required, $state->value],
+            );
+        }
+
+        return $query->addSelect(['prc_process_runs.*', 'work_counts.*'])
+            ->leftJoinLateral(query: $counts, as: 'work_counts')
+            ->withCasts(['required_total' => 'integer']);
+    }
+
+    private static function requiredCounts(ProcessRun $record): WorkStateCounts
+    {
+        $counts = [];
+        foreach (WorkState::cases() as $state) {
+            $counts[$state->value] = self::count(record: $record, attribute: "required_{$state->value}");
+        }
+
+        return WorkStateCounts::fromMap($counts);
     }
 
     private static function count(ProcessRun $record, string $attribute): int
@@ -96,27 +123,14 @@ final class ProcessRunsTable
         return is_numeric($value) ? (int) $value : 0;
     }
 
-    private static function runState(ProcessRun $record): ?ProcessRunState
+    private static function runState(ProcessRun $record): ProcessRunState
     {
-        /** @var array<string, ?ProcessRunState> $cache */
-        static $cache = [];
-        $runId = (string) $record->id;
-        $key = implode(':', [
-            $runId,
-            (string) $record->transition_seq,
-            (string) ($record->cancel_requested_at?->toIso8601String() ?? ''),
-            (string) ($record->finished_at?->toIso8601String() ?? ''),
-            (string) self::count($record, 'required_active'),
-            (string) self::count($record, 'required_waiting'),
-        ]);
-        if (! array_key_exists($key, $cache)) {
-            if (count($cache) >= 256) {
-                $cache = [];
-            }
-            $cache[$key] = app(RunProjector::class)->summary(new ProcessUuid($runId))?->state;
-        }
-
-        return $cache[$key];
+        return (new RunStateReducer)->reduce(new RunFacts(
+            cancelRequested: $record->cancel_requested_at !== null,
+            discovery: DiscoveryOutcome::from($record->discovery_outcome),
+            activated: $record->started_at !== null || self::count(record: $record, attribute: 'linked_total') > 0,
+            required: self::requiredCounts($record),
+        ));
     }
 
     private static function status(ProcessRun $record): string
@@ -128,7 +142,6 @@ final class ProcessRunsTable
             ProcessRunState::Completed => 'Завершён',
             ProcessRunState::CompletedWithIssues => 'Завершён с проблемами',
             ProcessRunState::Cancelled => 'Отменён оператором',
-            null => 'Недоступен',
         };
     }
 

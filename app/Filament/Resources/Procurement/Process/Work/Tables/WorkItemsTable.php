@@ -35,6 +35,7 @@ final class WorkItemsTable
     public static function configure(Table $table): Table
     {
         return $table->columns([
+            TextColumn::make('id')->label('UUID')->searchable()->toggleable(isToggledHiddenByDefault: true),
             TextColumn::make('updated_at')->label('Изменена')->dateTime()->sortable(),
             TextColumn::make('stage')->label('Стадия')->formatStateUsing(fn (mixed $state): string => $state instanceof StageCode ? $state->value : '—')->searchable(),
             TextColumn::make('state')->label('Состояние')->badge()

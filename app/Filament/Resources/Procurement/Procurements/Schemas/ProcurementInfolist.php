@@ -15,6 +15,7 @@ use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
+use WeakMap;
 
 class ProcurementInfolist
 {
@@ -189,26 +190,12 @@ class ProcurementInfolist
 
     private static function durations(Procurement $record): ProcurementDurations
     {
-        /** @var array<string, ProcurementDurations> $durations */
-        static $durations = [];
-        $updatedAt = self::rawDateTime($record, 'updated_at');
-        $lastSeenAt = self::rawDateTime($record, 'last_seen_at');
-        $key = implode(':', [
-            (string) $record->id,
-            $record->status->value,
-            $updatedAt instanceof \DateTimeInterface ? $updatedAt->format(\DateTimeInterface::ATOM) : (string) ($updatedAt ?? ''),
-            $lastSeenAt instanceof \DateTimeInterface ? $lastSeenAt->format(\DateTimeInterface::ATOM) : (string) ($lastSeenAt ?? ''),
-        ]);
-        if (! isset($durations[$key])) {
-            if (count($durations) >= 256) {
-                $durations = [];
-            }
-            $durations[$key] = app(ProcurementTimelineBuilder::class)
-                ->build(procurement: $record, from: Carbon::parse(self::rawDateTime($record, 'first_seen_at')), until: now())
-                ->durations;
-        }
+        /** @var WeakMap<Procurement, ProcurementDurations> $durations */
+        static $durations = new WeakMap;
 
-        return $durations[$key];
+        return $durations[$record] ??= app(ProcurementTimelineBuilder::class)
+            ->build(procurement: $record, from: Carbon::parse(self::rawDateTime($record, 'first_seen_at')), until: now())
+            ->durations;
     }
 
     private static function rawDateTime(Procurement $record, string $attribute): \DateTimeInterface|float|int|string|null

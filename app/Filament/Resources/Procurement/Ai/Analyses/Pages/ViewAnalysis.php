@@ -163,7 +163,7 @@ class ViewAnalysis extends ViewRecord
 
                 Notification::make()->title('Повторный разбор запущен')->success()->send();
 
-                return redirect(WorkItemResource::getUrl('index', ['tableSearch' => $new->value->value]));
+                return redirect(WorkItemResource::getUrl(name: 'index', parameters: ['search' => $new->value->value]));
             });
     }
 }
