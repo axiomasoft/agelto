@@ -10,11 +10,8 @@ namespace App\Services\Llm\Dto;
  * `cache_control`, OpenAI → `prompt_cache_key`, vLLM → no-op). `provider`/`model` — идентификаторы
  * маршрута (`llm_providers`/`llm_routes`), не сами объекты — контракт не зависит от Eloquent.
  *
- * `baseUrl`/`apiKeyEnv` — те же самые прозрачные идентификаторы (не объекты), но для
- * `OpenAiCompatibleProvider`: `llm_providers.base_url`/`options.api_key_env` копируются сюда
- * `LlmRouteResolver`, чтобы адаптер оставался stateless (`container->make` без параметров —
- * `app->instance(OpenAiCompatibleProvider::class, $fake)` продолжает работать в тестах, тот же
- * приём, что `PrismGeminiProvider` в `ScreeningProcessorTest`). Gemini-адаптер оба поля игнорирует.
+ * `LlmRouteResolver` копирует `baseUrl` и имя переменной `apiKeyEnv` из метаданных маршрута.
+ * Вызовы выполняются через владельца запроса с отдельной привязкой подключения.
  *
  * `thinkingLevel` — уровень размышления линейки Gemini 3.x
  * (`MINIMAL`/`LOW`/`MEDIUM`/`HIGH`, дефолт вендора `MEDIUM`), `null` — не передавать провайдеру

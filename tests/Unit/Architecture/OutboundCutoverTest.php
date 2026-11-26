@@ -70,8 +70,6 @@ test('acquisition callers не создают второй HTTP клиент и 
         }
     }
     expect($violations)->toBe([]);
-    foreach (['OpenAiCompatibleProvider', 'UnsupportedProvider'] as $provider) {
-        $source = File::get(app_path('Services/Llm/Providers/'.$provider.'.php'));
-        expect($source)->toContain('throw new UnsupportedConsumer')->not->toContain('PendingRequest', 'Prism\\', '->send(');
-    }
+    $source = File::get(app_path('Services/Llm/Providers/CatalogOnlyProvider.php'));
+    expect($source)->toContain('throw new UnsupportedConsumer')->not->toContain('PendingRequest', 'Prism\\', '->send(');
 });

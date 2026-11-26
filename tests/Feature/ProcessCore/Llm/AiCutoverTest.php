@@ -23,8 +23,7 @@ use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Execution\ProviderOperationPlan;
-use App\Services\Llm\Providers\OpenAiCompatibleProvider;
-use App\Services\Llm\Providers\UnsupportedProvider;
+use App\Services\Llm\LlmProviderFactory;
 use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
 use App\Services\Procurement\Extraction\AnalysisProviderConnections;
 use App\Services\Procurement\Extraction\AnalysisRuntime;
@@ -131,7 +130,8 @@ test('review repository rejects result and execution writes while preserving all
 test('providers without a registered owning gate reject synchronous paid methods before HTTP', function (): void {
     $prompt = new LlmPrompt('fixture', []);
     $options = new LlmOptions(provider: 'fixture', model: 'fixture', temperature: 0, maxTokens: 64);
-    foreach ([new OpenAiCompatibleProvider, new UnsupportedProvider] as $provider) {
+    foreach (['gemini', 'openai_compatible'] as $driver) {
+        $provider = app(LlmProviderFactory::class)->forDriver($driver);
         expect(fn () => $provider->complete($prompt, $options))->toThrow(UnsupportedConsumer::class);
     }
     Http::assertNothingSent();

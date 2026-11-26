@@ -8,7 +8,7 @@ use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Services\Llm\LlmRouteResolver;
-use App\Services\Llm\Providers\UnsupportedProvider;
+use App\Services\Llm\Providers\CatalogOnlyProvider;
 
 function llmRouteResolver(): LlmRouteResolver
 {
@@ -38,7 +38,7 @@ test('resolve() выбирает активный маршрут с минима
     expect($resolved->options->model)->toBe('gemini-2.5-flash')
         ->and($resolved->options->provider)->toBe($provider->code)
         ->and($resolved->route->is($primary))->toBeTrue()
-        ->and($resolved->provider)->toBeInstanceOf(UnsupportedProvider::class);
+        ->and($resolved->provider)->toBeInstanceOf(CatalogOnlyProvider::class);
 });
 
 test('candidatesFor() отдаёт весь список priority ASC для эскалации', function (): void {

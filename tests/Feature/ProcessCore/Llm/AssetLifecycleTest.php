@@ -406,7 +406,7 @@ test('expiry capability во время network wait отзывает authorizat
         ->and(DB::table('llm_budget_reservations')->sole()->settled_amount)->toBe('0.00000000');
 });
 
-test('ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP', function (): void {
+test('ai:caches показывает реестр и usage и удаляет истёкший кэш без дополнительного HTTP', function (): void {
     $f = assetLifecycleFixture($this->server, OperationPurpose::CacheCreate);
     AssetFixtures::clearAssets();
     $this->artisan('ai:caches', ['action' => 'list'])
@@ -428,11 +428,20 @@ test('ai:caches CLI читает канонический реестр llm_conte
         ->expectsOutputToContain('cache_create')
         ->assertSuccessful();
 
-    foreach (['prune', 'bogus'] as $action) {
-        $this->artisan('ai:caches', ['action' => $action])
-            ->expectsOutputToContain('Unsupported')
-            ->assertFailed();
-    }
+    $this->artisan('ai:caches', ['action' => 'prune'])
+        ->expectsOutputToContain('файлов 0, кэшей 0')
+        ->assertSuccessful();
+    expect(DB::table('llm_context_caches')->count())->toBe(1);
+    DB::table('llm_context_caches')->update(['expires_at' => DB::raw("clock_timestamp() - interval '1 second'")]);
+    $this->artisan('ai:caches', ['action' => 'prune'])
+        ->expectsOutputToContain('файлов 0, кэшей 1')
+        ->assertSuccessful();
+    $this->artisan('ai:caches', ['action' => 'bogus'])
+        ->expectsOutputToContain('Unsupported')
+        ->assertFailed();
+
     expect($this->server->receipts())->toHaveCount(1)
+        ->and(DB::table('llm_context_caches')->count())->toBe(0)
+        ->and(DB::table('llm_provider_calls')->count())->toBe(1)
         ->and(DB::table('llm_budget_reservations')->count())->toBe(1);
 });

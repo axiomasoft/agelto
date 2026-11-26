@@ -14,7 +14,7 @@ final readonly class PromptStoreRepository
      */
     public function storeOrUpdate(array $record): Prompt
     {
-        $prompt = Prompt::query()->firstOrNew([
+        $prompt = Prompt::query()->lockForUpdate()->firstOrNew([
             'document_type' => $record['document_type'],
             'key' => $record['key'],
             'version' => $record['version'],
@@ -24,6 +24,12 @@ final readonly class PromptStoreRepository
             'step' => $record['step'],
             'content' => $record['content'],
             'priority' => $record['priority'],
+        ]);
+        if ($prompt->exists && $prompt->is_protected && $prompt->isDirty(['step', 'content', 'priority'])) {
+            throw new \RuntimeException("Защищённый промт {$prompt->document_type}/{$prompt->key} v{$prompt->version} изменён. Увеличьте version в каноне.");
+        }
+
+        $prompt->fill([
             'is_active' => $record['is_active'],
         ])->forceFill([
             'is_protected' => true,

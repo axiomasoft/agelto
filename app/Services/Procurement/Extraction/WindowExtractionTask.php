@@ -24,6 +24,7 @@ final class WindowExtractionTask
 
         return new StructuredTask($range instanceof PageRange ? PageExtractionOutput::class : ExtractionOutput::class,
             $snapshot->prompt, TaskPurpose::Rows,
-            new ExtractionSemanticValidator($range, $window->estimateOrdinal, $window->sourceAnchors, $window->run->source->blankPages ?? []));
+            new ExtractionSemanticValidator(expected: $range, estimateOrdinal: $window->estimateOrdinal, sourceAnchors: $window->sourceAnchors,
+                blankPages: $window->run->source->blankPages ?? [], checkPositionTotals: false, arithmetic: $window->run->recipe->arithmetic));
     }
 }

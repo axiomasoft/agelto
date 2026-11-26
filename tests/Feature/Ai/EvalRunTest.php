@@ -18,7 +18,7 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Ai\DatasetExampleReadRepository;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
-use App\Services\Llm\Providers\UnsupportedProvider;
+use App\Services\Llm\Providers\CatalogOnlyProvider;
 use App\Services\Procurement\Analyzers\Estimate\EvalSplitPlanner;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
@@ -57,7 +57,7 @@ function seedEvalRunDocumentVersion(Document $document): DocumentVersion
 
 function seedEvalRunRoute(FakeLlmProvider $fake): void
 {
-    app()->instance(UnsupportedProvider::class, $fake);
+    app()->instance(CatalogOnlyProvider::class, $fake);
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 

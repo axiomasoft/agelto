@@ -27,13 +27,15 @@ final readonly class AnalysisRecipe
         public string $currency,
         public string $locale,
         public ScreeningPolicySnapshot $screening = new ScreeningPolicySnapshot,
+        public ?ExtractionArithmeticPolicy $arithmetic = null,
     ) {
         if ($analyzerVersion === '' || preg_match('/^[A-Z]{3}$/D', $currency) !== 1 || $locale === '') {
             throw new \InvalidArgumentException('Incomplete semantic recipe.');
         }
         $this->json = CanonicalJson::encode(['version' => self::CODEC_VERSION, 'preparation_hash' => $preparationHash->hex,
             'analyzer_version' => $analyzerVersion, 'tasks' => json_decode($tasks->json, flags: JSON_THROW_ON_ERROR), 'llm' => json_decode($llm->json, flags: JSON_THROW_ON_ERROR),
-            'coverage' => $coverage->fields(), 'currency' => $currency, 'locale' => $locale, 'screening' => $screening->fields()]);
+            'coverage' => $coverage->fields(), 'currency' => $currency, 'locale' => $locale, 'screening' => $screening->fields(),
+            ...($arithmetic === null ? [] : ['arithmetic' => $arithmetic->fields()])]);
         $this->hash = ContentHash::of($this->json);
     }
 
@@ -54,12 +56,17 @@ final readonly class AnalysisRecipe
             || ! is_bool($screening->ignored_by_rule ?? null)) {
             throw new \InvalidArgumentException('Invalid screening policy snapshot.');
         }
+        $arithmetic = property_exists($reader->object, 'arithmetic') ? $reader->object('arithmetic') : null;
         $recipe = new self(new ContentHash($reader->string('preparation_hash')), $reader->string('analyzer_version'),
             TaskManifest::restore(CanonicalJson::encode($reader->object('tasks')->object)),
             PinnedLlmContext::restore(CanonicalJson::encode($reader->object('llm')->object)),
             new CoverageStrategy($coverage->integer('windowSpan'), $coverage->integer('overlap'), $coverage->integer('minSpan'),
                 $coverage->integer('maxDepth'), $coverage->integer('maxSplits'), $degraded), $reader->string('currency'), $reader->string('locale'),
-            new ScreeningPolicySnapshot($screening->confidence_low, $screening->confidence_high, $screening->ignored_by_rule));
+            new ScreeningPolicySnapshot($screening->confidence_low, $screening->confidence_high, $screening->ignored_by_rule),
+            $arithmetic === null ? null : new ExtractionArithmeticPolicy(
+                roundingTolerance: $arithmetic->string('rounding_tolerance'),
+                coefficientTolerance: $arithmetic->string('coefficient_tolerance'),
+            ));
         if ($recipe->json !== CanonicalJson::encode($reader->object)) {
             throw new \InvalidArgumentException('Recipe snapshot drift or unrecognized fields.');
         }

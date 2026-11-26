@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Ai;
 
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
+use App\Enums\Procurement\Estimate\RowType;
 use App\Services\Llm\Schema\SchemaConstraints;
 use Spatie\LaravelData\Data;
 
@@ -19,4 +20,9 @@ final class AnchoredEstimateRow extends Data
         public int $page_index,
         public EstimateRow $row,
     ) {}
+
+    public function isLineItem(): bool
+    {
+        return $this->row->row_type === RowType::Item;
+    }
 }

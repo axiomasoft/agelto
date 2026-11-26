@@ -52,6 +52,6 @@ final readonly class AnalysisRecipeFactory
         string $currency = 'RUB', string $locale = 'ru-RU', ?ScreeningPolicySnapshot $screening = null): AnalysisRecipe
     {
         return new AnalysisRecipe($preparation, 'estimate-pages/1', $this->tasks, $context, $coverage, $currency, $locale,
-            $screening ?? new ScreeningPolicySnapshot);
+            $screening ?? new ScreeningPolicySnapshot, ExtractionSemanticValidator::configuredArithmetic());
     }
 }

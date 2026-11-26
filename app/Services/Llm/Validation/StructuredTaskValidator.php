@@ -39,6 +39,9 @@ final readonly class StructuredTaskValidator
             return new StructuredResult(Decision::Incomplete);
         }
         $validation = $this->schemas->validate($raw, $task->schema);
+        if ($validation->splitRequired) {
+            return new StructuredResult(Decision::SplitRequired, errors: $validation->errors);
+        }
         if (! $validation->valid()) {
             return new StructuredResult(Decision::InvalidSchema, errors: $validation->errors);
         }

@@ -277,6 +277,8 @@ return [
     |
     */
     'extraction' => [
+        'rounding_tolerance' => env('AI_EXTRACTION_ROUNDING_TOLERANCE', '0.00'),
+        'coefficient_tolerance' => env('AI_EXTRACTION_COEFFICIENT_TOLERANCE', '0.01'),
         'windowed_enabled' => (bool) env('AI_EXTRACTION_WINDOWED_ENABLED', true),
         'row_range_size' => (int) env('AI_EXTRACTION_ROW_RANGE_SIZE', 30),
         'min_row_range_size' => (int) env('AI_EXTRACTION_MIN_ROW_RANGE_SIZE', 5),

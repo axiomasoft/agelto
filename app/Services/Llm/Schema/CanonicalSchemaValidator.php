@@ -14,10 +14,10 @@ final class CanonicalSchemaValidator
 {
     public function validate(string $raw, CanonicalSchema $schema): SchemaValidationResult
     {
-        $this->assertSchema($schema);
         if (strlen($raw) > 1048576) {
-            return new SchemaValidationResult(['response_size_limit']);
+            return new SchemaValidationResult(errors: ['response_size_limit'], splitRequired: true);
         }
+        $this->assertSchema($schema);
         try {
             $data = json_decode($raw, depth: 64, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException) {

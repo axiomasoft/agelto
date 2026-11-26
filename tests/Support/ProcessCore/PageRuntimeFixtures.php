@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
+use App\Dto\Llm\Requests\PinnedLlmContext;
 use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
 use App\Dto\Procurement\Ai\CoverageStrategy;
@@ -41,7 +42,7 @@ use Illuminate\Support\Facades\DB;
 final class PageRuntimeFixtures
 {
     /** @return array{AnalysisRunSnapshot,int,string} */
-    public static function prepared(): array
+    public static function prepared(?PinnedLlmContext $context = null): array
     {
         $period = FinancialFixtures::reset();
         AiFixtures::storageDomains();
@@ -49,7 +50,7 @@ final class PageRuntimeFixtures
         app(ProcessAuthoritySync::class)->registerHandler(StageCode::Screening, ScreeningRuntimeFixtures::VERSION);
         app(ProcessAuthoritySync::class)->registerHandler(StageCode::Extraction, ExtractionRuntimeFixtures::VERSION);
         app(ProcessAuthoritySync::class)->registerHandler(StageCode::Publication, ExtractionRuntimeFixtures::VERSION);
-        $base = AiFixtures::recipe();
+        $base = AiFixtures::recipe($context);
         $recipe = (new AnalysisRecipeFactory)->make($base->preparationHash, $base->llm, new CoverageStrategy(2, 0));
         $document = DocumentStorageFixtures::document();
         $domain = DocumentStorageFixtures::domain();
@@ -71,9 +72,9 @@ final class PageRuntimeFixtures
     }
 
     /** @return array{WorkId,ExecutionLease,AnalysisRunSnapshot,string} */
-    public static function work(): array
+    public static function work(?PinnedLlmContext $context = null): array
     {
-        [$run, $documentId, $period] = self::prepared();
+        [$run, $documentId, $period] = self::prepared($context);
         $work = new WorkId(LedgerFixtures::uuid());
         app(ProcessTransaction::class)->run(function () use ($run, $documentId, $work): void {
             DB::select('SELECT id FROM prc_documents WHERE id=? FOR UPDATE', [$documentId]);

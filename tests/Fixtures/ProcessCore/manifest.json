@@ -120,7 +120,7 @@
             "captured_at": "2026-11-03",
             "contract_hashes_refreshed_at": "2026-11-11",
             "previous_accepted_sha256": "b910db33b772938f028a1734cba5942d004684718ab5b6058caa5e7c86e16063",
-            "sha256": "2fe6b6a6cd3ee6c235957cd388cb7e0f0c9b084a5d4f2710f08d33372342d318",
+            "sha256": "574264817d3a1295a3f757f40a4be5a3ba0caa52b7f46fc8efb12bb52617817b",
             "expected": {
                 "assessment": "orchestration_contracts_quality_not_measured",
                 "schema_version": 1
@@ -591,7 +591,7 @@
             "adapter_version": "acquisition/1",
             "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
             "captured_at": "2026-10-31",
-            "sha256": "6923ca0ae0c685c8ae9d28528118f59c7ab71359f271331f5e5fb1bfd9b4d138",
+            "sha256": "6a4c4f2305332fb4e1ff43be1cd4233258000eae22ab930f446c853f84857a77",
             "expected": {
                 "assessment": "exact_executed_replacements",
                 "schema_version": 1
@@ -777,7 +777,7 @@
         },
         {
             "path": "tests/Feature/Ai/BenchFormatsTest.php",
-            "sha256": "319cb91ef84f23ca85979991544d4029ee36c518775809a527dac51db533a339",
+            "sha256": "d88baaea12c259f3b9bc5f64b854ec64a4c5f136058403a189135de5316b4da4",
             "scenarios": [
                 "сухой прогон не делает ни одного LLM-вызова и заполняет predicted",
                 "ячейка с несуществующим вариантом — not_applicable, прогон не падает",
@@ -795,7 +795,7 @@
         },
         {
             "path": "tests/Feature/Ai/CachesTest.php",
-            "sha256": "4cbd802a39ee19eb59b7e72cba4c248e567617d92cd9bfe360abfae9af55708b",
+            "sha256": "72e0b588b504d6bdc0bc8830191b6074d44814cfc2f5cf5dc4728afd1c26c6b4",
             "scenarios": [
                 "cache CLI lists canonical assets and known usage without a model API call",
                 "cache CLI rejects unowned remote prune and invalid action without new financial effects"
@@ -1051,7 +1051,7 @@
         },
         {
             "path": "tests/Feature/Ai/EvalRunTest.php",
-            "sha256": "f44b65dfeca11934f96f40bd03b9cbeb31812db6260c5544d2d55f21180da28b",
+            "sha256": "0cc6ec16eb7e5a15e1548026b6b7dc4b139a54027faafd9ef41b92d18e15c3a5",
             "scenarios": [
                 "пустой датасет без --dry-run пишет EvalRun-заглушку без единого LLM-вызова",
                 "--dry-run пропускает реальные LLM-вызовы даже с непустым датасетом",
@@ -1256,7 +1256,7 @@
         },
         {
             "path": "tests/Feature/Ai/PromptSuggestTest.php",
-            "sha256": "929899b9be7a654241ae1bd04ac54930ec0f3aa381db5d0ad8044ab6966a8d9f",
+            "sha256": "568c188eb068cee768de5dc3825085aa50015ee854896b934c007115b5d0b56e",
             "scenarios": [
                 "битое значение document_type отвергается БД",
                 "битое значение analysis_step отвергается БД",
@@ -1282,7 +1282,7 @@
         },
         {
             "path": "tests/Feature/Ai/ScreeningEvalTest.php",
-            "sha256": "f06076fbd4671755e160e63f17f7ec3b59eb133c2bb8919cbe56999c909d86e3",
+            "sha256": "a6c3c169d3262b8010b4d2e4ab6e4c68e0a62b02ee50a6ec2ceadc5684977a95",
             "scenarios": [
                 "негатив, правильно классифицированный → accuracy 1.0 и FP 0",
                 "негатив, помеченный estimate → FP 1.0 и запись в перечне расхождений с кодом эталона",
@@ -2987,7 +2987,7 @@
         },
         {
             "path": "tests/Feature/Llm/LlmRouteResolverTest.php",
-            "sha256": "95a9102ab8fcbc939cd035b7aaefb878d54f8404faa0dd09d4a0f0aa6fe55ba1",
+            "sha256": "0ebff4a6a42627869a4bba63d60d01276c9ea40f416b82866eb5022c94e958a1",
             "scenarios": [
                 "resolve() выбирает активный маршрут с минимальным priority",
                 "candidatesFor() отдаёт весь список priority ASC для эскалации",
@@ -4614,7 +4614,7 @@
         },
         {
             "path": "tests/Unit/Architecture/CoreKnowsNoDocumentTypeTest.php",
-            "sha256": "fb1d14b328bf04bbdf766d458340d2b1edf992c2e0c05a9c52b7a68bce44b498",
+            "sha256": "42620d3a7563002a61477d559db0f551357177a96259ea6852ae66f910b7004a",
             "scenarios": [
                 "периметр ядра собран правилом вычитания §6.2, не перечнем руками",
                 "ядро не импортирует поверхность типа документа — (а)/(б)/(в) §6.3",
@@ -4959,7 +4959,7 @@
         },
         {
             "path": "tests/Unit/Llm/OpenAiCompatibleProviderTest.php",
-            "sha256": "e86b23cdf3f8a8f1b197d4da365822328a6badf75e7f1b05b2322a0504f3e07c",
+            "sha256": "230393ccc903f53e4c77d1641379820bbd1c368d61239d9eac12a873df2358f7",
             "scenarios": [
                 "complete without a durable owner is Unsupported before SDK usage or finish-reason mapping",
                 "structured caller without a durable owner cannot bypass the gate with a raw schema",
@@ -5485,7 +5485,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-            "sha256": "fa549b22fd895d0d1611b756c3351d4683badfd91dfa12ec914ac7f1ab9be48f",
+            "sha256": "ce7187672cb1357def7189b69970930d215f1867bbb8d522195eec663bec1efb",
             "scenarios": [
                 "файл загружается настоящим multipart HTTP с сохранёнными bytes MIME TTL и отдельным нулевым учётом",
                 "кэш создаётся одним HTTP с полным TTL reserve и точным system file prefix без tools",
@@ -5505,7 +5505,7 @@
                 "verified generation envelopes retain financial facts for refusal empty and unsupported domain outcomes",
                 "file identity меняется с account API MIME bytes; модель того же account может использовать тот же файл",
                 "expiry capability во время network wait отзывает authorization до HTTP",
-                "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
+                "ai:caches показывает реестр и usage и удаляет истёкший кэш без дополнительного HTTP"
             ],
             "accepted_change_item": "P3.13",
             "change_reason": "Actual canonical AI assertions; no paid/live calls or skipped scenarios.",
@@ -5533,7 +5533,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Llm/AiCutoverTest.php",
-            "sha256": "fb1c60251e4fcdd822c9788d6b6aa77519620b00effaf1e9c703738a628d1bef",
+            "sha256": "44beb184d1959f32a431cb78c7c603fdc008b9a2f2dc64c9c4fd6b1bc4f66575",
             "scenarios": [
                 "production container registers all real analysis handlers without configuration IO or provider calls",
                 "manual reanalysis creates one new intent and immutable recipe while duplicate command never resets accepted history",
@@ -5872,7 +5872,7 @@
         },
         {
             "path": "tests/Unit/Architecture/OutboundCutoverTest.php",
-            "sha256": "86bc9849dfe0c514ffb6d137f295320dff252be5c9101bf6f86133dc6dc88865",
+            "sha256": "465cd09e81ae670c78d5bebb267a433e6f30cca6df26315bc3c2979552c3b44d",
             "scenarios": [
                 "удалённые сетевые writers отсутствуют и ни один app caller не зависит от их классов",
                 "acquisition callers не создают второй HTTP клиент и не владеют physical retry"
@@ -6008,7 +6008,7 @@
         },
         {
             "path": "tests/Feature/ProcessCore/Network/ProxymaCallerParityTest.php",
-            "sha256": "a614893c7b42df68cecec1a2dbc6c191e0e667dafd9234c56b80314077488034",
+            "sha256": "a518822e8377fc33367930efde15dfc2cdff3d4b33ee12fa3e200f3f831d1caf",
             "accepted_change_item": "Proxyma:P9.4",
             "scenarios": [
                 "package CSV caller сохраняет win1251 partial и не публикует неполную строку",
@@ -8552,7 +8552,7 @@
         {
             "path": "app/Services/Procurement/Extraction/AnalysisGeneration.php",
             "fqcn": "App\\Services\\Procurement\\Extraction\\AnalysisGeneration",
-            "sha256": "0670dfd6820a96da764f58dcb100b800c14cc30b70327004d365bcb961a12b98",
+            "sha256": "a35d023c693327bc0c87e1ec807c19258201843f9d82021e819f6c5f520dc116",
             "change_reason": "Proxyma:P10.3 explicit consumer adapter or migration-only carrier."
         },
         {

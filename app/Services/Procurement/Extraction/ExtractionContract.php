@@ -26,7 +26,8 @@ final class ExtractionContract
 
         /** @var StructuredTask<ExtractionOutput> $task */
         $task = new StructuredTask(ExtractionOutput::class, new PromptSnapshot($content, 1), TaskPurpose::Rows,
-            new ExtractionSemanticValidator($range, $estimateOrdinal, $anchors));
+            new ExtractionSemanticValidator(expected: $range, estimateOrdinal: $estimateOrdinal, sourceAnchors: $anchors,
+                arithmetic: ExtractionSemanticValidator::configuredArithmetic()));
 
         return $task;
     }

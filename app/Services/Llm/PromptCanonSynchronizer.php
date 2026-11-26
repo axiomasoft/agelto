@@ -8,6 +8,7 @@ use App\Models\Llm\Prompt;
 use App\Repositories\Llm\PromptReadRepository;
 use App\Repositories\Llm\PromptStoreRepository;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Апсерт канона промтов в `llm_prompts` + деактивация протухших версий (`sync`) и сверка
@@ -25,11 +26,14 @@ final readonly class PromptCanonSynchronizer
     {
         $records = $this->reader->read();
 
-        foreach ($records as $record) {
-            $this->store->storeOrUpdate($record);
-        }
+        DB::transaction(function () use ($records): void {
+            DB::select("SELECT pg_advisory_xact_lock(hashtext('llm_prompt_canon'))");
+            foreach ($records as $record) {
+                $this->store->storeOrUpdate($record);
+            }
 
-        $this->deactivateStale($records);
+            $this->deactivateStale($records);
+        });
     }
 
     /**

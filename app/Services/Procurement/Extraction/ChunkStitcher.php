@@ -72,8 +72,9 @@ final class ChunkStitcher
         $ordered = array_values($rows);
         usort($ordered, static fn ($a, $b): int => $a->row->row_index <=> $b->row->row_index);
         $nodes = array_values($totals);
-        $errors = (new ExtractionSemanticValidator($plan->required, $plan->estimateOrdinal, $anchors, $plan->run->source->blankPages ?? []))->errors(
-            $plan->required instanceof PageRange ? new PageExtractionOutput($ordered, $nodes, range($plan->required->start, $plan->required->end - 1)) : new ExtractionOutput($ordered, $nodes));
+        $errors = (new ExtractionSemanticValidator(expected: $plan->required, estimateOrdinal: $plan->estimateOrdinal, sourceAnchors: $anchors,
+            blankPages: $plan->run->source->blankPages ?? [], arithmetic: $plan->run->recipe->arithmetic))->errors(
+                $plan->required instanceof PageRange ? new PageExtractionOutput($ordered, $nodes, range($plan->required->start, $plan->required->end - 1)) : new ExtractionOutput($ordered, $nodes));
         if ($errors !== []) {
             throw new PublicationBlocked(BlockedReason::SemanticReviewRequired);
         }

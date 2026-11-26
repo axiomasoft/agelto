@@ -7,16 +7,11 @@ namespace App\Services\Llm;
 use App\Exceptions\Llm\UnknownProviderDriver;
 use App\Repositories\Llm\LlmProviderReadRepository;
 use App\Services\Llm\Contracts\LlmProvider;
-use App\Services\Llm\Contracts\OutboundEndpoints;
-use App\Services\Llm\Providers\OpenAiCompatibleProvider;
-use App\Services\Llm\Providers\UnsupportedProvider;
+use App\Services\Llm\Providers\CatalogOnlyProvider;
 use Illuminate\Contracts\Container\Container;
 
 /**
- * Единственный `match` по строке драйвера `llm_providers.driver` в проекте
- * — до этого класса `LlmRouteResolver::providerFor` и
- * `CachesCommand::providerForDriver` держали ДВЕ независимые копии одного и того же
- * ветвления; появление второго провайдера теперь меняется в ОДНОМ месте.
+ * Catalog origins and legacy route metadata. Execution belongs to the durable provider owner.
  */
 final readonly class LlmProviderFactory
 {
@@ -27,11 +22,12 @@ final readonly class LlmProviderFactory
     {
         $origins = [];
         foreach ($this->configured->active() as $configuration) {
-            $provider = $this->forDriver($configuration->driver);
-            if (! $provider instanceof OutboundEndpoints) {
-                throw new \LogicException('Configured provider has no declared network endpoints: '.$configuration->code);
-            }
-            $origins[$configuration->code] = $provider->outboundOrigins($configuration->base_url);
+            $origins[$configuration->code] = [match ($configuration->driver) {
+                'gemini' => $configuration->base_url ?? 'https://generativelanguage.googleapis.com',
+                'openai_compatible' => $configuration->base_url !== null && $configuration->base_url !== ''
+                    ? $configuration->base_url : throw new \RuntimeException('OpenAI-compatible provider has no configured base URL.'),
+                default => throw new UnknownProviderDriver($configuration->driver),
+            }];
         }
 
         return $origins;
@@ -40,10 +36,7 @@ final readonly class LlmProviderFactory
     public function forDriver(string $driver): LlmProvider
     {
         return match ($driver) {
-            'gemini' => $this->container->make(UnsupportedProvider::class),
-            // OpenAI-совместимый транспорт (vLLM/Ollama, ТЗ 04 §7) — stateless: base_url/
-            // api_key приходят через `LlmOptions`, не через конструктор.
-            'openai_compatible' => $this->container->make(OpenAiCompatibleProvider::class),
+            'gemini', 'openai_compatible' => $this->container->make(CatalogOnlyProvider::class),
             default => throw new UnknownProviderDriver($driver),
         };
     }

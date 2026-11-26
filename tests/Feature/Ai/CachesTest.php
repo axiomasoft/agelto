@@ -17,9 +17,8 @@ test('cache CLI lists canonical assets and known usage without a model API call'
 });
 
 test('cache CLI rejects unowned remote prune and invalid action without new financial effects', function (): void {
-    foreach (['prune', 'bogus'] as $action) {
-        $this->artisan('ai:caches', ['action' => $action])->expectsOutputToContain('Unsupported')->assertFailed();
-    }
+    $this->artisan('ai:caches', ['action' => 'prune'])->expectsOutputToContain('файлов 0, кэшей 0')->assertSuccessful();
+    $this->artisan('ai:caches', ['action' => 'bogus'])->expectsOutputToContain('Unsupported')->assertFailed();
     expect(DB::table('llm_provider_requests')->count())->toBe(0);
     Http::assertNothingSent();
 });

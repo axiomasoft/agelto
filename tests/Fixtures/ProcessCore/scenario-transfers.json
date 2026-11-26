@@ -3003,7 +3003,7 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
+          "name": "ai:caches показывает реестр и usage и удаляет истёкший кэш без дополнительного HTTP"
         }
       ],
       "reason": "ai:caches list now queries canonical llm_context_caches instead of Analysis.cache_id and prints «Активных кэшей в реестре нет.» when empty.",
@@ -3017,7 +3017,7 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
+          "name": "ai:caches показывает реестр и usage и удаляет истёкший кэш без дополнительного HTTP"
         },
         {
           "file": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
@@ -3035,7 +3035,7 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
+          "name": "ai:caches показывает реестр и usage и удаляет истёкший кэш без дополнительного HTTP"
         }
       ],
       "reason": "ai:caches list --hits reads canonical llm_provider_calls usage JSONB and reports an empty window or invalid --window without failing on empty data.",
@@ -3049,14 +3049,14 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
+          "name": "ai:caches показывает реестр и usage и удаляет истёкший кэш без дополнительного HTTP"
         },
         {
           "file": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
           "name": "expired cache выбирает plain wire без refresh"
         }
       ],
-      "reason": "Unowned CLI cache deletion is forbidden in P3.13; ai:caches prune fails explicitly with zero HTTP/financial side effects while expired caches fall back to plain wire.",
+      "reason": "ai:caches prune removes expired local registrations without remote deletes, new HTTP calls or financial effects; expired caches also fall back to plain wire.",
       "contract": "D7/D8/D9/D18; documents-ai#s04/s08/ai-outcomes; cutovers P3.13"
     },
     {
@@ -3067,7 +3067,7 @@
       "replacements": [
         {
           "file": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-          "name": "ai:caches CLI читает канонический реестр llm_context_caches и usage из llm_provider_calls и отклоняет prune без HTTP"
+          "name": "ai:caches показывает реестр и usage и удаляет истёкший кэш без дополнительного HTTP"
         }
       ],
       "reason": "Invalid ai:caches subcommands/options return non-zero exit codes without side effects; retained in CachesTest and T14AssetLifecycleTest.",

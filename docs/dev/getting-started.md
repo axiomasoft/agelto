@@ -64,7 +64,7 @@ a clean pull before a tag can be handed to production operations.
 ## `.env`: ключевые группы
 
 - Стандартные Laravel/DB/Redis/S3(MinIO) — как в любом Laravel-проекте, см. `.env.example`.
-- LLM-транспорт (Prism, `vendor/prism-php/prism/config/prism.php`): `GEMINI_API_KEY`, опционально
+- LLM-транспорт (см. [контур LLM](llm-providers.md)): `GEMINI_API_KEY`, опционально
   `GEMINI_URL` (дефолт — `generativelanguage.googleapis.com`). Ключ получается в
   [Google AI Studio](https://aistudio.google.com/) на аккаунте владельца проекта — свой персональный
   ключ для локальной разработки, в `.env` НЕ коммитится (файл в `.gitignore`).

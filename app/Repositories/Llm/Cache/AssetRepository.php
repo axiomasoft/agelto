@@ -171,6 +171,36 @@ final readonly class AssetRepository
         $this->query($key)->update([$key instanceof FileAssetKey ? 'state' : 'creation_state' => 'expired', 'expires_at' => DB::raw('clock_timestamp()')]);
     }
 
+    /** @return array{files: int, caches: int} */
+    public function pruneExpired(): array
+    {
+        return DB::transaction(fn (): array => [
+            'files' => $this->deleteExpired(table: 'llm_file_assets', state: 'state'),
+            'caches' => $this->deleteExpired(table: 'llm_context_caches', state: 'creation_state'),
+        ]);
+    }
+
+    private function deleteExpired(string $table, string $state): int
+    {
+        return DB::table($table)
+            ->whereRaw('expires_at <= statement_timestamp()')
+            ->where(column: $state, operator: '<>', value: 'creating')
+            ->whereNotExists(function (Builder $requests) use ($table): void {
+                // Pending lookups may need the expired local handle to recover a receipt.
+                $requests->selectRaw('1')->from('llm_provider_calls as c')
+                    ->join(table: 'llm_provider_requests as r', first: 'r.logical_request_id', operator: '=', second: 'c.logical_request_id')
+                    ->whereIn(column: 'r.state', values: ['prepared', 'sending', 'unknown'])
+                    ->whereColumn(first: 'c.provider_id', operator: "{$table}.provider_id")
+                    ->whereColumn(first: 'c.account_id', operator: "{$table}.account_id")
+                    ->whereColumn(first: 'c.api_surface', operator: "{$table}.api_surface")
+                    ->where(function (Builder $operations) use ($table): void {
+                        $operations->where(column: 'r.purpose', operator: OperationPurpose::Lookup->value)
+                            ->orWhereColumn(first: 'c.physical_call_id', operator: "{$table}.creation_token");
+                    });
+            })
+            ->delete();
+    }
+
     private function assertCall(FileAssetKey|ContextCacheKey $key, ProviderCall $call, bool $lookup = false): void
     {
         $key instanceof FileAssetKey ? $key->assertContext($call->context) : null;

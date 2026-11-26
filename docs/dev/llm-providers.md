@@ -92,7 +92,9 @@ TTL/404 recovery ограничен и использует immutable stored byt
 file upload и lookup имеют собственные purpose/accounting/pricing. Unknown cache operation
 не разрешает hidden generation fallback. Asset receipt не парсится как model JSON.
 
-ai:caches list читает canonical assets, --hits — factual usage; unowned prune явно Unsupported.
+`ai:caches list` показывает canonical assets, `--hits` — factual usage. `ai:caches prune` удаляет
+истёкшие записи из локального реестра после завершения операций создания и поиска. Команда
+обходится без вызовов провайдера и сохраняет финансовый леджер и квитанции.
 ai:cost-report и UI показывают settled cost, unknown usage/charge и retained reserve отдельно,
 в явной валюте. Exact ledger сохраняет numeric(24,8); отчёт округляет до microcurrency.
 Текущий config price не используется для выдуманной исторической cache savings.

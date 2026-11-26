@@ -6,6 +6,7 @@ namespace App\Repositories\Procurement\Ai;
 
 use App\Dto\Procurement\Ai\PublicationCompleted;
 use App\Dto\Procurement\Ai\PublicationProgress;
+use App\Dto\Procurement\Ai\RowRange;
 use App\Dto\Procurement\Ai\StitchedEstimate;
 use App\Dto\Procurement\Process\PublicationInput;
 use App\Dto\Procurement\Process\StageCheckpoint;
@@ -83,7 +84,8 @@ final readonly class PublicationRepository implements StageResultRepository
             'analysis_id' => null, 'analysis_run_id' => $run->string('id'), 'document_version_id' => $run->int('document_version_id'),
             'procurement_id' => $run->nullableInt('procurement_id'), 'platform_id' => $run->nullableInt('platform_id'),
             'ordinal' => $estimate->plan->estimateOrdinal, 'currency' => $estimate->plan->run->recipe->currency,
-            'rows_expected' => $estimate->plan->required->end - $estimate->plan->required->start,
+            'rows_expected' => $estimate->plan->required instanceof RowRange
+                ? $estimate->plan->required->end - $estimate->plan->required->start : null,
             'rows_extracted' => count(array_filter($estimate->rows, static fn ($row): bool => $row->row->row_type === RowType::Item)),
             'validation_status' => 'valid', ...$this->provenance($estimate, array_values($chunks), null)]);
         $section = $subsection = null;

@@ -124,7 +124,11 @@ final readonly class AnalysisGeneration
         $connection = $this->connections->for($run->recipe->llm);
         $text = $this->representation->text(run: $run, context: $context);
         if ($run->source !== null) {
-            $range = $task->purpose === TaskPurpose::Rows ? ($fields['context_range'] ?? $fields['range'] ?? null) : null;
+            $range = match ($task->purpose) {
+                TaskPurpose::Discovery => $fields['range'],
+                TaskPurpose::Rows => $fields['context_range'] ?? $fields['range'] ?? null,
+                default => null,
+            };
             if ($range !== null && (! is_array($range) || ! is_int($range['start'] ?? null) || ! is_int($range['end'] ?? null))) {
                 throw new OperationDenied('analysis_range_codec_drift');
             }

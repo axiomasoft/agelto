@@ -17,7 +17,7 @@ use App\Models\Llm\Provider;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Services\Llm\Dto\LlmOptions;
 use App\Services\Llm\Dto\LlmPrompt;
-use App\Services\Llm\Providers\OpenAiCompatibleProvider;
+use App\Services\Llm\Providers\CatalogOnlyProvider;
 use App\Services\Platforms\Eis\Filters\Okpd2NodeSynchronizer;
 use App\Services\Procurement\Network\NetworkProbeReconcileCategory;
 use App\Services\Procurement\Network\SourceCatalogSync;
@@ -243,7 +243,7 @@ test('package path не даёт OpenAI caller присвоить provider бе�
         CallerFixtures::provider($wire);
         Provider::factory()->create(['code' => 'wire', 'is_active' => true]);
         ProxymaCallerFixtures::install($wire);
-        expect(fn () => app(OpenAiCompatibleProvider::class)->complete(
+        expect(fn () => app(CatalogOnlyProvider::class)->complete(
             new LlmPrompt(systemPart: 'fixture'),
             new LlmOptions('wire', 'wire-model', 0.0, 32, baseUrl: $wire->url('/v1')->reveal())))
             ->toThrow(UnsupportedConsumer::class);

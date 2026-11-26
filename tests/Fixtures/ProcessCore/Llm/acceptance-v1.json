@@ -68,7 +68,7 @@
     },
     {
       "path": "app/Dto/Procurement/Ai/AnalysisRecipe.php",
-      "sha256": "7d996ae2ead492bce2b30a0c97ebc5a79d7d63a8be6bbd6784966b53a9d42749"
+      "sha256": "f5beefe0c6524bfdf06ea97a92b0d865853878d0cb7bd8582d932758ba44c82e"
     },
     {
       "path": "app/Dto/Procurement/Ai/AnalysisRunSnapshot.php",
@@ -84,7 +84,7 @@
     },
     {
       "path": "app/Dto/Procurement/Ai/AnchoredEstimateRow.php",
-      "sha256": "3ccb6258970d83af04e367475b96c647b92d428d624371d6840e3169f8f818e2"
+      "sha256": "1d0bd0388e15a27ab0634555a5b13e4f2bd49f294ac8cb945baf7b7286bc6512"
     },
     {
       "path": "app/Dto/Procurement/Ai/ChunkKey.php",
@@ -227,7 +227,7 @@
     },
     {
       "path": "app/Repositories/Procurement/Ai/PublicationRepository.php",
-      "sha256": "e5a059b5e1227e6cdf328b19feda3d10ef7e77672368f6817f7c697cf096a3de"
+      "sha256": "4527b8e4b5aff09875441a18d67c516c628034a4a46e457bb913c3bf0e14e54a"
     },
     {
       "path": "app/Services/Llm/Execution/ReceiptStore.php",
@@ -252,7 +252,7 @@
     },
     {
       "path": "app/Services/Llm/Schema/CanonicalSchemaValidator.php",
-      "sha256": "9b27ebd25963a9082a879105dc917b25a4e861eab69201db94fa0069228c8447"
+      "sha256": "64a1e836901ba38b42f557612cebf799e2355b2797141a8f98379b1391a041e7"
     },
     {
       "path": "app/Services/Llm/Schema/ContractAttributeReader.php",
@@ -298,7 +298,7 @@
     },
     {
       "path": "app/Services/Procurement/Extraction/AnalysisGeneration.php",
-      "sha256": "0670dfd6820a96da764f58dcb100b800c14cc30b70327004d365bcb961a12b98",
+      "sha256": "a35d023c693327bc0c87e1ec807c19258201843f9d82021e819f6c5f520dc116",
       "before_proxyma_runtime_removal_sha256": "c7ba0f37f37c8b8651714fd5bcad90489eda8826afeff0459509bf143b792134"
     },
     {
@@ -324,7 +324,7 @@
     },
     {
       "path": "composer.lock",
-      "sha256": "2e10a1c190c31f4c6e849694bf6f222ec1ee0d554c706e733ed96cbb350d79b0",
+      "sha256": "b427a15b61005f1f2ce3ee6b94abdf94975a4c23deb17e5e72407ead4b9a282c",
       "original_sha256": "e5981e6030590ce94182e8d364f1b6c0dfa9ed571e2642bc899a98e3435d912f",
       "before_proxyma_runtime_removal_sha256": "261267132daf469821d596ae4a0a9ddd3f2c422800f7b40aec6727d80d4d5d05"
     },
@@ -479,7 +479,7 @@
     },
     {
       "path": "tests/Feature/ProcessCore/Llm/AssetLifecycleTest.php",
-      "sha256": "fa549b22fd895d0d1611b756c3351d4683badfd91dfa12ec914ac7f1ab9be48f",
+      "sha256": "ce7187672cb1357def7189b69970930d215f1867bbb8d522195eec663bec1efb",
       "original_path": "tests/Feature/ProcessCore/Llm/T14AssetLifecycleTest.php",
       "original_sha256": "7f9f5020f71bca605ea572604ce50caefbfd91042ad09e204fbfdb7c01f62978",
       "before_polish_sha256": "b58dd27225daa2d481b3e7a077dfcd59387b70dd83c67f194551b5af08d5cb49",

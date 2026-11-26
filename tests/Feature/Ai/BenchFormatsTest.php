@@ -16,7 +16,7 @@ use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Llm\Dto\LlmStructuredResponse;
 use App\Services\Llm\Dto\LlmUsage;
-use App\Services\Llm\Providers\UnsupportedProvider;
+use App\Services\Llm\Providers\CatalogOnlyProvider;
 use App\Services\Procurement\Bench\FormatBenchRunner;
 use App\Services\Procurement\Prepare\RepresentationResolver;
 use Illuminate\Support\Facades\File;
@@ -74,7 +74,7 @@ function benchDatasetExample(Fixture $fixture, DocumentVersion $version): Datase
 
 function seedBenchRoute(FakeLlmProvider $fake): void
 {
-    app()->instance(UnsupportedProvider::class, $fake);
+    app()->instance(CatalogOnlyProvider::class, $fake);
 
     $provider = Provider::factory()->create(['driver' => 'gemini']);
 
