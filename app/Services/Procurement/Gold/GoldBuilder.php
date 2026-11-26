@@ -107,7 +107,13 @@ final readonly class GoldBuilder
             return $this->rejected('профиль формы не найден: '.($profilePath ?? '(не задан)'));
         }
 
-        if (! is_file($sourcePath)) {
+        if (str_contains($sourcePath, '://')) {
+            return $this->rejected("файл эталона не найден: {$sourcePath}");
+        }
+
+        $realSourcePath = realpath($sourcePath);
+
+        if ($realSourcePath === false || ! is_file($realSourcePath)) {
             return $this->rejected("файл эталона не найден: {$sourcePath}");
         }
 
@@ -118,7 +124,7 @@ final readonly class GoldBuilder
         }
 
         try {
-            $spreadsheet = IOFactory::load($sourcePath);
+            $spreadsheet = IOFactory::load($realSourcePath);
         } catch (Throwable $e) {
             return $this->rejected("не удалось прочитать книгу: {$e->getMessage()}");
         }

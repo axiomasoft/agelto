@@ -27,16 +27,26 @@ final class ConvertXlsxToPdfCommand extends Command
         IOFactory::registerWriter('Pdf', MpdfWriter::class);
 
         $input = (string) $this->argument('input');
-        $reader = IOFactory::createReaderForFile($input);
+        if (str_contains($input, '://')) {
+            return self::FAILURE;
+        }
+
+        $realInput = realpath($input);
+
+        if ($realInput === false || ! is_file($realInput)) {
+            return self::FAILURE;
+        }
+
+        $reader = IOFactory::createReaderForFile($realInput);
         $maxRows = $this->option('max-rows');
         if ($maxRows !== null && (
             (! $reader instanceof Xls && ! $reader instanceof Xlsx)
             || preg_match('/^[1-9][0-9]*$/D', $maxRows) !== 1
-            || array_sum(array_column($reader->listWorksheetInfo($input), 'totalRows')) > (int) $maxRows
+            || array_sum(array_column($reader->listWorksheetInfo($realInput), 'totalRows')) > (int) $maxRows
         )) {
             return self::FAILURE;
         }
-        $spreadsheet = $reader->load($input);
+        $spreadsheet = $reader->load($realInput);
 
         foreach ($spreadsheet->getAllSheets() as $sheet) {
             $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);

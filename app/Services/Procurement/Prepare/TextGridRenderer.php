@@ -68,14 +68,20 @@ final readonly class TextGridRenderer
      */
     public function render(string $localPath, string $extension, ?float $deadlineAt = null): array|false
     {
-        if (! in_array($extension, ['xls', 'xlsx'], true) || ! is_file($localPath)) {
+        if (! in_array($extension, ['xls', 'xlsx'], true) || str_contains($localPath, '://')) {
+            return false;
+        }
+
+        $realPath = realpath($localPath);
+
+        if ($realPath === false || ! is_file($realPath)) {
             return false;
         }
 
         $maxMb = $this->positiveFloatConfig(key: 'ai.prepare.xlsx_max_mb', default: 25.0);
-        $fileSize = @filesize($localPath);
+        $fileSize = @filesize($realPath);
         if (! is_int($fileSize) || $fileSize > $maxMb * 1024 * 1024
-            || ! $this->xlsxResourceGuard->accepts(path: $localPath, extension: $extension)) {
+            || ! $this->xlsxResourceGuard->accepts(path: $realPath, extension: $extension)) {
             return false;
         }
 
@@ -102,7 +108,7 @@ final readonly class TextGridRenderer
                     $script,
                     '--',
                     base_path('vendor/autoload.php'),
-                    $localPath,
+                    $realPath,
                     $extension,
                     (string) $maxRows,
                     (string) $maxCells,
@@ -164,7 +170,13 @@ final readonly class TextGridRenderer
      */
     private function renderInProcess(string $localPath, string $extension, int $maxRows, int $maxCells): array|false
     {
-        if ($this->countRows($localPath, $extension) > $maxRows) {
+        if (str_contains($localPath, '://')) {
+            return false;
+        }
+
+        $realPath = realpath($localPath);
+
+        if ($realPath === false || ! is_file($realPath) || $this->countRows($realPath, $extension) > $maxRows) {
             return false;
         }
 
@@ -194,7 +206,7 @@ final readonly class TextGridRenderer
         });
 
         try {
-            $spreadsheet = $reader->load($localPath);
+            $spreadsheet = $reader->load($realPath);
         } catch (\Throwable) {
             return false;
         }
