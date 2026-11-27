@@ -58,7 +58,7 @@ from pathlib import Path
 workflows = Path('.github/workflows')
 ci = (workflows / 'ci.yml').read_text()
 tia = (workflows / 'tia-baseline.yml').read_text()
-jobs = dict(re.findall(r'^  ([a-z][a-z-]+):\n((?:^ {4,}.*\n|^\n)*)', ci.split('jobs:\n', 1)[1], re.M))
+jobs = dict(re.findall(r'^  ([a-z][a-z0-9-]+):\n((?:^ {4,}.*\n|^\n)*)', ci.split('jobs:\n', 1)[1], re.M))
 for name, target in {'quality': 'core-quality', 'tests': 'core-test-shard',
                      'release-quality': 'core-test-release', 'faults': 'core-test-faults',
                      'load': 'core-test-load'}.items():
@@ -75,6 +75,20 @@ assert "SHARD: ${{ matrix.shard }}/4" in jobs['tests']
 assert 'ENV_FILE: .env.example' in ci and 'ENV_FILE: .env.example' in tia
 assert 'run: make bootstrap MODE=dev' not in ci + tia
 assert 'make core-test-tia' in tia and './.github/actions/setup-core-test' in tia
+# DAG: path routing -> cheap preflight -> rig jobs -> one required gate.
+assert 'dorny/paths-filter@' in jobs['changes']
+for name in ('quality', 'tests', 'faults', 'e2e'):
+    assert re.search(r'^    needs: \[changes, preflight\]$', jobs[name], re.M), f'{name} must wait for preflight'
+for name in ('release-quality', 'load'):
+    assert re.search(r'^    needs: preflight$', jobs[name], re.M), f'{name} must wait for preflight'
+for step in ('ci-contract.sh', 'unittest discover -s docker/tests/process-core', 'pint --test', 'phpstan analyse'):
+    assert step in jobs['preflight'], f'preflight must run {step}'
+gate = jobs['ci-gate']
+assert '    if: always()' in gate and 'toJSON(needs)' in gate
+declared = set(jobs) - {'ci-gate'}
+gate_needs = set(re.search(r'^    needs: \[(.*)\]$', gate, re.M).group(1).split(', '))
+assert gate_needs == declared, f'ci-gate must need every job: {sorted(declared - gate_needs)}'
+assert all('timeout-minutes:' in body for body in jobs.values()), 'every job needs a timeout'
 PYCODE
 grep -Fq 'coverage_contract' docker/scripts/check-release-quality.py
 grep -Fq 'DocsIntegrityTest.php' docker/tests/process-core/rig.py
@@ -86,11 +100,11 @@ grep -Fq 'export IMAGE_TAG="$image_tag"' docker/tests/clean-install-e2e.sh
 grep -Fq 'playwright-report/index.html' "$ci_workflow"
 grep -Fq 'playwright-report/**' "$ci_workflow"
 grep -Fq 'test-results/**' "$ci_workflow"
-[[ $(grep -Fc 'uses: ./.github/actions/setup-vendors' "$ci_workflow") -eq 2 ]]
+[[ $(grep -Fc 'uses: ./.github/actions/setup-vendors' "$ci_workflow") -eq 3 ]]
 grep -Fq 'make image:build' "$ci_workflow"
 grep -Fq 'docker build --build-arg SOURCE_SHA=${{ github.sha }} -t agelto/postgres:' "$ci_workflow"
 grep -Fq 'pnpm audit --audit-level=high' "$ci_workflow"
-[[ $(grep -Ec 'aquasecurity/trivy-action@[0-9a-f]{40}' "$ci_workflow") -eq 5 ]]
+[[ $(grep -Ec 'aquasecurity/trivy-action@[0-9a-f]{40}' "$ci_workflow") -eq 6 ]]
 grep -Fq 'include-hidden-files: true' "$tia_workflow"
 grep -Fq 'pest-tia-baseline' "$tia_workflow"
 grep -Fq 'baselined()' tests/Pest.php
