@@ -180,7 +180,7 @@ services:
       retries: 30
 
   object-storage:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
     command: [server, /data]
     environment:
       MINIO_ROOT_USER: core_test
@@ -194,19 +194,19 @@ services:
       retries: 30
 
   fixture-http:
-    image: python:3.12-alpine
+    image: python:3.14-alpine@sha256:5862d971d1f0ae26b258cefa4e893556b1d3aba81bd2ff30888704ad378bab67
     command: [python, /fixture/server.py, http]
     volumes: [./tests/process-core/server.py:/fixture/server.py:ro, ./tests/process-core/fixtures:/fixture/fixtures:ro]
     networks: [core]
 
   fixture-proxy:
-    image: python:3.12-alpine
+    image: python:3.14-alpine@sha256:5862d971d1f0ae26b258cefa4e893556b1d3aba81bd2ff30888704ad378bab67
     command: [python, /fixture/server.py, proxy]
     volumes: [./tests/process-core/server.py:/fixture/server.py:ro, ./tests/process-core/fixtures:/fixture/fixtures:ro]
     networks: [core]
 
   fake-gemini:
-    image: python:3.12-alpine
+    image: python:3.14-alpine@sha256:5862d971d1f0ae26b258cefa4e893556b1d3aba81bd2ff30888704ad378bab67
     command: [python, /fixture/server.py, gemini]
     volumes: [./tests/process-core/server.py:/fixture/server.py:ro, ./tests/process-core/fixtures:/fixture/fixtures:ro]
     networks: [core]
