@@ -13,11 +13,13 @@ use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\Entry;
+use Filament\Resources\Resource;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
 use Livewire\Component as LivewireComponent;
 
@@ -48,6 +50,11 @@ function filamentApplicationSchemas(): iterable
         }
 
         $schema = filamentTestSchema();
+        $model = filamentResourceModel($file->getPath());
+        if ($model !== null) {
+            // Resource pages always bind the model class, and Select relationships resolve through it.
+            $schema->model($model);
+        }
         yield $class => match ($class) {
             ProcurementInfolist::class => $class::configure($schema->record(new Procurement)),
             PromptSuggestionInfolist::class => $class::configure($schema->record(new PromptSuggestion)),
@@ -59,6 +66,20 @@ function filamentApplicationSchemas(): iterable
             default => $class::configure($schema),
         };
     }
+}
+
+/** @return class-string<Model>|null */
+function filamentResourceModel(string $schemasDirectory): ?string
+{
+    foreach (File::glob(dirname($schemasDirectory).'/*Resource.php') as $path) {
+        $relative = substr($path, strlen(app_path('Filament/Resources')) + 1, -4);
+        $resource = 'App\\Filament\\Resources\\'.str_replace('/', '\\', $relative);
+        if (is_subclass_of($resource, Resource::class)) {
+            return $resource::getModel();
+        }
+    }
+
+    return null;
 }
 
 function filamentSchemaHasOperatorSection(Schema $schema): bool
