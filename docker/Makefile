@@ -9,6 +9,9 @@ COMPOSE_DEV := docker compose --project-directory $(ROOT_DIR) --project-name $(C
 COMPOSE_PROD := docker compose --project-directory $(ROOT_DIR) --project-name $(COMPOSE_PROJECT_NAME) --env-file $(ROOT_DIR)/$(ENV_FILE) -f $(ROOT_DIR)/docker-compose.prod.yml
 AGENT_ENV := $(if $(CLAUDECODE),-e CLAUDECODE=$(CLAUDECODE)) $(if $(CLAUDE_CODE),-e CLAUDE_CODE=$(CLAUDE_CODE)) $(if $(CURSOR_AGENT),-e CURSOR_AGENT=$(CURSOR_AGENT)) $(if $(CODEX_THREAD_ID),-e CODEX_THREAD_ID=$(CODEX_THREAD_ID)) $(if $(AI_AGENT),-e AI_AGENT=$(AI_AGENT))
 
+# The dev app container pointed at the isolated test database; every test target runs through it.
+DEV_TEST_APP = $(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app
+
 # Object-store bootstrap (dev:storage-init, prod:storage:init): the script and its policy
 # template are mounted read-only into a one-off app container next to the root secret.
 STORAGE_BOOTSTRAP := /run/agelto/storage/bootstrap.sh
@@ -160,23 +163,23 @@ test-identity:
 	bash $(ROOT_DIR)/docker/scripts/test-database.sh --root $(ROOT_DIR) --env-file $(ENV_FILE) --project-name $(COMPOSE_PROJECT_NAME) --phase identity
 
 test-php: test-identity
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan migrate:fresh --force --no-interaction
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact --no-tia
+	$(DEV_TEST_APP) php artisan migrate:fresh --force --no-interaction
+	$(DEV_TEST_APP) php artisan test --compact --no-tia
 
 test\:edit: test-preflight
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --compact
+	$(DEV_TEST_APP) php artisan test --compact
 
 test\:full: test-preflight
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --ci --no-tia --compact
+	$(DEV_TEST_APP) php artisan test --ci --no-tia --compact
 
 test\:junit: test-preflight
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app sh -ec 'mkdir -p storage/app/ci && php artisan test --ci --no-tia --compact --log-junit=storage/app/ci/junit.xml'
+	$(DEV_TEST_APP) sh -ec 'mkdir -p storage/app/ci && php artisan test --ci --no-tia --compact --log-junit=storage/app/ci/junit.xml'
 
 test\:profile: test-preflight
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --ci --no-tia --compact --profile
+	$(DEV_TEST_APP) php artisan test --ci --no-tia --compact --profile
 
 test\:coverage: test-preflight
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app sh -ec 'mkdir -p storage/app/coverage && php artisan test --ci --no-tia --compact --coverage-clover=storage/app/coverage/clover.xml --log-junit=storage/app/coverage/junit.xml'
+	$(DEV_TEST_APP) sh -ec 'mkdir -p storage/app/coverage && php artisan test --ci --no-tia --compact --coverage-clover=storage/app/coverage/clover.xml --log-junit=storage/app/coverage/junit.xml'
 
 test\:release:
 	RELEASE_QUALITY_EXECUTE=1 COMPOSE_PROJECT_NAME=$(COMPOSE_PROJECT_NAME) bash $(ROOT_DIR)/docker/tests/release-quality-contract.sh
@@ -185,7 +188,7 @@ test\:tia-reset:
 	$(COMPOSE_DEV) exec -T app sh -ec 'find /var/www/.pest -mindepth 1 -maxdepth 1 -type d -name tia -exec rm -rf {} +'
 
 test\:tia-refresh: test-preflight
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --tia --fresh --ci --compact
+	$(DEV_TEST_APP) php artisan test --tia --fresh --ci --compact
 
 test\:tia-baseline-export:
 	rm -rf $(ROOT_DIR)/.ci-artifacts/tia-baseline
@@ -193,11 +196,11 @@ test\:tia-baseline-export:
 
 test\:shard: test-preflight
 	@test -n "$(SHARD)" || (echo 'SHARD=1/2 is required' >&2; exit 2)
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app php artisan test --ci --no-tia --compact --shard=$(SHARD)
+	$(DEV_TEST_APP) php artisan test --ci --no-tia --compact --shard=$(SHARD)
 
 test\:parallel: test-preflight
 	@test "$(PROCESSES)" = 2 || test "$(PROCESSES)" = 4 || (echo 'PROCESSES must be 2 or 4' >&2; exit 2)
-	$(COMPOSE_DEV) exec -T $(AGENT_ENV) -e APP_ENV=testing -e DB_DATABASE=agelto_test -e DB_HOST=postgres app ./vendor/bin/pest --parallel --processes=$(PROCESSES) --no-tia --compact
+	$(DEV_TEST_APP) ./vendor/bin/pest --parallel --processes=$(PROCESSES) --no-tia --compact
 
 quality:
 	python3 $(ROOT_DIR)/docker/tests/process-core/rig.py core-quality
