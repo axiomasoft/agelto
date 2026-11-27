@@ -23,7 +23,7 @@ final readonly class CreateInitialAdminAction
             throw new InvalidArgumentException('Пароль должен содержать не менее 8 символов.');
         }
 
-        return DB::transaction(callback: function () use ($email, $password): User {
+        $user = DB::transaction(callback: function () use ($email, $password): User {
             $existingUsers = User::query()
                 ->whereRaw(sql: 'lower(email) = ?', bindings: [$email])
                 ->lockForUpdate()
@@ -42,14 +42,20 @@ final readonly class CreateInitialAdminAction
 
             $user->assignRole(SuperAdminRole::class);
 
-            $persistedUser = $user->fresh();
-
-            if (! $persistedUser instanceof User || ! $persistedUser->isSuperAdmin()) {
-                throw new InvalidArgumentException('Роль SuperAdmin не синхронизирована; администратор не создан.');
-            }
-
             return $user;
         });
+
+        // AzGuard denies checks inside an open transaction on its connection, so the
+        // role is verified after commit and the user is removed if it did not stick.
+        $persistedUser = $user->fresh();
+
+        if (! $persistedUser instanceof User || ! $persistedUser->isSuperAdmin()) {
+            $user->delete();
+
+            throw new InvalidArgumentException('Роль SuperAdmin не синхронизирована; администратор не создан.');
+        }
+
+        return $user;
     }
 
     private function normalizeEmail(string $email): string
