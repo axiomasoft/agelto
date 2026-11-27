@@ -50,6 +50,26 @@ runs:
         pnpm install --frozen-lockfile --ignore-scripts
         pnpm build
         make core-test-up CORE_TEST_PREBUILT=1
+    # The isolated app mounts public/ read-only. Publish the locked PHP package assets on the
+    # clean runner after Composer has populated vendor/ and before the test suites start.
+    - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+      with:
+        php-version: '8.6'
+        extensions: intl, bcmath, pdo_pgsql
+        coverage: none
+    - name: Publish locked Filament and Livewire assets
+      shell: bash
+      env:
+        APP_ENV: testing
+        APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+        DB_CONNECTION: sqlite
+        DB_DATABASE: ':memory:'
+        CACHE_STORE: array
+        SESSION_DRIVER: array
+        QUEUE_CONNECTION: sync
+      run: |
+        php artisan filament:assets --no-interaction
+        php artisan livewire:publish --assets --no-interaction
     - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       if: inputs.write-cache == 'true' && steps.downloads.outputs.cache-hit != 'true'
       with:

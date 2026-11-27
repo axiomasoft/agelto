@@ -54,7 +54,7 @@ final readonly class EisCrawlerPlatformForm
         $timezone = app(EisPolicy::class)->sourceTimezone->getName();
 
         // Date-only state не должен терять день источника или получать текущее время при DTO cast.
-        return DatePicker::make($name)->label($label)->timezone($timezone)->format(DATE_ATOM)
+        return SourceDatePicker::make($name)->label($label)->timezone($timezone)->format(DATE_ATOM)
             ->dehydrateStateUsing(static fn (?string $state): ?string => $state === null ? null
                 : CarbonImmutable::parse($state)->setTimezone($timezone)->startOfDay()->toAtomString());
     }
