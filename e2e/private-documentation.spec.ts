@@ -37,7 +37,7 @@ test('загружает закрытую документацию без browse
         '--project-name', composeProject,
         '--env-file', composeEnvFile,
         '-f', composeFile,
-        'exec', '-T', 'app',
+        'exec', '-T', '-e', `E2E_ROLE_USER=${adminEmail}`, 'app',
     ];
     let authenticatedSession = true;
 
@@ -153,17 +153,18 @@ test('загружает закрытую документацию без browse
     const beforeRevocation = await revokedPage.goto(`/documentation/${directAssetPath}`);
     expect(beforeRevocation?.status()).toBe(200);
 
-    const artisanArguments = [...composeArguments, 'php', 'artisan'];
+    const setRole = (operation: 'removeRole' | 'assignRole') => {
+        const code = `$user = \\App\\Models\\User::where('email', getenv('E2E_ROLE_USER'))->firstOrFail(); $user->${operation}(\\App\\Guards\\Admin\\Roles\\SuperAdminRole::class); echo $user->fresh()->isSuperAdmin() ? 'ROLE_PRESENT' : 'ROLE_ABSENT';`;
+        return execFileSync('docker', [...composeArguments, 'php', 'artisan', 'tinker', `--execute=${code}`], { encoding: 'utf8' }).trim();
+    };
     try {
-        execFileSync('docker', [...artisanArguments, 'guard:role', 'detach', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
-        execFileSync('docker', [...artisanArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
+        expect(setRole('removeRole')).toContain('ROLE_ABSENT');
 
         const afterRevocation = await revokedPage.goto(`/documentation/${directAssetPath}`);
         expect(afterRevocation?.status()).toBe(403);
         await expect(revokedPage.locator('body')).not.toContainText('body {');
     } finally {
-        execFileSync('docker', [...artisanArguments, 'guard:role', 'assign', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
-        execFileSync('docker', [...artisanArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
+        expect(setRole('assignRole')).toContain('ROLE_PRESENT');
         await revokedContext.close();
     }
 
