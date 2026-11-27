@@ -34,6 +34,7 @@ status: living
 - [Обзор архитектуры в схемах](architecture-overview.md)
 - [Архитектура](architecture.md)
 - [Обновление окружения](runbooks/environment-upgrade.md)
+- [Предложения и открытые решения](proposals.md)
 - [База данных](database.md)
 - [Админ-панель](admin-panel.md)
 - [Карта жизненного цикла](entity-lifecycle-map.md)
