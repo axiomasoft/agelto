@@ -38,7 +38,7 @@ class User extends Authenticatable implements AzGuardSubject, FilamentUser
     /** @use HasFactory<UserFactory> */
     use HasAzGuard, HasFactory, Notifiable;
 
-    public function azguardDefaultPanel(): ?string
+    public function azguardDefaultPanel(): string
     {
         return 'admin';
     }

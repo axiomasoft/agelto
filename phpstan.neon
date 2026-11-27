@@ -5,6 +5,7 @@ parameters:
     level: max
     paths:
         - app
-    checkBenevolentUnionTypes: true
     checkMissingCallableSignature: true
+    checkTooWideReturnTypesInProtectedAndPublicMethods: true
     reportWrongPhpDocTypeInVarTag: true
+    checkBenevolentUnionTypes: true
