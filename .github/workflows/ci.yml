@@ -357,6 +357,10 @@ jobs:
           exit-code: '1'
           ignore-unfixed: true
           cache: false
+          # gosu from the official postgres image is built with an old Go toolchain, so Trivy
+          # reports Go stdlib CVEs (crypto/tls, net/http). gosu only calls setgroups/setuid
+          # and exec; it never reaches those packages. The PostgreSQL server itself is scanned.
+          skip-files: usr/local/bin/gosu
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: redis:8.12-alpine@sha256:5af80107c1eeecb484a2269b80a26d12bfa6521787da4663bd9f19f60a163483
