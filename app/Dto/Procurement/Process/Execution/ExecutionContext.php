@@ -153,7 +153,11 @@ final class ExecutionContext
         }
     }
 
-    /** Guzzle/cURL progress callback: тот же throttled tick даже в idle wait. */
+    /**
+     * Guzzle/cURL progress callback: тот же throttled tick даже в idle wait.
+     *
+     * @return Closure(mixed...): void
+     */
     public function progressCallback(): Closure
     {
         return function (mixed ...$progress): void {

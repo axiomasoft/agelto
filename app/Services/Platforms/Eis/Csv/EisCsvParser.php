@@ -36,7 +36,10 @@ final readonly class EisCsvParser
         return $batch['rows'];
     }
 
-    /** @return array{rows: list<array<string, string>>, records: int, malformed: int, header: list<string>|null} */
+    /**
+     * @param  (\Closure(): void)|null  $tick
+     * @return array{rows: list<array<string, string>>, records: int, malformed: int, header: list<string>|null}
+     */
     public function parseBatch(string $body, ?float $deadlineAt = null, int $maxRecords = 1000, int $maxFieldBytes = 262_144, ?\Closure $tick = null): array
     {
         if (substr_count($body, ';') > 128_000) {
@@ -100,6 +103,7 @@ final readonly class EisCsvParser
 
     /**
      * @param  resource  $stream
+     * @param  (\Closure(): void)|null  $tick
      * @return \Generator<int, list<string>>
      */
     private function records($stream, ?float $deadlineAt, int $maxFieldBytes, ?\Closure $tick): \Generator

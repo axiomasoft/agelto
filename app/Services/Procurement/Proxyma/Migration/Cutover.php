@@ -23,6 +23,7 @@ use Proxyma\Infrastructure\Database\PackageSchema;
  */
 final readonly class Cutover
 {
+    /** @param (Closure(string): void)|null $afterPhase */
     public function __construct(private CutoverJournal $journal, private ?Closure $afterPhase = null) {}
 
     /** @param array<int, array{endpoint_id: string, protocol: string}> $endpoints */

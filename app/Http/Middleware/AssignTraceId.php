@@ -21,6 +21,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class AssignTraceId
 {
+    /** @param Closure(Request): mixed $next The pipeline is untyped, so the result is checked below. */
     public function handle(Request $request, Closure $next): Response
     {
         $incoming = $request->headers->get('X-Request-Id');

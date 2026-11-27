@@ -84,6 +84,7 @@ class FixtureForm
             ]);
     }
 
+    /** @return Closure(string, mixed, Closure(string): mixed): void */
     private static function typeProfileValidationRule(Get $get): Closure
     {
         return function (string $attribute, mixed $value, Closure $fail) use ($get): void {

@@ -15,7 +15,11 @@ final readonly class CutoverJournal
 {
     public function __construct(public Inventory $inventory) {}
 
-    /** One atomic step. A failed step leaves earlier steps available for a checked rerun. */
+    /**
+     * One atomic step. A failed step leaves earlier steps available for a checked rerun.
+     *
+     * @param  Closure(): void  $transfer
+     */
     public function step(string $id, string $step, Closure $transfer): void
     {
         new Uuid($id);

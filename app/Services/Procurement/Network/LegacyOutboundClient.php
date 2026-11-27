@@ -62,6 +62,7 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
      * @template T
      *
      * @param  Closure(OutboundExecutionContext): AdapterInspection<T>  $inspect
+     * @param  (Closure(): void)|null  $checkpoint
      * @return AdapterValidatedInput<T>
      */
     public function validated(AdapterValidationCall $call, Closure $inspect, ?Closure $checkpoint = null): AdapterValidatedInput
@@ -127,7 +128,10 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
         }
     }
 
-    /** @param list<string> $controls */
+    /**
+     * @param  list<string>  $controls
+     * @param  (Closure(): void)|null  $checkpoint
+     */
     public function execute(
         string $callerCode,
         ?int $platformId,
@@ -208,6 +212,7 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
      * OutboundExecutor. A caller cannot invent an endpoint policy when the catalog is missing.
      *
      * @param  list<string>  $controls
+     * @param  (Closure(): void)|null  $checkpoint
      */
     public function request(string $callerCode, ?int $platformId, ?ProviderKey $providerKey, string $capability,
         SafeUrl $url, TrafficClass $trafficClass, ProfileBindings $routePolicy, array $controls, int $deadlineSeconds,
@@ -226,7 +231,10 @@ final readonly class LegacyOutboundClient implements LegacyOutbound
         }
     }
 
-    /** @param list<string> $controls */
+    /**
+     * @param  list<string>  $controls
+     * @param  (Closure(): void)|null  $checkpoint
+     */
     private function requestResponse(string $callerCode, ?int $platformId, ?ProviderKey $providerKey, string $capability,
         SafeUrl $url, TrafficClass $trafficClass, ProfileBindings $routePolicy, array $controls, int $deadlineSeconds,
         string $method, HttpRequestPayload $payload, IdempotencyClass $idempotency, ?Closure $checkpoint, ?int $sendLimit, ?OutboundExecutionContext $context): \Illuminate\Http\Client\Response

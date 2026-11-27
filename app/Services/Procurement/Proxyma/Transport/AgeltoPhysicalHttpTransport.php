@@ -30,6 +30,7 @@ final readonly class AgeltoPhysicalHttpTransport implements PhysicalTransport
     // ext-curl не экспортирует CURLE_LOGIN_DENIED во всех поддержанных сборках; ABI код стабилен.
     private const int CurlLoginDenied = 67;
 
+    /** @param (Closure(): bool)|null $cancelled */
     public function __construct(private ConnectionScope $scope, private WireSealer $sealer,
         private int $maxResponseBytes = 67_108_864, private ?Closure $cancelled = null)
     {

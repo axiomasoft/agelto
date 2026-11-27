@@ -24,11 +24,15 @@ interface LegacyOutbound
      * @template T
      *
      * @param  Closure(OutboundExecutionContext): AdapterInspection<T>  $inspect
+     * @param  (Closure(): void)|null  $checkpoint
      * @return AdapterValidatedInput<T>
      */
     public function validated(AdapterValidationCall $call, Closure $inspect, ?Closure $checkpoint = null): AdapterValidatedInput;
 
-    /** @param list<string> $controls */
+    /**
+     * @param  list<string>  $controls
+     * @param  (Closure(): void)|null  $checkpoint
+     */
     public function request(string $callerCode, ?int $platformId, ?ProviderKey $providerKey, string $capability,
         SafeUrl $url, TrafficClass $trafficClass, ProfileBindings $routePolicy, array $controls, int $deadlineSeconds,
         string $method = 'GET', HttpRequestPayload $payload = new HttpRequestPayload,
