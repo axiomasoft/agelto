@@ -4,80 +4,78 @@ type: runbook
 status: living
 ---
 
-# Durable acquisition schedule allocation
+# Долговременное распределение расписания acquisition
 
-`AcquisitionScheduler` accepts a prepared immutable `AcquisitionLaunch`. Preparation must
-resolve the registered platform, filter, access policy and listing plan before allocation.
-The allocator performs no HTTP request and does not dispatch a queue job.
+`AcquisitionScheduler` принимает подготовленный неизменяемый `AcquisitionLaunch`. До
+распределения подготовка должна разрешить зарегистрированную платформу, фильтр, политику доступа
+и план листинга. Распределитель не выполняет HTTP-запросов и не ставит задачи в очередь.
 
-`prc_acquisition_schedules` has one authority row per `(profile_id, acquisition_kind)`.
-It stores cron, timezone, profile version and `next_due_at`. `configure()` preserves the
-due instant on identical registration, ignores an older version and rejects conflicting
-cron/timezone values for the same version. A newer version replaces the schedule.
+`prc_acquisition_schedules` содержит одну авторитетную строку на `(profile_id, acquisition_kind)`:
+cron, часовой пояс, версию профиля и `next_due_at`. `configure()` сохраняет момент срабатывания
+при идентичной регистрации, игнорирует более старую версию и отклоняет конфликтующие cron или
+часовой пояс для той же версии. Более новая версия заменяет расписание.
 
-`due()` locks that row, rejects stale preparation, creates the Process run, crawl roots,
-required links and journal/outbox records, then advances `next_due_at` in the same
-transaction. A mandatory write failure rolls back both allocation and due advancement.
-Two schedulers contending for the same due row create one required graph.
+`due()` блокирует эту строку, отклоняет устаревшую подготовку, создаёт run Process, корни обхода,
+обязательные связи и записи журнала и outbox, а затем сдвигает `next_due_at` в той же
+транзакции. Ошибка обязательной записи откатывает и распределение, и сдвиг срока. Два
+планировщика, конкурирующие за одну строку, создают один обязательный граф.
 
-The scheduled trigger is `(profile_id, acquisition_kind, scheduled UTC instant)`;
-different acquisition kinds at the same instant remain independent. Manual allocation
-uses a command UUID. Retries must retain their original UUID and immutable launch.
-The allocator coalesces missed cron slots; the prepared plan must include the unobserved
-source range and coverage debt. Coalescing cron slots alone does not establish source
-completeness. Empty plans close discovery explicitly; an unallocated continuation
-closes it as incomplete.
+Триггер по расписанию — `(profile_id, acquisition_kind, момент по UTC)`; разные виды acquisition в
+один момент независимы. Ручное распределение использует UUID команды. Повторы обязаны сохранять
+исходный UUID и неизменяемый launch. Распределитель склеивает пропущенные слоты cron;
+подготовленный план должен включать ненаблюдённый диапазон источника и долг покрытия. Само
+склеивание слотов не доказывает полноту источника. Пустые планы явно закрывают discovery;
+нераспределённое продолжение закрывает его как неполное.
 
-The candidate binds allocation to the Process command and minute scheduler. Its targeted
-tests do not establish end-to-end cutover or clean installation equivalence. Clean install
-and regression checks belong to final acceptance in the isolated rig described in
+Кандидат связывает распределение с командой Process и ежеминутным планировщиком. Его отдельные
+тесты не доказывают сквозной переход и эквивалентность чистой установки. Чистая установка и
+регрессия относятся к финальной приёмке на изолированном стенде из
 [process-test-rig.md](process-test-rig.md).
-# P2.18 integration boundary
 
-The profile preparer is declared by the existing `PlatformDefinition`. It resolves
-reference values before allocation, pins route policy/version and uses the platform
-partitioner for bounded initial and recovery plans. Profile edits increment
-`profile_version`; allocation rechecks it under a shared profile lock. The
-`process:run` command creates a durable intent. The candidate registers the three
-acquisition handlers and the minute producer; the atomic cutover is not yet accepted.
+## Граница интеграции
 
-Detail publication now upserts `(platform_id, source_document_key)` references,
-procurement links and pending download intents in its fenced transaction. Signed
-URL rotation changes the versioned access descriptor, preserving identity. Only
-complete document sections reconcile missing links; bytes and downstream work are
-not deleted. `source_url` remains null for these references so the surviving legacy
-downloader cannot select them. Download intents remain
-`pending / handler_not_activated` until the document cutover.
+Подготовщик профиля объявляется существующим `PlatformDefinition`. Он разрешает справочные
+значения до распределения, закрепляет политику и версию маршрута и использует partitioner
+платформы для ограниченных начальных планов и планов восстановления. Правка профиля увеличивает
+`profile_version`; распределение перепроверяет её под общей блокировкой профиля. Команда
+`process:run` создаёт долговременный intent. Кандидат регистрирует три обработчика acquisition и
+ежеминутного producer.
 
-Q3 is implemented: ordinary adapter validation binds to WorkAttempt/generation;
-separate probe owners cover canaries and standalone diagnostics. Tests cover stale
-owners, expiry between the locked read and SQL send authorization, epoch changes,
-publication fencing and real PostgreSQL adapter admission concurrency.
+Публикация деталей выполняет upsert ссылок `(platform_id, source_document_key)`, связей закупок и
+ожидающих intent на скачивание в своей fenced-транзакции. Ротация подписанного URL меняет
+версионированный дескриптор доступа, сохраняя идентичность. Отсутствующие связи сверяются только
+по полным разделам документов; байты и последующая работа не удаляются. `source_url` для этих
+ссылок остаётся null, поэтому оставшийся legacy-загрузчик не может их выбрать. Intent на
+скачивание остаются `pending / handler_not_activated` до перехода документов.
 
-Manual commands pin the first resolved default window. Reusing a command UUID with
-changed explicit bounds, profile or actor conflicts. Explicit item retry creates a
-new intent/work budget and retains the failed work and its three item failures;
-required links move only for non-cancelled runs. P3.17 removes the source incident table/readers together with their sidebar resource.
-Process incidents and canonical transitions provide the operator view; source circuits and old
-acquisition jobs/managers are also absent.
+Обычная проверка адаптера привязана к WorkAttempt и поколению; отдельные владельцы probe покрывают
+canary и автономную диагностику. Тесты покрывают устаревших владельцев, истечение между
+заблокированным чтением и SQL-авторизацией отправки, смену эпохи, fencing публикации и реальную
+конкуренцию допуска адаптеров в PostgreSQL.
 
-Q4 is implemented. `DiagnosticRunner` selects the profile and pinned route policy;
-the registered `DiagnosticCheck` receives an immutable acquisition launch and returns a
-`ProbePlan` of one or two typed listing reads. It assesses `DiagnosticInput` without
-models, database access or route selection. The plan is bounded separately from the
-physical retry budget: every physical authorization is counted from the network ledger.
-`AcquisitionDiagnostic` uses a probe owner, retains response/adapter evidence and never
-publishes procurement state. A parser exception after HTTP success records a handler
-fault and escapes without a blind network retry. Unavailable route/quota produces
-`not_enough_data`; it does not diagnose a broken source filter.
+Ручные команды закрепляют первое разрешённое окно по умолчанию. Повторное использование UUID
+команды с изменёнными явными границами, профилем или актором — конфликт. Явный retry item
+создаёт новый intent и бюджет work и сохраняет неудачную work вместе с её тремя ошибками item;
+обязательные связи переносятся только для неотменённых run. Таблица инцидентов источников и её
+readers удалены вместе с ресурсом боковой панели. Представление оператора дают инциденты Process и
+канонические переходы; circuits источников и старые задачи и менеджеры acquisition тоже удалены.
 
-The acquisition dependency baseline is empty. The platform architecture test includes
-negative fixtures rejecting model/route dependencies in diagnostic adapters. The three
-removed legacy adapter paths retain their original hashes in the historical move map
-and are explicitly marked removed at P2.18.
+`DiagnosticRunner` выбирает профиль и закреплённую политику маршрута; зарегистрированный
+`DiagnosticCheck` получает неизменяемый launch acquisition и возвращает `ProbePlan` из одного или
+двух типизированных чтений листинга. Он оценивает `DiagnosticInput` без моделей, доступа к БД и
+выбора маршрута. План ограничен отдельно от бюджета физических повторов: каждая физическая
+авторизация считается по сетевому журналу. `AcquisitionDiagnostic` использует владельца probe,
+сохраняет доказательства ответа и адаптера и никогда не публикует состояние закупки. Исключение
+парсера после успешного HTTP записывает ошибку обработчика и всплывает без слепого сетевого
+повтора. Недоступный маршрут или квота дают `not_enough_data`, а не диагноз сломанного фильтра
+источника.
 
-The implementation removes legacy acquisition callers and writers, preserves the
-deferred incident readers, and records scenario replacements in the D18 transfer
-inventory. The coordinator must still run acceptance, the full regression and two
-isolated clean installs against the final candidate. Targeted checks alone do not
-establish activation readiness or P2.18 acceptance.
+Базовый список зависимостей acquisition пуст. Архитектурный тест платформ включает негативные
+fixtures, отклоняющие зависимости диагностических адаптеров от моделей и маршрутов. Три удалённых
+legacy-пути адаптеров сохраняют исходные хэши в исторической карте перемещений и явно помечены
+как удалённые.
+
+Реализация удаляет legacy-вызывающих и писателей acquisition, сохраняет отложенные readers
+инцидентов и фиксирует замены сценариев в inventory переноса. Координатор всё равно должен
+прогнать приёмку, полную регрессию и две изолированные чистые установки финального кандидата.
+Отдельные проверки не доказывают готовность к активации.

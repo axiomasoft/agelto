@@ -4,84 +4,95 @@ type: howto
 status: living
 ---
 
-# Recovery after the final legacy cutover
+# Восстановление после финального перехода с legacy
 
-PostgreSQL Process work, attempts, transitions and outbox are authoritative. Redis messages,
-Horizon process counts and technical logs are delivery or diagnostic evidence. Read
-[Process controls](process-controls.md) for versioned operator actions and
-[Process core](../process-core.md) for ownership and recovery bounds.
+Источник истины — записи Process в PostgreSQL: work, попытки, переходы и outbox. Сообщения Redis,
+число процессов Horizon и технические журналы — это доказательства доставки или диагностики.
+Версионированные действия оператора описаны в [управлении Process](process-controls.md), границы
+владения и восстановления — в [Process core](../process-core.md).
 
-The isolated fault corpus records a named boundary, the exact worker PID and the same persisted
-work ID through recovery. A kill command alone is not recovery proof. Inspect the rig JUnit and
-candidate hashes; use separate e2e/fault/W10/W20/regression/quality results. The test runtime uses
-short, ordered timeouts and a real DB-clock expiry; these are not production recovery SLOs.
-See [acceptance evidence](../process-core-acceptance.md) for the corpus and claim boundaries.
+Изолированный корпус отказов фиксирует именованную границу, точный PID воркера и тот же
+сохранённый идентификатор work на всём пути восстановления. Одна команда kill доказательством
+восстановления не является. Проверяйте JUnit стенда и хэши кандидата; используйте отдельные
+результаты e2e, faults, W10/W20, regression и quality. Тестовая среда использует короткие
+упорядоченные таймауты и настоящее истечение по часам БД; это не SLO восстановления в production.
+Корпус и границы утверждений описаны в [доказательствах приёмки](../process-core-acceptance.md).
 
-P3.17 removes source incident navigation, readers, factory and baseline table together.
-Circuits were removed earlier. The existing journal URL reads `prc_process_transitions`;
-Process incidents provide the open badge, filter and audited acknowledge action. Recreating
-legacy tables, clearing old counters or importing old environment switches is not recovery.
+Навигация по инцидентам источников, readers, фабрика и базовая таблица удалены вместе. Circuits
+удалены раньше. Существующий URL журнала читает `prc_process_transitions`; инциденты Process
+дают значок открытых инцидентов, фильтр и аудируемое действие acknowledge. Пересоздание legacy
+таблиц, сброс старых счётчиков или импорт старых переключателей окружения восстановлением не
+являются.
 
-1. Inspect `process:status` and the work drilldown: state, reason, absolute retry,
-   generation, effective controls and provider recovery directive.
-2. Confirm relay/reconcile/feed/project daemon readiness. A fresh heartbeat alone does not
-   establish dependency or projection readiness. Reconcile owns interrupted work;
-   delivery retries do not replace it.
-3. Use versioned pause/resume/cancel/retry/acknowledge actions. Resume clears only the
-   chosen manual pause. It does not clear handler holds, item exhaustion or unknown spend.
-4. A claimed provider operation without a verified outcome remains explicitly unknown.
-   Periodic blocked-provider reconciliation may restore a pinned receipt without another
-   send. Operator replay requires a separate audited intent and financial reservation.
+1. Проверьте `process:status` и детализацию work: состояние, причину, абсолютный retry,
+   поколение, действующие controls и директиву восстановления провайдера.
+2. Убедитесь в готовности демонов relay, reconcile, feed и project. Одного свежего heartbeat
+   недостаточно, чтобы считать готовыми зависимости и проекции. Прерванной работой владеет
+   reconcile; повторы доставки его не заменяют.
+3. Используйте версионированные действия pause, resume, cancel, retry и acknowledge. Resume
+   снимает только выбранную ручную паузу. Он не снимает удержания обработчика, исчерпание
+   item и неизвестные траты.
+4. Заявленная операция провайдера без проверенного результата остаётся явно неизвестной.
+   Периодическая сверка заблокированных провайдеров может восстановить закреплённый receipt без
+   повторной отправки. Повтор оператором требует отдельного аудируемого intent и финансового
+   резерва.
 
-For Redis loss, restore the isolated/runtime Redis service and observe admitted delivery
-regeneration through relay and reconciliation. Keep the same PostgreSQL database and work IDs;
-do not allocate replacement intents to hide a missing delivery. A live running lease is not
-republished. An expired lease becomes recoverable; the fenced takeover determines ownership.
-Compare the old/new generation, attempts, transitions and accepted publication count.
+При потере Redis восстановите изолированный или рабочий сервис Redis и наблюдайте, как relay и
+reconcile заново формируют допущенные доставки. Сохраняйте ту же базу PostgreSQL и те же
+идентификаторы work; не создавайте замещающие intent, чтобы скрыть пропавшую доставку. Живой
+выполняющийся lease повторно не публикуется. Истёкший lease становится восстанавливаемым, а
+владельца определяет fenced takeover. Сравните старое и новое поколение, попытки, переходы и
+число принятых публикаций.
 
-For PostgreSQL loss, restore connectivity before new effects. Inspect daemon readiness and
-durable state after reconnect; a technical timeout cannot establish whether a transaction
-committed. Identify the existing work/event/request IDs before retrying. For object-store or
-converter interruption, preserve staging/storage reservations until verified bytes or verified
-process-stop/cleanup proof exists. Never free capacity solely because a work lease expired.
+При потере PostgreSQL восстановите соединение до любых новых эффектов. После переподключения
+проверьте готовность демонов и долговременное состояние: технический таймаут не говорит о том,
+зафиксирована ли транзакция. Перед повтором определите существующие идентификаторы work, event и
+request. При прерывании объектного хранилища или конвертера сохраняйте резервирования staging и
+storage, пока нет проверенных байтов или проверенного доказательства остановки процесса и
+очистки. Никогда не освобождайте ёмкость только потому, что истёк lease work.
 
-For `provider_result_unknown`, inspect the exact logical request, physical call, purpose,
-request epoch, original budget period and pinned recovery envelope. Do not infer zero cost from
-elapsed time, a daily billing aggregate or missing logs. Reconciliation runs a separate periodic
-blocked-provider scan even with no Redis event. A successful generation receipt resumes parsing
-of that immutable receipt with zero new sends/reservations; asset/error receipts follow their
-own typed branch. Cancellation permits financial history and settlement, with zero business
-publication. No verified receipt means retained reserve and an explicit operator decision.
+Для `provider_result_unknown` проверьте точный логический запрос, физический вызов, назначение,
+эпоху запроса, исходный бюджетный период и закреплённый конверт восстановления. Не выводите
+нулевую стоимость из прошедшего времени, дневного агрегата биллинга или отсутствия журналов.
+Reconcile выполняет отдельное периодическое сканирование заблокированных провайдеров даже без
+событий Redis. Успешный receipt генерации продолжает разбор этого неизменяемого receipt без новых
+отправок и резервов; receipts ассетов и ошибок идут по своей типизированной ветке. Отмена
+допускает финансовую историю и расчёт при нулевой бизнес-публикации. Нет проверенного receipt —
+резерв сохраняется и требуется явное решение оператора.
 
-For projector lag, read authoritative work/transition state and pending consumer receipts.
-The bounded `process:metrics-rebuild <projector>` command changes only projection generations.
-It refuses incomplete retained history. A stuck maintenance token requires the versioned
-`process:metrics-rebuild-resume <projector> --expected-token=...` recovery action; never clear
-someone else's token or rerun paid business work to repair a dashboard.
+При отставании проектора читайте авторитетное состояние work и переходов и ожидающие receipts
+потребителей. Ограниченная команда `process:metrics-rebuild <projector>` меняет только поколения
+проекций и отказывается работать с неполной сохранённой историей. Зависший токен обслуживания
+требует версионированного действия восстановления
+`process:metrics-rebuild-resume <projector> --expected-token=...`; никогда не сбрасывайте чужой
+токен и не перезапускайте платную бизнес-работу ради починки дашборда.
 
-The schedule contains only daily `partitions:maintain`, the minute readiness heartbeat
-callback, minute `process:schedule-acquisition`, hourly `process:retention` and five-minute
-`process:health-report`. The health report reads Process authority and sends no external
-notification. `process:diagnostics` retains explicit operator diagnostics; it is not scheduled.
+Расписание содержит только ежедневный `partitions:maintain`, ежеминутный callback heartbeat
+готовности, ежеминутный `process:schedule-acquisition`, ежечасный `process:retention` и
+пятиминутный `process:health-report`. Отчёт о здоровье читает данные Process и не отправляет
+внешних уведомлений. `process:diagnostics` остаётся явной диагностикой оператора и не
+планируется.
 
-Retention uses the existing projection receipt/pin policy, cleans stale temporary workspaces,
-and deletes a bounded batch of retired raw objects. Raw publication and deletion share a
-PostgreSQL session address gate; object I/O runs outside a database transaction. Canonical
-`raw/acquisition/` evidence is conservatively retained. This slice does not establish automatic
-reclamation of canonical raw evidence.
+Retention использует существующую политику receipts и pins проекций, очищает устаревшие
+временные рабочие каталоги и удаляет ограниченную пачку выведенных из оборота сырых объектов.
+Публикация и удаление сырых данных разделяют адресный gate сессии PostgreSQL; ввод-вывод объектов
+выполняется вне транзакции БД. Канонические доказательства `raw/acquisition/` консервативно
+сохраняются: автоматическое освобождение канонических сырых доказательств пока не реализовано.
 
-Horizon consumes only `supervisor-1` for the default queue and the six Process supervisors.
-The obsolete prepare/crawl connections are absent. Both application Compose definitions use
-370 seconds as the default Horizon shutdown grace; deployment overrides must preserve the
-maximum active-job plus cleanup bound.
+Horizon обслуживает только `supervisor-1` для очереди по умолчанию и шесть супервизоров Process.
+Устаревших соединений prepare и crawl нет. Оба Compose-определения приложения используют
+370 секунд как grace-период остановки Horizon по умолчанию; переопределения при развёртывании
+должны сохранять границу «максимальная активная задача плюс очистка».
 
-For a local code/schema rollback, use a separate branch at the last verified package commit
-and a clean isolated install. Roll back consumers, schema and configuration together. The
-coordinator runs `make core-test-install` to prove two identical full resets, including
-pg_partman, and runs full acceptance. Never reset a dev/shared database. Targeted test files
-do not prove the later fault/load package or authorize deployment.
+Для локального отката кода или схемы используйте отдельную ветку на последнем проверенном
+коммите пакета и чистую изолированную установку. Откатывайте потребителей, схему и конфигурацию
+вместе. Координатор запускает `make core-test-install`, чтобы доказать два одинаковых полных
+сброса, включая pg_partman, и прогоняет полную приёмку. Никогда не сбрасывайте dev- или общую
+базу. Отдельные тестовые файлы не доказывают последующий пакет faults и load и не разрешают
+развёртывание.
 
-Preserve the report directory, inputs/JUnit, named boundary, work/request IDs and immutable
-artifact hashes before a rollback. Compare the final candidate manifest after any fix. Changes
-to runtime, schema, fixtures or tests invalidate affected evidence; documentation/report-only
-reuse must satisfy the explicit collector checks. See [quality limits](process-quality-limits.md).
+Перед откатом сохраните каталог отчёта, входные данные и JUnit, именованную границу,
+идентификаторы work и request и хэши неизменяемых артефактов. После любого исправления сравните
+итоговый manifest кандидата. Изменения runtime, схемы, fixtures или тестов делают затронутые
+доказательства недействительными; повторное использование при изменении только документации
+или отчётов должно пройти явные проверки сборщика. См. [ограничения качества](process-quality-limits.md).

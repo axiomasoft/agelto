@@ -4,45 +4,52 @@ type: reference
 status: living
 ---
 
-# Reliability evidence and model quality limits
+# Доказательства надёжности и ограничения качества модели
 
-The [acceptance manifest](../process-core-acceptance.md) proves deterministic orchestration on
-isolated PostgreSQL/Redis/Horizon and local fixtures. Fake Gemini proves wire/schema, pinned
-recipe, financial accounting and recovery behavior. These results do not measure semantic AI
-accuracy, live source availability, production capacity or browser automation.
+[Manifest приёмки](../process-core-acceptance.md) доказывает детерминированную оркестрацию на
+изолированных PostgreSQL, Redis и Horizon с локальными fixtures. Fake Gemini доказывает wire и
+схему, закреплённый recipe, финансовый учёт и поведение при восстановлении. Эти результаты не
+измеряют смысловую точность AI, доступность живых источников, ёмкость production и
+автоматизацию браузера.
 
-No paid holdout or live crawling was executed for this package. PHP 8.5.8 was measured in the
-test runtime; PHP 8.4 was not. Source watermark facts have day precision, so second-precision
-lag remains Unknown. Automatic reclamation of pinned canonical acquisition evidence is not
-established. External reads can repeat and provider payment can remain unknown; neither is an
-exactly-once claim. Runbooks and deterministic green tests do not approve deployment.
+Платный holdout и живой обход для этого пакета не выполнялись. Исторические замеры в тестовой
+среде сделаны на PHP 8.5.8; после перехода на PHP 8.6 их нужно повторить. Факты watermark
+источника имеют точность до дня, поэтому отставание с точностью до секунды остаётся неизвестным.
+Автоматическое освобождение закреплённых канонических доказательств acquisition не реализовано.
+Внешние чтения могут повторяться, а оплата провайдеру может остаться неизвестной; ни то, ни
+другое не является утверждением exactly-once. Runbooks и зелёные детерминированные тесты не
+утверждают развёртывание.
 
-Before treating AI estimates as suitable for automatic business use, prepare at least 60
-independent documents, with at least 10 each of native spreadsheets, text PDFs and scanned
-PDFs, plus GSFX, multi-estimate and archive cases. Separate train/dev/holdout by procurement
-and document family. Human reviewers must verify source bytes, source coverage, canonical
-labels and SHA-256 for both inputs and expected outputs. Existing legacy labels and synthetic
-contract fixtures are not that verified corpus. The P3.14 inventory records this gap explicitly.
+Прежде чем считать оценки AI пригодными для автоматического бизнес-использования, подготовьте не
+менее 60 независимых документов, из них не менее 10 нативных таблиц, 10 текстовых PDF и 10
+сканированных PDF, а также случаи GSFX, несколько смет в одном документе и архивы. Разделяйте
+train, dev и holdout по закупке и семейству документов. Люди-проверяющие должны сверить исходные
+байты, покрытие источника, канонические метки и SHA-256 входов и ожидаемых результатов.
+Существующие legacy-метки и синтетические контрактные fixtures таким проверенным корпусом не
+являются. Inventory явно фиксирует этот пробел.
 
-A later controlled real-model evaluation must use a sealed recipe, provider/account/API/model
-identity, pricing snapshot, declared hard spend cap and the real owning send gate. Obtain an
-explicit evaluation intent; deterministic core targets never trigger it. Existing dry-run or
-legacy eval output cannot substitute for this report, and a caller without the owning financial
-gate must remain unsupported. Do not enable an unowned CLI provider call to collect metrics.
+Последующая контролируемая оценка на реальной модели должна использовать запечатанный recipe,
+идентичность провайдера, аккаунта, API и модели, снимок цен, объявленный жёсткий лимит трат и
+настоящий владеющий send gate. Получите явный intent на оценку; детерминированные цели core его
+никогда не запускают. Вывод dry-run или legacy eval не заменяет этот отчёт, а вызывающая сторона
+без владеющего финансового gate должна оставаться неподдерживаемой. Не включайте вызов провайдера
+из CLI без владельца ради сбора метрик.
 
-The real holdout report must record routing precision/recall, required row coverage, duplicate
-rate, field F1, decimal/totals validation, unresolved fraction, cost/document and p95 latency.
-Record unknown usage/exposure explicitly. Model aliases can drift; keep the configured ID and
-returned resolved version when available. The owner approves semantic quality thresholds from
-measured results; no accuracy threshold is invented from fake responses.
+Отчёт реального holdout должен фиксировать precision и recall маршрутизации, покрытие
+обязательных строк, долю дубликатов, F1 по полям, проверку десятичных значений и итогов, долю
+неразрешённого, стоимость на документ и задержку p95. Неизвестное использование и экспозицию
+записывайте явно. Алиасы моделей могут дрейфовать: сохраняйте настроенный ID и возвращённую
+разрешённую версию, если она доступна. Пороги смыслового качества утверждает владелец по
+измеренным результатам; никакой порог точности не выводится из поддельных ответов.
 
-The deterministic hard limits are already mandatory: zero silently accepted missing required
-ranges, zero duplicate published rows, and provenance plus validation for every published numeric
-field. An incomplete/degraded source remains incomplete even when all extracted rows validate.
-OCR tool exit and a failed-page ratio are operational labels, not completeness or accuracy proof.
-Partial artifacts remain visible for review; an override cannot make missing data verified.
+Детерминированные жёсткие ограничения уже обязательны: ноль молча принятых пропущенных
+обязательных диапазонов, ноль дублирующихся опубликованных строк, provenance и проверка для
+каждого опубликованного числового поля. Неполный или деградировавший источник остаётся неполным,
+даже если все извлечённые строки прошли проверку. Код выхода OCR и доля неудачных страниц —
+операционные метки, а не доказательство полноты или точности. Частичные артефакты остаются
+видимыми для проверки; переопределение не делает пропавшие данные проверенными.
 
-Keep model-quality readiness separate from extraction publication. A complete, schema-valid,
-semantically checked result can be persisted with its provenance while operator verification
-and automatic business-use approval remain absent. The final review route is D51/P3.23.
-See [process recovery](process-recovery.md) for unknown paid outcomes and safe rollback.
+Готовность по качеству модели отделена от публикации извлечения. Полный, валидный по схеме и
+семантически проверенный результат может быть сохранён с provenance, пока проверка оператором и
+утверждение автоматического бизнес-использования отсутствуют. Неизвестные платные результаты и
+безопасный откат описаны в [восстановлении Process](process-recovery.md).
