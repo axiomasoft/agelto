@@ -182,7 +182,7 @@ nginx -t
 |---|---|
 | Checkout / Compose project | `/srv/agelto/repository` / `agelto_prod` |
 | App / PostgreSQL / Redis | `127.0.0.1:8082` / `127.0.0.1:5434` / `127.0.0.1:6382` |
-| MinIO API / console | `127.0.0.1:9002` / `127.0.0.1:9003` |
+| Silo (S3, совместим с MinIO) API / console | `127.0.0.1:9002` / `127.0.0.1:9003` |
 | NGINX site / FQDN | `/etc/nginx/sites-available/agelto.ru.conf` / `agelto.ru` |
 
 ## 2. Deploy user и отдельный read-only GitHub key
@@ -531,11 +531,12 @@ worker-prepare. Сохраните IDs всех образов релиза. К�
 
 Развилки, проверенные на сервере:
 
-- Docker Hub MinIO manifest недоступен: pull **официального Quay** и local tag точного
-  соответствующего image. Для Dockerfile mc: `docker pull quay.io/minio/mc:latest`, затем
-  `docker tag quay.io/minio/mc:latest minio/mc:latest`; запишите digest. Для runtime MinIO
-  используйте именно `quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z` →
-  `minio/minio:RELEASE.2025-04-22T22-12-26Z`. Alias latest не заменяет pinned release.
+- Образы `minio/minio` и `minio/mc` удалены с Docker Hub, а `quay.io/minio` не отдаёт их
+  анонимно. Стек использует поддерживаемый S3-совместимый форк Silo: сервис `minio` и стадия
+  `mc` в `docker/php/Dockerfile` закреплены на `pgsty/silo:RELEASE.2026-11-12T00-00-00Z` с
+  digest. Отдельный pull или ретег не нужен; при ошибке pull проверьте доступ хоста к Docker Hub
+  и сверьте digest с Compose. Переход с существующего volume MinIO описан в
+  [миграции на Silo](../../dev/runbooks/environment-upgrade.md#minio-silo).
 - PECL сообщает missing REST XML: проверьте официальный HTTPS REST/tarball и verbose PECL;
   это может быть CDN TLS timeout, а не отсутствующая версия. Только после сетевого доказательства
   используйте `docker build --add-host pecl.php.net:<проверенный-CDN-IPv4>`.

@@ -4,10 +4,13 @@
 
 ## Поддерживаемый стек и runtime-версии
 
-- **PHP:** `8.5` (`serversideup/php:8.5-fpm-nginx`, `pcntl`, `intl`, `bcmath`, `pdo_pgsql`, `pgsql`, `redis 6.3.0`, `gd`)
-- **Framework & Admin UI:** Laravel 12, Filament v4, Livewire v3, Horizon v5, Pulse, AzGuard (`local/vendors/azguard`, закреплённый в `docker/private-vendors.lock.json`)
-- **Frontend & Docs:** Node.js `24`, `pnpm` (`--frozen-lockfile --ignore-scripts`), Vite 6, Tailwind CSS v4, VitePress
-- **Инфраструктура:** PostgreSQL `17` (`agelto/postgres:<IMAGE_TAG>`, `pg_partman`, `pg_stat_statements`), 3 изолированных контура Redis `7` (`redis` с `noeviction` и `AOF everysec` для очередей/Horizon/атомарных блокировок/heartbeat планировщика, `redis-cache` с `allkeys-lru` для кэша, `redis-session` с `noeviction` и `AOF everysec` для сессий), MinIO (`S3`, runtime работает под ограниченной учётной записью `MINIO_APP_USER` / `minio_app_password`), изолированный Python-супервизор конвертации (`tool_supervisor.py` + `bwrap`: qpdf, Ghostscript, Poppler, Tesseract OCR)
+- **PHP:** `8.6` (`serversideup/php:8.6-fpm-nginx`, закреплён по digest; `pcntl`, `intl`, `bcmath`, `pdo_pgsql`, `pgsql`, `redis 6.3.0`, `gd`; в dev — `pcov` с закреплённого коммита upstream)
+- **Framework & Admin UI:** Laravel 13, Filament 5, Livewire 4, Horizon 5, Pulse, AzGuard (`local/vendors/azguard`, закреплённый в `docker/private-vendors.lock.json`)
+- **Качество:** Pest 5, PHPStan `max` через Larastan 3 без baseline, Pint
+- **Frontend & Docs:** Node.js `26`, `pnpm` (`--frozen-lockfile --ignore-scripts`), Vite 7, Tailwind CSS 4, VitePress 1.6
+- **Инфраструктура:** PostgreSQL `19` (`agelto/postgres:<IMAGE_TAG>`, `pg_partman`, `pg_stat_statements`; volume монтируется в `/var/lib/postgresql`), 3 изолированных контура Redis `8.12` (`redis` с `noeviction` и `AOF everysec` для очередей/Horizon/атомарных блокировок/heartbeat планировщика, `redis-cache` с `allkeys-lru` для кэша, `redis-session` с `noeviction` и `AOF everysec` для сессий), S3-совместимое хранилище Silo (`pgsty/silo`, поддерживаемый форк MinIO; сервис `minio`, runtime работает под ограниченной учётной записью `MINIO_APP_USER` / `minio_app_password`), изолированный Python-супервизор конвертации (`tool_supervisor.py` + `bwrap`: qpdf, Ghostscript, Poppler, Tesseract OCR)
+
+Переход существующей установки с PHP 8.5, PostgreSQL 17 и MinIO описан в [обновлении окружения](docs/dev/runbooks/environment-upgrade.md), общая схема системы — в [обзоре архитектуры](docs/dev/architecture-overview.md).
 
 ## Доменная архитектура (`app/**`)
 
@@ -30,7 +33,7 @@
   - `feed` — плановая подача регулярных работ (`listing`, `status_refresh`) и обработка `feeder_wake`;
   - `project` — проекция событий из `prc_process_outbox` (`projection`) и `prc_process_transitions` в витрины чтения.
 - **Ключевые инварианты безопасности:**
-  - Запрет любых сетевых HTTP-вызовов и объектного I/O (`S3`/MinIO) внутри открытых транзакций БД (`OutboundExecutor::execute()`, `HttpTransport::sendOnce()`, `AnalysisProviderSendGate`, `PreparedProviderTransport::sendOnce()`, `ReceiptStore`).
+  - Запрет любых сетевых HTTP-вызовов и объектного I/O (`S3`) внутри открытых транзакций БД (`OutboundExecutor::execute()`, `HttpTransport::sendOnce()`, `AnalysisProviderSendGate`, `PreparedProviderTransport::sendOnce()`, `ReceiptStore`).
   - Привязка исходящих соединений к проверенным публичным IP (`UrlPolicy` + `HttpTransport` DNS pinning) и строгий TLS-трест (`SourceTlsTrust`; `verify => false` запрещён).
   - Канонический порядок блокировок и сверка времени владения lease через `clock_timestamp()`.
 

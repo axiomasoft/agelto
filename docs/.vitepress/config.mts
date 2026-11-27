@@ -84,6 +84,7 @@ export default defineConfig({
                     items: [
                         { text: 'Раздел для разработчиков', link: '/dev/' },
                         { text: 'Локальный запуск', link: '/dev/getting-started' },
+                        { text: 'Обзор в схемах', link: '/dev/architecture-overview' },
                         { text: 'Архитектура', link: '/dev/architecture' },
                         { text: 'Команды разработки', link: '/dev/commands' },
                     ],

@@ -15,5 +15,6 @@ status: living
 - [Площадка не проходит healthcheck](platform-health-broken.md) — разбор `broken`/`degraded`, витрина истории и эскалация.
 
 - [Изолированный process-core стенд](process-test-rig.md) — identity, install, fixtures и deterministic checks.
+- [Обновление окружения](environment-upgrade.md) — PHP 8.6, PostgreSQL 19 (дамп и восстановление, новая раскладка volume), переход с MinIO на Silo.
 
 Формат: Symptoms → Triage → Fix → Rollback → Escalation.

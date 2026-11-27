@@ -13,7 +13,7 @@ status: living
 ## Первый день в проекте
 
 1. [Требования и локальный запуск](getting-started.md) — Docker, Make, `.env` и первый здоровый запуск.
-2. [Архитектура](architecture.md) — домены Procurement/Reference/Organization/Llm и границы слоёв.
+2. [Обзор архитектуры в схемах](architecture-overview.md) и [архитектура](architecture.md) — компоненты, конвейер, отказы, CI, домены и границы слоёв.
 3. Выберите рабочий поток: [краулинг](crawling-pipeline.md), [документы](document-pipeline.md) или
    [нейросети и маршруты моделей](llm-providers.md).
 4. Перед изменением запускайте нужные проверки из [тестирования](process/testing.md) и
@@ -31,7 +31,9 @@ status: living
 
 ## Основа и интерфейсы
 
+- [Обзор архитектуры в схемах](architecture-overview.md)
 - [Архитектура](architecture.md)
+- [Обновление окружения](runbooks/environment-upgrade.md)
 - [База данных](database.md)
 - [Админ-панель](admin-panel.md)
 - [Карта жизненного цикла](entity-lifecycle-map.md)
@@ -83,16 +85,16 @@ status: living
 
 ## Архитектурные решения 0001–0005
 
-- [0001: prc megadomain](adr/0001-prc-megadomain.md)
-- [0002: Prism transport facade](adr/0002-prism-transport-facade.md)
-- [0003: row range + fallback](adr/0003-row-range-plus-windowed-fallback.md)
-- [0004: JSONB for non-estimate results](adr/0004-jsonb-for-non-estimate-results.md)
-- [0005: protected prompts](adr/0005-protected-prompts.md)
+- [0001: мегадомен prc](adr/0001-prc-megadomain.md)
+- [0002: транспортный фасад Prism](adr/0002-prism-transport-facade.md)
+- [0003: диапазон строк + оконный fallback](adr/0003-row-range-plus-windowed-fallback.md)
+- [0004: JSONB для результатов «не смета»](adr/0004-jsonb-for-non-estimate-results.md)
+- [0005: защищённые промпты](adr/0005-protected-prompts.md)
 
 ## Архитектурные решения 0006–0010
 
-- [0006: bounded contexts](adr/0006-bounded-contexts-as-folders.md)
-- [0007: OCDS exchange layer](adr/0007-ocds-as-exchange-layer.md)
-- [0008: thin provenance slice](adr/0008-thin-provenance-slice.md)
-- [0009: job owns document transition](adr/0009-job-owns-document-transition.md)
-- [0010: input representation](adr/0010-input-representation.md)
+- [0006: bounded contexts как каталоги](adr/0006-bounded-contexts-as-folders.md)
+- [0007: OCDS как слой обмена](adr/0007-ocds-as-exchange-layer.md)
+- [0008: тонкий срез provenance](adr/0008-thin-provenance-slice.md)
+- [0009: переход документа принадлежит job](adr/0009-job-owns-document-transition.md)
+- [0010: представление входа](adr/0010-input-representation.md)
