@@ -108,8 +108,11 @@ run_make prod:admin:create ENV_FILE=.env.example IMAGE_TAG=contract-tag COMPOSE_
 grep -F 'up -d --no-build --wait postgres redis redis-cache redis-session minio' "$log_file" >/dev/null
 grep -F 'up -d --no-build --wait app' "$log_file" >/dev/null
 grep -F 'run --rm --no-deps --entrypoint sh -e MINIO_ROOT_USER' "$log_file" >/dev/null
-grep -F 'mc alias set agelto-bootstrap' "$log_file" >/dev/null
-grep -F 'AWS_SECRET_ACCESS_KEY_FILE' "$log_file" >/dev/null
+grep -F 'storage-bootstrap.sh:/run/agelto/storage/bootstrap.sh:ro' "$log_file" >/dev/null
+grep -F 'app-policy.json:/run/agelto/storage/app-policy.json:ro app /run/agelto/storage/bootstrap.sh' "$log_file" >/dev/null
+storage_bootstrap="$root_dir/docker/scripts/storage-bootstrap.sh"
+grep -F 'ADMIN_ALIAS=agelto-bootstrap' "$storage_bootstrap" >/dev/null
+grep -F 'read_secret "$AWS_SECRET_ACCESS_KEY_FILE"' "$storage_bootstrap" >/dev/null
 grep -F 'up -d --no-build --wait horizon scheduler process-relay process-reconciler process-feeder process-projector' "$log_file" >/dev/null
 grep -F '"${compose[@]}" up -d --wait app horizon scheduler process-relay process-reconciler process-feeder process-projector' "$root_dir/docker/tests/clean-install-e2e.sh" >/dev/null
 grep -F '/run/secrets/initial_admin_password:ro' "$log_file" >/dev/null

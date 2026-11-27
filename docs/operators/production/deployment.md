@@ -283,8 +283,12 @@ Horizon получает `SIGTERM`; стандартный `HORIZON_STOP_GRACE_P
 цепочки и повторных `make core-test-e2e` / `make core-test-faults` в
 [изолированном Process rig](../../dev/runbooks/process-test-rig.md).
 
-`prod:app:up` запускает и ждёт healthcheck web-приложения. `prod:storage:init` создаёт основной и
-estimates buckets в MinIO через credentials из file-secret; повторный запуск безопасен. Только затем
+`prod:app:up` запускает и ждёт healthcheck web-приложения. `prod:storage:init` запускает
+`docker/scripts/storage-bootstrap.sh` в одноразовом контейнере `app`. Скрипт создаёт основной и
+estimates buckets в объектном хранилище (Silo, совместимо с MinIO), политику `agelto-app-rw` из
+шаблона `docker/storage/app-policy.json` и пользователя приложения с этой политикой. В конце он
+проверяет, что credentials приложения видят оба bucket. Root-пароль берётся из file-secret,
+повторный запуск безопасен, а при ошибке скрипт называет шаг, на котором она произошла. Только затем
 `prod:workers:up` поднимает Horizon, `schedule:work` и Process daemons и ждёт их healthcheck.
 
 ### Шаг 7. Дождаться scheduler heartbeat и проверить runtime
