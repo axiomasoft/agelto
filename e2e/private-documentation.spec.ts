@@ -22,6 +22,23 @@ function mermaidDocumentationPaths(): string[] {
 test('загружает закрытую документацию без browser или cache bypass', async ({ browser, page }) => {
     const failures: string[] = [];
     const documentationResponses: string[] = [];
+    const composeProject = process.env.E2E_COMPOSE_PROJECT;
+    const composeEnvFile = process.env.E2E_COMPOSE_ENV_FILE;
+    const composeFile = process.env.E2E_COMPOSE_FILE;
+    const adminEmail = process.env.E2E_ADMIN_EMAIL;
+
+    if (!composeProject || !composeEnvFile || !composeFile || !adminEmail) {
+        throw new Error('E2E_COMPOSE_PROJECT, E2E_COMPOSE_ENV_FILE, E2E_COMPOSE_FILE and E2E_ADMIN_EMAIL are required.');
+    }
+
+    const composeArguments = [
+        'compose',
+        '--project-directory', resolve('.'),
+        '--project-name', composeProject,
+        '--env-file', composeEnvFile,
+        '-f', composeFile,
+        'exec', '-T', 'app',
+    ];
     let authenticatedSession = true;
 
     page.on('pageerror', (error) => failures.push(`pageerror: ${error.message}`));
@@ -86,7 +103,8 @@ test('загружает закрытую документацию без browse
     expect(reloadedServerSetupResponse?.status(), 'reloaded server-setup documentation response').toBe(200);
     await expect(page.locator('.language-mermaid')).toHaveCount(0);
 
-    const entries = JSON.parse(readFileSync(resolve('var/private-documentation/manifest.json'), 'utf8')) as Array<{ mime: string; path: string; sha256: string }>;
+    const manifest = execFileSync('docker', [...composeArguments, 'cat', '/var/private-documentation/manifest.json'], { encoding: 'utf8' });
+    const entries = JSON.parse(manifest) as Array<{ mime: string; path: string; sha256: string }>;
     expect(entries.some(({ path }) => path.endsWith('.svg'))).toBeFalsy();
 
     const representativeEntries = representativeExtensions.map((extension) => {
@@ -130,38 +148,22 @@ test('загружает закрытую документацию без browse
     await expect(page).toHaveURL(/\/admin\/login$/);
     await expect(page.locator('body')).not.toContainText('body {');
 
-    const composeProject = process.env.E2E_COMPOSE_PROJECT;
-    const composeEnvFile = process.env.E2E_COMPOSE_ENV_FILE;
-    const composeFile = process.env.E2E_COMPOSE_FILE;
-    const adminEmail = process.env.E2E_ADMIN_EMAIL;
-
-    if (!composeProject || !composeEnvFile || !composeFile || !adminEmail) {
-        throw new Error('E2E_COMPOSE_PROJECT, E2E_COMPOSE_ENV_FILE, E2E_COMPOSE_FILE and E2E_ADMIN_EMAIL are required.');
-    }
-
     const revokedContext = await browser.newContext({ storageState: authFile });
     const revokedPage = await revokedContext.newPage();
     const beforeRevocation = await revokedPage.goto(`/documentation/${directAssetPath}`);
     expect(beforeRevocation?.status()).toBe(200);
 
-    const composeArguments = [
-        'compose',
-        '--project-directory', resolve('.'),
-        '--project-name', composeProject,
-        '--env-file', composeEnvFile,
-        '-f', composeFile,
-        'exec', '-T', 'app', 'php', 'artisan',
-    ];
+    const artisanArguments = [...composeArguments, 'php', 'artisan'];
     try {
-        execFileSync('docker', [...composeArguments, 'guard:role', 'detach', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
-        execFileSync('docker', [...composeArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
+        execFileSync('docker', [...artisanArguments, 'guard:role', 'detach', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
+        execFileSync('docker', [...artisanArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
 
         const afterRevocation = await revokedPage.goto(`/documentation/${directAssetPath}`);
         expect(afterRevocation?.status()).toBe(403);
         await expect(revokedPage.locator('body')).not.toContainText('body {');
     } finally {
-        execFileSync('docker', [...composeArguments, 'guard:role', 'assign', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
-        execFileSync('docker', [...composeArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
+        execFileSync('docker', [...artisanArguments, 'guard:role', 'assign', adminEmail, 'App\\Guards\\Admin\\Roles\\SuperAdminRole'], { stdio: 'pipe' });
+        execFileSync('docker', [...artisanArguments, 'guard:cache-reset', '--force'], { stdio: 'pipe' });
         await revokedContext.close();
     }
 
