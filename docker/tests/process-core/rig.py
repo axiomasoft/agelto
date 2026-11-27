@@ -981,7 +981,7 @@ def main(command):
 def execute(command, name):
     folder, result = new_report(command)
     try:
-        if name in RESET_SUITES | {"file", "unit", "install", "release", "release-sample"} or command == "core-quality":
+        if name in RESET_SUITES | {"env", "reset", "file", "unit", "install", "release", "release-sample"} or command == "core-quality":
             verify_composer_install()  # Fail before resetting any isolated state.
         if name == "load":
             result["width"] = load_width()  # Reject invalid input before reset or any mutation.
