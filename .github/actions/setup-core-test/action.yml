@@ -12,8 +12,10 @@ runs:
     - name: Load isolated images
       uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
       with:
-        source: .
-        files: docker/compose.core-test.yml
+        # Bake resolves Compose build contexts from its working directory, not from the
+        # Compose file, so it runs in docker/ like `docker compose --project-directory docker`.
+        source: docker
+        files: compose.core-test.yml
         targets: app,core-postgres
         load: true
         set: |
