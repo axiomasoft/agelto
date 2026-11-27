@@ -31,11 +31,11 @@ final class NetworkFixtures implements SourceCatalogProvider
         return self::catalog();
     }
 
-    public static function catalog(string $code = 'fixture', ?OriginBudgetPolicy $budget = null): SourceTargetDefinitions
+    public static function catalog(string $code = 'fixture', ?OriginBudgetPolicy $budget = null, string $host = 'example.test'): SourceTargetDefinitions
     {
         return new SourceTargetDefinitions($code, [
-            new SourceTargetDefinition('card', 'detail', CanonicalOrigin::fromUrl('https://EXAMPLE.test/card'), [self::profile()], $budget),
-            new SourceTargetDefinition('status', 'status_refresh', CanonicalOrigin::fromUrl('https://example.test:443/status'), [self::profile()], $budget),
+            new SourceTargetDefinition('card', 'detail', CanonicalOrigin::fromUrl('https://'.strtoupper($host).'/card'), [self::profile()], $budget),
+            new SourceTargetDefinition('status', 'status_refresh', CanonicalOrigin::fromUrl('https://'.$host.':443/status'), [self::profile()], $budget),
         ]);
     }
 
