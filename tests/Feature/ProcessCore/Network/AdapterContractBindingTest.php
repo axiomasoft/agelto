@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\AdapterContractRef;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterContractRef;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Support\Facades\DB;

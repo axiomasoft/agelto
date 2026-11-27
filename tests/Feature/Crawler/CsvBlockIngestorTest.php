@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\ListingReceipt;
-use App\Dto\Procurement\Acquisition\ListingResult;
+use App\Dto\Procurement\Acquisition\Listing\ListingReceipt;
+use App\Dto\Procurement\Acquisition\Listing\ListingResult;
 use App\Enums\Procurement\Platform\Completeness;
 use App\Enums\Procurement\Platform\TerminalProof;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Crawler\IgnoredItem;
 use App\Models\Procurement\Procurement;

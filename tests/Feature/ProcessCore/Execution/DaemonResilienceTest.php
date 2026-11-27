@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\DbInstant;
-use App\Dto\Procurement\Process\Duration;
-use App\Enums\Procurement\Process\DaemonHealth;
-use App\Enums\Procurement\Process\DaemonKind;
-use App\Enums\Procurement\Process\OutboxKind;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\DaemonHeartbeatRepository;
-use App\Repositories\Procurement\Process\OutboxRepository;
+use App\Dto\Procurement\Process\Primitives\DbInstant;
+use App\Dto\Procurement\Process\Primitives\Duration;
+use App\Enums\Procurement\Process\Core\OutboxKind;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\DaemonHealth;
+use App\Enums\Procurement\Process\Governance\DaemonKind;
+use App\Repositories\Procurement\Process\Authority\DaemonHeartbeatRepository;
+use App\Repositories\Procurement\Process\Work\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
-use App\Services\Procurement\Process\DaemonLoop;
-use App\Services\Procurement\Process\DaemonPolicy;
-use App\Services\Procurement\Process\FeederDaemon;
-use App\Services\Procurement\Process\ProjectorDaemon;
-use App\Services\Procurement\Process\ReconcileDaemon;
+use App\Services\Procurement\Process\Daemons\DaemonLoop;
+use App\Services\Procurement\Process\Daemons\DaemonPolicy;
+use App\Services\Procurement\Process\Daemons\FeederDaemon;
+use App\Services\Procurement\Process\Daemons\ProjectorDaemon;
+use App\Services\Procurement\Process\Daemons\ReconcileDaemon;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\ProcessCore\Observability\ProjectionFixtures;

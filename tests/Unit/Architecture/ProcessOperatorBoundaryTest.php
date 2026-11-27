@@ -24,7 +24,7 @@ function processSurfaceFiles(): array
 }
 
 test('Filament и Pulse не пишут в Process ledger напрямую и не берут writer-репозитории', function (): void {
-    $writers = 'Repositories\\\\Procurement\\\\Process\\\\(Control|Incident|WorkMutation|WorkStore|WorkFinalization|Transition|Outbox|Admission|Recovery)Repository'
+    $writers = 'Repositories\\\\Procurement\\\\Process\\\\(?:[A-Za-z]+\\\\)?(Control|Incident|WorkMutation|WorkStore|WorkFinalization|Transition|Outbox|Admission|Recovery)Repository'
         .'|Actions\\\\Procurement\\\\Process\\\\(CancelWork|CancelRun|RetryHandlerFaultedWork|SetScopeMode|AcknowledgeIncident)\\b';
     $violations = [];
     foreach (processSurfaceFiles() as $path) {

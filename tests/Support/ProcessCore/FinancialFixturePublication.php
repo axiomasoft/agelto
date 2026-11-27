@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\WorkInput;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
 use App\Services\Procurement\Process\Contracts\StageResultRepository;
 use Illuminate\Support\Facades\DB;
 

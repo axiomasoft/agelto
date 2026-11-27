@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Document\DocumentReference;
-use App\Repositories\Procurement\Process\CallerTransaction;
+use App\Dto\Procurement\Document\Download\DocumentReference;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
 use Illuminate\Support\Facades\DB;
 

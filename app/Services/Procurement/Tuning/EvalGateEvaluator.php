@@ -13,6 +13,7 @@ use RuntimeException;
  * @phpstan-type SubsampleAggregate array{f1: float, row_coverage: float, per_field: array<string, float>, examples: int}
  * @phpstan-type SubsampleDelta array{base: SubsampleAggregate, candidate: SubsampleAggregate, delta: array{f1: float, row_coverage: float, per_field: array<string, float>}}
  * @phpstan-type Subsamples array<string, SubsampleDelta>
+ * @phpstan-type GateThresholds array{holdout_f1: float, row_coverage: array{tune: float, holdout: float}, per_fixture: float, suffix: ?string, worst_code: ?string}
  */
 final readonly class EvalGateEvaluator
 {
@@ -38,20 +39,12 @@ final readonly class EvalGateEvaluator
         int $candidateId,
         bool $includeOverall,
     ): array {
-        $subsamples = [];
-
-        foreach (['tune', 'holdout'] as $subsample) {
-            $baseSub = $this->filterBySubsample($baseResults, $holdoutCodes, $subsample);
-            $candidateSub = $this->filterBySubsample($candidateResults, $holdoutCodes, $subsample);
-
-            if ($baseSub->isEmpty() || $candidateSub->isEmpty()) {
-                throw new RuntimeException(
-                    "Подвыборка `{$subsample}` пуста в одном из прогонов (#{$baseId}/#{$candidateId}) — критерий приёмки не проверить. Прогони `estimate:eval:run --split=all`.",
-                );
-            }
-
-            $subsamples[$subsample] = $this->aggregateDelta($baseSub, $candidateSub);
-        }
+        $subsamples = $this->aggregateSplitSubsamples(
+            $baseResults,
+            $candidateResults,
+            $holdoutCodes,
+            static fn (string $subsample): string => "Подвыборка `{$subsample}` пуста в одном из прогонов (#{$baseId}/#{$candidateId}) — критерий приёмки не проверить. Прогони `estimate:eval:run --split=all`.",
+        );
 
         if ($includeOverall) {
             $subsamples['overall'] = $this->aggregateDelta($baseResults, $candidateResults);
@@ -97,21 +90,18 @@ final readonly class EvalGateEvaluator
      */
     public function computeNoiseThresholds(Collection $noiseBaseResults, Collection $noiseCandidateResults, array $holdoutCodes): array
     {
+        $deltas = $this->aggregateSplitSubsamples(
+            $noiseBaseResults,
+            $noiseCandidateResults,
+            $holdoutCodes,
+            static fn (string $subsample): string => "Нулевая пара не несёт подвыборку `{$subsample}` — порог не вычислить.",
+        );
+
         $subsampleThresholds = [];
-
-        foreach (['tune', 'holdout'] as $subsample) {
-            $baseSub = $this->filterBySubsample($noiseBaseResults, $holdoutCodes, $subsample);
-            $candidateSub = $this->filterBySubsample($noiseCandidateResults, $holdoutCodes, $subsample);
-
-            if ($baseSub->isEmpty() || $candidateSub->isEmpty()) {
-                throw new RuntimeException("Нулевая пара не несёт подвыборку `{$subsample}` — порог не вычислить.");
-            }
-
-            $delta = $this->aggregateDelta($baseSub, $candidateSub)['delta'];
-
+        foreach ($deltas as $subsample => $entry) {
             $subsampleThresholds[$subsample] = [
-                'f1' => abs($delta['f1']),
-                'row_coverage' => abs($delta['row_coverage']),
+                'f1' => abs($entry['delta']['f1']),
+                'row_coverage' => abs($entry['delta']['row_coverage']),
             ];
         }
 
@@ -148,13 +138,36 @@ final readonly class EvalGateEvaluator
         if ($criterion === EvalRunComparator::CRITERION_NOISE_AWARE) {
             /** @var array{subsamples: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string} $noiseThresholds */
             /** @var array{base: int, candidate: int} $noisePairIds */
-            return $this->evaluateNoiseAwareGates($subsamples, $perFixture, $noiseThresholds, $noisePairIds);
+            $thresholds = [
+                'holdout_f1' => $noiseThresholds['subsamples']['holdout']['f1'],
+                'row_coverage' => [
+                    'tune' => $noiseThresholds['subsamples']['tune']['row_coverage'],
+                    'holdout' => $noiseThresholds['subsamples']['holdout']['row_coverage'],
+                ],
+                'per_fixture' => $noiseThresholds['per_fixture_threshold'],
+                'suffix' => sprintf('шум пары #%d/#%d', $noisePairIds['base'], $noisePairIds['candidate']),
+                'worst_code' => $noiseThresholds['per_fixture_worst_code'],
+            ];
+
+            $reasons = $this->evaluateGateThresholds($subsamples, $perFixture, $thresholds);
+
+            return ['verdict' => $reasons === [] ? 'accept' : 'reject', 'reasons' => $reasons];
         }
+
+        $thresholds = [
+            'holdout_f1' => self::HOLDOUT_F1_MAX_DROP,
+            'row_coverage' => [
+                'tune' => self::ROW_COVERAGE_MAX_DROP,
+                'holdout' => self::ROW_COVERAGE_MAX_DROP,
+            ],
+            'per_fixture' => self::PER_FIXTURE_F1_MAX_DROP,
+            'suffix' => null,
+            'worst_code' => null,
+        ];
 
         $reasons = [
             ...$this->evaluateSoftGates($subsamples, $criterion),
-            ...$this->evaluateHardGates($subsamples),
-            ...$this->buildRegressionBlockers($perFixture, self::PER_FIXTURE_F1_MAX_DROP),
+            ...$this->evaluateGateThresholds($subsamples, $perFixture, $thresholds),
         ];
 
         return ['verdict' => $reasons === [] ? 'accept' : 'reject', 'reasons' => $reasons];
@@ -185,7 +198,7 @@ final readonly class EvalGateEvaluator
      */
     public function jsonObject(mixed $value, string $context): array
     {
-        if (! is_array($value) || array_is_list($value)) {
+        if (! is_array($value) || ($value !== [] && array_is_list($value))) {
             throw new RuntimeException("{$context} должен быть JSON-объектом.");
         }
 
@@ -222,87 +235,73 @@ final readonly class EvalGateEvaluator
     }
 
     /**
-     * @param  Subsamples  $subsamples
-     * @return list<string>
+     * @param  Collection<int, ResultRow>  $baseResults
+     * @param  Collection<int, ResultRow>  $candidateResults
+     * @param  list<string>  $holdoutCodes
+     * @param  callable(string): string  $emptyMessage
+     * @return array<string, SubsampleDelta>
      */
-    private function evaluateHardGates(array $subsamples): array
-    {
-        $reasons = [];
-        $holdoutF1Delta = $subsamples['holdout']['delta']['f1'];
-
-        if ($holdoutF1Delta < -self::HOLDOUT_F1_MAX_DROP) {
-            $reasons[] = sprintf('(б) holdout.overall.f1 упал на %.4f — больше допустимых %.3f', -$holdoutF1Delta, self::HOLDOUT_F1_MAX_DROP);
-        }
-
-        foreach (['tune', 'holdout'] as $subsample) {
-            $rowCoverageDelta = $subsamples[$subsample]['delta']['row_coverage'];
-
-            if ($rowCoverageDelta < -self::ROW_COVERAGE_MAX_DROP) {
-                $reasons[] = sprintf('(в) %s.row_coverage упал на %.4f — больше допустимых %.3f', $subsample, -$rowCoverageDelta, self::ROW_COVERAGE_MAX_DROP);
-            }
-        }
-
-        return $reasons;
-    }
-
-    /**
-     * @param  array<string, float>  $perFixture
-     * @return list<string>
-     */
-    private function buildRegressionBlockers(array $perFixture, float $maxDrop): array
-    {
-        $reasons = [];
-
-        foreach ($perFixture as $code => $delta) {
-            if ($delta < -$maxDrop) {
-                $reasons[] = sprintf('(г) эталон %s потерял %.4f f1 — больше допустимых %.3f', $code, -$delta, $maxDrop);
-            }
-        }
-
-        return $reasons;
-    }
-
-    /**
-     * @param  Subsamples  $subsamples
-     * @param  array<string, float>  $perFixture
-     * @param  array{subsamples: array<string, array{f1: float, row_coverage: float}>, per_fixture_threshold: float, per_fixture_worst_code: string}  $noiseThresholds
-     * @param  array{base: int, candidate: int}  $noisePairIds
-     * @return array{verdict: 'accept'|'reject', reasons: list<string>}
-     */
-    private function evaluateNoiseAwareGates(
-        array $subsamples,
-        array $perFixture,
-        array $noiseThresholds,
-        array $noisePairIds,
+    private function aggregateSplitSubsamples(
+        Collection $baseResults,
+        Collection $candidateResults,
+        array $holdoutCodes,
+        callable $emptyMessage,
     ): array {
+        $subsamples = [];
+
+        foreach (['tune', 'holdout'] as $subsample) {
+            $baseSub = $this->filterBySubsample($baseResults, $holdoutCodes, $subsample);
+            $candidateSub = $this->filterBySubsample($candidateResults, $holdoutCodes, $subsample);
+
+            if ($baseSub->isEmpty() || $candidateSub->isEmpty()) {
+                throw new RuntimeException($emptyMessage($subsample));
+            }
+
+            $subsamples[$subsample] = $this->aggregateDelta($baseSub, $candidateSub);
+        }
+
+        return $subsamples;
+    }
+
+    /**
+     * @param  Subsamples  $subsamples
+     * @param  array<string, float>  $perFixture
+     * @param  GateThresholds  $thresholds
+     * @return list<string>
+     */
+    private function evaluateGateThresholds(array $subsamples, array $perFixture, array $thresholds): array
+    {
         $reasons = [];
-        $pairSuffix = sprintf('шум пары #%d/#%d', $noisePairIds['base'], $noisePairIds['candidate']);
+        $suffix = $thresholds['suffix'];
 
         $holdoutF1Delta = $subsamples['holdout']['delta']['f1'];
-        $holdoutF1Threshold = $noiseThresholds['subsamples']['holdout']['f1'];
-
-        if ($holdoutF1Delta < -$holdoutF1Threshold) {
-            $reasons[] = sprintf('(б) holdout.overall.f1 упал на %.4f — больше порога %.4f (%s)', -$holdoutF1Delta, $holdoutF1Threshold, $pairSuffix);
+        if ($holdoutF1Delta < -$thresholds['holdout_f1']) {
+            $reasons[] = $suffix === null
+                ? sprintf('(б) holdout.overall.f1 упал на %.4f — больше допустимых %.3f', -$holdoutF1Delta, $thresholds['holdout_f1'])
+                : sprintf('(б) holdout.overall.f1 упал на %.4f — больше порога %.4f (%s)', -$holdoutF1Delta, $thresholds['holdout_f1'], $suffix);
         }
 
         foreach (['tune', 'holdout'] as $subsample) {
             $rowCoverageDelta = $subsamples[$subsample]['delta']['row_coverage'];
-            $threshold = $noiseThresholds['subsamples'][$subsample]['row_coverage'];
+            $threshold = $thresholds['row_coverage'][$subsample];
 
             if ($rowCoverageDelta < -$threshold) {
-                $reasons[] = sprintf('(в) %s.row_coverage упал на %.4f — больше порога %.4f (%s)', $subsample, -$rowCoverageDelta, $threshold, $pairSuffix);
+                $reasons[] = $suffix === null
+                    ? sprintf('(в) %s.row_coverage упал на %.4f — больше допустимых %.3f', $subsample, -$rowCoverageDelta, $threshold)
+                    : sprintf('(в) %s.row_coverage упал на %.4f — больше порога %.4f (%s)', $subsample, -$rowCoverageDelta, $threshold, $suffix);
             }
         }
 
-        $perFixtureThreshold = $noiseThresholds['per_fixture_threshold'];
-
+        $perFixtureThreshold = $thresholds['per_fixture'];
         foreach ($perFixture as $code => $delta) {
             if ($delta < -$perFixtureThreshold) {
-                $reasons[] = sprintf('(г) эталон %s потерял %.4f f1 — больше порога %.4f (%s, худший эталон пары — %s)', $code, -$delta, $perFixtureThreshold, $pairSuffix, $noiseThresholds['per_fixture_worst_code']);
+                $reasons[] = $suffix === null
+                    ? sprintf('(г) эталон %s потерял %.4f f1 — больше допустимых %.3f', $code, -$delta, $perFixtureThreshold)
+                    : sprintf('(г) эталон %s потерял %.4f f1 — больше порога %.4f (%s, худший эталон пары — %s)', $code, -$delta, $perFixtureThreshold, $suffix, $thresholds['worst_code'] ?? '');
             }
         }
 
-        return ['verdict' => $reasons === [] ? 'accept' : 'reject', 'reasons' => $reasons];
+        return $reasons;
     }
 
     /**

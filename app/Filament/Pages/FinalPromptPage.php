@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Dto\Llm\Reporting\StoredPayload;
 use App\Models\Llm\LlmCall;
 use App\Repositories\Procurement\Ai\AnalysisCallReadRepository;
-use App\Services\Llm\Dto\StoredPayload;
 use App\Services\Llm\LlmPayloadReader;
 use AzGuard\Filament\Concerns\AuthorizesPage;
 use Filament\Actions\Action;

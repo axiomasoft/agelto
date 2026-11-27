@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Network;
 
-use App\Dto\Procurement\Network\OutboundOperationHandle;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Network\Control\OutboundOperationHandle;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\OutboundOperationKind;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use Illuminate\Support\Facades\DB;
 
 /**

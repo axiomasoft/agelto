@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare\Spreadsheet;
 
-use App\Services\Procurement\Prepare\XlsxResourceGuard;
+use App\Services\Procurement\Prepare\Tools\XlsxResourceGuard;
+use App\Support\Numbers\DecimalNormalizer;
 use DateTimeInterface;
 use OpenSpout\Reader\ODS\Reader as OdsReader;
+use OpenSpout\Reader\ODS\Sheet;
 use OpenSpout\Reader\XLSX\Options as XlsxOptions;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use RuntimeException;
 
 final class DeterministicSpreadsheetEstimateParser
 {
+    public function __construct(
+        private readonly XlsxResourceGuard $xlsxGuard = new XlsxResourceGuard,
+    ) {}
+
     /** @return array<string, mixed> */
     public function parse(string $filePath, string $extension): array
     {
@@ -22,7 +28,7 @@ final class DeterministicSpreadsheetEstimateParser
 
         $extension = strtolower($extension);
 
-        if ($extension === 'xlsx' && ! (new XlsxResourceGuard)->accepts($realPath, 'xlsx')) {
+        if ($extension === 'xlsx' && ! $this->xlsxGuard->accepts($realPath, 'xlsx')) {
             throw new RuntimeException('Небезопасный или повреждённый XLSX-файл.');
         }
 
@@ -46,113 +52,15 @@ final class DeterministicSpreadsheetEstimateParser
 
         try {
             foreach ($reader->getSheetIterator() as $sheet) {
-                $sheetGrid = null;
-                $offset = 0;
-                $nonEmptyRows = 0;
-                $currentSection = null;
-                $currentItem = null;
-
-                foreach ($sheet->getRowIterator() as $rowIndex => $row) {
-                    $cells = array_map(self::cellText(...), $row->toArray());
-
-                    if (self::isEmpty($cells)) {
-                        continue;
-                    }
-
-                    if (count($headerSampleRows) < 40) {
-                        $headerSampleRows[] = $cells;
-                    }
-
-                    if ($sheetGrid === null) {
-                        $nonEmptyRows++;
-                        $numbering = self::numbering($cells);
-
-                        if ($numbering !== null) {
-                            [$sheetGrid, $offset] = $numbering;
-                            $grid ??= $sheetGrid;
-                        } elseif ($nonEmptyRows >= 80) {
-                            break;
-                        }
-
-                        continue;
-                    }
-
-                    $kind = self::rowKind($cells, $offset, $currentItem !== null);
-
-                    if ($kind === null) {
-                        continue;
-                    }
-
-                    $name = self::name($cells, $offset);
-
-                    if ($kind === 'section') {
-                        $currentSection = count($sections);
-                        $currentItem = null;
-                        $sections[] = ['sheet' => $sheet->getName(), 'row' => $rowIndex, 'name' => $name];
-
-                        continue;
-                    }
-
-                    if ($kind === 'summary' || $kind === 'subtotal') {
-                        $totals[] = [
-                            'sheet' => $sheet->getName(),
-                            'row' => $rowIndex,
-                            'kind' => $kind,
-                            'name' => $name,
-                            'amount' => self::lastNumber($cells),
-                            'section_index' => $currentSection,
-                        ];
-
-                        continue;
-                    }
-
-                    if ($kind === 'resource' || $kind === 'cost_element') {
-                        if ($currentItem !== null) {
-                            $key = $kind === 'resource' ? 'resources' : 'cost_elements';
-                            /** @var list<array<string, mixed>> $children */
-                            $children = $items[$currentItem][$key];
-                            $children[] = [
-                                'row' => $rowIndex,
-                                'code' => $cells[$offset + 1] ?? '',
-                                'name' => $name,
-                                'unit' => $cells[$offset + 3] ?? '',
-                                'quantity' => self::number($cells[$offset + 4] ?? ''),
-                                'amount' => self::lastNumber($cells),
-                            ];
-                            $items[$currentItem][$key] = $children;
-                        }
-
-                        continue;
-                    }
-
-                    $quantity = self::number($cells[$offset + 4] ?? '');
-                    $unitPrice = self::number($cells[$offset + 5] ?? '');
-                    $amount = self::number($cells[$offset + 6] ?? '');
-
-                    if ($quantity !== null && $unitPrice !== null && $amount !== null) {
-                        $difference = bcsub(bcmul($quantity, $unitPrice, 4), $amount, 4);
-
-                        if (bccomp($difference, '0.05', 4) === 1 || bccomp($difference, '-0.05', 4) === -1) {
-                            $anomalousRanges[] = $rowIndex;
-                        }
-                    }
-
-                    $items[] = [
-                        'sheet' => $sheet->getName(),
-                        'row' => $rowIndex,
-                        'section_index' => $currentSection,
-                        'num' => $cells[$offset] ?? '',
-                        'code' => $cells[$offset + 1] ?? '',
-                        'name' => $name,
-                        'unit' => $cells[$offset + 3] ?? '',
-                        'quantity' => $quantity,
-                        'unit_price' => $unitPrice,
-                        'amount' => $amount,
-                        'resources' => [],
-                        'cost_elements' => [],
-                    ];
-                    $currentItem = array_key_last($items);
-                }
+                $this->parseSheet(
+                    sheet: $sheet,
+                    grid: $grid,
+                    headerSampleRows: $headerSampleRows,
+                    sections: $sections,
+                    items: $items,
+                    totals: $totals,
+                    anomalousRanges: $anomalousRanges,
+                );
             }
         } finally {
             $reader->close();
@@ -179,6 +87,176 @@ final class DeterministicSpreadsheetEstimateParser
             'totals' => $totals,
             'anomalous_ranges' => $anomalousRanges,
         ];
+    }
+
+    /**
+     * @param  list<list<string>>  $headerSampleRows
+     * @param  list<array<string, mixed>>  $sections
+     * @param  list<array<string, mixed>>  $items
+     * @param  list<array<string, mixed>>  $totals
+     * @param  list<int>  $anomalousRanges
+     */
+    private function parseSheet(
+        Sheet|\OpenSpout\Reader\XLSX\Sheet $sheet,
+        ?string &$grid,
+        array &$headerSampleRows,
+        array &$sections,
+        array &$items,
+        array &$totals,
+        array &$anomalousRanges,
+    ): void {
+        $sheetGrid = null;
+        $offset = 0;
+        $nonEmptyRows = 0;
+        $currentSection = null;
+        $currentItem = null;
+        $sheetName = $sheet->getName();
+
+        foreach ($sheet->getRowIterator() as $rowIndex => $row) {
+            $cells = array_map(self::cellText(...), $row->toArray());
+
+            if (self::isEmpty($cells)) {
+                continue;
+            }
+
+            if (count($headerSampleRows) < 40) {
+                $headerSampleRows[] = $cells;
+            }
+
+            if ($sheetGrid === null) {
+                $nonEmptyRows++;
+                $numbering = self::numbering($cells);
+
+                if ($numbering !== null) {
+                    [$sheetGrid, $offset] = $numbering;
+                    $grid ??= $sheetGrid;
+                } elseif ($nonEmptyRows >= 80) {
+                    break;
+                }
+
+                continue;
+            }
+
+            $this->classifyAndAccumulateRow(
+                sheetName: $sheetName,
+                rowIndex: is_int($rowIndex) ? $rowIndex : 0,
+                cells: $cells,
+                offset: $offset,
+                currentSection: $currentSection,
+                currentItem: $currentItem,
+                sections: $sections,
+                items: $items,
+                totals: $totals,
+                anomalousRanges: $anomalousRanges,
+            );
+        }
+    }
+
+    /**
+     * @param  list<string>  $cells
+     * @param  list<array<string, mixed>>  $sections
+     * @param  list<array<string, mixed>>  $items
+     * @param  list<array<string, mixed>>  $totals
+     * @param  list<int>  $anomalousRanges
+     */
+    private function classifyAndAccumulateRow(
+        string $sheetName,
+        int $rowIndex,
+        array $cells,
+        int $offset,
+        ?int &$currentSection,
+        ?int &$currentItem,
+        array &$sections,
+        array &$items,
+        array &$totals,
+        array &$anomalousRanges,
+    ): void {
+        $kind = self::rowKind($cells, $offset, $currentItem !== null);
+        if ($kind === null) {
+            return;
+        }
+
+        $name = self::name($cells, $offset);
+
+        if ($kind === 'section') {
+            $currentSection = count($sections);
+            $currentItem = null;
+            $sections[] = ['sheet' => $sheetName, 'row' => $rowIndex, 'name' => $name];
+
+            return;
+        }
+
+        if ($kind === 'summary' || $kind === 'subtotal') {
+            $totals[] = [
+                'sheet' => $sheetName,
+                'row' => $rowIndex,
+                'kind' => $kind,
+                'name' => $name,
+                'amount' => self::lastNumber($cells),
+                'section_index' => $currentSection,
+            ];
+
+            return;
+        }
+
+        if ($kind === 'resource' || $kind === 'cost_element') {
+            if ($currentItem !== null) {
+                $key = $kind === 'resource' ? 'resources' : 'cost_elements';
+                /** @var list<array<string, mixed>> $children */
+                $children = $items[$currentItem][$key];
+                $children[] = [
+                    'row' => $rowIndex,
+                    'code' => $cells[$offset + 1] ?? '',
+                    'name' => $name,
+                    'unit' => $cells[$offset + 3] ?? '',
+                    'quantity' => self::number($cells[$offset + 4] ?? ''),
+                    'amount' => self::lastNumber($cells),
+                ];
+                $items[$currentItem][$key] = $children;
+            }
+
+            return;
+        }
+
+        $quantity = self::number($cells[$offset + 4] ?? '');
+        $unitPrice = self::number($cells[$offset + 5] ?? '');
+        $amount = self::number($cells[$offset + 6] ?? '');
+
+        if ($this->isAnomalousArithmetic($quantity, $unitPrice, $amount)) {
+            $anomalousRanges[] = $rowIndex;
+        }
+
+        $items[] = [
+            'sheet' => $sheetName,
+            'row' => $rowIndex,
+            'section_index' => $currentSection,
+            'num' => $cells[$offset] ?? '',
+            'code' => $cells[$offset + 1] ?? '',
+            'name' => $name,
+            'unit' => $cells[$offset + 3] ?? '',
+            'quantity' => $quantity,
+            'unit_price' => $unitPrice,
+            'amount' => $amount,
+            'resources' => [],
+            'cost_elements' => [],
+        ];
+        $currentItem = array_key_last($items);
+    }
+
+    /**
+     * @param  numeric-string|null  $quantity
+     * @param  numeric-string|null  $unitPrice
+     * @param  numeric-string|null  $amount
+     */
+    private function isAnomalousArithmetic(?string $quantity, ?string $unitPrice, ?string $amount): bool
+    {
+        if ($quantity === null || $unitPrice === null || $amount === null) {
+            return false;
+        }
+
+        $difference = bcsub(bcmul($quantity, $unitPrice, 4), $amount, 4);
+
+        return bccomp($difference, '0.05', 4) === 1 || bccomp($difference, '-0.05', 4) === -1;
     }
 
     private static function cellText(mixed $value): string
@@ -278,13 +356,7 @@ final class DeterministicSpreadsheetEstimateParser
     /** @return numeric-string|null */
     private static function number(string $value): ?string
     {
-        $value = str_replace(["\u{00A0}", "\u{202F}", ' ', ','], ['', '', '', '.'], trim($value));
-
-        if (preg_match('/^-?\d+(?:\.\d+)?$/D', $value) !== 1 || ! is_numeric($value)) {
-            return null;
-        }
-
-        return $value;
+        return DecimalNormalizer::normalize($value);
     }
 
     /** @param list<string> $cells */

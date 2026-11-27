@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Dto\Llm\Execution\LlmOptions;
+use App\Dto\Llm\Execution\LlmResponse;
+use App\Dto\Llm\Execution\LlmStructuredResponse;
+use App\Dto\Llm\Execution\LlmUsage;
+use App\Dto\Llm\Prompt\JsonSchema;
+use App\Dto\Llm\Prompt\LlmPrompt;
 use App\Enums\Llm\FinishReason;
-use App\Services\Llm\Dto\JsonSchema;
-use App\Services\Llm\Dto\LlmOptions;
-use App\Services\Llm\Dto\LlmPrompt;
-use App\Services\Llm\Dto\LlmResponse;
-use App\Services\Llm\Dto\LlmStructuredResponse;
-use App\Services\Llm\Dto\LlmUsage;
 use Tests\Support\Doubles\FakeLlmProvider;
 
 function fakeLlmOptions(): LlmOptions

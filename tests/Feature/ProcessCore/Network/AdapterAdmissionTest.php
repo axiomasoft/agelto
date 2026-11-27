@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\AdapterContractRef;
-use App\Dto\Procurement\Network\AdapterValidationClaim;
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Network\TransportDeferred;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterContractRef;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterValidationClaim;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Network\Outcome\TransportDeferred;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
+use App\Dto\Llm\Reporting\StoredPayload;
 use App\Exceptions\Llm\ReceiptUnavailable;
 use App\Models\Llm\LlmCall;
 use App\Repositories\Llm\Request\RequestRepository;
-use App\Services\Llm\Dto\StoredPayload;
 use App\Services\Llm\Execution\ReceiptStore;
 
 /** Authorized UI read of the verified provider body, never of the receipt's ownership envelope. */

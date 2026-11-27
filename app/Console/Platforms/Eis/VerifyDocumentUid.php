@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Platforms\Eis;
 
-use App\Dto\Procurement\Network\HttpRequestPayload;
-use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Network\Http\HttpRequestPayload;
+use App\Dto\Procurement\Network\Http\SafeUrl;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Models\Procurement\Platform\Registry;
@@ -13,7 +13,7 @@ use App\Services\Platforms\Eis\Card\DocumentsParser;
 use App\Services\Platforms\Eis\Card\EisCardUrlBuilder;
 use App\Services\Platforms\Eis\Diagnostics\DocumentUidHtmlParser;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
-use App\Services\Procurement\Proxyma\ProfileResolver;
+use App\Services\Procurement\Proxyma\Catalog\ProfileResolver;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

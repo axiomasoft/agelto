@@ -1,12 +1,12 @@
 <?php
 
 declare(strict_types=1);
-use App\Dto\Procurement\Document\PrepareRange;
+use App\Dto\Procurement\Document\Prepare\PrepareRange;
 use App\Enums\Procurement\Document\PageTextStatus;
 use App\Exceptions\Procurement\Prepare\ToolFailed;
 use App\Exceptions\Procurement\Process\LeaseLost;
-use App\Services\Procurement\Prepare\BoundedToolProcess;
-use App\Services\Procurement\Prepare\PageBatchOcr;
+use App\Services\Procurement\Prepare\Tools\BoundedToolProcess;
+use App\Services\Procurement\Prepare\Tools\PageBatchOcr;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\Process\Process;
 use Tests\Support\ProcessCore\ToolContext;

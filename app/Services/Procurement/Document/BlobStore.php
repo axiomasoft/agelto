@@ -4,23 +4,25 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Document\StoredBlobUpload;
-use App\Dto\Procurement\Document\VerifiedArtifact;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Document\Storage\StoredBlobUpload;
+use App\Dto\Procurement\Document\Storage\VerifiedArtifact;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Document\StoragePhase;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
-use App\Repositories\Procurement\Document\ArtifactRepository;
+use App\Repositories\Procurement\Document\ArtifactRepairRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Support\Database\TransactionGuard;
+use App\Support\Streams\BoundedStreamException;
+use App\Support\Streams\BoundedStreamHasher;
 use Aws\CommandInterface;
 use Aws\Middleware;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Filesystem\AwsS3V3Adapter;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 
@@ -28,14 +30,14 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 final readonly class BlobStore
 {
     public function __construct(private StorageCapacityRepository $capacity, private ArtifactGarbageCollector $gc,
-        private PrepareWorkspace $workspace, private ArtifactRepository $artifacts) {}
+        private PrepareWorkspace $workspace, private ArtifactRepairRepository $artifacts) {}
 
     /**
      * @param  resource  $source
      */
     public function put(StorageReservationRequest|StoredBlobUpload $reservation, $source, ?StorageReservationRequest $temporary = null, ?ExecutionContext $execution = null, bool $cleanupTemporary = true): VerifiedArtifact
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Object I/O');
         if (! is_resource($source) || get_resource_type($source) !== 'stream') {
             throw new \InvalidArgumentException('Expected a readable stream.');
         }
@@ -56,73 +58,8 @@ final readonly class BlobStore
             if (! $prepareSpool) {
                 $this->workspace->recordFileWriter($temporary);
             }
-            $tmpDisk = Storage::disk($temporary->disk);
-            if (! $tmpDisk->makeDirectory(dirname($temporary->objectKey()))) {
-                throw new ArtifactUnavailable('Temporary directory unavailable.');
-            }
-            $spool = fopen($workspace === null ? $tmpDisk->path($temporary->objectKey()) : $workspace.'/spool', 'x+b');
-            if ($spool === false) {
-                throw new ArtifactUnavailable('Temporary storage unavailable.');
-            }
-            $size = 0;
-            $hash = hash_init('sha256');
-            while (! feof($source)) {
-                $execution?->tick();
-                $chunk = fread($source, max(1, min(8192, $reservation->byteUpperBound - $size + 1)));
-                if ($chunk === false || ($chunk === '' && ! feof($source))) {
-                    throw new ArtifactUnavailable('Source stream failed.');
-                }
-                $size += strlen($chunk);
-                if ($size > $reservation->byteUpperBound) {
-                    throw new ArtifactUnavailable('Stream exceeds its reserved byte ceiling.');
-                }
-                hash_update($hash, $chunk);
-                if (fwrite($spool, $chunk) !== strlen($chunk)) {
-                    throw new ArtifactUnavailable('Temporary storage write failed.');
-                }
-            }
-            $expected = new ContentHash(hash_final($hash));
-            $disk = Storage::disk($reservation->disk);
-            $remote = ! $disk->getAdapter() instanceof LocalFilesystemAdapter
-                && config("filesystems.disks.{$reservation->disk}.driver") === 's3';
-            if ($remote && $reservation->attemptId === null) {
-                throw new ArtifactUnavailable('Remote upload requires a work attempt.');
-            }
-            $putStarted = false;
-            $confirmed = false;
-            $execution?->tick();
-            $this->capacity->beginWrite($reservation);
-            try {
-                $this->workspace->recordFileWriter($reservation);
-                if ($disk->exists($reservation->objectKey())) {
-                    throw new ArtifactUnavailable('Immutable upload key already exists.');
-                }
-                if (! rewind($spool)) {
-                    throw new ArtifactUnavailable('Temporary upload stream cannot be rewound.');
-                }
-                $execution?->tick();
-                $options = $remote ? $this->remoteWriteOptions($reservation->disk, $reservation, $spool, $size) : [];
-                $putStarted = true;
-                $confirmed = $remote
-                    ? $disk->put($reservation->objectKey(), $spool, $options)
-                    : $disk->put($reservation->objectKey(), $spool);
-                if (! $confirmed) {
-                    throw new ArtifactUnavailable('Object write unconfirmed.');
-                }
-            } finally {
-                // A failed remote response can leave a request in flight after the caller exits.
-                if (! $remote) {
-                    $this->capacity->finishWrite($reservation);
-                    $this->workspace->clearFileWriter($reservation);
-                } elseif (! $putStarted || $confirmed) {
-                    // Reconciliation may already have acknowledged this stopped writer.
-                    $this->capacity->finishStoppedWrite($reservation);
-                }
-            }
-
-            if ($remote) {
-                $this->assertRemoteWriter($reservation);
-            }
+            [$size, $expected] = $this->spoolSource($source, $reservation, $temporary, $workspace, $execution, $spool);
+            $this->uploadSpooledObject($reservation, $spool, $size, $execution);
 
             return $this->verify($reservation, $expected, $size, $execution);
         } finally {
@@ -140,6 +77,102 @@ final readonly class BlobStore
                     $this->gc->cleanup($temporary);
                 }
             }
+        }
+    }
+
+    /**
+     * @param  resource  $source
+     * @param  resource|null  $spool
+     *
+     * @param-out resource  $spool
+     *
+     * @return array{0: int, 1: ContentHash}
+     */
+    private function spoolSource(
+        $source,
+        StorageReservationRequest $reservation,
+        StorageReservationRequest $temporary,
+        ?string $workspace,
+        ?ExecutionContext $execution,
+        mixed &$spool,
+    ): array {
+        $tmpDisk = Storage::disk($temporary->disk);
+        if (! $tmpDisk->makeDirectory(dirname($temporary->objectKey()))) {
+            throw new ArtifactUnavailable('Temporary directory unavailable.');
+        }
+        $opened = fopen($workspace === null ? $tmpDisk->path($temporary->objectKey()) : $workspace.'/spool', 'x+b');
+        if ($opened === false) {
+            throw new ArtifactUnavailable('Temporary storage unavailable.');
+        }
+        $spool = $opened;
+        try {
+            $hashed = BoundedStreamHasher::process(
+                source: $source,
+                maxBytes: $reservation->byteUpperBound,
+                sink: $spool,
+                chunkSize: 8192,
+                hash: true,
+                capReadLength: true,
+                onTick: $execution === null ? null : static fn () => $execution->tick(),
+            );
+        } catch (BoundedStreamException $exception) {
+            throw match ($exception->reason) {
+                BoundedStreamException::REASON_READ => new ArtifactUnavailable('Source stream failed.', previous: $exception),
+                BoundedStreamException::REASON_OVERFLOW => new ArtifactUnavailable('Stream exceeds its reserved byte ceiling.', previous: $exception),
+                default => new ArtifactUnavailable('Temporary storage write failed.', previous: $exception),
+            };
+        }
+
+        return [$hashed->bytes, new ContentHash($hashed->sha256)];
+    }
+
+    /** @param resource $spool */
+    private function uploadSpooledObject(
+        StorageReservationRequest $reservation,
+        $spool,
+        int $size,
+        ?ExecutionContext $execution,
+    ): void {
+        $disk = Storage::disk($reservation->disk);
+        $remote = ! $disk->getAdapter() instanceof LocalFilesystemAdapter
+            && config("filesystems.disks.{$reservation->disk}.driver") === 's3';
+        if ($remote && $reservation->attemptId === null) {
+            throw new ArtifactUnavailable('Remote upload requires a work attempt.');
+        }
+        $putStarted = false;
+        $confirmed = false;
+        $execution?->tick();
+        $this->capacity->beginWrite($reservation);
+        try {
+            $this->workspace->recordFileWriter($reservation);
+            if ($disk->exists($reservation->objectKey())) {
+                throw new ArtifactUnavailable('Immutable upload key already exists.');
+            }
+            if (! rewind($spool)) {
+                throw new ArtifactUnavailable('Temporary upload stream cannot be rewound.');
+            }
+            $execution?->tick();
+            $options = $remote ? $this->remoteWriteOptions($reservation->disk, $reservation, $spool, $size) : [];
+            $putStarted = true;
+            $confirmed = $remote
+                ? $disk->put($reservation->objectKey(), $spool, $options)
+                : $disk->put($reservation->objectKey(), $spool);
+            if (! $confirmed) {
+                throw new ArtifactUnavailable('Object write unconfirmed.');
+            }
+        } finally {
+            // A failed remote response can leave a request in flight after the caller exits.
+            if (! $remote) {
+                $this->capacity->finishWrite($reservation);
+                $this->workspace->clearFileWriter($reservation);
+            } elseif (! $putStarted || $confirmed) {
+                // Reconciliation may already have acknowledged this stopped writer.
+                $this->capacity->finishStoppedWrite($reservation);
+            }
+        }
+
+        if ($remote) {
+            $this->assertRemoteWriter($reservation);
         }
     }
 
@@ -195,32 +228,29 @@ final readonly class BlobStore
 
     public function verify(StorageReservationRequest $reservation, ContentHash $expected, int $size, ?ExecutionContext $execution = null): VerifiedArtifact
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Object I/O');
         $this->capacity->assertStaged($reservation);
         $stream = Storage::disk($reservation->disk)->readStream($reservation->objectKey());
         if (! is_resource($stream)) {
             throw new ArtifactUnavailable('Immutable object unavailable.');
         }
         try {
-            $hash = hash_init('sha256');
-            $actual = 0;
-            while (! feof($stream)) {
-                $execution?->tick();
-                $chunk = fread($stream, 8192);
-                if ($chunk === false || ($chunk === '' && ! feof($stream))) {
-                    throw new ArtifactUnavailable('Object verification read failed.');
-                }
-                $actual += strlen($chunk);
-                if ($actual > $reservation->byteUpperBound) {
-                    throw new ArtifactUnavailable('Stored object exceeds reservation.');
-                }
-                hash_update($hash, $chunk);
-            }
-            if ($actual !== $size || hash_final($hash) !== $expected->hex) {
+            $hashed = BoundedStreamHasher::process(
+                source: $stream,
+                maxBytes: $reservation->byteUpperBound,
+                chunkSize: 8192,
+                onTick: $execution === null ? null : static fn () => $execution->tick(),
+            );
+            if ($hashed->bytes !== $size || $hashed->sha256 !== $expected->hex) {
                 throw new ArtifactUnavailable('Immutable object verification failed.');
             }
 
             return new VerifiedArtifact($reservation, $expected, $size);
+        } catch (BoundedStreamException $exception) {
+            throw match ($exception->reason) {
+                BoundedStreamException::REASON_OVERFLOW => new ArtifactUnavailable('Stored object exceeds reservation.', previous: $exception),
+                default => new ArtifactUnavailable('Object verification read failed.', previous: $exception),
+            };
         } finally {
             fclose($stream);
         }
@@ -229,7 +259,7 @@ final readonly class BlobStore
     /** Verify/repair a deduplicated object's immutable bytes before the DB-only ref acquisition gate. */
     public function verifyExisting(VerifiedArtifact $artifact, ?ExecutionContext $execution = null): void
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Object I/O');
         $row = LedgerRow::one("SELECT id,disk,object_key,size_bytes FROM prc_document_blobs
             WHERE storage_domain_id=? AND content_hash=decode(?,'hex') AND deletion_marked_at IS NULL",
             [$artifact->reservation->domainId->value, $artifact->hash->hex]);
@@ -328,7 +358,7 @@ final readonly class BlobStore
 
     public function recoverStoppedRepair(BlobReference $blob): bool
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Object I/O');
         $disk = Storage::disk($blob->disk);
         if (! $disk->getAdapter() instanceof LocalFilesystemAdapter && config("filesystems.disks.{$blob->disk}.driver") === 's3') {
             $claim = $this->artifacts->remoteRepairClaim($blob);
@@ -369,31 +399,22 @@ final readonly class BlobStore
             return false;
         }
         try {
-            $hash = hash_init('sha256');
-            $bytes = 0;
-            while (! feof($stream)) {
-                $execution?->tick();
-                $chunk = fread($stream, 8192);
-                if ($chunk === false || ($chunk === '' && ! feof($stream))) {
-                    throw new ArtifactUnavailable('Immutable duplicate verification failed.');
-                }
-                $bytes += strlen($chunk);
-                if ($bytes > $expectedSize) {
-                    return false;
-                }
-                hash_update($hash, $chunk);
+            $hashed = BoundedStreamHasher::process(
+                source: $stream,
+                maxBytes: $expectedSize,
+                chunkSize: 8192,
+                onTick: $execution === null ? null : static fn () => $execution->tick(),
+            );
+
+            return $hashed->bytes === $expectedSize && $hashed->sha256 === $expectedHash->hex;
+        } catch (BoundedStreamException $exception) {
+            if ($exception->reason === BoundedStreamException::REASON_OVERFLOW) {
+                return false;
             }
 
-            return $bytes === $expectedSize && hash_final($hash) === $expectedHash->hex;
+            throw new ArtifactUnavailable('Immutable duplicate verification failed.', previous: $exception);
         } finally {
             fclose($stream);
-        }
-    }
-
-    private function outsideTransaction(): void
-    {
-        if (DB::connection()->transactionLevel() !== 0) {
-            throw new \LogicException('Object I/O must run outside database transactions.');
         }
     }
 }

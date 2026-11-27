@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
-use App\Dto\Procurement\Acquisition\ProcurementIdentity;
+use App\Dto\Procurement\Acquisition\Control\ProcurementIdentity;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementRevision;
 use Illuminate\Support\Carbon;

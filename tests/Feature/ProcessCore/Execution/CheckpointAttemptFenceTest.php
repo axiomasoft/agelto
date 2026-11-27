@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\CheckpointStatus;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Outcomes\CheckpointStatus;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;

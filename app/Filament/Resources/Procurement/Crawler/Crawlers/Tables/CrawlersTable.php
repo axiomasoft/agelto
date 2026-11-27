@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Tables;
 
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Filament\Resources\Procurement\Process\Runs\ProcessRunResource;
 use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\User;
-use App\Services\Procurement\Acquisition\LaunchAcquisition;
+use App\Services\Procurement\Acquisition\Orchestration\LaunchAcquisition;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Hidden;

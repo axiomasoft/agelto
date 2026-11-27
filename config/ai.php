@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateAnalyzer;
 
 $defaultToolTimeoutSeconds = (int) env('AI_TOOLS_DEFAULT_TIMEOUT_SECONDS', 180);
 

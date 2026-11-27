@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Network\OutboundOperationHandle;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
-use App\Dto\Procurement\Platform\RequestProfile;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Network\Control\OutboundOperationHandle;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\OriginBudgetPolicy;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Models\Procurement\Platform\Platform;

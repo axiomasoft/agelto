@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Dto\Platforms\Eis;
 
-use App\Dto\Procurement\Platform\CursorEnvelope;
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Platform\Diagnostics\CursorEnvelope;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 
 /** Prices are integer kopecks, endpoints inclusive. Only this adapter decodes the payload. */
 final readonly class EisListingCursor

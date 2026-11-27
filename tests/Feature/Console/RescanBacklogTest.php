@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
-use App\Services\Procurement\Acquisition\AcquisitionProfiles;
-use App\Services\Procurement\Acquisition\ListingRecovery;
+use App\Services\Procurement\Acquisition\Listing\AcquisitionProfiles;
+use App\Services\Procurement\Acquisition\Listing\ListingRecovery;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures as P;

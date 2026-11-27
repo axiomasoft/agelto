@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
-use App\Services\Procurement\Process\WorkRunner;
+use App\Services\Procurement\Process\Execution\WorkRunner;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\DownloadFixtures;

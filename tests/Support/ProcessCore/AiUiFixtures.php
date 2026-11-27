@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
 use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
 use App\Models\Procurement\Ai\Fixture;
 use App\Repositories\Llm\LlmCallReadRepository;
 use App\Repositories\Procurement\Ai\AnalysisRunReadRepository;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use App\Services\Procurement\Screening\ScreeningHandler;
 use Illuminate\Support\Facades\DB;
 

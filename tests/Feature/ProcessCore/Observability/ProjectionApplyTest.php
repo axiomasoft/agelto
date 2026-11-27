@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProjectedEvent;
-use App\Enums\Procurement\Process\ProjectionApplyStatus;
+use App\Dto\Procurement\Process\Projection\ProjectedEvent;
+use App\Enums\Procurement\Process\Projection\ProjectionApplyStatus;
 use App\Exceptions\Procurement\Process\ProjectionSchemaError;
 use App\Services\Procurement\Process\Contracts\ProjectionReducer;
-use App\Services\Procurement\Process\GovernanceMetricReducer;
-use App\Services\Procurement\Process\MetricCatalog;
-use App\Services\Procurement\Process\MetricProjector;
-use App\Services\Procurement\Process\ProjectionRegistry;
-use App\Services\Procurement\Process\RunMetricReducer;
-use App\Services\Procurement\Process\RunProjector;
-use App\Services\Procurement\Process\WorkMetricReducer;
+use App\Services\Procurement\Process\Projection\GovernanceMetricReducer;
+use App\Services\Procurement\Process\Projection\MetricCatalog;
+use App\Services\Procurement\Process\Projection\MetricProjector;
+use App\Services\Procurement\Process\Projection\ProjectionRegistry;
+use App\Services\Procurement\Process\Projection\RunMetricReducer;
+use App\Services\Procurement\Process\Projection\RunProjector;
+use App\Services\Procurement\Process\Projection\WorkMetricReducer;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\ProcessCore\Observability\ProjectionFixtures as Fixture;

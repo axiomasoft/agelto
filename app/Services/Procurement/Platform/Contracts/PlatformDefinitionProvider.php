@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Platform\Contracts;
 
-use App\Dto\Procurement\Platform\PlatformDefinition;
+use App\Dto\Procurement\Platform\Definition\PlatformDefinition;
 
 interface PlatformDefinitionProvider
 {

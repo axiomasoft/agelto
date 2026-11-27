@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Process;
 
-use App\Repositories\Procurement\Process\OutboxRepository;
-use App\Services\Procurement\Process\RawArtifactRetention;
+use App\Repositories\Procurement\Process\Work\OutboxRepository;
+use App\Services\Procurement\Process\Diagnostics\RawArtifactRetention;
 use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

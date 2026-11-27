@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\PruneResult;
-use App\Enums\Procurement\Process\ProjectionApplyStatus;
-use App\Services\Procurement\Process\MetricProjector;
-use App\Services\Procurement\Process\ProjectionRetention;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Projection\PruneResult;
+use App\Enums\Procurement\Process\Projection\ProjectionApplyStatus;
+use App\Services\Procurement\Process\Projection\MetricProjector;
+use App\Services\Procurement\Process\Projection\ProjectionRetention;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\ProcessCore\Observability\ProjectionFixtures as Fixture;
 use Tests\Support\ProcessCore\LedgerFixtures;

@@ -5,25 +5,25 @@ declare(strict_types=1);
 use App\Actions\Procurement\Process\CancelWork;
 use App\Dto\Llm\Requests\RequestIdentity;
 use App\Dto\Llm\Requests\StructuredResult;
-use App\Dto\Procurement\Ai\ExtractionOutput;
-use App\Dto\Procurement\Ai\ExtractionProgress;
-use App\Dto\Procurement\Ai\RowRange;
-use App\Dto\Procurement\Ai\ValidatedChunk;
-use App\Dto\Procurement\Process\ExtractionWindowInput;
-use App\Dto\Procurement\Process\MissingParts;
-use App\Dto\Procurement\Process\NoProviderRecovery;
-use App\Dto\Procurement\Process\ProviderRecoveryPlan;
-use App\Dto\Procurement\Process\StagePartial;
+use App\Dto\Procurement\Ai\Extraction\ExtractionProgress;
+use App\Dto\Procurement\Ai\Extraction\ValidatedChunk;
+use App\Dto\Procurement\Ai\Output\ExtractionOutput;
+use App\Dto\Procurement\Ai\Planning\RowRange;
+use App\Dto\Procurement\Process\Inputs\ExtractionWindowInput;
+use App\Dto\Procurement\Process\Outcomes\StagePartial;
+use App\Dto\Procurement\Process\Primitives\MissingParts;
+use App\Dto\Procurement\Process\Provider\NoProviderRecovery;
+use App\Dto\Procurement\Process\Provider\ProviderRecoveryPlan;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\StructuredDisposition;
 use App\Exceptions\Llm\OperationDenied;
 use App\Services\Llm\Execution\ProviderOperationPlan;
-use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
-use App\Services\Procurement\Extraction\ExtractionHandler;
-use App\Services\Procurement\Extraction\ValidatedOutputStore;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Extraction\Orchestration\ExtractionHandler;
+use App\Services\Procurement\Extraction\Pipeline\ValidatedOutputStore;
+use App\Services\Procurement\Extraction\Provider\AnalysisCallCoordinator;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -224,7 +224,7 @@ test('two PostgreSQL processes accepting the same chunk commit one progress and 
     $payload = base64_encode(serialize([$lease, $outcome]));
     $code = '\Tests\Support\ProcessCore\ExtractionRuntimeFixtures::bind();'
         .'[$lease,$outcome]=unserialize(base64_decode('.var_export($payload, true).'));'
-        .'$result=app(\App\Services\Procurement\Process\WorkFinalizer::class)->finish($lease,$outcome);'
+        .'$result=app(\App\Services\Procurement\Process\Execution\WorkFinalizer::class)->finish($lease,$outcome);'
         .'return ["status"=>$result->status->value,"pid"=>\Illuminate\Support\Facades\DB::selectOne("SELECT pg_backend_pid() AS id")->id];';
     $results = ConcurrentTransactions::concurrently(['first' => $code, 'second' => $code]);
     $statuses = [$results['first']['status'], $results['second']['status']];

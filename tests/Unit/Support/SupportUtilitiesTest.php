@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Telemetry\LogChannel;
-use App\Services\Procurement\Prepare\ToolchainProbe;
+use App\Services\Procurement\Prepare\Tools\ToolchainProbe;
 use App\Services\Storage\MinioLifecycleManager;
 use App\Support\Files\MimeDetector;
 use App\Support\Files\ShardedBlobPath;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process\Contracts;
 
-use App\Dto\Procurement\Process\ValidatedStageResult;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
 
 interface StagePublicationPreparation
 {

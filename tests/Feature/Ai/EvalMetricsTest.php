@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EvalMetrics;
 
 /**
  * §8.4 `docs/dev/ai/estimate-extraction.md` — field-level precision/recall/F1 + row coverage

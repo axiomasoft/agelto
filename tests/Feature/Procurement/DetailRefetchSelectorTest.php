@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageFailedItem;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ItemFailureReason;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageFailedItem;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Outcomes\ItemFailureReason;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Crawler\RefreshRepository;
-use App\Services\Procurement\Process\WorkFeeder;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DetailFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures as E;

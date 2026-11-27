@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Platform\Contracts;
 
-use App\Dto\Procurement\Acquisition\ListingFetchResult;
-use App\Dto\Procurement\Acquisition\ListingRequest;
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Acquisition\Listing\ListingFetchResult;
+use App\Dto\Procurement\Acquisition\Listing\ListingRequest;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
 
 interface ListingSource
 {

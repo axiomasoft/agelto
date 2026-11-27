@@ -7,22 +7,22 @@ namespace App\Services\Platforms\Eis\Listing;
 use App\Dto\Platforms\Eis\EisListingFilter;
 use App\Dto\Platforms\Eis\EisPolicy;
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Dto\Procurement\Acquisition\AcquisitionLaunch;
-use App\Dto\Procurement\Acquisition\ListingPlan;
-use App\Dto\Procurement\Acquisition\ListingTask;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\VersionedPayload;
+use App\Dto\Procurement\Acquisition\Control\AcquisitionLaunch;
+use App\Dto\Procurement\Acquisition\Listing\ListingPlan;
+use App\Dto\Procurement\Acquisition\Listing\ListingTask;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
 use App\Enums\Procurement\Crawler\ListingSortField;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Repositories\Procurement\Crawler\ListingCoverageRepository;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Platforms\Eis\EisListingPartitioner;
 use App\Services\Procurement\Acquisition\Contracts\AcquisitionProfilePreparer;
 use App\Services\Procurement\Network\OutboundPolicy;
-use App\Services\Procurement\Proxyma\ProfileResolver;
+use App\Services\Procurement\Proxyma\Catalog\ProfileResolver;
 
 /** App integration role: reference catalogue reads precede the pure partition plan. */
 final readonly class EisProfilePreparer implements AcquisitionProfilePreparer

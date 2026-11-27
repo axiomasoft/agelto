@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Platform;
 
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\EndpointDefinition;
-use App\Dto\Procurement\Platform\PlatformDefinition;
-use App\Dto\Procurement\Platform\UnsupportedCapability;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Platform\Capabilities\UnsupportedCapability;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\EndpointDefinition;
+use App\Dto\Procurement\Platform\Definition\PlatformDefinition;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Services\Procurement\Network\Contracts\DiagnosticCheck;
 use App\Services\Procurement\Network\OutboundPolicy;
-use App\Services\Procurement\Process\ProcessPolicy;
+use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
 use Illuminate\Contracts\Config\Repository;
 use ReflectionClass;
 

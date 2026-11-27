@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Dto\Procurement\Document\DocumentRevision;
-use App\Dto\Procurement\Document\SourceDocumentMetadata;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Document\Download\SourceDocumentMetadata;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\DocumentRevision;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Health\ReadinessCheckCode;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\OperatorCommandStatus;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Governance\OperatorCommandStatus;
 use App\Enums\Telemetry\LogChannel;
 use App\Guards\Admin\Policies\EstimatePolicy;
 use App\Guards\Admin\Policies\FixturePolicy;
@@ -28,16 +28,17 @@ use App\Models\User;
 use App\Notifications\PipelineAlert;
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
-use App\Repositories\Procurement\Process\ControlRepository;
-use App\Repositories\Procurement\Process\IncidentRepository;
-use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
+use App\Repositories\Procurement\Process\Authority\IncidentRepository;
+use App\Repositories\Procurement\Process\Projection\PlatformMetricsReadRepository;
 use App\Services\Health\ApplicationReadiness;
+use App\Services\Health\PgTimeoutGuard;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Process\MetricProjector;
-use App\Services\Procurement\Process\ProcessDiagnosticsInspector;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\WorkFinalizer;
-use App\Services\Procurement\Proxyma\TelegramOutbound;
+use App\Services\Procurement\Process\Diagnostics\ProcessDiagnosticsInspector;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
+use App\Services\Procurement\Process\Projection\MetricProjector;
+use App\Services\Procurement\Proxyma\Caller\TelegramOutbound;
 use App\Services\Reference\ClassifierImporter;
 use App\Support\SecretRedactor;
 use App\Support\Telemetry\SafeJsonLogProcessor;
@@ -406,9 +407,8 @@ test('ApplicationReadiness пропускает delete в finally при ист�
     $dbResolver = Mockery::mock(ConnectionResolverInterface::class);
     $dbResolver->shouldNotReceive('connection');
     $this->instance(ConnectionResolverInterface::class, $dbResolver);
-    $readinessWithMockDb = app(ApplicationReadiness::class);
-    $pgMethod = new ReflectionMethod($readinessWithMockDb, 'runWithPgTimeouts');
-    expect(fn () => $pgMethod->invoke($readinessWithMockDb, hrtime(true) - 1_000_000, static function (): void {}))
+    $pgGuard = app(PgTimeoutGuard::class);
+    expect(fn () => $pgGuard->runWithPgTimeouts(hrtime(true) - 1_000_000, static function (): void {}))
         ->toThrow(RuntimeException::class, 'Database readiness deadline exceeded');
 });
 

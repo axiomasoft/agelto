@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Crawler;
 
-use App\Dto\Procurement\Acquisition\ListingDetailReference;
-use App\Dto\Procurement\Acquisition\ListingPlan;
-use App\Dto\Procurement\Acquisition\ListingReceipt;
-use App\Dto\Procurement\Acquisition\ListingTask;
-use App\Dto\Procurement\Acquisition\ListingWindow;
-use App\Dto\Procurement\Platform\CursorEnvelope;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ListingInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Enums\Procurement\Process\AcquisitionKind;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Dto\Procurement\Acquisition\Listing\ListingDetailReference;
+use App\Dto\Procurement\Acquisition\Listing\ListingPlan;
+use App\Dto\Procurement\Acquisition\Listing\ListingReceipt;
+use App\Dto\Procurement\Acquisition\Listing\ListingTask;
+use App\Dto\Procurement\Acquisition\Listing\ListingWindow;
+use App\Dto\Procurement\Platform\Diagnostics\CursorEnvelope;
+use App\Dto\Procurement\Process\Inputs\ListingInput;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use Illuminate\Support\Facades\DB;
 
 /** Real crawl subjects carry immutable page assignments and bounded, indexed page evidence. */

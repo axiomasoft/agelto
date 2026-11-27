@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisListingCursor;
-use App\Dto\Procurement\Platform\CursorEnvelope;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Dto\Procurement\Platform\Diagnostics\CursorEnvelope;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;

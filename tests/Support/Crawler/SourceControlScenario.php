@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Support\Crawler;
 
 use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Network\TransportDeferred;
-use App\Dto\Procurement\Process\RetryAt;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Network\Outcome\TransportDeferred;
+use App\Dto\Procurement\Process\Primitives\RetryAt;
 use App\Dto\Procurement\ProcurementDetails;
 use App\Enums\Procurement\Crawler\SourceMethod as SourceMethodEnum;
 use App\Enums\Procurement\Network\NetworkBlockedReason;

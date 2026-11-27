@@ -6,7 +6,7 @@ use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\IncompleteRow;
 use App\Enums\Procurement\Estimate\IncompleteReason;
 use App\Enums\Procurement\Estimate\RowType;
-use App\Services\Procurement\Analyzers\Estimate\EstimateStitcher;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateStitcher;
 
 // Юнит-тесты чистой функции (Scope Included ) — без LLM/БД, входы строятся напрямую из
 // контрактов (тот же стиль builder-функций, что ExtractionOrchestratorTest, прецедент

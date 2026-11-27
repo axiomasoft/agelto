@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Enums\Procurement\Process\Core\StageCode;
 
 final readonly class FixtureStageResult implements ValidatedStageResult
 {

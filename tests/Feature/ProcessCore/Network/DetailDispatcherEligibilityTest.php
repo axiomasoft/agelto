@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
 use App\Models\Procurement\Platform\Registry;
-use App\Repositories\Procurement\Process\ControlRepository;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
 use App\Services\Procurement\Network\AcquisitionEligibility;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Infrastructure\Database\PackageSchema;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures;

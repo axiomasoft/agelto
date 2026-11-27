@@ -10,8 +10,8 @@ use App\Enums\Procurement\Ai\ReviewStatus;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 
 /**
  * Запись `prc_ai_dataset_examples` — `estimate:dataset:import`,

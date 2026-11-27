@@ -8,7 +8,7 @@ use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
 use Illuminate\Support\Carbon;
 use Tests\Support\Procurement\SnapshotFactory;
 

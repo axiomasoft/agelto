@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Acquisition\DetailProgress;
-use App\Dto\Procurement\Acquisition\DetailRequest;
-use App\Dto\Procurement\Acquisition\DetailResult;
-use App\Dto\Procurement\Process\DetailInput;
-use App\Dto\Procurement\Process\StageSucceeded;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Acquisition\Detail\DetailProgress;
+use App\Dto\Procurement\Acquisition\Detail\DetailRequest;
+use App\Dto\Procurement\Acquisition\Detail\DetailResult;
+use App\Dto\Procurement\Process\Inputs\DetailInput;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Procurement\Platform\SnapshotConsistency;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 
 final class RefreshFixtures

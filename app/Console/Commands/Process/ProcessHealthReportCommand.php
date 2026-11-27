@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Process;
 
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Services\Procurement\Process\ProcessPolicy;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 

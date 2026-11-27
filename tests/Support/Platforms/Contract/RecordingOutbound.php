@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\Contract;
 
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\TransportOutcome;
-use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Control\OutboundRequestPlan;
+use App\Dto\Procurement\Network\Outcome\TransportOutcome;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 
 /** Deterministic contract port; does not claim transport, concurrency or persistence coverage. */

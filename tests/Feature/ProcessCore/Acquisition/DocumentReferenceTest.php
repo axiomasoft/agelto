@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\DetailProgress;
-use App\Dto\Procurement\Acquisition\DetailResult;
-use App\Dto\Procurement\Acquisition\ProcurementSnapshot;
-use App\Dto\Procurement\Document\DocumentReference;
-use App\Dto\Procurement\Document\SourceDocumentKey;
-use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\StageSucceeded;
+use App\Dto\Procurement\Acquisition\Detail\DetailProgress;
+use App\Dto\Procurement\Acquisition\Detail\DetailResult;
+use App\Dto\Procurement\Acquisition\Detail\ProcurementSnapshot;
+use App\Dto\Procurement\Document\Download\DocumentReference;
+use App\Dto\Procurement\Document\Download\SourceDocumentKey;
+use App\Dto\Procurement\Network\Http\SafeUrl;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use App\Enums\Procurement\Platform\SnapshotConsistency;
 use App\Repositories\Procurement\Document\DocumentCatalogRepository;
 use App\Repositories\Procurement\Document\DocumentReferenceLocks;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;

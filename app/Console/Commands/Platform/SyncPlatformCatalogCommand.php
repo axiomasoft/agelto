@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Platform;
 
-use App\Enums\Procurement\Process\StageCode;
-use App\Services\Procurement\Acquisition\AcquisitionRuntime;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Services\Procurement\Acquisition\Orchestration\AcquisitionRuntime;
 use App\Services\Procurement\Document\DocumentRuntime;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Process\ProcessAuthoritySync;
+use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\AcquisitionConfiguration;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Enums\Procurement\Process\StageCode;
-use App\Services\Procurement\Proxyma\BindingAdapter;
+use App\Dto\Procurement\Acquisition\Control\AcquisitionConfiguration;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Services\Procurement\Proxyma\Catalog\BindingAdapter;
 use App\Services\Procurement\Proxyma\Migration\HistoricalRequests;
 use App\Services\Procurement\Proxyma\Migration\Inventory;
 use Illuminate\Support\Facades\DB;

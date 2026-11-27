@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Ai;
 
-use App\Enums\Procurement\Process\WorkState;
+use App\Enums\Procurement\Process\Core\WorkState;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Support\Files\Sha256Cast;
 use Carbon\CarbonImmutable;

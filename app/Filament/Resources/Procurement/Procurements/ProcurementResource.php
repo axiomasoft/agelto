@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Procurements;
 
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Filament\Resources\Procurement\Procurements\Pages\ListProcurements;
 use App\Filament\Resources\Procurement\Procurements\Pages\ViewProcurement;
 use App\Filament\Resources\Procurement\Procurements\RelationManagers\EventsRelationManager;

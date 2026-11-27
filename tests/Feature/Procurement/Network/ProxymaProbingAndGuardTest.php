@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
 use App\Services\Procurement\Network\NetworkProbeReconcileCategory;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Proxyma\AdapterSendGuard;
-use App\Services\Procurement\Proxyma\TlsTrustAdapter;
+use App\Services\Procurement\Proxyma\Caller\AdapterSendGuard;
+use App\Services\Procurement\Proxyma\Transport\TlsTrustAdapter;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Domain\Catalog\CanonicalOrigin;
 use Proxyma\Domain\Execution\Uuid;

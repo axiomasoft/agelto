@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Process;
 
-use App\Services\Procurement\Process\ProjectionRebuilder;
-use App\Services\Procurement\Process\ProjectionRegistry;
+use App\Services\Procurement\Process\Projection\ProjectionRebuilder;
+use App\Services\Procurement\Process\Projection\ProjectionRegistry;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

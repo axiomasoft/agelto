@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
-use App\Dto\Procurement\Process\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use GuzzleHttp\Psr7\Stream;
 use GuzzleHttp\Psr7\StreamDecoratorTrait;

@@ -15,11 +15,11 @@ try {
     $run=\Tests\Support\ProcessCore\ListingFixtures::run(registry: $registry); $lease=\Tests\Support\ProcessCore\FinalizeFixtures::running($run['work']);
     $serialized=base64_encode(serialize([$lease,$run['input']]));
     $operation = '\Tests\Support\ProcessCore\ListingFixtures::bindLocal(); [$lease,$input]=unserialize(base64_decode("'.$serialized.'"));
-        $result=new \App\Dto\Procurement\Process\StageSucceeded(new \App\Dto\Procurement\Acquisition\ListingResult(
+        $result=new \App\Dto\Procurement\Process\Outcomes\StageSucceeded(new \App\Dto\Procurement\Acquisition\Listing\ListingResult(
           app(\App\Repositories\Procurement\Crawler\ListingStoreRepository::class)->task($input),
           \Tests\Support\ProcessCore\ListingFixtures::page([\Tests\Support\ProcessCore\ListingFixtures::summary("concurrent")] )));
         ';
-    $call='fn()=>app(\App\Services\Procurement\Process\WorkFinalizer::class)->finish($lease,$result)->status->value';
+    $call='fn()=>app(\App\Services\Procurement\Process\Execution\WorkFinalizer::class)->finish($lease,$result)->status->value';
     $results=\Tests\Support\Postgres\ConcurrentTransactions::concurrently([
         'holder'=>$operation.'return ["outcome"=>\Tests\Support\ProcessCore\FinalizeFixtures::holdUntilWaiter('.$call.')];',
         'waiter'=>$operation.'return ["outcome"=>\Tests\Support\ProcessCore\FinalizeFixtures::afterHolder('.$call.')];',

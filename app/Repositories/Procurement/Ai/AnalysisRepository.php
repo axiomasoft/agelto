@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Ai;
 
-use App\Dto\Procurement\Ai\AnalysisRecipe;
-use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
-use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
-use App\Dto\Procurement\Ai\ExtractionCheckpoint;
-use App\Dto\Procurement\Ai\PageSourceManifest;
-use App\Dto\Procurement\Ai\PreparedAnalysisCandidate;
-use App\Dto\Procurement\Ai\ReanalysisSource;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ExtractionWindowInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Dto\Procurement\Process\WorkId;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Dto\Procurement\Ai\Execution\AnalysisRecipe;
+use App\Dto\Procurement\Ai\Execution\AnalysisRunSnapshot;
+use App\Dto\Procurement\Ai\Execution\PreparedAnalysisCandidate;
+use App\Dto\Procurement\Ai\Execution\ReanalysisSource;
+use App\Dto\Procurement\Ai\Extraction\ExtractionCheckpoint;
+use App\Dto\Procurement\Ai\Planning\AnalysisWindowSnapshot;
+use App\Dto\Procurement\Ai\Planning\PageSourceManifest;
+use App\Dto\Procurement\Process\Inputs\ExtractionWindowInput;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Llm\Schema\CanonicalJson;
-use App\Services\Procurement\Extraction\AnalysisRangeCodec;
-use App\Services\Procurement\Process\PayloadReader;
+use App\Services\Procurement\Extraction\Pipeline\AnalysisRangeCodec;
+use App\Services\Procurement\Process\Infrastructure\PayloadReader;
 use Illuminate\Support\Facades\DB;
 
 /** Typed canonical rows, deliberately independent of the legacy AnalysisRun model binding. */

@@ -4,20 +4,20 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Dto\Procurement\Document\DownloadProgress;
-use App\Dto\Procurement\Document\DownloadResult;
-use App\Dto\Procurement\Document\SourceDocumentMetadata;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Document\VerifiedArtifact;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\VersionedPayload;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Document\Download\DownloadProgress;
+use App\Dto\Procurement\Document\Download\DownloadResult;
+use App\Dto\Procurement\Document\Download\SourceDocumentMetadata;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Document\Storage\VerifiedArtifact;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
 use App\Enums\Procurement\Document\StoragePhase;
-use App\Enums\Procurement\Process\StageCode;
-use App\Services\Procurement\Process\StagePayloadCodec;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Services\Procurement\Process\Infrastructure\StagePayloadCodec;
 
 /** Closed versioned JSON boundary; no arbitrary class hydration, unknown keys or scalar coercion. */
 final readonly class DownloadStageCodec implements StagePayloadCodec

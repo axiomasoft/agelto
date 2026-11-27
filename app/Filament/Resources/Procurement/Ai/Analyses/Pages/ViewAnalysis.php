@@ -13,7 +13,7 @@ use App\Filament\Pages\FinalPromptPage;
 use App\Filament\Resources\Procurement\Ai\Analyses\AnalysisResource;
 use App\Filament\Resources\Procurement\Process\Work\WorkItemResource;
 use App\Models\Procurement\Ai\Analysis;
-use App\Services\Procurement\Extraction\RerunAnalysisAction;
+use App\Services\Procurement\Extraction\Orchestration\RerunAnalysisAction;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;

@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\RetryAt;
-use App\Dto\Procurement\Process\StageDeferred;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\DeferralReason;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
+use App\Dto\Procurement\Process\Primitives\RetryAt;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Outcomes\DeferralReason;
 use App\Models\User;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFeeder;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;

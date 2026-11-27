@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Dto\Platforms\Eis;
 
-use App\Dto\Procurement\Platform\EndpointCatalog;
-use App\Dto\Procurement\Platform\EndpointDefinition;
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
-use App\Dto\Procurement\Platform\RequestProfile;
+use App\Dto\Procurement\Platform\Definition\EndpointCatalog;
+use App\Dto\Procurement\Platform\Definition\EndpointDefinition;
+use App\Dto\Procurement\Platform\Definition\OriginBudgetPolicy;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use DateTimeZone;
 use Illuminate\Contracts\Config\Repository;

@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Dto\Procurement\Document\DocumentRange;
-use App\Dto\Procurement\Document\RepresentationCoverage;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Dto\Procurement\Process\StoreWorkData;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Document\Download\DocumentRange;
+use App\Dto\Procurement\Document\Prepare\RepresentationCoverage;
+use App\Dto\Procurement\Process\Execution\StoreWorkData;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Procurement\Document\CoverageUnit;
 use App\Enums\Procurement\Document\RepresentationKind;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Document\DocumentRepresentationRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\StageRegistry;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Execution\StageRegistry;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 
 /** Fixture analysis stays entirely in tests. Same input semantics for manual and both platform cohorts. */
 final class DocumentFeederFixtures

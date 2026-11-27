@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Process;
 
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\WorkState;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\WorkState;
 use App\Models\Procurement\Crawler\CrawlBlock;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\StageFailedItem;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ItemFailureReason;
-use App\Enums\Procurement\Process\OperatorCommandStatus;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageFailedItem;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Governance\OperatorCommandStatus;
+use App\Enums\Procurement\Process\Outcomes\ItemFailureReason;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\User;
 use App\Repositories\Procurement\Crawler\RefreshRepository;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;

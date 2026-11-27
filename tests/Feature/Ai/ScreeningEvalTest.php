@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Dto\Llm\Execution\LlmStructuredResponse;
+use App\Dto\Llm\Execution\LlmUsage;
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Enums\Llm\FinishReason;
@@ -13,8 +15,6 @@ use App\Models\Procurement\Ai\EvalResult;
 use App\Models\Procurement\Ai\EvalRun;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Services\Llm\Dto\LlmStructuredResponse;
-use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\CatalogOnlyProvider;
 use App\Services\Procurement\Screening\ScreeningEvalMetrics;
 use Illuminate\Support\Facades\Storage;

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Process;
 
-use App\Dto\Procurement\Process\OperatorCommandResult;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Process\Governance\OperatorCommandResult;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Models\User;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;

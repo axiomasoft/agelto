@@ -28,7 +28,7 @@ final class ProxymaOwnershipRules
     private const array HISTORY = [
         'app/Repositories/Procurement/Document/DownloadStorageRepository.php',
         'app/Repositories/Procurement/Network/AdapterHealthSqlHelper.php',
-        'app/Services/Procurement/Acquisition/AcquisitionDiagnostic.php',
+        'app/Services/Procurement/Acquisition/Diagnostics/AcquisitionDiagnostic.php',
         'app/Services/Procurement/Proxyma/Migration/Inventory.php',
         'app/Services/Procurement/Proxyma/Migration/TransferCatalog.php',
         'app/Services/Procurement/Proxyma/Migration/TransferState.php',
@@ -115,7 +115,7 @@ final class ProxymaOwnershipRules
             }
         }
         if (! $migration && preg_match('~^(?:app/Services/(?:Procurement|Platforms|Llm)/|app/Notifications/)~', $path)) {
-            $approvedCurl = $path === 'app/Services/Procurement/Proxyma/AgeltoPhysicalHttpTransport.php';
+            $approvedCurl = $path === 'app/Services/Procurement/Proxyma/Transport/AgeltoPhysicalHttpTransport.php';
             if (array_intersect($dependencies, ['Illuminate\\Support\\Facades\\Http', 'Illuminate\\Http\\Client\\PendingRequest', 'GuzzleHttp\\Client', 'GuzzleHttp\\ClientInterface', 'Psr\\Http\\Client\\ClientInterface']) !== []
                 || preg_match('/(?:Facades\\\\Http|PendingRequest|GuzzleHttp\\\\Client\b|\b(?:dns_get_record|stream_socket_client|fsockopen)\s*\()/i', $code)
                 || (! $approvedCurl && preg_match('/\bcurl_[a-z_]+\s*\(/i', $code))) {

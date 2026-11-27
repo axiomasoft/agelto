@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Platform\AdapterVersion;
-use App\Dto\Procurement\Platform\DiagnosticChecks;
-use App\Dto\Procurement\Platform\EndpointCatalog;
-use App\Dto\Procurement\Platform\EndpointDefinition;
-use App\Dto\Procurement\Platform\ExtensionDescriptor;
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\PlatformDefinition;
-use App\Dto\Procurement\Platform\RegistryDefinition;
-use App\Dto\Procurement\Platform\RegistryDefinitions;
-use App\Dto\Procurement\Platform\SourceIdentifierType;
-use App\Dto\Procurement\Platform\SourceIdentifierValue;
-use App\Dto\Procurement\Platform\SourceIdentity;
-use App\Dto\Procurement\Platform\SupportedListingCapability;
+use App\Dto\Procurement\Platform\Capabilities\SupportedListingCapability;
+use App\Dto\Procurement\Platform\Definition\EndpointCatalog;
+use App\Dto\Procurement\Platform\Definition\EndpointDefinition;
+use App\Dto\Procurement\Platform\Definition\ExtensionDescriptor;
+use App\Dto\Procurement\Platform\Definition\PlatformDefinition;
+use App\Dto\Procurement\Platform\Definition\RegistryDefinition;
+use App\Dto\Procurement\Platform\Definition\RegistryDefinitions;
+use App\Dto\Procurement\Platform\Diagnostics\DiagnosticChecks;
+use App\Dto\Procurement\Platform\Identity\AdapterVersion;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\SourceIdentifierType;
+use App\Dto\Procurement\Platform\Identity\SourceIdentifierValue;
+use App\Dto\Procurement\Platform\Identity\SourceIdentity;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;
 use App\Services\Platforms\Eis\EisDefinition;

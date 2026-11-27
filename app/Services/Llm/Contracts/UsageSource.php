@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Contracts;
 
-use App\Services\Llm\Dto\UsageQuery;
-use App\Services\Llm\Dto\UsageReport;
+use App\Dto\Llm\Reporting\UsageQuery;
+use App\Dto\Llm\Reporting\UsageReport;
 
 /**
  * Провайдер-агностичный источник расхода LLM.

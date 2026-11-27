@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Network\TransportSucceeded;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Http\SafeUrl;
+use App\Dto\Procurement\Network\Outcome\TransportSucceeded;
 use App\Enums\Procurement\Network\TrafficClass;
-use App\Enums\Procurement\Process\ControlMode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
-use App\Repositories\Procurement\Process\ControlRepository;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
-use App\Services\Procurement\Proxyma\ProfileResolver;
+use App\Services\Procurement\Proxyma\Catalog\ProfileResolver;
 
 /** Safe declared probes only; never selects or retries domain work. One physical probe per tick. */
 final class NetworkProbeReconcileCategory implements ReconcileCategory

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\Contract;
 
-use App\Dto\Procurement\Acquisition\DetailFetched;
-use App\Dto\Procurement\Acquisition\DetailFetchResult;
-use App\Dto\Procurement\Acquisition\FetchItemRejected;
-use App\Dto\Procurement\Acquisition\ListingPage;
+use App\Dto\Procurement\Acquisition\Detail\DetailFetched;
+use App\Dto\Procurement\Acquisition\Detail\DetailFetchResult;
+use App\Dto\Procurement\Acquisition\Fetch\FetchItemRejected;
+use App\Dto\Procurement\Acquisition\Listing\ListingPage;
 use App\Enums\Procurement\Platform\AssessmentReason;
 use App\Enums\Procurement\Platform\Completeness;
 use App\Enums\Procurement\Platform\TerminalProof;

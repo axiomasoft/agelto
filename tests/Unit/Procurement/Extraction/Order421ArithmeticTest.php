@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\AnchoredEstimateRow;
-use App\Dto\Procurement\Ai\ExtractionArithmeticPolicy;
-use App\Dto\Procurement\Ai\ExtractionOutput;
-use App\Dto\Procurement\Ai\MoneyDecimal;
-use App\Dto\Procurement\Ai\RowRange;
+use App\Dto\Procurement\Ai\Extraction\ExtractionArithmeticPolicy;
+use App\Dto\Procurement\Ai\Output\AnchoredEstimateRow;
+use App\Dto\Procurement\Ai\Output\ExtractionOutput;
+use App\Dto\Procurement\Ai\Output\MoneyDecimal;
+use App\Dto\Procurement\Ai\Planning\RowRange;
 use App\Dto\Procurement\Analyzers\Estimate\EstimateRow;
 use App\Dto\Procurement\Analyzers\Estimate\RowAttributes;
 use App\Dto\Procurement\Analyzers\Estimate\RowModifier;
 use App\Enums\Procurement\Estimate\RowType;
-use App\Services\Procurement\Extraction\ExtractionSemanticValidator;
+use App\Services\Procurement\Extraction\Pipeline\ExtractionSemanticValidator;
 
 test('проверяет сумму позиции с произведением коэффициентов и отвергает неверную сумму', function (): void {
     $validator = new ExtractionSemanticValidator(

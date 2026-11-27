@@ -7,7 +7,7 @@ namespace App\Repositories\Procurement\Ai;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\Correction;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\Process\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
 
 /** Operator review metadata only; accepted data and execution stay with WorkFinalizer. */
 final readonly class AnalysisReviewRepository

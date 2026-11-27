@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Process;
 
-use App\Enums\Procurement\Process\IntentState;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\IntentState;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;

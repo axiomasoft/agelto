@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process\Contracts;
 
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\StageOutcome;
-use App\Dto\Procurement\Process\WorkInput;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageOutcome;
 
 /**
  * Stage handler: typed input и ExecutionContext → один из пяти StageOutcome.

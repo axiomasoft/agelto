@@ -9,7 +9,7 @@ use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Repositories\Procurement\History\ProcurementHistoryReadRepository;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
 use App\Services\Procurement\History\ProcurementTimelineBuilder;
 use Illuminate\Support\Carbon;
 use Tests\Support\Procurement\SnapshotFactory;

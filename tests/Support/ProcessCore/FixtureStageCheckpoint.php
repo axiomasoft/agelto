@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ProcessValue;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Primitives\ProcessValue;
+use App\Enums\Procurement\Process\Core\StageCode;
 
 final readonly class FixtureStageCheckpoint implements StageCheckpoint
 {

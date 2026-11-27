@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\JsonProcurement;
 
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use App\Services\Procurement\Platform\Contracts\ListingFilter;
 
 final readonly class JsonListingFilter implements ListingFilter

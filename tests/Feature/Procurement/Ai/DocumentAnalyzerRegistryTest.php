@@ -11,7 +11,7 @@ use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Exceptions\Llm\UnsupportedConsumer;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Estimate\Estimate;
-use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateAnalyzer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Illuminate\Support\Facades\Queue;
 use Tests\Support\Doubles\ExtractionlessAnalyzer;

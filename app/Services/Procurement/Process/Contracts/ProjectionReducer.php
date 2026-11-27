@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process\Contracts;
 
-use App\Dto\Procurement\Process\MetricDelta;
-use App\Dto\Procurement\Process\ProjectedEvent;
+use App\Dto\Procurement\Process\Projection\MetricDelta;
+use App\Dto\Procurement\Process\Projection\ProjectedEvent;
 use App\Exceptions\Procurement\Process\ProjectionSchemaError;
 
 /**

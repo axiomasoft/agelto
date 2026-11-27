@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Services\Procurement\Gold\GoldBuilder;
-use App\Services\Procurement\Prepare\TextGridRenderer;
-use App\Services\Procurement\Prepare\XlsxResourceGuard;
+use App\Services\Procurement\Prepare\Tools\TextGridRenderer;
+use App\Services\Procurement\Prepare\Tools\XlsxResourceGuard;
 use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Support\Facades\Artisan;
 

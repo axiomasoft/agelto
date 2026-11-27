@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Filament\Resources\Procurement\OperationLogs\OperationLogResource;
 use App\Filament\Resources\Procurement\OperationLogs\Pages\ListOperationLogs;
 use App\Guards\Admin\Roles\AnalystRole;
@@ -10,7 +10,7 @@ use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Process\ControlScope;
 use App\Models\Procurement\Process\Transition;
 use App\Models\User;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
 use Livewire\Livewire;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 

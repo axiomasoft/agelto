@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process\Contracts;
 
-use App\Dto\Procurement\Process\DaemonTick;
-use App\Enums\Procurement\Process\DaemonKind;
+use App\Dto\Procurement\Process\Governance\DaemonTick;
+use App\Enums\Procurement\Process\Governance\DaemonKind;
 use Closure;
 
 /**

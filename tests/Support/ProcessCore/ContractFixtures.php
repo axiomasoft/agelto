@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\ProviderRecoveryPlan;
-use App\Dto\Procurement\Process\ReceiptRef;
-use App\Enums\Procurement\Process\ProviderOperationPurpose;
-use App\Enums\Procurement\Process\ProviderRecoveryMode;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Provider\ProviderRecoveryPlan;
+use App\Dto\Procurement\Process\Provider\ReceiptRef;
+use App\Enums\Procurement\Process\Outcomes\ProviderOperationPurpose;
+use App\Enums\Procurement\Process\Outcomes\ProviderRecoveryMode;
+use App\Services\Procurement\Process\Infrastructure\ProcessPayloadCodec;
 
 final class ContractFixtures
 {

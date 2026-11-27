@@ -3,29 +3,29 @@
 declare(strict_types=1);
 
 use App\Dto\Llm\Requests\PinnedLlmContext;
-use App\Dto\Procurement\Ai\AnalysisProviderConnection;
-use App\Dto\Procurement\Ai\ExtractionProgress;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Process\DeliveryEnvelope;
-use App\Dto\Procurement\Process\ExtractionWindowInput;
-use App\Dto\Procurement\Process\MissingParts;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StagePartial;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Ai\Execution\AnalysisProviderConnection;
+use App\Dto\Procurement\Ai\Extraction\ExtractionProgress;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\OriginBudgetPolicy;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Process\Execution\DeliveryEnvelope;
+use App\Dto\Procurement\Process\Inputs\ExtractionWindowInput;
+use App\Dto\Procurement\Process\Outcomes\StagePartial;
+use App\Dto\Procurement\Process\Primitives\MissingParts;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Exceptions\Llm\OperationDenied;
 use App\Services\Procurement\Document\DocumentStorageReconciler;
-use App\Services\Procurement\Extraction\AnalysisProviderConnections;
-use App\Services\Procurement\Extraction\ExtractionHandler;
+use App\Services\Procurement\Extraction\Orchestration\ExtractionHandler;
+use App\Services\Procurement\Extraction\Provider\AnalysisProviderConnections;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFeeder;
-use App\Services\Procurement\Process\WorkFinalizer;
-use App\Services\Procurement\Process\WorkRunner;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkRunner;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Postgres\ConcurrentTransactions;
@@ -118,13 +118,14 @@ test('SIGKILL of the real extraction runner resumes the same work with zero addi
             .'[$connection,$delivery,$localRoot,$boundary]=unserialize(base64_decode('.var_export($payload, true).'));'
             .'config(["filesystems.disks.local.root"=>$localRoot]); \Illuminate\Support\Facades\Storage::forgetDisk("local");'
             .'app(\App\Services\Llm\Execution\ReceiptPolicies::class)->register("fixture-provider",new \Tests\Support\ProcessCore\FinancialFixtures);'
-            .'app(\App\Services\Procurement\Extraction\AnalysisProviderConnections::class)->register($connection);'
+            .'app(\App\Services\Llm\Execution\ProviderCodecs::class)->register("fixture-provider",new \App\Services\Llm\Providers\GeminiWireCodec);'
+            .'app(\App\Services\Procurement\Extraction\Provider\AnalysisProviderConnections::class)->register($connection);'
             .'\Illuminate\Support\Facades\DB::listen(static function($event) use ($boundary): void {'
             .'$raw=$boundary==="raw" && str_contains($event->sql,"UPDATE llm_provider_calls SET receipt_state=") && str_contains($event->sql,"verified");'
             .'$output=$boundary==="output" && str_contains($event->sql,"UPDATE prc_storage_reservations SET status=\'staged\'");'
             .'if($raw || $output) {'
             .'\Illuminate\Support\Facades\DB::afterCommit(static function(): void { posix_kill(getmypid(),SIGKILL); }); }});'
-            .'$outcome=app(\App\Services\Procurement\Process\WorkRunner::class)->runDelivery($delivery);'
+            .'$outcome=app(\App\Services\Procurement\Process\Execution\WorkRunner::class)->runDelivery($delivery);'
             .'$work=\Tests\Support\ProcessCore\ExecutionFixtures::work($delivery->workId);'
             .'return ["unexpected_survival"=>$outcome->value,"state"=>$work->state,"reason"=>$work->reason_code];';
         $survived = null;

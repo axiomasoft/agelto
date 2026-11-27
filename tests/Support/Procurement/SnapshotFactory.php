@@ -7,7 +7,7 @@ namespace Tests\Support\Procurement;
 use App\Dto\Platforms\Eis\EisDetailExtension;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Acquisition\IdentityResolver;
+use App\Services\Procurement\Acquisition\Detail\IdentityResolver;
 use Illuminate\Support\Carbon;
 
 /**

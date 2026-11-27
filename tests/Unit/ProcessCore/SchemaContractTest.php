@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\SubjectKey;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
-use App\Enums\Procurement\Process\WorkState;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Core\WorkState;
 use Tests\Support\ProcessCore\ContractFixtures;
 
 test('состояния PHP совпадают с CHECK inventory и не включают события попытки', function () {

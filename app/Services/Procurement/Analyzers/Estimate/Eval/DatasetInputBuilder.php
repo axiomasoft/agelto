@@ -1,0 +1,119 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Procurement\Analyzers\Estimate\Eval;
+
+use App\Dto\Llm\Prompt\ComposedPrompt;
+use App\Dto\Procurement\Analyzers\Estimate\RowsChunkResponse;
+use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
+use App\Enums\Procurement\Document\RepresentationKind;
+use App\Models\Procurement\Document\DocumentVersion;
+use App\Repositories\Procurement\Document\RepresentationStoreRepository;
+use App\Services\Llm\PromptComposer;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateStepDictionaries;
+use App\Services\Procurement\Extraction\Pipeline\UntrustedDocumentSanitizer;
+use App\Services\Storage\FileLocationResolver;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * Единый строитель входа `estimate:dataset:export` — ОДИН носитель для SFT и DPO:
+ * вторая копия сборки `user`-турна разъехалась бы с первой при первой правке (`plan-protocol` §3).
+ * `composePrompt` вызывается ВЫЗЫВАЮЩИМ (`DatasetExporter`) РОВНО один раз на прогон — системная
+ * часть детерминирована и не зависит от строки, `ComposedPrompt` пересчитывать на каждую запись
+ * незачем (implicit-cache префикс, `PromptComposer` докблок). `resolveInput` кладёт в `user`-
+ * содержимое ФАКТИЧЕСКИЙ текст представления (`prc_document_representations`), а не ссылку на
+ * документ.
+ */
+final readonly class DatasetInputBuilder
+{
+    public function __construct(
+        private PromptComposer $prompts,
+        private RepresentationStoreRepository $representations,
+        private EstimateStepDictionaries $dictionaries,
+        private FileLocationResolver $locationResolver,
+    ) {}
+
+    public function composePrompt(): ComposedPrompt
+    {
+        return $this->prompts->compose(
+            EstimatePromptStep::ExtractionRows,
+            [RowsChunkResponse::class, ...$this->dictionaries->forStep(EstimatePromptStep::ExtractionRows)],
+        );
+    }
+
+    /**
+     * @return array{representation_kind: RepresentationKind, text: string}|array{skip: string}
+     */
+    public function resolveInput(?DocumentVersion $version): array
+    {
+        if ($version === null) {
+            return ['skip' => 'no_textual_representation'];
+        }
+
+        $resolved = $this->resolveTextual($version);
+
+        if ($resolved === null) {
+            return ['skip' => 'no_textual_representation'];
+        }
+
+        [$kind, $text] = $resolved;
+        $text = (new UntrustedDocumentSanitizer)->sanitize($text);
+
+        $configuredLimit = config('ai.dataset_export.max_input_chars');
+        $maxInputChars = is_int($configuredLimit) || is_float($configuredLimit) || is_string($configuredLimit)
+            ? (int) $configuredLimit
+            : 0;
+
+        if (mb_strlen($text) > $maxInputChars) {
+            return ['skip' => 'input_too_large'];
+        }
+
+        return ['representation_kind' => $kind, 'text' => $text];
+    }
+
+    public function userTurn(string $text, ?int $ordinal, ?string $estimateNumber): string
+    {
+        $label = $estimateNumber !== null ? " №{$estimateNumber}" : ($ordinal !== null ? " #{$ordinal}" : '');
+        $text = (new UntrustedDocumentSanitizer)->sanitize($text);
+
+        return "Извлеки все строки сметы{$label} из документа ниже.\n\n---\n\n{$text}";
+    }
+
+    /**
+     * Первое существующее ТЕКСТОВОЕ (`mime` начинается на `text/`) представление версии по
+     * приоритету `config('ai.dataset_export.representation_priority')`. `structured_xml` исключён
+     * ЯВНО (в проде НЕ уходит в LLM целиком — обучение на нём учит неиспользуемому навыку),
+     * остальные бинарные kind'ы отсекаются построением фильтра `text/`.
+     *
+     * @return array{0: RepresentationKind, 1: string}|null
+     */
+    private function resolveTextual(DocumentVersion $version): ?array
+    {
+        $configuredPriority = config('ai.dataset_export.representation_priority');
+
+        foreach (is_array($configuredPriority) ? $configuredPriority : [] as $kindValue) {
+            if (! is_string($kindValue)) {
+                continue;
+            }
+
+            $kind = RepresentationKind::tryFrom($kindValue);
+
+            if ($kind === null || $kind === RepresentationKind::StructuredXml) {
+                continue;
+            }
+
+            $representation = $this->representations->find($version, $kind);
+
+            if ($representation === null || ! str_starts_with($representation->mime, 'text/')) {
+                continue;
+            }
+
+            $location = $this->locationResolver->forRepresentation($representation);
+
+            return [$kind, (string) Storage::disk($location->disk)->get($location->path)];
+        }
+
+        return null;
+    }
+}

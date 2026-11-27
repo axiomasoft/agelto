@@ -1,8 +1,0 @@
-<?php
-
-declare(strict_types=1);
-
-namespace App\Dto\Procurement\Network;
-
-/** Тело ответа: decoded text либо bounded binary artifact; не произвольная строка байтов. */
-interface ResponseBody {}

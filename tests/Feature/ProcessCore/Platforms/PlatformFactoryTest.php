@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
 use App\Models\Procurement\Platform\Platform;
 use Faker\Factory;
 use Faker\Generator;

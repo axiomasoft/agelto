@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\AcceptanceScenario;
 use Tests\Support\ProcessCore\ExecutionFixtures;

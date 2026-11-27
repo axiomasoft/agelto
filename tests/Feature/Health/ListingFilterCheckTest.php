@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisListingFilter;
-use App\Dto\Procurement\Acquisition\ListingRequest;
-use App\Dto\Procurement\Platform\DiagnosticInput;
-use App\Dto\Procurement\Platform\ProbePlan;
+use App\Dto\Procurement\Acquisition\Listing\ListingRequest;
+use App\Dto\Procurement\Platform\Diagnostics\DiagnosticInput;
+use App\Dto\Procurement\Platform\Diagnostics\ProbePlan;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\AdapterValidationClaim;
-use App\Dto\Procurement\Network\TransportDeferred;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterValidationClaim;
+use App\Dto\Procurement\Network\Outcome\TransportDeferred;
 use Tests\Support\Postgres\ConcurrentTransactions;
 
 test('work and standalone validation owners serialize on one adapter capacity', function (): void {
@@ -12,13 +12,13 @@ test('work and standalone validation owners serialize on one adapter capacity', 
 \Tests\Support\ProcessCore\ExecutionFixtures::truncateLedger();
 try {
     $f = new \Tests\Support\ProcessCore\Http\PermitFixtures;
-    $contract = new \App\Dto\Procurement\Network\AdapterContractRef($f->code, 'detail', '1', '1');
-    app(\App\Services\Procurement\Network\SourceCatalogSync::class)->sync(new \App\Dto\Procurement\Platform\SourceTargetDefinitions($f->code, [
-        new \App\Dto\Procurement\Platform\SourceTargetDefinition('card', 'detail', $f->url->origin, [$f->profile], adapterContract: $contract),
+    $contract = new \App\Dto\Procurement\Network\AdapterValidation\AdapterContractRef($f->code, 'detail', '1', '1');
+    app(\App\Services\Procurement\Network\SourceCatalogSync::class)->sync(new \App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions($f->code, [
+        new \App\Dto\Procurement\Platform\Definition\SourceTargetDefinition('card', 'detail', $f->url->origin, [$f->profile], adapterContract: $contract),
     ]));
     \Illuminate\Support\Facades\DB::table('prc_adapter_health')->update(['state'=>'healthy']);
     $platform = \Illuminate\Support\Facades\DB::table('prc_platforms')->where('code',$f->code)->sole()->id;
-    \Tests\Support\ProcessCore\FinalizeFixtures::authority([\App\Enums\Procurement\Process\StageCode::Listing]);
+    \Tests\Support\ProcessCore\FinalizeFixtures::authority([\App\Enums\Procurement\Process\Core\StageCode::Listing]);
     $work = \Tests\Support\ProcessCore\ExecutionFixtures::listingWork();
     \Illuminate\Support\Facades\DB::table('prc_process_work')->where('id',$work->value->value)->update(['platform_id'=>$platform]);
     $lease = \Tests\Support\ProcessCore\FinalizeFixtures::running($work);
@@ -26,10 +26,10 @@ try {
     \Illuminate\Support\Facades\DB::table('prc_outbound_operations')->where('id',$operation->lease()->id->value)->update(['platform_id'=>$platform]);
     $common = '$contract=unserialize(base64_decode('.var_export(base64_encode(serialize($contract)),true).')); ';
     $holder = $common.'$lease=unserialize(base64_decode('.var_export(base64_encode(serialize($lease)),true).')); ';
-    $holder .= '\Tests\Support\ProcessCore\ExecutionFixtures::registerHandler(\App\Enums\Procurement\Process\StageCode::Listing); ';
-    $holder .= '$context=new \App\Dto\Procurement\Process\ExecutionContext($lease, app(\App\Repositories\Procurement\Process\WorkStoreRepository::class), app(\App\Services\Procurement\Process\Contracts\ProcessClock::class), \App\Dto\Procurement\Process\Duration::seconds(240), \App\Dto\Procurement\Process\Duration::seconds(360), \App\Dto\Procurement\Process\Duration::seconds(15), \App\Dto\Procurement\Process\Duration::seconds(15), \App\Dto\Procurement\Process\Duration::seconds(30)); ';
+    $holder .= '\Tests\Support\ProcessCore\ExecutionFixtures::registerHandler(\App\Enums\Procurement\Process\Core\StageCode::Listing); ';
+    $holder .= '$context=new \App\Dto\Procurement\Process\Execution\ExecutionContext($lease, app(\App\Repositories\Procurement\Process\Work\WorkStoreRepository::class), app(\App\Services\Procurement\Process\Contracts\ProcessClock::class), \App\Dto\Procurement\Process\Primitives\Duration::seconds(240), \App\Dto\Procurement\Process\Primitives\Duration::seconds(360), \App\Dto\Procurement\Process\Primitives\Duration::seconds(15), \App\Dto\Procurement\Process\Primitives\Duration::seconds(15), \App\Dto\Procurement\Process\Primitives\Duration::seconds(30)); ';
     $waiter = $common.'$context=\Tests\Support\ProcessCore\Http\PermitFixtures::importContext('.var_export($operation->lease()->id->value,true).'); ';
-    $call = 'fn()=>app(\App\Services\Procurement\Process\ProcessTransaction::class)->run(fn()=>app(\App\Repositories\Procurement\Network\AdapterHealthRepository::class)->admit($contract,$context))::class';
+    $call = 'fn()=>app(\App\Services\Procurement\Process\Infrastructure\ProcessTransaction::class)->run(fn()=>app(\App\Repositories\Procurement\Network\AdapterHealthRepository::class)->admit($contract,$context))::class';
     $results = \Tests\Support\Postgres\ConcurrentTransactions::concurrently([
         'holder'=>$holder.'return ["result"=>\Tests\Support\ProcessCore\FinalizeFixtures::holdUntilWaiter('.$call.')];',
         'waiter'=>$waiter.'return ["result"=>\Tests\Support\ProcessCore\FinalizeFixtures::afterHolder('.$call.')];',

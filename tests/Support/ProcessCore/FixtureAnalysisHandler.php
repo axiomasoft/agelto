@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Dto\Procurement\Process\StageOutcome;
-use App\Dto\Procurement\Process\StageSucceeded;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageOutcome;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
 use App\Services\Procurement\Process\Contracts\StageHandler;
 

@@ -11,7 +11,7 @@ use App\Models\Procurement\Ai\DatasetExample;
 use App\Models\Procurement\Ai\EvalRun;
 use App\Repositories\Procurement\Ai\DatasetExampleReadRepository;
 use App\Repositories\Procurement\Ai\EvalRunStoreRepository;
-use App\Services\Procurement\Analyzers\Estimate\EvalSplitPlanner;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EvalSplitPlanner;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

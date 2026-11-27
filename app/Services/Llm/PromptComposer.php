@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
+use App\Dto\Llm\Prompt\ComposedPrompt;
 use App\Enums\Llm\PromptStep;
 use App\Models\Llm\Prompt;
 use App\Repositories\Llm\PromptReadRepository;
-use App\Services\Llm\Dto\ComposedPrompt;
 use App\Services\Llm\Schema\PromptContextGenerator;
 
 /**

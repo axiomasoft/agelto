@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\TransferBudget;
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Network\TransportSucceeded;
-use App\Dto\Procurement\Process\StageDeferred;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Http\TransferBudget;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Network\Outcome\TransportSucceeded;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Guards\Admin\Roles\OperatorRole;
@@ -21,12 +21,12 @@ use App\Repositories\Procurement\Network\OutboundOperationRepository;
 use App\Services\Procurement\Document\DownloadHandler;
 use App\Services\Procurement\Network\NetworkOwnerFence;
 use App\Services\Procurement\Platform\ExecutorPlatformOutbound;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\WorkFinalizer;
-use App\Services\Procurement\Proxyma\CallerGate;
-use App\Services\Procurement\Proxyma\CallerOutbound;
-use App\Services\Procurement\Proxyma\CallerSendFacts;
-use App\Services\Procurement\Proxyma\ProfileResolver;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
+use App\Services\Procurement\Proxyma\Caller\CallerGate;
+use App\Services\Procurement\Proxyma\Caller\CallerOutbound;
+use App\Services\Procurement\Proxyma\Caller\CallerSendFacts;
+use App\Services\Procurement\Proxyma\Catalog\ProfileResolver;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;

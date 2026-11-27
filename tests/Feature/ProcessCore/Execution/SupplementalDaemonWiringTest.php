@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\DaemonKind;
-use App\Services\Procurement\Process\DaemonPolicy;
+use App\Enums\Procurement\Process\Governance\DaemonKind;
+use App\Services\Procurement\Process\Daemons\DaemonPolicy;
 use Symfony\Component\Yaml\Yaml;
 
 pest()->group('delivery-and-daemon-lifecycle');

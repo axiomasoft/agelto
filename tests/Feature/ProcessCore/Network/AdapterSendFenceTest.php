@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\AdapterContractRef;
-use App\Dto\Procurement\Network\AdapterValidationClaim;
-use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\TransferBudget;
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Network\TransportSucceeded;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterContractRef;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterValidationClaim;
+use App\Dto\Procurement\Network\Control\OutboundRequestPlan;
+use App\Dto\Procurement\Network\Http\TransferBudget;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Network\Outcome\TransportSucceeded;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Proxyma\CallerOutbound as OutboundExecutor;
+use App\Services\Procurement\Proxyma\Caller\CallerOutbound as OutboundExecutor;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;

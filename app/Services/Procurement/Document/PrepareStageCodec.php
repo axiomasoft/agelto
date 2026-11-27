@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Dto\Procurement\Document\PreparedBatch;
-use App\Dto\Procurement\Document\PreparedDocument;
-use App\Dto\Procurement\Document\PrepareOcrCheckpoint;
-use App\Dto\Procurement\Document\PreparePage;
-use App\Dto\Procurement\Document\PrepareRange;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Document\VerifiedArtifact;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\VersionedPayload;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Document\Prepare\PreparedBatch;
+use App\Dto\Procurement\Document\Prepare\PreparedDocument;
+use App\Dto\Procurement\Document\Prepare\PrepareOcrCheckpoint;
+use App\Dto\Procurement\Document\Prepare\PreparePage;
+use App\Dto\Procurement\Document\Prepare\PrepareRange;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Document\Storage\VerifiedArtifact;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
 use App\Enums\Procurement\Document\PageTextStatus;
 use App\Enums\Procurement\Document\StoragePhase;
-use App\Enums\Procurement\Process\StageCode;
-use App\Services\Procurement\Process\PayloadReader;
-use App\Services\Procurement\Process\StagePayloadCodec;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Services\Procurement\Process\Infrastructure\PayloadReader;
+use App\Services\Procurement\Process\Infrastructure\StagePayloadCodec;
 
 /** Closed schema, explicit scalar types, bounded lists. No reflection or arbitrary hydration. */
 final readonly class PrepareStageCodec implements StagePayloadCodec

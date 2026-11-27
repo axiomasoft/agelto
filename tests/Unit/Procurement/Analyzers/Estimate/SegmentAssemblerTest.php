@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Procurement\Analyzers\Estimate\DiscoveryMarkerLine;
 use App\Enums\Procurement\Estimate\DiscoveryMarker;
-use App\Services\Procurement\Analyzers\Estimate\SegmentAssembler;
+use App\Services\Procurement\Analyzers\Estimate\Core\SegmentAssembler;
 
 // Проверяет детерминированную сборку сегментов без внешних вызовов.
 // детерминированная функция БЕЗ LLM, вход — плоский список маркеров В ПОРЯДКЕ ПРИХОДА ОКОН.

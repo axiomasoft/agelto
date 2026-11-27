@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Process\DaemonKind;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Process\Governance\DaemonKind;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\User;
-use App\Repositories\Procurement\Process\DaemonHeartbeatRepository;
+use App\Repositories\Procurement\Process\Authority\DaemonHeartbeatRepository;
 use App\Services\Health\ApplicationReadiness;
 use Database\Seeders\BaseSeeder;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;

@@ -67,10 +67,8 @@ final readonly class TelemetrySanitizer
         // URL до остальных правил: userinfo/query/fragment отбрасываются целиком, а не маскируются по месту.
         $text = preg_replace_callback('~\b[a-z][a-z0-9+.\-]*://[^\s"\'<>]+~i', fn (array $match): string => $this->url($match[0]), $text) ?? self::REDACTED;
         $text = SecretRedactor::text($text);
-        $text = preg_replace('~\b((?:Proxy-Authorization|Authorization|Set-Cookie|Cookie)\s*:\s*)[^\r\n]+~i', '$1'.self::REDACTED, $text) ?? self::REDACTED;
-        $text = preg_replace('~\bBearer\s+[A-Za-z0-9._\~+/=\-]+~i', 'Bearer '.self::REDACTED, $text) ?? self::REDACTED;
-        // Пары key=value / key%3Dvalue / key:value вне URL, в том числе URL-encoded.
-        $text = preg_replace('~((?:password|passwd|secret|token|api[_-]?key|access_token|signature|sig|cursor)(?:%3D|%3A|=|:)\s*)[^\s&,;"\']+~i', '$1'.self::REDACTED, $text) ?? self::REDACTED;
+        // URL-encoded пары key%3Dvalue / key%3Avalue вне URL.
+        $text = preg_replace('~((?:password|passwd|secret|token|api[_-]?key|access_token|signature|sig|cursor)(?:%3D|%3A)\s*)[^\s&,;"\']+~i', '$1'.self::REDACTED, $text) ?? self::REDACTED;
 
         return mb_strlen($text) > self::MAX_STRING ? mb_substr($text, 0, self::MAX_STRING).'…[truncated]' : $text;
     }

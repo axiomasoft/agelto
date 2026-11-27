@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Prepare\TextGridRenderer;
+use App\Services\Procurement\Prepare\Tools\TextGridRenderer;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx as XlsxWriter;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;

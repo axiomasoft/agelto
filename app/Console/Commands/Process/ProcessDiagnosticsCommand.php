@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Process;
 
 use App\Notifications\PipelineAlert;
-use App\Services\Procurement\Process\ProcessDiagnosticsInspector;
+use App\Services\Procurement\Process\Diagnostics\ProcessDiagnosticsInspector;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Database\Factories\Platforms\Eis;
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Spatie\LaravelData\Data;
 use Tests\Support\ProcessCore\HistoricalNetworkFixtures;

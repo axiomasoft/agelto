@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Actions\Procurement\Crawler\StoreRawFetchArtifactAction;
-use App\Services\Procurement\Process\RawArtifactRetention;
+use App\Services\Procurement\Process\Diagnostics\RawArtifactRetention;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Postgres\ConcurrentTransactions;
@@ -26,7 +26,7 @@ test('retired raw prune and concurrent publication serialize across real Postgre
             return ['path' => $path];
             PHP,
         'pruner' => <<<'PHP'
-            return ['deleted' => app(\App\Services\Procurement\Process\RawArtifactRetention::class)->prune(1)];
+            return ['deleted' => app(\App\Services\Procurement\Process\Diagnostics\RawArtifactRetention::class)->prune(1)];
             PHP,
     ]);
     expect($results['producer']['path'])->toBe($path)

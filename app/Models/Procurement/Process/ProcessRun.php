@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Process;
 
-use App\Enums\Procurement\Process\RunKind;
+use App\Enums\Procurement\Process\Core\RunKind;
 use App\Models\Procurement\Crawler\CrawlRun;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Table;

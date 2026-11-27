@@ -8,11 +8,11 @@ use App\Dto\Procurement\Details\CommonInfoData;
 use App\Dto\Procurement\Details\CommonInfoSnapshot;
 use App\Dto\Procurement\Details\FinancingRowData;
 use App\Dto\Procurement\Details\PurchaseItemRowData;
-use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Enums\Telemetry\LogChannel;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
-use App\Services\Procurement\Acquisition\ExtensionWriter;
+use App\Services\Procurement\Acquisition\Detail\ExtensionWriter;
 use App\Services\Reference\ClassifierResolver;
 use Illuminate\Support\Facades\DB;
 

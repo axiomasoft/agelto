@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Contracts;
 
-use App\Services\Llm\Dto\CacheableContent;
-use App\Services\Llm\Dto\LlmCacheHandle;
-use App\Services\Llm\Dto\LlmCacheOptions;
+use App\Dto\Llm\Prompt\CacheableContent;
+use App\Dto\Llm\Prompt\LlmCacheHandle;
+use App\Dto\Llm\Prompt\LlmCacheOptions;
 use Carbon\CarbonInterval;
 
 /**

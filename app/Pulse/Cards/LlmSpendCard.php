@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Pulse\Cards;
 
+use App\Dto\Llm\Reporting\UsageQuery;
+use App\Dto\Llm\Reporting\UsageRow;
 use App\Services\Llm\Contracts\UsageSource;
-use App\Services\Llm\Dto\UsageQuery;
-use App\Services\Llm\Dto\UsageRow;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;

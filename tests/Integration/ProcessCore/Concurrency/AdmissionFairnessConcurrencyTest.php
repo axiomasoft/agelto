@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\StageCode;
-use App\Services\Procurement\Process\WorkFeeder;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\ExecutionFixtures;
@@ -18,12 +18,12 @@ afterEach(fn () => ExecutionFixtures::truncateLedger());
 function fairnessAdmissionWaiter(WorkId $work, string $cursor): string
 {
     return sprintf(
-        '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::registerHandler(\\App\\Enums\\Procurement\\Process\\StageCode::Listing);'
+        '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::registerHandler(\\App\Enums\Procurement\Process\Core\StageCode::Listing);'
         .'return \\Tests\\Support\\ProcessCore\\FinalizeFixtures::afterHolder(function () {'
-        .'$cursor = app(\\App\\Services\\Procurement\\Process\\ProcessPayloadCodec::class)->decodeFairnessCursor('
-        .'new \\App\\Dto\\Procurement\\Process\\VersionedPayload(base64_decode(\'%s\', true), 1));'
-        .'$result = app(\\App\\Repositories\\Procurement\\Process\\AdmissionRepository::class)->admit('
-        .'new \\App\\Dto\\Procurement\\Process\\WorkId(new \\App\\Dto\\Procurement\\Process\\ProcessUuid(\'%s\')), $cursor, 1);'
+        .'$cursor = app(\\App\Services\Procurement\Process\Infrastructure\ProcessPayloadCodec::class)->decodeFairnessCursor('
+        .'new \\App\Dto\Procurement\Process\Primitives\VersionedPayload(base64_decode(\'%s\', true), 1));'
+        .'$result = app(\\App\Repositories\Procurement\Process\Work\AdmissionRepository::class)->admit('
+        .'new \\App\Dto\Procurement\Process\Primitives\WorkId(new \\App\Dto\Procurement\Process\Primitives\ProcessUuid(\'%s\')), $cursor, 1);'
         ."return ['status' => \$result->status->value, 'pid' => \\Illuminate\\Support\\Facades\\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid];"
         .'});',
         base64_encode($cursor),
@@ -51,7 +51,7 @@ test('real PG: ready/resume commit между selection и capacity grant тре
     $before = (array) DB::table('prc_process_work')->where('id', $first[2]->value->value)
         ->selectRaw("*, encode(work_key, 'hex') AS work_key, encode(input_hash, 'hex') AS input_hash")->sole();
     $holder = $resume
-        ? '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode(\'acquisition:platform:bbb\', \\App\\Enums\\Procurement\\Process\\ControlMode::Enabled);'
+        ? '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode(\'acquisition:platform:bbb\', \\App\Enums\Procurement\Process\Governance\ControlMode::Enabled);'
         : '';
     $holder .= '\\Illuminate\\Support\\Facades\\DB::select("SELECT id FROM prc_process_lanes'
         .' WHERE lane_key IN (\'acquisition\', \'acquisition.listing\') ORDER BY id FOR UPDATE");';

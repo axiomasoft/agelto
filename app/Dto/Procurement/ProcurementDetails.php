@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement;
 
 use App\Dto\Procurement\Details\ParsedProcurementDetails;
-use App\Dto\Procurement\Network\AdapterValidationReceipt;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterValidationReceipt;
 
 /**
  * Сырой HTML вкладок `common-info`/`documents`/`event-journal`/`supplier-results`,

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Process\Support;
 
-use App\Dto\Procurement\Process\OperatorCommandResult;
+use App\Dto\Procurement\Process\Governance\OperatorCommandResult;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
 use Filament\Notifications\Notification;

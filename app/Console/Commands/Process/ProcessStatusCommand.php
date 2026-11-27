@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Process;
 
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Repositories\Procurement\Process\Projection\PlatformMetricsReadRepository;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

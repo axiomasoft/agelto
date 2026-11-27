@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Network\AdapterContractRef;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterContractRef;
 use App\Enums\Procurement\Network\AdapterVerdict;
 use Illuminate\Support\Facades\DB;
 

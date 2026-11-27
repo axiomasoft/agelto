@@ -4,22 +4,21 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Document\DocumentReference;
-use App\Dto\Procurement\Document\DocumentReferenceId;
-use App\Dto\Procurement\Document\ReferenceUpsertResult;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Document\Download\DocumentReference;
+use App\Dto\Procurement\Document\Download\DocumentReferenceId;
+use App\Dto\Procurement\Document\Storage\ReferenceUpsertResult;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
 use App\Enums\Procurement\Document\DocumentStatus;
-use App\Enums\Procurement\Process\IntentState;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Governance\IntentState;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
-use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -56,7 +55,7 @@ final readonly class DocumentCatalogRepository
         DB::insert('INSERT INTO prc_procurement_documents(procurement_id,document_id,observed_at) VALUES (?,?,clock_timestamp())
             ON CONFLICT(procurement_id,document_id) DO UPDATE SET observed_at=clock_timestamp(),removed_at=NULL', [$procurement->id, $id]);
         $key = ContentHash::of('document-acquisition:'.$id.':1');
-        $intent = ListingStoreRepository::id('document-intent:'.$key->hex);
+        $intent = ProcessUuid::derived('document-intent:'.$key->hex);
         $existing = LedgerRow::one('SELECT state FROM prc_operation_intents WHERE id=?', [$intent->value]);
         if ($existing === null) {
             DB::update('UPDATE prc_documents SET acquisition_cycle_seq=1 WHERE id=?', [$id]);

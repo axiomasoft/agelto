@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Dto\Procurement\Document\PrepareSource;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Document\Prepare\PrepareSource;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 
 final readonly class PrepareSourceRepository
 {

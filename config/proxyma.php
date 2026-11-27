@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Proxyma\PanelProvider;
+use App\Services\Procurement\Proxyma\Panel\PanelProvider;
 use App\Support\SecretValue;
 
 return [

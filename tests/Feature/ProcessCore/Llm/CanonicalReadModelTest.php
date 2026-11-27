@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Enums\Procurement\Process\WorkState;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Enums\Procurement\Process\Core\WorkState;
 use App\Models\Llm\LlmCall;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Ai\AnalysisRun;
@@ -11,8 +11,8 @@ use App\Repositories\Llm\LlmCallReadRepository;
 use App\Repositories\Procurement\Ai\AnalysisCallReadRepository;
 use App\Repositories\Procurement\Ai\AnalysisRunReadRepository;
 use App\Services\Llm\LlmPayloadReader;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use App\Services\Procurement\Screening\ScreeningHandler;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;

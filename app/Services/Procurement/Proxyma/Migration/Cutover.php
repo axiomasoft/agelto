@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Proxyma\Migration;
 use App\Models\Procurement\Proxyma\CutoverJournal as Journal;
 use App\Models\Procurement\Proxyma\NetworkAuthority;
 use App\Models\Procurement\Proxyma\TransferRecord;
+use App\Support\Database\TransactionGuard;
 use Closure;
 use DomainException;
 use Illuminate\Database\Query\Builder;
@@ -26,7 +27,7 @@ final readonly class Cutover
     /** @param array<int, array{endpoint_id: string, protocol: string}> $endpoints */
     public function run(string $id, array $endpoints, int $expectedGeneration, int $waitMs = 1000): string
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Cutover durable phase commits and waits', $this->journal->inventory->db);
         new Uuid($id);
         $this->bounds($waitMs);
         $row = $this->row($id);
@@ -46,7 +47,7 @@ final readonly class Cutover
             }
         });
         $this->observed('prepared');
-        (new TransferCatalog($this->journal))->run($id, $endpoints);
+        new TransferCatalog($this->journal)->run($id, $endpoints);
         $this->locked(function ($selector) use ($id, $expectedGeneration): void {
             $this->expect($selector, 'legacy', $expectedGeneration);
             if ($selector->cutover_id !== null && $selector->cutover_id !== $id) {
@@ -60,7 +61,7 @@ final readonly class Cutover
 
             return 'drain_timeout_held';
         }
-        (new TransferState($this->journal))->run($id);
+        new TransferState($this->journal)->run($id);
         $this->observed('transferred');
         $this->locked(function ($selector) use ($id, $expectedGeneration): void {
             $this->expect($selector, 'legacy', $expectedGeneration, $id);
@@ -98,7 +99,7 @@ final readonly class Cutover
 
     public function resume(string $id, int $expectedGeneration): string
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Cutover durable phase commits and waits', $this->journal->inventory->db);
         $this->locked(function ($selector) use ($id, $expectedGeneration): void {
             $this->expect($selector, 'proxyma', $expectedGeneration, $id);
             $row = $this->requiredRow($id);
@@ -116,7 +117,7 @@ final readonly class Cutover
 
     public function rollback(string $id, int $expectedGeneration, int $waitMs = 1000): string
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Cutover durable phase commits and waits', $this->journal->inventory->db);
         $this->bounds($waitMs);
         $refused = $this->locked(function ($selector) use ($id, $expectedGeneration): bool {
             $this->expect($selector, 'proxyma', $expectedGeneration, $id);
@@ -172,7 +173,7 @@ final readonly class Cutover
             throw new DomainException('Exact target equality failed; keep paused for roll-forward.');
         }
         /** @var object{target_table: string, identity: string, imported: string} $record */
-        foreach ($i->db->table((new TransferRecord)->getTable())->where('cutover_id', $id)->get() as $record) {
+        foreach ($i->db->table(new TransferRecord()->getTable())->where('cutover_id', $id)->get() as $record) {
             $this->journal->put($id, $record->target_table, Inventory::jsonObject($record->identity),
                 Inventory::jsonObject($record->imported));
         }
@@ -234,13 +235,6 @@ final readonly class Cutover
         }
     }
 
-    private function outsideTransaction(): void
-    {
-        if ($this->journal->inventory->db->transactionLevel() !== 0) {
-            throw new DomainException('Cutover requires durable phase commits and waits outside a caller transaction.');
-        }
-    }
-
     private function recordDrainHold(string $id, int $generation): void
     {
         $this->locked(function ($selector) use ($id, $generation): void {
@@ -285,12 +279,12 @@ final readonly class Cutover
 
     private function selector(): Builder
     {
-        return $this->journal->inventory->db->table((new NetworkAuthority)->getTable())->where('id', 'network');
+        return $this->journal->inventory->db->table(new NetworkAuthority()->getTable())->where('id', 'network');
     }
 
     private function journals(): Builder
     {
-        return $this->journal->inventory->db->table((new Journal)->getTable());
+        return $this->journal->inventory->db->table(new Journal()->getTable());
     }
 
     /** @return JournalRow|null */

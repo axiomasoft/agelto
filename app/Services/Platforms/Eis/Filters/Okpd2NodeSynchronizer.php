@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Services\Platforms\Eis\Filters;
 
 use App\Dto\Platforms\Eis\EisPolicy;
-use App\Dto\Procurement\Network\HttpRequestPayload;
-use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Network\Http\HttpRequestPayload;
+use App\Dto\Procurement\Network\Http\SafeUrl;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Platform\Okpd2NodeReadRepository;
 use App\Repositories\Procurement\Platform\Okpd2NodeStoreRepository;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
-use App\Services\Procurement\Proxyma\ProfileBindings;
-use App\Services\Procurement\Proxyma\ProfileResolver;
+use App\Services\Procurement\Proxyma\Catalog\ProfileBindings;
+use App\Services\Procurement\Proxyma\Catalog\ProfileResolver;
 use Illuminate\Http\Client\Response;
 use RuntimeException;
 

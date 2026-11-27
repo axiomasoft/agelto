@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Process;
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Services\Procurement\Acquisition\AcquisitionProfiles;
-use App\Services\Procurement\Acquisition\AcquisitionScheduler;
+use App\Services\Procurement\Acquisition\Listing\AcquisitionProfiles;
+use App\Services\Procurement\Acquisition\Orchestration\AcquisitionScheduler;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\ModelNotFoundException;

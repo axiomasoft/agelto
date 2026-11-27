@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\PrepareInput;
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Inputs\PrepareInput;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Process\Execution\StageRegistry;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;
 

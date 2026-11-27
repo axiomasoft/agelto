@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\StageCode;
-use App\Services\Procurement\Process\StageQueueMap;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Services\Procurement\Process\Execution\StageQueueMap;
 
 test('скачивание и ревалидация имеют Horizon consumer с достаточным timeout', function (): void {
     $route = app(StageQueueMap::class)->forStage(StageCode::Download);

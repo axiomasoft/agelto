@@ -12,9 +12,9 @@ try {
     \Tests\Support\ProcessCore\DetailFixtures::bind();
     $registry=\App\Models\Procurement\Platform\Registry::factory()->eis()->create();
     $f=\Tests\Support\ProcessCore\DetailFixtures::work($registry);
-    app(\App\Services\Procurement\Process\WorkFinalizer::class)->finish(\Tests\Support\ProcessCore\FinalizeFixtures::running($f['work']),
-        new \App\Dto\Procurement\Process\StageSucceeded(new \App\Dto\Procurement\Acquisition\DetailResult(
-            \Tests\Support\ProcessCore\DetailFixtures::snapshot($f['request'],'attributes'),new \App\Dto\Procurement\Acquisition\DetailProgress,\App\Enums\Procurement\Platform\SnapshotConsistency::BoundedRevalidated,new DateTimeImmutable)));
+    app(\App\Services\Procurement\Process\Execution\WorkFinalizer::class)->finish(\Tests\Support\ProcessCore\FinalizeFixtures::running($f['work']),
+        new \App\Dto\Procurement\Process\Outcomes\StageSucceeded(new \App\Dto\Procurement\Acquisition\Detail\DetailResult(
+            \Tests\Support\ProcessCore\DetailFixtures::snapshot($f['request'],'attributes'),new \App\Dto\Procurement\Acquisition\Detail\DetailProgress,\App\Enums\Procurement\Platform\SnapshotConsistency::BoundedRevalidated,new DateTimeImmutable)));
     $call='fn()=>app(\App\Repositories\Procurement\Crawler\RefreshRepository::class)->scheduleStatus('.$f['p']->id.')?->value->value';
     $bind='\Tests\Support\ProcessCore\DetailFixtures::bindLocal(); ';
     $results=\Tests\Support\Postgres\ConcurrentTransactions::concurrently([
@@ -44,8 +44,8 @@ try {
     $registry=\App\Models\Procurement\Platform\Registry::factory()->eis()->create();
     $f=\Tests\Support\ProcessCore\DetailFixtures::work($registry, 'remap-race', 'raw-race');
     \App\Models\Procurement\Platform\StatusMapping::query()->where('registry_id',$registry->id)->where('source_stage','raw-race')->update(['canonical_status'=>'evaluation']);
-    $remap='fn()=>app(\App\Services\Procurement\Acquisition\StatusRemapper::class)->remap('.$f['p']->id.',1)';
-    $new='fn()=>app(\App\Services\Procurement\Acquisition\SnapshotFinalizer::class)->ingest(\Tests\Support\Procurement\SnapshotFactory::make(\App\Models\Procurement\Platform\Registry::findOrFail('.$registry->id.'),["registryNumber"=>"remap-race","title"=>"new-head","sourceStage"=>"Подача заявок"]))->title';
+    $remap='fn()=>app(\App\Services\Procurement\Acquisition\Status\StatusRemapper::class)->remap('.$f['p']->id.',1)';
+    $new='fn()=>app(\App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer::class)->ingest(\Tests\Support\Procurement\SnapshotFactory::make(\App\Models\Procurement\Platform\Registry::findOrFail('.$registry->id.'),["registryNumber"=>"remap-race","title"=>"new-head","sourceStage"=>"Подача заявок"]))->title';
     $bind='\Tests\Support\ProcessCore\DetailFixtures::bindLocal(); ';
     $results=\Tests\Support\Postgres\ConcurrentTransactions::concurrently([
         'holder'=>$bind.'return ["value"=>\Tests\Support\ProcessCore\FinalizeFixtures::holdUntilWaiter('.($remapFirst?$remap:$new).')];',

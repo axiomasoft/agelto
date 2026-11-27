@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Health;
 
 use App\Dto\Procurement\Health\CheckResult;
-use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Events\Procurement\PlatformHealthChanged;
 use App\Models\Procurement\Health\PlatformCheck;
 use App\Models\Procurement\Platform\Platform;
 use App\Repositories\Procurement\Health\PlatformCheckStoreRepository;
-use App\Services\Procurement\Acquisition\DiagnosticRunner;
+use App\Services\Procurement\Acquisition\Diagnostics\DiagnosticRunner;
 use App\Services\Procurement\Health\Checks\CardParseCheck;
 use App\Services\Procurement\Health\Checks\EstimateFieldsCheck;
 use App\Services\Procurement\Health\Checks\ListingShapeCheck;

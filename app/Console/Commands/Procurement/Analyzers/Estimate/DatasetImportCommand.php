@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Enums\Procurement\Ai\AiDocumentType;
-use App\Services\Procurement\Analyzers\Estimate\DatasetImporter;
+use App\Services\Procurement\Analyzers\Estimate\Eval\DatasetImporter;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

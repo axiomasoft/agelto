@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Filament\Widgets;
 
+use App\Dto\Llm\Reporting\UsageQuery;
+use App\Dto\Llm\Reporting\UsageReport;
+use App\Dto\Llm\Reporting\UsageRow;
 use App\Services\Llm\Contracts\UsageSource;
-use App\Services\Llm\Dto\UsageQuery;
-use App\Services\Llm\Dto\UsageReport;
-use App\Services\Llm\Dto\UsageRow;
 use AzGuard\Filament\Concerns\AuthorizesWidget;
 use Carbon\CarbonImmutable;
 use Filament\Widgets\ChartWidget;

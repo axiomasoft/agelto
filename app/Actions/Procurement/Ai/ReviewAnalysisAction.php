@@ -8,8 +8,8 @@ use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\ReviewStatus;
 use App\Repositories\Procurement\Ai\AnalysisReviewRepository;
 use App\Repositories\Procurement\Ai\DatasetExampleStoreRepository;
-use App\Services\Procurement\Analyzers\Estimate\GoldExampleRecorder;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Analyzers\Estimate\Eval\GoldExampleRecorder;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Str;
 
 /** Operator review and its gold/correction commit together; accepted execution data stays immutable. */

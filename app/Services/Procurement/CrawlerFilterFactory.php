@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement;
 
-use App\Dto\Procurement\Platform\AcquisitionProfileDescriptor;
-use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\Definition\AcquisitionProfileDescriptor;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Spatie\LaravelData\Data;

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Procurement\Estimate\Estimate;
-use App\Services\Procurement\Process\ProcessAuthoritySync;
+use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;

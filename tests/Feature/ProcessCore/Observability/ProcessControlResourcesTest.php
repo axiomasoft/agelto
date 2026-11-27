@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\AccountingRole;
-use App\Enums\Procurement\Process\RunWorkRelation;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\AccountingRole;
+use App\Enums\Procurement\Process\Core\RunWorkRelation;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Filament\Resources\Procurement\Process\ControlScopes\ControlScopeResource;
 use App\Filament\Resources\Procurement\Process\ControlScopes\Pages\ListControlScopes;
 use App\Filament\Resources\Procurement\Process\Incidents\IncidentResource;
@@ -23,10 +23,10 @@ use App\Models\Procurement\Process\Incident;
 use App\Models\Procurement\Process\ProcessRun;
 use App\Models\Procurement\Process\WorkItem;
 use App\Models\User;
-use App\Repositories\Procurement\Process\IncidentRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Repositories\Procurement\Process\Authority\IncidentRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\Support\ProcessCore\ExecutionFixtures;

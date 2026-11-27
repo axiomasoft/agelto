@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\ProcessCore\Observability;
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\TransitionData;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ActorKind;
-use App\Repositories\Procurement\Process\TransitionRepository;
-use App\Services\Procurement\Process\MetricCatalog;
-use App\Services\Procurement\Process\MetricProjector;
+use App\Dto\Procurement\Process\Governance\TransitionData;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Governance\ActorKind;
+use App\Repositories\Procurement\Process\Projection\TransitionRepository;
+use App\Services\Procurement\Process\Projection\MetricCatalog;
+use App\Services\Procurement\Process\Projection\MetricProjector;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\AcquisitionKind;
-use App\Services\Procurement\Acquisition\AcquisitionTick;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
+use App\Services\Procurement\Acquisition\Orchestration\AcquisitionTick;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Events\QueryExecuted;

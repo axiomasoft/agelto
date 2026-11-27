@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Network\ProxyNodeConfiguration;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Network\Control\ProxyNodeConfiguration;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Services\Procurement\Proxyma\Migration\HistoricalCatalog;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Domain\Execution\Uuid;

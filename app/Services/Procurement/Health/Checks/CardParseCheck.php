@@ -8,7 +8,7 @@ use App\Dto\Procurement\Health\CheckResult;
 use App\Dto\Procurement\Health\HealthBaseline;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Models\Procurement\Platform\Platform;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Health\HealthCheckResultFactory;
 use App\Services\Procurement\Health\PassiveHealthCheck;
 use Carbon\CarbonInterface;

@@ -7,12 +7,21 @@ namespace App\Services\Llm\Execution;
 use App\Dto\Llm\Cache\ContextCacheKey;
 use App\Dto\Llm\Cache\FileAssetKey;
 use App\Dto\Llm\Cache\ProviderCapabilities;
+use App\Enums\Llm\AuthHeaderScheme;
 use App\Enums\Llm\OperationPurpose;
 use App\Services\Llm\Schema\CanonicalJson;
 
 /** Pure immutable wire, without credentials or any authority to send it. */
 final readonly class ProviderWireRequest
 {
+    private const array ALLOWED_JSON_HEADERS = [
+        'OpenAI-Organization',
+        'OpenAI-Project',
+        'anthropic-version',
+        'HTTP-Referer',
+        'X-Title',
+    ];
+
     public string $bodyHash;
 
     public string $fingerprint;
@@ -28,6 +37,7 @@ final readonly class ProviderWireRequest
         public array $headers = [],
         public FileAssetKey|ContextCacheKey|null $assetKey = null,
         public ?ProviderCapabilities $capabilities = null,
+        public AuthHeaderScheme $authScheme = AuthHeaderScheme::XGoogApiKey,
     ) {
         $url = parse_url($endpoint);
         $origin = parse_url($allowedOrigin);
@@ -46,8 +56,12 @@ final readonly class ProviderWireRequest
             } elseif (! in_array($method, ['GET', 'DELETE'], true)) {
                 throw new \InvalidArgumentException('Missing sealed JSON body.');
             }
-            if ($headers !== []) {
-                throw new \InvalidArgumentException('Unsupported JSON wire headers.');
+            foreach ($headers as $headerName => $headerValue) {
+                if (! in_array($headerName, self::ALLOWED_JSON_HEADERS, true)
+                    || $headerValue === ''
+                    || preg_match('/[\r\n\x00]/', $headerValue) === 1) {
+                    throw new \InvalidArgumentException('Unsupported JSON wire headers.');
+                }
             }
         } elseif ($operation->identity->purpose !== OperationPurpose::FileUpload || $method !== 'POST'
             || preg_match('/^multipart\/related; boundary=agelto-[a-f0-9]{64}$/D', $contentType) !== 1
@@ -59,7 +73,7 @@ final readonly class ProviderWireRequest
             'logical_key' => $operation->identity->logicalKey, 'context' => $operation->context->json,
             'purpose' => $operation->identity->purpose->value, 'task_purpose' => $operation->generation?->purpose->value, 'input' => $operation->identity->inputHash,
             'method' => $method, 'endpoint' => $endpoint, 'origin' => $allowedOrigin, 'body' => $this->bodyHash,
-            'content_type' => $contentType, 'headers' => $headers,
+            'content_type' => $contentType, 'headers' => $headers, 'auth_scheme' => $authScheme->value,
             'asset_key' => $assetKey?->hash,
             'capabilities' => $capabilities === null ? null : [$capabilities->version, $capabilities->validUntil,
                 $capabilities->files, $capabilities->explicitCache, $capabilities->implicitCache,
@@ -82,7 +96,13 @@ final readonly class ProviderWireRequest
             throw new \InvalidArgumentException('Invalid provider credential.');
         }
 
-        return [...$this->headers, 'Content-Type' => $this->contentType, 'x-goog-api-key' => $apiKey];
+        $authHeader = match ($this->authScheme) {
+            AuthHeaderScheme::XGoogApiKey => ['x-goog-api-key' => $apiKey],
+            AuthHeaderScheme::Bearer => ['Authorization' => 'Bearer '.$apiKey],
+            AuthHeaderScheme::XApiKey => ['x-api-key' => $apiKey],
+        };
+
+        return [...$this->headers, 'Content-Type' => $this->contentType, ...$authHeader];
     }
 
     /** @return array<string, string> */

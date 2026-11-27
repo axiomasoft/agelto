@@ -3,20 +3,20 @@
 declare(strict_types=1);
 
 use App\Actions\Procurement\Process\CancelWork;
-use App\Dto\Procurement\Ai\AnalysisRecipe;
-use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
-use App\Dto\Procurement\Ai\ScreeningProgress;
-use App\Dto\Procurement\Process\MissingParts;
-use App\Dto\Procurement\Process\NoProviderRecovery;
-use App\Dto\Procurement\Process\ProviderRecoveryPlan;
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Dto\Procurement\Process\StagePartial;
-use App\Dto\Procurement\Process\VersionedPayload;
+use App\Dto\Procurement\Ai\Execution\AnalysisRecipe;
+use App\Dto\Procurement\Ai\Execution\AnalysisRunSnapshot;
+use App\Dto\Procurement\Ai\Screening\ScreeningProgress;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Dto\Procurement\Process\Outcomes\StagePartial;
+use App\Dto\Procurement\Process\Primitives\MissingParts;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Dto\Procurement\Process\Provider\NoProviderRecovery;
+use App\Dto\Procurement\Process\Provider\ProviderRecoveryPlan;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use App\Services\Procurement\Screening\ScreeningHandler;
 use App\Services\Procurement\Screening\ScreeningStageCodec;
 use Illuminate\Database\QueryException;
@@ -143,7 +143,7 @@ test('two PostgreSQL finalizers publish one screening result and one successor',
     $payload = base64_encode(serialize([$lease, $outcome]));
     $code = '\Tests\Support\ProcessCore\ScreeningRuntimeFixtures::bind();'
         .'[$lease,$outcome]=unserialize(base64_decode('.var_export($payload, true).'));'
-        .'$result=app(\App\Services\Procurement\Process\WorkFinalizer::class)->finish($lease,$outcome);'
+        .'$result=app(\App\Services\Procurement\Process\Execution\WorkFinalizer::class)->finish($lease,$outcome);'
         .'return ["status"=>$result->status->value,"pid"=>\Illuminate\Support\Facades\DB::selectOne("SELECT pg_backend_pid() AS id")->id];';
     $results = ConcurrentTransactions::concurrently(['first' => $code, 'second' => $code]);
     $statuses = [$results['first']['status'], $results['second']['status']];

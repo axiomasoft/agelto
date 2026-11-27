@@ -5,22 +5,22 @@ declare(strict_types=1);
 namespace Tests\Support\ProcessCore;
 
 use App\Dto\Llm\Requests\RequestIdentity;
-use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Dto\Procurement\Process\StoreWorkData;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Ai\Planning\AnalysisWindowSnapshot;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Execution\StoreWorkData;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Llm\OperationPurpose;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Repositories\Procurement\Ai\ScreeningFinalizer;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Llm\Execution\ProviderOperationPlan;
 use App\Services\Llm\Execution\RequestLedger;
-use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
-use App\Services\Procurement\Process\ProcessAuthoritySync;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Extraction\Provider\AnalysisCallCoordinator;
+use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
+use App\Services\Procurement\Process\Execution\StageRegistry;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use App\Services\Procurement\Screening\ScreeningStageCodec;
 
 final class ScreeningRuntimeFixtures

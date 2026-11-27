@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxyma\Migration;
 
-use App\Dto\Procurement\Network\HttpRouteBinding;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Dto\Procurement\Network\Control\HttpRouteBinding;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 
 /** Только чтение pre-transfer snapshot identity; не resolver маршрутов и не traffic authority. */
 final class HistoricalCatalog

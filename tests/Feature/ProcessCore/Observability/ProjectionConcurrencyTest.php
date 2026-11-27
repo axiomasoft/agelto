@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\PruneResult;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ProjectionApplyStatus;
-use App\Enums\Procurement\Process\RebuildStatus;
-use App\Services\Procurement\Process\MetricProjector;
-use App\Services\Procurement\Process\ProjectionRebuilder;
-use App\Services\Procurement\Process\ProjectionRetention;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Dto\Procurement\Process\Projection\PruneResult;
+use App\Enums\Procurement\Process\Projection\ProjectionApplyStatus;
+use App\Enums\Procurement\Process\Projection\RebuildStatus;
+use App\Services\Procurement\Process\Projection\MetricProjector;
+use App\Services\Procurement\Process\Projection\ProjectionRebuilder;
+use App\Services\Procurement\Process\Projection\ProjectionRetention;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\ProcessCore\Observability\ProjectionFixtures as Fixture;
@@ -85,23 +85,23 @@ function projConcScenario(): array
 
 function projConcApplyCode(ProcessUuid $event): string
 {
-    return "return array_map(static fn (\$status) => \$status->value, app(\\App\\Services\\Procurement\\Process\\MetricProjector::class)->apply(new \\App\\Dto\\Procurement\\Process\\ProcessUuid('{$event->value}')));";
+    return "return array_map(static fn (\$status) => \$status->value, app(\\App\Services\Procurement\Process\Projection\MetricProjector::class)->apply(new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('{$event->value}')));";
 }
 
 function projConcRebuildCode(): string
 {
-    return "return ['status' => app(\\App\\Services\\Procurement\\Process\\ProjectionRebuilder::class)->rebuild('work_transitions')->status->value];";
+    return "return ['status' => app(\\App\Services\Procurement\Process\Projection\ProjectionRebuilder::class)->rebuild('work_transitions')->status->value];";
 }
 
 /** Шаг A rebuild: state FOR UPDATE → maintenance + token (внутри tx вызывающего barrier). */
 function projConcGateCode(string $token): string
 {
-    return "\$repository = app(\\App\\Repositories\\Procurement\\Process\\ProjectionRepository::class); \$repository->stateForUpdate('work_transitions'); return ['entered' => \$repository->enterMaintenance('work_transitions', new \\App\\Dto\\Procurement\\Process\\ProcessUuid('{$token}'))];";
+    return "\$repository = app(\\App\Repositories\Procurement\Process\Projection\ProjectionRepository::class); \$repository->stateForUpdate('work_transitions'); return ['entered' => \$repository->enterMaintenance('work_transitions', new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('{$token}'))];";
 }
 
 function projConcPruneCode(ProcessUuid $event): string
 {
-    return "\$result = app(\\App\\Services\\Procurement\\Process\\ProjectionRetention::class)->prune([new \\App\\Dto\\Procurement\\Process\\ProcessUuid('{$event->value}')]); return ['pruned' => \$result->pruned, 'deferred' => \$result->deferredForMaintenance];";
+    return "\$result = app(\\App\Services\Procurement\Process\Projection\ProjectionRetention::class)->prune([new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('{$event->value}')]); return ['pruned' => \$result->pruned, 'deferred' => \$result->deferredForMaintenance];";
 }
 
 /** Holder: tx открыта, locks операции удерживаются, пока не появится реальный lock-waiter. */
@@ -122,7 +122,7 @@ function projConcHoldForTwoWaiters(): string
     return <<<'PHP'
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
-            app(\App\Repositories\Procurement\Process\ProjectionRepository::class)->stateForUpdate('work_transitions');
+            app(\App\Repositories\Procurement\Process\Projection\ProjectionRepository::class)->stateForUpdate('work_transitions');
             \Illuminate\Support\Facades\DB::selectOne('SELECT pg_advisory_lock(?)', [\Tests\Support\ProcessCore\FinalizeFixtures::SIGNAL]);
             $deadline = hrtime(true) + 10_000_000_000;
             while ((int) \Illuminate\Support\Facades\DB::selectOne("SELECT count(*) AS n FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND wait_event_type = 'Lock'")->n < 2) {
@@ -155,7 +155,7 @@ function projConcProducerDuringSnapshot(string $workId): string
             usleep(5_000);
         }
         $event = \Illuminate\Support\Facades\DB::transaction(fn () => \Tests\Feature\ProcessCore\Observability\ProjectionFixtures::transition(
-            new \App\Dto\Procurement\Process\WorkId(new \App\Dto\Procurement\Process\ProcessUuid('__WORK__')), 'superseded', 'input_invalidated', 'succeeded',
+            new \App\Dto\Procurement\Process\Primitives\WorkId(new \App\Dto\Procurement\Process\Primitives\ProcessUuid('__WORK__')), 'superseded', 'input_invalidated', 'succeeded',
         ));
 
         return ['event' => $event->value];
@@ -423,7 +423,7 @@ function projConcLateProducerCode(string $workId): string
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
             $event = \Tests\Feature\ProcessCore\Observability\ProjectionFixtures::transition(
-                new \App\Dto\Procurement\Process\WorkId(new \App\Dto\Procurement\Process\ProcessUuid('__WORK__')), 'running', null, 'admitted',
+                new \App\Dto\Procurement\Process\Primitives\WorkId(new \App\Dto\Procurement\Process\Primitives\ProcessUuid('__WORK__')), 'running', null, 'admitted',
             );
             \Illuminate\Support\Facades\DB::selectOne('SELECT pg_advisory_lock(?)', [$fx::SIGNAL]);
             $deadline = hrtime(true) + 10_000_000_000;
@@ -578,7 +578,7 @@ function projConcPauseBeforeCommitCode(string $marker, bool $consumeDiagnostic):
                 throw new \RuntimeException('terminated PDO unexpectedly accepted a query');
             }
         });
-        $result = app(\App\Services\Procurement\Process\ProjectionRebuilder::class)->rebuild('work_transitions');
+        $result = app(\App\Services\Procurement\Process\Projection\ProjectionRebuilder::class)->rebuild('work_transitions');
         $afterPid = (int) \Illuminate\Support\Facades\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid;
         $level = \Illuminate\Support\Facades\DB::transactionLevel();
         $timeoutMs = (int) \Illuminate\Support\Facades\DB::selectOne("SELECT setting FROM pg_settings WHERE name = 'transaction_timeout'")->setting;
@@ -652,7 +652,7 @@ test('потеря соединения после committed flip и deadline н
             throw new \RuntimeException('terminated PDO unexpectedly accepted a query');
         });
         try {
-            $status = app(\App\Services\Procurement\Process\ProjectionRebuilder::class)->rebuild('work_transitions')->status->value;
+            $status = app(\App\Services\Procurement\Process\Projection\ProjectionRebuilder::class)->rebuild('work_transitions')->status->value;
         } catch (\PDOException) {
             $status = 'connection_lost';
         } finally {
@@ -720,7 +720,7 @@ test('cleanup неактивных generation ждёт идущий apply под
     $results = ConcurrentTransactions::concurrently([
         'apply' => projConcHold(projConcApplyCode($late)),
         'cleanup' => projConcAfter(
-            "return \\Illuminate\\Support\\Facades\\DB::transaction(function () { \$repository = app(\\App\\Repositories\\Procurement\\Process\\ProjectionRepository::class); \$repository->stateForUpdate('work_transitions'); return ['deleted' => \$repository->deleteInactiveTotals('work_transitions')]; });",
+            "return \\Illuminate\\Support\\Facades\\DB::transaction(function () { \$repository = app(\\App\Repositories\Procurement\Process\Projection\ProjectionRepository::class); \$repository->stateForUpdate('work_transitions'); return ['deleted' => \$repository->deleteInactiveTotals('work_transitions')]; });",
         ),
     ]);
 
@@ -741,7 +741,7 @@ function projConcKillDuringPruneCode(string $marker, ProcessUuid $first, Process
                 __KILL__
             }
         });
-        PHP)." \$result = app(\\App\\Services\\Procurement\\Process\\ProjectionRetention::class)->prune([new \\App\\Dto\\Procurement\\Process\\ProcessUuid('{$first->value}'), new \\App\\Dto\\Procurement\\Process\\ProcessUuid('{$second->value}')]); return ['pruned' => \$result->pruned];";
+        PHP)." \$result = app(\\App\Services\Procurement\Process\Projection\ProjectionRetention::class)->prune([new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('{$first->value}'), new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('{$second->value}')]); return ['pruned' => \$result->pruned];";
 }
 
 /** @return array{first: ProcessUuid, second: ProcessUuid} события с receipt и подтверждённым fanout, готовые к prune */
@@ -806,7 +806,7 @@ test('retention: сбой при пометке history_complete откатыв�
 
 test('retention: apply события держит state FOR SHARE, prune ждёт и после появления receipt видит неподтверждённый fanout — источник остаётся', function (): void {
     $scenario = projConcScenario();
-    $prune = "\$result = app(\\App\\Services\\Procurement\\Process\\ProjectionRetention::class)->prune([new \\App\\Dto\\Procurement\\Process\\ProcessUuid('{$scenario['succeeded']->value}')]); return ['pruned' => \$result->pruned, 'ineligible' => \$result->ineligible];";
+    $prune = "\$result = app(\\App\Services\Procurement\Process\Projection\ProjectionRetention::class)->prune([new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('{$scenario['succeeded']->value}')]); return ['pruned' => \$result->pruned, 'ineligible' => \$result->ineligible];";
 
     // Новая «ссылка» (receipt) появляется одновременно с удалением; fanout ещё не подтверждён relay/projector.
     $results = ConcurrentTransactions::concurrently([

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
 
 /** Namespace order lane < storage. This hook runs after lane locks and BEFORE subjects/work. */

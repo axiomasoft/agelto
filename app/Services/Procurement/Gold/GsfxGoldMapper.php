@@ -13,7 +13,7 @@ use App\Dto\Procurement\Prepare\Gsfx\GsfxDocument;
 use App\Dto\Procurement\Prepare\Gsfx\GsfxWorkType;
 use App\Dto\Procurement\Prepare\Gsfx\GsfxWorkTypeGroup;
 use App\Enums\Procurement\Estimate\CalcMethod;
-use App\Services\Procurement\Analyzers\Estimate\DecimalNormalizer;
+use App\Services\Procurement\Analyzers\Estimate\Core\DecimalNormalizer;
 
 /**
  * `GsfxDocument` → gold без записи на диск.

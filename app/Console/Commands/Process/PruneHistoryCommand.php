@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Process;
 
-use App\Repositories\Procurement\Process\ProjectionRepository;
+use App\Repositories\Procurement\Process\Projection\ProjectionRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
-use App\Services\Procurement\Process\ProjectionRegistry;
-use App\Services\Procurement\Process\RetentionService;
+use App\Services\Procurement\Process\Projection\ProjectionRegistry;
+use App\Services\Procurement\Process\Projection\RetentionService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

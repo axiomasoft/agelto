@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\ExtractionProgress;
-use App\Dto\Procurement\Ai\ScreeningProgress;
-use App\Dto\Procurement\Process\DbInstant;
-use App\Dto\Procurement\Process\Duration;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\StageBlocked;
-use App\Dto\Procurement\Process\StageDeferred;
-use App\Dto\Procurement\Process\StagePartial;
+use App\Dto\Procurement\Ai\Extraction\ExtractionProgress;
+use App\Dto\Procurement\Ai\Screening\ScreeningProgress;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Outcomes\StageBlocked;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
+use App\Dto\Procurement\Process\Outcomes\StagePartial;
+use App\Dto\Procurement\Process\Primitives\DbInstant;
+use App\Dto\Procurement\Process\Primitives\Duration;
 use App\Enums\Llm\ProviderSendDenial;
 use App\Exceptions\Procurement\Ai\AnalysisSendDenied;
 use App\Exceptions\Procurement\Process\LeaseLost;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Services\Llm\Execution\SendClaimResult;
 use App\Services\Llm\Execution\StructuredCallExecutor;
-use App\Services\Procurement\Extraction\AnalysisSendPolicy;
+use App\Services\Procurement\Extraction\Provider\AnalysisSendPolicy;
 use App\Services\Procurement\Process\Contracts\LeaseKeeper;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use Illuminate\Support\Facades\DB;

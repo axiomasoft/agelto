@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\DetailFetched;
-use App\Dto\Procurement\Acquisition\DetailProgress;
-use App\Dto\Procurement\Acquisition\DetailResult;
-use App\Dto\Procurement\Acquisition\ProcurementSnapshot;
+use App\Dto\Procurement\Acquisition\Detail\DetailFetched;
+use App\Dto\Procurement\Acquisition\Detail\DetailProgress;
+use App\Dto\Procurement\Acquisition\Detail\DetailResult;
+use App\Dto\Procurement\Acquisition\Detail\ProcurementSnapshot;
 use App\Dto\Procurement\Details\ProtocolData;
 use App\Dto\Procurement\Details\SupplierResultsData;
-use App\Dto\Procurement\Process\StageSucceeded;
-use App\Dto\Procurement\Process\StatusRefreshInput;
+use App\Dto\Procurement\Process\Inputs\StatusRefreshInput;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
 use App\Enums\Procurement\Platform\SnapshotConsistency;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Crawler\RefreshRepository;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
-use App\Services\Procurement\Acquisition\StatusRefreshHandler;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Status\StatusRefreshHandler;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DetailFixtures as F;

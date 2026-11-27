@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Platform;
 
-use App\Dto\Procurement\Acquisition\ListingPage;
-use App\Dto\Procurement\Acquisition\ListingPassEvidence;
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Acquisition\Listing\ListingPage;
+use App\Dto\Procurement\Acquisition\Listing\ListingPassEvidence;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use App\Enums\Procurement\Platform\ListingStability;
 
 /** Pure evidence evaluation. Acquisition owns durable membership, watermarks and successor accounting. */

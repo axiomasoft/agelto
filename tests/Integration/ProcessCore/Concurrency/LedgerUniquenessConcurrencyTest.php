@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\ScopeDefinition;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ScopeKind;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\ControlRepository;
-use App\Repositories\Procurement\Process\HandlerAuthorityRepository;
-use App\Repositories\Procurement\Process\LaneRepository;
-use App\Services\Procurement\Process\ProcessPolicy;
+use App\Dto\Procurement\Process\Authority\ScopeDefinition;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ScopeKind;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
+use App\Repositories\Procurement\Process\Authority\HandlerAuthorityRepository;
+use App\Repositories\Procurement\Process\Authority\LaneRepository;
+use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\LedgerFixtures;
@@ -55,7 +55,7 @@ function ledgerConcurrencyListingStatement(array $fixture): string
 {
     return sprintf(
         '\\Tests\\Support\\ProcessCore\\LedgerFixtures::storeWork(\\Tests\\Support\\ProcessCore\\LedgerFixtures::listingInput('
-        ."new \\App\\Dto\\Procurement\\Process\\ProcessUuid('%s'), new \\App\\Dto\\Procurement\\Process\\ContentHash('%s'), new \\App\\Dto\\Procurement\\Process\\ContentHash('%s')));",
+        ."new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('%s'), new \\App\Dto\Procurement\Process\Primitives\ContentHash('%s'), new \\App\Dto\Procurement\Process\Primitives\ContentHash('%s')));",
         $fixture['block'], $fixture['filter_hash'], $fixture['access_policy_hash'],
     );
 }
@@ -99,12 +99,12 @@ test('два одновременных writer одного immutable input со
 test('два одновременных active intent одного subject: partial unique оставляет один active', function (): void {
     $fixture = ledgerConcurrencyFixture();
     $intent = static fn (): string => sprintf(
-        'app(\\App\\Repositories\\Procurement\\Process\\WorkStoreRepository::class)->storeIntent('
+        'app(\\App\Repositories\Procurement\Process\Work\WorkStoreRepository::class)->storeIntent('
         .'id: \\Tests\\Support\\ProcessCore\\LedgerFixtures::uuid(), intentKey: \\Tests\\Support\\ProcessCore\\LedgerFixtures::hash((string) \\Illuminate\\Support\\Str::uuid()), '
-        .'stage: \\App\\Enums\\Procurement\\Process\\StageCode::Listing, '
-        ."subject: new \\App\\Dto\\Procurement\\Process\\SubjectKey(\\App\\Enums\\Procurement\\Process\\SubjectKind::CrawlBlock, new \\App\\Dto\\Procurement\\Process\\ProcessUuid('%s')), "
+        .'stage: \\App\Enums\Procurement\Process\Core\StageCode::Listing, '
+        ."subject: new \\App\Dto\Procurement\Process\Primitives\SubjectKey(\\App\Enums\Procurement\Process\Core\SubjectKind::CrawlBlock, new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('%s')), "
         ."semanticPolicyHash: \\Tests\\Support\\ProcessCore\\LedgerFixtures::hash('semantic'), accessPolicyHash: \\Tests\\Support\\ProcessCore\\LedgerFixtures::hash('access'), "
-        .'cycleSeq: 1, expectedHeadGeneration: 1, state: \\App\\Enums\\Procurement\\Process\\IntentState::Active);',
+        .'cycleSeq: 1, expectedHeadGeneration: 1, state: \\App\Enums\Procurement\Process\Governance\IntentState::Active);',
         $fixture['block'],
     );
 
@@ -127,10 +127,10 @@ test('два одновременных ensureScopes одной цепочки �
     $platformKey = 'acquisition:platform:concurrency-'.LedgerFixtures::uuid()->value;
     $existing = DB::table('prc_control_scopes')->whereIn('scope_key', ['system', 'acquisition'])->pluck('scope_key')->all();
     $chain = sprintf(
-        'app(\\App\\Repositories\\Procurement\\Process\\ControlRepository::class)->ensureScopes(['
-        ."new \\App\\Dto\\Procurement\\Process\\ScopeDefinition(\\App\\Enums\\Procurement\\Process\\ScopeKind::Platform, '%s', 'acquisition'), "
-        ."new \\App\\Dto\\Procurement\\Process\\ScopeDefinition(\\App\\Enums\\Procurement\\Process\\ScopeKind::Acquisition, 'acquisition', 'system'), "
-        ."new \\App\\Dto\\Procurement\\Process\\ScopeDefinition(\\App\\Enums\\Procurement\\Process\\ScopeKind::System, 'system', null)]);",
+        'app(\\App\Repositories\Procurement\Process\Authority\ControlRepository::class)->ensureScopes(['
+        ."new \\App\Dto\Procurement\Process\Authority\ScopeDefinition(\\App\Enums\Procurement\Process\Governance\ScopeKind::Platform, '%s', 'acquisition'), "
+        ."new \\App\Dto\Procurement\Process\Authority\ScopeDefinition(\\App\Enums\Procurement\Process\Governance\ScopeKind::Acquisition, 'acquisition', 'system'), "
+        ."new \\App\Dto\Procurement\Process\Authority\ScopeDefinition(\\App\Enums\Procurement\Process\Governance\ScopeKind::System, 'system', null)]);",
         $platformKey,
     );
 

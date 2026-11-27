@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Dto\Llm\Reporting\UsageQuery;
 use App\Enums\Llm\CoreLlmPurpose;
 use App\Services\Llm\Contracts\UsageSource;
-use App\Services\Llm\Dto\UsageQuery;
 use Carbon\CarbonImmutable;
 use Tests\Support\ProcessCore\ProviderReportFixtures;
 

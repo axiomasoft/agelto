@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\AnalysisRecipe;
-use App\Dto\Procurement\Ai\AnalysisWindowPlan;
-use App\Dto\Procurement\Ai\CoverageStrategy;
-use App\Dto\Procurement\Ai\RowRange;
+use App\Dto\Procurement\Ai\Execution\AnalysisRecipe;
+use App\Dto\Procurement\Ai\Planning\AnalysisWindowPlan;
+use App\Dto\Procurement\Ai\Planning\CoverageStrategy;
+use App\Dto\Procurement\Ai\Planning\RowRange;
 use App\Exceptions\Procurement\Process\PublicationBlocked;
-use App\Services\Procurement\Extraction\ChunkStitcher;
-use App\Services\Procurement\Extraction\WindowPlanner;
+use App\Services\Procurement\Extraction\Pipeline\ChunkStitcher;
+use App\Services\Procurement\Extraction\Pipeline\WindowPlanner;
 use Tests\Support\ProcessCore\AiFixtures;
 use Tests\Support\ProcessCore\ChunkAssemblyFixtures;
 

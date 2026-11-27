@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures as E;
@@ -24,15 +24,15 @@ test('два PostgreSQL процесса впускают в execution lease т�
     $result = ConcurrentTransactions::execute('$cohort='.var_export($purpose.':'.$subjectKey, true).';'.<<<'PHP'
 \Tests\Support\ProcessCore\ExecutionFixtures::truncateLedger();
 try {
-    \Tests\Support\ProcessCore\FinalizeFixtures::authority([\App\Enums\Procurement\Process\StageCode::Listing]);
+    \Tests\Support\ProcessCore\FinalizeFixtures::authority([\App\Enums\Procurement\Process\Core\StageCode::Listing]);
     $work = \Tests\Support\ProcessCore\ExecutionFixtures::listingWork();
     \Illuminate\Support\Facades\DB::table('prc_process_runs')->update(['trigger_key' => $cohort]);
-    app(\App\Services\Procurement\Process\WorkFeeder::class)->tick('acquisition');
+    app(\App\Services\Procurement\Process\Execution\WorkFeeder::class)->tick('acquisition');
     $worker = static function (int $position) use ($work): string {
         return '$work=unserialize(base64_decode('.var_export(base64_encode(serialize($work)), true).'));'
-            .'\Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Listing);'
-            .'$claim=app(\App\Repositories\Procurement\Process\WorkStoreRepository::class)->claim($work,new \App\Dto\Procurement\Process\DeliveryGeneration(1));'
-            .'$lease=$claim->lease; if($lease!==null){$saved=app(\App\Repositories\Procurement\Process\WorkStoreRepository::class)->checkpoint($lease,new \Tests\Support\ProcessCore\FixtureStageCheckpoint('.$position.'),0);$lease=$lease->checkpointed($saved);}'
+            .'\Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Listing);'
+            .'$claim=app(\App\Repositories\Procurement\Process\Work\WorkStoreRepository::class)->claim($work,new \App\Dto\Procurement\Process\Primitives\DeliveryGeneration(1));'
+            .'$lease=$claim->lease; if($lease!==null){$saved=app(\App\Repositories\Procurement\Process\Work\WorkStoreRepository::class)->checkpoint($lease,new \Tests\Support\ProcessCore\FixtureStageCheckpoint('.$position.'),0);$lease=$lease->checkpointed($saved);}'
             .'return ["status"=>$claim->status->value,"lease"=>$lease===null?null:\Tests\Support\ProcessCore\FinalizeFixtures::export($lease),"pid"=>\Illuminate\Support\Facades\DB::scalar("SELECT pg_backend_pid()")];';
     };
     $workers = \Tests\Support\Postgres\ConcurrentTransactions::concurrently(['one'=>$worker(601),'two'=>$worker(701)]);
@@ -42,15 +42,15 @@ try {
     $position = $old->checkpoint->stageProgress->position;
     \Tests\Support\ProcessCore\FinalizeFixtures::expire($work);
     \Tests\Support\ProcessCore\FixtureProviderRecoveryResolver::install();
-    $recovered = app(\App\Services\Procurement\Process\RecoveryReconciler::class)->recoverExpiredRunning();
+    $recovered = app(\App\Services\Procurement\Process\Daemons\RecoveryReconciler::class)->recoverExpiredRunning();
     $next = \Tests\Support\ProcessCore\FinalizeFixtures::running($work);
     $resumed = $next->checkpoint->stageProgress->position;
-    $stale = app(\App\Services\Procurement\Process\WorkFinalizer::class)->finish($old,
-        \Tests\Support\ProcessCore\FinalizeFixtures::succeeded(\App\Enums\Procurement\Process\StageCode::Listing,'late'));
-    $saved = app(\App\Repositories\Procurement\Process\WorkStoreRepository::class)->checkpoint($next,
+    $stale = app(\App\Services\Procurement\Process\Execution\WorkFinalizer::class)->finish($old,
+        \Tests\Support\ProcessCore\FinalizeFixtures::succeeded(\App\Enums\Procurement\Process\Core\StageCode::Listing,'late'));
+    $saved = app(\App\Repositories\Procurement\Process\Work\WorkStoreRepository::class)->checkpoint($next,
         new \Tests\Support\ProcessCore\FixtureStageCheckpoint(801),$next->checkpointSeq);
-    $done = app(\App\Services\Procurement\Process\WorkFinalizer::class)->finish($next->checkpointed($saved),
-        \Tests\Support\ProcessCore\FinalizeFixtures::succeeded(\App\Enums\Procurement\Process\StageCode::Listing,'complete'));
+    $done = app(\App\Services\Procurement\Process\Execution\WorkFinalizer::class)->finish($next->checkpointed($saved),
+        \Tests\Support\ProcessCore\FinalizeFixtures::succeeded(\App\Enums\Procurement\Process\Core\StageCode::Listing,'complete'));
     $row = \Tests\Support\ProcessCore\ExecutionFixtures::work($work);
     return ['different_backends'=>$workers['one']['pid']!==$workers['two']['pid'],'owners'=>count($winners),
         'position'=>$position,'resumed'=>$resumed,'recovered'=>$recovered,'generation'=>$row->generation,'old_generation'=>$old->generation,'current_generation'=>$next->generation,

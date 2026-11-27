@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Platform;
 
 use App\Contracts\Procurement\Platform\PlatformUiExtension;
-use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use Illuminate\Contracts\Container\Container;
 

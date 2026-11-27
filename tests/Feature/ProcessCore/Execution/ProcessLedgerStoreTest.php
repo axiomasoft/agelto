@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ExtractionWindowInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\SubjectKey;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Dto\Procurement\Process\WorkIdentity;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\AccountingRole;
-use App\Enums\Procurement\Process\IntentState;
-use App\Enums\Procurement\Process\RunWorkRelation;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
-use App\Enums\Procurement\Process\WorkState;
+use App\Dto\Procurement\Process\Execution\WorkIdentity;
+use App\Dto\Procurement\Process\Inputs\ExtractionWindowInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Enums\Procurement\Process\Core\AccountingRole;
+use App\Enums\Procurement\Process\Core\RunWorkRelation;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Core\WorkState;
+use App\Enums\Procurement\Process\Governance\IntentState;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Process\WorkItem;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Crawler\CrawlStoreRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
-use App\Services\Procurement\Process\SchemaSupportedStages;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Execution\SchemaSupportedStages;
+use App\Services\Procurement\Process\Infrastructure\ProcessPayloadCodec;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;
 

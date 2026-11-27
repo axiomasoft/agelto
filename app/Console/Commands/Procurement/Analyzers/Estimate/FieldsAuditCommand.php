@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
-use App\Services\Procurement\Analyzers\Estimate\EstimateFieldsAuditor;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EstimateFieldsAuditor;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

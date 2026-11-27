@@ -7,7 +7,7 @@ namespace App\Console\Commands\Procurement;
 use App\Enums\Procurement\Ai\AnalysisStep;
 use App\Enums\Procurement\Ai\ScreeningDecisionReason;
 use App\Enums\Procurement\Document\DocumentStatus;
-use App\Enums\Procurement\Process\WorkState;
+use App\Enums\Procurement\Process\Core\WorkState;
 use App\Models\Procurement\Ai\Analysis;
 use App\Models\Procurement\Document\Document;
 use Illuminate\Console\Attributes\Description;

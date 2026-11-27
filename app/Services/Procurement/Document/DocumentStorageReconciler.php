@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Repositories\Procurement\Document\ArtifactRepository;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Repositories\Procurement\Document\ArtifactGcRepository;
+use App\Repositories\Procurement\Document\ArtifactRepairRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
-use App\Services\Procurement\Process\ProcessLog;
+use App\Services\Procurement\Process\Infrastructure\ProcessLog;
 
 /** Object I/O stays outside DB locks. A dead lease alone never releases uncertain tool bytes. */
 final class DocumentStorageReconciler implements ReconcileCategory
@@ -28,7 +29,8 @@ final class DocumentStorageReconciler implements ReconcileCategory
     public function __construct(
         private readonly PrepareWorkspace $workspace,
         private readonly ArtifactGarbageCollector $gc,
-        private readonly ArtifactRepository $artifacts,
+        private readonly ArtifactRepairRepository $repairs,
+        private readonly ArtifactGcRepository $gcRepository,
         private readonly BlobStore $blobs,
         private readonly StorageCapacityRepository $capacity,
     ) {}
@@ -69,10 +71,10 @@ final class DocumentStorageReconciler implements ReconcileCategory
             $this->cursor = null;
         }
 
-        $repairs = $this->artifacts->repairCandidates(afterId: $this->repairCursor, limit: self::BLOB_BATCH);
+        $repairs = $this->repairs->repairCandidates(afterId: $this->repairCursor, limit: self::BLOB_BATCH);
         if ($repairs === [] && $this->repairCursor !== null) {
             $this->repairCursor = null;
-            $repairs = $this->artifacts->repairCandidates(limit: self::BLOB_BATCH);
+            $repairs = $this->repairs->repairCandidates(limit: self::BLOB_BATCH);
         }
         foreach ($repairs as $blob) {
             $this->repairCursor = $blob->id;
@@ -91,19 +93,19 @@ final class DocumentStorageReconciler implements ReconcileCategory
             $this->repairCursor = null;
         }
 
-        $candidates = $this->artifacts->unreferencedBatch(graceSeconds: 900, limit: self::BLOB_BATCH,
+        $candidates = $this->gcRepository->unreferencedBatch(graceSeconds: 900, limit: self::BLOB_BATCH,
             afterVerifiedAt: $this->blobVerifiedAtCursor, afterId: $this->blobIdCursor);
         if ($candidates === [] && $this->blobIdCursor !== null) {
             $this->blobVerifiedAtCursor = null;
             $this->blobIdCursor = null;
-            $candidates = $this->artifacts->unreferencedBatch(graceSeconds: 900, limit: self::BLOB_BATCH);
+            $candidates = $this->gcRepository->unreferencedBatch(graceSeconds: 900, limit: self::BLOB_BATCH);
         }
         foreach ($candidates as $candidate) {
             $blob = $candidate->blob;
             $this->blobVerifiedAtCursor = $candidate->verifiedAt;
             $this->blobIdCursor = $blob->id;
             try {
-                $mark = $this->artifacts->markDeletion($blob, 900);
+                $mark = $this->gcRepository->markDeletion($blob, 900);
                 if ($mark !== null && $this->gc->deleteMarked($mark)) {
                     $cleaned++;
                 }

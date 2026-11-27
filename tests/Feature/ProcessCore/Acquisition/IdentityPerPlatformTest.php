@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Platform\SourceIdentifierValue;
+use App\Dto\Procurement\Platform\Identity\SourceIdentifierValue;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\ProcurementStoreRepository;
-use App\Services\Procurement\Acquisition\IdentityResolver;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Detail\IdentityResolver;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
 use App\Support\Database\PostgresAdvisoryLock;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;

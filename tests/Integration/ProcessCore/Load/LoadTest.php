@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Process\DaemonPolicy;
+use App\Services\Procurement\Process\Daemons\DaemonPolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Proxyma\Infrastructure\Database\PackageSchema;

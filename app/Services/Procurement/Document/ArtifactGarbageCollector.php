@@ -4,24 +4,24 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Document\BlobDeletion;
-use App\Dto\Procurement\Document\StorageReservationRequest;
+use App\Dto\Procurement\Document\Storage\BlobDeletion;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
 use App\Enums\Procurement\Document\ArtifactDeletionState;
 use App\Enums\Procurement\Document\StoragePhase;
-use App\Repositories\Procurement\Document\ArtifactRepository;
+use App\Repositories\Procurement\Document\ArtifactGcRepository;
+use App\Support\Database\TransactionGuard;
 use Illuminate\Contracts\Filesystem\Filesystem;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 
 final readonly class ArtifactGarbageCollector
 {
-    public function __construct(private ArtifactRepository $artifacts) {}
+    public function __construct(private ArtifactGcRepository $artifacts) {}
 
     /** Replaying a mark after crash is safe; references cannot be acquired while it is marked. */
     public function deleteMarked(BlobDeletion $deletion): bool
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Artifact deletion');
         $state = $this->artifacts->deletionState($deletion);
         if ($state !== ArtifactDeletionState::Ready) {
             return $state === ArtifactDeletionState::Deleted;
@@ -38,7 +38,7 @@ final readonly class ArtifactGarbageCollector
     /** Running/uncertain writer and transferred original are never cleaned via reservation expiry. */
     public function cleanup(StorageReservationRequest $reservation): bool
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Artifact deletion');
         if (! $this->artifacts->beginCleanup($reservation)) {
             return false;
         }
@@ -90,12 +90,5 @@ final readonly class ArtifactGarbageCollector
         $this->artifacts->finishCleanup($reservation);
 
         return true;
-    }
-
-    private function outsideTransaction(): void
-    {
-        if (DB::connection()->transactionLevel() !== 0) {
-            throw new \LogicException('Artifact deletion must run outside database transactions.');
-        }
     }
 }

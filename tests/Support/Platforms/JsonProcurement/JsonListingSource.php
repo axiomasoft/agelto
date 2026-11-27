@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\JsonProcurement;
 
-use App\Dto\Procurement\Acquisition\ListingFetchResult;
-use App\Dto\Procurement\Acquisition\ListingRequest;
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Acquisition\Listing\ListingFetchResult;
+use App\Dto\Procurement\Acquisition\Listing\ListingRequest;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
 use App\Services\Procurement\Platform\Contracts\ListingSource;
 
 final readonly class JsonListingSource implements ListingSource

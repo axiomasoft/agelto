@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 use App\Dto\Llm\Schema\CanonicalSchema;
-use App\Dto\Procurement\Ai\ExtractionOutput;
-use App\Dto\Procurement\Ai\RowRange;
+use App\Dto\Procurement\Ai\Output\ExtractionOutput;
+use App\Dto\Procurement\Ai\Planning\RowRange;
 use App\Enums\Llm\StructuredDisposition as Decision;
 use App\Services\Llm\Schema\CanonicalSchemaValidator;
 use App\Services\Llm\Schema\ProviderSchemaCompiler;
 use App\Services\Llm\Validation\StructuredTaskValidator;
-use App\Services\Procurement\Extraction\ExtractionContract;
+use App\Services\Procurement\Extraction\Pipeline\ExtractionContract;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\Support\ProcessCore\AiFixtures;

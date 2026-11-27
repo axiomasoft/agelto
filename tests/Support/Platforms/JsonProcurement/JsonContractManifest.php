@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\JsonProcurement;
 
-use App\Dto\Procurement\Acquisition\DetailRequest;
-use App\Dto\Procurement\Acquisition\ListingRequest;
-use App\Dto\Procurement\Platform\CursorEnvelope;
-use App\Dto\Procurement\Platform\SourceIdentifierValue;
-use App\Dto\Procurement\Platform\SourceIdentity;
+use App\Dto\Procurement\Acquisition\Detail\DetailRequest;
+use App\Dto\Procurement\Acquisition\Listing\ListingRequest;
+use App\Dto\Procurement\Platform\Diagnostics\CursorEnvelope;
+use App\Dto\Procurement\Platform\Identity\SourceIdentifierValue;
+use App\Dto\Procurement\Platform\Identity\SourceIdentity;
 use App\Enums\Procurement\Platform\AssessmentReason as Reason;
 use App\Enums\Procurement\Platform\Completeness as State;
 use App\Enums\Procurement\Platform\TerminalProof;

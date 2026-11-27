@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Document\PdfBatchText;
-use App\Dto\Procurement\Document\PreparePage;
-use App\Dto\Procurement\Document\PrepareRange;
-use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Document\Prepare\PdfBatchText;
+use App\Dto\Procurement\Document\Prepare\PreparePage;
+use App\Dto\Procurement\Document\Prepare\PrepareRange;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
 use App\Enums\Procurement\Document\PageTextStatus;
 use App\Exceptions\Procurement\Prepare\ToolFailed;
-use App\Services\Procurement\Prepare\PdfPreparationTools;
+use App\Services\Procurement\Prepare\Tools\PdfPreparationTools;
 
 final class StubPdfTools implements PdfPreparationTools
 {

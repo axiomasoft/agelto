@@ -2,7 +2,7 @@
 
 namespace Tests;
 
-use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Process\Execution\StageRegistry;
 use AzGuard\Testing\InteractsWithAzGuard;
 use Illuminate\Database\Events\MigrationsStarted;
 use Illuminate\Foundation\Application;

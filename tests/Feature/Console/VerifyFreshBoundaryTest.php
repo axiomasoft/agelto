@@ -3,17 +3,17 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Health\CheckResult;
-use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Services\Platforms\Eis\Diagnostics\ListingFilterCheck;
-use App\Services\Procurement\Acquisition\AcquisitionDiagnostic;
-use App\Services\Procurement\Acquisition\DiagnosticRunner;
+use App\Services\Procurement\Acquisition\Diagnostics\AcquisitionDiagnostic;
+use App\Services\Procurement\Acquisition\Diagnostics\DiagnosticRunner;
 use App\Services\Procurement\Health\HealthBaselineReader;
 use App\Services\Procurement\Network\OutboundPolicy;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Platform\PlatformRegistry;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\HistoricalNetworkFixtures;

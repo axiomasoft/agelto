@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore\Http;
 
-use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
+use App\Dto\Procurement\Network\Http\SafeUrl;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
 use App\Services\Procurement\Network\UrlPolicy;
 use Symfony\Component\Process\Process;
 

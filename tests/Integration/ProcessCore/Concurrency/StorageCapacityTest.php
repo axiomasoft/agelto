@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -15,12 +15,12 @@ test('два процесса не резервируют одни свобод�
     app(StorageCapacityRepository::class)->ensureDomain(new ProcessUuid($domain), 'race:'.$domain, 100, 90);
     $worker = <<<'PHP'
         $capacity = app(\App\Repositories\Procurement\Document\StorageCapacityRepository::class);
-        $domain = new \App\Dto\Procurement\Process\ProcessUuid('%s');
-        $request = new \App\Dto\Procurement\Document\StorageReservationRequest(
-            new \App\Dto\Procurement\Process\ProcessUuid((string) \Illuminate\Support\Str::uuid()), $domain,
-            new \App\Dto\Procurement\Process\ProcessUuid((string) \Illuminate\Support\Str::uuid()), 1, 60,
+        $domain = new \App\Dto\Procurement\Process\Primitives\ProcessUuid('%s');
+        $request = new \App\Dto\Procurement\Document\Storage\StorageReservationRequest(
+            new \App\Dto\Procurement\Process\Primitives\ProcessUuid((string) \Illuminate\Support\Str::uuid()), $domain,
+            new \App\Dto\Procurement\Process\Primitives\ProcessUuid((string) \Illuminate\Support\Str::uuid()), 1, 60,
             \App\Enums\Procurement\Document\StoragePhase::from('%s'), 'local');
-        return ['reserved' => app(\App\Services\Procurement\Process\ProcessTransaction::class)->run(function () use ($capacity, $domain, $request): bool {
+        return ['reserved' => app(\App\Services\Procurement\Process\Infrastructure\ProcessTransaction::class)->run(function () use ($capacity, $domain, $request): bool {
             $capacity->lockDomains([$domain]);
             return $capacity->reserveLocked($request);
         }), 'pid' => \Illuminate\Support\Facades\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid];

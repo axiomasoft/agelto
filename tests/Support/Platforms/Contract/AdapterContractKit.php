@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\Contract;
 
-use App\Dto\Procurement\Platform\PlatformDefinition;
-use App\Dto\Procurement\Platform\UnsupportedCapability;
+use App\Dto\Procurement\Platform\Capabilities\UnsupportedCapability;
+use App\Dto\Procurement\Platform\Definition\PlatformDefinition;
 use PHPUnit\Framework\Assert;
 
 /** Offline only. New platforms register manifests; no platform names or formats belong here. */

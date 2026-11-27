@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\NoProviderRecovery;
-use App\Dto\Procurement\Process\ProviderRecoveryPlan;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Dto\Procurement\Process\WorkCheckpointEnvelope;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ProviderOperationPurpose;
-use App\Enums\Procurement\Process\ProviderRecoveryMode;
-use App\Enums\Procurement\Process\StageCode;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Outcomes\WorkCheckpointEnvelope;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Dto\Procurement\Process\Provider\NoProviderRecovery;
+use App\Dto\Procurement\Process\Provider\ProviderRecoveryPlan;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Outcomes\ProviderOperationPurpose;
+use App\Enums\Procurement\Process\Outcomes\ProviderRecoveryMode;
+use App\Services\Procurement\Process\Infrastructure\ProcessPayloadCodec;
 use Tests\Support\ProcessCore\ContractFixtures as F;
 use Tests\Support\ProcessCore\FixtureStageCheckpoint;
 use Tests\Support\ProcessCore\FixtureStagePayloadCodec;

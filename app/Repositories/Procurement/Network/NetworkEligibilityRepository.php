@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Network;
 
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use Proxyma\Infrastructure\Database\PackageSchema;
 
 /** Read projection only: never creates control, health, circuit or retry state. */

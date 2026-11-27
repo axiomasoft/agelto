@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Contracts;
 
-use App\Services\Llm\Dto\LlmFileHandle;
+use App\Dto\Llm\Prompt\LlmFileHandle;
 
 /**
  * Опциональный контракт Files API (ТЗ 04 §2.1, §2.3; research/E §3) — расширение против ТЗ:

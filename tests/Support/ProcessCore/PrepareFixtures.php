@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Dto\Procurement\Process\Duration;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\PrepareInput;
-use App\Dto\Procurement\Process\StoreWorkData;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Execution\StoreWorkData;
+use App\Dto\Procurement\Process\Inputs\PrepareInput;
+use App\Dto\Procurement\Process\Primitives\Duration;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Repositories\Procurement\Document\PrepareFinalizer;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Procurement\Document\PrepareHandler;
 use App\Services\Procurement\Document\PreparePolicy;
 use App\Services\Procurement\Document\PrepareStageCodec;
-use App\Services\Procurement\Prepare\PdfPreparationTools;
+use App\Services\Procurement\Prepare\Tools\PdfPreparationTools;
 use App\Services\Procurement\Process\Contracts\LeaseKeeper;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
-use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Process\Execution\StageRegistry;
 use Illuminate\Support\Facades\DB;
 
 final class PrepareFixtures

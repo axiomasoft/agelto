@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Actions\Procurement\Network;
 
-use App\Dto\Procurement\Network\AdapterContractRef;
-use App\Dto\Procurement\Network\NetworkChangeResult;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterContractRef;
+use App\Dto\Procurement\Network\Control\NetworkChangeResult;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\User;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Auth\Access\AuthorizationException;
 
 final readonly class ResetAdapterHealth

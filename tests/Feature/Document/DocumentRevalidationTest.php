@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\SubjectKey;
-use App\Enums\Procurement\Process\IntentState;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Governance\IntentState;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentRevalidator;
 use Illuminate\Support\Facades\DB;

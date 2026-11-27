@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Dto\Llm\Execution\LlmStructuredResponse;
+use App\Dto\Llm\Execution\LlmUsage;
 use App\Enums\Llm\FinishReason;
 use App\Enums\Procurement\Ai\GoldSource;
 use App\Enums\Procurement\Analyzers\Estimate\EstimateLlmPurpose;
@@ -14,8 +16,6 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentRepresentation;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Services\Llm\Dto\LlmStructuredResponse;
-use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\CatalogOnlyProvider;
 use App\Services\Procurement\Bench\FormatBenchRunner;
 use App\Services\Procurement\Prepare\RepresentationResolver;

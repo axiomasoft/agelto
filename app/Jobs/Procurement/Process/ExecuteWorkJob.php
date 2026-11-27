@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs\Procurement\Process;
 
-use App\Dto\Procurement\Process\DeliveryEnvelope;
-use App\Services\Procurement\Process\DatabaseFailureClassifier;
-use App\Services\Procurement\Process\ProcessLog;
-use App\Services\Procurement\Process\WorkRunner;
+use App\Dto\Procurement\Process\Execution\DeliveryEnvelope;
+use App\Services\Procurement\Process\Execution\WorkRunner;
+use App\Services\Procurement\Process\Infrastructure\DatabaseFailureClassifier;
+use App\Services\Procurement\Process\Infrastructure\ProcessLog;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\QueryException;

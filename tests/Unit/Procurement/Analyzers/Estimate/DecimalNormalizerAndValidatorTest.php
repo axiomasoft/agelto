@@ -9,11 +9,11 @@ use App\Models\Procurement\Estimate\Estimate;
 use App\Models\Procurement\Estimate\Item;
 use App\Models\Procurement\Estimate\Section;
 use App\Models\Procurement\Estimate\Total;
-use App\Services\Procurement\Analyzers\Estimate\DecimalNormalizer;
-use App\Services\Procurement\Analyzers\Estimate\EstimateStitcher;
-use App\Services\Procurement\Analyzers\Estimate\EstimateToContractMapper;
-use App\Services\Procurement\Analyzers\Estimate\EstimateValidator;
-use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
+use App\Services\Procurement\Analyzers\Estimate\Core\DecimalNormalizer;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateStitcher;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateToContractMapper;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateValidator;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EvalMetrics;
 use App\Services\Procurement\Gold\GsfxGoldMapper;
 use App\Services\Procurement\Gold\WorksheetCellReader;
 

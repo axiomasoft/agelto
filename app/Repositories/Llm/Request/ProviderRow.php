@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Repositories\Llm\Request;
 
 use App\Dto\Llm\Requests\FinancialAmount;
-use Illuminate\Support\Facades\DB;
+use App\Support\Database\SqlRow;
 
 /**
  * Типизированное чтение строки explicit SQL ledger: без Eloquent lazy-load под locks и без
@@ -13,15 +13,14 @@ use Illuminate\Support\Facades\DB;
  */
 final readonly class ProviderRow
 {
-    /** @param array<string, mixed> $values */
-    private function __construct(private array $values) {}
+    private function __construct(private SqlRow $row) {}
 
     /** @param  array<int, mixed>  $bindings */
     public static function one(string $sql, array $bindings = []): ?self
     {
-        $row = DB::selectOne($sql, $bindings);
+        $row = SqlRow::one($sql, $bindings);
 
-        return $row === null ? null : self::from($row);
+        return $row === null ? null : new self($row);
     }
 
     /**
@@ -30,72 +29,43 @@ final readonly class ProviderRow
      */
     public static function all(string $sql, array $bindings = []): array
     {
-        return array_values(array_map(self::from(...), DB::select($sql, $bindings)));
+        return array_map(static fn (SqlRow $row): self => new self($row), SqlRow::all($sql, $bindings));
     }
 
     /** Placeholders для IN-списка: значения передаются bindings, не интерполируются. */
     public static function placeholders(int $count): string
     {
-        if ($count < 1) {
-            throw new \InvalidArgumentException('IN list requires at least one value.');
-        }
-
-        return implode(', ', array_fill(0, $count, '?'));
+        return SqlRow::placeholders($count);
     }
 
     public function string(string $column): string
     {
-        $value = $this->values[$column] ?? null;
-
-        return is_string($value) ? $value : throw new \LogicException('Expected text column: '.$column);
+        return $this->row->string($column);
     }
 
     public function nullableString(string $column): ?string
     {
-        return ($this->values[$column] ?? null) === null ? null : $this->string($column);
+        return $this->row->nullableString($column);
     }
 
     /** @return numeric-string */
     public function decimal(string $column): string
     {
-        $value = $this->string($column);
-        if (preg_match('/^[0-9]+(?:\.[0-9]{1,8})?$/D', $value) !== 1) {
-            throw new \LogicException('Expected exact monetary column: '.$column);
-        }
-
-        return FinancialAmount::normalize($value);
+        return FinancialAmount::normalize($this->row->decimal($column));
     }
 
     public function int(string $column): int
     {
-        $value = $this->values[$column] ?? null;
-        if (is_string($value) && preg_match('/^-?\d+$/D', $value) === 1) {
-            $value = (int) $value;
-        }
-
-        return is_int($value) ? $value : throw new \LogicException('Expected integer column: '.$column);
+        return $this->row->int($column);
     }
 
     public function nullableInt(string $column): ?int
     {
-        return ($this->values[$column] ?? null) === null ? null : $this->int($column);
+        return $this->row->nullableInt($column);
     }
 
     public function bool(string $column): bool
     {
-        $value = $this->values[$column] ?? null;
-
-        return is_bool($value) ? $value : throw new \LogicException('Expected boolean column: '.$column);
-    }
-
-    private static function from(mixed $row): self
-    {
-        if (! is_object($row)) {
-            throw new \LogicException('Database row must be an object.');
-        }
-        /** @var array<string, mixed> $values */
-        $values = get_object_vars($row);
-
-        return new self($values);
+        return $this->row->bool($column);
     }
 }

@@ -21,7 +21,7 @@ use App\Dto\Procurement\Prepare\Gsfx\GsfxWorkType;
 use App\Enums\Procurement\Estimate\ResourceType;
 use App\Enums\Procurement\Estimate\RowType;
 use App\Enums\Procurement\Estimate\TotalKind;
-use App\Services\Procurement\Analyzers\Estimate\DecimalNormalizer;
+use App\Services\Procurement\Analyzers\Estimate\Core\DecimalNormalizer;
 
 final readonly class GsfxGoldRowExtractor
 {

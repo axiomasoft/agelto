@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\StorageCleanupCandidate;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\StorageCleanupCandidate;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Document\StoragePhase;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
-use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -45,7 +44,7 @@ final readonly class StorageCapacityRepository
     public function provisionImportDomain(string $disk): ProcessUuid
     {
         $key = 'documents.import:'.$disk;
-        $domain = ListingStoreRepository::id($key);
+        $domain = ProcessUuid::derived($key);
         // Dotted storage keys are literal array keys.
         $policies = config('documents.storage');
         $limits = is_array($policies) ? ($policies['documents.originals'] ?? null) : null;

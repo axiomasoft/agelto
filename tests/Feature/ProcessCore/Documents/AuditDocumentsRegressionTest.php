@@ -2,44 +2,46 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Dto\Procurement\Document\DownloadResult;
-use App\Dto\Procurement\Document\SourceDocumentMetadata;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Document\VerifiedArtifact;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\SubjectKey;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Document\Download\DownloadResult;
+use App\Dto\Procurement\Document\Download\SourceDocumentMetadata;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Document\Storage\VerifiedArtifact;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\PreparationResult;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Enums\Procurement\Document\StoragePhase;
 use App\Enums\Procurement\Document\UnprocessableReason;
 use App\Enums\Procurement\Network\OutboundOperationKind;
-use App\Enums\Procurement\Process\IntentState;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Governance\IntentState;
 use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Exceptions\Procurement\Prepare\ToolFailed;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Repositories\Procurement\Document\ArtifactGcRepository;
+use App\Repositories\Procurement\Document\ArtifactRepairRepository;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\DownloadFinalizer;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Repositories\Procurement\Network\OutboundOperationRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Procurement\Document\BlobStore;
 use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentStorageReconciler;
 use App\Services\Procurement\Document\PrepareWorkspace;
 use App\Services\Procurement\Document\StoredDocumentWriter;
 use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
-use App\Services\Procurement\Prepare\ArchiveStrategy;
-use App\Services\Procurement\Prepare\BoundedToolProcess;
-use App\Services\Procurement\Prepare\LibreOfficeConverter;
-use App\Services\Procurement\Prepare\OcrConverter;
-use App\Services\Procurement\Prepare\SpreadsheetStrategy;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Prepare\Strategies\ArchiveStrategy;
+use App\Services\Procurement\Prepare\Strategies\SpreadsheetStrategy;
+use App\Services\Procurement\Prepare\Tools\BoundedToolProcess;
+use App\Services\Procurement\Prepare\Tools\LibreOfficeConverter;
+use App\Services\Procurement\Prepare\Tools\OcrConverter;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
@@ -187,7 +189,7 @@ test('DocumentStorageReconciler удаляет unreferenced blobs старше g
     $domain = DocumentStorageFixtures::domain();
     $blob = auditDocAcquireBlob($domain, 'unreferenced-bytes', '20 minutes');
 
-    expect(app(ArtifactRepository::class)->unreferencedCandidates(900, 25))->toHaveCount(1);
+    expect(app(ArtifactGcRepository::class)->unreferencedCandidates(900, 25))->toHaveCount(1);
     app(DocumentStorageReconciler::class)->reconcile();
 
     expect(DB::table('prc_document_blobs')->where('id', $blob->id->value)->exists())->toBeFalse()
@@ -378,21 +380,21 @@ test('StoredDocumentWriter удаляет неиспользуемый дубл�
         ->and(Storage::disk('local')->exists('imports/dup-repr.txt'))->toBeFalse();
 });
 
-test('ArtifactRepository::unreferencedCandidates и DocumentStorageReconciler пропускают блобы с активными резервациями без голодания очереди GC', function (): void {
+test('ArtifactGcRepository::unreferencedCandidates и DocumentStorageReconciler пропускают блобы с активными резервациями без голодания очереди GC', function (): void {
     $domain = DocumentStorageFixtures::domain(capacity: 500_000);
     $pinnedIds = [];
 
     // Создаём 25 старых unreferenced блобов, удерживаемых in-flight writing резервацией на repair.
     for ($i = 0; $i < 25; $i++) {
         $blob = auditDocAcquireBlob($domain, 'pinned-blob-'.$i, '30 minutes');
-        expect(app(ArtifactRepository::class)->beginRepair($blob))->toBeTrue();
+        expect(app(ArtifactRepairRepository::class)->beginRepair($blob))->toBeTrue();
         $pinnedIds[] = $blob->id->value;
     }
 
     // 26-й блоб моложе всех 25 удерживаемых, но старше grace-окна и не удерживается резервациями.
     $eligibleBlob = auditDocAcquireBlob($domain, 'eligible-blob-26', '20 minutes');
 
-    $candidates = app(ArtifactRepository::class)->unreferencedCandidates(900, 25);
+    $candidates = app(ArtifactGcRepository::class)->unreferencedCandidates(900, 25);
     expect($candidates)->toHaveCount(1)
         ->and($candidates[0]->id->value)->toBe($eligibleBlob->id->value);
 
@@ -465,7 +467,7 @@ test('DocumentStorageReconciler восстанавливает и очищает
 
     // 2. Прерванный repair канонического блоба с валидными байтами на диске и мёртвым PID в .repair-owner переводится в transferred без удаления блоба.
     $canonicalBlob = auditDocAcquireBlob($domain, 'canonical-repair-bytes');
-    expect(app(ArtifactRepository::class)->beginRepair($canonicalBlob))->toBeTrue();
+    expect(app(ArtifactRepairRepository::class)->beginRepair($canonicalBlob))->toBeTrue();
     $workspace->recordRepairWriter($canonicalBlob);
     file_put_contents(
         Storage::disk('local')->path($canonicalBlob->objectKey).'.repair-owner',
@@ -508,6 +510,7 @@ test('невосстановимые repair и ошибка первого об�
     $temporaryDomain = DocumentStorageFixtures::domain(prefix: 'tmp');
     $capacity = app(StorageCapacityRepository::class);
     $artifacts = app(ArtifactRepository::class);
+    $repairsRepo = app(ArtifactRepairRepository::class);
     $disk = Storage::disk('local');
     $repairs = [];
     $charged = 0;
@@ -528,7 +531,7 @@ test('невосстановимые repair и ошибка первого об�
 
             return $artifacts->acquireLocked($artifact);
         });
-        expect($artifacts->beginRepair($blob))->toBeTrue();
+        expect($repairsRepo->beginRepair($blob))->toBeTrue();
         // Odd candidates have no writer-stop proof; even candidates have corrupt stopped writes.
         // The first candidate reaches object I/O to exercise the recoverable error policy.
         if ($i === 1 || $i % 2 === 0) {

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\DetailFetched;
-use App\Dto\Procurement\Acquisition\DetailRequest;
-use App\Dto\Procurement\Acquisition\FetchDeferred;
-use App\Dto\Procurement\Network\DecodedTextBody;
-use App\Dto\Procurement\Network\ResponseEnvelope;
-use App\Dto\Procurement\Network\TransportSucceeded;
-use App\Dto\Procurement\Platform\CursorEnvelope;
+use App\Dto\Procurement\Acquisition\Detail\DetailFetched;
+use App\Dto\Procurement\Acquisition\Detail\DetailRequest;
+use App\Dto\Procurement\Acquisition\Fetch\FetchDeferred;
+use App\Dto\Procurement\Network\Http\DecodedTextBody;
+use App\Dto\Procurement\Network\Http\ResponseEnvelope;
+use App\Dto\Procurement\Network\Outcome\TransportSucceeded;
+use App\Dto\Procurement\Platform\Diagnostics\CursorEnvelope;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Platform\Completeness;
 use Illuminate\Support\Facades\DB;

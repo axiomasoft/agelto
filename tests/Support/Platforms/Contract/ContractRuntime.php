@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\Contract;
 
-use App\Dto\Procurement\Network\DecodedTextBody;
-use App\Dto\Procurement\Network\ResponseEnvelope;
-use App\Dto\Procurement\Process\DbInstant;
-use App\Dto\Procurement\Process\Duration;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Network\Http\DecodedTextBody;
+use App\Dto\Procurement\Network\Http\ResponseEnvelope;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Primitives\DbInstant;
+use App\Dto\Procurement\Process\Primitives\Duration;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Services\Procurement\Process\Contracts\LeaseKeeper;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use Tests\Support\ProcessCore\ContractFixtures;

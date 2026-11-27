@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\Procurement\Process;
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkMutationResult;
-use App\Repositories\Procurement\Process\WorkMutationRepository;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Dto\Procurement\Process\Governance\WorkMutationResult;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Repositories\Procurement\Process\Work\WorkMutationRepository;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Str;
 
 /**

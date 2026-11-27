@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Enums\Procurement\Process\CompletionStatus;
-use App\Enums\Procurement\Process\WorkState;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Enums\Procurement\Process\Core\WorkState;
+use App\Enums\Procurement\Process\Outcomes\CompletionStatus;
 use App\Models\Procurement\Document\Document;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\ExecutionFixtures;

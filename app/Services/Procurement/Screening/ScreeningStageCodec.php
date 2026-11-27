@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Screening;
 
-use App\Dto\Procurement\Ai\DiscoveryCheckpoint;
-use App\Dto\Procurement\Ai\ScreeningCompleted;
-use App\Dto\Procurement\Ai\ScreeningProgress;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\BlockedReason;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Ai\Extraction\DiscoveryCheckpoint;
+use App\Dto\Procurement\Ai\Screening\ScreeningCompleted;
+use App\Dto\Procurement\Ai\Screening\ScreeningProgress;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
 use App\Services\Llm\Schema\CanonicalJson;
-use App\Services\Procurement\Process\PayloadReader;
-use App\Services\Procurement\Process\StagePayloadCodec;
+use App\Services\Procurement\Process\Infrastructure\PayloadReader;
+use App\Services\Procurement\Process\Infrastructure\StagePayloadCodec;
 
 final class ScreeningStageCodec implements StagePayloadCodec
 {

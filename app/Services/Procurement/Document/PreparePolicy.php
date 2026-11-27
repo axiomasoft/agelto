@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use Illuminate\Contracts\Config\Repository;
 
 final readonly class PreparePolicy

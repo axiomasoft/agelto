@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ControlChangeResult;
-use App\Dto\Procurement\Process\DeliveryGeneration;
-use App\Dto\Procurement\Process\FairnessCursor;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\AdmissionStatus;
-use App\Enums\Procurement\Process\ClaimStatus;
-use App\Enums\Procurement\Process\ControlChangeStatus;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\AdmissionRepository;
-use App\Repositories\Procurement\Process\ControlRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\WorkFeeder;
+use App\Dto\Procurement\Process\Authority\ControlChangeResult;
+use App\Dto\Procurement\Process\Authority\FairnessCursor;
+use App\Dto\Procurement\Process\Primitives\DeliveryGeneration;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlChangeStatus;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Outcomes\AdmissionStatus;
+use App\Enums\Procurement\Process\Outcomes\ClaimStatus;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
+use App\Repositories\Procurement\Process\Work\AdmissionRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;

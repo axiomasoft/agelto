@@ -5,18 +5,19 @@ declare(strict_types=1);
 namespace App\Console\Commands\Process;
 
 use App\Dto\Llm\Requests\FinancialAmount;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\RequestProfile;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
 use App\Enums\Procurement\Network\ResponseKind;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Models\Llm\Provider;
 use App\Repositories\Llm\Request\FinancialReservationRepository;
-use App\Services\Procurement\Extraction\AnalysisConfiguration;
-use App\Services\Procurement\Extraction\AnalysisRuntime;
+use App\Services\Procurement\Extraction\Orchestration\AnalysisConfiguration;
+use App\Services\Procurement\Extraction\Orchestration\AnalysisRuntime;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Process\ProcessAuthoritySync;
+use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
@@ -64,6 +65,10 @@ final class SyncAnalysisCommand extends Command
                     new RequestProfile('network.probe', 5, 10, 20, 2097152, 6291456, 0, 1, 1, [], ResponseKind::Text, 'UTF-8', 1)],
                 probeUrl: $origin->value().'/');
         }
+        Provider::query()->updateOrCreate(
+            ['code' => $connection->context->provider],
+            ['driver' => $connection->context->provider, 'base_url' => $connection->origin, 'is_active' => true],
+        );
         $finance->configureAccount($connection->context->account, $connection->pricing->currency, 1, $hard, 'process:sync-analysis', $options['reason']);
         $period = $finance->openPeriod($connection->context->account, $connection->pricing->currency,
             $options['period-start'], $options['period-end'], $cap);

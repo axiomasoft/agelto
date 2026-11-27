@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate\Diff;
 
 use App\Dto\Procurement\Analyzers\Estimate\RowQuality;
-use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EvalMetrics;
 
 /**
  * Одна запись расхождения «gold ↔ предсказание» (`docs/specs/v2/08-estimate-extraction.md`

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\PruneResult;
-use App\Repositories\Procurement\Process\OutboxRepository;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Projection\PruneResult;
+use App\Repositories\Procurement\Process\Work\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
-use App\Services\Procurement\Process\MetricProjector;
-use App\Services\Procurement\Process\ProcessDiagnosticsInspector;
-use App\Services\Procurement\Process\ProjectionRetention;
+use App\Services\Procurement\Process\Diagnostics\ProcessDiagnosticsInspector;
+use App\Services\Procurement\Process\Projection\MetricProjector;
+use App\Services\Procurement\Process\Projection\ProjectionRetention;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Mockery\MockInterface;

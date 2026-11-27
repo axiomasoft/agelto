@@ -13,18 +13,23 @@ use App\Enums\Llm\ReceiptOutcome;
 use App\Exceptions\Llm\OperationDenied;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Services\Llm\Cache\ProviderAssetManager;
-use App\Services\Llm\Providers\GeminiGenerateContentClient;
+use Illuminate\Container\Container;
 use Illuminate\Support\Facades\DB;
 
 /** Financial/transport execution only; domain schema parsing/publication is a separate owner. */
 final readonly class StructuredCallExecutor
 {
-    public function __construct(private RequestLedger $ledger, private RequestRepository $requests, private ProviderAssetManager $assets) {}
+    public function __construct(
+        private RequestLedger $ledger,
+        private RequestRepository $requests,
+        private ProviderAssetManager $assets,
+        private ?ProviderCodecs $codecs = null,
+    ) {}
 
     /** Pure compilation uses the same Llm-owned adapter as response decoding. */
     public function compileGeneration(ProviderOperationPlan $plan, string $origin): ProviderWireRequest
     {
-        return (new GeminiGenerateContentClient($origin))->compile($plan);
+        return $this->codecs()->for($plan->context->provider)->compileGeneration($plan, $origin);
     }
 
     /** The active structured transport's codec stays inside Llm; assets and errors never enter model validation. */
@@ -34,7 +39,19 @@ final readonly class StructuredCallExecutor
             throw new OperationDenied('successful_generation_receipt_required');
         }
 
-        return (new GeminiGenerateContentClient)->decode($receipt->body);
+        return $this->codecs()->for($receipt->call->context->provider)->decodeGeneration($receipt);
+    }
+
+    private function codecs(): ProviderCodecs
+    {
+        if ($this->codecs !== null) {
+            return $this->codecs;
+        }
+        $container = Container::getInstance();
+
+        return $container->bound(ProviderCodecs::class)
+            ? $container->make(ProviderCodecs::class)
+            : ProviderCodecs::default();
     }
 
     public function execute(AuthorizedProviderOperation $operation, ProviderWireRequest $wire, ?ProviderSendGate $gate): ProviderTransportOutcome|SendClaimResult

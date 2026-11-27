@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
 use App\Services\Procurement\Network\Contracts\SourceCatalogProvider;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Contracts\Container\Container;

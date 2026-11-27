@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\DbInstant;
-use App\Dto\Procurement\Process\Duration;
-use App\Enums\Procurement\Process\ProjectionApplyStatus;
-use App\Enums\Procurement\Process\RebuildStatus;
-use App\Repositories\Procurement\Process\ProjectionRepository;
+use App\Dto\Procurement\Process\Primitives\DbInstant;
+use App\Dto\Procurement\Process\Primitives\Duration;
+use App\Enums\Procurement\Process\Projection\ProjectionApplyStatus;
+use App\Enums\Procurement\Process\Projection\RebuildStatus;
+use App\Repositories\Procurement\Process\Projection\ProjectionRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
-use App\Services\Procurement\Process\MetricProjector;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\ProjectionPolicy;
-use App\Services\Procurement\Process\ProjectionRebuilder;
-use App\Services\Procurement\Process\ProjectionRegistry;
-use App\Services\Procurement\Process\ProjectionRetention;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
+use App\Services\Procurement\Process\Projection\MetricProjector;
+use App\Services\Procurement\Process\Projection\ProjectionPolicy;
+use App\Services\Procurement\Process\Projection\ProjectionRebuilder;
+use App\Services\Procurement\Process\Projection\ProjectionRegistry;
+use App\Services\Procurement\Process\Projection\ProjectionRetention;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\ProcessCore\Observability\ProjectionFixtures as Fixture;
 use Tests\Support\ProcessCore\LedgerFixtures;

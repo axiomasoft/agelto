@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\ExtractionProgress;
-use App\Dto\Procurement\Process\DeliveryEnvelope;
-use App\Dto\Procurement\Process\MissingParts;
-use App\Dto\Procurement\Process\StagePartial;
-use App\Services\Procurement\Extraction\AnalysisProviderConnections;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFeeder;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Dto\Procurement\Ai\Extraction\ExtractionProgress;
+use App\Dto\Procurement\Process\Execution\DeliveryEnvelope;
+use App\Dto\Procurement\Process\Outcomes\StagePartial;
+use App\Dto\Procurement\Process\Primitives\MissingParts;
+use App\Services\Procurement\Extraction\Provider\AnalysisProviderConnections;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -46,7 +46,8 @@ test('SIGKILL настоящего extraction runner различает authoriz
             config(['filesystems.disks.local.root'=>$localRoot]);
             \Illuminate\Support\Facades\Storage::forgetDisk('local');
             app(\App\Services\Llm\Execution\ReceiptPolicies::class)->register('fixture-provider',new \App\Services\Llm\Providers\GeminiAssetReceiptPolicy);
-            app(\App\Services\Procurement\Extraction\AnalysisProviderConnections::class)->register($connection);
+            app(\App\Services\Llm\Execution\ProviderCodecs::class)->register('fixture-provider',new \App\Services\Llm\Providers\GeminiWireCodec);
+            app(\App\Services\Procurement\Extraction\Provider\AnalysisProviderConnections::class)->register($connection);
             \Illuminate\Support\Facades\DB::listen(static function($event) use ($boundary,$root,$delivery): void {
                 $authorization = $boundary === 'authorization-before-send-claim'
                     && str_contains($event->sql,"UPDATE llm_provider_requests SET state='sending'");
@@ -66,7 +67,7 @@ test('SIGKILL настоящего extraction runner различает authoriz
                     if ($authorization) { \Illuminate\Support\Facades\DB::afterCommit($kill); } else { $kill(); }
                 }
             });
-            app(\App\Services\Procurement\Process\WorkRunner::class)->runDelivery($delivery);
+            app(\App\Services\Procurement\Process\Execution\WorkRunner::class)->runDelivery($delivery);
             return ['unexpected_survival'=>true];
             PHP);
         $killed = false;

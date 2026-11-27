@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Crawler;
 
-use App\Dto\Procurement\Acquisition\ListingCoverage;
-use App\Dto\Procurement\Acquisition\ListingTask;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Dto\Procurement\Acquisition\Listing\ListingCoverage;
+use App\Dto\Procurement\Acquisition\Listing\ListingTask;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 
 /** Rebuildable watermark projection from durable immutable assignments and fenced receipts. No second execution owner. */
 final readonly class ListingCoverageRepository

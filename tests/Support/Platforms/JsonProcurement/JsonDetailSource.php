@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\JsonProcurement;
 
-use App\Dto\Procurement\Acquisition\DetailFetchResult;
-use App\Dto\Procurement\Acquisition\DetailRequest;
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Acquisition\Detail\DetailFetchResult;
+use App\Dto\Procurement\Acquisition\Detail\DetailRequest;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
 use App\Services\Procurement\Platform\Contracts\DetailPartsSource;
 
 final readonly class JsonDetailSource implements DetailPartsSource

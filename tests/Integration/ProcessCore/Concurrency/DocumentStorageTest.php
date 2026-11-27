@@ -2,22 +2,23 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Document\BlobDeletion;
-use App\Dto\Procurement\Document\DocumentRange;
-use App\Dto\Procurement\Document\RepresentationCoverage;
-use App\Dto\Procurement\Document\SourceDocumentMetadata;
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Document\Download\DocumentRange;
+use App\Dto\Procurement\Document\Download\SourceDocumentMetadata;
+use App\Dto\Procurement\Document\Prepare\RepresentationCoverage;
+use App\Dto\Procurement\Document\Storage\BlobDeletion;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use App\Enums\Procurement\Document\CoverageUnit;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Exceptions\Procurement\Document\DocumentHeadChanged;
+use App\Repositories\Procurement\Document\ArtifactGcRepository;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\DocumentRepresentationRepository;
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Services\Procurement\Document\ArtifactGarbageCollector;
 use App\Services\Procurement\Document\BlobStore;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Postgres\ConcurrentTransactions;
@@ -103,7 +104,7 @@ test('put-before-reference сохраняет reserve, uncertain writer и incom
     app(StorageCapacityRepository::class)->beginWrite($uncertain);
     Storage::disk('local')->put($uncertain->objectKey(), 'partial');
     expect(app(ArtifactGarbageCollector::class)->cleanup($uncertain))->toBeFalse();
-    app(ArtifactRepository::class)->beginCleanup($artifact->reservation);
+    app(ArtifactGcRepository::class)->beginCleanup($artifact->reservation);
     expect(DB::table('prc_storage_reservations')->where('id', $artifact->reservation->id->value)->value('cleanup_verified_at'))->toBeNull();
     expect(app(ArtifactGarbageCollector::class)->cleanup($artifact->reservation))->toBeTrue();
     expect(DB::table('prc_storage_reservations')->where('id', $uncertain->id->value)->value('status'))->toBe('writing');
@@ -168,7 +169,7 @@ test('GC mark-before-delete barrier запрещает concurrent reference, cra
         return app(ArtifactRepository::class)->acquireLocked($artifact);
     });
     DB::update("UPDATE prc_document_blobs SET verified_at=clock_timestamp()-interval '1 hour' WHERE id=?", [$blob->id->value]);
-    $ticket = app(ArtifactRepository::class)->markDeletion($blob, 900);
+    $ticket = app(ArtifactGcRepository::class)->markDeletion($blob, 900);
     expect($ticket)->not->toBeNull();
     expect(app(ArtifactGarbageCollector::class)->deleteMarked(new BlobDeletion($blob, $ticket->generation + 1)))->toBeFalse();
     Storage::disk('local')->assertExists($blob->objectKey);
@@ -183,7 +184,7 @@ test('GC mark-before-delete barrier запрещает concurrent reference, cra
     expect(ConcurrentTransactions::execute($worker)['rejected'])->toBeTrue()
         ->and(DB::table('prc_document_versions')->count())->toBe(0);
     Storage::disk('local')->assertExists($blob->objectKey);
-    expect(app(ArtifactRepository::class)->markDeletion($blob, 900))->toEqual($ticket)
+    expect(app(ArtifactGcRepository::class)->markDeletion($blob, 900))->toEqual($ticket)
         ->and(app(ArtifactGarbageCollector::class)->deleteMarked($ticket))->toBeTrue()
         ->and(app(ArtifactGarbageCollector::class)->deleteMarked($ticket))->toBeTrue()
         ->and(DB::table('prc_document_blobs')->count())->toBe(0)
@@ -197,7 +198,7 @@ test('reference-before-GC защищает historical blob после перек
     $r1 = Fx::observe(app(DocumentVersionRepository::class)->head($document->id), Fx::upload('history', $domain));
     Fx::observe($r1->head, Fx::upload('new head', $domain));
     DB::update("UPDATE prc_document_blobs SET verified_at=clock_timestamp()-interval '1 hour' WHERE id=?", [$r1->blob->id->value]);
-    expect(app(ArtifactRepository::class)->markDeletion($r1->blob, 900))->toBeNull()
+    expect(app(ArtifactGcRepository::class)->markDeletion($r1->blob, 900))->toBeNull()
         ->and(DB::table('prc_document_versions')->where('blob_id', $r1->blob->id->value)->count())->toBe(1);
     Storage::disk('local')->assertExists($r1->blob->objectKey);
 });
@@ -221,7 +222,7 @@ test('GC между проверкой duplicate metadata и bytes не воск
             $payload = base64_encode(serialize([$blob, $disk->path('')]));
             $result = ConcurrentTransactions::execute('$data=unserialize(base64_decode('.var_export($payload, true).'));[$blob,$root]=$data;'
                 .'config(["filesystems.disks.local.root"=>$root]);\\Illuminate\\Support\\Facades\\Storage::forgetDisk("local");'
-                .'$ticket=app(\\App\\Repositories\\Procurement\\Document\\ArtifactRepository::class)->markDeletion($blob,900);'
+                .'$ticket=app(\\App\\Repositories\\Procurement\\Document\\ArtifactGcRepository::class)->markDeletion($blob,900);'
                 .'return ["deleted"=>$ticket!==null && app(\\App\\Services\\Procurement\\Document\\ArtifactGarbageCollector::class)->deleteMarked($ticket),'
                 .'"pid"=>\\Illuminate\\Support\\Facades\\DB::selectOne("SELECT pg_backend_pid() AS id")->id];');
             expect($result['deleted'])->toBeTrue()->and($result['pid'])->not->toBe(DB::selectOne('SELECT pg_backend_pid() AS id')->id);
@@ -257,9 +258,10 @@ test('durable repair pin запрещает concurrent GC и повторный 
             expect(DB::transactionLevel())->toBe(0);
             $payload = base64_encode(serialize($blob));
             $result = ConcurrentTransactions::execute('$blob=unserialize(base64_decode('.var_export($payload, true).'));'
-                .'$repository=app(\\App\\Repositories\\Procurement\\Document\\ArtifactRepository::class);'
-                .'try {$repository->beginRepair($blob);$busy=false;} catch (\\App\\Exceptions\\Procurement\\Document\\ArtifactUnavailable) {$busy=true;}'
-                .'return ["pinned"=>$repository->markDeletion($blob,900)===null,"busy"=>$busy,'
+                .'$repairs=app(\\App\\Repositories\\Procurement\\Document\\ArtifactRepairRepository::class);'
+                .'$gc=app(\\App\\Repositories\\Procurement\\Document\\ArtifactGcRepository::class);'
+                .'try {$repairs->beginRepair($blob);$busy=false;} catch (\\App\\Exceptions\\Procurement\\Document\\ArtifactUnavailable) {$busy=true;}'
+                .'return ["pinned"=>$gc->markDeletion($blob,900)===null,"busy"=>$busy,'
                 .'"pid"=>\\Illuminate\\Support\\Facades\\DB::selectOne("SELECT pg_backend_pid() AS id")->id];');
             expect($result['pinned'])->toBeTrue()->and($result['busy'])->toBeTrue()
                 ->and($result['pid'])->not->toBe(DB::selectOne('SELECT pg_backend_pid() AS id')->id);
@@ -271,10 +273,10 @@ test('durable repair pin запрещает concurrent GC и повторный 
     if ($confirmed) {
         app(BlobStore::class)->verifyExisting($duplicate);
         expect($disk->get($blob->objectKey))->toBe('repairable immutable bytes')
-            ->and(app(ArtifactRepository::class)->markDeletion($blob, 900))->not->toBeNull();
+            ->and(app(ArtifactGcRepository::class)->markDeletion($blob, 900))->not->toBeNull();
     } else {
         expect(fn () => app(BlobStore::class)->verifyExisting($duplicate))->toThrow(ArtifactUnavailable::class)
-            ->and(app(ArtifactRepository::class)->markDeletion($blob, 900))->toBeNull()
+            ->and(app(ArtifactGcRepository::class)->markDeletion($blob, 900))->toBeNull()
             ->and(app(ArtifactGarbageCollector::class)->cleanup($original->reservation))->toBeFalse();
     }
     expect(DB::table('prc_storage_reservations')->where('id', $blob->id->value)->value('status'))->toBe($confirmed ? 'transferred' : 'writing')

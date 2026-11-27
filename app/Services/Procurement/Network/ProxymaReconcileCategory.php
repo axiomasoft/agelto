@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Procurement\Network;
 
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
-use App\Services\Procurement\Proxyma\ProxymaMaintenanceContext;
+use App\Services\Procurement\Proxyma\Catalog\ProxymaMaintenanceContext;
 use Proxyma\Application\Recovery\Reconciler;
 use Proxyma\Domain\Policy\TenantKey;
 

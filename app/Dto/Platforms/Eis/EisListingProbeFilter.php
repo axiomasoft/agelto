@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Platforms\Eis;
 
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use App\Services\Procurement\Platform\Contracts\ListingFilter;
 
 /** One bounded unfiltered comparison page; never a persisted acquisition filter. */

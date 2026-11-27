@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\DetailProgress;
-use App\Dto\Procurement\Acquisition\DetailResult;
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\StageFailedItem;
-use App\Dto\Procurement\Process\StageSucceeded;
+use App\Dto\Procurement\Acquisition\Detail\DetailProgress;
+use App\Dto\Procurement\Acquisition\Detail\DetailResult;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageFailedItem;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
 use App\Enums\Organization\ProcurementPartyRole;
 use App\Enums\Procurement\Platform\SnapshotConsistency;
-use App\Enums\Procurement\Process\ItemFailureReason;
+use App\Enums\Procurement\Process\Outcomes\ItemFailureReason;
 use App\Models\Organization\Organization;
 use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Financing;
 use App\Models\Procurement\ProcurementParty;
 use App\Models\Procurement\PurchaseItem;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DetailFixtures as F;
 use Tests\Support\ProcessCore\ExecutionFixtures as E;

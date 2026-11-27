@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Services\Llm\Dto\UsageQuery;
-use App\Services\Llm\Dto\UsageReport;
-use App\Services\Llm\Dto\UsageRow;
-use App\Services\Llm\Dto\UsageSignature;
+use App\Dto\Llm\Reporting\UsageQuery;
+use App\Dto\Llm\Reporting\UsageReport;
+use App\Dto\Llm\Reporting\UsageRow;
+use App\Dto\Llm\Reporting\UsageSignature;
 use App\Services\Llm\ReportMoney;
 use Carbon\CarbonImmutable;
 

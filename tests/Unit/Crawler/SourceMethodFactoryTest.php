@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\SupportedListingCapability;
-use App\Dto\Procurement\Platform\UnsupportedCapability;
+use App\Dto\Procurement\Platform\Capabilities\SupportedListingCapability;
+use App\Dto\Procurement\Platform\Capabilities\UnsupportedCapability;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
@@ -12,7 +12,7 @@ use App\Models\Procurement\Platform\Registry;
 use App\Services\Platforms\Eis\EisDefinition;
 use App\Services\Platforms\Eis\EisListingSource;
 use App\Services\Platforms\Eis\Listing\EisProfilePreparer;
-use App\Services\Procurement\Acquisition\AcquisitionProfiles;
+use App\Services\Procurement\Acquisition\Listing\AcquisitionProfiles;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Config\Repository;
 use Tests\Support\Platforms\JsonProcurement\JsonProcurementDefinition;

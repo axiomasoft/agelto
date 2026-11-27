@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\WorkState;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\WorkState;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Process\SchemaSupportedStages;
+use App\Services\Procurement\Process\Execution\SchemaSupportedStages;
 use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;

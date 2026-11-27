@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\SubjectKey;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\IntentState;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\WorkFeeder;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Governance\IntentState;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\DocumentFeederFixtures;
@@ -43,7 +43,7 @@ test('два feeder W10 W20 ограничивают reservations трёх cohor
     foreach (['one', 'two'] as $name) {
         $workers[$name] = sprintf('config(["process.lanes" => %s]);
             \Tests\Support\ProcessCore\DocumentFeederFixtures::bindAnalysis();
-            $sum=0; for ($i=0;$i<4;$i++) { $sum+=app(\App\Services\Procurement\Process\WorkFeeder::class)->tick("analysis"); }
+            $sum=0; for ($i=0;$i<4;$i++) { $sum+=app(\App\Services\Procurement\Process\Execution\WorkFeeder::class)->tick("analysis"); }
             return ["granted"=>$sum,"pid"=>\Illuminate\Support\Facades\DB::selectOne("SELECT pg_backend_pid() AS pid")->pid];',
             var_export(config('process.lanes'), true));
     }

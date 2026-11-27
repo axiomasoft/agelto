@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Llm\Validation;
 
+use App\Dto\Llm\Execution\ResolvedRoute;
+use App\Dto\Llm\Prompt\JsonSchema;
+use App\Dto\Llm\Prompt\LlmPrompt;
 use App\Enums\Llm\FinishReason;
-use App\Services\Llm\Dto\JsonSchema;
-use App\Services\Llm\Dto\LlmPrompt;
-use App\Services\Llm\Dto\ResolvedRoute;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Spatie\LaravelData\Data;

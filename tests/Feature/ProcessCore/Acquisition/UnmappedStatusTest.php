@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\DetailProgress;
-use App\Dto\Procurement\Acquisition\DetailResult;
-use App\Dto\Procurement\Acquisition\ProcurementSnapshot;
-use App\Dto\Procurement\Process\StageSucceeded;
+use App\Dto\Procurement\Acquisition\Detail\DetailProgress;
+use App\Dto\Procurement\Acquisition\Detail\DetailResult;
+use App\Dto\Procurement\Acquisition\Detail\ProcurementSnapshot;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
 use App\Enums\Procurement\Platform\SnapshotConsistency;
 use App\Enums\Procurement\ProcurementStatus;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\Procurement;
-use App\Services\Procurement\Acquisition\StatusRemapper;
-use App\Services\Procurement\Acquisition\UnmappedStatusReporter;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Acquisition\Status\StatusRemapper;
+use App\Services\Procurement\Acquisition\Status\UnmappedStatusReporter;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use App\Services\Procurement\StatusMappingService;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DetailFixtures as F;

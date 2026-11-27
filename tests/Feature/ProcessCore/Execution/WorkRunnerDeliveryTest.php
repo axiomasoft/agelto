@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\DeliveryEnvelope;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\StageOutcome;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\DeliveryOutcome;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Execution\DeliveryEnvelope;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageOutcome;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Outcomes\DeliveryOutcome;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Exceptions\Procurement\Process\LeaseLost;
 use App\Exceptions\Procurement\Process\SliceExhausted;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use App\Services\Procurement\Process\Contracts\StageHandler;
-use App\Services\Procurement\Process\StageRegistry;
-use App\Services\Procurement\Process\WorkFeeder;
-use App\Services\Procurement\Process\WorkRunner;
+use App\Services\Procurement\Process\Execution\StageRegistry;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Execution\WorkRunner;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;

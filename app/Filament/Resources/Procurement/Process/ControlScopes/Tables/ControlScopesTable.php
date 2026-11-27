@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Process\ControlScopes\Tables;
 
-use App\Dto\Procurement\Process\OperatorCommandResult;
-use App\Enums\Procurement\Process\ControlMode;
+use App\Dto\Procurement\Process\Governance\OperatorCommandResult;
+use App\Enums\Procurement\Process\Governance\ControlMode;
 use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Process\ControlScope;
 use App\Models\User;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Textarea;

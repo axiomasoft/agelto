@@ -8,7 +8,7 @@ use App\Dto\Procurement\Analyzers\Estimate\TotalLine;
 use App\Enums\Procurement\Estimate\EstimateValidationStatus;
 use App\Enums\Procurement\Estimate\RowQualityReason;
 use App\Enums\Procurement\Estimate\RowType;
-use App\Services\Procurement\Analyzers\Estimate\EstimateValidator;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateValidator;
 
 function validatorRow(
     int $index,

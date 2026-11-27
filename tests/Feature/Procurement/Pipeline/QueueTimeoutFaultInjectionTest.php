@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\StageCode;
-use App\Services\Procurement\Process\StageQueueMap;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Services\Procurement\Process\Execution\StageQueueMap;
 
 test('AI and preparation delivery bounds come from the same boot validated StageQueueMap', function (): void {
     $map = app(StageQueueMap::class);

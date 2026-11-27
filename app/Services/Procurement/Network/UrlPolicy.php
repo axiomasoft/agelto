@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Process\ExecutionContext;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Http\SafeUrl;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
 
 /** Exact origin/port allowlist, all DNS answers checked, then connect bound to a checked address. */
 final readonly class UrlPolicy

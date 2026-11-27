@@ -1,7 +1,7 @@
 <?php
 
 declare(strict_types=1);
-use App\Services\Procurement\Prepare\BoundedToolProcess;
+use App\Services\Procurement\Prepare\Tools\BoundedToolProcess;
 use Tests\Support\ProcessCore\ToolContext;
 
 require __DIR__.'/../../../vendor/autoload.php';

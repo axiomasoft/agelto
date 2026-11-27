@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisDetailExtension;
-use App\Dto\Procurement\Acquisition\ListingFacts;
-use App\Dto\Procurement\Acquisition\ListingResult;
-use App\Dto\Procurement\Acquisition\ProcurementSummary;
-use App\Dto\Procurement\Process\VersionedPayload;
+use App\Dto\Procurement\Acquisition\Fetch\ProcurementSummary;
+use App\Dto\Procurement\Acquisition\Listing\ListingFacts;
+use App\Dto\Procurement\Acquisition\Listing\ListingResult;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Platform\Registry;
@@ -15,9 +15,9 @@ use App\Repositories\Procurement\Crawler\ListingStoreRepository;
 use App\Repositories\Procurement\ProcurementReadRepository;
 use App\Services\Platforms\Eis\Csv\EisSummaryParser;
 use App\Services\Platforms\Eis\EisSourceClock;
-use App\Services\Procurement\Acquisition\DetailValueCodec;
-use App\Services\Procurement\Acquisition\ListingStageCodec;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Detail\DetailValueCodec;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Listing\ListingStageCodec;
 use Illuminate\Support\Carbon;
 use Tests\Support\ProcessCore\ListingFixtures as F;
 

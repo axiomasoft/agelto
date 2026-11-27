@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;

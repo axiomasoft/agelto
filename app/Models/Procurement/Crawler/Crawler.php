@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Models\Procurement\Crawler;
 
 use App\Dto\Procurement\Crawler\Contracts\RequiresScope;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\CrawlerFilterFactory;
 use Database\Factories\Procurement\Crawler\CrawlerFactory;

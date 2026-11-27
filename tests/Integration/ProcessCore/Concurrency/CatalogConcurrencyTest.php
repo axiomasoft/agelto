@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Platform\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
 use App\Models\Procurement\Platform\Platform;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use Illuminate\Support\Facades\DB;

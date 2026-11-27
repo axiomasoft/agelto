@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Dto\Procurement\Crawler\ListingCursor;
 use App\Dto\Procurement\Crawler\RecoveryScope;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Models\Procurement\Platform\Registry;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;

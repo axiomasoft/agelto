@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\DaemonTick;
-use App\Enums\Procurement\Process\DaemonKind;
-use App\Repositories\Procurement\Process\OutboxRepository;
-use App\Services\Procurement\Process\DaemonPolicy;
-use App\Services\Procurement\Process\ProjectorDaemon;
+use App\Dto\Procurement\Process\Governance\DaemonTick;
+use App\Enums\Procurement\Process\Governance\DaemonKind;
+use App\Repositories\Procurement\Process\Work\OutboxRepository;
+use App\Services\Procurement\Process\Daemons\DaemonPolicy;
+use App\Services\Procurement\Process\Daemons\ProjectorDaemon;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\ProcessCore\Observability\ProjectionFixtures as Fixture;
 use Tests\Support\ProcessCore\LedgerFixtures;

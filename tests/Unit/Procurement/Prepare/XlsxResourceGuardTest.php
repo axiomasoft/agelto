@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Prepare\XlsxResourceGuard;
+use App\Services\Procurement\Prepare\Tools\XlsxResourceGuard;
 use App\Support\Files\PipelineTemporaryFile;
 
 test('xlsx guard отклоняет compressed decoded-byte bomb до PhpSpreadsheet', function (): void {

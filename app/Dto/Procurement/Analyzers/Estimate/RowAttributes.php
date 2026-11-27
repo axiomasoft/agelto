@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Description;
-use App\Dto\Procurement\Ai\MoneyDecimal;
+use App\Dto\Procurement\Ai\Output\MoneyDecimal;
 use App\Services\Llm\Schema\SchemaConstraints;
 use Spatie\LaravelData\Data;
 

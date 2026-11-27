@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions\Procurement\Document;
 
-use App\Dto\Procurement\Document\StoredBlobUpload;
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Document\Storage\StoredBlobUpload;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
@@ -14,7 +14,7 @@ use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Services\Procurement\Document\ArtifactGarbageCollector;
 use App\Services\Procurement\Document\BlobStore;
 use App\Services\Procurement\Document\StoredDocumentWriter;
-use App\Services\Procurement\Process\ProcessLog;
+use App\Services\Procurement\Process\Infrastructure\ProcessLog;
 use App\Services\Storage\FileLocationResolver;
 use App\Support\Files\MimeDetector;
 use Illuminate\Support\Facades\DB;

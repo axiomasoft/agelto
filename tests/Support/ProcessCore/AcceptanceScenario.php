@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Platform\Definition\OriginBudgetPolicy;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Process\DaemonPolicy;
-use App\Services\Procurement\Process\FeederDaemon;
-use App\Services\Procurement\Process\ProjectorDaemon;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\RelayDaemon;
+use App\Services\Procurement\Process\Daemons\DaemonPolicy;
+use App\Services\Procurement\Process\Daemons\FeederDaemon;
+use App\Services\Procurement\Process\Daemons\ProjectorDaemon;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Daemons\RelayDaemon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Redis;
@@ -120,7 +120,7 @@ final class AcceptanceScenario
     {
         $path = var_export($this->root.'/acceptance.json', true);
         $code = '\\Tests\\Support\\ProcessCore\\AcceptanceRuntime::boot('.$path.');'
-            .'return ["pid" => getmypid(), "grants" => app(\\App\\Services\\Procurement\\Process\\WorkFeeder::class)->tick("analysis")];';
+            .'return ["pid" => getmypid(), "grants" => app(\\App\Services\Procurement\Process\Execution\WorkFeeder::class)->tick("analysis")];';
 
         return ConcurrentTransactions::concurrently(['a' => $code, 'b' => $code]);
     }

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\PageRange;
-use App\Dto\Procurement\Process\NoProviderRecovery;
-use App\Dto\Procurement\Process\ProviderRecoveryPlan;
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Dto\Procurement\Process\StageBlocked;
-use App\Enums\Procurement\Process\BlockedReason;
+use App\Dto\Procurement\Ai\Planning\PageRange;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Dto\Procurement\Process\Outcomes\StageBlocked;
+use App\Dto\Procurement\Process\Provider\NoProviderRecovery;
+use App\Dto\Procurement\Process\Provider\ProviderRecoveryPlan;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
 use App\Repositories\Procurement\Ai\AnalysisPlanRepository;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use App\Services\Procurement\Screening\ScreeningHandler;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\RunFacts;
-use App\Dto\Procurement\Process\WorkStateCounts;
-use App\Enums\Procurement\Process\DiscoveryOutcome;
-use App\Enums\Procurement\Process\ProcessRunState;
-use App\Services\Procurement\Process\RunProjector;
-use App\Services\Procurement\Process\RunStateReducer;
+use App\Dto\Procurement\Process\Governance\WorkStateCounts;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Projection\RunFacts;
+use App\Enums\Procurement\Process\Core\DiscoveryOutcome;
+use App\Enums\Procurement\Process\Core\ProcessRunState;
+use App\Services\Procurement\Process\Projection\RunProjector;
+use App\Services\Procurement\Process\Projection\RunStateReducer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;
 

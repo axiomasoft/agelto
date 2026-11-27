@@ -20,7 +20,7 @@ use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Models\User;
-use App\Services\Procurement\Prepare\ArchiveStrategy;
+use App\Services\Procurement\Prepare\Strategies\ArchiveStrategy;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;

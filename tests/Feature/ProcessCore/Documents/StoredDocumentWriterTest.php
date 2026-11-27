@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
-use App\Repositories\Procurement\Document\ArtifactRepository;
+use App\Repositories\Procurement\Document\ArtifactGcRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Services\Procurement\Document\ArtifactGarbageCollector;
 use App\Services\Procurement\Document\StoredDocumentWriter;
 use App\Services\Procurement\Prepare\RepresentationWriter;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -104,7 +104,7 @@ test('GC после outside verification до locked import не позволя�
     DB::listen(function (QueryExecuted $query) use (&$armed, $blob): void {
         if ($armed && DB::transactionLevel() === 0 && str_contains($query->sql, 'FROM prc_document_blobs WHERE disk=? AND object_key=?')) {
             $armed = false;
-            $mark = app(ArtifactRepository::class)->markDeletion($blob, 900);
+            $mark = app(ArtifactGcRepository::class)->markDeletion($blob, 900);
             expect($mark)->not->toBeNull()->and(app(ArtifactGarbageCollector::class)->deleteMarked($mark))->toBeTrue();
         }
     });
@@ -159,7 +159,7 @@ test('idempotent storage provisioning не маскирует иной id или
     $capacity->beginWrite($writing);
     $capacity->beginWrite($staged);
     $capacity->finishWrite($staged);
-    expect(app(ArtifactRepository::class)->beginCleanup($cleaning))->toBeTrue();
+    expect(app(ArtifactGcRepository::class)->beginCleanup($cleaning))->toBeTrue();
 
     // 20 durable + four charged 5-byte reservations + 20 new bytes exceeds high=55, not capacity=100.
     expect(fn () => $writer->version([...$attributes, 'storage_path' => 'next-import.pdf']))

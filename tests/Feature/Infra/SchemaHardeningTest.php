@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Enums\Procurement\Process\RunKind;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Enums\Procurement\Process\Core\RunKind;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
 use App\Models\Procurement\PurchaseItem;
-use App\Repositories\Procurement\Process\RunStoreRepository;
+use App\Repositories\Procurement\Process\Projection\RunStoreRepository;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;

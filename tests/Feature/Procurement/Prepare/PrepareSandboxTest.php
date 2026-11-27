@@ -12,10 +12,10 @@ use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
 use App\Services\Procurement\Prepare\Archive\ArchiveValidationException;
 use App\Services\Procurement\Prepare\DocumentPreparer;
-use App\Services\Procurement\Prepare\LibreOfficeConverter;
-use App\Services\Procurement\Prepare\OcrConverter;
-use App\Services\Procurement\Prepare\SpreadsheetStrategy;
-use App\Services\Procurement\Prepare\WordStrategy;
+use App\Services\Procurement\Prepare\Strategies\SpreadsheetStrategy;
+use App\Services\Procurement\Prepare\Strategies\WordStrategy;
+use App\Services\Procurement\Prepare\Tools\LibreOfficeConverter;
+use App\Services\Procurement\Prepare\Tools\OcrConverter;
 use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
@@ -208,7 +208,7 @@ test('песочница явно отклоняет неподдерживае�
     $directory = PipelineTemporaryFile::createDirectory(prefix: 'sandbox_arch_');
     $receipt = $directory.'/receipt';
     $marker = $directory.'/started';
-    $supervisor = app_path('Services/Procurement/Prepare/tool_supervisor.py');
+    $supervisor = app_path('Services/Procurement/Prepare/Tools/tool_supervisor.py');
     $code = <<<'PY'
 import platform
 import runpy

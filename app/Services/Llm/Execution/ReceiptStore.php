@@ -9,7 +9,7 @@ use App\Dto\Llm\Requests\VerifiedReceipt;
 use App\Exceptions\Llm\OperationDenied;
 use App\Exceptions\Llm\ReceiptUnavailable;
 use App\Services\Llm\Schema\CanonicalJson;
-use Illuminate\Support\Facades\DB;
+use App\Support\Database\TransactionGuard;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 
@@ -26,7 +26,7 @@ final readonly class ReceiptStore
 
     public function put(ProviderCall $call, int $status, string $body): VerifiedReceipt
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Receipt object I/O', null, 'Receipt object I/O is forbidden inside DB transactions.');
         if (! $call->claimed || $status < 100 || $status > 599 || strlen($body) > self::MAX_BYTES - 4096) {
             throw new OperationDenied('invalid_receipt_capture');
         }
@@ -46,21 +46,7 @@ final readonly class ReceiptStore
             }
             $path = $disk->path($key);
             if (! is_file($path)) {
-                $temporary = tempnam(dirname($path), '.receipt-');
-                if ($temporary === false) {
-                    throw new ReceiptUnavailable('Receipt spool unavailable.');
-                }
-                $stream = fopen($temporary, 'wb');
-                if ($stream === false) {
-                    throw new ReceiptUnavailable('Receipt spool unavailable.');
-                }
-                try {
-                    if (fwrite($stream, $bytes) !== strlen($bytes) || ! fflush($stream) || ! fsync($stream)) {
-                        throw new ReceiptUnavailable('Receipt durable write unconfirmed.');
-                    }
-                } finally {
-                    fclose($stream);
-                }
+                $temporary = $this->writeDurableTemp(dirname($path), '.receipt-', $bytes);
                 // Atomic visibility only after the complete object. A competing capture cannot overwrite.
                 if (! @link($temporary, $path) && ! is_file($path)) {
                     throw new ReceiptUnavailable('Receipt immutable publish failed.');
@@ -82,7 +68,7 @@ final readonly class ReceiptStore
 
     public function inspect(ProviderCall $call): ?VerifiedReceipt
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Receipt object I/O', null, 'Receipt object I/O is forbidden inside DB transactions.');
         try {
             $disk = Storage::disk($call->receiptDisk);
             if (! $disk->exists($call->receiptUploadKey)) {
@@ -133,7 +119,7 @@ final readonly class ReceiptStore
 
     public function verifyStorageContract(string $diskName = 'local'): void
     {
-        $this->outsideTransaction();
+        TransactionGuard::forbidActive('Receipt object I/O', null, 'Receipt object I/O is forbidden inside DB transactions.');
         $disk = Storage::disk($diskName);
         if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
             throw new ReceiptUnavailable('Receipt disk requires atomic create-if-absent support.');
@@ -149,42 +135,14 @@ final readonly class ReceiptStore
                 throw new ReceiptUnavailable('Receipt directory unavailable.');
             }
             $targetPath = $disk->path($key);
-            $temp1 = tempnam(dirname($targetPath), '.probe-tmp-');
-            if ($temp1 === false) {
-                throw new ReceiptUnavailable('Receipt spool unavailable.');
-            }
             $payload1 = CanonicalJson::encode(['probe' => $probeId, 'seq' => 1]);
-            $stream1 = fopen($temp1, 'wb');
-            if ($stream1 === false) {
-                throw new ReceiptUnavailable('Receipt spool unavailable.');
-            }
-            try {
-                if (fwrite($stream1, $payload1) !== strlen($payload1) || ! fflush($stream1) || ! fsync($stream1)) {
-                    throw new ReceiptUnavailable('Receipt durable write unconfirmed.');
-                }
-            } finally {
-                fclose($stream1);
-            }
+            $temp1 = $this->writeDurableTemp(dirname($targetPath), '.probe-tmp-', $payload1);
             if (! @link($temp1, $targetPath) || ! is_file($targetPath)) {
                 throw new ReceiptUnavailable('Receipt immutable publish failed.');
             }
 
-            $temp2 = tempnam(dirname($targetPath), '.probe-tmp-');
-            if ($temp2 === false) {
-                throw new ReceiptUnavailable('Receipt spool unavailable.');
-            }
             $payload2 = CanonicalJson::encode(['probe' => $probeId, 'seq' => 2]);
-            $stream2 = fopen($temp2, 'wb');
-            if ($stream2 === false) {
-                throw new ReceiptUnavailable('Receipt spool unavailable.');
-            }
-            try {
-                if (fwrite($stream2, $payload2) !== strlen($payload2) || ! fflush($stream2) || ! fsync($stream2)) {
-                    throw new ReceiptUnavailable('Receipt durable write unconfirmed.');
-                }
-            } finally {
-                fclose($stream2);
-            }
+            $temp2 = $this->writeDurableTemp(dirname($targetPath), '.probe-tmp-', $payload2);
             if (@link($temp2, $targetPath) !== false || file_get_contents($targetPath) !== $payload1) {
                 throw new ReceiptUnavailable('Receipt disk violated create-if-absent immutability.');
             }
@@ -219,10 +177,33 @@ final readonly class ReceiptStore
         }
     }
 
-    private function outsideTransaction(): void
+    private function writeDurableTemp(string $directory, string $prefix, string $bytes): string
     {
-        if (DB::connection()->transactionLevel() !== 0) {
-            throw new \LogicException('Receipt object I/O is forbidden inside DB transactions.');
+        $temporary = tempnam($directory, $prefix);
+        if ($temporary === false) {
+            throw new ReceiptUnavailable('Receipt spool unavailable.');
+        }
+
+        try {
+            $stream = fopen($temporary, 'wb');
+            if ($stream === false) {
+                throw new ReceiptUnavailable('Receipt spool unavailable.');
+            }
+            try {
+                if (fwrite($stream, $bytes) !== strlen($bytes) || ! fflush($stream) || ! fsync($stream)) {
+                    throw new ReceiptUnavailable('Receipt durable write unconfirmed.');
+                }
+            } finally {
+                fclose($stream);
+            }
+
+            return $temporary;
+        } catch (\Throwable $failure) {
+            if (is_file($temporary)) {
+                @unlink($temporary);
+            }
+
+            throw $failure;
         }
     }
 

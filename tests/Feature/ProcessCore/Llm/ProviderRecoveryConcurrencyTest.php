@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Services\Llm\Execution\ReceiptStore;
-use App\Services\Procurement\Process\RecoveryReconciler;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Postgres\ConcurrentTransactions;
@@ -26,9 +26,9 @@ test('restart и два настоящих reconciler процесса прим�
     $root = Storage::disk('local')->path('');
     $code = 'config(["filesystems.disks.local.root" => '.var_export($root, true).']);'
         .'\\Illuminate\\Support\\Facades\\Storage::forgetDisk("local");'
-        .'\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\\Enums\\Procurement\\Process\\StageCode::Screening);'
+        .'\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\Enums\Procurement\Process\Core\StageCode::Screening);'
         .'app(\\App\\Services\\Llm\\Execution\\ReceiptPolicies::class)->register("fixture-provider", new \\Tests\\Support\\ProcessCore\\FinancialFixtures);'
-        .'$count = app(\\App\\Services\\Procurement\\Process\\RecoveryReconciler::class)->recoverBlockedProvider();'
+        .'$count = app(\\App\Services\Procurement\Process\Daemons\RecoveryReconciler::class)->recoverBlockedProvider();'
         .'return ["count" => $count, "pid" => \\Illuminate\\Support\\Facades\\DB::selectOne("SELECT pg_backend_pid() AS id")->id];';
     $results = ConcurrentTransactions::concurrently(['first' => $code, 'second' => $code]);
     expect($results['first']['pid'])->not->toBe($results['second']['pid'])

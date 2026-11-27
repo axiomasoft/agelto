@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Services\Llm\Execution\ProviderCodecs;
+use App\Services\Llm\Providers\GeminiWireCodec;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -25,6 +27,10 @@ pest()->extend(TestCase::class)
 
 pest()->extend(TestCase::class)
     ->in('Integration');
+
+pest()->beforeEach(function (): void {
+    app(ProviderCodecs::class)->register('fixture-provider', new GeminiWireCodec);
+})->in('Feature', 'Unit', 'Integration');
 
 pest()->tia()->locally()->baselined();
 

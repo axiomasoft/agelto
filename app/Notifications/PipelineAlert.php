@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
-use App\Dto\Procurement\Network\HttpRequestPayload;
-use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Network\Http\HttpRequestPayload;
+use App\Dto\Procurement\Network\Http\SafeUrl;
 use App\Enums\Telemetry\LogChannel;
-use App\Services\Procurement\Proxyma\TelegramOutbound;
+use App\Services\Procurement\Proxyma\Caller\TelegramOutbound;
 use Illuminate\Support\Facades\Cache;
 
 /**

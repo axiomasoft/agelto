@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions\Procurement\Process;
 
-use App\Enums\Procurement\Process\BlockedReason;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
 
 /** Rejected domain publication: rollback first, then settle through the ordinary owner fence. */
 final class PublicationBlocked extends \RuntimeException

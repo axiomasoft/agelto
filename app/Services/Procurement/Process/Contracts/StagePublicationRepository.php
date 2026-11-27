@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process\Contracts;
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 
 interface StagePublicationRepository extends StageResultRepository
 {

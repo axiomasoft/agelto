@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Acquisition\ListingResult;
-use App\Dto\Procurement\Process\StageSucceeded;
-use App\Enums\Procurement\Process\CompletionStatus;
+use App\Dto\Procurement\Acquisition\Listing\ListingResult;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
+use App\Enums\Procurement\Process\Outcomes\CompletionStatus;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 
 final class IdentityConcurrency

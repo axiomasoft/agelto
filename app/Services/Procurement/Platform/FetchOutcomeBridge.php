@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Platform;
 
-use App\Dto\Procurement\Acquisition\DetailFetched;
-use App\Dto\Procurement\Acquisition\FetchBlocked;
-use App\Dto\Procurement\Acquisition\FetchDeferred;
-use App\Dto\Procurement\Acquisition\FetchItemRejected;
-use App\Dto\Procurement\Acquisition\ListingFetched;
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\MissingParts;
-use App\Dto\Procurement\Process\StageBlocked;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\StageDeferred;
-use App\Dto\Procurement\Process\StageFailedItem;
-use App\Dto\Procurement\Process\StagePartial;
+use App\Dto\Procurement\Acquisition\Detail\DetailFetched;
+use App\Dto\Procurement\Acquisition\Fetch\FetchBlocked;
+use App\Dto\Procurement\Acquisition\Fetch\FetchDeferred;
+use App\Dto\Procurement\Acquisition\Fetch\FetchItemRejected;
+use App\Dto\Procurement\Acquisition\Listing\ListingFetched;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageBlocked;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
+use App\Dto\Procurement\Process\Outcomes\StageFailedItem;
+use App\Dto\Procurement\Process\Outcomes\StagePartial;
+use App\Dto\Procurement\Process\Primitives\MissingParts;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 use App\Enums\Procurement\Platform\Completeness;
 use App\Enums\Procurement\Platform\FailureScope;
-use App\Enums\Procurement\Process\BlockedReason;
-use App\Enums\Procurement\Process\DeferralReason;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
+use App\Enums\Procurement\Process\Outcomes\DeferralReason;
 use App\Exceptions\Procurement\Process\LeaseLost;
 
 /** Pure adapter boundary. Publication and budget accounting remain owned by WorkFinalizer. */

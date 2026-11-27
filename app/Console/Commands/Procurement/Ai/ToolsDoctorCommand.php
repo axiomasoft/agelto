@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement\Ai;
 
-use App\Services\Procurement\Prepare\ToolchainProbe;
+use App\Services\Procurement\Prepare\Tools\ToolchainProbe;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

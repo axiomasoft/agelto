@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Health\ReadinessCheckCode;
 use App\Services\Health\ApplicationReadiness;
+use App\Services\Health\PgTimeoutGuard;
 use App\Support\Telemetry\SentrySanitizer;
 use Illuminate\Database\Connection;
 use Illuminate\Database\QueryException;
@@ -83,10 +84,9 @@ test('ошибка запроса проверки готовности сохр
     DB::connection()->transaction(function (Connection $connection): void {
         $connection->statement("SET LOCAL lock_timeout = '2s'");
         $connection->statement("SET LOCAL statement_timeout = '3s'");
-        $readiness = app(ApplicationReadiness::class);
-        $probe = new ReflectionMethod($readiness, 'runWithPgTimeouts');
+        $pgGuard = app(PgTimeoutGuard::class);
 
-        expect(fn () => $probe->invoke($readiness, hrtime(true) + 1_000_000_000, function (Connection $probeConnection): void {
+        expect(fn () => $pgGuard->runWithPgTimeouts(hrtime(true) + 1_000_000_000, function (Connection $probeConnection): void {
             $probeConnection->select('SELECT 1 / 0');
         }))->toThrow(QueryException::class);
 

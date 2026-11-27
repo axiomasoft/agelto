@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\DocumentHead;
-use App\Dto\Procurement\Document\DocumentRevision;
-use App\Dto\Procurement\Document\SourceDocumentMetadata;
-use App\Dto\Procurement\Document\VerifiedArtifact;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Document\Download\SourceDocumentMetadata;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\DocumentRevision;
+use App\Dto\Procurement\Document\Storage\VerifiedArtifact;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Exceptions\Procurement\Document\DocumentHeadChanged;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use Illuminate\Support\Facades\DB;
 

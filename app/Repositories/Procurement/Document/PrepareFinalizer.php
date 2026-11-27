@@ -4,27 +4,26 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Document\DocumentRange;
-use App\Dto\Procurement\Document\PreparedDocument;
-use App\Dto\Procurement\Document\PrepareOcrCheckpoint;
-use App\Dto\Procurement\Document\RepresentationCoverage;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\PrepareInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\SubjectKey;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
+use App\Dto\Procurement\Document\Download\DocumentRange;
+use App\Dto\Procurement\Document\Prepare\PreparedDocument;
+use App\Dto\Procurement\Document\Prepare\PrepareOcrCheckpoint;
+use App\Dto\Procurement\Document\Prepare\RepresentationCoverage;
+use App\Dto\Procurement\Process\Inputs\PrepareInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Procurement\Document\CoverageUnit;
 use App\Enums\Procurement\Document\RepresentationKind;
-use App\Enums\Procurement\Process\IntentState;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
-use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Governance\IntentState;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Procurement\Document\PreparePolicy;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
@@ -88,7 +87,7 @@ final readonly class PrepareFinalizer implements StagePublicationRepository
                 $result->manifest->qualityLabel($this->policy->qualityThreshold)));
 
         $key = ContentHash::of('screening-pending:'.$input->documentVersionId.':'.$input->preparationRecipeHash->hex.':'.$result->text->hash->hex);
-        $id = ListingStoreRepository::id('screening-intent:'.$key->hex);
+        $id = ProcessUuid::derived('screening-intent:'.$key->hex);
         if (LedgerRow::one('SELECT id FROM prc_operation_intents WHERE id=?', [$id->value]) === null) {
             app(WorkStoreRepository::class)->storeIntent($id, $key,
                 StageCode::Screening,

@@ -9,7 +9,7 @@ use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Models\Procurement\ProcurementEvent;
 use App\Repositories\Procurement\Document\RepresentationStoreRepository;
-use App\Services\Procurement\Prepare\SpreadsheetStrategy;
+use App\Services\Procurement\Prepare\Strategies\SpreadsheetStrategy;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;

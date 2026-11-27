@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Process\Work\Tables;
 
-use App\Dto\Procurement\Process\OperatorCommandResult;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\WorkState;
+use App\Dto\Procurement\Process\Governance\OperatorCommandResult;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\WorkState;
 use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Process\WorkItem;
 use App\Models\User;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;

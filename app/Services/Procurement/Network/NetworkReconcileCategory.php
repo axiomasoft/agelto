@@ -6,7 +6,7 @@ namespace App\Services\Procurement\Network;
 
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
 use App\Services\Procurement\Process\Contracts\ReconcileCategory;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 
 /** Crash cleanup belongs to the existing reconcile daemon, never a business retry scheduler. */
 final readonly class NetworkReconcileCategory implements ReconcileCategory

@@ -6,7 +6,7 @@ namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Console\Support\ConsoleProgressReporter;
 use App\Dto\Procurement\Fixture\ItemOutcome;
-use App\Services\Procurement\Analyzers\Estimate\PromptSuggestionRunner;
+use App\Services\Procurement\Analyzers\Estimate\Eval\PromptSuggestionRunner;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

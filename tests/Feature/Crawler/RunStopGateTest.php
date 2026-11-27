@@ -3,13 +3,13 @@
 declare(strict_types=1);
 
 use App\Actions\Procurement\Process\CancelWork;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ClaimStatus;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\WorkMutationStatus;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\WorkFeeder;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Outcomes\ClaimStatus;
+use App\Enums\Procurement\Process\Outcomes\WorkMutationStatus;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures as F;
 

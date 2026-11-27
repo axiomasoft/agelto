@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\TransitionData;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\AccountingRole;
-use App\Enums\Procurement\Process\ActorKind;
-use App\Enums\Procurement\Process\RunWorkRelation;
-use App\Repositories\Procurement\Process\IncidentRepository;
-use App\Repositories\Procurement\Process\ProjectionRepository;
-use App\Repositories\Procurement\Process\TransitionRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\MetricProjector;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\RetentionPolicy;
-use App\Services\Procurement\Process\RetentionService;
+use App\Dto\Procurement\Process\Governance\TransitionData;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\AccountingRole;
+use App\Enums\Procurement\Process\Core\RunWorkRelation;
+use App\Enums\Procurement\Process\Governance\ActorKind;
+use App\Repositories\Procurement\Process\Authority\IncidentRepository;
+use App\Repositories\Procurement\Process\Projection\ProjectionRepository;
+use App\Repositories\Procurement\Process\Projection\TransitionRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
+use App\Services\Procurement\Process\Projection\MetricProjector;
+use App\Services\Procurement\Process\Projection\RetentionPolicy;
+use App\Services\Procurement\Process\Projection\RetentionService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Tests\Feature\ProcessCore\Observability\ProjectionFixtures as Fixture;

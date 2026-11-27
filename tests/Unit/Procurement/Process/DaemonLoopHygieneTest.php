@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\DaemonTick;
-use App\Dto\Procurement\Process\DbInstant;
-use App\Dto\Procurement\Process\Duration;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Process\DaemonKind;
-use App\Repositories\Procurement\Process\DaemonHeartbeatRepository;
+use App\Dto\Procurement\Process\Governance\DaemonTick;
+use App\Dto\Procurement\Process\Primitives\DbInstant;
+use App\Dto\Procurement\Process\Primitives\Duration;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Process\Governance\DaemonKind;
+use App\Repositories\Procurement\Process\Authority\DaemonHeartbeatRepository;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\ProcessDaemon;
-use App\Services\Procurement\Process\DaemonLoop;
-use App\Services\Procurement\Process\DaemonPolicy;
+use App\Services\Procurement\Process\Daemons\DaemonLoop;
+use App\Services\Procurement\Process\Daemons\DaemonPolicy;
 use Illuminate\Support\Facades\DB;
 
 test('лимит тиков политики необязателен и принимает только положительное число', function (): void {

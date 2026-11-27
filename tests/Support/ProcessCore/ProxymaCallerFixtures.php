@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Network\HttpRouteBinding;
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Network\Control\HttpRouteBinding;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Control\OutboundRequestPlan;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Models\Procurement\Proxyma\ProfileLink;
 use App\Models\Procurement\Proxyma\TargetLink;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\OutboundPolicy;
-use App\Services\Procurement\Proxyma\AdapterSendGuard;
-use App\Services\Procurement\Proxyma\CallerGate;
-use App\Services\Procurement\Proxyma\CallerPolicyContext;
-use App\Services\Procurement\Proxyma\ProcessOwnerAuthority;
-use App\Services\Procurement\Proxyma\ProfileBindings;
-use App\Services\Procurement\Proxyma\ProfileResolver;
-use App\Services\Procurement\Proxyma\RuntimeCaller;
+use App\Services\Procurement\Proxyma\Caller\AdapterSendGuard;
+use App\Services\Procurement\Proxyma\Caller\CallerGate;
+use App\Services\Procurement\Proxyma\Caller\CallerPolicyContext;
+use App\Services\Procurement\Proxyma\Caller\RuntimeCaller;
+use App\Services\Procurement\Proxyma\Catalog\ProcessOwnerAuthority;
+use App\Services\Procurement\Proxyma\Catalog\ProfileBindings;
+use App\Services\Procurement\Proxyma\Catalog\ProfileResolver;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Application\Admission\DemandQueue;
@@ -369,7 +369,7 @@ final class ProxymaCallerFixtures implements ExtensionProvider
                 {
                     $this->context->tick();
 
-                    return $this->context->canStart(new \App\Dto\Procurement\Process\Duration($required->milliseconds));
+                    return $this->context->canStart(new \App\Dto\Procurement\Process\Primitives\Duration($required->milliseconds));
                 }
             };
             $reservations = app(ReservationService::class);

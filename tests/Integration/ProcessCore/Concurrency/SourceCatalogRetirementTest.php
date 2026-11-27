@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\AdapterContractRef;
-use App\Dto\Procurement\Network\AdapterValidationClaim;
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Network\TransferBudget;
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterContractRef;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterValidationClaim;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Control\OutboundRequestPlan;
+use App\Dto\Procurement\Network\Http\SafeUrl;
+use App\Dto\Procurement\Network\Http\TransferBudget;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\IdempotencyClass;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
@@ -18,9 +18,9 @@ use App\Repositories\Procurement\Network\SourceCatalogRepository;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Platform\PlatformRegistry;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxyma\CallerOutbound;
-use App\Services\Procurement\Proxyma\RuntimeCaller;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
+use App\Services\Procurement\Proxyma\Caller\CallerOutbound;
+use App\Services\Procurement\Proxyma\Caller\RuntimeCaller;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Application\Admission\ClaimSend;
 use Proxyma\Application\Admission\ReservationService;

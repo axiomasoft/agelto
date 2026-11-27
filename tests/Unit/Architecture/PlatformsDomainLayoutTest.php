@@ -53,7 +53,7 @@ test('forbidden dependency reports exact file and import without a baseline bypa
 });
 
 test('Proxyma profile integration разрешена preparer но запрещена fetch и parser', function (): void {
-    $import = 'App\Services\Procurement\Proxyma\ProfileResolver';
+    $import = 'App\Services\Procurement\Proxyma\Catalog\ProfileResolver';
     $source = '<?php use '.$import.';';
     expect(PlatformSourceRules::dependencyViolations([
         'app/Services/Platforms/Eis/Listing/EisProfilePreparer.php' => $source,
@@ -183,9 +183,9 @@ test('каждый перенесённый class enum factory и seeder дос�
 
 test('profile preparation role cannot acquire execution persistence dependencies', function (): void {
     $violations = PlatformSourceRules::dependencyViolations([
-        'app/Services/Platforms/Eis/Listing/EisProfilePreparer.php' => '<?php use App\\Repositories\\Procurement\\Process\\WorkStoreRepository;',
+        'app/Services/Platforms/Eis/Listing/EisProfilePreparer.php' => '<?php use App\Repositories\Procurement\Process\Work\WorkStoreRepository;',
     ]);
-    expect($violations)->toContain('forbidden dependency: app/Services/Platforms/Eis/Listing/EisProfilePreparer.php -> App\\Repositories\\Procurement\\Process\\WorkStoreRepository');
+    expect($violations)->toContain('forbidden dependency: app/Services/Platforms/Eis/Listing/EisProfilePreparer.php -> App\Repositories\Procurement\Process\Work\WorkStoreRepository');
 });
 
 test('diagnostic assessment cannot select routes or read acquisition models', function (): void {

@@ -7,7 +7,7 @@ use App\Enums\Procurement\Document\PreparationResult;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Prepare\Archive\ArchiveExtractor;
-use App\Services\Procurement\Prepare\ArchiveStrategy;
+use App\Services\Procurement\Prepare\Strategies\ArchiveStrategy;
 use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Extraction\PublicationHandler;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Extraction\Publication\PublicationHandler;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\AiFixtures;
 use Tests\Support\ProcessCore\PublicationRuntimeFixtures;

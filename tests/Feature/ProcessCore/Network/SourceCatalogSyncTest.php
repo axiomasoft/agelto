@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\OriginBudgetPolicy;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\NetworkChangeStatus;
 use App\Services\Procurement\Network\OutboundPolicy;
 use App\Services\Procurement\Network\SourceCatalogRegistry;

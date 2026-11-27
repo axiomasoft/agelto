@@ -96,14 +96,14 @@ final class PlatformSourceRules
             'app/Console/Platforms/Eis/VerifyDocumentUid.php' => [
                 'App\\Models\\Procurement\\Platform\\Registry',
                 'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',
-                'App\\Services\\Procurement\\Proxyma\\ProfileResolver',
+                'App\Services\Procurement\Proxyma\Catalog\ProfileResolver',
             ],
             'database/factories/Platforms/Eis/EisCrawlerFactory.php' => [
                 'App\\Models\\Procurement\\Crawler\\Crawler',
                 'App\\Models\\Procurement\\Platform\\Platform',
                 'App\\Models\\Procurement\\Platform\\Registry',
                 'App\\Services\\Procurement\\Network\\OutboundPolicy',
-                'App\\Services\\Procurement\\Process\\ProcessTransaction',
+                'App\Services\Procurement\Process\Infrastructure\ProcessTransaction',
                 'Illuminate\\Support\\Facades\\DB',
             ],
             'database/seeders/Platforms/Eis/EisCrawlerProfileSeeder.php' => [
@@ -116,16 +116,16 @@ final class PlatformSourceRules
                 'App\\Models\\Procurement\\Crawler\\Crawler',
                 'App\\Repositories\\Procurement\\Crawler\\ListingCoverageRepository',
                 'App\\Repositories\\Procurement\\Platform\\Okpd2NodeReadRepository',
-                'App\\Repositories\\Procurement\\Process\\LedgerRow',
+                'App\Repositories\Procurement\Process\Support\LedgerRow',
                 'App\\Services\\Procurement\\Acquisition\\Contracts\\AcquisitionProfilePreparer',
                 'App\\Services\\Procurement\\Network\\OutboundPolicy',
-                'App\\Services\\Procurement\\Proxyma\\ProfileResolver',
+                'App\Services\Procurement\Proxyma\Catalog\ProfileResolver',
             ],
             'app/Services/Platforms/Eis/EisDefinition.php' => [
                 'App\\Filament\\Platforms\\Eis\\EisUiExtension',
             ],
             'app/Services/Platforms/Eis/EisExtensionPersister.php' => [
-                'App\\Repositories\\Procurement\\Process\\CallerTransaction',
+                'App\Repositories\Procurement\Process\Support\CallerTransaction',
             ],
             'app/Filament/Platforms/Eis/EisUiExtension.php' => [
                 'App\\Models\\Procurement\\Platform\\Registry',
@@ -155,8 +155,8 @@ final class PlatformSourceRules
             ],
             'app/Services/Platforms/Eis/Filters/Okpd2NodeSynchronizer.php' => [
                 'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',
-                'App\\Services\\Procurement\\Proxyma\\ProfileResolver',
-                'App\\Services\\Procurement\\Proxyma\\ProfileBindings',
+                'App\Services\Procurement\Proxyma\Catalog\ProfileResolver',
+                'App\Services\Procurement\Proxyma\Catalog\ProfileBindings',
                 'App\Models\Procurement\Platform\Platform',
                 'App\Models\Procurement\Platform\Okpd2Node',
                 'App\Repositories\Procurement\Platform\Okpd2NodeReadRepository',

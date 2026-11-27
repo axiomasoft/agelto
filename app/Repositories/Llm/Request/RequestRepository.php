@@ -6,6 +6,7 @@ namespace App\Repositories\Llm\Request;
 
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
 use App\Dto\Llm\Requests\PinnedLlmContext;
+use App\Dto\Llm\Requests\PricingSnapshot;
 use App\Dto\Llm\Requests\ProviderCall;
 use App\Dto\Llm\Requests\ProviderOperationIds;
 use App\Dto\Llm\Requests\ProviderUsage;
@@ -15,9 +16,11 @@ use App\Dto\Llm\Requests\VerifiedReceipt;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
 use App\Exceptions\Llm\OperationDenied;
+use App\Services\Llm\Execution\ProviderCodecs;
 use App\Services\Llm\Execution\ProviderOperationPlan;
 use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Llm\Schema\CanonicalJson;
+use Illuminate\Container\Container;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -68,39 +71,7 @@ final readonly class RequestRepository
 
             return $call->authorization;
         }
-        if (! in_array($request->string('state'), ['prepared', 'failed_known'], true)) {
-            throw new OperationDenied('request_not_retry_eligible');
-        }
-        $ordinal = (ProviderRow::one('SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=?', [$requestId])?->int('count') ?? 0) + 1;
-        if ($ordinal > $request->int('max_physical_attempts')) {
-            throw new OperationDenied('physical_attempt_budget_exhausted');
-        }
-        if ($prior !== null) {
-            $previous = $this->get($prior->string('physical_call_id'));
-            if (! in_array($previous->outcome, ['not_sent', ReceiptOutcome::NonbillableRetry->value, ReceiptOutcome::NonbillableCacheMiss->value], true)) {
-                throw new OperationDenied('retry_charge_unproven');
-            }
-            $cacheMisses = ProviderRow::one("SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=? AND outcome='known_nonbillable_cache_miss'", [$requestId])?->int('count') ?? 0;
-            if ($cacheMisses > 0 && $wire === null && $previous->wireFingerprint !== null) {
-                throw new OperationDenied('cache_miss_requires_uncached_wire');
-            }
-            if ($cacheMisses > 0 && $wire !== null) {
-                $body = json_decode($wire->body, associative: true, flags: JSON_THROW_ON_ERROR);
-                if ($plan->identity->purpose !== OperationPurpose::Generate || ! is_array($body) || array_key_exists('cachedContent', $body)) {
-                    throw new OperationDenied('cache_miss_requires_uncached_wire');
-                }
-                $afterMiss = ProviderRow::one("SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=? AND ordinal>
-                    (SELECT min(ordinal) FROM llm_provider_calls WHERE logical_request_id=? AND outcome='known_nonbillable_cache_miss')
-                    AND send_claimed_at IS NOT NULL", [$requestId, $requestId])?->int('count') ?? 0;
-                if ($afterMiss > 0) {
-                    throw new OperationDenied('uncached_retry_exhausted');
-                }
-            }
-            if ($previous->outcome === ReceiptOutcome::NonbillableCacheMiss->value
-                && (ProviderRow::one("SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=? AND outcome='known_nonbillable_cache_miss'", [$requestId])?->int('count') ?? 0) > 1) {
-                throw new OperationDenied('uncached_retry_exhausted');
-            }
-        }
+        $ordinal = $this->assertRetryEligibleLocked($request, $requestId, $prior, $plan, $wire);
         $this->finance->assertSendEligible($account, $plan->pricing->upperBound);
         if (bccomp($plan->pricing->upperBound, $period->decimal('available'), 8) > 0) {
             throw new OperationDenied('provider_budget');
@@ -151,16 +122,98 @@ final readonly class RequestRepository
             JOIN llm_budget_reservations r ON r.id=c.reservation_id JOIN llm_budget_periods p ON p.id=r.period_id WHERE c.physical_call_id=?", [$physical])
             ?? throw new OperationDenied('physical_call_missing');
 
-        return new ProviderCall(new AuthorizedProviderOperation($row->string('logical_request_id'), $physical, $row->int('request_epoch'),
-            $row->string('send_authorization_token'), $row->string('owner_attempt_id'), $row->int('owner_work_generation'), $row->string('reservation_id')),
-            OperationPurpose::from($row->string('purpose')), $row->string('recipe_hex'), $row->string('input_hex'),
-            PinnedLlmContext::restore($row->string('context_json')), $row->string('currency'), $row->string('period_id'), $row->decimal('upper_bound'),
-            $row->string('state'), $row->nullableString('send_claimed_at') !== null, $row->string('receipt_id'), $row->string('receipt_disk'),
-            $row->string('receipt_upload_key'), $row->nullableString('receipt_hex'), $row->nullableString('outcome'),
-            $row->nullableString('receipt_hex') === null ? null : new ReceiptAssessment(ReceiptOutcome::from($row->string('outcome')),
-                $row->nullableString('cost_actual'), $row->string('charge_evidence'),
-                ($usage = $row->nullableString('usage')) === null ? null : ProviderUsage::restore($usage),
-                $row->nullableString('resolved_model_version'), $row->nullableString('finish_reason')), $row->nullableString('wire_hex'));
+        return new ProviderCall(
+            authorization: new AuthorizedProviderOperation(
+                logicalRequestId: $row->string('logical_request_id'),
+                physicalCallId: $physical,
+                requestEpoch: $row->int('request_epoch'),
+                sendAuthorizationToken: $row->string('send_authorization_token'),
+                ownerAttemptId: $row->string('owner_attempt_id'),
+                ownerWorkGeneration: $row->int('owner_work_generation'),
+                reservationId: $row->string('reservation_id'),
+            ),
+            purpose: OperationPurpose::from($row->string('purpose')),
+            recipeHash: $row->string('recipe_hex'),
+            inputHash: $row->string('input_hex'),
+            context: PinnedLlmContext::restore($row->string('context_json')),
+            currency: $row->string('currency'),
+            periodId: $row->string('period_id'),
+            upperBound: $row->decimal('upper_bound'),
+            requestState: $row->string('state'),
+            claimed: $row->nullableString('send_claimed_at') !== null,
+            receiptId: $row->string('receipt_id'),
+            receiptDisk: $row->string('receipt_disk'),
+            receiptUploadKey: $row->string('receipt_upload_key'),
+            receiptHash: $row->nullableString('receipt_hex'),
+            outcome: $row->nullableString('outcome'),
+            recordedAssessment: $row->nullableString('receipt_hex') === null ? null : new ReceiptAssessment(
+                outcome: ReceiptOutcome::from($row->string('outcome')),
+                cost: $row->nullableString('cost_actual'),
+                policyEvidence: $row->string('charge_evidence'),
+                usage: ($usage = $row->nullableString('usage')) === null ? null : ProviderUsage::restore($usage),
+                resolvedModelVersion: $row->nullableString('resolved_model_version'),
+                finishReason: $row->nullableString('finish_reason'),
+            ),
+            wireFingerprint: $row->nullableString('wire_hex'),
+        );
+    }
+
+    private function assertRetryEligibleLocked(
+        ProviderRow $request,
+        string $requestId,
+        ?ProviderRow $prior,
+        ProviderOperationPlan $plan,
+        ?ProviderWireRequest $wire,
+    ): int {
+        if (! in_array($request->string('state'), ['prepared', 'failed_known'], true)) {
+            throw new OperationDenied('request_not_retry_eligible');
+        }
+        $ordinal = (ProviderRow::one('SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=?', [$requestId])?->int('count') ?? 0) + 1;
+        if ($ordinal > $request->int('max_physical_attempts')) {
+            throw new OperationDenied('physical_attempt_budget_exhausted');
+        }
+        if ($prior === null) {
+            return $ordinal;
+        }
+        $previous = $this->get($prior->string('physical_call_id'));
+        if (! in_array($previous->outcome, ['not_sent', ReceiptOutcome::NonbillableRetry->value, ReceiptOutcome::NonbillableCacheMiss->value], true)) {
+            throw new OperationDenied('retry_charge_unproven');
+        }
+        $cacheMisses = ProviderRow::one("SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=? AND outcome='known_nonbillable_cache_miss'", [$requestId])?->int('count') ?? 0;
+        if ($cacheMisses > 0 && $wire === null && $previous->wireFingerprint !== null) {
+            throw new OperationDenied('cache_miss_requires_uncached_wire');
+        }
+        if ($cacheMisses > 0 && $wire !== null) {
+            if ($plan->identity->purpose !== OperationPurpose::Generate || ! $this->isUncachedGenerationBody($plan->context->provider, $wire->body)) {
+                throw new OperationDenied('cache_miss_requires_uncached_wire');
+            }
+            $afterMiss = ProviderRow::one("SELECT count(*) AS count FROM llm_provider_calls WHERE logical_request_id=? AND ordinal>
+                (SELECT min(ordinal) FROM llm_provider_calls WHERE logical_request_id=? AND outcome='known_nonbillable_cache_miss')
+                AND send_claimed_at IS NOT NULL", [$requestId, $requestId])?->int('count') ?? 0;
+            if ($afterMiss > 0) {
+                throw new OperationDenied('uncached_retry_exhausted');
+            }
+        }
+        if ($previous->outcome === ReceiptOutcome::NonbillableCacheMiss->value && $cacheMisses > 1) {
+            throw new OperationDenied('uncached_retry_exhausted');
+        }
+
+        return $ordinal;
+    }
+
+    private function isUncachedGenerationBody(string $provider, string $body): bool
+    {
+        $container = Container::getInstance();
+        $codecs = $container->bound(ProviderCodecs::class)
+            ? $container->make(ProviderCodecs::class)
+            : ProviderCodecs::default();
+        if ($codecs->has($provider)) {
+            return $codecs->for($provider)->isUncachedGenerationBody($body);
+        }
+
+        $decoded = json_decode($body, associative: true, flags: JSON_THROW_ON_ERROR);
+
+        return is_array($decoded) && ! array_key_exists('cachedContent', $decoded);
     }
 
     /** @param-out ProviderRow $lockedAccount */
@@ -258,32 +311,12 @@ final readonly class RequestRepository
 
     private function actualCost(ProviderCall $call, ProviderUsage $usage): string
     {
-        $rates = ProviderRow::one(sql: "SELECT (pricing_snapshot->>'input_per_million')::bigint AS input_rate,
-            (pricing_snapshot->>'output_per_million')::bigint AS output_rate,
-            (pricing_snapshot->>'thinking_per_million')::bigint AS thinking_rate,
-            (pricing_snapshot->>'thinking_included_in_output')::boolean AS shared_output_rate,
-            (pricing_snapshot->>'fixed_charge')::bigint AS fixed_charge,
-            (pricing_snapshot->>'cache_create_charge')::bigint AS cache_create_charge,
-            (pricing_snapshot->>'storage_per_token_hour')::bigint AS storage_rate
-            FROM llm_budget_reservations WHERE id=? AND operation_id=? AND period_id=?",
-            bindings: [$call->authorization->reservationId, $call->authorization->physicalCallId, $call->periodId])
-            ?? throw new OperationDenied('reservation_identity_mismatch');
+        $row = ProviderRow::one(
+            sql: 'SELECT pricing_snapshot::text AS pricing_snapshot FROM llm_budget_reservations WHERE id=? AND operation_id=? AND period_id=?',
+            bindings: [$call->authorization->reservationId, $call->authorization->physicalCallId, $call->periodId],
+        ) ?? throw new OperationDenied('reservation_identity_mismatch');
 
-        // The pinned snapshot has one input rate for both cached and uncached tokens.
-        $input = bcadd((string) $usage->uncachedInput, (string) $usage->cachedInput, 0);
-        $output = (string) $usage->output;
-        $thinking = (string) $usage->thinking;
-        if ($rates->bool('shared_output_rate')) {
-            $output = bcadd($output, $thinking, 0);
-            $thinking = '0';
-        }
-        $tokens = bcadd(bcmul($input, (string) $rates->int('input_rate'), 0), bcmul($output, (string) $rates->int('output_rate'), 0), 0);
-        $tokens = bcadd($tokens, bcmul($thinking, (string) $rates->int('thinking_rate'), 0), 0);
-        $micros = bcdiv(bcadd($tokens, '999999', 0), '1000000', 0);
-        $charges = bcadd((string) $rates->int('fixed_charge'), (string) $rates->int('cache_create_charge'), 0);
-        $storage = bcmul((string) $usage->cacheStorageTokenHours, (string) $rates->int('storage_rate'), 0);
-
-        return bcdiv(bcadd(bcadd($micros, $charges, 0), $storage, 0), '1000000', 8);
+        return PricingSnapshot::restore($row->string('pricing_snapshot'))->calculateActualCost($usage);
     }
 
     /** A command creates an audited durable replay intent, never releases the old obligation. */

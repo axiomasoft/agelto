@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Models\Organization\Organization;
 use App\Models\Procurement\Platform\Registry;
 use App\Repositories\Organization\ProcurementPartyStoreRepository;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
 use Tests\Support\Procurement\SnapshotFactory;
 
 /**

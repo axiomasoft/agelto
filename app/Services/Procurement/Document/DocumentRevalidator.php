@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Repositories\Procurement\Document\DocumentWorkRepository;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Str;
 
 /** Allocates durable due cycles only. DocumentFeeder owns activation. */

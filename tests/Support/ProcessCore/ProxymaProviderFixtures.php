@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Models\Procurement\Proxyma\TargetLink;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;

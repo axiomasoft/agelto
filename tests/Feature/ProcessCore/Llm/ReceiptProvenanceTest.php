@@ -7,10 +7,12 @@ use App\Dto\Llm\Requests\ReceiptAssessment;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
 use App\Repositories\Llm\Request\RequestRepository;
+use App\Services\Llm\Execution\ProviderCodecs;
 use App\Services\Llm\Execution\ReceiptPolicies;
 use App\Services\Llm\Execution\ReceiptStore;
 use App\Services\Llm\Execution\RequestLedger;
 use App\Services\Llm\Providers\GeminiAssetReceiptPolicy;
+use App\Services\Llm\Providers\GeminiWireCodec;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\FinancialFixtures;
@@ -38,6 +40,7 @@ test('большой оплаченный ответ восстанавлива�
 test('settled conservative charge сохраняет unknown usage и отсутствие provider version без выдуманных значений', function (bool $reported): void {
     $period = FinancialFixtures::reset();
     app(ReceiptPolicies::class)->register('fixture-provider', new GeminiAssetReceiptPolicy);
+    app(ProviderCodecs::class)->register('fixture-provider', new GeminiWireCodec);
     [, , , , $operation] = FinancialFixtures::authorized($period);
     FinancialFixtures::claim($operation);
     $body = ['candidates' => [['finishReason' => 'MAX_TOKENS', 'content' => ['parts' => [['text' => '{}']]]]]];

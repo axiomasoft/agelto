@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
+use App\Dto\Llm\Execution\LlmOptions;
+use App\Dto\Llm\Execution\ResolvedRoute;
 use App\Enums\Llm\DocumentScope;
 use App\Enums\Llm\LlmPurpose;
 use App\Models\Llm\LlmRoute;
 use App\Models\Llm\Provider;
 use App\Repositories\Llm\LlmRouteReadRepository;
 use App\Services\Llm\Contracts\LlmProvider;
-use App\Services\Llm\Dto\LlmOptions;
-use App\Services\Llm\Dto\ResolvedRoute;
+use App\Support\Config\TypedConfig;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
@@ -89,7 +90,7 @@ final readonly class LlmRouteResolver
         $options = $this->options($route->options?->all() ?? [], 'route');
         $providerOptions = $this->options($provider->options, 'provider');
 
-        $maxTokens = $this->positiveInt($options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS, 'max_tokens');
+        $maxTokens = TypedConfig::requirePositiveInt($options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS, 'max_tokens');
         $this->assertWithinOutputCeiling($route->model, $maxTokens, $purpose);
 
         return new ResolvedRoute(
@@ -131,7 +132,7 @@ final readonly class LlmRouteResolver
             return;
         }
 
-        $ceiling = $this->positiveInt($ceiling, 'max_output_tokens');
+        $ceiling = TypedConfig::requirePositiveInt($ceiling, 'max_output_tokens');
 
         if ($maxTokens > $ceiling) {
             throw new RuntimeException(
@@ -165,15 +166,6 @@ final readonly class LlmRouteResolver
 
         /** @var array<string, mixed> $value */
         return $value;
-    }
-
-    private function positiveInt(mixed $value, string $key): int
-    {
-        if (is_int($value) && $value > 0) {
-            return $value;
-        }
-
-        throw new RuntimeException("{$key} должен быть положительным целым числом.");
     }
 
     private function float(mixed $value, string $key): float

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Actions\Procurement\Process;
 
-use App\Dto\Procurement\Process\ControlChangeResult;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Repositories\Procurement\Process\ControlRepository;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Dto\Procurement\Process\Authority\ControlChangeResult;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Str;
 
 /**

@@ -6,6 +6,13 @@ namespace App\Services\Procurement\Prepare;
 
 use App\Enums\Procurement\Document\DocumentFormat;
 use App\Enums\Procurement\Document\PreparationResult;
+use App\Services\Procurement\Prepare\Strategies\ArchiveStrategy;
+use App\Services\Procurement\Prepare\Strategies\GsfxStrategy;
+use App\Services\Procurement\Prepare\Strategies\ImageStrategy;
+use App\Services\Procurement\Prepare\Strategies\PreparationStrategy;
+use App\Services\Procurement\Prepare\Strategies\ScanStrategy;
+use App\Services\Procurement\Prepare\Strategies\SpreadsheetStrategy;
+use App\Services\Procurement\Prepare\Strategies\WordStrategy;
 
 final class DocumentFormatRegistry
 {

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Network;
 
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\OriginBudgetPolicy;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Network\OutboundPolicy;
 use App\Support\SecretRedactor;
 use Illuminate\Support\Facades\DB;

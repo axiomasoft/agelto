@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use App\Services\Procurement\Proxyma\AgeltoPhysicalHttpTransport;
+use App\Services\Procurement\Proxyma\Transport\AgeltoPhysicalHttpTransport;
 use Composer\InstalledVersions;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;

@@ -6,7 +6,7 @@ namespace App\Actions\Procurement\Crawler;
 
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Models\Procurement\Crawler\RawArtifact;
-use App\Services\Procurement\Process\RawArtifactRetention;
+use App\Services\Procurement\Process\Diagnostics\RawArtifactRetention;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;

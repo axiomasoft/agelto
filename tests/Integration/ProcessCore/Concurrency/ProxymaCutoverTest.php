@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\TransferBudget;
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Services\Procurement\Proxyma\CallerGate;
-use App\Services\Procurement\Proxyma\CallerOutbound;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Http\TransferBudget;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Services\Procurement\Proxyma\Caller\CallerGate;
+use App\Services\Procurement\Proxyma\Caller\CallerOutbound;
+use App\Services\Procurement\Proxyma\Catalog\ProcessOwnerAuthority;
+use App\Services\Procurement\Proxyma\Catalog\ProfileBindings;
 use App\Services\Procurement\Proxyma\Migration\Cutover;
 use App\Services\Procurement\Proxyma\Migration\CutoverJournal;
-use App\Services\Procurement\Proxyma\ProcessOwnerAuthority;
-use App\Services\Procurement\Proxyma\ProfileBindings;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Domain\Execution\ExecutionBlocked;

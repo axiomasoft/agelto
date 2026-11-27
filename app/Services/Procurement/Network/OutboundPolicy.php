@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
+use App\Dto\Procurement\Platform\Definition\OriginBudgetPolicy;
 use Illuminate\Contracts\Config\Repository;
 
 /**

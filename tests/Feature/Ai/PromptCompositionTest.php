@@ -11,7 +11,7 @@ use App\Enums\Llm\CorePromptStep;
 use App\Enums\Procurement\Analyzers\Estimate\EstimatePromptStep;
 use App\Services\Llm\PromptComposer;
 use App\Services\Llm\Schema\JsonSchemaGenerator;
-use App\Services\Procurement\Analyzers\Estimate\EstimateStepDictionaries;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateStepDictionaries;
 use Database\Seeders\PromptSeeder;
 
 beforeEach(function (): void {

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Process\ProcessRunState;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Process\Core\ProcessRunState;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Filament\Resources\Procurement\Process\Runs\Pages\ListProcessRuns;
 use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Filament\Resources\Procurement\Process\Work\Pages\ListWorkItems;
@@ -13,8 +13,8 @@ use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\Procurement\Process\ProcessRun;
 use App\Models\Procurement\Process\WorkItem;
 use App\Models\User;
-use App\Services\Procurement\Process\RunProjector;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Projection\RunProjector;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;

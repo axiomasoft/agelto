@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Analyzers\Estimate\DatasetInputBuilder;
-use App\Services\Procurement\Extraction\UntrustedDocumentSanitizer;
+use App\Services\Procurement\Analyzers\Estimate\Eval\DatasetInputBuilder;
+use App\Services\Procurement\Extraction\Pipeline\UntrustedDocumentSanitizer;
 
 test('очистка удаляет невидимые теги и управляющие символы направления', function (): void {
     $text = "Смета\u{E0001}\u{E007F}\u{061C}\u{200E}\u{200F}\u{202A}\u{202B}\u{202C}\u{202D}\u{202E}\u{2066}\u{2067}\u{2068}\u{2069} 123";

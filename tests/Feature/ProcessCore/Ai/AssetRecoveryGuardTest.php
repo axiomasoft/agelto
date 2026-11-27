@@ -7,11 +7,11 @@ use App\Dto\Llm\Requests\ReceiptAssessment;
 use App\Dto\Llm\Requests\VerifiedReceipt;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\ReceiptOutcome;
-use App\Enums\Procurement\Process\ProviderRecoveryMode;
+use App\Enums\Procurement\Process\Outcomes\ProviderRecoveryMode;
 use App\Exceptions\Llm\OperationDenied;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Services\Llm\Cache\ProviderAssetManager;
-use App\Services\Procurement\Extraction\AnalysisProviderRecoveryResolver;
+use App\Services\Procurement\Extraction\Provider\AnalysisProviderRecoveryResolver;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\FinancialFixtures;
 

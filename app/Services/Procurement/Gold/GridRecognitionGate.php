@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Gold;
 
+use App\Dto\Procurement\Gold\GoldExplicitRow;
 use App\Dto\Procurement\Gold\GoldFormProfileColumns;
 use App\Dto\Procurement\Gold\GoldFormProfileEstimate;
 use App\Dto\Procurement\Gold\GoldResourceGroup;
 use App\Enums\Procurement\Estimate\ResourceType;
 use App\Enums\Procurement\Estimate\RowType;
+use App\Support\Numbers\DecimalNormalizer;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
@@ -118,89 +120,99 @@ final readonly class GridRecognitionGate
 
         for ($row = $estimate->data_row_start; $row <= $dataRowEnd; $row++) {
             $cells = $this->rowCellTexts($sheet, $columns, $row);
-
             if ($cells === []) {
                 continue;
             }
 
-            $nameText = $cells['name'] ?? '';
-
-            if (isset($explicitByRow[$row])) {
-                $explicit = $explicitByRow[$row];
-                $result[] = ['row' => $row, 'role' => $explicit->role, 'name' => $explicit->text, 'resource_type' => null];
-
-                if ($explicit->role === RowType::Item->value) {
-                    $sawItem = true;
-                }
-
-                continue;
-            }
-
-            if ($this->matchesAnyPrefix($nameText, $estimate->row_rules->ignored_prefixes)) {
-                $result[] = ['row' => $row, 'role' => 'ignored', 'name' => $nameText, 'resource_type' => null];
-
-                continue;
-            }
-
-            $firstNonEmptyText = $this->firstNonEmptyText($cells, $sortedColumns);
-
-            if ($this->matchesAnyPrefix($firstNonEmptyText, $estimate->row_rules->section_prefixes)) {
-                $result[] = ['row' => $row, 'role' => RowType::SectionHeader->value, 'name' => $firstNonEmptyText, 'resource_type' => null];
-
-                continue;
-            }
-
-            if ($this->matchesAnyPrefix($firstNonEmptyText, $estimate->row_rules->subsection_prefixes)) {
-                $result[] = ['row' => $row, 'role' => RowType::SubsectionHeader->value, 'name' => $firstNonEmptyText, 'resource_type' => null];
-
-                continue;
-            }
-
-            if ($this->matchesAnyPrefix($nameText, $estimate->row_rules->summary_prefixes)) {
-                $result[] = ['row' => $row, 'role' => RowType::SummaryRow->value, 'name' => $nameText, 'resource_type' => null];
-
-                continue;
-            }
-
-            if ($this->matchesAnyPrefix($nameText, $estimate->row_rules->subtotal_prefixes)) {
-                $result[] = ['row' => $row, 'role' => RowType::Subtotal->value, 'name' => $nameText, 'resource_type' => null];
-
-                continue;
-            }
-
-            $matchedGroup = $this->matchResourceGroup($nameText, $estimate->row_rules->resource_groups);
-
-            if ($matchedGroup !== null) {
-                $currentResourceType = $matchedGroup->resource_type;
-                $result[] = ['row' => $row, 'role' => 'resource_marker', 'name' => $nameText, 'resource_type' => $currentResourceType];
-
-                continue;
-            }
-
-            $itemNumberText = WorksheetCellReader::cellText($sheet, $itemNumberColumnIndex, $row);
-
-            if ($itemNumberText !== '') {
-                $result[] = ['row' => $row, 'role' => RowType::Item->value, 'name' => $nameText, 'resource_type' => null];
-                $sawItem = true;
-
-                continue;
-            }
-
-            if ($sawItem) {
-                $result[] = [
-                    'row' => $row,
-                    'role' => 'resource',
-                    'name' => $nameText,
-                    'resource_type' => $currentResourceType ?? ResourceType::Other,
-                ];
-
-                continue;
-            }
-
-            $result[] = ['row' => $row, 'role' => 'uncovered', 'name' => $nameText, 'resource_type' => null];
+            $result[] = $this->classifyRow(
+                sheet: $sheet,
+                estimate: $estimate,
+                row: $row,
+                cells: $cells,
+                sortedColumns: $sortedColumns,
+                explicitByRow: $explicitByRow,
+                itemNumberColumnIndex: $itemNumberColumnIndex,
+                currentResourceType: $currentResourceType,
+                sawItem: $sawItem,
+            );
         }
 
         return $result;
+    }
+
+    /**
+     * @param  array<string, string>  $cells
+     * @param  array<string, int>  $sortedColumns
+     * @param  array<int, GoldExplicitRow>  $explicitByRow
+     * @return array{row: int, role: string, name: string, resource_type: ?ResourceType}
+     */
+    private function classifyRow(
+        Worksheet $sheet,
+        GoldFormProfileEstimate $estimate,
+        int $row,
+        array $cells,
+        array $sortedColumns,
+        array $explicitByRow,
+        int $itemNumberColumnIndex,
+        ?ResourceType &$currentResourceType,
+        bool &$sawItem,
+    ): array {
+        $nameText = $cells['name'] ?? '';
+
+        if (isset($explicitByRow[$row])) {
+            $explicit = $explicitByRow[$row];
+            if ($explicit->role === RowType::Item->value) {
+                $sawItem = true;
+            }
+
+            return ['row' => $row, 'role' => $explicit->role, 'name' => $explicit->text, 'resource_type' => null];
+        }
+
+        if ($this->matchesAnyPrefix($nameText, $estimate->row_rules->ignored_prefixes)) {
+            return ['row' => $row, 'role' => 'ignored', 'name' => $nameText, 'resource_type' => null];
+        }
+
+        $firstNonEmptyText = $this->firstNonEmptyText($cells, $sortedColumns);
+
+        if ($this->matchesAnyPrefix($firstNonEmptyText, $estimate->row_rules->section_prefixes)) {
+            return ['row' => $row, 'role' => RowType::SectionHeader->value, 'name' => $firstNonEmptyText, 'resource_type' => null];
+        }
+
+        if ($this->matchesAnyPrefix($firstNonEmptyText, $estimate->row_rules->subsection_prefixes)) {
+            return ['row' => $row, 'role' => RowType::SubsectionHeader->value, 'name' => $firstNonEmptyText, 'resource_type' => null];
+        }
+
+        if ($this->matchesAnyPrefix($nameText, $estimate->row_rules->summary_prefixes)) {
+            return ['row' => $row, 'role' => RowType::SummaryRow->value, 'name' => $nameText, 'resource_type' => null];
+        }
+
+        if ($this->matchesAnyPrefix($nameText, $estimate->row_rules->subtotal_prefixes)) {
+            return ['row' => $row, 'role' => RowType::Subtotal->value, 'name' => $nameText, 'resource_type' => null];
+        }
+
+        $matchedGroup = $this->matchResourceGroup($nameText, $estimate->row_rules->resource_groups);
+        if ($matchedGroup !== null) {
+            $currentResourceType = $matchedGroup->resource_type;
+
+            return ['row' => $row, 'role' => 'resource_marker', 'name' => $nameText, 'resource_type' => $currentResourceType];
+        }
+
+        if (WorksheetCellReader::cellText($sheet, $itemNumberColumnIndex, $row) !== '') {
+            $sawItem = true;
+
+            return ['row' => $row, 'role' => RowType::Item->value, 'name' => $nameText, 'resource_type' => null];
+        }
+
+        if ($sawItem) {
+            return [
+                'row' => $row,
+                'role' => 'resource',
+                'name' => $nameText,
+                'resource_type' => $currentResourceType ?? ResourceType::Other,
+            ];
+        }
+
+        return ['row' => $row, 'role' => 'uncovered', 'name' => $nameText, 'resource_type' => null];
     }
 
     /**
@@ -211,25 +223,7 @@ final readonly class GridRecognitionGate
     /** @return numeric-string|null */
     public static function cleanNumeric(?string $raw): ?string
     {
-        if ($raw === null) {
-            return null;
-        }
-
-        $trimmed = trim($raw);
-
-        if ($trimmed === '' || $trimmed === '-') {
-            return null;
-        }
-
-        $withoutSpaces = str_replace([' ', "\u{00A0}"], '', $trimmed);
-        $dotted = str_replace(',', '.', $withoutSpaces);
-
-        if (preg_match('/^-?\d+(?:\.\d+)?$/', $dotted) !== 1) {
-            return null;
-        }
-
-        /** @var numeric-string&non-empty-string $dotted */
-        return $dotted;
+        return DecimalNormalizer::normalize($raw);
     }
 
     /**
@@ -357,13 +351,10 @@ final readonly class GridRecognitionGate
 
     private function hasCostColumn(GoldFormProfileColumns $columns): bool
     {
-        foreach (self::COST_COLUMN_FIELDS as $field) {
-            if ($columns->{$field} !== null) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(
+            self::COST_COLUMN_FIELDS,
+            static fn (string $field): bool => $columns->{$field} !== null,
+        );
     }
 
     /**
@@ -408,13 +399,10 @@ final readonly class GridRecognitionGate
     {
         $trimmed = trim($text);
 
-        foreach ($prefixes as $prefix) {
-            if (str_starts_with($trimmed, $prefix)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any(
+            $prefixes,
+            static fn (string $prefix): bool => str_starts_with($trimmed, $prefix),
+        );
     }
 
     /**
@@ -424,13 +412,10 @@ final readonly class GridRecognitionGate
     {
         $trimmed = trim($text);
 
-        foreach ($groups as $group) {
-            if ($trimmed === trim($group->label)) {
-                return $group;
-            }
-        }
-
-        return null;
+        return array_find(
+            $groups,
+            static fn (GoldResourceGroup $group): bool => $trimmed === trim($group->label),
+        );
     }
 
     private function normalizeHeaderText(string $text): string

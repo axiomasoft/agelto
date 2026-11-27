@@ -3,24 +3,24 @@
 declare(strict_types=1);
 
 use App\Actions\Procurement\Process\CancelWork;
-use App\Dto\Procurement\Ai\AnalysisRecipe;
-use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
-use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
-use App\Dto\Procurement\Ai\RowRange;
-use App\Dto\Procurement\Document\DocumentRange;
-use App\Dto\Procurement\Document\RepresentationCoverage;
-use App\Dto\Procurement\Process\ExtractionWindowInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\PublicationInput;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Ai\Execution\AnalysisRecipe;
+use App\Dto\Procurement\Ai\Execution\AnalysisRunSnapshot;
+use App\Dto\Procurement\Ai\Planning\AnalysisWindowSnapshot;
+use App\Dto\Procurement\Ai\Planning\RowRange;
+use App\Dto\Procurement\Document\Download\DocumentRange;
+use App\Dto\Procurement\Document\Prepare\RepresentationCoverage;
+use App\Dto\Procurement\Process\Inputs\ExtractionWindowInput;
+use App\Dto\Procurement\Process\Inputs\PublicationInput;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Procurement\Document\CoverageUnit;
 use App\Exceptions\Llm\OperationDenied;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
-use App\Services\Procurement\Extraction\ExtractionHandler;
-use App\Services\Procurement\Extraction\PublicationHandler;
-use App\Services\Procurement\Extraction\PublicationStageCodec;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Extraction\Orchestration\ExtractionHandler;
+use App\Services\Procurement\Extraction\Publication\PublicationHandler;
+use App\Services\Procurement\Extraction\Publication\PublicationStageCodec;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
@@ -165,7 +165,7 @@ test('two PostgreSQL finalizers accept exactly one normalized business publicati
     $outcome = app(PublicationHandler::class)->execute($input, app(ExecutionContextFactory::class)->open($lease));
     $payload = base64_encode(serialize([$lease, $outcome]));
     $code = '\Tests\Support\ProcessCore\ExtractionRuntimeFixtures::bind();[$lease,$outcome]=unserialize(base64_decode('.var_export($payload, true).'));'
-        .'$result=app(\App\Services\Procurement\Process\WorkFinalizer::class)->finish($lease,$outcome);'
+        .'$result=app(\App\Services\Procurement\Process\Execution\WorkFinalizer::class)->finish($lease,$outcome);'
         .'return ["status"=>$result->status->value,"pid"=>\Illuminate\Support\Facades\DB::selectOne("SELECT pg_backend_pid() AS id")->id];';
     $results = ConcurrentTransactions::concurrently(['first' => $code, 'second' => $code]);
     $statuses = [$results['first']['status'], $results['second']['status']];

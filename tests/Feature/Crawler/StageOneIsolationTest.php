@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\ControlMode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
 use App\Services\Procurement\Document\DocumentFeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;

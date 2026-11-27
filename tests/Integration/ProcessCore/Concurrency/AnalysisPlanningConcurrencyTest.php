@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\AnalysisProviderConnection;
-use App\Dto\Procurement\Platform\RequestProfile;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Ai\Execution\AnalysisProviderConnection;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +22,8 @@ test('два producer после одного pre-read сериализуют ve
         new RequestProfile('fixture.analysis', 1, 2, 3, 8000000, null, 0, 1, 1, [], ResponseKind::Binary, null, 1), 'fixture-only');
     $payload = var_export(base64_encode(serialize($connection)), true);
     $code = '\Illuminate\Support\Facades\DB::statement("SET application_name=\'p313-analysis-planning\'");'
-        .'app(\App\Services\Procurement\Extraction\AnalysisProviderConnections::class)->register(unserialize(base64_decode('.$payload.')),preferred:true);'
-        .'$count=app(\App\Services\Procurement\Extraction\AnalysisFeeder::class)->reconcile();'
+        .'app(\App\Services\Procurement\Extraction\Provider\AnalysisProviderConnections::class)->register(unserialize(base64_decode('.$payload.')),preferred:true);'
+        .'$count=app(\App\Services\Procurement\Extraction\Orchestration\AnalysisFeeder::class)->reconcile();'
         .'return ["created"=>$count,"pid"=>\Illuminate\Support\Facades\DB::selectOne("SELECT pg_backend_pid() AS id")->id];';
     $key = 831313;
     DB::unprepared('CREATE FUNCTION fixture_analysis_planning_barrier() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock_shared(831313); RETURN NEW; END $$');
@@ -71,9 +71,9 @@ test('concurrent manual commands serialize the current analysis and deduplicate 
     $payload = var_export(base64_encode(serialize($connection)), true);
     $command = LedgerFixtures::uuid()->value;
     $code = static fn (string $id): string => '\Illuminate\Support\Facades\DB::statement("SET application_name=\'p313-manual-reanalysis\'");'
-        .'app(\App\Services\Procurement\Extraction\AnalysisProviderConnections::class)->register(unserialize(base64_decode('.$payload.')),preferred:true);'
-        .'try {$work=app(\App\Services\Procurement\Extraction\RerunAnalysisAction::class)->run('
-        .'\App\Models\Procurement\Ai\Analysis::query()->findOrFail('.$analysis->id.'),new \App\Dto\Procurement\Process\ProcessUuid('.var_export($id, true).'));'
+        .'app(\App\Services\Procurement\Extraction\Provider\AnalysisProviderConnections::class)->register(unserialize(base64_decode('.$payload.')),preferred:true);'
+        .'try {$work=app(\App\Services\Procurement\Extraction\Orchestration\RerunAnalysisAction::class)->run('
+        .'\App\Models\Procurement\Ai\Analysis::query()->findOrFail('.$analysis->id.'),new \App\Dto\Procurement\Process\Primitives\ProcessUuid('.var_export($id, true).'));'
         .'$result=["work"=>$work->value->value,"rejected"=>false];} catch (\InvalidArgumentException $e) {'
         .'if(!str_contains($e->getMessage(),"current source")){throw $e;}$result=["work"=>null,"rejected"=>true];}'
         .'return $result+["pid"=>\Illuminate\Support\Facades\DB::selectOne("SELECT pg_backend_pid() AS id")->id];';

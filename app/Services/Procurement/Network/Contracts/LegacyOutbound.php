@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network\Contracts;
 
-use App\Dto\Procurement\Network\AdapterInspection;
-use App\Dto\Procurement\Network\AdapterValidatedInput;
-use App\Dto\Procurement\Network\AdapterValidationCall;
-use App\Dto\Procurement\Network\HttpRequestPayload;
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterInspection;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterValidatedInput;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterValidationCall;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Http\HttpRequestPayload;
+use App\Dto\Procurement\Network\Http\SafeUrl;
 use App\Enums\Procurement\Network\IdempotencyClass;
 use App\Enums\Procurement\Network\TrafficClass;
-use App\Services\Procurement\Proxyma\ProfileBindings;
+use App\Services\Procurement\Proxyma\Catalog\ProfileBindings;
 use Closure;
 use Illuminate\Http\Client\Response;
 

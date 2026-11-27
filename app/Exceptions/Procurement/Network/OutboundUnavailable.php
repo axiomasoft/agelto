@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Exceptions\Procurement\Network;
 
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Network\TransportDeferred;
-use App\Dto\Procurement\Process\RetryAt;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Network\Outcome\TransportDeferred;
+use App\Dto\Procurement\Process\Primitives\RetryAt;
 use App\Enums\Procurement\Network\NetworkDeferralReason;
 
 /** A dependency/control outcome at a surviving legacy domain boundary, never an item defect. */

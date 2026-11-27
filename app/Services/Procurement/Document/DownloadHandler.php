@@ -4,26 +4,29 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Acquisition\FetchBlocked;
-use App\Dto\Procurement\Acquisition\FetchDeferred;
-use App\Dto\Procurement\Document\DocumentFetchPlan;
-use App\Dto\Procurement\Document\DownloadResult;
-use App\Dto\Procurement\Document\SourceDocumentMetadata;
-use App\Dto\Procurement\Network\BinaryBodyArtifact;
-use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Network\TransportDeferred;
-use App\Dto\Procurement\Network\TransportSucceeded;
-use App\Dto\Procurement\Process\DownloadInput;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\RetryAt;
-use App\Dto\Procurement\Process\StageBlocked;
-use App\Dto\Procurement\Process\StageDeferred;
-use App\Dto\Procurement\Process\StageOutcome;
-use App\Dto\Procurement\Process\StageSucceeded;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\BlockedReason;
-use App\Enums\Procurement\Process\DeferralReason;
+use App\Dto\Procurement\Acquisition\Fetch\FetchBlocked;
+use App\Dto\Procurement\Acquisition\Fetch\FetchDeferred;
+use App\Dto\Procurement\Document\Download\DocumentFetchPlan;
+use App\Dto\Procurement\Document\Download\DocumentHead;
+use App\Dto\Procurement\Document\Download\DownloadReservations;
+use App\Dto\Procurement\Document\Download\DownloadResult;
+use App\Dto\Procurement\Document\Download\SourceDocumentMetadata;
+use App\Dto\Procurement\Network\Control\OutboundRequestPlan;
+use App\Dto\Procurement\Network\Http\BinaryBodyArtifact;
+use App\Dto\Procurement\Network\Http\ResponseEnvelope;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Network\Outcome\TransportDeferred;
+use App\Dto\Procurement\Network\Outcome\TransportSucceeded;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Inputs\DownloadInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageBlocked;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
+use App\Dto\Procurement\Process\Outcomes\StageOutcome;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
+use App\Dto\Procurement\Process\Primitives\RetryAt;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
+use App\Enums\Procurement\Process\Outcomes\DeferralReason;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
@@ -33,7 +36,7 @@ use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Contracts\StageHandler;
-use App\Services\Procurement\Process\ProcessLog;
+use App\Services\Procurement\Process\Infrastructure\ProcessLog;
 use App\Support\Files\MimeDetector;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\FilesystemException;
@@ -121,47 +124,20 @@ final readonly class DownloadHandler implements StageHandler
 
                     continue;
                 }
-                if ($response->status !== 200 || $binary->bytes < 1 || $binary->bytes > $this->policy->maxBytes) {
-                    return new StageBlocked(BlockedReason::PolicyReview);
-                }
-                $length = $response->header('Content-Length');
-                // Content-Length describes encoded transfer bytes when Content-Encoding is present.
-                if (($response->header('Content-Encoding') === null || $response->header('Content-Encoding') === 'identity')
-                    && $length !== null && (! ctype_digit($length) || (int) $length !== $binary->bytes)) {
-                    return $this->defer(DeferralReason::TargetCooldown);
-                }
-                if (($plan->expectedBytes !== null && $plan->expectedBytes !== $binary->bytes)
-                    || ($plan->expectedHash !== null && $plan->expectedHash->hex !== $binary->artifact->sha256->hex)) {
-                    return new StageBlocked(BlockedReason::PolicyReview);
+                $validationFailure = $this->validateResponse($plan, $response, $binary);
+                if ($validationFailure !== null) {
+                    return $validationFailure;
                 }
                 $stream = Storage::disk($binary->artifact->disk)->readStream($binary->artifact->key);
                 if (! is_resource($stream)) {
                     throw new ArtifactUnavailable('Downloaded stream unavailable.');
                 }
-                $prefix = fread($stream, 8192);
-                if ($prefix === false) {
-                    throw new ArtifactUnavailable('Downloaded stream unreadable.');
+                $mime = $this->detectSafeMime($stream);
+                if ($mime instanceof StageBlocked) {
+                    return $mime;
                 }
-                if (! @rewind($stream)) {
-                    throw new ArtifactUnavailable('Downloaded stream cannot be rewound.');
-                }
-                $mime = MimeDetector::of($prefix);
-                if (in_array($mime, ['text/html', 'application/xhtml+xml'], true) || preg_match('/^\s*(?:<!doctype\s+html|<html|<head|<body|<form)\b/i', $prefix)) {
-                    return new StageBlocked(BlockedReason::PolicyReview);
-                }
-                $artifact = $this->blobs->put($reservations->durable, $stream, $reservations->temporary, $execution, cleanupTemporary: false);
-                if ($artifact->sizeBytes !== $binary->bytes || $artifact->hash->hex !== $binary->artifact->sha256->hex) {
-                    throw new ArtifactUnavailable('Transport artifact checksum or size mismatch.');
-                }
-                $this->blobs->verifyExisting($artifact, $execution);
-                $modified = $response->header('Last-Modified');
-                $lastModified = $modified === null ? false : \DateTimeImmutable::createFromFormat(DATE_RFC7231, $modified);
 
-                $published = true;
-
-                return new StageSucceeded(new DownloadResult($head, $artifact, new SourceDocumentMetadata(
-                    $this->filename($plan->filename, $response->header('Content-Disposition')), $mime,
-                    $response->header('ETag'), $lastModified === false ? null : $lastModified)));
+                return $this->persistVerifiedDownload($head, $plan, $reservations, $response, $binary, $stream, $mime, $execution, $published);
             }
         } catch (ArtifactUnavailable|FilesystemException) {
             return $this->defer(DeferralReason::StorageUnavailable);
@@ -186,6 +162,70 @@ final readonly class DownloadHandler implements StageHandler
             }
             // Successful staged original remains charged until guarded transfer or orphan GC.
         }
+    }
+
+    private function validateResponse(DocumentFetchPlan $plan, ResponseEnvelope $response, BinaryBodyArtifact $binary): ?StageOutcome
+    {
+        if ($response->status !== 200 || $binary->bytes < 1 || $binary->bytes > $this->policy->maxBytes) {
+            return new StageBlocked(BlockedReason::PolicyReview);
+        }
+        $length = $response->header('Content-Length');
+        // Content-Length describes encoded transfer bytes when Content-Encoding is present.
+        if (($response->header('Content-Encoding') === null || $response->header('Content-Encoding') === 'identity')
+            && $length !== null && (! ctype_digit($length) || (int) $length !== $binary->bytes)) {
+            return $this->defer(DeferralReason::TargetCooldown);
+        }
+        if (($plan->expectedBytes !== null && $plan->expectedBytes !== $binary->bytes)
+            || ($plan->expectedHash !== null && $plan->expectedHash->hex !== $binary->artifact->sha256->hex)) {
+            return new StageBlocked(BlockedReason::PolicyReview);
+        }
+
+        return null;
+    }
+
+    /** @param resource $stream */
+    private function detectSafeMime($stream): string|StageBlocked
+    {
+        $prefix = fread($stream, 8192);
+        if ($prefix === false) {
+            throw new ArtifactUnavailable('Downloaded stream unreadable.');
+        }
+        if (! @rewind($stream)) {
+            throw new ArtifactUnavailable('Downloaded stream cannot be rewound.');
+        }
+        $mime = MimeDetector::of($prefix);
+        if (in_array($mime, ['text/html', 'application/xhtml+xml'], true) || preg_match('/^\s*(?:<!doctype\s+html|<html|<head|<body|<form)\b/i', $prefix)) {
+            return new StageBlocked(BlockedReason::PolicyReview);
+        }
+
+        return $mime;
+    }
+
+    /** @param resource $stream */
+    private function persistVerifiedDownload(
+        DocumentHead $head,
+        DocumentFetchPlan $plan,
+        DownloadReservations $reservations,
+        ResponseEnvelope $response,
+        BinaryBodyArtifact $binary,
+        $stream,
+        string $mime,
+        ExecutionContext $execution,
+        bool &$published,
+    ): StageSucceeded {
+        $artifact = $this->blobs->put($reservations->durable, $stream, $reservations->temporary, $execution, cleanupTemporary: false);
+        if ($artifact->sizeBytes !== $binary->bytes || $artifact->hash->hex !== $binary->artifact->sha256->hex) {
+            throw new ArtifactUnavailable('Transport artifact checksum or size mismatch.');
+        }
+        $this->blobs->verifyExisting($artifact, $execution);
+        $modified = $response->header('Last-Modified');
+        $lastModified = $modified === null ? false : \DateTimeImmutable::createFromFormat(DATE_RFC7231, $modified);
+
+        $published = true;
+
+        return new StageSucceeded(new DownloadResult($head, $artifact, new SourceDocumentMetadata(
+            $this->filename($plan->filename, $response->header('Content-Disposition')), $mime,
+            $response->header('ETag'), $lastModified === false ? null : $lastModified)));
     }
 
     private function filename(string $fallback, ?string $disposition): string

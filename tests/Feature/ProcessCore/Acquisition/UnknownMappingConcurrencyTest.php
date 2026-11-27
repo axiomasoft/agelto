@@ -44,8 +44,8 @@ try {
         ]);
         // No retry/catch in the publication: a 23505/25P02 must fail this regression.
         $id = \Illuminate\Support\Facades\DB::transaction(function () use ($snapshot): int {
-            $p = app(\App\Services\Procurement\Acquisition\SnapshotFinalizer::class)->ingest($snapshot);
-            app(\App\Services\Procurement\Acquisition\UnmappedStatusReporter::class)->record($p);
+            $p = app(\App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer::class)->ingest($snapshot);
+            app(\App\Services\Procurement\Acquisition\Status\UnmappedStatusReporter::class)->record($p);
 
             return $p->id;
         });

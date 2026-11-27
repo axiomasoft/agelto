@@ -2,23 +2,24 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\PdfBatchText;
-use App\Dto\Procurement\Document\PreparePage;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Document\VerifiedArtifact;
-use App\Dto\Procurement\Network\BinaryBodyArtifact;
-use App\Dto\Procurement\Network\ResponseEnvelope;
-use App\Dto\Procurement\Network\TransportSucceeded;
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\StageDeferred;
-use App\Dto\Procurement\Process\StagePartial;
+use App\Dto\Procurement\Document\Prepare\PdfBatchText;
+use App\Dto\Procurement\Document\Prepare\PreparePage;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Document\Storage\VerifiedArtifact;
+use App\Dto\Procurement\Network\Http\BinaryBodyArtifact;
+use App\Dto\Procurement\Network\Http\ResponseEnvelope;
+use App\Dto\Procurement\Network\Outcome\TransportSucceeded;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
+use App\Dto\Procurement\Process\Outcomes\StagePartial;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use App\Enums\Procurement\Document\PageTextStatus;
 use App\Enums\Procurement\Document\StoragePhase;
-use App\Enums\Procurement\Process\DeferralReason;
+use App\Enums\Procurement\Process\Outcomes\DeferralReason;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Models\Procurement\Document\Document;
+use App\Repositories\Procurement\Document\ArtifactRepairRepository;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\PrepareStorageRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
@@ -28,8 +29,8 @@ use App\Services\Procurement\Document\DownloadHandler;
 use App\Services\Procurement\Document\PrepareWorkspace;
 use App\Services\Procurement\Document\StoredDocumentWriter;
 use App\Services\Procurement\Platform\Contracts\PlatformOutbound;
-use App\Services\Procurement\Prepare\PdfPreparationTools;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Prepare\Tools\PdfPreparationTools;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use GuzzleHttp\Promise\RejectedPromise;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -272,6 +273,7 @@ test('прерванное восстановление S3 снимает бло
     $source = app(PrepareStorageRepository::class)->reserve($lease)->output;
     $capacity = app(StorageCapacityRepository::class);
     $artifacts = app(ArtifactRepository::class);
+    $repairs = app(ArtifactRepairRepository::class);
     $bytes = 'канонический объект';
     $hash = ContentHash::of($bytes);
     $original = DocumentStorageFixtures::reservation($source->domainId, strlen($bytes), disk: $source->disk);
@@ -286,9 +288,9 @@ test('прерванное восстановление S3 снимает бло
         return $artifacts->acquireLocked(new VerifiedArtifact($original, $hash, strlen($bytes)));
     });
     expect($disk->put($blob->objectKey, 'повреждённая запись'))->toBeTrue();
-    $claim = $artifacts->beginRemoteRepair($blob, source: $source);
+    $claim = $repairs->beginRemoteRepair($blob, source: $source);
     expect($claim)->toBeString()
-        ->and($artifacts->remoteRepairClaim($blob)?->string('repair_attempt_id'))->toBe($lease->attemptId->value);
+        ->and($repairs->remoteRepairClaim($blob)?->string('repair_attempt_id'))->toBe($lease->attemptId->value);
     $reconciler = app(DocumentStorageReconciler::class);
     expect($reconciler->reconcile())->toBe(0);
     FinalizeFixtures::expire($f->work, seconds: 35);
@@ -298,7 +300,7 @@ test('прерванное восстановление S3 снимает бло
     expect($reconciler->reconcile())->toBe(1)
         ->and(crashRecoveryStatus($original))->toBe('transferred')
         ->and($disk->get($blob->objectKey))->toBe('повреждённая запись')
-        ->and($artifacts->finishRemoteRepair($blob, claim: $claim))->toBeFalse();
+        ->and($repairs->finishRemoteRepair($blob, claim: $claim))->toBeFalse();
 
     expect(FinalizeFixtures::revoke($f->work))->toBeTrue();
     $reconciler->reconcile();
@@ -306,10 +308,10 @@ test('прерванное восстановление S3 снимает бло
     $capacity->beginWrite($retry);
     expect($disk->put($retry->objectKey(), $bytes))->toBeTrue();
     $capacity->finishWrite($retry);
-    $newClaim = $artifacts->beginRemoteRepair($blob, source: $retry);
-    expect($artifacts->finishRemoteRepair($blob, claim: $claim))->toBeFalse()
+    $newClaim = $repairs->beginRemoteRepair($blob, source: $retry);
+    expect($repairs->finishRemoteRepair($blob, claim: $claim))->toBeFalse()
         ->and(crashRecoveryStatus($original))->toBe('writing')
-        ->and($artifacts->finishRemoteRepair($blob, claim: $newClaim))->toBeTrue();
+        ->and($repairs->finishRemoteRepair($blob, claim: $newClaim))->toBeTrue();
     app(BlobStore::class)->verifyExisting(new VerifiedArtifact($retry, $hash, strlen($bytes)));
     expect($disk->get($blob->objectKey))->toBe($bytes)
         ->and(crashRecoveryStatus($original))->toBe('transferred');
@@ -317,7 +319,7 @@ test('прерванное восстановление S3 снимает бло
     DB::table('prc_storage_reservations')->where('id', $original->id->value)->update(['status' => 'writing']);
     $reconciler->reconcile();
     expect(crashRecoveryStatus($original))->toBe('writing')
-        ->and($artifacts->remoteRepairClaim($blob)?->string('repair_claimed_at'))->toBeString();
+        ->and($repairs->remoteRepairClaim($blob)?->string('repair_claimed_at'))->toBeString();
     DB::update("UPDATE prc_storage_reservations SET repair_claimed_at=clock_timestamp()-interval '20 minutes' WHERE id=?", [$blob->id->value]);
     $reconciler->reconcile();
     expect(crashRecoveryStatus($original))->toBe('transferred')

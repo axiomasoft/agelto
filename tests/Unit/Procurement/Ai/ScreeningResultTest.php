@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Dto\Llm\Execution\LlmStructuredResponse;
+use App\Dto\Llm\Execution\LlmUsage;
 use App\Dto\Procurement\Ai\Screening\ScreeningResult;
 use App\Enums\Llm\FinishReason;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\EstimateCardinality;
-use App\Services\Llm\Dto\LlmStructuredResponse;
-use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Validation\StructuredResponseValidator;
 use App\Services\Llm\Validation\ValidationOutcome;
 use Illuminate\Validation\ValidationException;

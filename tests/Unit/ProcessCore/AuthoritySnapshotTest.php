@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\AdmissionGroupSnapshot;
-use App\Dto\Procurement\Process\AuthoritySnapshot;
-use App\Dto\Procurement\Process\CapacityAuthority;
-use App\Dto\Procurement\Process\ControlSnapshot;
-use App\Dto\Procurement\Process\DetailInput;
-use App\Dto\Procurement\Process\HandlerAuthoritySnapshot;
-use App\Dto\Procurement\Process\ProviderOperationRef;
-use App\Dto\Procurement\Process\SubjectAuthoritySnapshot;
-use App\Dto\Procurement\Process\SubjectKey;
-use App\Dto\Procurement\Process\SubjectLockSnapshot;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\BlockedReason;
-use App\Enums\Procurement\Process\CapacityKind;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\DeferralReason;
-use App\Enums\Procurement\Process\HandlerEligibility;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
-use App\Enums\Procurement\Process\WorkState;
+use App\Dto\Procurement\Process\Authority\AdmissionGroupSnapshot;
+use App\Dto\Procurement\Process\Authority\AuthoritySnapshot;
+use App\Dto\Procurement\Process\Authority\CapacityAuthority;
+use App\Dto\Procurement\Process\Authority\ControlSnapshot;
+use App\Dto\Procurement\Process\Authority\HandlerAuthoritySnapshot;
+use App\Dto\Procurement\Process\Authority\SubjectAuthoritySnapshot;
+use App\Dto\Procurement\Process\Authority\SubjectLockSnapshot;
+use App\Dto\Procurement\Process\Inputs\DetailInput;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Dto\Procurement\Process\Provider\ProviderOperationRef;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Core\WorkState;
+use App\Enums\Procurement\Process\Governance\CapacityKind;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Governance\HandlerEligibility;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
+use App\Enums\Procurement\Process\Outcomes\DeferralReason;
 use Tests\Support\ProcessCore\ContractFixtures as F;
 
 test('отсутствующий предок обнаруживается до обхода цепочки независимо от порядка строк', function (): void {

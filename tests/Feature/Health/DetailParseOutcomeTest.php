@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\DetailFetched;
+use App\Dto\Procurement\Acquisition\Detail\DetailFetched;
 use App\Enums\Procurement\Platform\Completeness;
 use App\Exceptions\Procurement\Health\HealthBaselineUnavailableException;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
-use App\Services\Procurement\Acquisition\DetailArtifacts;
-use App\Services\Procurement\Acquisition\DetailHandler;
+use App\Services\Procurement\Acquisition\Detail\DetailArtifacts;
+use App\Services\Procurement\Acquisition\Detail\DetailHandler;
 use App\Services\Procurement\Health\HealthBaselineReader;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DetailFixtures as F;
 use Tests\Support\ProcessCore\DetailFixtureSource;

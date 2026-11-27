@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process\Contracts;
 
-use App\Dto\Procurement\Process\ProcessEventEnvelope;
+use App\Dto\Procurement\Process\Projection\ProcessEventEnvelope;
 
 /**
  * Optional technical sink accepted transition: вызывается строго после commit,

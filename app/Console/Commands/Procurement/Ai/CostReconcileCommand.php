@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement\Ai;
 
+use App\Dto\Llm\Reporting\ReconciliationReport;
+use App\Dto\Llm\Reporting\ReconciliationRow;
 use App\Exceptions\Procurement\OperationFailed;
 use App\Services\Llm\BillingReconciler;
-use App\Services\Llm\Dto\ReconciliationReport;
-use App\Services\Llm\Dto\ReconciliationRow;
 use Carbon\CarbonImmutable;
 use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Console\Attributes\Description;

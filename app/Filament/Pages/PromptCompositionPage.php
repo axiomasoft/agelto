@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Pages;
 
+use App\Dto\Llm\Prompt\ComposedPrompt;
 use App\Enums\Llm\DocumentTypeScope;
 use App\Enums\Llm\PromptStep;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Filament\Support\LlmPresentation;
 use App\Models\Llm\Prompt;
 use App\Repositories\Llm\PromptReadRepository;
-use App\Services\Llm\Dto\ComposedPrompt;
 use App\Services\Llm\PromptComposer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use AzGuard\Filament\Concerns\AuthorizesPage;

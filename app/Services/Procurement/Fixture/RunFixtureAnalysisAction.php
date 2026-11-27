@@ -10,7 +10,7 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Repositories\Procurement\Ai\AnalysisReadRepository;
 use App\Repositories\Procurement\Ai\AnalysisRunReadRepository;
 use App\Repositories\Procurement\Document\DocumentWorkRepository;
-use App\Services\Procurement\Extraction\RerunAnalysisAction;
+use App\Services\Procurement\Extraction\Orchestration\RerunAnalysisAction;
 
 /** Manual fixture input follows the same preparation and independent analysis producers. */
 final readonly class RunFixtureAnalysisAction

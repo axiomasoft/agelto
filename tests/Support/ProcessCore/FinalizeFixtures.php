@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\AuthoritySnapshot;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\HandlerFaultEvidence;
-use App\Dto\Procurement\Process\StageSucceeded;
-use App\Dto\Procurement\Process\TransitionData;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ActorKind;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\AuthorityRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\LockedPrefix;
-use App\Repositories\Procurement\Process\TransitionRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\ProcessPolicy;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\StageRegistry;
-use App\Services\Procurement\Process\WorkFeeder;
+use App\Dto\Procurement\Process\Authority\AuthoritySnapshot;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Execution\HandlerFaultEvidence;
+use App\Dto\Procurement\Process\Governance\TransitionData;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ActorKind;
+use App\Repositories\Procurement\Process\Authority\AuthorityRepository;
+use App\Repositories\Procurement\Process\Projection\TransitionRepository;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Repositories\Procurement\Process\Support\LockedPrefix;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Execution\StageRegistry;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 
 /**

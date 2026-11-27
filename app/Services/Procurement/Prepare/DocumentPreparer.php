@@ -8,6 +8,12 @@ use App\Actions\Procurement\Document\MarkDocumentUnprocessableAction;
 use App\Enums\Procurement\Document\PreparationResult;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
+use App\Services\Procurement\Prepare\Strategies\ArchiveStrategy;
+use App\Services\Procurement\Prepare\Strategies\GsfxStrategy;
+use App\Services\Procurement\Prepare\Strategies\PreparationStrategy;
+use App\Services\Procurement\Prepare\Strategies\ScanStrategy;
+use App\Services\Procurement\Prepare\Strategies\SpreadsheetStrategy;
+use App\Services\Procurement\Prepare\Strategies\WordStrategy;
 use Illuminate\Contracts\Container\Container;
 
 /**

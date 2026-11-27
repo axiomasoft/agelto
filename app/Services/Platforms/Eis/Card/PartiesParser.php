@@ -102,35 +102,10 @@ final readonly class PartiesParser
         if ($placement->count() === 0) {
             return $this->customerWithoutOrganizationLink($crawler);
         }
-        $link = $placement->filter('a[href*="/epz/organization/view/info.html?"]');
-        $this->requireComplete($link->count() === 1);
-        $name = $this->normalize($link->text()) ?: $this->placementName($crawler) ?? '';
-        $roleText = $this->normalize(str_replace($name, '', $this->definition($placement, 'Размещение осуществляет')
-            ?? $this->definition($crawler, 'Размещение осуществляет') ?? ''));
-        $role = self::ROLE_MAP[$roleText] ?? null;
-        $this->requireComplete($name !== '');
+
+        ['name' => $name, 'roleText' => $roleText, 'role' => $role, 'code' => $code] = $this->parsePlacementSection($crawler, $placement);
         $complete = $role !== null;
-        parse_str(parse_url($link->attr('href') ?? '', PHP_URL_QUERY) ?: '', $query);
-        $code = $query['organizationCode'] ?? null;
-        $this->requireComplete(is_string($code) && preg_match('/^\d+$/D', $code) === 1);
-
-        $customers = [];
-        $crawler->filter('.lots-block')->each(function (Crawler $block) use (&$customers, &$complete): void {
-            $title = $block->filter('.lots-block-title .collapse__title_text');
-            $this->requireComplete($title->count() === 1);
-            $text = $this->normalize($title->text());
-            if (preg_match('/^Требования заказчика\s*(?:«(.+)»|"(.+)"|“(.+)”)$/uD', $text, $match, PREG_UNMATCHED_AS_NULL) !== 1) {
-                $complete = false;
-
-                return;
-            }
-            $codes = $this->customerCodes($block);
-            $this->requireComplete(count($codes) === 1);
-            $customerCode = $codes[0];
-            $customerName = trim($match[1] ?? $match[2] ?? $match[3] ?? '');
-            $this->requireComplete($customerName !== '' && (! isset($customers[$customerCode]) || $customers[$customerCode] === $customerName));
-            $customers[$customerCode] = $customerName;
-        });
+        $customers = $this->collectLotCustomers($crawler, $complete);
 
         $allCodes = $this->customerCodes($crawler);
         $unlinkedCustomerPlan = $role === ProcurementPartyRole::Customer
@@ -151,12 +126,67 @@ final readonly class PartiesParser
         sort($allCodes);
         $complete = $complete && $customerCodes === $allCodes;
 
+        $this->verifyTruInfoCustomers($crawler, $unlinkedCustomerPlan ? [$name] : $customers, $complete);
+        $contact = $this->parseContactBlock($crawler, $name, $roleText);
+
+        return [
+            'parties' => $this->buildRealParties($name, $code, $role, $allCodes, $customers, $contact),
+            'complete' => $complete,
+        ];
+    }
+
+    /** @return array{name: string, roleText: string, role: ?ProcurementPartyRole, code: string} */
+    private function parsePlacementSection(Crawler $crawler, Crawler $placement): array
+    {
+        $link = $placement->filter('a[href*="/epz/organization/view/info.html?"]');
+        $this->requireComplete($link->count() === 1);
+        $name = $this->normalize($link->text()) ?: $this->placementName($crawler) ?? '';
+        $roleText = $this->normalize(str_replace($name, '', $this->definition($placement, 'Размещение осуществляет')
+            ?? $this->definition($crawler, 'Размещение осуществляет') ?? ''));
+        $role = self::ROLE_MAP[$roleText] ?? null;
+        $this->requireComplete($name !== '');
+        parse_str(parse_url($link->attr('href') ?? '', PHP_URL_QUERY) ?: '', $query);
+        $code = $query['organizationCode'] ?? null;
+        $this->requireComplete(is_string($code) && preg_match('/^\d+$/D', $code) === 1);
+
+        return ['name' => $name, 'roleText' => $roleText, 'role' => $role, 'code' => $code];
+    }
+
+    /** @return array<int|string, string> */
+    private function collectLotCustomers(Crawler $crawler, bool &$complete): array
+    {
+        $customers = [];
+        $crawler->filter('.lots-block')->each(function (Crawler $block) use (&$customers, &$complete): void {
+            $title = $block->filter('.lots-block-title .collapse__title_text');
+            $this->requireComplete($title->count() === 1);
+            $text = $this->normalize($title->text());
+            if (preg_match('/^Требования заказчика\s*(?:«(.+)»|"(.+)"|“(.+)”)$/uD', $text, $match, PREG_UNMATCHED_AS_NULL) !== 1) {
+                $complete = false;
+
+                return;
+            }
+            $codes = $this->customerCodes($block);
+            $this->requireComplete(count($codes) === 1);
+            $customerCode = $codes[0];
+            $customerName = trim($match[1] ?? $match[2] ?? $match[3] ?? '');
+            $this->requireComplete($customerName !== '' && (! isset($customers[$customerCode]) || $customers[$customerCode] === $customerName));
+            $customers[$customerCode] = $customerName;
+        });
+
+        return $customers;
+    }
+
+    /** @param array<int|string, string> $allowedCustomerNames */
+    private function verifyTruInfoCustomers(Crawler $crawler, array $allowedCustomerNames, bool &$complete): void
+    {
         // truInfo is only a cross-check. Its names are not global organization identities.
-        $allowedCustomerNames = $unlinkedCustomerPlan ? [$name] : $customers;
         $crawler->filter('tr[class*="truInfo_"] > td.tableBlock__col_header')->each(function (Crawler $cell) use ($allowedCustomerNames, &$complete): void {
             $complete = $complete && in_array($this->normalize($cell->text()), $allowedCustomerNames, true);
         });
+    }
 
+    private function parseContactBlock(Crawler $crawler, string $name, string $roleText): Crawler
+    {
         $contactBlocks = $crawler->filter('.row.blockInfo')->reduce(fn (Crawler $block): bool => $block->filter('h2.blockInfo__title')->count() === 1
             && $this->normalize($block->filter('h2.blockInfo__title')->text()) === 'Контактная информация'
         );
@@ -165,6 +195,22 @@ final readonly class PartiesParser
         $this->requireComplete($this->definition($contact, 'Организация, осуществляющая размещение') === $name);
         $this->requireComplete($this->definition($contact, 'Размещение осуществляет') === $roleText);
 
+        return $contact;
+    }
+
+    /**
+     * @param  list<string>  $allCodes
+     * @param  array<int|string, string>  $customers
+     * @return list<PartyData>
+     */
+    private function buildRealParties(
+        string $name,
+        string $code,
+        ?ProcurementPartyRole $role,
+        array $allCodes,
+        array $customers,
+        Crawler $contact,
+    ): array {
         $organization = new OrganizationData(
             fullName: $name,
             addressRaw: $this->definition($contact, 'Место нахождения'),
@@ -192,7 +238,7 @@ final readonly class PartiesParser
             }
         }
 
-        return ['parties' => $parties, 'complete' => $complete];
+        return $parties;
     }
 
     /** @return array{parties: list<PartyData>, complete: bool} */

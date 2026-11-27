@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Analyzers\Estimate\EstimateDiffReport;
-use App\Services\Procurement\Analyzers\Estimate\EstimateValidator;
-use App\Services\Procurement\Analyzers\Estimate\EvalMetrics;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateValidator;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EstimateDiffReport;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EvalMetrics;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EvalRowMatcher;
 
 /**
  * §8.6 `docs/dev/ai/estimate-extraction.md` — детерминированный diff-отчёт «gold vs
@@ -217,4 +218,30 @@ test('таблица сопоставления смет: слот несёт и
     expect($report->matches)->toHaveCount(2)
         ->and(collect($report->matches)->pluck('rule')->unique()->all())->toBe(['estimate_number'])
         ->and($report->verdict)->toBe('расхождений нет');
+});
+
+test('дублирующийся row_index во второй смете сохраняет истинные slot и row_index в diff и parseRowKey', function () {
+    expect(EvalRowMatcher::parseRowKey('1:5'))
+        ->toBe(['slot' => 1, 'row_index' => 5])
+        ->and(EvalRowMatcher::parseRowKey('duplicate:2:1:5'))
+        ->toBe(['slot' => 1, 'row_index' => 5]);
+
+    $gold = [
+        diffEstimate([diffRow(1)], ['estimate_number' => 'ЛСР-1']),
+        diffEstimate([diffRow(5), diffRow(5, ['name' => 'Повторная позиция'])], ['estimate_number' => 'ЛСР-2']),
+    ];
+    $predicted = [
+        diffEstimate([diffRow(1)], ['estimate_number' => 'ЛСР-1']),
+        diffEstimate([diffRow(5)], ['estimate_number' => 'ЛСР-2']),
+    ];
+
+    $report = diffReport()->build($gold, $predicted);
+
+    expect($report->rows)->toHaveCount(1);
+
+    $entry = $report->rows[0]->toArray();
+
+    expect($entry['kind'])->toBe('missing')
+        ->and($entry['estimate_index'])->toBe(1)
+        ->and($entry['row_index'])->toBe(5);
 });

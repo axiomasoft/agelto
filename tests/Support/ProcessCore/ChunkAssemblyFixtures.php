@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Tests\Support\ProcessCore;
 
 use App\Dto\Llm\Requests\StructuredTask;
-use App\Dto\Procurement\Ai\AnalysisRecipe;
-use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
-use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
-use App\Dto\Procurement\Ai\ExtractionOutput;
-use App\Dto\Procurement\Ai\RowRange;
-use App\Dto\Procurement\Ai\ValidatedChunk;
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Ai\Execution\AnalysisRecipe;
+use App\Dto\Procurement\Ai\Execution\AnalysisRunSnapshot;
+use App\Dto\Procurement\Ai\Extraction\ValidatedChunk;
+use App\Dto\Procurement\Ai\Output\ExtractionOutput;
+use App\Dto\Procurement\Ai\Planning\AnalysisWindowSnapshot;
+use App\Dto\Procurement\Ai\Planning\RowRange;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use App\Enums\Llm\TaskPurpose;
 use App\Services\Llm\Schema\CanonicalJson;
 use App\Services\Llm\Validation\StructuredTaskValidator;
-use App\Services\Procurement\Extraction\ExtractionSemanticValidator;
+use App\Services\Procurement\Extraction\Pipeline\ExtractionSemanticValidator;
 
 final class ChunkAssemblyFixtures
 {

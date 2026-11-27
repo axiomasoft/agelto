@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
 use App\Enums\Procurement\Crawler\ListingSortField;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\CreateCrawler;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\EditCrawler;
 use App\Guards\Admin\Roles\OperatorRole;

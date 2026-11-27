@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;

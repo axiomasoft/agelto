@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Platform;
 
-use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;

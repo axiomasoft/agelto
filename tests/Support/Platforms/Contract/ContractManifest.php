@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\Contract;
 
-use App\Dto\Procurement\Platform\PlatformDefinition;
+use App\Dto\Procurement\Platform\Definition\PlatformDefinition;
 
 final readonly class ContractManifest
 {

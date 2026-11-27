@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Process\ReconcileDaemon;
-use App\Services\Procurement\Proxyma\AgeltoAuthorizer;
-use App\Services\Procurement\Proxyma\AgeltoTenantContext;
-use App\Services\Procurement\Proxyma\ProxymaMaintenanceContext;
+use App\Services\Procurement\Process\Daemons\ReconcileDaemon;
+use App\Services\Procurement\Proxyma\Catalog\ProxymaMaintenanceContext;
+use App\Services\Procurement\Proxyma\Panel\AgeltoAuthorizer;
+use App\Services\Procurement\Proxyma\Panel\AgeltoTenantContext;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\WithConsoleEvents;
 use Illuminate\Support\Facades\Artisan;

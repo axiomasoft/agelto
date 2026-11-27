@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisPolicy;
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Process\Duration;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Dto\Procurement\Process\Primitives\Duration;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Services\Platforms\Eis\EisDefinition;
 use App\Services\Procurement\Platform\PlatformRegistry;

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Dto\Llm\Execution\LlmOptions;
+use App\Dto\Llm\Prompt\JsonSchema;
+use App\Dto\Llm\Prompt\LlmFileHandle;
+use App\Dto\Llm\Prompt\LlmPrompt;
 use App\Exceptions\Llm\UnsupportedConsumer;
-use App\Services\Llm\Dto\JsonSchema;
-use App\Services\Llm\Dto\LlmFileHandle;
-use App\Services\Llm\Dto\LlmOptions;
-use App\Services\Llm\Dto\LlmPrompt;
 use App\Services\Llm\Providers\CatalogOnlyProvider;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\ListingResult;
-use App\Dto\Procurement\Process\StageSucceeded;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Acquisition\Listing\ListingResult;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFinalizer;
-use App\Services\Procurement\Process\WorkRunner;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkRunner;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Tests\Support\ProcessCore\ExecutionFixtures as E;

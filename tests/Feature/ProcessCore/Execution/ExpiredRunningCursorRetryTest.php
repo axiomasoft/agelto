@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
-use App\Services\Procurement\Process\RecoveryReconciler;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;

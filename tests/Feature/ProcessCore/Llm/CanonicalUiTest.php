@@ -5,7 +5,7 @@ declare(strict_types=1);
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStatus;
 use App\Enums\Procurement\Ai\AnalysisStep;
-use App\Enums\Procurement\Process\WorkState;
+use App\Enums\Procurement\Process\Core\WorkState;
 use App\Filament\Pages\FinalPromptPage;
 use App\Filament\Resources\Procurement\Ai\Fixtures\FixtureResource;
 use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\ViewFixture;

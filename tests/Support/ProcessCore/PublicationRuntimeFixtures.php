@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
-use App\Dto\Procurement\Document\RepresentationCoverage;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\ExtractionWindowInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\PublicationInput;
-use App\Dto\Procurement\Process\WorkId;
-use App\Services\Procurement\Extraction\ExtractionHandler;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Dto\Procurement\Ai\Planning\AnalysisWindowSnapshot;
+use App\Dto\Procurement\Document\Prepare\RepresentationCoverage;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Inputs\ExtractionWindowInput;
+use App\Dto\Procurement\Process\Inputs\PublicationInput;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Services\Procurement\Extraction\Orchestration\ExtractionHandler;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 
 final class PublicationRuntimeFixtures

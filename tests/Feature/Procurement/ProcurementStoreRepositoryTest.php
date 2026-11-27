@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Platform\Registry;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
 use Tests\Support\Procurement\SnapshotFactory;
 
 /**

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
 use App\Repositories\Procurement\Network\NetworkEligibilityRepository;
-use App\Repositories\Procurement\Process\ControlRepository;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
 
 /** Advisory dispatch projection. Only the locked network send gate authorizes an effect. */
 final readonly class AcquisitionEligibility

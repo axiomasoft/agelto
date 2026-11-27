@@ -19,31 +19,35 @@ use App\Pulse\Cards\ProcessPlatformHealthCard;
 use App\Services\Health\ApplicationReadiness;
 use App\Services\Llm\Contracts\PromptScopeRegistry;
 use App\Services\Llm\Contracts\UsageSource;
+use App\Services\Llm\Execution\ProviderCodecs;
 use App\Services\Llm\Execution\ReceiptPolicies;
 use App\Services\Llm\Providers\GeminiAssetReceiptPolicy;
+use App\Services\Llm\Providers\GeminiWireCodec;
+use App\Services\Llm\Providers\OpenAiChatCompletionsClient;
+use App\Services\Llm\Providers\OpenAiReceiptPolicy;
 use App\Services\Llm\TrackingUsageSource;
 use App\Services\Platforms\Eis\Card\EisCardCatalog;
 use App\Services\Platforms\Eis\EisSourceClock;
-use App\Services\Procurement\Acquisition\AcquisitionRuntime;
-use App\Services\Procurement\Acquisition\DetailValueCodec;
+use App\Services\Procurement\Acquisition\Detail\DetailValueCodec;
+use App\Services\Procurement\Acquisition\Orchestration\AcquisitionRuntime;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use App\Services\Procurement\Document\DocumentFeeder;
 use App\Services\Procurement\Document\DocumentRuntime;
 use App\Services\Procurement\Document\DocumentStorageReconciler;
-use App\Services\Procurement\Extraction\AnalysisConfiguration;
-use App\Services\Procurement\Extraction\AnalysisFeeder;
-use App\Services\Procurement\Extraction\AnalysisProviderConnections;
-use App\Services\Procurement\Extraction\AnalysisProviderRecoveryResolver;
-use App\Services\Procurement\Extraction\AnalysisRuntime;
+use App\Services\Procurement\Extraction\Orchestration\AnalysisConfiguration;
+use App\Services\Procurement\Extraction\Orchestration\AnalysisFeeder;
+use App\Services\Procurement\Extraction\Orchestration\AnalysisRuntime;
+use App\Services\Procurement\Extraction\Provider\AnalysisProviderConnections;
+use App\Services\Procurement\Extraction\Provider\AnalysisProviderRecoveryResolver;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Network\LegacyOutboundClient;
 use App\Services\Procurement\Network\NetworkProbeReconcileCategory;
 use App\Services\Procurement\Network\NetworkReconcileCategory;
 use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
 use App\Services\Procurement\Process\Contracts\ProviderRecoveryResolver;
-use App\Services\Procurement\Process\FeederDaemon;
-use App\Services\Procurement\Process\ReconcileDaemon;
-use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Process\Daemons\FeederDaemon;
+use App\Services\Procurement\Process\Daemons\ReconcileDaemon;
+use App\Services\Procurement\Process\Execution\StageRegistry;
 use App\Services\Procurement\SourceTargetValidator;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
@@ -68,8 +72,18 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ReceiptPolicies::class, static function (): ReceiptPolicies {
             $policies = new ReceiptPolicies;
             $policies->register('gemini', new GeminiAssetReceiptPolicy);
+            $policies->register('openai', new OpenAiReceiptPolicy);
+            $policies->register('openai_compatible', new OpenAiReceiptPolicy);
 
             return $policies;
+        });
+        $this->app->singleton(ProviderCodecs::class, static function (): ProviderCodecs {
+            $codecs = new ProviderCodecs;
+            $codecs->register('gemini', new GeminiWireCodec);
+            $codecs->register('openai', new OpenAiChatCompletionsClient);
+            $codecs->register('openai_compatible', new OpenAiChatCompletionsClient);
+
+            return $codecs;
         });
         $this->app->singleton(AnalysisProviderConnections::class, static function (): AnalysisProviderConnections {
             $connections = new AnalysisProviderConnections;

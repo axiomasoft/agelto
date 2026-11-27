@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement;
 
-use App\Dto\Procurement\Acquisition\ProcurementIdentity;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Acquisition\Control\ProcurementIdentity;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\ProcurementEvent;
 use App\Models\Procurement\ProcurementRevision;
-use App\Repositories\Procurement\Process\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;

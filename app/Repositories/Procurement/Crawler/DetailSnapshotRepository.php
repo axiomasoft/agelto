@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Crawler;
 
-use App\Dto\Procurement\Acquisition\DetailProgress;
-use App\Dto\Procurement\Acquisition\DetailRequest;
-use App\Dto\Procurement\Acquisition\ListingDetailReference;
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\SourceIdentifierType;
-use App\Dto\Procurement\Platform\SourceIdentifierValue;
-use App\Dto\Procurement\Platform\SourceIdentity;
-use App\Dto\Procurement\Process\DetailInput;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Acquisition\Detail\DetailProgress;
+use App\Dto\Procurement\Acquisition\Detail\DetailRequest;
+use App\Dto\Procurement\Acquisition\Listing\ListingDetailReference;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\SourceIdentifierType;
+use App\Dto\Procurement\Platform\Identity\SourceIdentifierValue;
+use App\Dto\Procurement\Platform\Identity\SourceIdentity;
+use App\Dto\Procurement\Process\Inputs\DetailInput;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Platform\SnapshotConsistency;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Services\Procurement\Acquisition\DetailValueCodec;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Services\Procurement\Acquisition\Detail\DetailValueCodec;
 use Illuminate\Support\Facades\DB;
 
 final readonly class DetailSnapshotRepository
@@ -24,6 +24,11 @@ final readonly class DetailSnapshotRepository
     public function __construct(private DetailValueCodec $codec, private ListingStoreRepository $listing) {}
 
     public function request(int $procurement, ProcessUuid $intent): DetailRequest
+    {
+        return $this->findRequest($procurement, $intent) ?? throw new \LogicException('Missing immutable detail request.');
+    }
+
+    public function findRequest(int $procurement, ProcessUuid $intent): ?DetailRequest
     {
         $row = LedgerRow::one(
             'SELECT result_ref::text AS payload FROM prc_detail_snapshots WHERE procurement_id=? AND part_key=? ORDER BY input_revision DESC, created_at DESC, id DESC LIMIT 1',
@@ -53,10 +58,10 @@ final readonly class DetailSnapshotRepository
         );
         $baseIntent = $predecessor?->nullableString('base_intent');
         if ($baseIntent !== null && $baseIntent !== $intent->value) {
-            return $this->request($procurement, new ProcessUuid($baseIntent));
+            return $this->findRequest($procurement, new ProcessUuid($baseIntent));
         }
 
-        throw new \LogicException('Missing immutable detail request.');
+        return null;
     }
 
     private function decodeRequest(string $payload): DetailRequest

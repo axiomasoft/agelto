@@ -4,26 +4,26 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Ai;
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Document\VerifiedArtifact;
-use App\Dto\Procurement\Process\AuthoritySnapshot;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Document\Storage\VerifiedArtifact;
+use App\Dto\Procurement\Process\Authority\AuthoritySnapshot;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Document\StoragePhase;
-use App\Enums\Procurement\Process\PrefixFailure;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Outcomes\PrefixFailure;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Exceptions\Procurement\Process\LeaseLost;
 use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
-use App\Repositories\Procurement\Process\AuthorityRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\LockedPrefix;
+use App\Repositories\Procurement\Process\Authority\AuthorityRepository;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Repositories\Procurement\Process\Support\LockedPrefix;
 use App\Services\Procurement\Document\PreparePolicy;
 use App\Services\Procurement\Document\PrepareWorkspace;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\SubjectLockResolver;
+use App\Services\Procurement\Process\Execution\SubjectLockResolver;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Str;
 
 /** Validating model output prepares an artifact, using the existing bounded prepare storage domains. */

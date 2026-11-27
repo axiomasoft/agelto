@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Crawler\Crawlers\Schemas;
 
-use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Platform\PlatformUiResolver;
-use App\Services\Procurement\Proxyma\SettingsSections;
+use App\Services\Procurement\Proxyma\Panel\SettingsSections;
 use Cron\CronExpression;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore\Http;
 
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
 use App\Notifications\PipelineAlert;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Proxyma\TelegramOutbound;
+use App\Services\Procurement\Proxyma\Caller\TelegramOutbound;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Cache;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process\Contracts;
 
-use App\Dto\Procurement\Process\ProviderRecoveryPlan;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Dto\Procurement\Process\Provider\ProviderRecoveryPlan;
 
 /**
  * Purpose/outcome resolver provider operation: единственный способ превратить

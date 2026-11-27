@@ -14,7 +14,7 @@ use App\Models\Procurement\Award;
 use App\Models\Procurement\Procurement;
 use App\Models\Procurement\Protocol;
 use App\Repositories\Organization\ProcurementPartyStoreRepository;
-use App\Repositories\Procurement\Process\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
 use App\Repositories\Procurement\ProcurementDetailStoreRepository;
 use App\Repositories\Procurement\ProcurementStoreRepository;
 use App\Services\Organization\OrganizationResolver;

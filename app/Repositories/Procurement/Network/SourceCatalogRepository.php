@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Network;
 
-use App\Dto\Procurement\Network\AdapterContractRef;
-use App\Dto\Procurement\Network\CatalogSyncReport;
-use App\Dto\Procurement\Network\NetworkChangeResult;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\TransitionData;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterContractRef;
+use App\Dto\Procurement\Network\Control\CatalogSyncReport;
+use App\Dto\Procurement\Network\Control\NetworkChangeResult;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
+use App\Dto\Procurement\Process\Governance\TransitionData;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\NetworkChangeStatus;
-use App\Enums\Procurement\Process\ActorKind;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\TransitionRepository;
+use App\Enums\Procurement\Process\Governance\ActorKind;
+use App\Repositories\Procurement\Process\Projection\TransitionRepository;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Network\OutboundPolicy;
-use App\Services\Procurement\Proxyma\CallerSendFacts;
+use App\Services\Procurement\Proxyma\Caller\CallerSendFacts;
 
 /**
  * Единственный writer source catalog authority:

@@ -9,7 +9,7 @@ use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Platform\StatusMapping;
 use App\Models\Procurement\ProcurementEvent;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
 use App\Services\Procurement\StatusMappingService;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\Procurement\SnapshotFactory;

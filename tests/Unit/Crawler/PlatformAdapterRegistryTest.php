@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisPolicy;
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\SupportedDetailCapability;
-use App\Dto\Procurement\Platform\SupportedListingCapability;
+use App\Dto\Procurement\Platform\Capabilities\SupportedDetailCapability;
+use App\Dto\Procurement\Platform\Capabilities\SupportedListingCapability;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Services\Platforms\Eis\EisDefinition;
 use App\Services\Platforms\Eis\EisDetailSource;

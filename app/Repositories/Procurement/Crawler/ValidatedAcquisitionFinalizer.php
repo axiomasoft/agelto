@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Crawler;
 
-use App\Dto\Procurement\Acquisition\ValidatedAcquisitionResult;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\BlockedReason;
+use App\Dto\Procurement\Acquisition\Fetch\ValidatedAcquisitionResult;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Exceptions\Procurement\Process\PublicationBlocked;
 use App\Repositories\Procurement\Network\AdapterHealthRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
 use App\Services\Procurement\Process\Contracts\StagePublicationPreparation;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
 use App\Services\Procurement\Process\Contracts\StageResultRepository;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
+use App\Services\Procurement\Process\Infrastructure\ProcessPayloadCodec;
 
 /** A receipt epoch is checked in the same fenced transaction as canonical publication. */
 final readonly class ValidatedAcquisitionFinalizer implements StagePublicationPreparation, StagePublicationRepository

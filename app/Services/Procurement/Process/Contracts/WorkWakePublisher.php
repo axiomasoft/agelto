@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process\Contracts;
 
-use App\Dto\Procurement\Process\WorkWake;
-use App\Services\Procurement\Process\QueueWorkWakePublisher;
+use App\Dto\Procurement\Process\Execution\WorkWake;
+use App\Services\Procurement\Process\Execution\QueueWorkWakePublisher;
 use Illuminate\Container\Attributes\Bind;
 
 /**

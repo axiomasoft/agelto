@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Process\Incidents\Tables;
 
-use App\Dto\Procurement\Process\OperatorCommandResult;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\Governance\OperatorCommandResult;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Permissions\ProcessControlPermission;
 use App\Models\Procurement\Process\Incident;
 use App\Models\User;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;

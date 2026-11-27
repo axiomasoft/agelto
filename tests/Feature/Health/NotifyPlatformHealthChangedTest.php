@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Enums\Procurement\Health\PlatformCheckVerdict;
 use App\Events\Procurement\PlatformHealthChanged;
 use App\Listeners\Procurement\NotifyPlatformHealthChanged;
 use App\Services\Procurement\Network\SourceCatalogSync;
-use App\Services\Procurement\Proxyma\TelegramOutbound;
+use App\Services\Procurement\Proxyma\Caller\TelegramOutbound;
 use Illuminate\Support\Facades\Cache;
 use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\Http\PermitFixtures;

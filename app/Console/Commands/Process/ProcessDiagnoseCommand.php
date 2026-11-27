@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Process;
 
-use App\Dto\Procurement\Platform\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Enums\Procurement\Health\PlatformCheckKind;
 use App\Models\Procurement\Platform\Platform;
-use App\Services\Procurement\Acquisition\AdapterDiagnosticRunner;
+use App\Services\Procurement\Acquisition\Diagnostics\AdapterDiagnosticRunner;
 use App\Services\Procurement\Health\PlatformHealthChecker;
-use App\Services\Procurement\Network\OutboundPolicy;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -97,8 +96,7 @@ final class ProcessDiagnoseCommand extends Command
     private function diagnoseProxyBudgets(string $platformCode): int
     {
         try {
-            $definition = app(PlatformRegistry::class)->get(new PlatformCode($platformCode));
-            $outboundPolicy = app(OutboundPolicy::class);
+            app(PlatformRegistry::class)->get(new PlatformCode($platformCode));
         } catch (\Throwable $exception) {
             $this->error('Не удалось загрузить конфигурацию площадки: '.$exception->getMessage());
 

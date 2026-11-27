@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ClaimedOutboxMessage;
-use App\Enums\Procurement\Process\OutboxKind;
-use App\Repositories\Procurement\Process\OutboxRepository;
+use App\Dto\Procurement\Process\Execution\ClaimedOutboxMessage;
+use App\Enums\Procurement\Process\Core\OutboxKind;
+use App\Repositories\Procurement\Process\Work\OutboxRepository;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\LedgerFixtures;
@@ -37,9 +37,9 @@ function outboxConcurrencyWorker(string $kind, int $batch): string
 {
     return str_replace(['__KIND__', '__BATCH__'], [$kind, (string) $batch], <<<'PHP'
         $claimed = \Illuminate\Support\Facades\DB::transaction(function (): array {
-            $messages = app(\App\Repositories\Procurement\Process\OutboxRepository::class)->claim(
-                \App\Enums\Procurement\Process\OutboxKind::from('__KIND__'),
-                new \App\Dto\Procurement\Process\ProcessUuid(strtolower((string) \Illuminate\Support\Str::uuid())),
+            $messages = app(\App\Repositories\Procurement\Process\Work\OutboxRepository::class)->claim(
+                \App\Enums\Procurement\Process\Core\OutboxKind::from('__KIND__'),
+                new \App\Dto\Procurement\Process\Primitives\ProcessUuid(strtolower((string) \Illuminate\Support\Str::uuid())),
                 __BATCH__,
                 30,
             );

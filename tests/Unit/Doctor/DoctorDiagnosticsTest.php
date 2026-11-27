@@ -10,7 +10,7 @@ use App\Doctor\Diagnostics\SecretContractIsReady;
 use App\Services\Health\ApplicationReadiness;
 use App\Services\Health\ReleaseStateReadiness;
 use App\Services\Llm\PromptCanonSynchronizer;
-use App\Services\Procurement\Process\DaemonReadiness;
+use App\Services\Procurement\Process\Daemons\DaemonReadiness;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
 use Illuminate\Database\ConnectionResolverInterface;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Procurement\Ai;
 
-use App\Services\Llm\Dto\UsageRow;
+use App\Dto\Llm\Reporting\UsageRow;
 use App\Services\Llm\LlmSpendReporter;
 use App\Services\Llm\ReportMoney;
 use Carbon\CarbonImmutable;

@@ -6,7 +6,7 @@ namespace App\Services\Platforms\Eis;
 
 use App\Dto\Platforms\Eis\EisDetailExtension;
 use App\Models\Platforms\Eis\EisDetails;
-use App\Repositories\Procurement\Process\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
 use App\Services\Procurement\Platform\Contracts\ExtensionPersister;
 
 /** @implements ExtensionPersister<EisDetailExtension> */

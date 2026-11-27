@@ -6,7 +6,7 @@ namespace App\Dto\Procurement\Analyzers\Estimate;
 
 use App\Attributes\Ai\Alias;
 use App\Attributes\Ai\Description;
-use App\Dto\Procurement\Ai\MoneyDecimal;
+use App\Dto\Procurement\Ai\Output\MoneyDecimal;
 use App\Enums\Procurement\Estimate\RowQualityReason;
 use App\Enums\Procurement\Estimate\RowType;
 use App\Services\Llm\Schema\SchemaConstraints;

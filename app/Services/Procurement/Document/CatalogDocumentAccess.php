@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Acquisition\FetchBlocked;
-use App\Dto\Procurement\Document\DocumentFetchPlan;
-use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Platform\RequestProfile;
-use App\Dto\Procurement\Process\DownloadInput;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Acquisition\Fetch\FetchBlocked;
+use App\Dto\Procurement\Document\Download\DocumentFetchPlan;
+use App\Dto\Procurement\Network\Control\OutboundRequestPlan;
+use App\Dto\Procurement\Network\Http\SafeUrl;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Inputs\DownloadInput;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\IdempotencyClass;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Enums\Procurement\Network\TrafficClass;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Platform\Contracts\DocumentAccessResolver;
 use Illuminate\Support\Str;
 

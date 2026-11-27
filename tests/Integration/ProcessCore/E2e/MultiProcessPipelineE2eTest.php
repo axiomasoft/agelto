@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\User;
-use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
-use App\Services\Procurement\Process\StageQueueMap;
-use App\Services\Procurement\Process\StageRegistry;
+use App\Repositories\Procurement\Process\Projection\PlatformMetricsReadRepository;
+use App\Services\Procurement\Process\Execution\StageQueueMap;
+use App\Services\Procurement\Process\Execution\StageRegistry;
 use Illuminate\Queue\Jobs\RedisJob;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -71,9 +71,9 @@ test('отдельные OS-процессы daemon feeder, relay, Redis worker,
 
     // 1. Run FeederDaemon and two concurrent RelayDaemon instances in independent OS processes.
     $feederResult = ConcurrentTransactions::execute(<<<'PHP'
-        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Listing);
-        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Detail);
-        $tick = app(\App\Services\Procurement\Process\FeederDaemon::class)->tick();
+        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Listing);
+        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Detail);
+        $tick = app(\App\Services\Procurement\Process\Daemons\FeederDaemon::class)->tick();
 
         return [
             'pid' => (int) \Illuminate\Support\Facades\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid,
@@ -87,7 +87,7 @@ test('отдельные OS-процессы daemon feeder, relay, Redis worker,
         ->and($feederResult['processed'])->toBeGreaterThanOrEqual(2);
 
     $relayCode = <<<'PHP'
-        $tick = app(\App\Services\Procurement\Process\RelayDaemon::class)->tick();
+        $tick = app(\App\Services\Procurement\Process\Daemons\RelayDaemon::class)->tick();
 
         return [
             'pid' => (int) \Illuminate\Support\Facades\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid,
@@ -106,16 +106,16 @@ test('отдельные OS-процессы daemon feeder, relay, Redis worker,
 
     // 2. Pop and execute jobs from real Redis queues inside an independent PHP worker OS process.
     $workerResult = ConcurrentTransactions::execute(<<<'PHP'
-        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Listing);
-        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Detail);
-        foreach ([\App\Enums\Procurement\Process\StageCode::Listing, \App\Enums\Procurement\Process\StageCode::Detail] as $stage) {
-            app(\App\Services\Procurement\Process\StageRegistry::class)->bindHandler(
+        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Listing);
+        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Detail);
+        foreach ([\App\Enums\Procurement\Process\Core\StageCode::Listing, \App\Enums\Procurement\Process\Core\StageCode::Detail] as $stage) {
+            app(\App\Services\Procurement\Process\Execution\StageRegistry::class)->bindHandler(
                 $stage,
                 new class($stage) implements \App\Services\Procurement\Process\Contracts\StageHandler
                 {
-                    public function __construct(private \App\Enums\Procurement\Process\StageCode $stage) {}
+                    public function __construct(private \App\Enums\Procurement\Process\Core\StageCode $stage) {}
 
-                    public function execute(\App\Dto\Procurement\Process\WorkInput $input, \App\Dto\Procurement\Process\ExecutionContext $execution): \App\Dto\Procurement\Process\StageOutcome
+                    public function execute(\App\Dto\Procurement\Process\Inputs\WorkInput $input, \App\Dto\Procurement\Process\Execution\ExecutionContext $execution): \App\Dto\Procurement\Process\Outcomes\StageOutcome
                     {
                         return \Tests\Support\ProcessCore\FinalizeFixtures::succeeded($this->stage, 'e2e-mp-'.$execution->lease()->workId->value->value);
                     }
@@ -123,8 +123,8 @@ test('отдельные OS-процессы daemon feeder, relay, Redis worker,
             );
         }
         $fired = 0;
-        $map = app(\App\Services\Procurement\Process\StageQueueMap::class);
-        foreach ([\App\Enums\Procurement\Process\StageCode::Listing, \App\Enums\Procurement\Process\StageCode::Detail] as $stage) {
+        $map = app(\App\Services\Procurement\Process\Execution\StageQueueMap::class);
+        foreach ([\App\Enums\Procurement\Process\Core\StageCode::Listing, \App\Enums\Procurement\Process\Core\StageCode::Detail] as $stage) {
             $route = $map->forStage($stage);
             while (($job = \Illuminate\Support\Facades\Queue::connection($route->connection)->pop($route->queue)) !== null) {
                 $job->fire();
@@ -145,7 +145,7 @@ test('отдельные OS-процессы daemon feeder, relay, Redis worker,
 
     // 3. Run two concurrent ProjectorDaemon instances and one ReconcileDaemon instance in independent OS processes.
     $projectorCode = <<<'PHP'
-        $tick = app(\App\Services\Procurement\Process\ProjectorDaemon::class)->tick();
+        $tick = app(\App\Services\Procurement\Process\Daemons\ProjectorDaemon::class)->tick();
 
         return [
             'pid' => (int) \Illuminate\Support\Facades\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid,
@@ -163,10 +163,10 @@ test('отдельные OS-процессы daemon feeder, relay, Redis worker,
         ->and(DB::table('prc_process_projection_receipts')->count())->toBeGreaterThan(0);
 
     $reconcileResult = ConcurrentTransactions::execute(<<<'PHP'
-        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Listing);
-        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Detail);
-        $daemon = app(\App\Services\Procurement\Process\ReconcileDaemon::class);
-        foreach (app(\App\Services\Procurement\Process\RecoveryReconciler::class)->categories() as $category) {
+        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Listing);
+        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Detail);
+        $daemon = app(\App\Services\Procurement\Process\Daemons\ReconcileDaemon::class);
+        foreach (app(\App\Services\Procurement\Process\Daemons\RecoveryReconciler::class)->categories() as $category) {
             $daemon->register($category);
         }
         $tick = $daemon->tick();

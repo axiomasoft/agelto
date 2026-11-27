@@ -75,9 +75,9 @@ test('периметр ядра собран правилом вычитания
     // 98 = 97 + один новый файл ядра: `App\Services\Llm\Schema\DataTypeGraph` —
     // единственный владелец правила обхода графа типов, общий с JSON-схемой; правило обходит
     // Data-классы и enum'ы рефлексией и о типе документа не знает (сметные словари объявляет сам
-    // тип, `App\Services\Procurement\Analyzers\Estimate\EstimateStepDictionaries`).
+    // тип, `App\Services\Procurement\Analyzers\Estimate\Core\EstimateStepDictionaries`).
     // 97 = 95 + два файла ядра: `App\Services\Llm\LlmPayloadReader` (чтение
-    // сохранённого payload'а) и `App\Services\Llm\Dto\StoredPayload` (DTO трёх штатных состояний)
+    // сохранённого payload'а) и `App\Dto\Llm\Reporting\StoredPayload` (DTO трёх штатных состояний)
     // — домен транспорта `Llm` кросс-документен по контракту, витрина финального промта
     // читает вызовы ОБОИХ шагов, типовой специфики в этих файлах нет.
     // Счётчик — канарейка периметра: растёт при КАЖДОМ новом файле ядра.
@@ -96,7 +96,11 @@ test('периметр ядра собран правилом вычитания
     // adds five provider-neutral asset lifecycle/policy components and Gemini codecs.
     // 164 = 165 - two provider stubs + CatalogOnlyProvider.
     // 165 = 164 + type-neutral UntrustedDocumentSanitizer at the extraction boundary.
-    expect($classes)->toHaveCount(165)
+    // 166 = 165 + BillingExportCsvReader extracted from BillingReconciler.
+    // 145 = 166 - 21 App\Services\Llm\Dto\* moved to App\Dto\Llm\*.
+    // 144 = 145 - JointProviderSendRejected moved to App\Exceptions\Procurement\Ai\*.
+    // 151 = 144 + AuthHeaderScheme, ProviderWireCodec, ProviderCodecs, OpenAiStrictSchemaCompiler, OpenAiChatCompletionsClient, OpenAiReceiptPolicy, GeminiWireCodec.
+    expect($classes)->toHaveCount(151)
         ->and(array_column($classes, 'class'))->toContain('App\Services\Procurement\Contracts\DiagnosticSourceMethod')
         ->and(array_column($classes, 'class'))->toContain('App\Jobs\Procurement\Process\ExecuteWorkJob')
         ->and(array_column($classes, 'class'))->toContain('App\Services\Llm\Providers\CatalogOnlyProvider')

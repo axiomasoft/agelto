@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Prepare\Gsfx;
 
-use App\Services\Procurement\Prepare\GsfxStrategy;
+use App\Services\Procurement\Prepare\Strategies\GsfxStrategy;
 use RuntimeException;
 
 /**

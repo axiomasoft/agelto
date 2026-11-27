@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Acquisition\DetailProgress;
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\MissingParts;
-use App\Dto\Procurement\Process\StageFailedItem;
-use App\Dto\Procurement\Process\StagePartial;
-use App\Enums\Procurement\Process\ItemFailureReason;
-use App\Enums\Procurement\Process\OperatorCommandStatus;
+use App\Dto\Procurement\Acquisition\Detail\DetailProgress;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageFailedItem;
+use App\Dto\Procurement\Process\Outcomes\StagePartial;
+use App\Dto\Procurement\Process\Primitives\MissingParts;
+use App\Enums\Procurement\Process\Governance\OperatorCommandStatus;
+use App\Enums\Procurement\Process\Outcomes\ItemFailureReason;
 use App\Models\User;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
-use App\Services\Procurement\Process\WorkFeeder;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DetailFixtures;

@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ExtractionWindowInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Process\PrefixFailure;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Process\Inputs\ExtractionWindowInput;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Process\Outcomes\PrefixFailure;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Exceptions\Procurement\Process\DependencyUnavailable;
 use App\Repositories\Procurement\Ai\ChunkRepository;
 use App\Repositories\Procurement\Ai\OutputStorageRepository;
-use App\Repositories\Procurement\Document\ArtifactRepository;
-use App\Repositories\Procurement\Process\AuthorityRepository;
+use App\Repositories\Procurement\Document\ArtifactGcRepository;
+use App\Repositories\Procurement\Process\Authority\AuthorityRepository;
 use App\Services\Procurement\Document\PreparePolicy;
-use App\Services\Procurement\Extraction\ExtractionHandler;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Extraction\Orchestration\ExtractionHandler;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Postgres\ConcurrentTransactions;
@@ -88,7 +88,7 @@ test('two real PostgreSQL output writers cannot exceed the durable capacity and 
     $code = '\Tests\Support\ProcessCore\ExtractionRuntimeFixtures::bind();'
         .'[$lease,$canonical,$root]=unserialize(base64_decode('.var_export($payload, true).'));'
         .'config(["filesystems.disks.local.root"=>$root]);\Illuminate\Support\Facades\Storage::forgetDisk("local");'
-        .'try {app(\App\Services\Procurement\Extraction\ValidatedOutputStore::class)->put($canonical,app(\App\Services\Procurement\Process\ExecutionContextFactory::class)->open($lease));$result="stored";}'
+        .'try {app(\App\Services\Procurement\Extraction\Pipeline\ValidatedOutputStore::class)->put($canonical,app(\App\Services\Procurement\Process\Execution\ExecutionContextFactory::class)->open($lease));$result="stored";}'
         .'catch(\App\Exceptions\Procurement\Process\DependencyUnavailable $failure){$result=$failure->dependency;}'
         .'return ["result"=>$result,"pid"=>\Illuminate\Support\Facades\DB::selectOne("SELECT pg_backend_pid() AS id")->id];';
     $results = ConcurrentTransactions::concurrently(['one' => $code, 'two' => $code]);
@@ -112,7 +112,7 @@ test('accepted chunk output remains pinned after terminal extraction and cannot 
     $row = DB::table('prc_document_blobs')->where('disk', $ref['disk'])->where('object_key', $ref['key'])->sole();
     DB::table('prc_document_blobs')->where('id', $row->id)->update(['verified_at' => DB::raw("clock_timestamp()-interval '1 hour'")]);
     $blob = new BlobReference(new ProcessUuid($row->id), new ProcessUuid($row->storage_domain_id), new ContentHash($ref['sha256']), $ref['disk'], $ref['key'], $row->size_bytes);
-    expect(app(ArtifactRepository::class)->markDeletion($blob, 900))->toBeNull()
+    expect(app(ArtifactGcRepository::class)->markDeletion($blob, 900))->toBeNull()
         ->and(DB::table('prc_process_work')->where('id', $work->value->value)->soleValue('state'))->toBe('succeeded')
         ->and(Storage::disk($blob->disk)->exists($blob->objectKey))->toBeTrue();
 });

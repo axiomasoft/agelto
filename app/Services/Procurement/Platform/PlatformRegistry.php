@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Platform;
 
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\PlatformDefinition;
+use App\Dto\Procurement\Platform\Definition\PlatformDefinition;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
 use App\Exceptions\Procurement\Platform\InvalidPlatformDefinition;
 use App\Services\Procurement\Platform\Contracts\PlatformDefinitionProvider;
 use Illuminate\Contracts\Config\Repository;

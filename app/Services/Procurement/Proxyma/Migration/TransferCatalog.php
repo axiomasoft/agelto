@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxyma\Migration;
 
-use App\Dto\Procurement\Platform\RequestProfile;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
 use App\Models\Procurement\Proxyma\BindingLink;
 use App\Models\Procurement\Proxyma\EndpointLink;
 use App\Models\Procurement\Proxyma\ProfileLink;

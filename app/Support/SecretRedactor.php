@@ -29,21 +29,13 @@ final readonly class SecretRedactor
         if ($values === null) {
             return null;
         }
-        foreach ($values as $key => $value) {
-            if (preg_match(self::SENSITIVE_KEY, $key) === 1) {
-                $values[$key] = '[redacted]';
-            } elseif (is_string($value)) {
-                $values[$key] = self::text($value);
-            } elseif (is_array($value)) {
-                $values[$key] = self::nested($value);
-            }
-        }
 
-        return $values;
+        /** @var array<string, mixed> */
+        return self::nested($values);
     }
 
-    /** @param array<mixed> $values
-     * @return array<mixed> */
+    /** @param array<array-key, mixed> $values
+     * @return array<array-key, mixed> */
     private static function nested(array $values): array
     {
         foreach ($values as $key => $value) {

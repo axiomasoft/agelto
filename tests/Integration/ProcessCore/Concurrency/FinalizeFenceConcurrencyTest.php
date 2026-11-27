@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ClaimStatus;
-use App\Enums\Procurement\Process\CompletionStatus;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\WorkState;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\WorkFeeder;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\WorkState;
+use App\Enums\Procurement\Process\Outcomes\ClaimStatus;
+use App\Enums\Procurement\Process\Outcomes\CompletionStatus;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
@@ -31,7 +31,7 @@ afterEach(fn () => ExecutionFixtures::truncateLedger());
 /** Тело worker: binding listing finalization в этом процессе + операция, результат — scalars. */
 function fenceWorker(string $operation): string
 {
-    return '\Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Listing);'
+    return '\Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Listing);'
         .'$fx = \Tests\Support\ProcessCore\FinalizeFixtures::class;'
         .$operation;
 }
@@ -43,13 +43,13 @@ function fenceLease(ExecutionLease $lease): string
 
 function fenceWork(WorkId $work): string
 {
-    return "new \\App\\Dto\\Procurement\\Process\\WorkId(new \\App\\Dto\\Procurement\\Process\\ProcessUuid('".$work->value->value."'))";
+    return "new \\App\Dto\Procurement\Process\Primitives\WorkId(new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('".$work->value->value."'))";
 }
 
 function fenceFinish(ExecutionLease $lease, string $key): string
 {
-    return '$result = app(\App\Services\Procurement\Process\WorkFinalizer::class)->finish('.fenceLease($lease)
-        .", \\Tests\\Support\\ProcessCore\\FinalizeFixtures::succeeded(\\App\\Enums\\Procurement\\Process\\StageCode::Listing, '".$key."'));"
+    return '$result = app(\App\Services\Procurement\Process\Execution\WorkFinalizer::class)->finish('.fenceLease($lease)
+        .", \\Tests\\Support\\ProcessCore\\FinalizeFixtures::succeeded(\\App\Enums\Procurement\Process\Core\StageCode::Listing, '".$key."'));"
         ."return ['status' => \$result->status->value, 'state' => \$result->state?->value];";
 }
 
@@ -74,7 +74,7 @@ test('оба порядка: expired-but-unrecovered finalize выигрывае
     [$work, $lease] = fenceListing();
     FinalizeFixtures::expire($work);
     $finish = fenceFinish($lease, 'race');
-    $revoke = '$recovered = app(\App\Services\Procurement\Process\RecoveryReconciler::class)->recoverExpiredRunning(); return ["status" => $recovered > 0 ? "revoked" : "noop"];';
+    $revoke = '$recovered = app(\App\Services\Procurement\Process\Daemons\RecoveryReconciler::class)->recoverExpiredRunning(); return ["status" => $recovered > 0 ? "revoked" : "noop"];';
     $workers = $finalizeFirst
         ? ['finalize' => fenceWorker('return $fx::holdUntilWaiter(function () { '.$finish.' });'), 'revoke' => fenceWorker('return $fx::afterHolder(function () use ($fx) { '.$revoke.' });')]
         : ['revoke' => fenceWorker('return $fx::holdUntilWaiter(function () use ($fx) { '.$revoke.' });'), 'finalize' => fenceWorker('return $fx::afterHolder(function () { '.$finish.' });')];
@@ -127,7 +127,7 @@ test('hard cancel живого lease и новый head сериализуютс
 
 test('checkpoint во время revocation: lost CAS откатывает всё, domain cursor не пишется; живой owner сохраняет progress', function (): void {
     [$work, $lease] = fenceListing();
-    $checkpoint = '$result = app(\App\Repositories\Procurement\Process\WorkStoreRepository::class)->checkpoint('.fenceLease($lease)
+    $checkpoint = '$result = app(\App\Repositories\Procurement\Process\Work\WorkStoreRepository::class)->checkpoint('.fenceLease($lease)
         .', new \Tests\Support\ProcessCore\FixtureStageCheckpoint(8), 0); return ["status" => $result->status->value];';
     $results = ConcurrentTransactions::concurrently([
         'cancel' => fenceWorker('return $fx::holdUntilWaiter(function () { app(\App\Actions\Procurement\Process\CancelWork::class)->execute('.fenceWork($work).", 'operator hard cancel'); return [\"held\" => true]; });"),
@@ -141,7 +141,7 @@ test('checkpoint во время revocation: lost CAS откатывает вс�
     $live = ExecutionFixtures::listingWork();
     $liveLease = FinalizeFixtures::running($live);
     $saved = ConcurrentTransactions::execute(fenceWorker(
-        '$result = app(\App\Repositories\Procurement\Process\WorkStoreRepository::class)->checkpoint('.fenceLease($liveLease)
+        '$result = app(\App\Repositories\Procurement\Process\Work\WorkStoreRepository::class)->checkpoint('.fenceLease($liveLease)
         .', new \Tests\Support\ProcessCore\FixtureStageCheckpoint(8), 0); return ["status" => $result->status->value, "seq" => $result->checkpointSeq];',
     ));
     expect($saved)->toBe(['status' => 'saved', 'seq' => 1])
@@ -160,7 +160,7 @@ test('pause scope во время 10 параллельных finalize: SHARE б
         $lease = app(WorkStoreRepository::class)->claim($work, ExecutionFixtures::delivery($work))->lease ?? throw new LogicException('not claimed');
         $workers['finalize'.$index] = fenceWorker(fenceFinish($lease, 'w'.$index));
     }
-    $workers['pause'] = "\$result = \\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode('acquisition', \\App\\Enums\\Procurement\\Process\\ControlMode::Paused);"
+    $workers['pause'] = "\$result = \\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode('acquisition', \\App\Enums\Procurement\Process\Governance\ControlMode::Paused);"
         ."return ['status' => \$result->status->value];";
 
     $results = ConcurrentTransactions::concurrently($workers);

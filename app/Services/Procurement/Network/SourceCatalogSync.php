@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
-use App\Dto\Procurement\Network\CatalogSyncReport;
-use App\Dto\Procurement\Network\NetworkChangeResult;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\RequestProfile;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\ScopeDefinition;
+use App\Dto\Procurement\Network\Control\CatalogSyncReport;
+use App\Dto\Procurement\Network\Control\NetworkChangeResult;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
+use App\Dto\Procurement\Process\Authority\ScopeDefinition;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\ResponseKind;
-use App\Enums\Procurement\Process\ScopeKind;
+use App\Enums\Procurement\Process\Governance\ScopeKind;
 use App\Repositories\Procurement\Network\SourceCatalogRepository;
-use App\Repositories\Procurement\Process\ControlRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Llm\LlmProviderFactory;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 
 /**
  * Explicit idempotent `platform:sync-catalog`: запускается ПОСЛЕ migrations

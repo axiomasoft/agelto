@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Ai;
 
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Models\Llm\LlmCall;
 use App\Repositories\Llm\LlmCallReadRepository;
 use Illuminate\Database\Eloquent\Builder;

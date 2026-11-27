@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Exceptions\Procurement\Process;
 
-use App\Enums\Procurement\Process\RebuildStatus;
+use App\Enums\Procurement\Process\Projection\RebuildStatus;
 
 /**
  * Управляющий выход rebuild: бросается внутри snapshot tx, чтобы откатить её целиком, и

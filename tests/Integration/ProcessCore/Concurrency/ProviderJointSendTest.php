@@ -3,17 +3,17 @@
 declare(strict_types=1);
 
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
-use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Network\Http\SafeUrl;
 use App\Enums\Llm\ProviderSendDenial;
 use App\Enums\Llm\ProviderTransportFailure;
-use App\Enums\Procurement\Process\ControlMode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
 use App\Repositories\Llm\Request\RequestRepository;
 use App\Services\Llm\Execution\ProviderTransportOutcome;
 use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Llm\Execution\ReceiptStore;
 use App\Services\Llm\Execution\StructuredCallExecutor;
-use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
-use App\Services\Procurement\Process\RecoveryReconciler;
+use App\Services\Procurement\Extraction\Provider\AnalysisCallCoordinator;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Application\Admission\TransactionCoordinator;
 use Proxyma\Application\Execution\WireSealer;
@@ -166,7 +166,7 @@ test('Proxyma медленный transfer прерывается heartbeat по�
     $p = new ProxymaProviderFixtures($f);
     $send = $p->worker('$started=hrtime(true);$out=app(\\App\\Services\\Llm\\Execution\\StructuredCallExecutor::class)->execute($operation,$wire,$gate);return ["failure"=>$out->failure?->value,"elapsed"=>(hrtime(true)-$started)/1000000000];');
     // Реальные keeper/clock, укорочен только heartbeat interval для bounded fixture.
-    $context = 'new \\App\\Dto\\Procurement\\Process\\ExecutionContext($lease,app(\\App\\Services\\Procurement\\Process\\Contracts\\LeaseKeeper::class),app(\\App\\Services\\Procurement\\Process\\Contracts\\ProcessClock::class),\\App\\Dto\\Procurement\\Process\\Duration::seconds(60),\\App\\Dto\\Procurement\\Process\\Duration::seconds(390),\\App\\Dto\\Procurement\\Process\\Duration::seconds(1),\\App\\Dto\\Procurement\\Process\\Duration::seconds(5),\\App\\Dto\\Procurement\\Process\\Duration::seconds(5))';
+    $context = 'new \\App\Dto\Procurement\Process\Execution\ExecutionContext($lease,app(\\App\\Services\\Procurement\\Process\\Contracts\\LeaseKeeper::class),app(\\App\\Services\\Procurement\\Process\\Contracts\\ProcessClock::class),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(60),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(390),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(1),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(5),\\App\Dto\Procurement\Process\Primitives\Duration::seconds(5))';
     $send = str_replace('$profile,$server);', '$profile,$server,'.$context.');', $send);
     $receiptPath = var_export($this->server->root.'/requests.jsonl', true);
     $revoke = $p->worker('$until=hrtime(true)+10000000000;while(!is_file('.$receiptPath.')){if(hrtime(true)>$until){throw new \\RuntimeException("transfer did not start");}usleep(10000);}return ["revoked"=>\\Tests\\Support\\ProcessCore\\FinalizeFixtures::revoke($lease->workId,true)];');
@@ -285,9 +285,9 @@ test('Proxyma ожидание slot повторно проверяет кажд
         ->and(app(RequestRepository::class)->get($f->operation->physicalCallId)->outcome)->toBe('not_sent')
         ->and(DB::table('llm_budget_reservations')->sole()->settled_amount)->toBe('0.00000000');
 })->with([
-    'process pause' => '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode("documents",\\App\\Enums\\Procurement\\Process\\ControlMode::Paused);',
-    'provider pause' => '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode("provider:fixture-provider",\\App\\Enums\\Procurement\\Process\\ControlMode::Paused);',
-    'handler hold' => '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::holdHandler(\\App\\Enums\\Procurement\\Process\\StageCode::Screening);',
+    'process pause' => '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode("documents",\\App\Enums\Procurement\Process\Governance\ControlMode::Paused);',
+    'provider pause' => '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode("provider:fixture-provider",\\App\Enums\Procurement\Process\Governance\ControlMode::Paused);',
+    'handler hold' => '\\Tests\\Support\\ProcessCore\\ExecutionFixtures::holdHandler(\\App\Enums\Procurement\Process\Core\StageCode::Screening);',
     'account hold' => 'app(\\App\\Repositories\\Llm\\Request\\FinancialReservationRepository::class)->configureAccount("fixture-account","USD",1,"0","fixture","hold while waiting");',
     'target retirement' => '$row=\\Illuminate\\Support\\Facades\\DB::table("pxm_targets")->where("id",$target->value)->sole(); app(\\Proxyma\\Contracts\\CatalogCommands::class)->retireTarget(new \\Proxyma\\Domain\\Catalog\\RetireCatalogEntityCommand(new \\Proxyma\\Domain\\Execution\\Uuid($target->value),\\Proxyma\\Domain\\Policy\\TenantKey::system(),new \\Proxyma\\Domain\\Catalog\\CatalogMutationActor(new \\Proxyma\\Domain\\Catalog\\ActorRef("worker","fixture-provider"),"retire while waiting",(int)$row->revision,"wait-retire-".$target->value)));',
     'owner cancellation' => '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::revoke($lease->workId,true);',

@@ -4,32 +4,31 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\DownloadInput;
-use App\Dto\Procurement\Process\PrepareInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StoreWorkData;
-use App\Dto\Procurement\Process\SubjectKey;
-use App\Dto\Procurement\Process\TransitionData;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkIdentity;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\AccountingRole;
-use App\Enums\Procurement\Process\ActorKind;
-use App\Enums\Procurement\Process\IntentState;
-use App\Enums\Procurement\Process\RunKind;
-use App\Enums\Procurement\Process\RunWorkRelation;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
-use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\RunStoreRepository;
-use App\Repositories\Procurement\Process\TransitionRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Dto\Procurement\Process\Execution\StoreWorkData;
+use App\Dto\Procurement\Process\Execution\WorkIdentity;
+use App\Dto\Procurement\Process\Governance\TransitionData;
+use App\Dto\Procurement\Process\Inputs\DownloadInput;
+use App\Dto\Procurement\Process\Inputs\PrepareInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\AccountingRole;
+use App\Enums\Procurement\Process\Core\RunKind;
+use App\Enums\Procurement\Process\Core\RunWorkRelation;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Governance\ActorKind;
+use App\Enums\Procurement\Process\Governance\IntentState;
+use App\Repositories\Procurement\Process\Projection\RunStoreRepository;
+use App\Repositories\Procurement\Process\Projection\TransitionRepository;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Procurement\Document\PreparePolicy;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 
 /** Independent document producers. They create ready work, never admission or queue messages. */
@@ -164,11 +163,11 @@ final readonly class DocumentWorkRepository
         if (LedgerRow::one("SELECT id FROM prc_process_work WHERE work_key=decode(?,'hex')", [$key]) !== null) {
             return false;
         }
-        $id = new WorkId(ListingStoreRepository::id('document-work:'.$key));
-        $run = ListingStoreRepository::id('document-run:'.$key);
+        $id = new WorkId(ProcessUuid::derived('document-work:'.$key));
+        $run = ProcessUuid::derived('document-run:'.$key);
         $this->runs->storeRun($run, $manual ? RunKind::Manual : RunKind::Profile, 'document:'.$key, null,
             new VersionedPayload('{"pipeline":"documents","version":1}', 1), $requestedBy,
-            ListingStoreRepository::id('document-run-event:'.$key), ListingStoreRepository::id('document-run-project:'.$key));
+            ProcessUuid::derived('document-run-event:'.$key), ProcessUuid::derived('document-run-project:'.$key));
         $this->works->storeWork(new StoreWorkData(
             id: $id,
             input: $input,
@@ -178,14 +177,14 @@ final readonly class DocumentWorkRepository
             platformId: $platformId,
             originRunId: $run,
             priority: 100,
-            eventId: ListingStoreRepository::id('document-event:'.$key),
-            projectionMessageId: ListingStoreRepository::id('document-project:'.$key),
+            eventId: ProcessUuid::derived('document-event:'.$key),
+            projectionMessageId: ProcessUuid::derived('document-project:'.$key),
         ));
         $this->works->linkRun($run, $id, RunWorkRelation::Created, AccountingRole::Required);
         DB::update("UPDATE prc_process_runs SET discovery_outcome='complete',discovery_closed_at=clock_timestamp(),transition_seq=2 WHERE id=?", [$run->value]);
         $this->transitions->recordRun(new TransitionData(
-            eventId: ListingStoreRepository::id('document-close:'.$key),
-            projectionMessageId: ListingStoreRepository::id('document-close-project:'.$key),
+            eventId: ProcessUuid::derived('document-close:'.$key),
+            projectionMessageId: ProcessUuid::derived('document-close-project:'.$key),
             entityId: $run,
             entitySeq: 2,
             previousState: 'collecting',

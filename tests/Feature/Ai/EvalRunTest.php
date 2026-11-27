@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Dto\Llm\Execution\LlmStructuredResponse;
+use App\Dto\Llm\Execution\LlmUsage;
 use App\Enums\Llm\FinishReason;
 use App\Enums\Procurement\Ai\FixtureClass;
 use App\Enums\Procurement\Ai\GoldSource;
@@ -16,10 +18,8 @@ use App\Models\Procurement\Ai\Fixture;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Repositories\Procurement\Ai\DatasetExampleReadRepository;
-use App\Services\Llm\Dto\LlmStructuredResponse;
-use App\Services\Llm\Dto\LlmUsage;
 use App\Services\Llm\Providers\CatalogOnlyProvider;
-use App\Services\Procurement\Analyzers\Estimate\EvalSplitPlanner;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EvalSplitPlanner;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Doubles\FakeLlmProvider;
 

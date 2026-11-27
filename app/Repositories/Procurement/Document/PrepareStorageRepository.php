@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Document\PrepareReservations;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Process\AuthoritySnapshot;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageBlocked;
+use App\Dto\Procurement\Document\Prepare\PrepareReservations;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Process\Authority\AuthoritySnapshot;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Outcomes\StageBlocked;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Document\StoragePhase;
-use App\Enums\Procurement\Process\BlockedReason;
-use App\Enums\Procurement\Process\PrefixFailure;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
+use App\Enums\Procurement\Process\Outcomes\PrefixFailure;
 use App\Exceptions\Procurement\Process\LeaseLost;
-use App\Repositories\Procurement\Process\AuthorityRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Authority\AuthorityRepository;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Document\PreparePolicy;
 use App\Services\Procurement\Document\PrepareWorkspace;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\SubjectLockResolver;
+use App\Services\Procurement\Process\Execution\SubjectLockResolver;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Str;
 
 final readonly class PrepareStorageRepository

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Dto\Platforms\Eis;
 
-use App\Dto\Procurement\Platform\CollectionGuard;
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Platform\Identity\CollectionGuard;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
 use App\Services\Procurement\Platform\Contracts\ListingFilter;
 
 /** IDs are resolved from the platform reference catalogue before fetching; no DB in a parser. */

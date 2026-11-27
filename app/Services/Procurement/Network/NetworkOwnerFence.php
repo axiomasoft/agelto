@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
-use App\Dto\Procurement\Network\NetworkOwnerState;
-use App\Dto\Procurement\Network\OutboundOperationHandle;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Process\AuthoritySnapshot;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ControlSnapshot;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Network\Control\NetworkOwnerState;
+use App\Dto\Procurement\Network\Control\OutboundOperationHandle;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Process\Authority\AuthoritySnapshot;
+use App\Dto\Procurement\Process\Authority\ControlSnapshot;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Procurement\Network\DemandPurpose;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\PrefixFailure;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\AuthorityRepository;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Services\Procurement\Process\SubjectLockResolver;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Outcomes\PrefixFailure;
+use App\Repositories\Procurement\Process\Authority\AuthorityRepository;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Services\Procurement\Process\Execution\SubjectLockResolver;
 
 /** Reuses Process authority; standalone operations lock their immutable control closure first. */
 final readonly class NetworkOwnerFence

@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ControlChangeResult;
-use App\Dto\Procurement\Process\DeliveryGeneration;
-use App\Dto\Procurement\Process\StoreWorkData;
-use App\Dto\Procurement\Process\SubjectKey;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\IntentState;
-use App\Enums\Procurement\Process\StageCode;
-use App\Enums\Procurement\Process\SubjectKind;
+use App\Dto\Procurement\Process\Authority\ControlChangeResult;
+use App\Dto\Procurement\Process\Execution\StoreWorkData;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\DeliveryGeneration;
+use App\Dto\Procurement\Process\Primitives\SubjectKey;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Core\SubjectKind;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Governance\IntentState;
 use App\Models\Procurement\Procurement;
-use App\Repositories\Procurement\Process\ControlRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\ProcessAuthoritySync;
-use App\Services\Procurement\Process\ProcessPolicy;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\StageRegistry;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
+use App\Services\Procurement\Process\Execution\StageRegistry;
+use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Facades\DB;
 
 /**

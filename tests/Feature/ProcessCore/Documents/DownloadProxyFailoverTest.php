@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\StageDeferred;
-use App\Dto\Procurement\Process\StageSucceeded;
-use App\Enums\Procurement\Process\WorkState;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
+use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
+use App\Enums\Procurement\Process\Core\WorkState;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;
 use Tests\Support\ProcessCore\DownloadFixtures;

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Network;
 
-use App\Dto\Procurement\Network\DecodedTextBody;
-use App\Dto\Procurement\Platform\RequestProfile;
+use App\Dto\Procurement\Network\Http\DecodedTextBody;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
 use App\Exceptions\Procurement\Network\ResponseDecodeFailed;
 use App\Exceptions\Procurement\Network\ResponseLimitExceeded;
 use Proxyma\Domain\Execution\ResponseProfile;

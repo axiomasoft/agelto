@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxy;
 
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
 use App\Models\Procurement\Crawler\Crawler;
-use App\Services\Procurement\Proxyma\ProfileBindings;
-use App\Services\Procurement\Proxyma\ProfileResolver;
+use App\Services\Procurement\Proxyma\Catalog\ProfileBindings;
+use App\Services\Procurement\Proxyma\Catalog\ProfileResolver;
 
 /** Existing acquisition profiles point at canonical network route profiles. No proxy pivot owner. */
 final readonly class ProxyBindingResolver

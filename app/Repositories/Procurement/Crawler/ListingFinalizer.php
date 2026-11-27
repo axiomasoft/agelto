@@ -4,33 +4,34 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Crawler;
 
-use App\Dto\Procurement\Acquisition\ListingDetailReference;
-use App\Dto\Procurement\Acquisition\ListingFacts;
-use App\Dto\Procurement\Acquisition\ListingReceipt;
-use App\Dto\Procurement\Acquisition\ListingResult;
-use App\Dto\Procurement\Acquisition\ProcurementSummary;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\DetailInput;
-use App\Dto\Procurement\Process\ListingInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\TransitionData;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
+use App\Dto\Procurement\Acquisition\Fetch\ProcurementSummary;
+use App\Dto\Procurement\Acquisition\Listing\ListingDetailReference;
+use App\Dto\Procurement\Acquisition\Listing\ListingFacts;
+use App\Dto\Procurement\Acquisition\Listing\ListingReceipt;
+use App\Dto\Procurement\Acquisition\Listing\ListingResult;
+use App\Dto\Procurement\Acquisition\Listing\ListingTask;
+use App\Dto\Procurement\Process\Governance\TransitionData;
+use App\Dto\Procurement\Process\Inputs\DetailInput;
+use App\Dto\Procurement\Process\Inputs\ListingInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Dto\Procurement\ProcurementSnapshotData;
 use App\Enums\Procurement\Platform\TerminalProof;
-use App\Enums\Procurement\Process\ActorKind;
-use App\Enums\Procurement\Process\BlockedReason;
+use App\Enums\Procurement\Process\Governance\ActorKind;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
 use App\Models\Procurement\Procurement;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\TransitionRepository;
-use App\Services\Procurement\Acquisition\AcquisitionProvenance;
-use App\Services\Procurement\Acquisition\HeadSnapshot;
-use App\Services\Procurement\Acquisition\IdentityResolver;
-use App\Services\Procurement\Acquisition\ListingPublicationLocks;
-use App\Services\Procurement\Acquisition\SnapshotFinalizer;
+use App\Repositories\Procurement\Process\Projection\TransitionRepository;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Services\Procurement\Acquisition\Detail\HeadSnapshot;
+use App\Services\Procurement\Acquisition\Detail\IdentityResolver;
+use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
+use App\Services\Procurement\Acquisition\Listing\ListingPublicationLocks;
+use App\Services\Procurement\Acquisition\Orchestration\AcquisitionProvenance;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;
 use App\Support\Database\PostgresAdvisoryLock;
@@ -69,7 +70,29 @@ final class ListingFinalizer implements StagePublicationRepository
         if (! $input instanceof ListingInput || $this->publication === null) {
             throw new \LogicException('Missing listing publication locks.');
         }
-        $task = $result->task;
+        $publication = $this->publication;
+        try {
+            $task = $result->task;
+            $uninterrupted = $this->isBlockUninterrupted($input, $task);
+            ['successors' => $successors, 'references' => $references] = $this->persistSummariesLocked($input, $result, $publication);
+            // Run graph/budget authority is acquired in derived-domain tier, never before a work lock.
+            $run = LedgerRow::one('SELECT r.id FROM prc_crawl_runs r JOIN prc_crawl_blocks b ON b.crawl_run_id=r.id WHERE b.id=? FOR UPDATE OF r',
+                [$input->crawlBlockId->value]) ?? throw new \LogicException('Missing crawl run.');
+            $crawlRun = new ProcessUuid($run->string('id'));
+            ['outcome' => $outcome, 'reason' => $reason, 'next' => $next] = $this->decideNextCrawlStep($input, $result, $crawlRun, $uninterrupted);
+            foreach ($next as [$id, $nextTask]) {
+                $successors[$id->value] = $this->store->storeTask($crawlRun, $id, $input->crawlBlockId, $nextTask);
+            }
+            $this->store->receipt($input, ListingReceipt::page($result->page, $outcome, $reason, $uninterrupted, $references));
+
+            return array_values($successors);
+        } finally {
+            $this->publication = null;
+        }
+    }
+
+    private function isBlockUninterrupted(ListingInput $input, ListingTask $task): bool
+    {
         // Recovery clears the work reason, but the transition keeps the hold for that attempt.
         $uninterrupted = LedgerRow::one("SELECT NOT EXISTS (
             SELECT 1 FROM prc_process_attempts a JOIN prc_process_work w ON w.id=a.work_id
@@ -85,50 +108,67 @@ final class ListingFinalizer implements StagePublicationRepository
         foreach ($this->store->receipts($task) as $prior) {
             $uninterrupted = $uninterrupted && $prior->uninterrupted;
         }
+
+        return $uninterrupted;
+    }
+
+    /**
+     * @return array{successors: array<string, WorkInput>, references: list<ListingDetailReference>}
+     */
+    private function persistSummariesLocked(ListingInput $input, ListingResult $result, ListingPublicationLocks $publication): array
+    {
         $successors = [];
         $references = [];
-        if ($result->page->assessment->usable()) {
-            $ignored = DB::table('prc_ignored_items')->where('registry_id', $task->registryId)
-                ->whereIn('registry_number', array_map(fn (ProcurementSummary $s) => $s->identity->value->value, $result->page->summaries->items))
-                ->pluck('registry_number')->all();
-            $seen = [];
-            foreach ($result->page->summaries->items as $i => $summary) {
-                $identityKey = json_encode($summary->identity->toArray(), JSON_THROW_ON_ERROR);
-                if (isset($seen[$identityKey]) || in_array($summary->identity->value->value, $ignored, true)) {
-                    continue;
-                }
-                $seen[$identityKey] = true;
-                $locked = $this->publication->locked[$i];
-                $head = $locked->procurement;
-                $facts = $summary->facts;
-                $extension = $head === null ? null : $this->heads->make($head, $summary->identity)->extension;
-                $extension = $facts?->mergeExtension($extension) ?? $extension;
-                $data = new ProcurementSnapshotData($task->registryId, $summary->identity, $summary->title, $summary->sourceStage,
-                    Carbon::instance($summary->publishedAt), Carbon::instance($summary->updatedAt),
-                    sourceUpdatedAtHasDayPrecision: $summary->updatedAtDayPrecision,
-                    extension: $extension,
-                    procedureType: $facts !== null && $facts->observes('procedureType') ? $facts->procedureType : $head?->procedure_type,
-                    procedureTypeRaw: $facts !== null && $facts->observes('procedureTypeRaw') ? $facts->procedureTypeRaw : $head?->procedure_type_raw,
-                    initialPrice: $summary->initialPrice, currency: $summary->currency,
-                    advancePercent: $head?->advance_percent, okvedCode: $head?->okved_code, okvedAdditional: $head?->okved_additional,
-                    regionCode: $head?->region_code,
-                    biddingStartsAt: $facts !== null && $facts->observes('biddingStartsAt') ? ($facts->biddingStartsAt === null ? null : Carbon::instance($facts->biddingStartsAt)) : $head?->bidding_starts_at,
-                    biddingEndsAt: $facts !== null && $facts->observes('biddingEndsAt') ? ($facts->biddingEndsAt === null ? null : Carbon::instance($facts->biddingEndsAt)) : $head?->bidding_ends_at,
-                    summaryAt: $head?->summary_at, detailUrl: $head?->detail_url,
-                    attributes: $this->attributes($head, $facts),
-                    sourceUpdatedBefore: $summary->updatedBefore === null ? null : Carbon::instance($summary->updatedBefore));
-                $procurement = $this->snapshots->persistLocked($data, $locked,
-                    processRunId: AcquisitionProvenance::runFor($input), observedAt: Carbon::instance($result->observedAt));
-                $detail = $this->detailIntent($procurement->id, $procurement->head_generation, $input, $summary);
-                $successors[$detail->intentId->value] = $detail;
-                $references[] = new ListingDetailReference($detail->intentId, $procurement->id,
-                    $summary->fingerprint, $summary->sourceRevision, $summary->detailLocator);
-            }
+        if (! $result->page->assessment->usable()) {
+            return ['successors' => $successors, 'references' => $references];
         }
-        // Run graph/budget authority is acquired in derived-domain tier, never before a work lock.
-        $run = LedgerRow::one('SELECT r.id FROM prc_crawl_runs r JOIN prc_crawl_blocks b ON b.crawl_run_id=r.id WHERE b.id=? FOR UPDATE OF r',
-            [$input->crawlBlockId->value]) ?? throw new \LogicException('Missing crawl run.');
-        $crawlRun = new ProcessUuid($run->string('id'));
+        $task = $result->task;
+        $ignored = DB::table('prc_ignored_items')->where('registry_id', $task->registryId)
+            ->whereIn('registry_number', array_map(fn (ProcurementSummary $s) => $s->identity->value->value, $result->page->summaries->items))
+            ->pluck('registry_number')->all();
+        $seen = [];
+        foreach ($result->page->summaries->items as $i => $summary) {
+            $identityKey = json_encode($summary->identity->toArray(), JSON_THROW_ON_ERROR);
+            if (isset($seen[$identityKey]) || in_array($summary->identity->value->value, $ignored, true)) {
+                continue;
+            }
+            $seen[$identityKey] = true;
+            $locked = $publication->locked[$i];
+            $head = $locked->procurement;
+            $facts = $summary->facts;
+            $extension = $head === null ? null : $this->heads->make($head, $summary->identity)->extension;
+            $extension = $facts?->mergeExtension($extension) ?? $extension;
+            $data = new ProcurementSnapshotData($task->registryId, $summary->identity, $summary->title, $summary->sourceStage,
+                Carbon::instance($summary->publishedAt), Carbon::instance($summary->updatedAt),
+                sourceUpdatedAtHasDayPrecision: $summary->updatedAtDayPrecision,
+                extension: $extension,
+                procedureType: $facts !== null && $facts->observes('procedureType') ? $facts->procedureType : $head?->procedure_type,
+                procedureTypeRaw: $facts !== null && $facts->observes('procedureTypeRaw') ? $facts->procedureTypeRaw : $head?->procedure_type_raw,
+                initialPrice: $summary->initialPrice, currency: $summary->currency,
+                advancePercent: $head?->advance_percent, okvedCode: $head?->okved_code, okvedAdditional: $head?->okved_additional,
+                regionCode: $head?->region_code,
+                biddingStartsAt: $facts !== null && $facts->observes('biddingStartsAt') ? ($facts->biddingStartsAt === null ? null : Carbon::instance($facts->biddingStartsAt)) : $head?->bidding_starts_at,
+                biddingEndsAt: $facts !== null && $facts->observes('biddingEndsAt') ? ($facts->biddingEndsAt === null ? null : Carbon::instance($facts->biddingEndsAt)) : $head?->bidding_ends_at,
+                summaryAt: $head?->summary_at, detailUrl: $head?->detail_url,
+                attributes: $this->attributes($head, $facts),
+                sourceUpdatedBefore: $summary->updatedBefore === null ? null : Carbon::instance($summary->updatedBefore));
+            $procurement = $this->snapshots->persistLocked($data, $locked,
+                processRunId: AcquisitionProvenance::runFor($input), observedAt: Carbon::instance($result->observedAt));
+            $detail = $this->detailIntent($procurement->id, $procurement->head_generation, $input, $summary);
+            $successors[$detail->intentId->value] = $detail;
+            $references[] = new ListingDetailReference($detail->intentId, $procurement->id,
+                $summary->fingerprint, $summary->sourceRevision, $summary->detailLocator);
+        }
+
+        return ['successors' => $successors, 'references' => $references];
+    }
+
+    /**
+     * @return array{outcome: string, reason: ?string, next: list<array{0: ProcessUuid, 1: ListingTask}>}
+     */
+    private function decideNextCrawlStep(ListingInput $input, ListingResult $result, ProcessUuid $crawlRun, bool $uninterrupted): array
+    {
+        $task = $result->task;
         $outcome = 'page';
         $reason = null;
         $next = [];
@@ -174,12 +214,8 @@ final class ListingFinalizer implements StagePublicationRepository
                 $next[] = [ListingStoreRepository::id($task->rootBlockId->value.':'.$nextTask->pass.':1'), $nextTask];
             }
         }
-        foreach ($next as [$id, $nextTask]) {
-            $successors[$id->value] = $this->store->storeTask($crawlRun, $id, $input->crawlBlockId, $nextTask);
-        }
-        $this->store->receipt($input, ListingReceipt::page($result->page, $outcome, $reason, $uninterrupted, $references));
 
-        return array_values($successors);
+        return ['outcome' => $outcome, 'reason' => $reason, 'next' => $next];
     }
 
     private function detailIntent(int $procurementId, int $head, ListingInput $input, ProcurementSummary $summary): DetailInput

@@ -4,29 +4,29 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Acquisition\FetchBlocked;
-use App\Dto\Procurement\Acquisition\FetchDeferred;
-use App\Dto\Procurement\Network\TransferBudget;
-use App\Dto\Procurement\Network\TransportDeferred;
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\SupportedDocumentAccessCapability;
-use App\Dto\Procurement\Process\DownloadInput;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\StageBlocked;
-use App\Dto\Procurement\Process\StageOutcome;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\BlockedReason;
+use App\Dto\Procurement\Acquisition\Fetch\FetchBlocked;
+use App\Dto\Procurement\Acquisition\Fetch\FetchDeferred;
+use App\Dto\Procurement\Network\Http\TransferBudget;
+use App\Dto\Procurement\Network\Outcome\TransportDeferred;
+use App\Dto\Procurement\Platform\Capabilities\SupportedDocumentAccessCapability;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Inputs\DownloadInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageBlocked;
+use App\Dto\Procurement\Process\Outcomes\StageOutcome;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
 use App\Exceptions\Procurement\Network\OutboundUnavailable;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Platform\Contracts\DocumentAccessResolver;
 use App\Services\Procurement\Platform\ExecutorPlatformOutbound;
 use App\Services\Procurement\Platform\FetchOutcomeBridge;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\Contracts\StageHandler;
-use App\Services\Procurement\Proxyma\CallerGate;
-use App\Services\Procurement\Proxyma\CallerOutbound;
-use App\Services\Procurement\Proxyma\ProfileResolver;
+use App\Services\Procurement\Proxyma\Caller\CallerGate;
+use App\Services\Procurement\Proxyma\Caller\CallerOutbound;
+use App\Services\Procurement\Proxyma\Catalog\ProfileResolver;
 
 /** Each operation gets its own transfer counters and the sole recorded physical-send gate. */
 final readonly class RuntimeDownloadHandler implements StageHandler

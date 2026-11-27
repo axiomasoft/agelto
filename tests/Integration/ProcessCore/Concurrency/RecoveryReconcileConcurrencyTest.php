@@ -3,22 +3,22 @@
 declare(strict_types=1);
 
 use App\Actions\Procurement\Process\RetryHandlerFaultedWork;
-use App\Dto\Procurement\Process\DeliveryEnvelope;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\StageOutcome;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\DeliveryOutcome;
-use App\Enums\Procurement\Process\ProviderRecoveryMode;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Dto\Procurement\Process\Execution\DeliveryEnvelope;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageOutcome;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Outcomes\DeliveryOutcome;
+use App\Enums\Procurement\Process\Outcomes\ProviderRecoveryMode;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Procurement\Process\Contracts\StageHandler;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\RelayDaemon;
-use App\Services\Procurement\Process\StageQueueMap;
-use App\Services\Procurement\Process\StageRegistry;
-use App\Services\Procurement\Process\WorkFeeder;
-use App\Services\Procurement\Process\WorkFinalizer;
-use App\Services\Procurement\Process\WorkRunner;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Daemons\RelayDaemon;
+use App\Services\Procurement\Process\Execution\StageQueueMap;
+use App\Services\Procurement\Process\Execution\StageRegistry;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkRunner;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Redis;
@@ -38,9 +38,9 @@ afterEach(fn () => ExecutionFixtures::truncateLedger());
 /** Тело worker: ReconcileDaemon с категориями настоящего RecoveryReconciler, один tick. */
 function reconcileWorker(): string
 {
-    return '\Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Listing);'
-        .'$daemon = app(\App\Services\Procurement\Process\ReconcileDaemon::class);'
-        .'foreach (app(\App\Services\Procurement\Process\RecoveryReconciler::class)->categories() as $category) { $daemon->register($category); }'
+    return '\Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Listing);'
+        .'$daemon = app(\App\Services\Procurement\Process\Daemons\ReconcileDaemon::class);'
+        .'foreach (app(\App\Services\Procurement\Process\Daemons\RecoveryReconciler::class)->categories() as $category) { $daemon->register($category); }'
         .'$tick = $daemon->tick();'
         .'return ["processed" => $tick->processed, "error" => $tick->errorCode, "categories" => $daemon->categories()];';
 }
@@ -126,9 +126,9 @@ test('manual retry: concurrent command с одним expected seq создаёт
     $finalizer->finishHandlerFault(FinalizeFixtures::rerun($work), FinalizeFixtures::fault('three'));
     $seq = ExecutionFixtures::work($work)->transition_seq;
     $commands = [LedgerFixtures::uuid(), LedgerFixtures::uuid()];
-    $literal = "new \\App\\Dto\\Procurement\\Process\\WorkId(new \\App\\Dto\\Procurement\\Process\\ProcessUuid('".$work->value->value."'))";
-    $operation = static fn (string $command): string => '$result = app(\\App\\Actions\\Procurement\\Process\\RetryHandlerFaultedWork::class)->execute('.$literal.', '.$seq.", new \\App\\Dto\\Procurement\\Process\\ProcessUuid('".$command."'), 'fixed handler'); return ['status' => \$result->status->value, 'successor' => \$result->successor?->value->value];";
-    $binding = '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\\Enums\\Procurement\\Process\\StageCode::Listing);';
+    $literal = "new \\App\Dto\Procurement\Process\Primitives\WorkId(new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('".$work->value->value."'))";
+    $operation = static fn (string $command): string => '$result = app(\\App\\Actions\\Procurement\\Process\\RetryHandlerFaultedWork::class)->execute('.$literal.', '.$seq.", new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('".$command."'), 'fixed handler'); return ['status' => \$result->status->value, 'successor' => \$result->successor?->value->value];";
+    $binding = '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\Enums\Procurement\Process\Core\StageCode::Listing);';
     $results = ConcurrentTransactions::concurrently([
         'winner' => $binding.'return \\Tests\\Support\\ProcessCore\\FinalizeFixtures::holdUntilWaiter(function () { '.$operation($commands[0]->value).' });',
         'stale' => $binding.'return \\Tests\\Support\\ProcessCore\\FinalizeFixtures::afterHolder(function () { '.$operation($commands[1]->value).' });',
@@ -155,12 +155,12 @@ test('два periodic reconcile daemon принимают один поздни�
     DB::update("UPDATE prc_process_work SET provider_recovery_due_at = clock_timestamp() - interval '1 second' WHERE id = ?", [$work->value->value]);
     $seq = ExecutionFixtures::work($work)->transition_seq;
     $wakes = DB::table('prc_process_outbox')->where('kind', 'work_wake')->count();
-    $literal = "new \\App\\Dto\\Procurement\\Process\\WorkId(new \\App\\Dto\\Procurement\\Process\\ProcessUuid('".$work->value->value."'))";
-    $binding = '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\\Enums\\Procurement\\Process\\StageCode::Listing);'
+    $literal = "new \\App\Dto\Procurement\Process\Primitives\WorkId(new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('".$work->value->value."'))";
+    $binding = '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\Enums\Procurement\Process\Core\StageCode::Listing);'
         .'$resolver = \\Tests\\Support\\ProcessCore\\FixtureProviderRecoveryResolver::install();'
         .'$resolver->finding('.$literal.", unserialize(base64_decode('".base64_encode(serialize($verified))."')));";
-    $operation = '$daemon = app(\\App\\Services\\Procurement\\Process\\ReconcileDaemon::class);'
-        .'foreach (app(\\App\\Services\\Procurement\\Process\\RecoveryReconciler::class)->categories() as $category) { $daemon->register($category); }'
+    $operation = '$daemon = app(\\App\Services\Procurement\Process\Daemons\ReconcileDaemon::class);'
+        .'foreach (app(\\App\Services\Procurement\Process\Daemons\RecoveryReconciler::class)->categories() as $category) { $daemon->register($category); }'
         .'$tick = $daemon->tick(); return ["processed" => $tick->processed, "error" => $tick->errorCode, "settlements" => count($resolver->settlements)];';
     $ticks = ConcurrentTransactions::concurrently([
         'winner' => $binding.'return \\Tests\\Support\\ProcessCore\\FinalizeFixtures::holdUntilWaiter(function () use ($resolver) { '.$operation.' });',

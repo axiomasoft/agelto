@@ -9,7 +9,7 @@ use App\Filament\Resources\Procurement\Ai\Fixtures\Pages\CreateFixture;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Ai\Fixture;
 use App\Models\User;
-use App\Services\Procurement\Analyzers\Estimate\EstimateAnalyzer;
+use App\Services\Procurement\Analyzers\Estimate\Core\EstimateAnalyzer;
 use App\Services\Procurement\Contracts\DocumentAnalyzerRegistry;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;

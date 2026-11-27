@@ -3,17 +3,17 @@
 declare(strict_types=1);
 
 use App\Actions\Procurement\Process\CancelRun;
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\StageFailedItem;
-use App\Enums\Procurement\Process\AccountingRole;
-use App\Enums\Procurement\Process\ItemFailureReason;
-use App\Enums\Procurement\Process\OperatorCommandStatus;
-use App\Enums\Procurement\Process\RunWorkRelation;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageFailedItem;
+use App\Enums\Procurement\Process\Core\AccountingRole;
+use App\Enums\Procurement\Process\Core\RunWorkRelation;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\OperatorCommandStatus;
+use App\Enums\Procurement\Process\Outcomes\ItemFailureReason;
 use App\Models\User;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;

@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ScopeDefinition;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\HandlerEligibility;
-use App\Enums\Procurement\Process\ScopeKind;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Authority\ScopeDefinition;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Governance\HandlerEligibility;
+use App\Enums\Procurement\Process\Governance\ScopeKind;
 use App\Models\Procurement\Process\ControlScope;
 use App\Models\Procurement\Process\Lane;
-use App\Repositories\Procurement\Process\ControlRepository;
-use App\Services\Procurement\Process\ProcessAuthoritySync;
-use App\Services\Procurement\Process\ProcessPolicy;
+use App\Repositories\Procurement\Process\Authority\ControlRepository;
+use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
+use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
 use Illuminate\Config\Repository;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\LedgerFixtures;

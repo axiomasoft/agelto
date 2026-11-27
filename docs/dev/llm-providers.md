@@ -25,9 +25,24 @@ JSON — configuration boundary; дальше используются typed imm
 - context: provider/account/API/model, route policy, generation и thinking options;
 - origin: разрешённый canonical origin;
 - pricing: currency/version, conservative input/output/thinking maxima, prices/fixed charge,
-  thinking applicability, bound evidence и valid_until;
+  `cached_input_per_million`, thinking applicability, bound evidence и valid_until;
 - period_id: UUID либо пустую строку для current account/currency period;
 - credential_key: ссылку в credential registry.
+
+### Мультипровайдерные профили и локальный CLI
+
+`config/llm.php` содержит встроенные пресеты `openai`, `openai_compatible` и `gemini`. Пресет
+активируется только при явном выборе через `LLM_ANALYSIS_PROFILE` (например,
+`LLM_ANALYSIS_PROFILE=openai`) и непустом ключе (`OPENAI_API_KEY`, `OPENAI_COMPATIBLE_API_KEY`,
+`GEMINI_API_KEY`). Для reasoning-моделей поддерживаются `reasoning_effort` / `thinking_level` и
+таймауты `low_speed_seconds` / `request_timeout_seconds` (по умолчанию `180` и `240` секунд),
+а `model_pricing` включает `cached_input_per_million` для расчёта кэшированных входных токенов.
+
+Локальная проверка подготовки документа, компиляции wire-запроса и бюджетной верхней границы
+выполняется без HTTP через `php artisan estimate:parse <source> --dry-run --profile=openai`
+(режим `--dry-run` включён по умолчанию). Реальный прогон `estimate:parse <source> --live --cap=<USD>`
+требует явного лимита `--cap` и активного provisioned-подключения, исполняя вызовы строго через
+`RequestLedger` и `AnalysisProviderSendGate`.
 
 Live модель и нулевая цена автоматически не выбираются. Account-specific capabilities,
 доступность и pricing evidence проверяются при provisioning. Parsing и runtime composition

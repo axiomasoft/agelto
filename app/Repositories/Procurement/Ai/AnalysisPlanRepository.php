@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Ai;
 
-use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
-use App\Dto\Procurement\Ai\AnalysisWindowPlan;
-use App\Dto\Procurement\Ai\DiscoveryCheckpoint;
-use App\Dto\Procurement\Ai\PageRange;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Process\BlockedReason;
+use App\Dto\Procurement\Ai\Execution\AnalysisRunSnapshot;
+use App\Dto\Procurement\Ai\Extraction\DiscoveryCheckpoint;
+use App\Dto\Procurement\Ai\Planning\AnalysisWindowPlan;
+use App\Dto\Procurement\Ai\Planning\PageRange;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
 use App\Exceptions\Procurement\Process\PublicationBlocked;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Llm\Schema\CanonicalJson;
-use App\Services\Procurement\Extraction\AnalysisRangeCodec;
-use App\Services\Procurement\Extraction\WindowPlanner;
-use App\Services\Procurement\Process\PayloadReader;
+use App\Services\Procurement\Extraction\Pipeline\AnalysisRangeCodec;
+use App\Services\Procurement\Extraction\Pipeline\WindowPlanner;
+use App\Services\Procurement\Process\Infrastructure\PayloadReader;
 use Illuminate\Support\Facades\DB;
 
 /** Required source ranges are declared before generation, never inferred from successful chunks. */

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Services\Procurement\Proxyma\CallerSendFacts;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Services\Procurement\Proxyma\Caller\CallerSendFacts;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Domain\Execution\Uuid;
 use Tests\Support\TestEnvironmentGuard;

@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\OperatorCommandStatus;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\OperatorCommandStatus;
 use App\Filament\Resources\Procurement\Process\ControlScopes\Pages\ListControlScopes;
 use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Models\Procurement\Process\ControlScope;
 use App\Models\User;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\Support\ProcessCore\ExecutionFixtures;

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Acquisition\Contracts;
 
-use App\Dto\Procurement\Acquisition\AcquisitionLaunch;
-use App\Dto\Procurement\Acquisition\ListingPlan;
-use App\Dto\Procurement\Acquisition\ListingTask;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Dto\Procurement\Acquisition\Control\AcquisitionLaunch;
+use App\Dto\Procurement\Acquisition\Listing\ListingPlan;
+use App\Dto\Procurement\Acquisition\Listing\ListingTask;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Models\Procurement\Crawler\Crawler;
 
 interface AcquisitionProfilePreparer

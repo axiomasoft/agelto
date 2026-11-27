@@ -7,7 +7,7 @@ namespace App\Services\Platforms\Eis\Card;
 use App\Dto\Platforms\Eis\EisPolicy;
 use App\Dto\Procurement\Details\DocumentData;
 use App\Dto\Procurement\Details\DocumentsSnapshot;
-use App\Dto\Procurement\Network\SafeUrl;
+use App\Dto\Procurement\Network\Http\SafeUrl;
 use App\Enums\Procurement\DetailSnapshotStatus;
 use App\Services\Procurement\Platform\Contracts\DocumentUrlPolicy;
 use Symfony\Component\DomCrawler\Crawler;

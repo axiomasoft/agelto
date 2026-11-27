@@ -4,22 +4,23 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Network;
 
-use App\Dto\Procurement\Network\AdapterContractRef;
-use App\Dto\Procurement\Network\AdapterInspection;
-use App\Dto\Procurement\Network\AdapterValidationClaim;
-use App\Dto\Procurement\Network\AdapterValidationReceipt;
-use App\Dto\Procurement\Network\NetworkOwnerState;
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\TransportBlocked;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterContractRef;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterInspection;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterValidationClaim;
+use App\Dto\Procurement\Network\AdapterValidation\AdapterValidationReceipt;
+use App\Dto\Procurement\Network\Control\NetworkOwnerState;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Control\OutboundRequestPlan;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
 use App\Enums\Procurement\Network\DemandPurpose;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Services\Procurement\Proxyma\CallerSendFacts;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Services\Llm\Schema\CanonicalJson;
+use App\Services\Procurement\Proxyma\Caller\CallerSendFacts;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -122,7 +123,7 @@ final readonly class AdapterHealthSqlHelper
             || ($fact['check_code'] ?? null) !== $inspection->checkCode
             || ($fact['signature_hash'] ?? null) !== $inspection->signature?->hex
             || ($fact['known_defect'] ?? null) !== $inspection->knownDefect
-            || ($fact['contract'] ?? null) != $claim->contract->toArray()
+            || CanonicalJson::encode($fact['contract'] ?? null) !== CanonicalJson::encode($claim->contract->toArray())
             || ($fact['owner_kind'] ?? null) !== $claim->ownerKind->value
             || ($fact['request_ids'] ?? null) !== array_map(static fn (ProcessUuid $id): string => $id->value, $requests)) {
             throw new \LogicException('A validation identity cannot be reused for another fact.');
@@ -217,7 +218,7 @@ final readonly class AdapterHealthSqlHelper
         );
         $stored = LedgerRow::one("SELECT encode(input_hash, 'hex') AS hash, details, stale FROM prc_observations WHERE observation_id = ?", [$claim->ownerId->value]);
         if (! $inserted || $stored === null || $stored->string('hash') !== $input->hex
-            || json_decode($stored->string('details'), true, flags: JSON_THROW_ON_ERROR) != $details) {
+            || CanonicalJson::encode(json_decode($stored->string('details'), true, flags: JSON_THROW_ON_ERROR)) !== CanonicalJson::encode($details)) {
             throw new \LogicException('A validation identity cannot be reused for another fact.');
         }
 
@@ -267,6 +268,8 @@ final readonly class AdapterHealthSqlHelper
             ? [$context->lease()->workId->value->value, $context->lease()->generation, $context->lease()->token->value]
             : [$context->lease()->id->value, $context->lease()->generation, $context->lease()->ownerToken->value];
 
+        $timestamp = $now->format('Y-m-d H:i:s.uP');
+
         return DB::update(
             'UPDATE prc_adapter_health SET state = ?, state_version = ?, health_epoch = health_epoch + ?::int,
                 reason_code = ?, last_success_at = CASE WHEN ?::boolean THEN ?::timestamptz ELSE last_success_at END,
@@ -276,7 +279,7 @@ final readonly class AdapterHealthSqlHelper
                 AND health_epoch = ? AND (?::boolean = false OR probe_until > clock_timestamp())
                 AND EXISTS ('.$ownerSql.')',
             [$state, $version, $revoke ? 1 : 0, $reasonCode,
-                $accepted, $now, $accepted || $partial, $now, $accepted || $partial, $now, $held ? 1 : 0, $claim->healthId->value,
+                $accepted, $timestamp, $accepted || $partial, $timestamp, $accepted || $partial, $timestamp, $held ? 1 : 0, $claim->healthId->value,
                 $claim->epoch, $claim->canary, ...$ownerParameters],
         );
     }

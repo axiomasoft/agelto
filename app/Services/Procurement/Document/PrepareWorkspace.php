@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Document\StoragePhase;
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Services\Procurement\Process\ProcessLog;
-use App\Services\Procurement\Process\ProcessPolicy;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Services\Procurement\Process\Infrastructure\ProcessLog;
+use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 
@@ -137,16 +137,12 @@ final readonly class PrepareWorkspace
             // may finish cleanup after a crash, or replay after its proof has been deleted.
             return $this->gc->cleanup($reservation);
         }
-        try {
-            $owner = json_decode((string) file_get_contents($dir.'/owner.json'), true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return false;
-        }
-        if (! is_array($owner) || ($owner['reservation'] ?? null) !== $reservation->id->value || ! is_int($owner['pid'] ?? null) || ! is_string($owner['start'] ?? null)) {
+        $owner = $this->readOwnerProof($dir.'/owner.json', ['reservation' => $reservation->id->value]);
+        if ($owner === null) {
             return false;
         }
         $finished = is_file($dir.'/php-finished') && trim((string) file_get_contents($dir.'/php-finished')) === $reservation->id->value;
-        if (! $finished && $owner['pid'] !== $this->pid() && $this->start($owner['pid']) === $owner['start']) {
+        if (! $finished && $this->isProcessAlive($owner['pid'], $owner['start'])) {
             return false;
         }
         if (glob($dir.'/*.active') !== []) {
@@ -180,15 +176,7 @@ final readonly class PrepareWorkspace
     {
         $disk = Storage::disk($reservation->disk);
         if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
-            $stopped = $reservation->attemptId !== null
-                ? $this->remoteWriterStopped($reservation->disk, $reservation->attemptId)
-                : $this->remoteStoredUploadStopped($reservation);
-            if (! $stopped) {
-                return false;
-            }
-            $this->capacity->finishStoppedWrite($reservation);
-
-            return $this->gc->cleanup($reservation);
+            return $this->cleanupRemoteWriter($reservation);
         }
         $path = $disk->path($reservation->objectKey());
         if ($reservation->phase === StoragePhase::Prepare && (is_dir($path) || (! is_file($path) && ! is_file($path.'.owner')))) {
@@ -239,32 +227,18 @@ final readonly class PrepareWorkspace
 
             return $this->gc->cleanup($reservation);
         }
-        if (! is_file($ownerPath)) {
-            return false;
-        }
-        $proof = @file_get_contents($ownerPath);
-        if ($proof === false) {
-            return false;
-        }
-        try {
-            $owner = json_decode($proof, true, flags: JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return false;
-        }
-        if (! is_array($owner)
-            || ($owner['reservation'] ?? null) !== $reservation->id->value
-            || ($owner['owner_token'] ?? null) !== $reservation->ownerToken->value
-            || ($owner['generation'] ?? null) !== $reservation->generation
-            || ($owner['key'] ?? null) !== $reservation->objectKey()
-            || ! is_int($owner['pid'] ?? null)
-            || ! is_string($owner['start'] ?? null)) {
-            return false;
-        }
-        if ($owner['pid'] === $this->pid() || $this->start($owner['pid']) === $owner['start']) {
+        $rawProof = null;
+        $owner = $this->readOwnerProof($ownerPath, [
+            'reservation' => $reservation->id->value,
+            'owner_token' => $reservation->ownerToken->value,
+            'generation' => $reservation->generation,
+            'key' => $reservation->objectKey(),
+        ], $rawProof);
+        if ($owner === null || $this->isProcessAlive($owner['pid'], $owner['start'], countSelfAsAlive: true)) {
             return false;
         }
         // The owner may have published owner.json and started tools before it stopped.
-        if (@file_get_contents($ownerPath) !== $proof) {
+        if (@file_get_contents($ownerPath) !== $rawProof) {
             return false;
         }
         if (file_put_contents($cleanupProof, $reservation->id->value) === false) {
@@ -314,24 +288,67 @@ final readonly class PrepareWorkspace
         if (! $disk->getAdapter() instanceof LocalFilesystemAdapter) {
             return false;
         }
-        $ownerPath = $disk->path($blob->objectKey).'.repair-owner';
-        if (! is_file($ownerPath)) {
-            return false;
+        $owner = $this->readOwnerProof($disk->path($blob->objectKey).'.repair-owner', [
+            'blob' => $blob->id->value,
+            'key' => $blob->objectKey,
+        ]);
+
+        return $owner !== null && ! $this->isProcessAlive($owner['pid'], $owner['start']);
+    }
+
+    /**
+     * @param  array<string, int|string>  $expectedFields
+     * @return array{pid: int, start: string}|null
+     */
+    private function readOwnerProof(string $path, array $expectedFields = [], ?string &$rawProof = null): ?array
+    {
+        if (! is_file($path)) {
+            return null;
+        }
+        $raw = @file_get_contents($path);
+        if ($raw === false) {
+            return null;
         }
         try {
-            $owner = json_decode((string) file_get_contents($ownerPath), true, flags: JSON_THROW_ON_ERROR);
+            $owner = json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException) {
-            return false;
+            return null;
         }
-        if (! is_array($owner)
-            || ($owner['blob'] ?? null) !== $blob->id->value
-            || ($owner['key'] ?? null) !== $blob->objectKey
-            || ! is_int($owner['pid'] ?? null)
-            || ! is_string($owner['start'] ?? null)) {
-            return false;
+        if (! is_array($owner) || ! is_int($owner['pid'] ?? null) || ! is_string($owner['start'] ?? null)) {
+            return null;
+        }
+        foreach ($expectedFields as $field => $expected) {
+            if (($owner[$field] ?? null) !== $expected) {
+                return null;
+            }
+        }
+        $rawProof = $raw;
+
+        return ['pid' => $owner['pid'], 'start' => $owner['start']];
+    }
+
+    private function isProcessAlive(int $pid, string $start, bool $countSelfAsAlive = false): bool
+    {
+        if ($pid === $this->pid()) {
+            return $countSelfAsAlive;
         }
 
-        return $owner['pid'] !== $this->pid() && $this->start($owner['pid']) !== $owner['start'];
+        return $this->start($pid) === $start;
+    }
+
+    // --- Remote S3 lease-margin checks ---
+
+    private function cleanupRemoteWriter(StorageReservationRequest $reservation): bool
+    {
+        $stopped = $reservation->attemptId !== null
+            ? $this->remoteWriterStopped($reservation->disk, $reservation->attemptId)
+            : $this->remoteStoredUploadStopped($reservation);
+        if (! $stopped) {
+            return false;
+        }
+        $this->capacity->finishStoppedWrite($reservation);
+
+        return $this->gc->cleanup($reservation);
     }
 
     public function remoteWriterStopped(string $disk, ?ProcessUuid $attemptId, ?string $unownedSince = null): bool

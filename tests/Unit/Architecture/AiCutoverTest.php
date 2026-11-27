@@ -48,6 +48,6 @@ test('retired AI state owners jobs tables and ordinary provider bridge are absen
             expect($file->getContents())->not->toMatch('/\b(?:prc_ai_analysis_runs|llm_calls)\b/');
         }
     }
-    $handler = File::get(app_path('Services/Procurement/Extraction/ExtractionHandler.php'));
+    $handler = File::get(app_path('Services/Procurement/Extraction/Orchestration/ExtractionHandler.php'));
     expect($handler)->not->toContain('DB::', '->completeStructured(', '->dispatch(', 'Http::');
 });

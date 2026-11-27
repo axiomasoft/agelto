@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Dto\Procurement\Document\BlobReference;
-use App\Dto\Procurement\Document\SourceDocumentMetadata;
-use App\Dto\Procurement\Document\VerifiedArtifact;
-use App\Dto\Procurement\Document\VerifiedStoredArtifact;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Document\Download\SourceDocumentMetadata;
+use App\Dto\Procurement\Document\Storage\BlobReference;
+use App\Dto\Procurement\Document\Storage\VerifiedArtifact;
+use App\Dto\Procurement\Document\Storage\VerifiedStoredArtifact;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Document\DocumentStatus;
 use App\Enums\Procurement\Document\RepresentationKind;
 use App\Exceptions\Procurement\Document\ArtifactUnavailable;
@@ -21,7 +21,7 @@ use App\Repositories\Procurement\Document\ArtifactRepository;
 use App\Repositories\Procurement\Document\DocumentRepresentationRepository;
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;

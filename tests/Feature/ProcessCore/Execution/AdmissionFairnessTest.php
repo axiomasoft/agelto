@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\FairnessCursor;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\AdmissionStatus;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Authority\FairnessCursor;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Outcomes\AdmissionStatus;
 use App\Models\Procurement\Document\Document;
-use App\Repositories\Procurement\Process\AdmissionRepository;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
-use App\Services\Procurement\Process\ProcessPolicy;
-use App\Services\Procurement\Process\WorkFeeder;
+use App\Repositories\Procurement\Process\Work\AdmissionRepository;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Infrastructure\ProcessPayloadCodec;
+use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;
 use Tests\Support\ProcessCore\LedgerFixtures;

@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\MetricMeasurement;
-use App\Enums\Procurement\Process\AcquisitionKind;
-use App\Enums\Procurement\Process\MeasurementState;
-use App\Enums\Procurement\Process\RebuildStatus;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Projection\MetricMeasurement;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
+use App\Enums\Procurement\Process\Projection\MeasurementState;
+use App\Enums\Procurement\Process\Projection\RebuildStatus;
 use App\Exceptions\Procurement\Process\ProjectionSchemaError;
 use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Procurement;
 use App\Pulse\Cards\ProcessPlatformHealthCard;
-use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
-use App\Repositories\Procurement\Process\ProjectionRepository;
-use App\Services\Procurement\Process\MetricCatalog;
-use App\Services\Procurement\Process\MetricProjector;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\ProjectionRebuilder;
+use App\Repositories\Procurement\Process\Projection\PlatformMetricsReadRepository;
+use App\Repositories\Procurement\Process\Projection\ProjectionRepository;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
+use App\Services\Procurement\Process\Projection\MetricCatalog;
+use App\Services\Procurement\Process\Projection\MetricProjector;
+use App\Services\Procurement\Process\Projection\ProjectionRebuilder;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\Feature\ProcessCore\Observability\ProjectionFixtures;

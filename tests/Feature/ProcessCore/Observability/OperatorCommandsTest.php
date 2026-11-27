@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\OperatorCommandStatus;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\OperatorCommandStatus;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Guards\Admin\Roles\OperatorRole;
 use App\Guards\Admin\Roles\SuperAdminRole;
 use App\Models\User;
-use App\Repositories\Procurement\Process\IncidentRepository;
-use App\Services\Procurement\Process\ProcessOperatorCommands;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Repositories\Procurement\Process\Authority\IncidentRepository;
+use App\Services\Procurement\Process\Diagnostics\ProcessOperatorCommands;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\ExecutionFixtures;

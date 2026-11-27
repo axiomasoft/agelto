@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Llm;
 
+use App\Dto\Llm\Reporting\LlmSpendReport;
+use App\Dto\Llm\Reporting\LlmSpendRow;
+use App\Dto\Llm\Reporting\UsageQuery;
+use App\Dto\Llm\Reporting\UsageRow;
 use App\Services\Llm\Contracts\UsageSource;
-use App\Services\Llm\Dto\LlmSpendReport;
-use App\Services\Llm\Dto\LlmSpendRow;
-use App\Services\Llm\Dto\UsageQuery;
-use App\Services\Llm\Dto\UsageRow;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 

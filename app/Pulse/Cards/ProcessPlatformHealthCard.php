@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Pulse\Cards;
 
-use App\Repositories\Procurement\Process\PlatformMetricsReadRepository;
+use App\Repositories\Procurement\Process\Projection\PlatformMetricsReadRepository;
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\View\View;
 use Laravel\Pulse\Livewire\Card;

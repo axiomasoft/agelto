@@ -11,13 +11,13 @@ final class ProcessSourceRules
 {
     /** @var list<string> Exact application composition seams, never a whole namespace bypass. */
     private const array COMPOSITION = [
-        'app/Services/Procurement/Process/StageRegistry.php',
-        'app/Services/Procurement/Process/SubjectLockResolver.php',
+        'app/Services/Procurement/Process/Execution/StageRegistry.php',
+        'app/Services/Procurement/Process/Execution/SubjectLockResolver.php',
     ];
 
     /** @var list<string> Codec dispatch is serialization, not runtime handler selection. */
     private const array CODECS = [
-        'app/Services/Procurement/Process/ProcessPayloadCodec.php',
+        'app/Services/Procurement/Process/Infrastructure/ProcessPayloadCodec.php',
         'app/Services/Procurement/Process/WorkInputCodec.php',
         'app/Services/Procurement/Process/Contracts/WorkInputCodec.php',
     ];
@@ -68,7 +68,7 @@ final class ProcessSourceRules
         $aliases = ['StageCode'];
         if (preg_match_all('/use\s+([^;]+);/i', $source, $matches) > 0) {
             foreach ($matches[1] as $import) {
-                if (str_starts_with($import, 'App\\Enums\\Procurement\\Process\\StageCode')
+                if (str_starts_with($import, 'App\Enums\Procurement\Process\Core\StageCode')
                     && preg_match('/\s+as\s+(\w+)$/i', $import, $alias) === 1) {
                     $aliases[] = $alias[1];
                 }

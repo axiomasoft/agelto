@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models\Procurement\Process;
 
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\ScopeKind;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Governance\ScopeKind;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Model;

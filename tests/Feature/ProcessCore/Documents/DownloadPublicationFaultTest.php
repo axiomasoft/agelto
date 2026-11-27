@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\StageDeferred;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
 use App\Enums\Procurement\ProcurementEventType;
 use App\Models\Procurement\ProcurementEvent;
 use App\Repositories\Procurement\Document\DocumentVersionRepository;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\UnableToWriteFile;

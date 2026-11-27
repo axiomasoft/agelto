@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Procurement\Crawler\ListingSortField;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\OutboundOperationHandle;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Control\OutboundOperationHandle;
 use App\Repositories\Procurement\Network\OutboundOperationRepository;
 use App\Services\Procurement\Network\LegacyBridge;
 use Illuminate\Support\Facades\DB;

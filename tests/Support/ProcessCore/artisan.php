@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Process\Execution\StageRegistry;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Http;
 use Symfony\Component\Console\Input\ArgvInput;

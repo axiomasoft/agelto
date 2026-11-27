@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\DeliveryGeneration;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\ClaimStatus;
-use App\Enums\Procurement\Process\ControlMode;
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\WorkFeeder;
+use App\Dto\Procurement\Process\Primitives\DeliveryGeneration;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
+use App\Enums\Procurement\Process\Outcomes\ClaimStatus;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\ExecutionFixtures;
@@ -23,9 +23,9 @@ afterEach(fn () => ExecutionFixtures::truncateLedger());
 function pauseClaimWorker(WorkId $work): string
 {
     return sprintf(
-        '\Tests\Support\ProcessCore\ExecutionFixtures::registerHandler(\App\Enums\Procurement\Process\StageCode::Listing);'
-        .'$result = app(\\App\\Repositories\\Procurement\\Process\\WorkStoreRepository::class)->claim('
-        ."new \\App\\Dto\\Procurement\\Process\\WorkId(new \\App\\Dto\\Procurement\\Process\\ProcessUuid('%s')), new \\App\\Dto\\Procurement\\Process\\DeliveryGeneration(1));"
+        '\Tests\Support\ProcessCore\ExecutionFixtures::registerHandler(\App\Enums\Procurement\Process\Core\StageCode::Listing);'
+        .'$result = app(\\App\Repositories\Procurement\Process\Work\WorkStoreRepository::class)->claim('
+        ."new \\App\Dto\Procurement\Process\Primitives\WorkId(new \\App\Dto\Procurement\Process\Primitives\ProcessUuid('%s')), new \\App\Dto\Procurement\Process\Primitives\DeliveryGeneration(1));"
         ."return ['status' => \$result->status->value, 'pid' => \\Illuminate\\Support\\Facades\\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid];",
         $work->value->value,
     );
@@ -43,7 +43,7 @@ test('pause scope во время 10 параллельных claim: без dead
     foreach ($works as $index => $work) {
         $workers['claim'.$index] = pauseClaimWorker($work);
     }
-    $workers['pause'] = "\$result = \\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode('acquisition', \\App\\Enums\\Procurement\\Process\\ControlMode::Paused);"
+    $workers['pause'] = "\$result = \\Tests\\Support\\ProcessCore\\ExecutionFixtures::setMode('acquisition', \\App\Enums\Procurement\Process\Governance\ControlMode::Paused);"
         ."return ['status' => \$result->status->value, 'pid' => \\Illuminate\\Support\\Facades\\DB::selectOne('SELECT pg_backend_pid() AS pid')->pid];";
     $results = ConcurrentTransactions::concurrently($workers);
 
@@ -87,8 +87,8 @@ test('два feeder одновременно: admitted ≤ W parent, одна gr
     foreach (range(1, 6) as $ignored) {
         ExecutionFixtures::listingWork('platform:aaa');
     }
-    $feeder = '\Tests\Support\ProcessCore\ExecutionFixtures::registerHandler(\App\Enums\Procurement\Process\StageCode::Listing);'
-        ."return ['granted' => app(\\App\\Services\\Procurement\\Process\\WorkFeeder::class)->tick('acquisition')];";
+    $feeder = '\Tests\Support\ProcessCore\ExecutionFixtures::registerHandler(\App\Enums\Procurement\Process\Core\StageCode::Listing);'
+        ."return ['granted' => app(\\App\Services\Procurement\Process\Execution\WorkFeeder::class)->tick('acquisition')];";
 
     $results = ConcurrentTransactions::concurrently(['first' => $feeder, 'second' => $feeder]);
     $groups = DB::table('prc_admission_groups')->where('state', 'admitted')->get();

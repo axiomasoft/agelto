@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Actions\Procurement\Process;
 
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Enums\Procurement\Process\OperatorCommandStatus;
-use App\Repositories\Procurement\Process\IncidentRepository;
-use App\Services\Procurement\Process\ProcessTransaction;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Process\Governance\OperatorCommandStatus;
+use App\Repositories\Procurement\Process\Authority\IncidentRepository;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Illuminate\Support\Str;
 
 /** AcknowledgeIncident: короткая tx, actor/reason в audit transition. */

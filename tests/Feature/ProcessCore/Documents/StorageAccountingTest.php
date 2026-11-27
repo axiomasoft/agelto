@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Document\StorageReservationRequest;
-use App\Dto\Procurement\Process\ProcessUuid;
+use App\Dto\Procurement\Document\Storage\StorageReservationRequest;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Document\StoragePhase;
-use App\Repositories\Procurement\Document\ArtifactRepository;
+use App\Repositories\Procurement\Document\ArtifactGcRepository;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,9 +27,9 @@ test('storage capacity сохраняется до подтверждённог�
             ->and($capacity->reserveLocked($second))->toBeFalse();
     });
     $capacity->beginWrite($request);
-    expect(app(ArtifactRepository::class)->beginCleanup($request))->toBeFalse();
+    expect(app(ArtifactGcRepository::class)->beginCleanup($request))->toBeFalse();
     $capacity->finishWrite($request);
-    expect(app(ArtifactRepository::class)->beginCleanup($request))->toBeTrue();
+    expect(app(ArtifactGcRepository::class)->beginCleanup($request))->toBeTrue();
     DB::transaction(function () use ($capacity, $domain, $second): void {
         $capacity->lockDomains([$domain]);
         expect($capacity->reserveLocked($second))->toBeFalse();

@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;

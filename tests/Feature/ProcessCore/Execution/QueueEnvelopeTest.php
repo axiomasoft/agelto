@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\DeliveryGeneration;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkWake;
-use App\Enums\Procurement\Process\OutboxKind;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Execution\WorkWake;
+use App\Dto\Procurement\Process\Primitives\DeliveryGeneration;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\OutboxKind;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
-use App\Repositories\Procurement\Process\OutboxRepository;
+use App\Repositories\Procurement\Process\Work\OutboxRepository;
 use App\Services\Procurement\Process\Contracts\WorkWakePublisher;
-use App\Services\Procurement\Process\DaemonPolicy;
-use App\Services\Procurement\Process\FeederDaemon;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
-use App\Services\Procurement\Process\ProcessPolicy;
-use App\Services\Procurement\Process\QueueWorkWakePublisher;
-use App\Services\Procurement\Process\RelayDaemon;
-use App\Services\Procurement\Process\StageQueueMap;
-use App\Services\Procurement\Process\WorkFeeder;
+use App\Services\Procurement\Process\Daemons\DaemonPolicy;
+use App\Services\Procurement\Process\Daemons\FeederDaemon;
+use App\Services\Procurement\Process\Daemons\RelayDaemon;
+use App\Services\Procurement\Process\Execution\QueueWorkWakePublisher;
+use App\Services\Procurement\Process\Execution\StageQueueMap;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Infrastructure\ProcessPayloadCodec;
+use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Contracts\Queue\Queue as QueueContract;
 use Illuminate\Contracts\Queue\ShouldBeUnique;

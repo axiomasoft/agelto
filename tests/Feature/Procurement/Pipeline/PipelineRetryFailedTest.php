@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\RetryAt;
-use App\Dto\Procurement\Process\StageDeferred;
-use App\Enums\Procurement\Process\DeferralReason;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
+use App\Dto\Procurement\Process\Primitives\RetryAt;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Enums\Procurement\Process\Outcomes\DeferralReason;
 use App\Jobs\Procurement\Analyzers\Estimate\EstimateExtractionJob;
-use App\Services\Procurement\Process\WorkFeeder;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DocumentFeederFixtures;
 use Tests\Support\ProcessCore\DocumentStorageFixtures;

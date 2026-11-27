@@ -10,7 +10,7 @@ use App\Repositories\Procurement\Document\RepresentationStoreRepository;
 use App\Services\Procurement\Document\StoredDocumentWriter;
 use App\Services\Procurement\Prepare\DocumentFormatRegistry;
 use App\Services\Procurement\Prepare\RepresentationResolver;
-use App\Services\Procurement\Prepare\ScanStrategy;
+use App\Services\Procurement\Prepare\Strategies\ScanStrategy;
 use App\Services\Storage\FileLocationResolver;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;

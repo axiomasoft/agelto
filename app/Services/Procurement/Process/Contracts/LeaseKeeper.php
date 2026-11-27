@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Process\Contracts;
 
-use App\Dto\Procurement\Process\CheckpointResult;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\LeaseRenewal;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Dto\Procurement\Process\Execution\CheckpointResult;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Execution\LeaseRenewal;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use Illuminate\Container\Attributes\Bind;
 
 /**

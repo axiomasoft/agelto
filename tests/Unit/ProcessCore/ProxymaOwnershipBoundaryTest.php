@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Proxyma\CallerExecutionPort;
-use App\Services\Procurement\Proxyma\CallerPolicyResolver;
+use App\Services\Procurement\Proxyma\Caller\CallerExecutionPort;
+use App\Services\Procurement\Proxyma\Caller\CallerPolicyResolver;
 use Proxyma\Application\Execution\FiniteOutboundExecutor;
 use Proxyma\Application\Execution\OutboundExecutor;
 use Proxyma\Application\Execution\OutcomePolicyRegistry;
@@ -65,7 +65,7 @@ test('consumer ports реализуют native interfaces без runtime compati
 });
 
 test('согласованное transport exception разрешает cURL только в точном consumer классе', function (): void {
-    $path = 'app/Services/Procurement/Proxyma/AgeltoPhysicalHttpTransport.php';
+    $path = 'app/Services/Procurement/Proxyma/Transport/AgeltoPhysicalHttpTransport.php';
     expect(Rules::violations($path, '<?php curl_init();'))->not->toContain('direct_transport')
         ->and(Rules::violations('app/Services/Procurement/Proxyma/OtherTransport.php', '<?php curl_init();'))->toContain('direct_transport')
         ->and(Rules::violations($path, '<?php dns_get_record("fixture.test");'))->toContain('direct_transport')

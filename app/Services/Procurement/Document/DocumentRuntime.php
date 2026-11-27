@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Document;
 
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Repositories\Procurement\Document\DownloadFinalizer;
 use App\Repositories\Procurement\Document\PrepareFinalizer;
-use App\Services\Procurement\Process\StageRegistry;
+use App\Services\Procurement\Process\Execution\StageRegistry;
 
 /** Pure composition; explicit catalog sync, never boot, installs DB authorities. */
 final readonly class DocumentRuntime

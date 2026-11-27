@@ -6,7 +6,7 @@ namespace App\Console\Commands\Procurement\Analyzers\Estimate;
 
 use App\Console\Concerns\RendersReport;
 use App\Exceptions\Procurement\OperationFailed;
-use App\Services\Procurement\Analyzers\Estimate\EstimateDiffReport;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EstimateDiffReport;
 use App\Services\Procurement\Fixture\FixtureCaseResolver;
 use App\Services\Procurement\Tuning\EvalConsolePresenter;
 use Illuminate\Console\Attributes\Description;

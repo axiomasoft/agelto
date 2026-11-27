@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Services\Procurement\Prepare\LibreOfficeConverter;
+use App\Services\Procurement\Prepare\Tools\LibreOfficeConverter;
 use App\Support\Files\PipelineTemporaryFile;
 use Tests\Support\ProcessCore\FakePrepareTools;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;

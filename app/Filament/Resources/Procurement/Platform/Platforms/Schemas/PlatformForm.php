@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Resources\Procurement\Platform\Platforms\Schemas;
 
-use App\Services\Procurement\Proxyma\SettingsSections;
+use App\Services\Procurement\Proxyma\Panel\SettingsSections;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;

@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Procurement\Crawler\ListingBatch;
-use App\Dto\Procurement\Network\TransportBlocked;
+use App\Dto\Procurement\Network\Outcome\TransportBlocked;
 use App\Enums\Procurement\Crawler\SourceFailureKind;
 use App\Enums\Procurement\Network\NetworkBlockedReason;
 use App\Exceptions\Procurement\Crawler\InvalidListingResponse;

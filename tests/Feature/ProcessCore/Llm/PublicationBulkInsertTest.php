@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\RowRange;
-use App\Dto\Procurement\Process\ExtractionWindowInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\PublicationInput;
-use App\Dto\Procurement\Process\WorkId;
-use App\Repositories\Procurement\Ai\PublicationRepository;
-use App\Services\Procurement\Extraction\ExtractionHandler;
-use App\Services\Procurement\Extraction\PublicationHandler;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Dto\Procurement\Ai\Planning\RowRange;
+use App\Dto\Procurement\Process\Inputs\ExtractionWindowInput;
+use App\Dto\Procurement\Process\Inputs\PublicationInput;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Services\Procurement\Extraction\Orchestration\ExtractionHandler;
+use App\Services\Procurement\Extraction\Publication\PublicationHandler;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Support\Database\PostgresBulkInserter;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\AiFixtures;
 use Tests\Support\ProcessCore\ExtractionRuntimeFixtures;
@@ -161,20 +161,19 @@ test('публикация сохраняет дерево сметы пакет
 });
 
 test('массивы PostgreSQL сохраняют спецсимволы и отвергают неверные числа', function (): void {
-    $repository = app(PublicationRepository::class);
     $special = "Кириллица \"кавычки\" \\ путь\nстрока";
     $json = json_encode(['text' => $special, 'nul' => "a\0b"], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-    $jsonLiteral = (new ReflectionMethod(PublicationRepository::class, 'pgJsonbArray'))->invoke($repository, [$json, null]);
+    $jsonLiteral = PostgresBulkInserter::pgJsonbArray([$json, null]);
     $decoded = DB::select('SELECT value FROM UNNEST(?::jsonb[]) AS v(value)', [$jsonLiteral]);
     expect(json_decode($decoded[0]->value, true, flags: JSON_THROW_ON_ERROR))->toBe(['nul' => 'ab', 'text' => $special])
         ->and($decoded[1]->value)->toBeNull();
 
-    $textLiteral = (new ReflectionMethod(PublicationRepository::class, 'pgTextArray'))->invoke($repository, [$special, "a\0b", null]);
+    $textLiteral = PostgresBulkInserter::pgTextArray([$special, "a\0b", null]);
     $strings = DB::select('SELECT value FROM UNNEST(?::text[]) AS v(value)', [$textLiteral]);
     expect(array_map(static fn (object $row): ?string => $row->value, $strings))->toBe([$special, 'ab', null]);
 
-    expect(fn () => (new ReflectionMethod(PublicationRepository::class, 'pgNumericArray'))->invoke($repository, ['1e3']))
+    expect(fn () => PostgresBulkInserter::pgNumericArray(['1e3']))
         ->toThrow(InvalidArgumentException::class)
-        ->and(fn () => (new ReflectionMethod(PublicationRepository::class, 'pgIntArray'))->invoke($repository, ['1']))
+        ->and(fn () => PostgresBulkInserter::pgIntArray(['1']))
         ->toThrow(InvalidArgumentException::class);
 });

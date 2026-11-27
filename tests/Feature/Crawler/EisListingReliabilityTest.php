@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use App\Actions\Procurement\Process\CancelWork;
-use App\Dto\Procurement\Process\StageBlocked;
-use App\Dto\Procurement\Process\StageDeferred;
+use App\Dto\Procurement\Process\Outcomes\StageBlocked;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
 use App\Enums\Procurement\Platform\Completeness;
 use App\Enums\Procurement\Platform\TerminalProof;
-use App\Enums\Procurement\Process\ControlMode;
+use App\Enums\Procurement\Process\Governance\ControlMode;
 use App\Exceptions\Procurement\Process\ExecutionInterrupted;
 use App\Models\Procurement\Crawler\RawArtifact;
 use App\Models\Procurement\Platform\Platform;

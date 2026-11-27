@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\ArtifactRef;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\VersionedPayload;
-use App\Enums\Procurement\Process\StageCode;
-use App\Services\Procurement\Process\PayloadReader;
-use App\Services\Procurement\Process\StagePayloadCodec;
+use App\Dto\Procurement\Process\Outcomes\ArtifactRef;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\VersionedPayload;
+use App\Enums\Procurement\Process\Core\StageCode;
+use App\Services\Procurement\Process\Infrastructure\PayloadReader;
+use App\Services\Procurement\Process\Infrastructure\StagePayloadCodec;
 
 /** Fixture-only codec. Never registered with application handlers or a provider. */
 final readonly class FixtureStagePayloadCodec implements StagePayloadCodec

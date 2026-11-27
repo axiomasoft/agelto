@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\ExecutionFixtures;
@@ -61,7 +61,7 @@ test('invariant PG barrier: все read locks освобождены до отд
         }
     });
     try {
-        $changed = app(\App\Services\Procurement\Process\InvariantScan::class)->reconcile();
+        $changed = app(\App\Services\Procurement\Process\Diagnostics\InvariantScan::class)->reconcile();
         return ['changed' => $changed, 'read_level' => $readLevel, 'hold_level' => $holdLevel,
             'final_level' => \Illuminate\Support\Facades\DB::connection()->transactionLevel()];
     } finally {
@@ -112,14 +112,14 @@ test('invariant multi-instance: два overlapping read snapshots дают од�
             }
         });
         try {
-            return ['changed' => app(\App\Services\Procurement\Process\InvariantScan::class)->reconcile()];
+            return ['changed' => app(\App\Services\Procurement\Process\Diagnostics\InvariantScan::class)->reconcile()];
         } finally {
             \Illuminate\Support\Facades\DB::selectOne('SELECT pg_advisory_unlock(?)', [$mine]);
         }
         PHP;
     };
     $results = ConcurrentTransactions::concurrently(['one' => $worker(818013, 818014), 'two' => $worker(818014, 818013)]);
-    $restart = ConcurrentTransactions::execute('return ["changed" => app(\App\Services\Procurement\Process\InvariantScan::class)->reconcile()];');
+    $restart = ConcurrentTransactions::execute('return ["changed" => app(\App\Services\Procurement\Process\Diagnostics\InvariantScan::class)->reconcile()];');
     $incident = DB::table('prc_process_incidents')->sole();
     expect($results['one']['changed'] + $results['two']['changed'])->toBe(1)
         ->and($restart)->toBe(['changed' => 0])
@@ -136,14 +136,14 @@ test('invariant healthy PG race: scan ждёт capacity полноценного
     FinalizeFixtures::authority([StageCode::Listing]);
     $work = ExecutionFixtures::listingWork();
     $lease = FinalizeFixtures::export(FinalizeFixtures::running($work));
-    $finish = '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\\Enums\\Procurement\\Process\\StageCode::Listing);'
+    $finish = '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\Enums\Procurement\Process\Core\StageCode::Listing);'
         .'return \\Tests\\Support\\ProcessCore\\FinalizeFixtures::holdUntilWaiter(function () {'
-        .'$result = app(\\App\\Services\\Procurement\\Process\\WorkFinalizer::class)->finish('
+        .'$result = app(\\App\Services\Procurement\Process\Execution\WorkFinalizer::class)->finish('
         ."\\Tests\\Support\\ProcessCore\\FinalizeFixtures::import('".$lease."'),"
-        .'\\Tests\\Support\\ProcessCore\\FinalizeFixtures::succeeded(\\App\\Enums\\Procurement\\Process\\StageCode::Listing, "healthy-race"));'
+        .'\\Tests\\Support\\ProcessCore\\FinalizeFixtures::succeeded(\\App\Enums\Procurement\Process\Core\StageCode::Listing, "healthy-race"));'
         .'return ["status" => $result->status->value]; });';
     $scan = 'return \\Tests\\Support\\ProcessCore\\FinalizeFixtures::afterHolder(function () {'
-        .'return ["changed" => app(\\App\\Services\\Procurement\\Process\\InvariantScan::class)->reconcile()]; });';
+        .'return ["changed" => app(\\App\Services\Procurement\Process\Diagnostics\InvariantScan::class)->reconcile()]; });';
     $results = ConcurrentTransactions::concurrently(['finish' => $finish, 'scan' => $scan]);
     expect($results['finish'])->toBe(['status' => 'applied'])
         ->and($results['scan'])->toBe(['changed' => 0])

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Filament\Concerns;
 
-use App\Services\Procurement\Proxyma\UiAuthority;
+use App\Services\Procurement\Proxyma\Panel\UiAuthority;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

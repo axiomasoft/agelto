@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore\Http;
 
-use App\Dto\Procurement\Network\OutboundExecutionContext;
-use App\Dto\Procurement\Network\OutboundOperationHandle;
-use App\Dto\Procurement\Network\OutboundRequestPlan;
-use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Platform\RequestProfile;
+use App\Dto\Procurement\Network\Control\OutboundExecutionContext;
+use App\Dto\Procurement\Network\Control\OutboundOperationHandle;
+use App\Dto\Procurement\Network\Control\OutboundRequestPlan;
+use App\Dto\Procurement\Network\Http\SafeUrl;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
 use App\Enums\Procurement\Network\IdempotencyClass;
 use App\Enums\Procurement\Network\OutboundOperationKind;
 use App\Enums\Procurement\Network\TrafficClass;

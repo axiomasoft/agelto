@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
-use App\Dto\Procurement\Ai\AnalysisWindowPlan;
-use App\Dto\Procurement\Ai\AnalysisWindowSnapshot;
-use App\Dto\Procurement\Process\ScreeningInput;
+use App\Dto\Procurement\Ai\Execution\AnalysisRunSnapshot;
+use App\Dto\Procurement\Ai\Planning\AnalysisWindowPlan;
+use App\Dto\Procurement\Ai\Planning\AnalysisWindowSnapshot;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
 use App\Repositories\Procurement\Ai\AnalysisPlanRepository;
 use App\Repositories\Procurement\Ai\AnalysisRepository;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use App\Services\Procurement\Screening\ScreeningHandler;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;

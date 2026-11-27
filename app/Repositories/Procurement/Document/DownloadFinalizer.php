@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Document;
 
-use App\Dto\Procurement\Document\DownloadProgress;
-use App\Dto\Procurement\Document\DownloadResult;
-use App\Dto\Procurement\Process\DownloadInput;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\ValidatedStageResult;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Dto\Procurement\Document\Download\DownloadProgress;
+use App\Dto\Procurement\Document\Download\DownloadResult;
+use App\Dto\Procurement\Process\Inputs\DownloadInput;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Outcomes\ValidatedStageResult;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Document\DownloadPolicy;
 use App\Services\Procurement\Process\Contracts\PublicationLocks;
 use App\Services\Procurement\Process\Contracts\StagePublicationRepository;

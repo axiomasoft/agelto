@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto\Procurement;
 
-use App\Dto\Procurement\Platform\SourceIdentity;
+use App\Dto\Procurement\Platform\Identity\SourceIdentity;
 use Illuminate\Support\Carbon;
 
 /**

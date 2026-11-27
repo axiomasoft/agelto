@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Support\ProcessCore;
 
-use App\Dto\Procurement\Process\CheckpointResult;
-use App\Dto\Procurement\Process\DbInstant;
-use App\Dto\Procurement\Process\Duration;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\LeaseRenewal;
-use App\Dto\Procurement\Process\StageCheckpoint;
-use App\Dto\Procurement\Process\WorkId;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Execution\CheckpointResult;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Execution\LeaseRenewal;
+use App\Dto\Procurement\Process\Outcomes\StageCheckpoint;
+use App\Dto\Procurement\Process\Primitives\DbInstant;
+use App\Dto\Procurement\Process\Primitives\Duration;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Services\Procurement\Process\Contracts\LeaseKeeper;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 

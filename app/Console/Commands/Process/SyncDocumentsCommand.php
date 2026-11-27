@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Process;
 
-use App\Enums\Procurement\Process\StageCode;
-use App\Repositories\Procurement\Crawler\ListingStoreRepository;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Repositories\Procurement\Document\StorageCapacityRepository;
 use App\Services\Procurement\Document\DocumentRuntime;
 use App\Services\Procurement\Document\DownloadPolicy;
 use App\Services\Procurement\Document\PreparePolicy;
-use App\Services\Procurement\Process\ProcessAuthoritySync;
+use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 
@@ -26,7 +26,7 @@ final class SyncDocumentsCommand extends Command
                 || ! is_int($limits['capacity_bytes']) || ! is_int($limits['high_watermark_bytes'])) {
                 throw new \InvalidArgumentException('documents.storage.'.$key.': explicit integer capacities required.');
             }
-            $capacity->ensureDomain(ListingStoreRepository::id('storage-domain:'.$key), $key, $limits['capacity_bytes'], $limits['high_watermark_bytes']);
+            $capacity->ensureDomain(ProcessUuid::derived('storage-domain:'.$key), $key, $limits['capacity_bytes'], $limits['high_watermark_bytes']);
         }
         $authority->ensureBaseline();
         foreach ([StageCode::Download, StageCode::Prepare] as $stage) {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support\Database;
 
-use App\Dto\Procurement\Acquisition\ProcurementIdentity;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Dto\Procurement\Acquisition\Control\ProcurementIdentity;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use Illuminate\Support\Facades\DB;
 
 /**

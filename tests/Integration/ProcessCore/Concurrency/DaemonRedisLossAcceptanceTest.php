@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\QueueRoute;
-use App\Dto\Procurement\Process\StageOutcome;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Enums\Procurement\Process\StageCode;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Execution\QueueRoute;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Outcomes\StageOutcome;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Jobs\Procurement\Process\ExecuteWorkJob;
 use App\Services\Procurement\Process\Contracts\StageHandler;
-use App\Services\Procurement\Process\RecoveryReconciler;
-use App\Services\Procurement\Process\RelayDaemon;
-use App\Services\Procurement\Process\StageQueueMap;
-use App\Services\Procurement\Process\StageRegistry;
-use App\Services\Procurement\Process\WorkFeeder;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
+use App\Services\Procurement\Process\Daemons\RelayDaemon;
+use App\Services\Procurement\Process\Execution\StageQueueMap;
+use App\Services\Procurement\Process\Execution\StageRegistry;
+use App\Services\Procurement\Process\Execution\WorkFeeder;
 use Illuminate\Contracts\Queue\ClearableQueue;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Support\Facades\DB;
@@ -116,16 +116,16 @@ function acceptanceHandler(): object
 /** Instance relay daemon: один tick настоящего RelayDaemon в собственном процессе. */
 function acceptanceRelay(): string
 {
-    return '$tick = app(\App\Services\Procurement\Process\RelayDaemon::class)->tick();'
+    return '$tick = app(\App\Services\Procurement\Process\Daemons\RelayDaemon::class)->tick();'
         .'return ["processed" => $tick->processed, "error" => $tick->errorCode];';
 }
 
 /** Instance reconcile daemon с категориями настоящего RecoveryReconciler, один tick. */
 function acceptanceReconcile(): string
 {
-    return '\Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Listing);'
-        .'$daemon = app(\App\Services\Procurement\Process\ReconcileDaemon::class);'
-        .'foreach (app(\App\Services\Procurement\Process\RecoveryReconciler::class)->categories() as $category) { $daemon->register($category); }'
+    return '\Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Listing);'
+        .'$daemon = app(\App\Services\Procurement\Process\Daemons\ReconcileDaemon::class);'
+        .'foreach (app(\App\Services\Procurement\Process\Daemons\RecoveryReconciler::class)->categories() as $category) { $daemon->register($category); }'
         .'$tick = $daemon->tick();'
         .'return ["processed" => $tick->processed, "error" => $tick->errorCode];';
 }
@@ -137,10 +137,10 @@ function acceptanceReconcile(): string
 function acceptanceKilledRelay(bool $published): string
 {
     return str_replace('__PUBLISHED__', $published ? 'true' : 'false', <<<'PHP'
-        $messages = app(\App\Services\Procurement\Process\ProcessTransaction::class)->run(
-            fn (): array => app(\App\Repositories\Procurement\Process\OutboxRepository::class)->claim(
-                \App\Enums\Procurement\Process\OutboxKind::WorkWake,
-                new \App\Dto\Procurement\Process\ProcessUuid(strtolower((string) \Illuminate\Support\Str::uuid())),
+        $messages = app(\App\Services\Procurement\Process\Infrastructure\ProcessTransaction::class)->run(
+            fn (): array => app(\App\Repositories\Procurement\Process\Work\OutboxRepository::class)->claim(
+                \App\Enums\Procurement\Process\Core\OutboxKind::WorkWake,
+                new \App\Dto\Procurement\Process\Primitives\ProcessUuid(strtolower((string) \Illuminate\Support\Str::uuid())),
                 1,
                 30,
             ),
@@ -148,7 +148,7 @@ function acceptanceKilledRelay(bool $published): string
         foreach ($messages as $message) {
             if (__PUBLISHED__) {
                 app(\App\Services\Procurement\Process\Contracts\WorkWakePublisher::class)->publish(
-                    app(\App\Services\Procurement\Process\ProcessPayloadCodec::class)->decodeWorkWake($message->payload),
+                    app(\App\Services\Procurement\Process\Infrastructure\ProcessPayloadCodec::class)->decodeWorkWake($message->payload),
                 );
             }
         }
@@ -164,12 +164,12 @@ function acceptanceKilledRelay(bool $published): string
 function acceptanceCrashingWorker(Job $job): string
 {
     return str_replace('__BODY__', base64_encode($job->getRawBody()), <<<'PHP'
-        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\StageCode::Listing);
-        app(\App\Services\Procurement\Process\StageRegistry::class)->bindHandler(
-            \App\Enums\Procurement\Process\StageCode::Listing,
+        \Tests\Support\ProcessCore\FinalizeFixtures::bind(\App\Enums\Procurement\Process\Core\StageCode::Listing);
+        app(\App\Services\Procurement\Process\Execution\StageRegistry::class)->bindHandler(
+            \App\Enums\Procurement\Process\Core\StageCode::Listing,
             new class implements \App\Services\Procurement\Process\Contracts\StageHandler
             {
-                public function execute(\App\Dto\Procurement\Process\WorkInput $input, \App\Dto\Procurement\Process\ExecutionContext $execution): \App\Dto\Procurement\Process\StageOutcome
+                public function execute(\App\Dto\Procurement\Process\Inputs\WorkInput $input, \App\Dto\Procurement\Process\Execution\ExecutionContext $execution): \App\Dto\Procurement\Process\Outcomes\StageOutcome
                 {
                     fwrite(STDOUT, json_encode(['crashed' => $execution->lease()->workId->value->value])."\n");
 

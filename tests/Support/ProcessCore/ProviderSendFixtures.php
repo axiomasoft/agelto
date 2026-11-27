@@ -7,33 +7,35 @@ namespace Tests\Support\ProcessCore;
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
 use App\Dto\Llm\Requests\PinnedLlmContext;
 use App\Dto\Llm\Requests\RequestIdentity;
-use App\Dto\Procurement\Network\ProviderKey;
-use App\Dto\Procurement\Network\ProviderTargetDefinitions;
-use App\Dto\Procurement\Network\SafeUrl;
-use App\Dto\Procurement\Platform\OriginBudgetPolicy;
-use App\Dto\Procurement\Platform\RequestProfile;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Process\ExecutionContext;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\ScreeningInput;
-use App\Dto\Procurement\Process\StoreWorkData;
-use App\Dto\Procurement\Process\WorkId;
+use App\Dto\Procurement\Network\Control\ProviderKey;
+use App\Dto\Procurement\Network\Control\ProviderTargetDefinitions;
+use App\Dto\Procurement\Network\Http\SafeUrl;
+use App\Dto\Procurement\Platform\Definition\OriginBudgetPolicy;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Process\Execution\ExecutionContext;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Execution\StoreWorkData;
+use App\Dto\Procurement\Process\Inputs\ScreeningInput;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
 use App\Enums\Llm\OperationPurpose;
 use App\Enums\Llm\TaskPurpose;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Llm\Execution\ProviderCodecs;
 use App\Services\Llm\Execution\ProviderGenerationInput;
 use App\Services\Llm\Execution\ProviderOperationPlan;
 use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Llm\Providers\GeminiGenerateContentClient;
+use App\Services\Llm\Providers\GeminiWireCodec;
 use App\Services\Llm\Schema\ProviderSchemaCompiler;
-use App\Services\Procurement\Extraction\AnalysisCallCoordinator;
-use App\Services\Procurement\Extraction\AnalysisProviderSendGate;
+use App\Services\Procurement\Extraction\Provider\AnalysisCallCoordinator;
+use App\Services\Procurement\Extraction\Provider\AnalysisProviderSendGate;
 use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Network\UrlPolicy;
-use App\Services\Procurement\Process\ExecutionContextFactory;
-use App\Services\Procurement\Process\ProcessTransaction;
-use App\Services\Procurement\Proxyma\CallerSendFacts;
+use App\Services\Procurement\Process\Execution\ExecutionContextFactory;
+use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
+use App\Services\Procurement\Proxyma\Caller\CallerSendFacts;
 use App\Services\Procurement\Screening\ScreeningContract;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\Http\PermitFixtures;
@@ -73,6 +75,7 @@ final class ProviderSendFixtures
         $period = FinancialFixtures::reset();
         $configureRuntime?->__invoke();
         $this->period = $period;
+        app(ProviderCodecs::class)->register('fixture-provider', new GeminiWireCodec);
         $context = new PinnedLlmContext('fixture-provider', 'fixture-account', 'v1beta', 'fixture-model', 'route/1',
             ['max_output_tokens' => 4096, 'temperature' => '0.25'], ['budget' => 128, 'include_thoughts' => false]);
         $window = AiFixtures::window($context);
@@ -140,7 +143,7 @@ final class ProviderSendFixtures
         }
         $data = base64_encode(serialize([$this->lease, $this->run, $this->target, $this->route, $this->profile, $this->server->url('/'), $this->wire, $this->operation]));
 
-        return '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\\Enums\\Procurement\\Process\\StageCode::Screening);'
+        return '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\Enums\Procurement\Process\Core\StageCode::Screening);'
             .'[$lease,$run,$target,$route,$profile,$server,$wire,$operation]=unserialize(base64_decode('.var_export($data, true).'));'
             .'\\Tests\\Support\\ProcessCore\\ProxymaProviderFixtures::configure();'
             .'$gate=\\Tests\\Support\\ProcessCore\\ProviderSendFixtures::gateFor($lease,$run,$target,$route,$profile,$server);'

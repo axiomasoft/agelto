@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Support\Platforms\JsonProcurement;
 
-use App\Dto\Procurement\Platform\AdapterVersion;
-use App\Dto\Procurement\Platform\CanonicalOrigin;
-use App\Dto\Procurement\Platform\DiagnosticChecks;
-use App\Dto\Procurement\Platform\EndpointCatalog;
-use App\Dto\Procurement\Platform\EndpointDefinition;
-use App\Dto\Procurement\Platform\PlatformCode;
-use App\Dto\Procurement\Platform\PlatformDefinition;
-use App\Dto\Procurement\Platform\RegistryDefinition;
-use App\Dto\Procurement\Platform\RegistryDefinitions;
-use App\Dto\Procurement\Platform\RequestProfile;
-use App\Dto\Procurement\Platform\SourceIdentifierType;
-use App\Dto\Procurement\Platform\SourceTargetDefinition;
-use App\Dto\Procurement\Platform\SourceTargetDefinitions;
-use App\Dto\Procurement\Platform\SupportedDetailCapability;
-use App\Dto\Procurement\Platform\SupportedListingCapability;
-use App\Dto\Procurement\Platform\UnsupportedCapability;
+use App\Dto\Procurement\Platform\Capabilities\SupportedDetailCapability;
+use App\Dto\Procurement\Platform\Capabilities\SupportedListingCapability;
+use App\Dto\Procurement\Platform\Capabilities\UnsupportedCapability;
+use App\Dto\Procurement\Platform\Definition\CanonicalOrigin;
+use App\Dto\Procurement\Platform\Definition\EndpointCatalog;
+use App\Dto\Procurement\Platform\Definition\EndpointDefinition;
+use App\Dto\Procurement\Platform\Definition\PlatformDefinition;
+use App\Dto\Procurement\Platform\Definition\RegistryDefinition;
+use App\Dto\Procurement\Platform\Definition\RegistryDefinitions;
+use App\Dto\Procurement\Platform\Definition\RequestProfile;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinition;
+use App\Dto\Procurement\Platform\Definition\SourceTargetDefinitions;
+use App\Dto\Procurement\Platform\Diagnostics\DiagnosticChecks;
+use App\Dto\Procurement\Platform\Identity\AdapterVersion;
+use App\Dto\Procurement\Platform\Identity\PlatformCode;
+use App\Dto\Procurement\Platform\Identity\SourceIdentifierType;
 use App\Enums\Procurement\Network\ResponseKind;
 use App\Services\Procurement\Platform\Contracts\PlatformDefinitionProvider;
 

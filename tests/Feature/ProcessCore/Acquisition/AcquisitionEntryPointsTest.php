@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\ListCrawlers;
 use App\Filament\Resources\Procurement\Process\Support\OperatorActionInput;
 use App\Guards\Admin\Roles\AnalystRole;
@@ -12,8 +12,8 @@ use App\Models\Procurement\Crawler\Crawler;
 use App\Models\Procurement\Platform\Okpd2Node;
 use App\Models\User;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Services\Procurement\Acquisition\AcquisitionTick;
-use App\Services\Procurement\Acquisition\LaunchAcquisition;
+use App\Services\Procurement\Acquisition\Orchestration\AcquisitionTick;
+use App\Services\Procurement\Acquisition\Orchestration\LaunchAcquisition;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;

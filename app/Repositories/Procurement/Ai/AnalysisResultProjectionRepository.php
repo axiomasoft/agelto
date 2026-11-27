@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Repositories\Procurement\Ai;
 
-use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
+use App\Dto\Procurement\Ai\Execution\AnalysisRunSnapshot;
 use App\Dto\Procurement\Ai\Screening\StoredScreeningResult;
-use App\Dto\Procurement\Process\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
 use App\Enums\Procurement\Ai\AiDocumentType;
 use App\Enums\Procurement\Ai\AnalysisStep;
-use App\Enums\Procurement\Process\BlockedReason;
+use App\Enums\Procurement\Process\Outcomes\BlockedReason;
 use App\Exceptions\Procurement\Process\PublicationBlocked;
-use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Llm\Schema\CanonicalJson;
 use Illuminate\Support\Facades\DB;
 
@@ -35,7 +35,7 @@ final readonly class AnalysisResultProjectionRepository
     private function store(AnalysisRunSnapshot $run, AnalysisStep $step, string $result, string $documentType): int
     {
         CallerTransaction::require('Accepted analysis result projection');
-        $uuid = ListingStoreRepository::id('accepted-analysis:'.$run->id->value.':'.$step->value)->value;
+        $uuid = ProcessUuid::derived('accepted-analysis:'.$run->id->value.':'.$step->value)->value;
         $old = LedgerRow::one('SELECT id,result::text AS result FROM prc_ai_analyses WHERE uuid=?', [$uuid]);
         if ($old !== null) {
             if (CanonicalJson::encode(json_decode($old->string('result'), flags: JSON_THROW_ON_ERROR)) !== $result) {

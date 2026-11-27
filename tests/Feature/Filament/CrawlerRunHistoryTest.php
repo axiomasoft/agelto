@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisListingFilter;
-use App\Dto\Procurement\Process\RetryAt;
-use App\Dto\Procurement\Process\StageDeferred;
-use App\Enums\Procurement\Process\AccountingRole;
-use App\Enums\Procurement\Process\DeferralReason;
-use App\Enums\Procurement\Process\RunWorkRelation;
+use App\Dto\Procurement\Process\Outcomes\StageDeferred;
+use App\Dto\Procurement\Process\Primitives\RetryAt;
+use App\Enums\Procurement\Process\Core\AccountingRole;
+use App\Enums\Procurement\Process\Core\RunWorkRelation;
+use App\Enums\Procurement\Process\Outcomes\DeferralReason;
 use App\Filament\Resources\Procurement\Process\Runs\Pages\ListProcessRuns;
 use App\Filament\Resources\Procurement\Process\Work\Pages\ListWorkItems;
 use App\Models\Procurement\Platform\Registry;
@@ -15,9 +15,9 @@ use App\Models\Procurement\Process\ProcessRun;
 use App\Models\Procurement\Process\WorkItem;
 use App\Models\User;
 use App\Repositories\Procurement\Crawler\ListingStoreRepository;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
 use App\Services\Platforms\Eis\EisListingPartitioner;
-use App\Services\Procurement\Process\WorkFinalizer;
+use App\Services\Procurement\Process\Execution\WorkFinalizer;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\Support\ProcessCore\FinalizeFixtures;

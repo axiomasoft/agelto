@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use App\Enums\Procurement\Process\StageCode;
+use App\Enums\Procurement\Process\Core\StageCode;
 use App\Models\Procurement\Document\Document;
 use App\Models\Procurement\Document\DocumentVersion;
 use App\Services\Procurement\Document\DocumentFeeder;
-use App\Services\Procurement\Process\RecoveryReconciler;
+use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\ProcessCore\DocumentFeederFixtures;
 use Tests\Support\ProcessCore\FinalizeFixtures;

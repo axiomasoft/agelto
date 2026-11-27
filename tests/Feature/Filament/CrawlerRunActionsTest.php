@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Dto\Platforms\Eis\EisSearchFilter;
-use App\Enums\Procurement\Process\AccountingRole;
-use App\Enums\Procurement\Process\AcquisitionKind;
-use App\Enums\Procurement\Process\RunWorkRelation;
+use App\Enums\Procurement\Process\Core\AccountingRole;
+use App\Enums\Procurement\Process\Core\AcquisitionKind;
+use App\Enums\Procurement\Process\Core\RunWorkRelation;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\CrawlerResource;
 use App\Filament\Resources\Procurement\Crawler\Crawlers\Pages\ListCrawlers;
 use App\Filament\Resources\Procurement\Process\ControlScopes\ControlScopeResource;
@@ -18,8 +18,8 @@ use App\Models\Procurement\Platform\Registry;
 use App\Models\Procurement\Process\ControlScope;
 use App\Models\Procurement\Process\ProcessRun;
 use App\Models\User;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Acquisition\LaunchAcquisition;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Acquisition\Orchestration\LaunchAcquisition;
 use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;

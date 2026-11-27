@@ -14,7 +14,7 @@ use App\Models\Procurement\ProcurementEvent;
 use App\Services\Procurement\Prepare\DocumentFormatInspector;
 use App\Services\Procurement\Prepare\DocumentFormatRegistry;
 use App\Services\Procurement\Prepare\Gsfx\GsfxReader;
-use App\Services\Procurement\Prepare\GsfxStrategy;
+use App\Services\Procurement\Prepare\Strategies\GsfxStrategy;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\ProcessCore\StoredDocumentFixtures;

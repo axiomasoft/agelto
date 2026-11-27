@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace App\Repositories\Procurement\Ai;
 
 use App\Dto\Llm\Requests\AuthorizedProviderOperation;
-use App\Dto\Procurement\Ai\AnalysisRequestLink;
-use App\Dto\Procurement\Ai\AnalysisRunSnapshot;
-use App\Dto\Procurement\Process\ContentHash;
-use App\Dto\Procurement\Process\ExecutionLease;
-use App\Dto\Procurement\Process\ProcessUuid;
-use App\Dto\Procurement\Process\WorkId;
-use App\Dto\Procurement\Process\WorkInput;
-use App\Repositories\Procurement\Process\CallerTransaction;
-use App\Repositories\Procurement\Process\LedgerRow;
-use App\Repositories\Procurement\Process\WorkStoreRepository;
-use App\Services\Procurement\Process\ProcessPayloadCodec;
+use App\Dto\Procurement\Ai\Execution\AnalysisRequestLink;
+use App\Dto\Procurement\Ai\Execution\AnalysisRunSnapshot;
+use App\Dto\Procurement\Process\Execution\ExecutionLease;
+use App\Dto\Procurement\Process\Inputs\WorkInput;
+use App\Dto\Procurement\Process\Primitives\ContentHash;
+use App\Dto\Procurement\Process\Primitives\ProcessUuid;
+use App\Dto\Procurement\Process\Primitives\WorkId;
+use App\Repositories\Procurement\Process\Support\CallerTransaction;
+use App\Repositories\Procurement\Process\Support\LedgerRow;
+use App\Repositories\Procurement\Process\Work\WorkStoreRepository;
+use App\Services\Procurement\Process\Infrastructure\ProcessPayloadCodec;
 use Illuminate\Support\Facades\DB;
 
 /** Explicit active linkage, never ORDER BY latest call. Historical physical rows remain immutable. */

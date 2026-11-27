@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Exceptions\Procurement\Ai;
 
 use App\Exceptions\Procurement\OperationFailed;
-use App\Services\Procurement\Analyzers\Estimate\EvalSplitPlanner;
+use App\Services\Procurement\Analyzers\Estimate\Eval\EvalSplitPlanner;
 
 /**
  * Пул `gold_source=deterministic` пуст — {@see EvalSplitPlanner}
