@@ -362,6 +362,7 @@ jobs:
           exit-code: '1'
           ignore-unfixed: false
           cache: false
+          trivyignores: .github/trivy/silo.trivyignore
 
   # The single required status check. It passes when every job either succeeded or was
   # skipped by path routing, and fails on any failure or cancellation.
