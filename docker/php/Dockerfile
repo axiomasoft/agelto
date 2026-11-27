@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.19@sha256:b6afd42430b15f2d2a4c5a02b919e98a525b785b1aaff16747d2f623364e39b6
 
-FROM minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e AS mc
+FROM pgsty/silo:RELEASE.2026-11-12T00-00-00Z@sha256:c20d112390b9a9ce8c11b8af95ad35bcaa62f4759663c09c936cd8d2b511f329 AS mc
 
 FROM serversideup/php:8.6-fpm-nginx@sha256:672d413df0ca56e163a35fa7a9a30b5d70e62ea70f5e03bdbd04318d955f3d40 AS app-base
 
@@ -26,13 +26,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && if ! php -m | grep -qi '^gd$'; then install-php-extensions gd; fi \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# MinIO Client (mc) — S3/MinIO ILM bucket lifecycle rules (P7.7, `ai:storage:lifecycle`);
-# нет composer-пакета в проекте под S3 API (aws-sdk-php не установлен) — Code Guidance
-# item'а прямо допускает "mc в отдельном init-контейнере" как альтернативу S3 SDK.
-# Копируем бинарник из официального образа вместо `curl`-скачивания релиза с GitHub —
-# в некоторых сетевых окружениях (в т.ч. sandboxed CI) `objects.githubusercontent.com`
-# недоступен, тогда как обычный `docker pull minio/mc` проходит через реестр Docker Hub.
-COPY --from=mc /usr/bin/mc /usr/local/bin/mc
+# S3 client (`mc`) for ILM bucket lifecycle rules (`ai:storage:lifecycle`); the project has no
+# S3 SDK. The binary is copied from the pinned object-storage image instead of being downloaded
+# from GitHub releases. MinIO's own images were removed from Docker Hub, so the source is the
+# maintained MinIO-compatible Silo image; its `mc` is a symlink to `mcli`.
+COPY --from=mc /usr/bin/mcli /usr/local/bin/mc
 
 WORKDIR /var/www/html
 
