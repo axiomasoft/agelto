@@ -125,3 +125,36 @@ Workflow запускается на pull request, push в `main`, по расп
 ветки. Сейчас все прогоны в организации падают за 2 секунды из-за биллинга GitHub Actions
 («recent account payments have failed or your spending limit needs to be increased»). Пока
 биллинг не восстановлен, CI на ветке недоступен.
+
+## Стабильность тестов
+
+### Падения, которые уже есть в `main`
+
+На стенде (PHP 8.6, PostgreSQL 19, Redis 8.12) полный прогон четырёх шардов даёт 64 падения в
+31 файле. Те же файлы прогнаны на коде и `composer.lock` из `main` (`c8bd595d`, Filament 5.8.4,
+Guzzle 7) в том же окружении: падают те же тесты с теми же сообщениями. Значит, это не регрессия
+ветки и не следствие обновления Filament или Guzzle. Большая часть появилась после интеграции
+Proxyma: код изменился, тесты не обновили.
+
+| Группа | Файлы | Причина |
+| --- | --- | --- |
+| Хранилище и источники | `StorageAddressingGateTest`, `CsvSourceMethodTest`, `AuditRemediationTest`, `CardCollectDetailsTest`, `CrawlRunJobTest`, `EisListingReliabilityTest`, `BudgetExhaustionTest`, `ArchiveWindowScannerTest` | класс `BoundedResponseReader` удалён, `fetch` теперь возвращает `FetchItemRejected`, `LocalEstimateSourcePreparer` читает конфигурацию диска, сигнатура `DownloadFixtures::handler()` изменилась |
+| Proxyma и сеть | `ProviderJointSendTest`, `ProxymaUiAuthorityTest`, `SupplementalDaemonWiringTest`, `BlockedProviderRecoveryTest`, `RecoveryReconcileConcurrencyTest`, `MultiProcessPipelineE2eTest`, `DaemonRedisLossAcceptanceTest`, `HorizonPipelineTest`, `LoadTest` | SSRF-запрет приватных прокси (`Proxy address denied`), новый секрет `proxyma_wire_digest_key`, `TransportBlocked configuration_hold`, `reconcile_category_failed` |
+| Панель | `AdminRouteInventoryTest`, `NavigationLabelsTest`, `TrainingUiIndependenceTest`, `LlmRouteResourceTest`, `PlatformUiRegistryTest` | добавлены страницы Proxyma (66 маршрутов вместо 61), меню и бюджет запросов не обновлены |
+| Готовность и консоль | `ApplicationReadinessTest` (20), `ReleaseReadinessDiagnosticsTest`, `CreateInitialAdminTest`, `FreshCrawlerScheduleTest`, `VerifyFreshBoundaryTest`, `RefreshCyclesTest` | проверки готовности учитывают Proxyma, `remainingBudgetMs` отсутствует и в `main` |
+| Прочее | `AcceptanceManifestTest`, `ProjectionRetentionTest`, `SourceControlPolicyTest` | манифест сценариев и политика источников не догнали код |
+
+Ветка исправила два таких теста, потому что они мешали прогону: зависание
+`StatusMappingApplicabilityMigrationTest` (шард не завершался) и `FilamentSchemaContractTest`.
+Остальные исправления меняют ожидания сценариев, закреплённых в манифесте process-core. Решать,
+какое поведение правильное, должен владелец Proxyma-интеграции. Предлагается отдельная ветка на
+каждую группу таблицы, начиная с «Хранилище и источники»: там удалённые классы, а не спорное
+поведение.
+
+### Мажорные версии Guzzle 8, PSR-7 3 и Filament 5.12
+
+`build(deps)` поднял мажоры Guzzle, `guzzlehttp/psr7`, `guzzlehttp/promises` и `brick/math`, а
+также Filament до 5.12. Сравнение выше не нашло ни одного теста, который падает только из-за них.
+Рекомендация: оставить. Если владелец хочет минимальный риск перед релизом, можно закрепить
+`guzzlehttp/guzzle:^7.15` и `filament/filament:5.8.*` одним коммитом. Laravel 13 допускает обе
+ветки Guzzle.
