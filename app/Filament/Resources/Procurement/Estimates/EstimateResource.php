@@ -1,0 +1,94 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Filament\Resources\Procurement\Estimates;
+
+use App\Filament\Resources\Procurement\Estimates\Pages\ListEstimates;
+use App\Filament\Resources\Procurement\Estimates\Pages\ViewEstimate;
+use App\Filament\Resources\Procurement\Estimates\RelationManagers\ItemsRelationManager;
+use App\Filament\Resources\Procurement\Estimates\Schemas\EstimateInfolist;
+use App\Filament\Resources\Procurement\Estimates\Tables\EstimatesTable;
+use App\Models\Procurement\Estimate\Estimate;
+use AzGuard\Filament\Concerns\AuthorizesResource;
+use BackedEnum;
+use Filament\Resources\Resource;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * Read-only витрина смет с причинами неопределённости позиций. Доступны index и view;
+ * create, edit и delete отсутствуют.
+ */
+class EstimateResource extends Resource
+{
+    use AuthorizesResource;
+
+    protected static ?string $azguardKey = 'estimate';
+
+    protected static ?string $model = Estimate::class;
+
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTableCells;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'Закупки';
+
+    protected static ?int $navigationSort = 20;
+
+    protected static ?string $navigationLabel = 'Сметы';
+
+    protected static ?string $modelLabel = 'смета';
+
+    protected static ?string $pluralModelLabel = 'сметы';
+
+    public static function infolist(Schema $schema): Schema
+    {
+        return EstimateInfolist::configure($schema);
+    }
+
+    public static function table(Table $table): Table
+    {
+        return EstimatesTable::configure($table);
+    }
+
+    // Счётчик "помечено N из M" — агрегатом в основном запросе (withCount), не выборкой позиций
+    // в цикле: список открывается константным числом запросов
+    // независимо от числа позиций в смете.
+    /**
+     * @param  Builder<Model>  $query
+     * @return Builder<Model>
+     */
+    protected static function modifyEloquentQuery(Builder $query): Builder
+    {
+        /** @var Builder<Estimate> $baseQuery */
+        $baseQuery = $query;
+
+        // Eloquent builder calls mutate and return the same instance, so the scoped query is $query itself.
+        $baseQuery
+            ->publicPlatform()
+            ->with(['procurement.registry.platform', 'documentVersion.document', 'analysis'])
+            ->withCount([
+                'items as items_count',
+                'items as marked_items_count' => fn (Builder $query): Builder => $query->whereNotNull('quality'),
+            ]);
+
+        return $query;
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            ItemsRelationManager::class,
+        ];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => ListEstimates::route('/'),
+            'view' => ViewEstimate::route('/{record}'),
+        ];
+    }
+}

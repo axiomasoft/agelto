@@ -1,0 +1,7 @@
+# pgsty/silo is a MinIO fork whose silo binary still reports the upstream Go module
+# github.com/minio/minio, so Trivy matches upstream advisories by module path.
+# Re-check each entry when the Silo pin changes; every entry expires so it cannot linger.
+
+# S3 Select record-size DoS. Fixed in Silo RELEASE.2026-04-17 and completed in RELEASE.2026-06-18
+# (commits 3252d5b, fd69c89): https://silo.pgsty.com/blog/security/cve-2026-39414/
+CVE-2026-39414 exp:2027-05-31

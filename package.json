@@ -1,0 +1,23 @@
+{
+    "$schema": "https://www.schemastore.org/package.json",
+    "private": true,
+    "type": "module",
+    "packageManager": "pnpm@12.23.0",
+    "scripts": {
+        "build": "vite build",
+        "documentation:build": "node scripts/documentation/build.mjs",
+        "documentation:verify": "node scripts/documentation/verify-dist.mjs var/private-documentation/site var/private-documentation/manifest.json",
+        "dev": "vite",
+        "test:e2e": "playwright test"
+    },
+    "devDependencies": {
+        "@playwright/test": "1.65.1",
+        "@tailwindcss/vite": "^4.3.5",
+        "axios": "^1.21.1",
+        "concurrently": "^10.0.7",
+        "laravel-vite-plugin": "^2.1.0",
+        "tailwindcss": "^4.3.5",
+        "vite": "catalog:",
+        "vitepress": "1.6.4"
+    }
+}

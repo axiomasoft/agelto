@@ -1,0 +1,74 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Enums\Procurement\Process\AcquisitionKind;
+use App\Models\Procurement\Crawler\Proxy;
+use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
+use App\Services\Procurement\Acquisition\AcquisitionProfiles;
+use App\Services\Procurement\Acquisition\AcquisitionScheduler;
+use App\Services\Procurement\Process\ProcessTransaction;
+use App\Services\Procurement\Proxy\ProxyBindingResolver;
+use Database\Factories\Platforms\Eis\EisCrawlerFactory;
+use Illuminate\Support\Facades\DB;
+use Tests\Support\ProcessCore\AcquisitionProfileFixtures as F;
+use Tests\Support\ProcessCore\LedgerFixtures;
+use Tests\Support\ProcessCore\ListingFixtures;
+
+beforeEach(fn () => ListingFixtures::bind());
+
+test('fresh work pins route access and does not adopt a profile edit between blocks', function (): void {
+    $profile = F::create();
+    $profiles = app(AcquisitionProfiles::class);
+    $launch = $profiles->prepare($profile, AcquisitionKind::Fresh);
+    $producer = app(AcquisitionScheduler::class);
+    $command = LedgerFixtures::uuid();
+    $run = $producer->manual($launch, $command, null);
+    $work = DB::table('prc_process_work')->sole();
+    $before = F::workSnapshot($work->id);
+    app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile('settings.changed'));
+    $newRoute = DB::table('prc_network_route_profiles')->where('profile_key', 'settings.changed')->sole()->id;
+    $profile->update(['route_profile_id' => $newRoute]);
+    $next = $profiles->prepare($profile, AcquisitionKind::Fresh);
+    expect($next->accessPolicyHash->hex)->not->toBe($launch->accessPolicyHash->hex)
+        ->and(F::workSnapshot($work->id))->toBe($before)
+        ->and(json_decode(DB::table('prc_process_runs')->where('id', $run->value)->value('configuration_snapshot'), true)['route_profile_id'])
+        ->toBe($launch->configuration->json === null ? null : json_decode($launch->configuration->json, true)['route_profile_id']);
+    expect($producer->manual($launch, $command, null)->value)->toBe($run->value);
+    expect(fn () => $producer->manual($launch, LedgerFixtures::uuid(), null))
+        ->toThrow(InvalidArgumentException::class);
+});
+
+test('archive continuation retains immutable route snapshot while a new launch uses the edited profile', function (): void {
+    $profile = F::create(AcquisitionKind::Archive);
+    $profiles = app(AcquisitionProfiles::class);
+    $from = new DateTimeImmutable('2024-01-01');
+    $through = new DateTimeImmutable('2025-03-01');
+    $original = $profiles->prepare($profile, AcquisitionKind::Archive, $from, $through);
+    expect($original->plan->continuation)->not->toBeNull();
+    $run = app(AcquisitionScheduler::class)->manual($original, LedgerFixtures::uuid(), null);
+    $stored = DB::table('prc_process_runs')->where('id', $run->value)->value('configuration_snapshot');
+    app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile('settings.archive'));
+    $profile->update(['route_profile_id' => DB::table('prc_network_route_profiles')->where('profile_key', 'settings.archive')->sole()->id]);
+    $next = $profiles->prepare($profile, AcquisitionKind::Archive, $from, $through);
+    expect($next->accessPolicyHash->hex)->not->toBe($original->accessPolicyHash->hex)
+        ->and(DB::table('prc_process_runs')->where('id', $run->value)->value('configuration_snapshot'))->toBe($stored)
+        ->and(json_decode($stored, true)['route_profile_id'])->not->toBe($profile->route_profile_id)
+        ->and($next->plan->continuation->cursor)->toEqual($original->plan->continuation->cursor);
+});
+
+test('фабрика по умолчанию сохраняет default-профиль, а withProxies задаёт profile mode', function (): void {
+    $direct = EisCrawlerFactory::new()->create();
+    $proxy = Proxy::factory()->create();
+    $profile = EisCrawlerFactory::new()->withProxies($proxy)->create();
+    expect($direct->route_profile_id)->toBeNull()->and($profile->route_profile_id)->not->toBeNull()
+        ->and(array_values(app(ProxyBindingResolver::class)->forCrawler($profile)->bindings)[0]->id->value)->toBe($proxy->route_id);
+});
+
+test('профиль с включёнными прокси без явной привязки не сохраняется', function (): void {
+    app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile('settings.empty'));
+    $route = DB::table('prc_network_route_profiles')->where('profile_key', 'settings.empty')->sole();
+    $profile = EisCrawlerFactory::new()->create(['route_profile_id' => $route->id]);
+    expect(app(ProxyBindingResolver::class)->forCrawler($profile)->bindings)->toBe([])
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0);
+});

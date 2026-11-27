@@ -1,0 +1,78 @@
+# Локальные переопределения Docker Compose (не коммитятся).
+#
+# Скопируйте в корень репозитория:
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+#
+# Когда нужен:
+# - Permission denied на storage/app, storage/logs, vendor (bind-mount, не именованный
+#   volume — особенно после composer install/require с хоста) — serversideup/php:8.4-fpm-nginx
+#   не ремаппит www-data под host uid (PUID/PGID здесь не работают, см. комментарий в
+#   docker-compose.yml), разовый фикс:
+#     docker compose exec -u root app chown -R www-data:www-data storage vendor
+# - WSL2 / Linux + будущий Vite dev-сервис (появится в Фазе 7) — тот же приём для
+#   node_modules/resources/js/wayfinder, если понадобится запуск от uid хоста:
+#     services: { vite: { user: "1000:1000" } }
+#
+# На «чистом» Linux без override стек работает как www-data — файл не обязателен.
+#
+# --------------------------------------------------------------------------------------------
+# GlitchTip (error-tracking) — опциональный self-hosted стек под sentry-laravel SDK
+# (`config/sentry.php`, `SENTRY_LARAVEL_DSN`). Прод-хост/домен — открытый вопрос владельца
+# (handoff.md); ниже иллюстративный локальный запуск для dev-проверки SDK end-to-end
+# (research/J §1: ~4 контейнера, ~512 MB RAM, MIT). Раскомментируйте блок, поднимите:
+#   docker compose --env-file .env --env-file .env.docker -f docker-compose.yml \
+#     -f docker-compose.override.yml up -d glitchtip-postgres glitchtip-redis \
+#     glitchtip-migrate glitchtip-web glitchtip-worker
+# затем SENTRY_LARAVEL_DSN=http://<ключ>@localhost:8000/<project_id> в .env.
+# Официальный образ/актуальный docker-compose.yml — https://glitchtip.com/documentation/install.
+#
+# services:
+#   glitchtip-postgres:
+#     image: postgres:19-alpine
+#     restart: unless-stopped
+#     volumes:
+#       - glitchtip_postgres_data:/var/lib/postgresql/data
+#     environment:
+#       POSTGRES_DB: glitchtip
+#       POSTGRES_PASSWORD: glitchtip
+#     networks: [agelto_network]
+#
+#   glitchtip-redis:
+#     image: redis:8.12-alpine
+#     restart: unless-stopped
+#     networks: [agelto_network]
+#
+#   glitchtip-migrate:
+#     image: glitchtip/glitchtip:latest
+#     command: ["./manage.py", "migrate"]
+#     environment: &glitchtip_env
+#       DATABASE_URL: postgres://postgres:glitchtip@glitchtip-postgres:5432/glitchtip
+#       REDIS_URL: redis://glitchtip-redis:6379/0
+#       SECRET_KEY: change-me-dev-only
+#       PORT: 8000
+#       EMAIL_URL: consolemail://
+#       GLITCHTIP_DOMAIN: http://localhost:8000
+#       DEFAULT_FROM_EMAIL: glitchtip@localhost
+#       CELERY_WORKER_AUTOSCALE: "1,1"
+#       ENABLE_OPEN_USER_REGISTRATION: "false"
+#     depends_on: [glitchtip-postgres, glitchtip-redis]
+#     networks: [agelto_network]
+#
+#   glitchtip-web:
+#     image: glitchtip/glitchtip:latest
+#     restart: unless-stopped
+#     ports: ["127.0.0.1:8000:8000"]
+#     environment: *glitchtip_env
+#     depends_on: [glitchtip-migrate]
+#     networks: [agelto_network]
+#
+#   glitchtip-worker:
+#     image: glitchtip/glitchtip:latest
+#     restart: unless-stopped
+#     command: ["./bin/run-celery-with-beat.sh"]
+#     environment: *glitchtip_env
+#     depends_on: [glitchtip-migrate]
+#     networks: [agelto_network]
+#
+# volumes:
+#   glitchtip_postgres_data:

@@ -1,0 +1,8 @@
+{
+    "document_type": "estimate",
+    "confidence": 1.0,
+    "summary": "Единственный источник машинно-точного gold (D2) и единственная смета РЕСУРСНЫМ методом: контейнер ГрандСметы с Data.xml и паспортом в windows-1251",
+    "estimate_cardinality": "single",
+    "tags": [],
+    "classification_note": null
+}

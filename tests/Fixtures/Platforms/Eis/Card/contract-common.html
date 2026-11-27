@@ -1,0 +1,195 @@
+<a class="cardMainInfo__purchaseLink">№ 00042</a><div class="cardMainInfo__purchaseObject">Работы</div><div class="cardMainInfo__state">Подача заявок</div><!--
+Реальный HTML вкладки common-info (P4.14, живая проба P4.13): prc_procurements id=18151,
+regNumber 0338200009125000001, снято 2026-08-05 (plans/2026.07.31-SYS-INTEGRITY/artifacts/
+eis-card-html/common-info.html, 170 418 байт, обезличено ДО коммита артефакта — ФИО/email/
+телефон должностного лица заменены на нейтральные плейсхолдеры, findings/P4-card-layout.md §1).
+Усечено до блоков, которые реально читает CommonInfoParser (ИКЗ, площадка, контактное лицо,
+финансирование, объект закупки) — раскладка везде одна: `section.blockInfo__section` >
+`span.section__title` + `span.section__info`, БЕЗ `dt`/`dd` (это опровергнутая гипотеза старой
+раскладки, research/10-p4-remediation.md §3.7). `organizations-block`/`table.parties-table`
+(старая цель PartiesParser) на реальной странице ОТСУТСТВУЕТ целиком — этого блока в фикстуре
+намеренно нет (см. Pending Work item'а P4.14, [UNVERIFIED]).
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<body>
+<div class="notice-info">
+
+<section class="blockInfo__section section">
+    <span class="section__title">Идентификационный код закупки (ИКЗ)</span>
+    <span class="section__info">
+        252410001365041010100100020011811244<br>
+    </span>
+</section>
+
+<section class="blockInfo__section section">
+    <span class="section__title">Наименование электронной площадки в информационно-телекоммуникационной сети «Интернет»</span>
+    <span class="section__info">АО «Сбербанк-АСТ»</span>
+</section>
+
+<section class="blockInfo__section section">
+    <span class="section__title">Адрес электронной площадки в информационно-телекоммуникационной сети «Интернет»</span>
+    <span class="section__info">
+        <a href="http://www.sberbank-ast.ru" target="_blank">
+            http://www.sberbank-ast.ru
+        </a>
+    </span>
+</section>
+
+<section class="blockInfo__section section">
+    <span class="section__title">Ответственное должностное лицо</span>
+    <span class="section__info">
+        Иванов И. И.<br>
+    </span>
+</section>
+
+<section class="blockInfo__section section">
+    <span class="section__title">Адрес электронной почты</span>
+    <span class="section__info">
+        responsible-official@example.invalid
+    </span>
+</section>
+
+<section class="blockInfo__section">
+    <span class="section__title">Финансовое обеспечение закупки (всего)</span>
+
+    <table class="blockInfo__table tableBlock">
+        <tbody>
+        <tr class="tableBlock__row">
+            <th class="table__header-item table__row-item table-head-text tableBlock__col_right" style="width: 12%">
+                На 2025 год, ₽
+            </th>
+            <th class="table__header-item table__row-item table-head-text tableBlock__col_right">
+                На 2026 год, ₽
+            </th>
+            <th class="table__header-item table__row-item table-head-text tableBlock__col_right">
+                На 2027 год, ₽
+            </th>
+            <th class="table__header-item table__row-item table-head-text tableBlock__col_right">На Последующие годы, ₽</th>
+            <th class="table__row-item table-head-text tableBlock__col_right">Всего, ₽</th>
+        </tr>
+        <tr>
+            <td class="table__row-item normal-text tableBlock__col_right">
+                597 960,00
+            </td>
+            <td class="table__row-item normal-text tableBlock__col_right">
+                0,00
+            </td>
+            <td class="table__row-item normal-text tableBlock__col_right">
+                0,00
+            </td>
+            <td class="table__row-item normal-text tableBlock__col_right">
+                0,00
+            </td>
+            <td class="table__row-item normal-text tableBlock__col_right">
+                597 960,00
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <br>
+
+    <span class="section__title">За счет внебюджетных средств</span>
+
+    <div id="extraBudgetTableInnerHtml">
+        <table class="blockInfo__table tableBlock">
+            <tbody>
+            <tr class="tableBlock__row">
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_left"></th>
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_right">На 2025 год, ₽</th>
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_right">На 2026 год, ₽</th>
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_right">На 2027 год, ₽</th>
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_right">На Последующие годы, ₽</th>
+                <th class="table__row-item table-head-text tableBlock__col_right">Всего, ₽</th>
+            </tr>
+            <tr>
+                <td class="table__row-item normal-text tableBlock__col_left"></td>
+                <td class="table__row-item normal-text tableBlock__col_right">597 960,00</td>
+                <td class="table__row-item normal-text tableBlock__col_right">0,00</td>
+                <td class="table__row-item normal-text tableBlock__col_right">0,00</td>
+                <td class="table__row-item normal-text tableBlock__col_right">0,00</td>
+                <td class="table__row-item normal-text tableBlock__col_right">597 960,00</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <br>
+
+    <span class="section__title">Детализация по кодам видов расходов</span>
+
+    <div id="kvrCodeTableInnerHtml">
+        <table class="blockInfo__table tableBlock">
+            <tbody>
+            <tr class="tableBlock__row">
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_left">Код видов расходов</th>
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_right">На 2025 год, ₽</th>
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_right">На 2026 год, ₽</th>
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_right">На 2027 год, ₽</th>
+                <th class="table__header-item table__row-item table-head-text tableBlock__col_right">На Последующие годы, ₽</th>
+                <th class="table__row-item table-head-text tableBlock__col_right">Всего, ₽</th>
+            </tr>
+            <tr>
+                <td class="table__row-item normal-text tableBlock__col_left">244</td>
+                <td class="table__row-item normal-text tableBlock__col_right">597 960,00</td>
+                <td class="table__row-item normal-text tableBlock__col_right">0,00</td>
+                <td class="table__row-item normal-text tableBlock__col_right">0,00</td>
+                <td class="table__row-item normal-text tableBlock__col_right">0,00</td>
+                <td class="table__row-item normal-text tableBlock__col_right">597 960,00</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<div class="container" id="positionKTRU">
+    <div class="row blockInfo">
+        <div class="col">
+            <h2 class="blockInfo__title">Информация об объекте закупки</h2>
+
+            <div id="purchaseObjectTruTable1">
+                <table class="blockInfo__table tableBlock">
+                    <thead>
+                    <tr class="tableBlock__row">
+                        <td>&nbsp;</td>
+                        <th class="tableBlock__col tableBlock__col_header">Код позиции</th>
+                        <th class="tableBlock__col tableBlock__col_header">Наименование товара, работы, услуги</th>
+                        <th class="tableBlock__col tableBlock__col_header">Ед. измерения</th>
+                        <th class="tableBlock__col tableBlock__col_header">Количество (объем работы, услуги)</th>
+                        <th class="tableBlock__col tableBlock__col_header tableBlock__col_right">Цена за ед., ₽</th>
+                        <th class="tableBlock__col tableBlock__col_header tableBlock__col_right">Стоимость, ₽</th>
+                    </tr>
+                    </thead>
+                    <tbody class="tableBlock__body">
+                    <tr class="tableBlock__row">
+                        <td class="tableBlock__col"></td>
+                        <td class="tableBlock__col">
+                            18.11.10.000
+                            <br>
+                        </td>
+                        <td class="tableBlock__col">
+                            оказание услуг по информационному сопровождению и освещению в средствах массовой информации мероприятий санитарно-просветительской и профилактической направленности в ГБУЗ «Камчатский краевой кожно-венерологический диспансер»
+                        </td>
+                        <td class="tableBlock__col">Квадратный сантиметр</td>
+                        <td class="tableBlock__col">10 872,00</td>
+                        <td class="tableBlock__col tableBlock__col_right">55,00</td>
+                        <td class="tableBlock__col tableBlock__col_right">597 960,00</td>
+                    </tr>
+                    </tbody>
+                    <tfoot class="tableBlock__foot">
+                    <tr class="tableBlock__row">
+                        <td colspan="7" class="tableBlock__col tableBlock__col_right">
+                            <span class="tableBlock__resultTitle">Итого (1 записей):</span>
+                            <span class="cost">597 960,00 ₽</span>
+                        </td>
+                    </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+</body>
+</html>
+<section class="organizations-block"><table class="parties-table"><tbody></tbody></table></section><!-- fixture-private-body -->

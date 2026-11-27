@@ -1,0 +1,11 @@
+{
+  "data-root": "/var/lib/docker",
+  "live-restore": true,
+  "log-driver": "local",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "5"
+  },
+  "iptables": true,
+  "ip6tables": true
+}

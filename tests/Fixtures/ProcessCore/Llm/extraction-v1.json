@@ -1,0 +1,14 @@
+{
+  "rows": [
+    {"estimate_ordinal":1,"source_anchor":"p0:r0","page_index":0,"row":{"row_index":0,"row_type":"item","name":"Точная цена","unit":"шт","quantity":"1","unit_price_curr":"9007199254740993.01","total_price_curr":"9007199254740993.01"}},
+    {"estimate_ordinal":1,"source_anchor":"p0:r1","page_index":0,"row":{"row_index":1,"row_type":"item","name":"Неизвестное количество","unit":"м","quantity":null,"unit_price_curr":null,"total_price_curr":null}}
+  ],
+  "totals": [
+    {"estimate_ordinal":1,"node_id":"n0","parent_id":null,"source_anchor":"p0:r0","label":"Итого","value":"9007199254740993.01"},
+    {"estimate_ordinal":1,"node_id":"n1","parent_id":"n0","source_anchor":"p0:r0","label":"Уровень 1","value":null},
+    {"estimate_ordinal":1,"node_id":"n2","parent_id":"n1","source_anchor":"p0:r0","label":"Уровень 2","value":null},
+    {"estimate_ordinal":1,"node_id":"n3","parent_id":"n2","source_anchor":"p0:r0","label":"Уровень 3","value":null},
+    {"estimate_ordinal":1,"node_id":"n4","parent_id":"n3","source_anchor":"p0:r0","label":"Уровень 4","value":null},
+    {"estimate_ordinal":1,"node_id":"n5","parent_id":"n4","source_anchor":"p0:r0","label":"Уровень 5","value":null}
+  ]
+}

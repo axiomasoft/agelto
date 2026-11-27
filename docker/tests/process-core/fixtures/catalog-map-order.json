@@ -1,0 +1,39 @@
+{
+  "provenance": {
+    "source": "tests/Support/ProcessCore/catalog.sql",
+    "database": "agelto_test",
+    "project": "agelto_core_test",
+    "server_version": "17.11 (Debian 17.11-1.pgdg13+2)",
+    "capture": "2026-10-24",
+    "purpose": "SQL projection key order, unchanged field values"
+  },
+  "columns": [
+    {
+      "table_schema": "public",
+      "table_name": "cache",
+      "column_name": "key",
+      "ordinal_position": 1,
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "is_nullable": "NO",
+      "column_default": null
+    }
+  ],
+  "constraints": [
+    {
+      "schema": "public",
+      "table_name": "cache",
+      "name": "cache_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (key)"
+    }
+  ],
+  "indexes": [
+    {
+      "schemaname": "public",
+      "tablename": "cache",
+      "indexname": "cache_pkey",
+      "indexdef": "CREATE UNIQUE INDEX cache_pkey ON public.cache USING btree (key)"
+    }
+  ]
+}

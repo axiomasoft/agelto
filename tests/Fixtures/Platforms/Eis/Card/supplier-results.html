@@ -1,0 +1,54 @@
+<!--
+Реальный HTML вкладки supplier-results (P4.14, живая проба P4.13): prc_procurements id=18151,
+regNumber 0338200009125000001, снято 2026-08-05 (plans/2026.07.31-SYS-INTEGRITY/artifacts/
+eis-card-html/supplier-results.html, 152 215 байт). Диагноз item'а P4.14: старые селекторы
+SupplierResultsParser (`div.supplier-results`, `dl`, `table.bids-table`) дают 0 совпадений — 0
+на всей странице (проверено `grep`/DomCrawler). Реальная вёрстка ушла на тот же паттерн
+`section.blockInfo__section`/`span.section__title`+`span.section__info` + `table.tableBlock`,
+что и common-info, НО эта КОНКРЕТНАЯ карточка — закупка, признанная НЕСОСТОЯВШЕЙСЯ (подана
+только одна заявка): поля — «Наименование протокола…», «Заказчик(и)…», «Основание признания
+торгов несостоявшимися», анонимизированные идентификаторы участников, БЕЗ полей
+«Победитель»/типового `Протокол X №Y от date`, которые ожидает `ProtocolData`/`BidData`/
+`AwardData`. Фактуры для success-пути (закупка с определённым победителем) нет ни на этой,
+ни на какой другой снятой карточке — правка парсера под ЭТУ фактуру запрещена Implementation
+Rules item'а P4.14 (п. 2/5): недостаточно факта для success-конструктора. Парсер оставлен
+нетронутым — [UNVERIFIED] в Pending Work. Усечено до диагностических секций (организация —
+публичное госучреждение, не персональные данные, обезличивания не требует); таблица
+анонимизированных идентификаторов участников опущена как не влияющая на диагноз.
+-->
+<!DOCTYPE html>
+<html lang="ru">
+<body>
+<div class="container">
+<section class="blockInfo__section section">
+    <span class="section__title">Наименование протокола определения поставщика (подрядчика, исполнителя)</span>
+    <span class="section__info">
+        <a href="/epz/order/notice/ea20/view/protocol/protocol-main-info.html?regNumber=0338200009125000001&amp;type=iea&amp;version=1" target="_blank">
+            Протокол подведения итогов определения поставщика (подрядчика, исполнителя) от 23.01.2025 №ИЭА
+        </a>
+    </span>
+</section>
+<section class="blockInfo__section section">
+    <span class="section__title">Заказчик(и), с которыми планируется заключить контракт</span>
+</section>
+<div id="supplier-def-result-customer-table-">
+    <table class="blockInfo__table tableBlock">
+        <thead>
+        <tr class="tableBlock__row">
+            <th class="tableBlock__col tableBlock__col_header">Заказчик(и), с которыми планируется заключить контракт</th>
+        </tr>
+        </thead>
+        <tbody class="tableBlock__body">
+        <tr class="tableBlock__row">
+            <td class="tableBlock__col">ГОСУДАРСТВЕННОЕ БЮДЖЕТНОЕ УЧРЕЖДЕНИЕ ЗДРАВООХРАНЕНИЯ "КАМЧАТСКИЙ КРАЕВОЙ КОЖНО-ВЕНЕРОЛОГИЧЕСКИЙ ДИСПАНСЕР"</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+<section class="blockInfo__section section">
+    <span class="section__title">Основание признания торгов несостоявшимися</span>
+    <span class="section__info">По окончании срока подачи заявок подана только одна заявка на участие в закупке (п. 1 ч. 1 ст. 52 Закона № 44-ФЗ). Заявка соответствует требованиям</span>
+</section>
+</div>
+</body>
+</html>

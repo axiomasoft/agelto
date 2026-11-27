@@ -1,0 +1,8 @@
+{
+    "document_type": "estimate",
+    "confidence": 1.0,
+    "summary": "Единственный представитель оконного пути: 132-МБ скан-PDF на 86 страниц без текстового слоя, несколько смет подряд — граница лимита запроса провайдера и вход discovery-сегментации",
+    "estimate_cardinality": "multiple",
+    "tags": [],
+    "classification_note": null
+}

@@ -1,0 +1,8 @@
+# Mandatory owner review for security-sensitive, runtime, and release-critical paths (V15)
+/.github/ @axiomasoft/owners @vostrikov
+/docker/ @axiomasoft/owners @vostrikov
+/docker-compose*.yml @axiomasoft/owners @vostrikov
+/config/ @axiomasoft/owners @vostrikov
+/app/Services/Procurement/Network/ @axiomasoft/owners @vostrikov
+/app/Services/Procurement/Process/ @axiomasoft/owners @vostrikov
+/app/Services/Llm/ @axiomasoft/owners @vostrikov

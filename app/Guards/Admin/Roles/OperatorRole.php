@@ -1,0 +1,151 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Guards\Admin\Roles;
+
+use App\Guards\Admin\Permissions\AiRoutePermission;
+use App\Guards\Admin\Permissions\AnalysisPermission;
+use App\Guards\Admin\Permissions\ControlScopePermission;
+use App\Guards\Admin\Permissions\CrawlerPermission;
+use App\Guards\Admin\Permissions\DatasetExamplePermission;
+use App\Guards\Admin\Permissions\EstimatePermission;
+use App\Guards\Admin\Permissions\FixturePermission;
+use App\Guards\Admin\Permissions\IncidentPermission;
+use App\Guards\Admin\Permissions\OperationLogPermission;
+use App\Guards\Admin\Permissions\PlatformCheckPermission;
+use App\Guards\Admin\Permissions\PlatformPermission;
+use App\Guards\Admin\Permissions\ProcessControlPermission;
+use App\Guards\Admin\Permissions\ProcessRunPermission;
+use App\Guards\Admin\Permissions\PromptPermission;
+use App\Guards\Admin\Permissions\PromptSuggestionPermission;
+use App\Guards\Admin\Permissions\ProviderPermission;
+use App\Guards\Admin\Permissions\ProxyPermission;
+use App\Guards\Admin\Permissions\RegistryPermission;
+use App\Guards\Admin\Permissions\StatusMappingPermission;
+use App\Guards\Admin\Permissions\WorkItemPermission;
+use AzGuard\Roles\BaseRole;
+use Override;
+use UnitEnum;
+
+/**
+ * Оператор: полный CRUD над операторской конфигурацией (площадки/реестры,
+ * краулеры/прокси, AI-провайдеры/роутинг/промпты/датасет).
+ * Управление прогонами (Run.update) и доступ к ролям/грантам НЕ входят.
+ */
+final class OperatorRole extends BaseRole
+{
+    #[Override]
+    public function key(): string
+    {
+        return 'operator';
+    }
+
+    #[Override]
+    public function label(): string
+    {
+        return 'Оператор';
+    }
+
+    #[Override]
+    public function level(): int
+    {
+        return 100;
+    }
+
+    /** @return list<UnitEnum> */
+    #[Override]
+    public function permissions(): array
+    {
+        return [
+            ...$this->crud(PlatformPermission::class),
+            ...$this->crud(RegistryPermission::class),
+            ...$this->crud(CrawlerPermission::class),
+            ...$this->crud(ProxyPermission::class),
+            ...$this->crud(ProviderPermission::class),
+            ...$this->crud(AiRoutePermission::class),
+            ...$this->crud(PromptPermission::class),
+            ...$this->crud(DatasetExamplePermission::class),
+            // Прогоны: наблюдение + управление (возобновить/сброс), без create/delete.
+            OperationLogPermission::ViewAny,
+            OperationLogPermission::View,
+            // AI-анализы: операторский цикл (проверено/коррекция/re-run) — наблюдение +
+            // Update (действия карточки авторизуются через `update`, ResourceGate-конвенция),
+            // без delete (пайплайн не удаляет анализы сам). Create — право ЗАПУСКА
+            // прогона с карточки эталона, проверяется строкой ability, не абилкой ресурса анализов.
+            AnalysisPermission::ViewAny,
+            AnalysisPermission::View,
+            AnalysisPermission::Create,
+            AnalysisPermission::Update,
+            // Реестр эталонов обучающего контура: загрузка и правка карточки,
+            // без Delete (эталон удаляется вместе с записью манифеста — консольная операция).
+            FixturePermission::ViewAny,
+            FixturePermission::View,
+            FixturePermission::Create,
+            FixturePermission::Update,
+            // Очередь предложений по промтам: только ЧТЕНИЕ. Update — это апрув
+            // патча, меняющего поведение модели на всех документах; решение о тексте системной
+            // инструкции остаётся владельческим (суперадмин), оператору не выдаётся.
+            PromptSuggestionPermission::ViewAny,
+            PromptSuggestionPermission::View,
+            // Витрина смет с пометками неопределённости: read-only ресурс,
+            // create/edit/delete-страниц у него нет — грант ограничен просмотром.
+            EstimatePermission::ViewAny,
+            EstimatePermission::View,
+            // История healthcheck: только чтение — витрина не меняет ни ожидания, ни факт.
+            PlatformCheckPermission::ViewAny,
+            PlatformCheckPermission::View,
+            ProcessControlPermission::ValidateAdapter,
+            ProcessControlPermission::LaunchRun,
+            ProcessControlPermission::RetryFailedItem,
+            // Legacy incidents remain readable until the incident UI cutover.
+            // Матрица статусов ЕИС: оператор читает пары и исправляет только канонический исход;
+            // новые натуральные ключи создаёт исключительно StatusMappingService::resolve().
+            StatusMappingPermission::ViewAny,
+            StatusMappingPermission::View,
+            StatusMappingPermission::Update,
+            // Process-ядро: наблюдение и typed-команды pause/resume/cancel/acknowledge. RetryHandlerFault
+            // (новый budget для дефектного handler) оператору не выдаётся — только суперадмину.
+            ControlScopePermission::ViewAny,
+            ControlScopePermission::View,
+            IncidentPermission::ViewAny,
+            IncidentPermission::View,
+            ProcessRunPermission::ViewAny,
+            ProcessRunPermission::View,
+            WorkItemPermission::ViewAny,
+            WorkItemPermission::View,
+            ProcessControlPermission::ViewAny,
+            ProcessControlPermission::View,
+            ProcessControlPermission::PauseScope,
+            ProcessControlPermission::ResumeScope,
+            ProcessControlPermission::CancelWork,
+            ProcessControlPermission::CancelRun,
+            ProcessControlPermission::AcknowledgeIncident,
+            ProcessControlPermission::DashboardPageView,
+            ProcessControlPermission::FinalPromptPageView,
+            ProcessControlPermission::NetworkRouteProfilesPageView,
+            ProcessControlPermission::PromptCompositionPageView,
+            ProcessControlPermission::LlmSpendChartWidgetView,
+        ];
+    }
+
+    /**
+     * Стандартный CRUD-набор одного ресурса (без restore/forceDelete/replicate/reorder).
+     *
+     * @param  class-string<UnitEnum>  $enum
+     * @return list<UnitEnum>
+     */
+    private function crud(string $enum): array
+    {
+        /** @var list<UnitEnum> $permissions */
+        $permissions = [
+            $enum::ViewAny,
+            $enum::View,
+            $enum::Create,
+            $enum::Update,
+            $enum::Delete,
+        ];
+
+        return $permissions;
+    }
+}

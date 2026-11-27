@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Agelto backup freshness hourly
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5m
+Persistent=true
+Unit=agelto-backup-watchdog.service
+
+[Install]
+WantedBy=timers.target

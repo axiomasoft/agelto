@@ -1,0 +1,93 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Actions\Procurement\Crawler;
+
+use App\Exceptions\Procurement\Process\DependencyUnavailable;
+use App\Models\Procurement\Crawler\RawArtifact;
+use App\Services\Procurement\Process\Diagnostics\RawArtifactRetention;
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use League\Flysystem\FilesystemException;
+
+/** Stores one content-addressed raw fetch object without allowing an overwrite. */
+final readonly class StoreRawFetchArtifactAction
+{
+    /**
+     * @param  array<string, mixed>  $requestIdentity
+     */
+    public function execute(string $disk, string $prefix, array $requestIdentity, string $contents, string $extension): string
+    {
+        $identityHash = hash('sha256', $this->canonicalJson($requestIdentity));
+        $contentHash = hash('sha256', $contents);
+        $path = "{$prefix}/{$identityHash}/{$contentHash}.{$extension}";
+
+        return RawArtifactRetention::withAddress($disk, $path, function () use ($disk, $path, $contents, $contentHash): string {
+            DB::table((new RawArtifact)->getTable())->upsert([
+                ['id' => hash('sha256', $disk.':'.$path), 'disk' => $disk, 'path' => $path, 'last_seen_at' => now()],
+            ], ['id'], ['last_seen_at' => DB::raw('GREATEST(prc_raw_artifacts.last_seen_at, EXCLUDED.last_seen_at)')]);
+            try {
+                return $this->write($disk, $path, $contents, $contentHash);
+            } catch (FilesystemException $failure) {
+                throw new DependencyUnavailable('raw_artifact_storage', $failure);
+            }
+        });
+    }
+
+    private function write(string $disk, string $path, string $contents, string $contentHash): string
+    {
+        $storage = Storage::disk($disk);
+
+        if ($storage->exists($path)) {
+            $this->verifyStoredContents(storage: $storage, path: $path, contentHash: $contentHash);
+
+            return $path;
+        }
+
+        if ($storage->put($path, $contents) !== true) {
+            throw new DependencyUnavailable('raw_artifact_storage');
+        }
+
+        $this->verifyStoredContents(storage: $storage, path: $path, contentHash: $contentHash);
+
+        return $path;
+    }
+
+    /** @param array<string, mixed> $value */
+    private function canonicalJson(array $value): string
+    {
+        return json_encode($this->sortRecursively($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+    }
+
+    /** @param array<mixed> $value
+     *  @return array<mixed> */
+    private function sortRecursively(array $value): array
+    {
+        foreach ($value as $key => $nested) {
+            if (is_array($nested)) {
+                $value[$key] = $this->sortRecursively($nested);
+            }
+        }
+
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        return $value;
+    }
+
+    private function verifyStoredContents(FilesystemAdapter $storage, string $path, string $contentHash): void
+    {
+        if (! $storage->exists($path)) {
+            throw new DependencyUnavailable('raw_artifact_storage');
+        }
+
+        $contents = $storage->get($path);
+
+        if (! is_string($contents) || hash('sha256', $contents) !== $contentHash) {
+            throw new DependencyUnavailable('raw_artifact_storage');
+        }
+    }
+}

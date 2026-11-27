@@ -1,0 +1,14 @@
+[Unit]
+Description=Deliver a redacted Agelto backup alert for %i
+ConditionPathExists=/etc/agelto/backup-alert-url
+
+[Service]
+Type=oneshot
+User=deploy
+Group=deploy
+UMask=0077
+ExecStart=/usr/local/bin/agelto-backup-alert apply --event %i --endpoint-file /etc/agelto/backup-alert-url --authority-file /etc/agelto/operator-rehearsal-authority
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

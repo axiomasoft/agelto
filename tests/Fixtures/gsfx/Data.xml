@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<Document ProgramVersion="15.3.5.55343" Generator="GrandSmeta">
+  <SimilarResGroups>
+    <Folder Caption="Тестовая группа"/>
+  </SimilarResGroups>
+  <VidRab_Catalog>
+    <Vids_Rab Type="Виды работ 2001г">
+      <VidRab_Group Caption="Общестроительные работы" ID="0">
+        <Vid_Rab Caption="Отделочные работы" ID="10025" Category="Construction" NrCode="Пр/812-015.0-1" SpCode="Пр/774-015.0" Nacl="90" Plan="47" NaclCurr="90" PlanCurr="47" NaclMask="ФОТ"/>
+      </VidRab_Group>
+    </Vids_Rab>
+    <Vids_Rab Type="Виды работ 1984г">
+      <VidRab_Group Caption="Ремонтные работы" ID="1">
+        <Vid_Rab Caption="Кровельные работы" ID="20001" Category="Construction"/>
+      </VidRab_Group>
+    </Vids_Rab>
+  </VidRab_Catalog>
+  <Indexes IndexesMode="None" IndexesLinkMode="Default">
+    <IndexesPos>
+      <Index Code="5" Caption="Индекс СМР" MT="1,98"/>
+      <Index Code="7" Caption="Индекс без значений"/>
+      <Index Code="9" Caption="Индекс пересечение (позиция)" MT="1,50"/>
+    </IndexesPos>
+    <IndexesRes>
+      <Index Code="2" Caption="Индекс воды" MT="1,75"/>
+      <Index Code="1133" Caption="Индекс механизмов" EM="2,05"/>
+      <Index Code="9" Caption="Индекс пересечение (ресурс)" EM="3,10"/>
+    </IndexesRes>
+  </Indexes>
+  <Koefficients>
+    <K Caption="К СМР в целом" Code="К-1" Options="InPos Base Curr" Value_OZ="1,08" Value_EM="1,03" Level="2" AllVidRabs="Yes"/>
+  </Koefficients>
+  <AddZatrats>
+    <AddZatrGlava Glava="8">
+      <AddZatr Caption="Временные здания и сооружения" Value="0,2" Options="Percent InSmr HideZero"/>
+    </AddZatrGlava>
+  </AddZatrats>
+  <Chapters>
+    <Chapter Caption="Раздел 1. Полы" SysID="1">
+      <Header Caption="Заголовок"/>
+      <Position Caption="Устройство стяжек цементных" SysID="1" Number="1" Code="ГЭСН11-01-011-01" Units="100 м2" Quantity="ОКР(10; 2)" Vr2001="10025">
+        <Quantity Fx="10" Precision="2" Result="10"/>
+        <Koefficients>
+          <K Caption="Зимнее удорожание" Options="Base Curr PzAll MatQty EmQty OzpTz ZpmTz" Value_OZ="1,15" Value_EM="1,10" Value_ZM="1,05" Value_MT="1,02" Level="1"/>
+        </Koefficients>
+        <Resources>
+          <Mat Caption="Вода" Code="01.7.03.01-0001" Units="м3" Quantity="3,5" IndexCode="2">
+            <PriceBase Value="35,71"/>
+            <PriceCurr Value="62,49"/>
+          </Mat>
+          <Mch Caption="Подъемники одномачтовые" Code="91.06.06-048" Units="маш.-ч" Quantity="1,27" IndexCode="1133">
+            <PriceBase Value="37,32"/>
+            <PriceCurr Value="66,43"/>
+            <Tzm2022 WorkClass="4" Quantity="1" Price="826,22"/>
+          </Mch>
+        </Resources>
+        <WorksList>
+          <Work Caption="Подготовка основания."/>
+        </WorksList>
+      </Position>
+      <Position Caption="Раствор готовый кладочный" SysID="2" Number="2" Code="ФСБЦ-04.3.01.09-0054" Units="м3" Quantity="ОКР(4,1514; 7)" IndexCode="5" Vr2001="20001">
+        <Quantity Fx="4,1514" Precision="7" Result="4,1514"/>
+        <PriceBase PZ="3404,62" MT="3404,62"/>
+        <PriceCurr MT="6741,15"/>
+      </Position>
+    </Chapter>
+  </Chapters>
+</Document>

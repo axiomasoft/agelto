@@ -1,0 +1,15 @@
+# pnpm 10+ reads settings from this file; the package.json "pnpm" field is ignored.
+catalog:
+  vite: ^7.3.8
+
+overrides:
+  '@vitejs/plugin-vue': 6.0.11
+  'concurrently>shell-quote': ^1.11.0
+  # One Vite for the app build and VitePress.
+  vite: 'catalog:'
+
+# esbuild's postinstall only re-checks the platform binary that pnpm already installs from
+# @esbuild/<platform>. pnpm 11+ fails an install on unapproved build scripts, so the choice
+# is explicit here.
+allowBuilds:
+  esbuild: false

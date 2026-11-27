@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "reviewed_at": "2026-11-02",
+  "sources": [
+    "https://generativelanguage.googleapis.com/$discovery/rest?version=v1beta",
+    "https://ai.google.dev/api/files",
+    "https://ai.google.dev/api/caching",
+    "https://ai.google.dev/gemini-api/docs/generate-content/caching"
+  ],
+  "limits": {
+    "file_lifetime_seconds": 172800,
+    "application_upload_bound_bytes": 8388608,
+    "auto_refresh": false,
+    "unknown_resend": false
+  },
+  "file": {
+    "file": {
+      "name": "files/p312-upload",
+      "uri": "https://generativelanguage.googleapis.com/v1beta/files/p312-upload",
+      "mimeType": "application/pdf",
+      "state": "ACTIVE",
+      "expirationTime": "2026-11-03T05:00:00Z"
+    }
+  },
+  "cache": {
+    "name": "cachedContents/p312-prefix",
+    "model": "models/fixture-model",
+    "expireTime": "2026-11-02T20:00:00Z",
+    "usageMetadata": {
+      "totalTokenCount": 2048
+    }
+  },
+  "wire": {
+    "upload": {
+      "method": "POST",
+      "path": "/upload/v1beta/files",
+      "protocol": "multipart"
+    },
+    "create": {
+      "method": "POST",
+      "path": "/v1beta/cachedContents"
+    },
+    "refresh": {
+      "method": "PATCH",
+      "query": "updateMask=ttl"
+    },
+    "lookup": {
+      "method": "GET",
+      "path": "/v1beta/files/p312-upload"
+    }
+  }
+}

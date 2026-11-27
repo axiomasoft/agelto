@@ -1,0 +1,134 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Repositories\Procurement;
+
+use App\Models\Procurement\Award;
+use App\Models\Procurement\Bid;
+use App\Models\Procurement\Financing;
+use App\Models\Procurement\Protocol;
+use App\Models\Procurement\PurchaseItem;
+use Illuminate\Support\Str;
+
+/**
+ * Запись detail-таблиц закупки (`prc_financing`, `prc_items`, `prc_protocols`,
+ * `prc_bids`, `prc_awards`) для tab-процессоров. Процессоры пишут через этот repository.
+ * У финансирования и позиций нет unique по естественному ключу: финансирование заменяется
+ * целиком, позиции используют updateOrCreate по составному ключу без ON CONFLICT.
+ */
+final readonly class ProcurementDetailStoreRepository
+{
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     */
+    public function replaceFinancing(int $procurementId, array $rows): void
+    {
+        Financing::query()->where('procurement_id', $procurementId)->delete();
+
+        foreach ($rows as $row) {
+            Financing::query()->create([...$row, 'procurement_id' => $procurementId]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function upsertItem(int $procurementId, array $attributes): void
+    {
+        PurchaseItem::query()->updateOrCreate(
+            [
+                'procurement_id' => $procurementId,
+                'position_number' => $attributes['position_number'],
+            ],
+            $attributes,
+        );
+    }
+
+    /** @param list<int> $positionNumbers */
+    public function deleteItemsMissingFromSnapshot(int $procurementId, array $positionNumbers): void
+    {
+        $query = PurchaseItem::query()->where('procurement_id', $procurementId);
+
+        if ($positionNumbers === []) {
+            $query->delete();
+
+            return;
+        }
+
+        $query->whereNotIn('position_number', $positionNumbers)->delete();
+    }
+
+    /**
+     * Upsert по естественному ключу `(procurement_id, source_number)`.
+     * `source_number` может быть `null` (протокол без явного номера в источнике) —
+     * тогда естественный ключ вырождается в «единственный протокол закупки без номера».
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function upsertProtocol(int $procurementId, ?string $sourceNumber, array $attributes): Protocol
+    {
+        return Protocol::query()->updateOrCreate(
+            [
+                'procurement_id' => $procurementId,
+                'source_number' => $sourceNumber,
+            ],
+            $attributes,
+        );
+    }
+
+    /**
+     * Upsert по `(procurement_id, protocol_id, organization_id)` — участник встречается
+     * ровно один раз в рамках одного протокола закупки.
+     *
+     * `organizationId === null` — участник без надёжного идентификатора (ИНН/ОГРН),
+     * `SupplierResultsParser` намеренно не резолвит его через `OrganizationResolver`
+     * (см. `BidData`). Естественный ключ `(…, organization_id: null)` совпал бы у ВСЕХ
+     * таких участников закупки и `updateOrCreate` схлопнул бы их в одну строку `prc_bids` —
+     * поэтому в этом случае ключ вместо `organization_id` использует `participant_ordinal`
+     * (порядковый номер по рассмотрению, всегда присутствует в таблице результатов).
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function upsertBid(
+        int $procurementId,
+        ?int $protocolId,
+        ?int $organizationId,
+        ?int $participantOrdinal,
+        array $attributes,
+    ): Bid {
+        $key = [
+            'procurement_id' => $procurementId,
+            'protocol_id' => $protocolId,
+            'organization_id' => $organizationId,
+        ];
+
+        if ($organizationId === null) {
+            $key['participant_ordinal'] = $participantOrdinal;
+        }
+
+        return Bid::query()->updateOrCreate($key, $attributes);
+    }
+
+    /**
+     * Upsert по `(procurement_id, lot_id)` — один итог на лот (44-ФЗ виртуальный лот
+     * `null`).
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function upsertAward(int $procurementId, ?int $lotId, array $attributes): Award
+    {
+        $award = Award::query()->firstOrNew([
+            'procurement_id' => $procurementId,
+            'lot_id' => $lotId,
+        ]);
+
+        if ($award->getAttribute('uuid') === null) {
+            $award->setAttribute('uuid', (string) Str::uuid7());
+        }
+        $award->fill($attributes);
+        $award->save();
+
+        return $award;
+    }
+}

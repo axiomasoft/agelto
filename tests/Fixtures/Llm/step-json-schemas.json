@@ -1,0 +1,939 @@
+{
+    "DiscoveryResponse": {
+        "$defs": {
+            "DiscoveryMarkerLine": {
+                "type": "object",
+                "properties": {
+                    "page": {
+                        "description": "номер физической страницы документа, к которой относится маркер.",
+                        "type": "integer"
+                    },
+                    "marker": {
+                        "description": "estimate_start (первая страница новой сметы в окне) / continuation (продолжение текущей сметы) / estimate_end (последняя страница текущей сметы в окне).",
+                        "type": "string",
+                        "enum": [
+                            "estimate_start",
+                            "continuation",
+                            "estimate_end"
+                        ]
+                    },
+                    "title": {
+                        "description": "заголовок/название сметы, если виден на этой странице (только для estimate_start).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "page",
+                    "marker"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "type": "object",
+        "properties": {
+            "markers": {
+                "description": "маркеры границ смет, найденные в текущем окне, в порядке страниц.",
+                "type": "array",
+                "items": {
+                    "$ref": "#/$defs/DiscoveryMarkerLine"
+                }
+            }
+        },
+        "required": [],
+        "additionalProperties": false
+    },
+    "PassportResponse": {
+        "$defs": {
+            "EstimatePassport": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "description": "тип сметного документа — local_estimate/act/resource_calculation/defect_list, если не уверена — null.",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "local_estimate",
+                            "act",
+                            "resource_calculation",
+                            "defect_list"
+                        ]
+                    },
+                    "reference": {
+                        "description": "основание составления сметы — проектная и (или) иная техническая документация, задание, договор (форма 421/пр, строка «Основание»); НЕ редакция сметных нормативов — та живёт в PassportResponse::$regulatory_base.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "target": {
+                        "description": "направление объекта — construction/renovation/medical_equipment/engineering.",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "construction",
+                            "renovation",
+                            "medical_equipment",
+                            "engineering"
+                        ]
+                    },
+                    "address": {
+                        "description": "адрес объекта, если указан.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "generator": {
+                        "description": "сметная программа, которой сформирован документ (напр. «Гранд-Смета», «1С:Смета») — диагностическое поле, не участвует в бизнес-логике.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "contract_number": {
+                        "description": "номер договора подряда, если документ его называет.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "contract_date": {
+                        "description": "дата договора подряда, ISO-строка — цитата документа, не парсится в дату на бэкенде.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "regulatory_amendments": {
+                        "description": "реквизиты приказа Минстроя России о дополнениях к редакции сметных нормативов — ЦИТАТА документа.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "index_letter": {
+                        "description": "реквизиты письма Минстроя России об индексах изменения сметной стоимости — ЦИТАТА документа.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [],
+                "additionalProperties": false
+            },
+            "EstimateTotalsBlock": {
+                "type": "object",
+                "properties": {
+                    "footer": {
+                        "description": "корневые итоговые строки сметы (рекурсивные — см. TotalLine.children).",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/TotalLine"
+                        }
+                    }
+                },
+                "required": [],
+                "additionalProperties": false
+            },
+            "EstimateWorkType": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "description": "подпись вида работ или группы.",
+                        "type": "string"
+                    },
+                    "overhead_code": {
+                        "description": "шифр накладных расходов на базисном уровне.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "overhead_rate": {
+                        "description": "ставка накладных расходов на базисном уровне.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "overhead_rate_curr": {
+                        "description": "ставка накладных расходов на текущем уровне.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profit_code": {
+                        "description": "шифр сметной прибыли на базисном уровне.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profit_rate": {
+                        "description": "ставка сметной прибыли на базисном уровне.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "profit_rate_curr": {
+                        "description": "ставка сметной прибыли на текущем уровне.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "children": {
+                        "description": "вложенные виды работ (группа → вид).",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/EstimateWorkType"
+                        }
+                    }
+                },
+                "required": [
+                    "title"
+                ],
+                "additionalProperties": false
+            },
+            "TotalLine": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "description": "подпись строки («Итого», «в том числе НДС», «Накладные расходы»).",
+                        "type": "string"
+                    },
+                    "value": {
+                        "description": "сумма строкой (decimal без потерь — конверсия во float запрещена); nullable — начисление, заданное процентом (см. rate), может не иметь собственной суммы в документе.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "kind": {
+                        "description": "машиночитаемая пометка типа начисления, если модель распознаёт по label; иначе null — детерминированное доопределение по label этим планом не строится (долг).",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "overhead",
+                            "profit",
+                            "vat",
+                            "total",
+                            "additional",
+                            "other"
+                        ]
+                    },
+                    "chapter_number": {
+                        "description": "номер главы сводного расчёта, если начисление привязано к главе.",
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "rate": {
+                        "description": "ставка начисления в процентах, если задано процентом, а не суммой — признак «задано процентом» — это rate !== null, отдельного булева нет.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "children": {
+                        "description": "вложенные строки («в том числе»).",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/TotalLine"
+                        }
+                    }
+                },
+                "required": [
+                    "label"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "type": "object",
+        "properties": {
+            "passport": {
+                "description": "тип/обоснование/направление/адрес/программа-генератор/договор — прямое соответствие prc_estimates.passport (jsonb).",
+                "$ref": "#/$defs/EstimatePassport"
+            },
+            "estimate_number": {
+                "description": "номер/идентификатор сметы, если указан в документе.",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "currency": {
+                "description": "код валюты, по умолчанию рубль.",
+                "type": "string"
+            },
+            "base_year": {
+                "description": "базовый год цен (напр. 2001 для ФЕР), если указан.",
+                "type": [
+                    "integer",
+                    "null"
+                ]
+            },
+            "price_level": {
+                "description": "текстовое указание уровня цен, если явно не сводится к base_year.",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "regulatory_base": {
+                "description": "редакция сметных нормативов — ЦИТАТА документа как напечатана (может перечислять несколько приказов через «;»), не парсится в номер/дату на бэкенде.",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "rows_expected": {
+                "description": "оценка числа позиций (не разделов) во всей смете — ключ для контроля полноты на бэкенде; при оконном пути не гарантированно точен, используется как ориентир, не строгий гейт.",
+                "type": "integer"
+            },
+            "totals": {
+                "description": "итоги/начисления, если документ виден целиком и подвал попал в контекст; иначе null — запрашиваются отдельно через extract_totals.",
+                "anyOf": [
+                    {
+                        "$ref": "#/$defs/EstimateTotalsBlock"
+                    },
+                    {
+                        "type": "null"
+                    }
+                ]
+            },
+            "calc_method": {
+                "description": "метод расчёта сметы — базисно-индексный или ресурсный; документ не называет метод явно — null, бэкенд не подставляет значение по умолчанию.",
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "enum": [
+                    "base_index",
+                    "resource"
+                ]
+            },
+            "labor_hours_workers": {
+                "description": "сводные трудозатраты рабочих по смете — заполняются, только если документ несёт сводный блок трудозатрат.",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "labor_hours_machinists": {
+                "description": "сводные трудозатраты машинистов по смете — заполняются, только если документ несёт сводный блок трудозатрат.",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "document_number": {
+                "description": "реквизиты акта — номер составления.",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "document_date": {
+                "description": "реквизиты акта — дата составления.",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "period_start": {
+                "description": "отчётный период акта, ISO-строка (начало).",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "period_end": {
+                "description": "отчётный период акта, ISO-строка (конец).",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            },
+            "work_types": {
+                "description": "виды работ и их иерархия — заполняет ТОЛЬКО детерминированный маппер .gsfx (нормативы НР/СП, parent_id), LLM этот массив не порождает: боевой LLM-ответ всегда несёт пустой список — work_type_name отдельной позиции идёт полем EstimateRow::$work_type_name, не через этот массив.",
+                "type": "array",
+                "items": {
+                    "$ref": "#/$defs/EstimateWorkType"
+                }
+            }
+        },
+        "required": [
+            "passport"
+        ],
+        "additionalProperties": false
+    },
+    "RowsChunkResponse": {
+        "$defs": {
+            "EstimateRow": {
+                "type": "object",
+                "properties": {
+                    "row_index": {
+                        "description": "индекс источника (не напечатанный № позиции): для row-range последовательно в пределах сметы, включая заголовки и итоги; для page-range использовать переданный row_index якоря строки, возможны пропуски индексов.",
+                        "type": "integer"
+                    },
+                    "row_type": {
+                        "description": "section_header/subsection_header/item/subtotal/summary_row.",
+                        "type": "string",
+                        "enum": [
+                            "section_header",
+                            "subsection_header",
+                            "item",
+                            "subtotal",
+                            "summary_row"
+                        ]
+                    },
+                    "name": {
+                        "description": "наименование работы/раздела (обязательно).",
+                        "type": "string"
+                    },
+                    "section_title": {
+                        "description": "название раздела/подраздела, к которому относится строка (для сборки иерархии на бэкенде); для строк с row_type=section_header/subsection_header — название самого раздела.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "code": {
+                        "description": "шифр расценки (ФЕР/ТЕР), если есть.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "unit": {
+                        "description": "единица измерения — ЦИТАТА документа; разбор на базу и множитель делает БЭКЕНД детерминированной нормализацией (не входит в контракт).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "quantity": {
+                        "description": "количество в единицах документа (decimal-строка — конверсия во float запрещена).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "unit_price_base": {
+                        "description": "цена за единицу на базисном уровне (decimal-строка) — пуста у ресурсной сметы (calc_method=resource), это законное состояние, а не потеря.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "unit_price_curr": {
+                        "description": "цена за единицу на текущем уровне (decimal-строка).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "total_price_base": {
+                        "description": "стоимость всего по строке на базисном уровне (decimal-строка).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "total_price_curr": {
+                        "description": "стоимость всего по строке на текущем уровне (decimal-строка).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "index_code": {
+                        "description": "код индекса пересчёта позиции — второй множитель арифметики «базис × индекс ≈ текущая»; подпись индекса не хранится.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "index_value": {
+                        "description": "значение индекса пересчёта позиции — второй множитель арифметики «базис × индекс ≈ текущая»; подпись индекса не хранится.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "source_position_number": {
+                        "description": "собственный номер позиции, напечатанный в документе, если он есть (может быть дробным, напр. «9.1»); область — ЛЮБАЯ смета, не только акт. Отличается от row_index — синтетического монотонного якоря, который существует и для строк без напечатанного номера.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "work_type_name": {
+                        "description": "подпись вида работ, к которому относится позиция — заполняет контракт LLM; бэкенд резолвит по имени ссылку prc_estimate_items.work_type_id, нормативы НР/СП и иерархия — только маппер .gsfx (см. EstimateWorkType, PassportResponse::$work_types).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "resources": {
+                        "description": "ресурсы позиции (материалы/машины/труд/накладные).",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/RowResource"
+                        }
+                    },
+                    "attributes": {
+                        "description": "фиксированная схема attributes (коэффициенты + КС-3, см. RowAttributes) — null, если строка не несёт ни коэффициентов, ни КС-3-разрезов.",
+                        "anyOf": [
+                            {
+                                "$ref": "#/$defs/RowAttributes"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "quality": {
+                        "description": "носитель неопределённости строки — причина, по которой перечисленные в нём поля этой строки нельзя считать надёжными; отсутствует/null на строке, прочитанной полностью.",
+                        "anyOf": [
+                            {
+                                "$ref": "#/$defs/RowQuality"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "required": [
+                    "row_index",
+                    "row_type",
+                    "name"
+                ],
+                "additionalProperties": false
+            },
+            "IncompleteRow": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "description": "split_by_page_end (числа физически перенесены дальше — модель не додумывает цифры) или orphan_numbers_at_page_start (голые цифры без кода расценки — продолжение прошлой строки).",
+                        "type": "string",
+                        "enum": [
+                            "split_by_page_end",
+                            "orphan_numbers_at_page_start"
+                        ]
+                    },
+                    "raw_text": {
+                        "description": "сырой текст обрывка строки как он есть в документе.",
+                        "type": "string"
+                    },
+                    "last_known_code": {
+                        "description": "последний известный код расценки перед обрывом, если виден.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "page_number": {
+                        "description": "номер физической страницы обрыва (заполняется только в оконном пути).",
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "reason",
+                    "raw_text"
+                ],
+                "additionalProperties": false
+            },
+            "RowAttributes": {
+                "type": "object",
+                "properties": {
+                    "modifiers": {
+                        "description": "коэффициенты позиции.",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/RowModifier"
+                        }
+                    },
+                    "amount_since_start": {
+                        "description": "КС-3 — стоимость с начала проведения работ (decimal-строка), заполняется только строкой row_type=summary_row.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "amount_since_year_start": {
+                        "description": "КС-3 — стоимость с начала года (decimal-строка), заполняется только строкой row_type=summary_row.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "amount_reporting_period": {
+                        "description": "КС-3 — стоимость за отчётный период (decimal-строка), заполняется только строкой row_type=summary_row.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [],
+                "additionalProperties": false
+            },
+            "RowModifier": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "description": "подпись коэффициента из документа (напр. «К=1.15»).",
+                        "type": "string"
+                    },
+                    "kind": {
+                        "description": "машиночитаемый род коэффициента — к количеству/к стоимости/поправочный/зимнее удорожание/пересчёт; свободный текст обоснования сюда не переносится — род выражается ЭТИМ полем, а не прозой (обоснование остаётся в code/name).",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "qty",
+                            "price",
+                            "correction",
+                            "winter",
+                            "recalculation",
+                            "other"
+                        ]
+                    },
+                    "code": {
+                        "description": "шифр/обоснование коэффициента, если указано в документе.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value": {
+                        "description": "скалярное значение коэффициента, форма книг (decimal-строка — конверсия во float запрещена); null, если документ несёт только составляющие (форма .gsfx).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value_labor": {
+                        "description": "составляющая коэффициента по оплате труда (форма .gsfx); в форме книг не заполняется (там один скаляр value).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value_machines": {
+                        "description": "составляющая коэффициента по эксплуатации машин (форма .gsfx); в форме книг не заполняется (там один скаляр value).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value_machinists_wage": {
+                        "description": "составляющая коэффициента по зарплате машинистов (форма .gsfx); в форме книг не заполняется (там один скаляр value).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value_materials": {
+                        "description": "составляющая коэффициента по материалам (форма .gsfx); в форме книг не заполняется (там один скаляр value).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "level": {
+                        "description": "уровень применения коэффициента (форма .gsfx), если указан.",
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "name"
+                ],
+                "additionalProperties": false
+            },
+            "RowQuality": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "description": "причина, по которой перечисленные поля строки нельзя считать надёжными; модель вправе вернуть только unreadable — величину не удалось прочитать в источнике.",
+                        "type": "string",
+                        "enum": [
+                            "unreadable",
+                            "arithmetic_mismatch",
+                            "numbering_gap"
+                        ]
+                    },
+                    "fields": {
+                        "description": "имена полей EstimateRow, которых касается причина (например quantity, total_price_curr); пустой список запрещён — пометка без адреса.",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "reason",
+                    "fields"
+                ],
+                "additionalProperties": false
+            },
+            "RowResource": {
+                "type": "object",
+                "properties": {
+                    "resource_type": {
+                        "description": "категория ресурса — material/machine/labor/overhead/other.",
+                        "type": "string",
+                        "enum": [
+                            "labor",
+                            "machine",
+                            "material",
+                            "overhead",
+                            "other"
+                        ]
+                    },
+                    "name": {
+                        "description": "наименование ресурса.",
+                        "type": "string"
+                    },
+                    "code": {
+                        "description": "шифр ресурса, если указан.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "unit": {
+                        "description": "единица измерения (цитата документа; разбор на базу/множитель — бэкенд, вне контракта).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "quantity": {
+                        "description": "количество (decimal-строка — конверсия во float запрещена).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "price_base": {
+                        "description": "цена ресурса на базисном уровне (decimal-строка) — пуста у ресурсной сметы (calc_method=resource), это законное состояние, а не потеря.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "price_curr": {
+                        "description": "цена ресурса на текущем уровне (decimal-строка).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "index_code": {
+                        "description": "код индекса пересчёта ресурса — второй множитель арифметики «базис × индекс ≈ текущая», не подпись индекса (она не хранится).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "index_value": {
+                        "description": "значение индекса пересчёта ресурса — второй множитель арифметики «базис × индекс ≈ текущая», не подпись индекса (она не хранится).",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "resource_type",
+                    "name"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "type": "object",
+        "properties": {
+            "rows": {
+                "description": "плоский список строк запрошенного диапазона/окна (включая заголовки разделов и промежуточные итоги).",
+                "type": "array",
+                "items": {
+                    "$ref": "#/$defs/EstimateRow"
+                }
+            },
+            "incomplete_items": {
+                "description": "буфер незавершённых строк на границе нарезки.",
+                "type": "array",
+                "items": {
+                    "$ref": "#/$defs/IncompleteRow"
+                }
+            }
+        },
+        "required": [],
+        "additionalProperties": false
+    },
+    "ScreeningResult": {
+        "type": "object",
+        "properties": {
+            "document_type": {
+                "description": "тип документа — estimate/tech_spec/contract_draft/protocol/unknown.",
+                "type": "string",
+                "enum": [
+                    "estimate",
+                    "tech_spec",
+                    "contract_draft",
+                    "protocol",
+                    "unknown"
+                ]
+            },
+            "confidence": {
+                "description": "уверенность модели в классификации, от 0 (совсем не уверена) до 1 (полностью уверена).",
+                "type": "number"
+            },
+            "summary": {
+                "description": "краткое обязательное резюме видимого содержания документа; 1–1000 символов.",
+                "type": "string"
+            },
+            "estimate_cardinality": {
+                "description": "сколько логических смет видно в одном документе: none/single/multiple/unknown.",
+                "type": "string",
+                "enum": [
+                    "none",
+                    "single",
+                    "multiple",
+                    "unknown"
+                ]
+            },
+            "tags": {
+                "description": "нормализованные метки видимого содержания: 0–12 непустых значений, до 64 символов каждое.",
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "classification_note": {
+                "description": "необязательное пояснение классификации по видимому содержанию; не является backend-решением.",
+                "type": [
+                    "string",
+                    "null"
+                ]
+            }
+        },
+        "required": [
+            "document_type",
+            "confidence",
+            "summary",
+            "estimate_cardinality",
+            "tags"
+        ],
+        "additionalProperties": false
+    },
+    "TotalsResponse": {
+        "$defs": {
+            "EstimateTotalsBlock": {
+                "type": "object",
+                "properties": {
+                    "footer": {
+                        "description": "корневые итоговые строки сметы (рекурсивные — см. TotalLine.children).",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/TotalLine"
+                        }
+                    }
+                },
+                "required": [],
+                "additionalProperties": false
+            },
+            "TotalLine": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "description": "подпись строки («Итого», «в том числе НДС», «Накладные расходы»).",
+                        "type": "string"
+                    },
+                    "value": {
+                        "description": "сумма строкой (decimal без потерь — конверсия во float запрещена); nullable — начисление, заданное процентом (см. rate), может не иметь собственной суммы в документе.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "kind": {
+                        "description": "машиночитаемая пометка типа начисления, если модель распознаёт по label; иначе null — детерминированное доопределение по label этим планом не строится (долг).",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "overhead",
+                            "profit",
+                            "vat",
+                            "total",
+                            "additional",
+                            "other"
+                        ]
+                    },
+                    "chapter_number": {
+                        "description": "номер главы сводного расчёта, если начисление привязано к главе.",
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "rate": {
+                        "description": "ставка начисления в процентах, если задано процентом, а не суммой — признак «задано процентом» — это rate !== null, отдельного булева нет.",
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "children": {
+                        "description": "вложенные строки («в том числе»).",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/TotalLine"
+                        }
+                    }
+                },
+                "required": [
+                    "label"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "type": "object",
+        "properties": {
+            "totals": {
+                "description": "итоги/начисления сметы (дерево, см. EstimateTotalsBlock).",
+                "$ref": "#/$defs/EstimateTotalsBlock"
+            }
+        },
+        "required": [
+            "totals"
+        ],
+        "additionalProperties": false
+    }
+}

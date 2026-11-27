@@ -1,0 +1,66 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models\Procurement\Estimate;
+
+use Database\Factories\Procurement\Estimate\SectionFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+/**
+ * Дерево разделов сметы.
+ *
+ * @property int|null $parent_id
+ * @property int $position
+ * @property string $title
+ */
+#[UseFactory(SectionFactory::class)]
+#[Fillable([
+    'estimate_id',
+    'parent_id',
+    'position',
+    'title',
+])]
+#[Table(name: 'prc_estimate_sections')]
+final class Section extends Model
+{
+    /** @use HasFactory<SectionFactory> */
+    use HasFactory;
+
+    protected function casts(): array
+    {
+        return [
+            'position' => 'integer',
+        ];
+    }
+
+    /** @return BelongsTo<Estimate, $this> */
+    public function estimate(): BelongsTo
+    {
+        return $this->belongsTo(related: Estimate::class);
+    }
+
+    /** @return BelongsTo<Section, $this> */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(related: self::class, foreignKey: 'parent_id');
+    }
+
+    /** @return HasMany<Section, $this> */
+    public function children(): HasMany
+    {
+        return $this->hasMany(related: self::class, foreignKey: 'parent_id');
+    }
+
+    /** @return HasMany<Item, $this> */
+    public function items(): HasMany
+    {
+        return $this->hasMany(related: Item::class);
+    }
+}
