@@ -131,6 +131,10 @@ RUN --mount=type=cache,id=agelto-composer-cache,target=/tmp/composer-cache \
 FROM app-base AS application
 ARG SOURCE_SHA
 ARG VENDOR_LOCK_SHA
+# serversideup/php ships PHP_OPCACHE_ENABLE=0 for FPM. The application image is immutable
+# (read-only code, PHP_OPCACHE_VALIDATE_TIMESTAMPS=0 upstream default), so FPM can cache
+# compiled scripts for the life of the container.
+ENV PHP_OPCACHE_ENABLE=1
 COPY --exclude=local/vendors/azguard --exclude=local/vendors/proxyma . /var/www/html
 COPY --from=dependencies /var/www/html/vendor /var/www/html/vendor
 COPY --from=frontend /build/public/build /var/www/html/public/build
