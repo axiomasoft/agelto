@@ -267,7 +267,7 @@ services:
     build:
       context: ./docker/postgres
       dockerfile: Dockerfile
-    image: agelto_postgres:17-partman
+    image: agelto_postgres:19-partman
     restart: unless-stopped
     stop_grace_period: 30s
     security_opt:

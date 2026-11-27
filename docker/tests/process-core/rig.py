@@ -475,7 +475,7 @@ def composer_audit(folder):
 def snapshot(folder):
     schema = compose("exec", "-T", "core-postgres", "pg_dump", "-U", "core_test", "-d", "agelto_test",
                      "--schema-only", "--no-owner", "--no-privileges").stdout
-    # PG17's random psql restrict key changes on every pg_dump; no schema content is dropped.
+    # PG17+ random psql restrict key changes on every pg_dump; no schema content is dropped.
     normalized = "\n".join(line for line in schema.splitlines()
                            if not line.startswith(("\\restrict ", "\\unrestrict ", "-- Dumped ")))
     (folder / "schema.sql").write_text(normalized + "\n")

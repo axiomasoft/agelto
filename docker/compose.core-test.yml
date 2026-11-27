@@ -151,7 +151,7 @@ services:
       retries: 30
 
   core-postgres:
-    image: agelto_core_test_postgres:17-partman
+    image: agelto_core_test_postgres:19-partman
     build: ./postgres
     command: [postgres, -c, shared_preload_libraries=pg_stat_statements]
     environment:
