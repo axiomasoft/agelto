@@ -386,6 +386,16 @@ final class SchemaInventory
         }
     }
 
+    /**
+     * PostgreSQL 18+ keeps NOT NULL as named catalog constraints, and pg_dump prints a name whenever
+     * it differs from the generated default (for example after a table rename). The name carries
+     * no schema meaning; nullability itself stays in the DDL and in the column inventory.
+     */
+    private static function withoutNotNullConstraintNames(string $definition): string
+    {
+        return (string) preg_replace('/ CONSTRAINT "?\w+"? NOT NULL\b/', ' NOT NULL', $definition);
+    }
+
     private static function checkCatalog(array $baseline, array $actual, callable $require): void
     {
         $catalog = $actual['catalog'];
@@ -394,7 +404,7 @@ final class SchemaInventory
         $definitions = [];
         foreach ($matches as $match) {
             if (! in_array($match[1], $children, strict: true)) {
-                $definitions[$match[1]] = $match[0];
+                $definitions[$match[1]] = self::withoutNotNullConstraintNames($match[0]);
             }
         }
         $expectedNames = array_keys($baseline);

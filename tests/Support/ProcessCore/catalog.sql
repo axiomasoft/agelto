@@ -8,7 +8,8 @@ SELECT json_build_object(
     (SELECT n.nspname AS schema,c.relname AS table_name,k.conname AS name,k.contype AS type,
             pg_get_constraintdef(k.oid) AS definition
      FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace
-     WHERE n.nspname IN ('public','partman')) x),
+     -- PostgreSQL 18+ also stores NOT NULL as contype 'n'; nullability is already compared via columns.
+     WHERE n.nspname IN ('public','partman') AND k.contype <> 'n') x),
   'indexes', (SELECT coalesce(json_agg(x ORDER BY x.schemaname,x.tablename,x.indexname), '[]') FROM
     (SELECT schemaname,tablename,indexname,indexdef FROM pg_indexes WHERE schemaname IN ('public','partman')) x),
   'partitions', (SELECT coalesce(json_agg(x ORDER BY x.parent,x.child), '[]') FROM
