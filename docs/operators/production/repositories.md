@@ -4,7 +4,7 @@ type: howto
 status: living
 ---
 
-# Production repository identities
+# Идентичности репозиториев в production
 
 Корень Git-проекта на проверенном VPS — `/srv/agelto/repository`; `/srv/agelto` — deployment
 root, а `/var/www/html` — путь внутри PHP container. Это размещение веб-сервиса Agelto,
@@ -19,38 +19,42 @@ Bootstrap key можно оставить постоянным read-only key, н
 `vendor-sync.sh` читает pinned vendor по HTTPS: публичный repository не требует отдельного key;
 private repository требует своего read-only key. Личный token и GitHub write access запрещены.
 
-Run these steps as `root` on the P12.1-checked Ubuntu host. The ignored production profile remains
-mode `0600`; complete its `AGELTO_REPOSITORY`, full `AGELTO_CANDIDATE_SHA`, checkout directory and
-the current GitHub Ed25519 public-key body. Do not obtain that host key with `ssh-keyscan`: compare
-the profile value with GitHub's published fingerprint first.
+Выполняйте эти шаги под `root` на хосте Ubuntu, прошедшем проверку
+[подготовки хоста](ubuntu-host.md). Игнорируемый production-профиль остаётся с режимом `0600`;
+заполните в нём `AGELTO_REPOSITORY`, полный `AGELTO_CANDIDATE_SHA`, каталог checkout и текущее
+тело публичного ключа GitHub Ed25519. Не получайте этот ключ хоста через `ssh-keyscan`: сначала
+сравните значение в профиле с отпечатком, опубликованным GitHub.
 
 ```bash
 ssh-keygen -lf <(printf 'github.com ssh-ed25519 %s\n' "$(grep '^GITHUB_ED25519_HOST_KEY=' docker/host/production-profile | cut -d= -f2)") -E sha256
 sudo make -f docker/Makefile repositories:prepare PROFILE=docker/host/production-profile
 ```
 
-The reported fingerprint must be `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`. Enrol the
-three printed public keys separately in the corresponding GitHub repositories as **read-only deploy
-keys**. Never select write access, substitute a personal key/token, or enable agent forwarding.
+Выведенный отпечаток должен быть `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`.
+Зарегистрируйте три выведенных публичных ключа по отдельности в соответствующих репозиториях
+GitHub как **deploy keys только на чтение**. Никогда не выбирайте права на запись, не
+подставляйте личный ключ или токен и не включайте agent forwarding.
 
-After enrollment, run the resumable sync:
+После регистрации запустите возобновляемую синхронизацию:
 
 ```bash
 sudo make -f docker/Makefile repositories:sync PROFILE=docker/host/production-profile
 ```
 
-The helper refuses an unconfirmed enrollment, wrong GitHub host key, a wrong/decorated origin,
-anything dirty or untracked, a non-full SHA, and a branch checkout. It fetches the exact Agelto
-candidate detached at the profile SHA and both Azguard/Proxyma commits from the strict v2
-lock under `local/vendors/{azguard,proxyma}`; then it reuses the vendor verifier. Each vendor
-provides two explicit Composer path packages, copied with `symlink:false`. Separate
-`github-agelto`, `github-azguard`, `github-proxyma` aliases use separate read-only keys.
-Its read-only test is a deliberately failing `git push --dry-run`, so it does not mutate repositories.
+Helper отказывается работать при неподтверждённой регистрации, неверном ключе хоста GitHub,
+неверном или «украшенном» origin, любых изменённых или неотслеживаемых файлах, неполном SHA и
+checkout на ветку. Он забирает точный кандидат Agelto в detached-состоянии на SHA из профиля и
+оба коммита Azguard и Proxyma из строгого lock v2 в `local/vendors/{azguard,proxyma}`, после чего
+повторно использует проверку vendor. Каждый vendor предоставляет два явных path-пакета Composer,
+копируемых с `symlink:false`. Отдельные алиасы `github-agelto`, `github-azguard`,
+`github-proxyma` используют отдельные ключи только на чтение. Проверка «только чтение» — это
+намеренно неудачный `git push --dry-run`, поэтому репозитории не изменяются.
 
-Keep the public-key fingerprint, canonical origins and all three full SHAs in the redacted P12.2
-evidence record. Never copy a private-key byte, `known_hosts` body or profile into that evidence.
+Сохраните отпечаток публичного ключа, канонические origin и все три полных SHA в обезличенной
+записи доказательств развёртывания. Никогда не копируйте туда байты приватного ключа, содержимое
+`known_hosts` или профиль.
 
-GitHub documents that a deploy key is repository-specific and multiple repositories require separate
-key pairs and aliases. It also publishes the Ed25519 fingerprint used here. See [Managing deploy
+GitHub документирует, что deploy key привязан к одному репозиторию, а для нескольких
+репозиториев нужны отдельные пары ключей и алиасы. Там же опубликован используемый здесь отпечаток Ed25519. См. [Managing deploy
 keys](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys)
-and [GitHub SSH fingerprints](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints).
+и [GitHub SSH fingerprints](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints).

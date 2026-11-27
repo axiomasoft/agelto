@@ -137,6 +137,6 @@ expect_fail 'incomplete key pair' "$script" fixture --profile "$profile" --fixtu
 
 expect_fail 'sync without enrollment confirmation' "$script" sync --profile "$profile"
 ! rg -n 'fixture-private-|token@|password=' "$REPOSITORY_LOG" >/dev/null
-grep -F 'multiple repositories require separate' "$root/docs/operators/production/repositories.md" >/dev/null
+grep -F 'репозиториев нужны отдельные пары ключей' "$root/docs/operators/production/repositories.md" >/dev/null
 
 printf 'Deploy repositories contract passed\n'
