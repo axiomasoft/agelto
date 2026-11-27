@@ -24,7 +24,7 @@ use Proxyma\Domain\Execution\TransportMetrics;
 use Proxyma\Infrastructure\Database\ConnectionScope;
 use Proxyma\Infrastructure\Http\TransportDoctor;
 
-/** Согласованное исключение Q104_correction_ownership=b: pinned transport с download metadata. */
+/** Согласованное исключение из Proxyma transport: pinned transport с download metadata. */
 final readonly class AgeltoPhysicalHttpTransport implements PhysicalTransport
 {
     // ext-curl не экспортирует CURLE_LOGIN_DENIED во всех поддержанных сборках; ABI код стабилен.

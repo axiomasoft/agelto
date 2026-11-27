@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate P11.6 release-quality evidence without accepting TIA/cache replay."""
+"""Validate release-quality evidence without accepting TIA/cache replay."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def main() -> None:
     if expected_seeds != [104729, 130363, 155921]:
         raise SystemExit('Random-order seed contract was changed')
     if budget['selected_mode'] != 'serial':
-        raise SystemExit('D40 selected release mode is not serial')
+        raise SystemExit('Selected release mode is not serial')
 
     serial = [milliseconds(evidence / f'serial-{run}.milliseconds') for run in range(1, 6)]
     serial_junit = [normalized_junit(evidence / f'serial-{run}.xml') for run in range(1, 6)]
@@ -139,10 +139,10 @@ def main() -> None:
         'coverage': required_coverage_budget,
     }.items():
         if configured[key] < required:
-            raise SystemExit(f'{key} budget {configured[key]} is below measured D42 floor {required}')
+            raise SystemExit(f'{key} budget {configured[key]} is below the measured floor {required}')
 
     if measured_coverage < coverage_contract['global_statement_floor']:
-        raise SystemExit('Global coverage is below the committed P11.6 floor')
+        raise SystemExit('Global coverage is below the committed floor')
 
     summary = {
         'candidate_sha': subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),

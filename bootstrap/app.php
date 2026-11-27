@@ -24,11 +24,11 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(headers: Request::HEADER_X_FORWARDED_FOR | Request::HEADER_X_FORWARDED_PROTO);
         $middleware->append(SecurityHeadersMiddleware::class);
 
-        // Сквозной trace_id (P7.5, D25) — на все HTTP-запросы, дегидрируется в jobs-payload.
+        // Сквозной trace_id — на все HTTP-запросы, дегидрируется в jobs-payload.
         $middleware->append(AssignTraceId::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Error-tracking (P7.5, D25) — no-op пока `SENTRY_LARAVEL_DSN` пуст (fail-open,
+        // Error-tracking — no-op пока `SENTRY_LARAVEL_DSN` пуст (fail-open,
         // Implementation Rules); DSN/прод-хост GlitchTip — Pending Work владельца.
         Integration::handles($exceptions);
     })->create();

@@ -41,7 +41,7 @@ help:
 	@echo "  make db:create-test | test-preflight        Create/check the isolated PostgreSQL test database"
 	@echo "  make test:edit | test:full | test:junit | test:profile   Local TIA replay or full no-TIA PHP suite"
 	@echo "  make test:coverage | test:tia-refresh       Full no-TIA coverage or explicit local TIA refresh"
-	@echo "  make test:release                            Collect and validate no-TIA P11.6 release-quality evidence"
+	@echo "  make test:release                            Collect and validate no-TIA release-quality evidence"
 	@echo "  make test:shard SHARD=1/2                   One full no-TIA time-balanced shard"
 	@echo "  make test:parallel PROCESSES=2|4            Guarded isolated parallel Pest proof"
 	@echo "  make test:tia-reset                         Remove only the project TIA graph"

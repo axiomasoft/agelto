@@ -39,7 +39,7 @@ function assertPreservedParserScenario(string $file, string $scenario, array $be
     Assert::assertNotEmpty($cases, 'Missing original parser scenario: '.$file.'::'.$scenario);
     foreach ($cases as $case) {
         $mapped = array_values(array_filter($transfers, static fn (array $transfer): bool => $path($transfer['source']['file']) === $file && $transfer['source']['name'] === $case['name']));
-        Assert::assertCount(1, $mapped, 'Missing exact D18 parser transfer: '.$case['name']);
+        Assert::assertCount(1, $mapped, 'Missing exact parser transfer: '.$case['name']);
         Assert::assertNotEmpty($mapped[0]['reason']);
         Assert::assertNotEmpty($mapped[0]['contract']);
         Assert::assertNotEmpty($mapped[0]['replacements']);
@@ -131,7 +131,7 @@ test('inventory rejects a missing dataset transfer and a replacement with no rea
     $missing = $transfers;
     unset($missing[$index]);
     expect(fn () => assertPreservedParserScenario($file, $scenario, $before, array_values($missing), []))
-        ->toThrow(ExpectationFailedException::class, 'Missing exact D18 parser transfer');
+        ->toThrow(ExpectationFailedException::class, 'Missing exact parser transfer');
     $invalid = $transfers;
     $invalid[$index]['replacements'][0]['name'] = 'nonexistent parser assertion';
     expect(fn () => assertPreservedParserScenario($file, $scenario, $before, $invalid, []))->toThrow(ExpectationFailedException::class);

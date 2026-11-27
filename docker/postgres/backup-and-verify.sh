@@ -1,7 +1,7 @@
 #!/bin/bash
 # pg_dump (custom-format, -Fc) в bind-mount `/backups` (виден на хосте — `storage/backups`,
 # см. docker-compose*.yml `postgres.volumes`) + ОБЯЗАТЕЛЬНАЯ проверка restore на одноразовую
-# scratch-БД (P7.7 Implementation Rules: «бэкап без проверенного restore = не бэкап»).
+# scratch-БД: бэкап без проверенного restore не считается бэкапом.
 # Scratch-БД создаётся/дропается в рамках ЭТОГО прогона — не остаётся после команды. Дамп
 # на bind-mount ОСТАЁТСЯ (off-host копирование/ротация/cron-расписание — Scope Excluded,
 # инфра-решение владельца).

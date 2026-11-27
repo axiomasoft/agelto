@@ -19,7 +19,7 @@ test('таймаут каждого horizon-супервизора строго 
         expect($supervisor['timeout'])->toBeLessThan(
             $retryAfter,
             "Супервизор \"{$name}\" ({$connection}): timeout={$supervisor['timeout']}s ≥ retry_after={$retryAfter}s — ".
-            'Redis сочтёт job осиротевшим и передиспатчит его другому воркеру, пока первый ещё легитимно работает (D26).',
+            'Redis сочтёт job осиротевшим и передиспатчит его другому воркеру, пока первый ещё легитимно работает.',
         );
     }
 });

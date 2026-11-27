@@ -103,7 +103,7 @@ vendor_repository=$(python3 -c 'import json; print(json.load(open("docker/privat
 grep -q '^keygen:proxyma ' "$REPOSITORY_LOG"
 grep -F 'axiomasoft/proxyma.git' "$REPOSITORY_LOG" >/dev/null
 grep -F 'github-proxyma' "$simulation/home/deploy/.ssh/config" >/dev/null
-grep -F "$vendor_repository" "$REPOSITORY_LOG" >/dev/null || fail 'fixture did not reuse the D19 vendor manifest'
+grep -F "$vendor_repository" "$REPOSITORY_LOG" >/dev/null || fail 'fixture did not reuse the vendor manifest'
 first_key_hash=$(sha256sum "$simulation/home/deploy/.ssh/agelto_deploy_ed25519" | cut -d' ' -f1)
 "$script" fixture --profile "$profile" --fixture-root "$simulation" --adapter "$adapter" >/dev/null
 [[ $(grep -c '^keygen:' "$REPOSITORY_LOG") -eq 3 ]] || fail 'rerun overwrote existing key material'

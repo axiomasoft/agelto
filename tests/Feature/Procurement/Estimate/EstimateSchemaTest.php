@@ -37,7 +37,7 @@ test('prc_estimates несёт утверждённый список колон�
             ->and($columns[$column]['nullable'])->toBeTrue("{$column} обязана быть nullable");
     }
 
-    expect($columns['procurement_id']['nullable'])->toBeTrue('D98: procurement_id становится nullable')
+    expect($columns['procurement_id']['nullable'])->toBeTrue('procurement_id становится nullable')
         ->and($columns['labor_hours_workers']['type'])->toBe('numeric')
         ->and($columns['document_date']['type_name'])->toBe('date')
         ->and($columns['verified_at']['type_name'])->toBe('timestamptz');
@@ -124,7 +124,7 @@ test('prc_estimate_resources: price переименован в price_curr, пя
 test('prc_estimate_totals: amount стал nullable, kind сохранён, chapter_number/rate новые', function () {
     $columns = columnsOf('prc_estimate_totals');
 
-    expect($columns['amount']['nullable'])->toBeTrue('D101: amount становится nullable')
+    expect($columns['amount']['nullable'])->toBeTrue('amount становится nullable')
         ->and($columns)->toHaveKey('kind')
         ->and($columns)->toHaveKey('chapter_number')
         ->and($columns)->toHaveKey('rate')

@@ -611,7 +611,7 @@ def env_proof(folder):
 
 
 def compare_scenarios(before, after, moves, transfers=()):
-    """Require every original case or all its explicitly recorded D18 replacements."""
+    """Require every original case or all its explicitly recorded replacements."""
     require(before and all(c.get("status") == "passed" for c in before),
             "original executed scenarios must be nonempty and passed")
     paths = {move["old"]: move["new"] for move in moves}
