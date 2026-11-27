@@ -125,7 +125,8 @@ grep -Fq 'coverage_contract' docker/scripts/check-release-quality.py
 grep -Fq 'DocsIntegrityTest.php' docker/tests/process-core/rig.py
 grep -Fq '"audit", "--locked", "--no-interaction"' docker/tests/process-core/rig.py
 grep -Fq 'clean-install-e2e.sh' "$ci_workflow"
-grep -Fq 'E2E_ARTIFACT_DIR: .ci-artifacts' "$ci_workflow"
+grep -Fq 'E2E_ARTIFACT_DIR: ci-artifacts' "$ci_workflow"
+! grep -Fq '.ci-artifacts/' "$ci_workflow"
 grep -Fq 'E2E_ARTIFACT_DIR' docker/tests/clean-install-e2e.sh
 grep -Fq 'export IMAGE_TAG="$image_tag"' docker/tests/clean-install-e2e.sh
 grep -Fq 'playwright-report/index.html' "$ci_workflow"

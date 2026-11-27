@@ -235,12 +235,12 @@ jobs:
           proofs = list(reports.glob('*/release-quality/provenance-' + group + '.json'))
           if len(proofs) != 1:
               raise SystemExit(f'Expected one {group} proof, found {len(proofs)}')
-          shutil.copytree(proofs[0].parent, Path('.ci-artifacts/release-quality-group'))
+          shutil.copytree(proofs[0].parent, Path('ci-artifacts/release-quality-group'))
           PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-quality-group-${{ github.sha }}-${{ matrix.group }}
-          path: .ci-artifacts/release-quality-group/
+          path: ci-artifacts/release-quality-group/
           if-no-files-found: error
           retention-days: 14
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -264,18 +264,18 @@ jobs:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: release-quality-group-${{ github.sha }}-*
-          path: .ci-artifacts/release-quality-groups
+          path: ci-artifacts/release-quality-groups
       - name: Verify all 13 samples and enforce coverage and time budgets
         run: |
-          python3 docker/scripts/release-quality-groups.py verify .ci-artifacts/release-quality-groups .ci-artifacts/release-quality
+          python3 docker/scripts/release-quality-groups.py verify ci-artifacts/release-quality-groups ci-artifacts/release-quality
           python3 docker/scripts/check-release-quality.py \
             --budget tests/performance-budget.json \
-            --evidence .ci-artifacts/release-quality \
-            --write-summary .ci-artifacts/release-quality/summary.json
+            --evidence ci-artifacts/release-quality \
+            --write-summary ci-artifacts/release-quality/summary.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-quality-${{ github.sha }}
-          path: .ci-artifacts/release-quality/
+          path: ci-artifacts/release-quality/
           if-no-files-found: error
           retention-days: 14
 
@@ -356,16 +356,16 @@ jobs:
       - uses: ./.github/actions/setup-vendors
       - name: Run the isolated production install and browser tests
         env:
-          E2E_ARTIFACT_DIR: .ci-artifacts
+          E2E_ARTIFACT_DIR: ci-artifacts
         run: bash docker/tests/clean-install-e2e.sh
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: playwright-${{ github.sha }}
           path: |
-            .ci-artifacts/playwright-report/index.html
-            .ci-artifacts/playwright-report/**
-            .ci-artifacts/test-results/**
+            ci-artifacts/playwright-report/index.html
+            ci-artifacts/playwright-report/**
+            ci-artifacts/test-results/**
           if-no-files-found: error
           retention-days: 14
 
