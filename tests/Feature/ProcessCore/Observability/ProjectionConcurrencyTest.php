@@ -124,8 +124,16 @@ function projConcPauseBeforeSnapshot(): string
         $stateLocks = 0;
         $connection->beforeExecuting(function (string $sql) use (&$stateLocks, $connection): void {
             if (str_contains($sql, 'FROM prc_process_projection_states') && str_contains($sql, 'FOR UPDATE') && ++$stateLocks === 2) {
-                $connection->selectOne('SELECT pg_advisory_lock(?)', [818002]);
+                $connection->selectOne('SELECT pg_advisory_lock(?)', [818004]);
+                $deadline = hrtime(true) + 10_000_000_000;
+                while ((int) $connection->selectOne('SELECT CASE WHEN pg_try_advisory_lock(?) THEN 1 ELSE 0 END AS acquired', [818002])->acquired !== 1) {
+                    if (hrtime(true) > $deadline) {
+                        throw new \RuntimeException('Rebuild snapshot release timed out.');
+                    }
+                    usleep(5_000);
+                }
                 $connection->selectOne('SELECT pg_advisory_unlock(?)', [818002]);
+                $connection->selectOne('SELECT pg_advisory_unlock(?)', [818004]);
             }
         });
         return ['status' => app(\App\Services\Procurement\Process\Projection\ProjectionRebuilder::class)->rebuild('work_transitions')->status->value];
@@ -137,7 +145,7 @@ function projConcRebuildWhilePaused(): string
 {
     return <<<'PHP'
         $deadline = hrtime(true) + 10_000_000_000;
-        while ((int) \Illuminate\Support\Facades\DB::selectOne("SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND objid = 818002 AND NOT granted")->n < 1) {
+        while ((int) \Illuminate\Support\Facades\DB::selectOne("SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND objid = 818004 AND granted")->n < 1) {
             if (hrtime(true) > $deadline) {
                 throw new \RuntimeException('Rebuild snapshot barrier timed out.');
             }
