@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import xml.etree.ElementTree as ET
 
@@ -20,6 +21,12 @@ ROOT = Path(__file__).resolve().parents[3]
 PROJECT = "agelto_core_test"
 # The rig accepts only the PostgreSQL major that docker/postgres/Dockerfile pins.
 POSTGRES_MAJOR = "19"
+# Wall-clock budget for one Pest run inside the app container. A blocked test otherwise keeps
+# Pest (and its PostgreSQL sessions) alive after the host-side command gives up.
+SUITE_BUDGET_SECONDS = {"regression": 7200, "tia": 7200, "load": 3600}
+DEFAULT_SUITE_BUDGET_SECONDS = 2700
+SUITE_TIMEOUT_EXITS = {124, 137}
+SNAPSHOT_LEAD_SECONDS = 15
 COMPOSE_FILE = ROOT / "docker/compose.core-test.yml"
 ENV_FILE = ROOT / "docker/tests/process-core/rig.env"
 REPORTS = ROOT / "storage/app/testing/process-core/reports"
@@ -760,6 +767,27 @@ def export_tia(folder, home):
         shutil.copy2(coverage, baseline / coverage.name)
 
 
+def suite_budget(name):
+    raw = os.environ.get("PROCESS_CORE_SUITE_TIMEOUT", "")
+    if raw:
+        require(raw.isdigit() and int(raw) > 0, "PROCESS_CORE_SUITE_TIMEOUT must be a positive number of seconds")
+        return int(raw)
+    return SUITE_BUDGET_SECONDS.get(name, DEFAULT_SUITE_BUDGET_SECONDS)
+
+
+def record_blocked_sessions(folder):
+    """Keep the PostgreSQL sessions of a run close to its budget: they name the blocked statement."""
+    try:
+        snapshot = pg("SELECT pid, state, wait_event_type, wait_event, now() - xact_start, left(query, 300) "
+                      "FROM pg_stat_activity WHERE backend_type = 'client backend' "
+                      "AND pid <> pg_backend_pid() AND state <> 'idle' ORDER BY xact_start")
+    except (GuardError, OSError, subprocess.SubprocessError) as error:
+        snapshot = f"unavailable: {error}"
+    path = folder / "blocked-sessions.txt"
+    path.write_text(snapshot + "\n")
+    return path
+
+
 def suite(folder, name):
     selected = [single_test_path()] if name == "file" else None
     shard = shard_selection() if name == "shard" else None
@@ -798,8 +826,19 @@ def suite(folder, name):
                    "PROCESS_CORE_EVIDENCE_PATH=/var/www/html/storage/app/testing/process-core/" + folder.name + "-load.json"]
     elif small_load:
         options = ["-e", "PROCESS_CORE_EVIDENCE_PATH=/var/www/html/storage/app/testing/process-core/" + folder.name + "-load.json"]
-    result = compose("exec", "-T", *options, "app", *command, check=False)
+    budget = suite_budget(name)
+    command = ["timeout", "--kill-after=30", str(budget), *command]
+    # Pest's sessions disappear with it, so take the snapshot shortly before the budget ends.
+    snapshot = threading.Timer(max(budget - SNAPSHOT_LEAD_SECONDS, 0), record_blocked_sessions, [folder])
+    snapshot.daemon = True
+    snapshot.start()
+    try:
+        result = compose("exec", "-T", *options, "app", *command, check=False)
+    finally:
+        snapshot.cancel()
     (folder / (name + ".log")).write_text(result.stdout + result.stderr)
+    require(result.returncode not in SUITE_TIMEOUT_EXITS,
+            f"{name} exceeded its {budget}s budget; see {name}.log and blocked-sessions.txt")
     junit_file = folder / "junit.xml"
     copied = compose("cp", f"app:/var/www/html/{junit}", str(junit_file), check=False)
     require(copied.returncode == 0 and junit_file.is_file() and junit_file.stat().st_size > 0,

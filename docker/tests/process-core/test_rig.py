@@ -686,6 +686,44 @@ with rig.project_lock():
             readiness.assert_not_called()
             fixture_proof.assert_called_once_with(folder)
 
+    def test_suite_bounds_pest_in_the_container_and_keeps_blocked_sessions(self):
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, "identity"), patch.object(rig, "readiness"), \
+                patch.object(rig, "stop_workers"), patch.object(rig, "verify_fixture_inputs"), \
+                patch.object(rig, "prepare_runtime"), patch.object(rig, "single_test_path", return_value="tests/X.php"), \
+                patch.object(rig, "pg", return_value="42|active|Lock|relation|00:10:00|select 1") as pg, \
+                patch.dict(rig.os.environ, {"PROCESS_CORE_SUITE_TIMEOUT": "90"}), \
+                patch.object(rig, "SNAPSHOT_LEAD_SECONDS", 89.95), \
+                patch.object(rig, "compose") as compose:
+            folder = Path(temp)
+            commands = []
+
+            def call(*args, **kwargs):
+                commands.append(args)
+                if args[0] == "exec":
+                    rig.time.sleep(0.3)  # Pest is still running when the snapshot fires.
+                return SimpleNamespace(returncode=124 if args[0] == "exec" else 0, stdout="", stderr="")
+
+            compose.side_effect = call
+            with self.assertRaisesRegex(rig.GuardError, "exceeded its 90s budget"):
+                rig.suite(folder, "file")
+            pest = next(command for command in commands if command[0] == "exec")
+            start = pest.index("app") + 1
+            self.assertEqual(list(pest[start:start + 3]), ["timeout", "--kill-after=30", "90"])
+            self.assertFalse(any(command[0] == "cp" for command in commands))
+            pg.assert_called_once()
+            self.assertIn("relation", (folder / "blocked-sessions.txt").read_text())
+
+    def test_suite_budget_defaults_and_rejects_invalid_override(self):
+        with patch.dict(rig.os.environ, {}, clear=False):
+            rig.os.environ.pop("PROCESS_CORE_SUITE_TIMEOUT", None)
+            self.assertEqual(rig.suite_budget("shard"), rig.DEFAULT_SUITE_BUDGET_SECONDS)
+            self.assertEqual(rig.suite_budget("regression"), 7200)
+        for raw in ["0", "-5", "1h"]:
+            with self.subTest(raw=raw), patch.dict(rig.os.environ, {"PROCESS_CORE_SUITE_TIMEOUT": raw}):
+                with self.assertRaisesRegex(rig.GuardError, "positive number of seconds"):
+                    rig.suite_budget("file")
+
     def test_unit_suite_rejects_empty_skipped_or_assertion_free_results(self):
         for cases in ['', '<testcase name="empty" assertions="0"/>',
                       '<testcase name="skipped" assertions="1"><skipped/></testcase>']:
