@@ -9,6 +9,7 @@ use App\Services\Procurement\Analyzers\Estimate\Eval\DatasetImporter;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Импорт папки эталонных смет (ТЗ 04 §5): пары `<name>.<ext>` (исходный файл — pdf/xlsx/
@@ -18,6 +19,7 @@ use Illuminate\Console\Command;
  * запись пары вынесены в {@see DatasetImporter}.
  */
 #[Description('Импорт папки эталонных смет в prc_ai_dataset_examples с валидацией gold')]
+#[AsCommand(name: 'estimate:dataset:import')]
 #[Signature('estimate:dataset:import
         {path : путь к папке с парами <name>.<ext> + <name>.gold.json}
         {--task=extraction : значение prc_ai_dataset_examples.task}

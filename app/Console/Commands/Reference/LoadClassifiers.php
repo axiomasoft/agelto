@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Наполняет справочники `ref_*` (ОКПД2/КТРУ/ОКВЭД2/КБК) из официальной выгрузки —
@@ -20,6 +21,7 @@ use Illuminate\Support\LazyCollection;
  * предупреждает и пропускает классификатор без сконфигурированного/существующего пути.
  */
 #[Description('Наполняет справочники ref_* из официальной выгрузки (идемпотентный upsert по code)')]
+#[AsCommand(name: 'ref:load-classifiers')]
 #[Signature('ref:load-classifiers {classifier? : okpd2|ktru|okved2|kbk — по умолчанию все}')]
 final class LoadClassifiers extends Command
 {

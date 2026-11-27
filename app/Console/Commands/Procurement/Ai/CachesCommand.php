@@ -8,7 +8,9 @@ use App\Repositories\Llm\Cache\AssetReadRepository;
 use App\Repositories\Llm\Cache\AssetRepository;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+#[AsCommand(name: 'ai:caches')]
 #[Signature('ai:caches {action : list|prune} {--hits} {--window=24}')]
 final class CachesCommand extends Command
 {

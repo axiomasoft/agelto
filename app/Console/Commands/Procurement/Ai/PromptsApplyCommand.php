@@ -12,6 +12,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use RuntimeException;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Применение УЖЕ одобренного предложения из очереди: работает ТОЛЬКО со
@@ -20,6 +21,7 @@ use RuntimeException;
  * `ai:prompts:sync` гоняет человек.
  */
 #[Description('Применить одобренное предложение из очереди prc_ai_prompt_suggestions')]
+#[AsCommand(name: 'ai:prompts:apply')]
 #[Signature('ai:prompts:apply
         {id : id предложения в очереди}
         {--dry-run : показать план применения без записи}')]

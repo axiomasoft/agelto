@@ -15,6 +15,7 @@ use App\Services\Procurement\Analyzers\Estimate\Eval\EvalSplitPlanner;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 use UnexpectedValueException;
 
 /**
@@ -32,6 +33,7 @@ use UnexpectedValueException;
  * @phpstan-type ScreeningAggregate array{total: int, accuracy: float|null, confusion: array<string, array<string, int>>, false_positive_rate: float|null, false_negative_rate: float|null}
  */
 #[Description('Прогон extraction-пайплайна по golden-датасету, метрики precision/recall/F1 + row coverage')]
+#[AsCommand(name: 'estimate:eval:run')]
 #[Signature('estimate:eval:run
         {--task=extraction : task датасета для прогона}
         {--dataset-version= : метка версии датасета для EvalRun (default — config(ai.eval.dataset_version))}

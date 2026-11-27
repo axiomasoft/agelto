@@ -12,6 +12,7 @@ use PhpOffice\PhpSpreadsheet\Reader\Xls;
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf as MpdfWriter;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Excel→PDF выполняется отдельным PHP-процессом с memory_limit: загрузка большой книги
@@ -19,6 +20,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Pdf\Mpdf as MpdfWriter;
  * и fitToHeight(0) сохраняет колонки на одной ширине, перенося строки между страницами.
  */
 #[Description('Конвертирует Excel-файл в PDF (landscape, fitToWidth) для стадии подготовки документа')]
+#[AsCommand(name: 'procurement:convert-xlsx-to-pdf')]
 #[Signature('procurement:convert-xlsx-to-pdf {input} {output} {--max-rows= : Maximum total worksheet rows}')]
 final class ConvertXlsxToPdfCommand extends Command
 {

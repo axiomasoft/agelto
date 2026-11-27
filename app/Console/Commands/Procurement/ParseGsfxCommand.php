@@ -8,8 +8,10 @@ use App\Services\Procurement\Prepare\Gsfx\GsfxReader;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 #[Description('Parses bounded GSFX core files in an isolated PHP process')]
+#[AsCommand(name: 'procurement:parse-gsfx')]
 #[Signature('procurement:parse-gsfx {properties} {data} {output}')]
 final class ParseGsfxCommand extends Command
 {

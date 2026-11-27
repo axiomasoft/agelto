@@ -9,6 +9,7 @@ use App\Services\Procurement\Process\Diagnostics\ProcessDiagnosticsInspector;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Read-only диагностика документов, AI-анализов и смет: проверки собирают признаки зависших
@@ -18,6 +19,7 @@ use Illuminate\Console\Command;
  * (Code Guidance) с антиспамом по ключу находки (не чаще раза в час на одинаковую находку).
  */
 #[Description('Проверяет зависшие/аномальные состояния пайплайна и алертит агрегированным сообщением')]
+#[AsCommand(name: 'process:diagnostics')]
 #[Signature('process:diagnostics')]
 final class ProcessDiagnosticsCommand extends Command
 {

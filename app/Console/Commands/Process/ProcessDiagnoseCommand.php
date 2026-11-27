@@ -15,8 +15,10 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Infrastructure\Database\PackageSchema;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 #[Description('Запускает healthcheck-проверки площадки по штатным данным')]
+#[AsCommand(name: 'process:diagnose')]
 #[Signature('process:diagnose
         {platform : Код площадки}
         {--kind= : Одна проверка: card_parse, listing_shape, estimate_fields или listing_filter}

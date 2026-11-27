@@ -11,6 +11,7 @@ use App\Services\Procurement\Process\Projection\RetentionService;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Ограниченная серия batch retention transition history. --dry-run считает кандидатов первого batch.
@@ -19,6 +20,7 @@ use Illuminate\Console\Command;
  * поэтому архив не выдаёт себя за полный.
  */
 #[Description('Пакетно удаляет устаревшие transition events с подтверждёнными projections (--dry-run только считает)')]
+#[AsCommand(name: 'process:prune-history')]
 #[Signature('process:prune-history {--dry-run : только показать число кандидатов первого batch} {--max-batches=20 : максимальное число batch за запуск}')]
 final class PruneHistoryCommand extends Command
 {

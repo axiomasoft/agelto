@@ -13,6 +13,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use RuntimeException;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Сравнение двух `EvalRun` по критерию приёмки патча промта: дельты `overall.f1`/`row_coverage`/`per_field` на подвыборках `tune`/`holdout` и
@@ -20,6 +21,7 @@ use RuntimeException;
  * LLM-вызова не делает — читает уже посчитанные `prc_ai_eval_results` двух прогонов.
  */
 #[Description('Сравнение двух EvalRun по критерию приёмки патча промта (tune/holdout)')]
+#[AsCommand(name: 'estimate:eval:compare')]
 #[Signature('estimate:eval:compare
         {--base= : id базового прогона (EvalRun)}
         {--candidate= : id прогона-кандидата (EvalRun)}

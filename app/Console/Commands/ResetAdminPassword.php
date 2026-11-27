@@ -9,8 +9,10 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 #[Description('Regenerate the initial administrator password')]
+#[AsCommand(name: 'admin:reset-password')]
 #[Signature('admin:reset-password {--force : Confirm the password reset} {--password-file= : Read the password from this file}')]
 final class ResetAdminPassword extends Command
 {

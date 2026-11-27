@@ -10,6 +10,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use JsonException;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Генератор `estimates/manifest.json` из шорт-листа эталонов: `storage_path`
@@ -22,6 +23,7 @@ use JsonException;
  * руками. Построение записей вынесено в {@see FixtureManifestBuilder}.
  */
 #[Description('Собрать estimates/manifest.json из шорт-листа эталонов')]
+#[AsCommand(name: 'estimate:fixtures:manifest')]
 #[Signature('estimate:fixtures:manifest
         {--from-shortlist= : путь к fixture-shortlist.json}
         {--inventory= : путь к JSON-инвентарю корпуса для mime/размера}

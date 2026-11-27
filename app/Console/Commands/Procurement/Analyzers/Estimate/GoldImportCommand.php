@@ -12,6 +12,7 @@ use App\Services\Procurement\Prepare\DocumentPreparer;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Рабочие копии эталонов + записи датасета: по реестру `prc_ai_fixtures` создаёт
@@ -24,6 +25,7 @@ use Illuminate\Console\Command;
  * {@see WorkingCopyProvisioner}/{@see GoldExampleImporter}.
  */
 #[Description('Создать рабочие копии эталонов и записи prc_ai_dataset_examples из gold-файлов корпуса')]
+#[AsCommand(name: 'estimate:gold:import')]
 #[Signature('estimate:gold:import
         {--code=* : ограничить эталоны кодами}
         {--prepare : прогнать цепочку подготовки по созданным версиям}

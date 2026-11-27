@@ -8,12 +8,14 @@ use App\Services\Storage\DiskBackfillRunner;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * `--materialize-only` заменяет null disk фактическим именем до переключения конфигурации.
  * `--to=<disk>` переносит объекты с проверкой sha256 и размера; `--from-id` возобновляет обход.
  */
 #[Description('Backfill дисков: --materialize-only проставляет фактическое имя диска и ОБЯЗАНА запускаться ДО флипа конфига; --to=<disk> переносит объекты между дисками с верификацией sha256/размера')]
+#[AsCommand(name: 'storage:disk-backfill')]
 #[Signature('storage:disk-backfill
         {carrier : document-versions|fixtures|estimate-raw-results}
         {--materialize-only : проставить фактическое имя диска без копирования — запускать ДО флипа конфига}

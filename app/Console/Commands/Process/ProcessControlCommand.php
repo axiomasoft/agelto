@@ -14,6 +14,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * CLI тех же typed operator commands, что и UI: действие идёт от имени
@@ -21,6 +22,7 @@ use Illuminate\Support\Str;
  * (applied/unchanged/duplicate), 1 — отказ без записей, 2 — неверные аргументы/нет прав.
  */
 #[Description('Typed operator command Process-ядра: pause, resume, cancel-work, cancel-run, retry-fault, retry-failed-item, ack-incident')]
+#[AsCommand(name: 'process:control')]
 #[Signature('process:control {action : pause|resume|cancel-work|cancel-run|retry-fault|retry-failed-item|ack-incident} {target : scope key, work id, run id или incident id} {--user= : id или email оператора} {--reason= : причина для audit} {--expected= : ожидаемая control_version либо transition_seq} {--command-id= : UUID команды для dedup retry-fault/retry-failed-item}')]
 final class ProcessControlCommand extends Command
 {

@@ -8,11 +8,13 @@ use App\Services\Storage\MinioLifecycleManager;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Идемпотентно применяет MinIO ILM-правила из `config('partitioning.minio_lifecycle')`  на бакет S3-диска — логика ушла в `MinioLifecycleManager`.
  */
 #[Description('Идемпотентно применяет MinIO ILM-правила (config(partitioning.minio_lifecycle)) на бакет s3-диска')]
+#[AsCommand(name: 'ai:storage:lifecycle')]
 #[Signature('ai:storage:lifecycle')]
 final class StorageLifecycleCommand extends Command
 {

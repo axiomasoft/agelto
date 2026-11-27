@@ -9,9 +9,11 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use JsonException;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /** Read-only audit of the five mandatory estimate-item fields over gold files or persisted estimates. */
 #[Description('Измерить заполненность обязательных полей позиций сметы')]
+#[AsCommand(name: 'estimate:fields:audit')]
 #[Signature('estimate:fields:audit
         {--source=gold : Источник: gold или database}
         {--json : Машинный JSON вместо таблицы}')]

@@ -9,8 +9,10 @@ use App\Services\Health\ApplicationReadiness;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 #[Description('Run active application readiness checks')]
+#[AsCommand(name: 'app:readiness')]
 #[Signature('app:readiness {--format=agent : agent or json} {--only= : Comma-separated readiness check codes} {--isolated : Run readiness probe in a hard-bounded child process}')]
 final class ApplicationReadinessCommand extends Command
 {

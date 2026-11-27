@@ -9,6 +9,7 @@ use App\Services\Procurement\Process\Projection\ProjectionRegistry;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Bounded maintenance rebuild counters одного projector из ledger. Не запускает
@@ -16,6 +17,7 @@ use Illuminate\Console\Command;
  * неизвестный факт) оставляет прежнюю generation и receipts нетронутыми и завершается кодом 1.
  */
 #[Description('Пересобирает counters projector из ledger одной bounded generation (не запускает work)')]
+#[AsCommand(name: 'process:metrics-rebuild')]
 #[Signature('process:metrics-rebuild {projector : projector_key зарегистрированного consumer}')]
 final class MetricsRebuildCommand extends Command
 {

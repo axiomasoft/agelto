@@ -10,6 +10,7 @@ use App\Services\Platforms\Eis\Filters\Okpd2NodeSynchronizer;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Тонкая точка входа пересборки карты «код ОКПД2 → id НСИ»: разбор опций, вызов
@@ -17,6 +18,7 @@ use Illuminate\Console\Command;
  * `Okpd2NodeSynchronizer`, запись — в `Okpd2NodeStoreRepository`.
  */
 #[Description('Пересобирает карту «код ОКПД2 → id НСИ» с ЕИС и показывает дрейф id')]
+#[AsCommand(name: 'crawler:okpd2-sync')]
 #[Signature('crawler:okpd2-sync
         {--root= : id узла-корня НСИ (дефолт — config(platforms.eis.okpd2.root_external_id), раздел F)}
         {--dry-run : только отчёт, без записи в prc_okpd2_nodes}

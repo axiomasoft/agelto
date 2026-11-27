@@ -11,9 +11,11 @@ use Carbon\CarbonImmutable;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /** Physical provider ledger report: settled costs, unknown usage/charge and retained reserves. */
 #[Description('Учтённая стоимость и незакрытые резервы provider ledger')]
+#[AsCommand(name: 'ai:cost-report')]
 #[Signature('ai:cost-report {--days=7 : окно отчёта в днях} {--currency=USD : валюта provider accounts}')]
 final class CostReportCommand extends Command
 {

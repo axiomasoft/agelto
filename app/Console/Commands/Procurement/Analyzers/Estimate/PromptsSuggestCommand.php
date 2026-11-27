@@ -10,6 +10,7 @@ use App\Services\Procurement\Analyzers\Estimate\Eval\PromptSuggestionRunner;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Дешёвый LLM-критик промтов по эталону: по каждому `--code`/`--analysis`
@@ -19,6 +20,7 @@ use Illuminate\Console\Command;
  * {@see PromptSuggestionRunner}.
  */
 #[Description('LLM-критик промтов по diff-отчёту эталона — кладёт предложения pending в очередь')]
+#[AsCommand(name: 'estimate:prompts:suggest')]
 #[Signature('estimate:prompts:suggest
         {--code=* : коды эталонов}
         {--analysis= : id анализа вместо кода}

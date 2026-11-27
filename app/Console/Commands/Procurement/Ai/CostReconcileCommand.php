@@ -13,6 +13,7 @@ use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Процедура сверки трекинга с биллингом провайдера: печатает дельту, НЕ падает и НЕ шлёт алерт (лаг биллинга ≥24ч делает
@@ -21,6 +22,7 @@ use Illuminate\Console\Command;
  * (`docs/dev/runbooks/billing-reconcile.md`), не планировщиком.
  */
 #[Description('Сверка нашего трекинга LLM-расхода с ручной выгрузкой биллинга провайдера')]
+#[AsCommand(name: 'ai:cost-reconcile')]
 #[Signature('ai:cost-reconcile
         {--from= : начало периода YYYY-MM-DD, включительно}
         {--to= : конец периода YYYY-MM-DD, исключительно}

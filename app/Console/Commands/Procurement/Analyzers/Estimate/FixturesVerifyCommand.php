@@ -10,6 +10,7 @@ use App\Services\Procurement\Fixture\FixtureVerifier;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Сверка трёх носителей корпуса (гейт целостности): манифест (git) ↔ файлы на диске ↔
@@ -18,6 +19,7 @@ use Illuminate\Console\Command;
  * {@see FixtureManifestReader}/{@see FixtureVerifier}.
  */
 #[Description('Сверить manifest.json ↔ хранилище ↔ реестр prc_ai_fixtures')]
+#[AsCommand(name: 'estimate:fixtures:verify')]
 #[Signature('estimate:fixtures:verify
         {--manifest= : путь к manifest.json (дефолт config(ai.fixtures.manifest_path))}
         {--json : машинный вывод}')]

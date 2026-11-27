@@ -9,8 +9,10 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 #[Description('Create the initial SuperAdmin from hidden input or a password file')]
+#[AsCommand(name: 'admin:create-initial')]
 #[Signature('admin:create-initial {--email= : Email initial administrator} {--password-file= : Read the password from this file}')]
 final class CreateInitialAdmin extends Command
 {

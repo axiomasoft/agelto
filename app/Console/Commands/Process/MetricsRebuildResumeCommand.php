@@ -10,6 +10,7 @@ use App\Services\Procurement\Process\Projection\ProjectionRegistry;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Idempotent recovery зависшего maintenance gate после падения rebuild: снимает
@@ -17,6 +18,7 @@ use Illuminate\Console\Command;
  * Автоматического снятия по TTL нет: чужой или устаревший token ничего не меняет.
  */
 #[Description('Снимает зависший maintenance gate projector по token (totals и receipts не меняются)')]
+#[AsCommand(name: 'process:metrics-rebuild-resume')]
 #[Signature('process:metrics-rebuild-resume {projector : projector_key} {--expected-token= : maintenance token зависшего rebuild}')]
 final class MetricsRebuildResumeCommand extends Command
 {

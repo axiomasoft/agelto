@@ -8,12 +8,14 @@ use App\Services\Procurement\Prepare\Tools\ToolchainProbe;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Гейт воспроизводимости образа и первый шаг диагностики на проде — печатает наличие
  * и версию каждого системного бинаря; проверка ушла в `ToolchainProbe`.
  */
 #[Description('Проверить наличие и версию системных бинарей фабрики представлений')]
+#[AsCommand(name: 'ai:tools:doctor')]
 #[Signature('ai:tools:doctor {--json : машинный вывод}')]
 final class ToolsDoctorCommand extends Command
 {

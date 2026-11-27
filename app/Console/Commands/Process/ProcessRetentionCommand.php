@@ -9,7 +9,9 @@ use App\Services\Procurement\Process\Diagnostics\RawArtifactRetention;
 use App\Support\Files\PipelineTemporaryFile;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+#[AsCommand(name: 'process:retention')]
 #[Signature('process:retention {--limit=500 : Maximum rows per batch for retired raw objects and published outbox messages}')]
 final class ProcessRetentionCommand extends Command
 {

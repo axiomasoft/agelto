@@ -14,6 +14,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Сборка `estimates/gold/**` по реестру `prc_ai_fixtures`: для каждого эталона с
@@ -26,6 +27,7 @@ use Illuminate\Support\Facades\File;
  * РЯДОМ с extraction-gold, манифест НЕ трогает (screening-gold в манифест не заводится, §8.5).
  */
 #[Description('Собрать estimates/gold/** по реестру prc_ai_fixtures и обновить gold-факты манифеста')]
+#[AsCommand(name: 'estimate:gold:build')]
 #[Signature('estimate:gold:build
         {--code=* : ограничить эталоны кодами}
         {--gold-dir= : куда писать (дефолт config(ai.fixtures.gold_dir))}

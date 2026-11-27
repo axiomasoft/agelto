@@ -46,6 +46,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Локальный CLI-инструмент разбора сметы (.pdf/.xlsx/.xls/.gsfx или код эталона).
@@ -54,6 +55,7 @@ use Illuminate\Support\Str;
  * RequestLedger + ReceiptStore + StructuredCallExecutor + AnalysisProviderSendGate.
  */
 #[Description('Разобрать смету локально (--dry-run по умолчанию, --live через канонический леджер)')]
+#[AsCommand(name: 'estimate:parse')]
 #[Signature('estimate:parse
         {source : Path to .pdf/.xlsx/.xls/.gsfx file or fixture code}
         {--profile= : Explicit LLM profile from config/llm.php}

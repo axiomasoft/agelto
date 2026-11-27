@@ -12,6 +12,7 @@ use App\Services\Procurement\Tuning\EvalConsolePresenter;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Диагностическая обёртка над {@see EstimateDiffReport}: по коду эталона резолвит
@@ -21,6 +22,7 @@ use Illuminate\Console\Command;
  * `analysis.result`, не запускает оркестратор (в отличие от `estimate:eval:run`).
  */
 #[Description('Детерминированный diff-отчёт «gold vs предсказание» по эталону — без единого LLM-вызова')]
+#[AsCommand(name: 'estimate:eval:diff')]
 #[Signature('estimate:eval:diff
         {--code= : код эталона}
         {--analysis= : id анализа вместо кода}

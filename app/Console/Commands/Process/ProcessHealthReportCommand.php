@@ -9,8 +9,10 @@ use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Process\Infrastructure\ProcessPolicy;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /** Read-only scheduled report; thresholds do not trigger external notifications. */
+#[AsCommand(name: 'process:health-report')]
 #[Signature('process:health-report {--sli : Показать операционные SLI} {--json : Вывести отчёт в формате JSON}')]
 final class ProcessHealthReportCommand extends Command
 {

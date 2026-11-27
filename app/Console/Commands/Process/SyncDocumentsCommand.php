@@ -13,7 +13,9 @@ use App\Services\Procurement\Document\PreparePolicy;
 use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+#[AsCommand(name: 'process:sync-documents')]
 #[Signature('process:sync-documents')]
 final class SyncDocumentsCommand extends Command
 {

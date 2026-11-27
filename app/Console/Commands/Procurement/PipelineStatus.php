@@ -14,6 +14,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Read-only снимок документов по стадиям и AI work по шагу и состоянию. Дополнительно
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\DB;
  * Временные окна не применяются; возраст зависших работ проверяет `process:diagnostics`.
  */
 #[Description('Показывает текущее состояние пайплайна документов и AI-анализа по всем стадиям')]
+#[AsCommand(name: 'pipeline:status')]
 #[Signature('pipeline:status')]
 final class PipelineStatus extends Command
 {

@@ -12,6 +12,7 @@ use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Явный idempotent install/deploy шаг: ПОСЛЕ migrations и ДО worker activation создаёт/сверяет
@@ -21,6 +22,7 @@ use Illuminate\Console\Command;
  * configuration hold вместо сотен failed works.
  */
 #[Description('Идемпотентная синхронизация source catalog (targets, origin budgets, health rows) зарегистрированных площадок')]
+#[AsCommand(name: 'platform:sync-catalog')]
 #[Signature('platform:sync-catalog {--platform=* : код площадки} {--provider=* : provider key; без фильтров синхронизировать все catalogs}')]
 final class SyncPlatformCatalogCommand extends Command
 {

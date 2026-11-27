@@ -9,6 +9,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Экспорт `prc_ai_dataset_examples` (gold с реальным входом и `analysis_id`)
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
  * {@see DatasetExporter}.
  */
 #[Description('Экспорт gold-датасета (prc_ai_dataset_examples) в SFT/DPO JSONL для дообучения локальной LLM')]
+#[AsCommand(name: 'estimate:dataset:export')]
 #[Signature('estimate:dataset:export
         {--format=sft : sft|dpo}
         {--task=extraction : значение prc_ai_dataset_examples.task}

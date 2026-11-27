@@ -9,7 +9,9 @@ use App\Services\Procurement\Proxyma\Migration\CutoverJournal;
 use App\Services\Procurement\Proxyma\Migration\Inventory;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+#[AsCommand(name: 'proxyma:cutover')]
 final class ProxymaCutoverCommand extends Command
 {
     protected $signature = 'proxyma:cutover {action : inventory|run|resume|rollback} {id}

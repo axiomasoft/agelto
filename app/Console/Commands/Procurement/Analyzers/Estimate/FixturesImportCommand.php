@@ -11,6 +11,7 @@ use App\Services\Storage\FileLocationResolver;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Импорт `estimates/manifest.json`: читает манифест, валидирует КАЖДУЮ запись
@@ -21,6 +22,7 @@ use Illuminate\Console\Command;
  * {@see FixtureManifestReader}/{@see FixtureRegistrar}.
  */
 #[Description('Импорт эталонного корпуса из manifest.json в хранилище и реестр prc_ai_fixtures')]
+#[AsCommand(name: 'estimate:fixtures:import')]
 #[Signature('estimate:fixtures:import
         {--manifest= : путь к manifest.json (дефолт config(ai.fixtures.manifest_path))}
         {--source-dir= : откуда брать файлы, которых нет в хранилище (дефолт config(ai.fixtures.source_dir))}

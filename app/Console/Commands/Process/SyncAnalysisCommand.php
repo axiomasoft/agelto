@@ -20,7 +20,9 @@ use App\Services\Procurement\Network\SourceCatalogSync;
 use App\Services\Procurement\Process\Execution\ProcessAuthoritySync;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+#[AsCommand(name: 'process:sync-analysis')]
 #[Signature('process:sync-analysis {--profile=} {--period-start=} {--period-end=} {--cap=} {--reason=} {--hard-exposure=}')]
 final class SyncAnalysisCommand extends Command
 {

@@ -22,6 +22,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Долгоживущий Process daemon: `process:daemon relay|reconcile|feed|project`, свой
@@ -32,6 +33,7 @@ use Illuminate\Support\Str;
  * Healthy — это healthcheck compose-сервиса.
  */
 #[Description('Запускает Process daemon (relay, reconcile, feed, project) либо печатает его readiness (--health)')]
+#[AsCommand(name: 'process:daemon')]
 #[Signature('process:daemon {daemon : relay|reconcile|feed|project} {--health : Показать readiness daemon и выйти}')]
 final class ProcessDaemonCommand extends Command
 {

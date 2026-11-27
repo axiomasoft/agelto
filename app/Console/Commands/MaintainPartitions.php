@@ -9,6 +9,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Premake партиций на партиционированных таблицах (`config('partitioning.tables')`).
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\DB;
  * `RefreshDatabase`).
  */
 #[Description('Premake партиций на 3 месяца вперёд для партиционированных таблиц (pg_partman либо fallback)')]
+#[AsCommand(name: 'partitions:maintain')]
 #[Signature('partitions:maintain')]
 final class MaintainPartitions extends Command
 {

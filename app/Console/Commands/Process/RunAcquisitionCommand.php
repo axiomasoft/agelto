@@ -13,7 +13,9 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+#[AsCommand(name: 'process:run')]
 #[Signature('process:run {profile : Profile ID or name} {--kind=fresh} {--command-id=} {--from=} {--to=}')]
 final class RunAcquisitionCommand extends Command
 {

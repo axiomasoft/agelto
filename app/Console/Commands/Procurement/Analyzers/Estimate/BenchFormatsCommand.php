@@ -9,6 +9,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 /**
  * Бенчмарк форматов входа: матрица `(эталон × вариант представления)` по
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\File;
  * запускается ВРУЧНУЮ, в тестах — только `FakeLlmProvider`).
  */
 #[Description('Матрица (эталон × вариант представления): объём/цена/качество/поведение по ячейке')]
+#[AsCommand(name: 'estimate:bench:formats')]
 #[Signature('estimate:bench:formats
         {--code=* : ограничить эталоны кодами}
         {--variant=* : ограничить варианты (значения RepresentationKind или default)}

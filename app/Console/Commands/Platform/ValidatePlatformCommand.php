@@ -10,8 +10,10 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository;
+use Symfony\Component\Console\Attribute\AsCommand;
 
 #[Description('Проверка platform definitions и policy без DB/network I/O')]
+#[AsCommand(name: 'platform:validate')]
 #[Signature('platform:validate {code? : Код площадки}')]
 final class ValidatePlatformCommand extends Command
 {

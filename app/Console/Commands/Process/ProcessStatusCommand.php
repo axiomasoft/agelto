@@ -9,7 +9,9 @@ use App\Repositories\Procurement\Process\Projection\PlatformMetricsReadRepositor
 use App\Services\Procurement\Platform\PlatformRegistry;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+#[AsCommand(name: 'process:status')]
 #[Signature('process:status {--platform= : Registered platform code}')]
 final class ProcessStatusCommand extends Command
 {
