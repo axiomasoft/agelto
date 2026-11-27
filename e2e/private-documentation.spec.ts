@@ -20,6 +20,9 @@ function mermaidDocumentationPaths(): string[] {
 }
 
 test('загружает закрытую документацию без browser или cache bypass', async ({ browser, page }) => {
+    // This scenario visits every Mermaid page, verifies representative asset bytes and
+    // tests revocation in a second browser context; CI can exceed the default 30 seconds.
+    test.setTimeout(120_000);
     const failures: string[] = [];
     const documentationResponses: string[] = [];
     const composeProject = process.env.E2E_COMPOSE_PROJECT;

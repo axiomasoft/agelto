@@ -306,6 +306,9 @@ test('selector показывает advisory quota hold и не выдаёт aut
 });
 
 test('upgrade сохраняет legacy window usage, долги и consumed факт после released lease', function (): void {
+    // The migration materializes the current quota window; keep its clock in the same hour
+    // as the legacy rows so a wall-clock rollover cannot create an extra window mid-test.
+    $this->sqlClock('2030-01-01T12:00:00Z');
     $migration = require (getenv('PROXYMA_CANDIDATE_CORE') ?: base_path('vendor/axiomasoft/proxyma')).'/database/migrations/2026_11_10_000008_add_fixed_window_quotas.php';
     $migration->down();
     $now = DatabaseClock::now($this->db);

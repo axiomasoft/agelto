@@ -116,30 +116,39 @@ function projConcAfter(string $operation): string
     return '$fx = \Tests\Support\ProcessCore\FinalizeFixtures::class; return $fx::afterHolder(function () { '.$operation.' });';
 }
 
-/** Holder state-lock, который ждёт ДВУХ lock-waiters (два конкурирующих rebuild), и только потом коммитит. */
-function projConcHoldForTwoWaiters(): string
+/** Первый rebuild останавливается после commit maintenance gate, но до snapshot state lock. */
+function projConcPauseBeforeSnapshot(): string
 {
     return <<<'PHP'
-        \Illuminate\Support\Facades\DB::beginTransaction();
-        try {
-            app(\App\Repositories\Procurement\Process\Projection\ProjectionRepository::class)->stateForUpdate('work_transitions');
-            \Illuminate\Support\Facades\DB::selectOne('SELECT pg_advisory_lock(?)', [\Tests\Support\ProcessCore\FinalizeFixtures::SIGNAL]);
-            $deadline = hrtime(true) + 10_000_000_000;
-            while ((int) \Illuminate\Support\Facades\DB::selectOne("SELECT count(*) AS n FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND wait_event_type = 'Lock'")->n < 2) {
-                if (hrtime(true) > $deadline) {
-                    throw new \RuntimeException('Process barrier timed out.');
-                }
-                usleep(5_000);
+        $connection = \Illuminate\Support\Facades\DB::connection();
+        $stateLocks = 0;
+        $connection->beforeExecuting(function (string $sql) use (&$stateLocks, $connection): void {
+            if (str_contains($sql, 'FROM prc_process_projection_states') && str_contains($sql, 'FOR UPDATE') && ++$stateLocks === 2) {
+                $connection->selectOne('SELECT pg_advisory_lock(?)', [818002]);
+                $connection->selectOne('SELECT pg_advisory_unlock(?)', [818002]);
             }
-            \Illuminate\Support\Facades\DB::commit();
-        } catch (\Throwable $exception) {
-            \Illuminate\Support\Facades\DB::rollBack();
+        });
+        return ['status' => app(\App\Services\Procurement\Process\Projection\ProjectionRebuilder::class)->rebuild('work_transitions')->status->value];
+        PHP;
+}
 
-            throw $exception;
+/** Второй rebuild начинает работу только когда первый уже удерживает maintenance gate. */
+function projConcRebuildWhilePaused(): string
+{
+    return <<<'PHP'
+        $deadline = hrtime(true) + 10_000_000_000;
+        while ((int) \Illuminate\Support\Facades\DB::selectOne("SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND objid = 818002 AND NOT granted")->n < 1) {
+            if (hrtime(true) > $deadline) {
+                throw new \RuntimeException('Rebuild snapshot barrier timed out.');
+            }
+            usleep(5_000);
         }
-        \Illuminate\Support\Facades\DB::selectOne('SELECT pg_advisory_unlock(?)', [\Tests\Support\ProcessCore\FinalizeFixtures::SIGNAL]);
-
-        return ['held' => true];
+        $status = app(\App\Services\Procurement\Process\Projection\ProjectionRebuilder::class)->rebuild('work_transitions')->status->value;
+        \Illuminate\Support\Facades\DB::selectOne('SELECT pg_advisory_lock(?)', [818003]);
+        \Illuminate\Support\Facades\DB::selectOne('SELECT pg_advisory_lock(?)', [818002]);
+        \Illuminate\Support\Facades\DB::selectOne('SELECT pg_advisory_unlock(?)', [818002]);
+        \Illuminate\Support\Facades\DB::selectOne('SELECT pg_advisory_unlock(?)', [818003]);
+        return ['status' => $status];
         PHP;
 }
 
@@ -230,11 +239,28 @@ test('два конкурирующих rebuild: ровно один token и о
     projConcScenario();
     projConcSlowRepeatableReadTrigger();
 
-    $results = ConcurrentTransactions::concurrently([
-        'holder' => projConcHoldForTwoWaiters(),
-        'first' => projConcAfter(projConcRebuildCode()),
-        'second' => projConcAfter(projConcRebuildCode()),
-    ]);
+    DB::selectOne('SELECT pg_advisory_lock(?)', [818002]);
+    $barrierHeld = true;
+    try {
+        $results = ConcurrentTransactions::concurrently([
+            'first' => projConcPauseBeforeSnapshot(),
+            'second' => projConcRebuildWhilePaused(),
+        ], afterRelease: function () use (&$barrierHeld): void {
+            $deadline = hrtime(true) + 10_000_000_000;
+            while ((int) DB::selectOne("SELECT count(*) AS n FROM pg_locks WHERE locktype = 'advisory' AND objid = 818003 AND granted")->n < 1) {
+                if (hrtime(true) > $deadline) {
+                    throw new RuntimeException('Competing rebuild barrier timed out.');
+                }
+                usleep(5_000);
+            }
+            DB::selectOne('SELECT pg_advisory_unlock(?)', [818002]);
+            $barrierHeld = false;
+        });
+    } finally {
+        if ($barrierHeld) {
+            DB::selectOne('SELECT pg_advisory_unlock(?)', [818002]);
+        }
+    }
     $statuses = [$results['first']['status'], $results['second']['status']];
     sort($statuses);
 
