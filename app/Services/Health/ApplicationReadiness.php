@@ -208,10 +208,16 @@ final readonly class ApplicationReadiness
     {
         return $this->attempt(code: ReadinessCheckCode::ReleaseState, callback: function () use ($deadlineNs): void {
             $this->pgTimeoutGuard()->runWithPgTimeouts($deadlineNs, function (): void {
-                if (! $this->releaseState->baseDataIsReady() || ! $this->releaseState->initialAdminIsReady()) {
-                    throw new RuntimeException('base data or initial administrator is not ready');
+                if (! $this->releaseState->baseDataIsReady()) {
+                    throw new RuntimeException('base data is not ready');
                 }
             });
+
+            // AzGuard denies role checks inside the timeout guard's transaction, so the
+            // SuperAdmin check runs after it, still bounded by the readiness deadline.
+            if (Monotonic::nanoseconds() >= $deadlineNs || ! $this->releaseState->initialAdminIsReady()) {
+                throw new RuntimeException('initial administrator is not ready');
+            }
         });
     }
 
