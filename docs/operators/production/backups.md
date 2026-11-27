@@ -32,26 +32,30 @@ Restic. После чтения снимка обратно он сверяет 
 автономным ключом age. Restic хранит внешние снимки до отдельной операторской ротации.
 [Restic SFTP](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html#sftp)
 
-The tracked backup package separates local contract proof from runtime evidence. Run the hermetic
-carrier locally:
+Отслеживаемый пакет резервного копирования отделяет локальное доказательство контракта от
+доказательств в runtime. Запустите герметичный носитель локально:
 
 ```bash
 bash docker/tests/ingress-backup-contract.sh
 ```
 
-The production sequence is fixed: take the exclusive release/backup lock, validate the closed
-profile and disk floor, create a PostgreSQL custom-format dump, restore it into an isolated scratch
-database, export object current-state plus configuration/secret-file metadata, hash and encrypt the
-set, copy it off-host, verify the copied bytes, and only then apply retention. A local or remote copy
-without a successful restore/checksum is not a verified backup.
+Последовательность в production фиксирована: взять эксклюзивную блокировку релиза и бэкапа,
+проверить закрытый профиль и минимум свободного места, создать дамп PostgreSQL в custom-формате,
+восстановить его в изолированную временную базу, экспортировать текущее состояние объектов и
+метаданные конфигурации и файлов секретов, хэшировать и зашифровать набор, скопировать его за
+пределы хоста, проверить скопированные байты и только после этого применять retention. Локальная
+или удалённая копия без успешного восстановления и проверки контрольной суммы — не проверенная
+резервная копия.
 
-The host installer validates the systemd service, timer, watchdog and alert units with
-`systemd-analyze verify`. The operator rehearsal still needs to observe a scheduled run after reboot,
-prove a stale or failed backup alert and record the resulting state in the evidence template.
+Установщик хоста проверяет unit-файлы systemd service, timer, watchdog и alert через
+`systemd-analyze verify`. На репетиции оператору ещё нужно увидеть плановый запуск после
+перезагрузки, доказать срабатывание оповещения об устаревшей или неудачной копии и записать
+итоговое состояние в шаблон доказательств.
 
-Community MinIO `mc mirror` represents current-state copying. It must not be described as preserving
-version history. A version-preserving design remains conditional on the pinned MinIO/`mc` capability
-matrix and a destructive create/update/delete/restore fixture in the operator rehearsal.
+`mc mirror` (клиент из образа Silo, S3-совместимого форка MinIO) выполняет
+копирование текущего состояния. Его нельзя описывать как сохраняющий историю версий. Схема с сохранением версий
+возможна только при подтверждённой матрице возможностей закреплённых Silo и `mc` и разрушающей
+fixture create/update/delete/restore на репетиции оператора.
 
 Restore always targets a separately allowlisted `*_rehearsal` database/bucket. Production identity,
 `pg_restore --clean`, volume deletion, prune-before-copy and implicit destructive flags are forbidden.

@@ -16,11 +16,12 @@ sentinel, неизменный image ID и non-TTY agent command в изолир
 
 ## Bootstrap чистого clone
 
-`make bootstrap MODE=dev ENV_FILE=.env COMPOSE_PROJECT_NAME=agelto_dev` is the only first-run
-carrier. It calls the existing vendor, secrets, preflight, image, Compose and health targets in
-order, retries liveness without deleting project volumes, and persists only its last non-secret
-stage/status/source SHA under ignored `local/secrets/.bootstrap-progress`. A failure prints the
-same command needed to resume; it does not run migrations, seeders or any production operation.
+`make bootstrap MODE=dev ENV_FILE=.env COMPOSE_PROJECT_NAME=agelto_dev` — единственный носитель
+первого запуска. Он по порядку вызывает существующие цели vendors, секретов, preflight, образа,
+Compose и здоровья, повторяет проверку живости без удаления volumes проекта и сохраняет только
+последний несекретный этап, статус и SHA исходников в игнорируемом
+`local/secrets/.bootstrap-progress`. При ошибке он печатает ту же команду для продолжения; он не
+запускает миграции, сидеры и production-операции.
 
 ## Права на файлы (`www-data` внутри контейнера)
 
@@ -49,9 +50,9 @@ Vite запускается отдельным сервисом `vite` на Node
 Для release gate используйте `make readiness:check`; тот же typed service читает Doctor. Scheduler
 пишет heartbeat, а readiness проверяет его свежесть.
 
-`bash docker/tests/clean-install-e2e.sh` materializes a detached tracked-tree worktree and uses a
-unique Compose project and port. Set `E2E_ADMIN_EMAIL` and `E2E_ADMIN_PASSWORD_FILE`; browser
-state and traces remain under ignored run output.
+`bash docker/tests/clean-install-e2e.sh` материализует отдельный worktree отслеживаемого дерева
+и использует уникальные проект Compose и порт. Задайте `E2E_ADMIN_EMAIL` и
+`E2E_ADMIN_PASSWORD_FILE`; состояние браузера и трассы остаются в игнорируемом выводе прогона.
 
 ## Смежное
 
@@ -60,7 +61,7 @@ state and traces remain under ignored run output.
 - [`troubleshooting.md`](troubleshooting.md) — типичные сбои прав/env-файлов.
 # Secrets
 
-The development Compose carrier mounts generated files from `local/secrets/`; do not add
-passwords to `.env.docker`. Create them once with `make secrets:init` before `make dev:up`.
-The initializer accepts only the fixed secret-name set and rejects symlink/non-regular roots and
-targets before writing; a failed run leaves no staged secret behind.
+Development Compose монтирует сгенерированные файлы из `local/secrets/`; не добавляйте пароли в
+`.env.docker`. Создайте их один раз через `make secrets:init` до `make dev:up`. Инициализатор
+принимает только фиксированный набор имён секретов и до записи отклоняет symlink и нерегулярные
+корни и цели; неудачный запуск не оставляет подготовленных секретов.

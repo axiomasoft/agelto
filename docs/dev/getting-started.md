@@ -22,41 +22,43 @@ make bootstrap MODE=dev ENV_FILE=.env COMPOSE_PROJECT_NAME=agelto_dev
 # vendor → create-only file secrets → preflight → immutable image → dev dependencies → migrate → base seed → health
 ```
 
-Bootstrap is resumable: it records only stage/status/source SHA in the ignored
-`local/secrets/.bootstrap-progress`, preserves existing secret bytes and named volumes, and prints
-an exact retry command after a failed stage. In dev it applies migrations and idempotent base data;
-it never resets passwords, deploys, cleans up or removes volumes. Demo data is opt-in through
-`make dev:seed-demo` and requires a nonempty local `DEV_SEED_PASSWORD`.
+Bootstrap возобновляем: он записывает только этап, статус и SHA исходников в игнорируемый
+`local/secrets/.bootstrap-progress`, сохраняет существующие байты секретов и именованные volumes и
+после неудачного этапа печатает точную команду повтора. В dev он применяет миграции и
+идемпотентные базовые данные; он никогда не сбрасывает пароли, не развёртывает, не чистит и не
+удаляет volumes. Демо-данные включаются явно через `make dev:seed-demo` и требуют непустого
+локального `DEV_SEED_PASSWORD`.
 
-To create the first administrator, provide the password only through a readable file; it is never a
-CLI value or output:
+Чтобы создать первого администратора, передайте пароль только через читаемый файл; он никогда
+не передаётся значением CLI и не выводится:
 
 ```bash
 make bootstrap MODE=dev ENV_FILE=.env COMPOSE_PROJECT_NAME=agelto_dev \
   ADMIN_PASSWORD_FILE=/secure/path/initial-admin-password
 ```
 
-`local/vendors/azguard` is an ignored nested checkout, never a submodule. Its tracked lock manifest
-(`docker/private-vendors.lock.json`) pins the origin, full commit SHA and Composer package allowlist.
-Use `make vendor:check` before a build; it refuses a missing, wrong-origin, wrong-SHA or dirty package checkout.
+`local/vendors/azguard` — игнорируемый вложенный checkout, а не submodule. Отслеживаемый
+lock-манифест (`docker/private-vendors.lock.json`) закрепляет origin, полный SHA коммита и
+allowlist пакетов Composer. Перед сборкой выполните `make vendor:check`: он отказывает при
+отсутствующем checkout, чужом origin, неверном SHA или грязном рабочем дереве пакета.
 
-`infra:preflight` needs a non-secret Compose env file and generated `local/secrets/` files. It
-never prints values or creates Docker resources; use `MODE=prod-build` before building an image
-and `MODE=prod-runtime` before operating an already-built production stack.
+`infra:preflight` нужен несекретный env-файл Compose и сгенерированные файлы `local/secrets/`.
+Он никогда не печатает значения и не создаёт ресурсы Docker; используйте `MODE=prod-build` перед
+сборкой образа и `MODE=prod-runtime` перед работой с уже собранным production-стеком.
 
-For a production-image candidate, bootstrap stops before every host mutation:
+Для кандидата production-образа bootstrap останавливается перед любой мутацией хоста:
 
 ```bash
 make bootstrap MODE=prod-build ENV_FILE=.env.production IMAGE_TAG=<immutable-tag> COMPOSE_PROJECT_NAME=agelto_build
 ```
 
-It builds and validates the immutable image/Compose contract only. Provisioning, pull, migrate,
-release, rollback and backup remain production-operator work.
+Он только собирает и проверяет контракт неизменяемого образа и Compose. Подготовка хоста, pull,
+миграции, релиз, откат и резервное копирование остаются работой оператора production.
 
-Release images are always a pair: `agelto/app` and `agelto/doctor` receive the same immutable tag,
-source revision and private-vendor-lock attestation. Build and publish that pair only from a clean
-build-machine checkout; the carrier rejects `latest` and verifies a local-registry push followed by
-a clean pull before a tag can be handed to production operations.
+Релизные образы всегда идут парой: `agelto/app` и `agelto/doctor` получают один и тот же
+неизменяемый тег, ревизию исходников и аттестацию lock приватных vendors. Собирайте и публикуйте
+эту пару только из чистого checkout на машине сборки; носитель отклоняет `latest` и проверяет push
+в локальный registry с последующим чистым pull, прежде чем тег можно передать в production.
 
 Проверка живости: `make dev:ps`, `curl http://localhost:8080/up` (healthcheck-эндпоинт, тот же, что
 слушает Docker `healthcheck` — см. [`docker/index.md`](docker/index.md)).
@@ -96,6 +98,7 @@ token DB до первой migration; все app-owned disks остаются п
 - [`docker/index.md`](docker/index.md) — устройство контейнерного стека подробнее.
 # Local secrets
 
-Before starting Compose, run `make secrets:init`. It creates the ignored `local/secrets/`
-files with mode 0600 and never prints their values. Rerunning preserves values; use
-`docker/scripts/secrets-init.sh --root . --rotate <name>` only to stage `<name>.next`.
+Перед запуском Compose выполните `make secrets:init`. Он создаёт игнорируемые файлы
+`local/secrets/` с режимом 0600 и никогда не печатает их значения. Повторный запуск сохраняет
+значения; `docker/scripts/secrets-init.sh --root . --rotate <name>` используйте только для
+подготовки `<name>.next`.

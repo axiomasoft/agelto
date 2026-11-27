@@ -17,30 +17,32 @@ Production host загружает образы и ждёт их готовно�
 
 ## Private Composer packages
 
-Before a build, run `make vendor:sync`. It clones the immutable AzGuard commit declared in
-`docker/private-vendors.lock.json` to ignored `local/vendors/azguard`; the checkout is neither a
-submodule nor an image runtime artifact. The Dockerfile copies only the allowlisted package paths into
-the dependency stage and excludes the raw checkout from the final `application` stage.
-The app, worker and Doctor images carry the exact manifest SHA as an OCI label and a non-secret build attestation;
-the production Doctor validates that attestation and the installed allowlisted packages without
-requiring the checkout or `.git` in the image.
+Перед сборкой выполните `make vendor:sync`. Он клонирует неизменяемый коммит AzGuard из
+`docker/private-vendors.lock.json` в игнорируемый `local/vendors/azguard`; checkout не является ни
+submodule, ни runtime-артефактом образа. Dockerfile копирует в стадию зависимостей только пути
+пакетов из allowlist и исключает сырой checkout из финальной стадии `application`. Образы app,
+worker и Doctor несут точный SHA манифеста как OCI label и несекретную аттестацию сборки;
+production Doctor проверяет эту аттестацию и установленные пакеты из allowlist без checkout и
+`.git` в образе.
 
 ## Секреты (file-backed Compose)
 
-Sensitive values (`APP_KEY`, `DB_PASSWORD`, `REDIS_PASSWORD`, `MINIO_ROOT_PASSWORD`) live only in
-ignored `local/secrets/` files and are mounted as explicit Compose `secrets:` grants under
-`/run/secrets/*`; `entrypoint.d/10-secrets.sh` reads the declared `*_FILE` paths. `.env.production`
-contains non-secret configuration only. Generate missing files with `make secrets:init`; reruns
-preserve their bytes. Do not use Swarm secret commands or environment-value fallbacks.
+Чувствительные значения (`APP_KEY`, `DB_PASSWORD`, `REDIS_PASSWORD`, `MINIO_ROOT_PASSWORD` для
+S3-совместимого хранилища Silo) живут только в игнорируемых файлах `local/secrets/` и монтируются
+явными грантами Compose `secrets:` в `/run/secrets/*`; `entrypoint.d/10-secrets.sh` читает
+объявленные пути `*_FILE`. `.env.production` содержит только несекретную конфигурацию.
+Недостающие файлы создайте через `make secrets:init`; повторные запуски сохраняют их байты. Не
+используйте команды секретов Swarm и fallback на значения окружения.
 
-Local Compose preserves the owner and `0600` mode of a mounted file. Image startup therefore uses
-a short root-only preload only for the fixed secret paths, then drops to `www-data` before the
-ServersideUp entrypoint and application command; the application process never runs as root.
+Локальный Compose сохраняет владельца и режим `0600` смонтированного файла. Поэтому старт образа
+выполняет короткую предзагрузку от root только для фиксированных путей секретов, а затем
+переключается на `www-data` до entrypoint ServersideUp и команды приложения; процесс приложения
+никогда не работает от root.
 
 `make bootstrap MODE=prod-build ENV_FILE=.env.production IMAGE_TAG=<immutable-tag> COMPOSE_PROJECT_NAME=agelto_build`
-is safe on a build machine: it validates vendor/secrets/preflight, builds the immutable image and
-renders the production contract. It does not provision a host, pull/recreate services, migrate,
-rotate credentials, rollback or delete volumes.
+безопасен на машине сборки: он проверяет vendors, секреты и preflight, собирает неизменяемый образ
+и рендерит контракт production. Он не готовит хост, не делает pull и пересоздание сервисов, не
+применяет миграции, не ротирует учётные данные, не откатывает и не удаляет volumes.
 
 ## Release classes
 
@@ -52,9 +54,10 @@ rotate credentials, rollback or delete volumes.
 `${HORIZON_STOP_GRACE_PERIOD:-600s}` (Docker default 10s убил бы 300+с job); инвариант
 `job timeout < supervisor timeout < queue.retry_after` — `../runbooks/horizon-backlog.md`.
 
-After migrations, base data and initial-admin creation, run the explicit application gate before
-declaring a release ready: `php artisan app:readiness --format=agent` in the app context, then
-`make prod:doctor IMAGE_TAG=<immutable-tag>`. `/up` is liveness only and is not a substitute.
+После миграций, базовых данных и создания первого администратора выполните явный gate
+приложения, прежде чем объявлять релиз готовым: `php artisan app:readiness --format=agent` в
+контексте app, затем `make prod:doctor IMAGE_TAG=<immutable-tag>`. `/up` проверяет только
+живость и их не заменяет.
 
 ## Redis durability (D34)
 
@@ -76,6 +79,6 @@ crash/OOM теряет очередь Horizon (до часа работы пай
 - [`troubleshooting.md`](troubleshooting.md) — типичные сбои prod-контейнеров.
 # File-backed secrets
 
-Production Compose uses the same ignored `local/secrets/` files, generated with
-`make secrets:init`. `.env.docker.production` is intentionally non-secret; services receive
-only their declared Docker secret mounts.
+Production Compose использует те же игнорируемые файлы `local/secrets/`, созданные
+`make secrets:init`. `.env.docker.production` намеренно несекретный; сервисы получают только
+объявленные для них монтирования секретов Docker.

@@ -8,9 +8,10 @@ status: living
 
 ## `infra:preflight` stops before Docker starts
 
-The preflight is intentionally fail-closed. Run `make vendor:check`, create secrets with
-`make secrets:init`, then use a non-secret Compose env file such as `.env.example`. Agent JSON
-contains only check IDs, statuses, and remediation; secret values are never rendered.
+Preflight намеренно закрыт по умолчанию. Выполните `make vendor:check`, создайте секреты через
+`make secrets:init`, затем используйте несекретный env-файл Compose, например `.env.example`.
+JSON для агентов содержит только ID проверок, статусы и рекомендации; значения секретов никогда
+не выводятся.
 
 ## `docker compose` вручную требует ДВА `--env-file`
 
@@ -47,10 +48,11 @@ http://localhost:8080/up` — тот же эндпоинт, что слушае�
 
 ## `app:readiness` is red while `/up` is green
 
-That is expected when an external dependency, generated Filament asset, Horizon or scheduler heartbeat
-is unavailable: `/up` is liveness only. Run `make readiness:check` for stable redacted check codes;
-use `make assets:check` first when the failing code is `assets`, then `make assets:repair` only for
-the isolated/canonical recovery path.
+Это ожидаемо, когда недоступны внешняя зависимость, сгенерированный ассет Filament, Horizon или
+heartbeat планировщика: `/up` проверяет только живость. Выполните `make readiness:check`, чтобы
+получить стабильные обезличенные коды проверок; если падает код `assets`, сначала выполните
+`make assets:check`, а `make assets:repair` — только для изолированного канонического пути
+восстановления.
 
 ## `vendor:publish`/`guard:filament:generate` не подхватывают правки
 
@@ -59,7 +61,7 @@ bind-mount-гонку, аналогично composer-операциям выше
 
 ## Production release target rejects its inputs
 
-`prod:deploy:*` and `prod:image:promote` fail closed unless the caller provides an existing env
-file, explicit `COMPOSE_PROJECT_NAME`, and immutable `IMAGE_TAG` other than `latest`. Build or
-volume cleanup is intentionally unavailable on these production paths; build/promote the artifact
-outside the production host, then retry the selected target.
+`prod:deploy:*` и `prod:image:promote` отказывают, если вызывающий не передал существующий
+env-файл, явный `COMPOSE_PROJECT_NAME` и неизменяемый `IMAGE_TAG`, отличный от `latest`. Очистка
+сборок и volumes на этих production-путях намеренно недоступна; соберите и продвиньте артефакт
+вне production-хоста, затем повторите выбранную цель.

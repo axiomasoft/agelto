@@ -21,15 +21,17 @@ status: living
 
 ## Runtime-образ
 
-Dev services build the named `development` target. Source is a host bind-mount; bootstrap/cache,
-framework runtime and Pest Tia are project-scoped named volumes. `COMPOSE_PROJECT_NAME` defaults to
-`agelto_dev`; services are addressed through Compose and never use fixed `container_name`.
+Dev-сервисы собирают именованную цель `development`. Исходники — bind mount с хоста;
+bootstrap/cache, runtime фреймворка и Pest Tia — именованные volumes в рамках проекта.
+`COMPOSE_PROJECT_NAME` по умолчанию `agelto_dev`; к сервисам обращаются через Compose, фиксированный
+`container_name` не используется.
 
-Production uses the non-root `application` stage and requires an explicit `COMPOSE_PROJECT_NAME` plus
-immutable `IMAGE_TAG`; source and `vendor` are never host-mounted. Private Composer dependencies and
-final framework asset readiness remain P2/P3 gates, not properties claimed by the P1 image.
-Production release commands select an explicit invalidation class (`code`, `php-deps`, `frontend`,
-`runtime`, `image-promotion`) but all paths consume a ready tag and use `--no-build`.
+Production использует стадию `application` без root и требует явных `COMPOSE_PROJECT_NAME` и
+неизменяемого `IMAGE_TAG`; исходники и `vendor` никогда не монтируются с хоста. Приватные
+зависимости Composer и итоговая готовность ассетов фреймворка проверяются отдельными gates, а не
+считаются свойствами самого образа. Команды релиза production выбирают явный класс инвалидации
+(`code`, `php-deps`, `frontend`, `runtime`, `image-promotion`), но все пути используют готовый тег и
+`--no-build`.
 
 ## Здоровье
 

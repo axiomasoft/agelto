@@ -68,17 +68,19 @@ Original DB не восстанавливается и volumes не удаляю
 off-host backups, secrets/config, MinIO objects и согласованная стратегия Redis; наличие локального
 dump в том же host не защищает от потери сервера. Production restore требует отдельного решения.
 
-Image rollback stops unless the previous immutable digest is known and schema compatibility is
-explicitly green. Its order is compatibility → verify previous IDs → worker drain → scoped image
-switch → bounded readiness. In manual/no-CI mode there is no registry promotion. It
-does not delete volumes, rebuild on the host, run `migrate:fresh` or silently accept an incompatible
-database.
+Откат образа останавливается, если неизвестен предыдущий неизменяемый digest или совместимость
+схемы явно не подтверждена. Порядок: совместимость → проверка предыдущих ID → осушение воркеров →
+переключение образа в заданных рамках → ограниченная по времени проверка готовности. В ручном
+режиме без CI продвижения через registry нет. Откат не удаляет volumes, не пересобирает на хосте,
+не запускает `migrate:fresh` и не принимает молча несовместимую базу.
 
-Data restore requires a verified backup manifest and an isolated `*_rehearsal` database/bucket
-identity that contains neither `prod` nor `production`. The fixture verifies the manifest, creates
-the isolated target, restores PostgreSQL/object/config state and checks readiness. Production
-identity and destructive flags fail before the adapter is called.
+Восстановление данных требует проверенного манифеста резервной копии и изолированной
+идентичности базы и bucket вида isolated `*_rehearsal`, не содержащей `prod` и `production`.
+Fixture проверяет манифест, создаёт изолированную цель, восстанавливает состояние PostgreSQL,
+объектов и конфигурации и проверяет готовность. Production-идентичность и разрушающие флаги
+отклоняются до вызова адаптера.
 
-The archived P12 fixture itself supplies no runtime receipt. Actual manual PostgreSQL restore and
-schema-identical image rollback receipts belong to the protected operation journal outside Git; future incompatible
-schema/data restore still requires its own owner gate, real backup ID and isolated measurements.
+Архивная fixture сама по себе не даёт receipt из runtime. Receipts реального ручного
+восстановления PostgreSQL и отката образа при идентичной схеме хранятся в защищённом журнале
+операций вне Git; будущее восстановление при несовместимой схеме или данных по-прежнему требует
+отдельного gate владельца, реального ID резервной копии и изолированных замеров.

@@ -220,7 +220,7 @@ expect_no_matches '--no-check-certificate|curl[[:space:]]*\|[[:space:]]*sh|eval|
     "$root/docker/scripts/backup-alert.sh" \
     "$root/docker/host/nginx" \
     "$root/docker/host/systemd" >/dev/null
-grep -F 'current-state copying' "$root/docs/operators/production/backups.md" >/dev/null
+grep -F 'копирование текущего состояния' "$root/docs/operators/production/backups.md" >/dev/null
 pass 'forbidden patterns and operator backup documentation'
 
 printf 'Ingress and backup contract passed\n'
