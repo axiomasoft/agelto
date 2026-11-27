@@ -166,7 +166,9 @@ COPY local/vendors/azguard/packages/core /var/www/html/local/vendors/azguard/pac
 COPY local/vendors/azguard/packages/filament /var/www/html/local/vendors/azguard/packages/filament
 COPY local/vendors/proxyma/packages/core /var/www/html/local/vendors/proxyma/packages/core
 COPY local/vendors/proxyma/packages/filament /var/www/html/local/vendors/proxyma/packages/filament
-RUN composer install --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
+RUN --mount=type=cache,id=agelto-composer-cache,target=/tmp/composer-cache \
+    COMPOSER_CACHE_DIR=/tmp/composer-cache \
+    composer install --no-scripts --no-interaction --no-progress --prefer-dist --classmap-authoritative
 
 FROM app-base AS doctor
 ARG SOURCE_SHA
