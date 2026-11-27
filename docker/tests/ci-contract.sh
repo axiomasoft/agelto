@@ -44,7 +44,7 @@ PY
 grep -Eq 'actions/cache/restore@[0-9a-f]{40}' "$core_setup"
 grep -Eq 'actions/cache/save@[0-9a-f]{40}' "$core_setup"
 grep -Fq "github.event_name == 'push'" "$ci_workflow"
-grep -Eq "runner\.os.*runner\.arch.*hashFiles\('composer\.lock', 'pnpm-lock\.yaml'\)" "$core_setup"
+grep -Eq "runner\.os.*runner\.arch.*hashFiles\('composer\.lock', 'pnpm-lock\.yaml', 'pnpm-workspace\.yaml'\)" "$core_setup"
 grep -Fq 'make core-test-up' "$core_setup"
 grep -Fq 'vendor_manifest.py --rows' "$vendor_setup"
 grep -Fq 'path: local/vendors/azguard' "$vendor_setup"

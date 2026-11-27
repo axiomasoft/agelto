@@ -245,9 +245,9 @@ services:
       start_period: 40s
 
   vite:
-    image: node:24-bookworm@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584
+    image: node:26-trixie@sha256:f8e5d4bb28fa55c74f1345166a082a10b7c68f22304350c1ce0d18358ae94996
     working_dir: /var/www/html
-    command: ["sh", "-lc", "corepack enable && pnpm install --frozen-lockfile && pnpm dev --host=0.0.0.0 --port=${VITE_PORT:-5173}"]
+    command: ["sh", "-lc", "npm install --global corepack@0.36.0 && corepack enable && pnpm install --frozen-lockfile && pnpm dev --host=0.0.0.0 --port=${VITE_PORT:-5173}"]
     volumes:
       - ./:/var/www/html
       - vite_node_modules:/var/www/html/node_modules
@@ -375,7 +375,7 @@ services:
   # рендер-сервис для площадок с клиентским рендерингом. Для ЕИС HTTP-first достаточен
   # (см. 02-crawling.md) — сервис НЕ на критическом пути, здесь только пустой контейнер.
   browser:
-    image: node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2
+    image: node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5
     restart: unless-stopped
     command: ["tail", "-f", "/dev/null"]
     networks:

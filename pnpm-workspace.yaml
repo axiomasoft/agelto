@@ -1,0 +1,9 @@
+# pnpm 10+ reads settings from this file; the package.json "pnpm" field is ignored.
+catalog:
+  vite: ^7.3.8
+
+overrides:
+  '@vitejs/plugin-vue': 6.0.11
+  'concurrently>shell-quote': ^1.11.0
+  # One Vite for the app build and VitePress.
+  vite: 'catalog:'

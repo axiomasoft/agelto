@@ -145,10 +145,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: '24'
-      - run: corepack enable
+          node-version: '26'
       - uses: ./.github/actions/setup-vendors
       - name: Run the isolated production install and browser tests
         env:
@@ -174,10 +174,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: '24'
-      - run: corepack enable
+          node-version: '26'
       - uses: ./.github/actions/setup-vendors
       # image-pair.sh dry-runs `composer install` on the host before building; the runner's
       # bundled PHP is older than composer.json's ^8.6.

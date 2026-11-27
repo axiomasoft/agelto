@@ -96,10 +96,12 @@ FROM development AS development-prepare
 RUN --mount=type=bind,source=docker/php/install-prepare-tools.sh,target=/tmp/install-prepare-tools.sh \
     sh /tmp/install-prepare-tools.sh
 
-FROM node:24-bookworm@sha256:934240a162082fd8b8a2f90cd5114446443f1eba1c5378f6687167ca405e6584 AS frontend
+FROM node:26-trixie@sha256:f8e5d4bb28fa55c74f1345166a082a10b7c68f22304350c1ce0d18358ae94996 AS frontend
 WORKDIR /build
-COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm install --frozen-lockfile --ignore-scripts
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Node 25+ no longer bundles Corepack; install the pinned release, which then honours
+# package.json#packageManager.
+RUN npm install --global corepack@0.36.0 && corepack enable && pnpm install --frozen-lockfile --ignore-scripts
 COPY resources ./resources
 COPY vite.config.js ./
 COPY docs ./docs

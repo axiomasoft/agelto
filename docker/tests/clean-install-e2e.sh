@@ -78,7 +78,7 @@ cleanup() {
         echo "Could not fully tear down isolated Compose project $project" >&2
     fi
 
-    if [[ -d "$candidate" ]] && ! docker run --rm -v "$candidate:/candidate" node:24-bookworm chown -R "$(id -u):$(id -g)" /candidate >/dev/null 2>&1; then
+    if [[ -d "$candidate" ]] && ! docker run --rm -v "$candidate:/candidate" node:26-trixie@sha256:f8e5d4bb28fa55c74f1345166a082a10b7c68f22304350c1ce0d18358ae94996 chown -R "$(id -u):$(id -g)" /candidate >/dev/null 2>&1; then
         echo "Could not restore candidate worktree ownership in $candidate" >&2
     fi
 
