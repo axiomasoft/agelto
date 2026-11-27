@@ -4,7 +4,9 @@ ARG SOURCE_SHA=dev
 
 # pg_partman has no Alpine package (PGDG publishes apt repositories only), so the Debian
 # variant is used: its PGDG repository is preconfigured.
+# `apt-get upgrade` takes Debian security fixes released after the pinned base digest.
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends postgresql-19-partman \
     && rm -rf /var/lib/apt/lists/*
 

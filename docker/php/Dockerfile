@@ -15,7 +15,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PHP_POST_MAX_SIZE=200M \
     PHP_MAX_EXECUTION_TIME=300
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# `apt-get upgrade` takes Debian security fixes released after the pinned base digest, so
+# the Trivy gate only reports vulnerabilities that have no fixed package yet.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && apt-get install -y --no-install-recommends \
     curl \
     libicu-dev \
     libpq-dev \

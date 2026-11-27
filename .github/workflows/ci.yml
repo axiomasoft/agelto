@@ -320,47 +320,49 @@ jobs:
         run: |
           make image:build IMAGE_TAG=${{ env.IMAGE_TAG }}
           docker build --build-arg SOURCE_SHA=${{ github.sha }} -t agelto/postgres:${{ env.IMAGE_TAG }} docker/postgres
+      # The scans block on HIGH/CRITICAL findings that have a fixed package. Debian marks most
+      # base-image findings "affected" with no fix, and those cannot be removed by a rebuild.
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: agelto/app:${{ env.IMAGE_TAG }}
           severity: HIGH,CRITICAL
           exit-code: '1'
-          ignore-unfixed: false
+          ignore-unfixed: true
           cache: false
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: agelto/doctor:${{ env.IMAGE_TAG }}
           severity: HIGH,CRITICAL
           exit-code: '1'
-          ignore-unfixed: false
+          ignore-unfixed: true
           cache: false
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: agelto/worker-prepare:${{ env.IMAGE_TAG }}
           severity: HIGH,CRITICAL
           exit-code: '1'
-          ignore-unfixed: false
+          ignore-unfixed: true
           cache: false
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: agelto/postgres:${{ env.IMAGE_TAG }}
           severity: HIGH,CRITICAL
           exit-code: '1'
-          ignore-unfixed: false
+          ignore-unfixed: true
           cache: false
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: redis:8.12-alpine@sha256:5af80107c1eeecb484a2269b80a26d12bfa6521787da4663bd9f19f60a163483
           severity: HIGH,CRITICAL
           exit-code: '1'
-          ignore-unfixed: false
+          ignore-unfixed: true
           cache: false
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: pgsty/silo:RELEASE.2026-11-12T00-00-00Z@sha256:c20d112390b9a9ce8c11b8af95ad35bcaa62f4759663c09c936cd8d2b511f329
           severity: HIGH,CRITICAL
           exit-code: '1'
-          ignore-unfixed: false
+          ignore-unfixed: true
           cache: false
           trivyignores: .github/trivy/silo.trivyignore
 
