@@ -279,7 +279,23 @@ def app(*args, check=True):
     return compose("exec", "-T", "app", "php", "tests/Support/ProcessCore/artisan.php", *args, check=check)
 
 
+def verify_composer_install(root=ROOT):
+    """Refuse test evidence from a vendor tree resolved against another lock file."""
+    lock = json.loads((root / "composer.lock").read_text())
+    installed = json.loads((root / "vendor/composer/installed.json").read_text())
+
+    def identity(package):
+        return (package.get("version"), package.get("type"),
+                package.get("source", {}).get("reference"), package.get("dist", {}).get("reference"))
+
+    expected = {package["name"]: identity(package) for package in lock["packages"] + lock["packages-dev"]}
+    actual = {package["name"]: identity(package) for package in installed["packages"]}
+    differing = sorted(name for name in expected.keys() | actual.keys() if expected.get(name) != actual.get(name))
+    require(not differing, "installed Composer packages differ from composer.lock: " + ", ".join(differing))
+
+
 def readiness():
+    verify_composer_install()
     identity()
     require(pg("SELECT current_database();", "agelto_test") == "agelto_test", "test DB not ready")
     pending = app("migrate:status", "--no-interaction").stdout
@@ -806,6 +822,7 @@ def bounded_pest(folder, name, command, log_path, options=()):
 
 
 def suite(folder, name):
+    verify_composer_install()
     selected = [single_test_path()] if name == "file" else None
     shard = shard_selection() if name == "shard" else None
     if name == "unit":
@@ -886,6 +903,7 @@ def suite(folder, name):
 
 
 def quality(folder):
+    verify_composer_install()
     identity()
     verify_fixture_inputs()
     prepare_runtime()
@@ -963,6 +981,8 @@ def main(command):
 def execute(command, name):
     folder, result = new_report(command)
     try:
+        if name in RESET_SUITES | {"file", "unit", "install", "release", "release-sample"} or command == "core-quality":
+            verify_composer_install()  # Fail before resetting any isolated state.
         if name == "load":
             result["width"] = load_width()  # Reject invalid input before reset or any mutation.
         if name in {"install", "e2e", "faults", "load", "regression"} or command == "core-quality":
@@ -986,6 +1006,7 @@ def execute(command, name):
                 require(composer_on_bridge(folder, "composer-install", "install", "--no-scripts", "--no-interaction",
                                            "--no-progress", "--prefer-dist", install=True) == 0,
                         "Composer installation failed; see composer-install.log")
+            verify_composer_install()
             compose("up", "-d", "--no-build" if prebuilt == "1" else "--build", "--wait",
                     "app", "core-postgres", "core-redis", "object-storage",
                     "fixture-http", "fixture-proxy", "fake-gemini")
@@ -1032,6 +1053,7 @@ def execute(command, name):
 
 
 def acceptance_runtime():
+    verify_composer_install()
     observed = identity()
     configured = config_identity()["services"]
     images = {service: inspect_json("image", configuration["image"])["Id"]

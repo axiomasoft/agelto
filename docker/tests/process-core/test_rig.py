@@ -27,6 +27,35 @@ def copy_synthetic_gsfx(root):
             "sha256": rig.hashlib.sha256(destination.read_bytes()).hexdigest()}
 
 
+class ComposerLockIdentityTest(unittest.TestCase):
+    def test_устаревшие_отсутствующие_и_лишние_пакеты_отклоняются(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / 'vendor/composer').mkdir(parents=True)
+            package = {'name': 'filament/forms', 'version': 'v5.12.0', 'type': 'library',
+                       'source': {'reference': 'abc'}, 'dist': {'reference': 'abc'}}
+            (root / 'composer.lock').write_text(json.dumps({'packages': [package], 'packages-dev': []}))
+            installed = root / 'vendor/composer/installed.json'
+            installed.write_text(json.dumps({'packages': [package]}))
+            rig.verify_composer_install(root)
+            for packages in ([], [{**package, 'version': 'v5.8.4'}],
+                             [{**package, 'dist': {'reference': 'old'}}],
+                             [package, {'name': 'extra', 'version': '1'}]):
+                with self.subTest(packages=packages), self.assertRaisesRegex(rig.GuardError, 'differ from composer.lock'):
+                    installed.write_text(json.dumps({'packages': packages}))
+                    rig.verify_composer_install(root)
+
+    def test_проверка_vendor_предшествует_сбросу_стенда(self):
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.object(rig, 'new_report', return_value=(Path(temp), {})), \
+                patch.object(rig, 'verify_composer_install', side_effect=rig.GuardError('stale vendor')), \
+                patch.object(rig, 'install_clock') as clock, patch.object(rig, 'reset') as reset, \
+                patch.object(rig, 'ROOT', Path(temp)):
+            self.assertEqual(rig.execute('core-test-release-sample', 'release-sample'), 1)
+            clock.assert_not_called()
+            reset.assert_not_called()
+
+
 class ReleaseGroupTest(unittest.TestCase):
     def test_group_is_validated_and_explicitly_forwarded_to_collector(self):
         with tempfile.TemporaryDirectory() as temp, \
