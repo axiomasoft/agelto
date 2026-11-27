@@ -8,9 +8,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends postgresql-19-partman \
     && rm -rf /var/lib/apt/lists/*
 
-# Since PostgreSQL 18 the official image defaults PGDATA to /var/lib/postgresql/<major>/docker
-# and refuses to start when /var/lib/postgresql/data is a mount. Every Compose file and the
-# backup tooling mount the data volume at /var/lib/postgresql/data, so keep that location.
-ENV PGDATA=/var/lib/postgresql/data
+# PGDATA keeps the PostgreSQL 18+ image default, /var/lib/postgresql/<major>/docker. Compose
+# mounts the volume at /var/lib/postgresql (the image's declared VOLUME), so a future major
+# upgrade can run pg_upgrade --link inside one volume. A volume that still holds a pre-18
+# cluster at its root makes the entrypoint refuse to start instead of initialising an empty one.
 
 LABEL org.opencontainers.image.revision="${SOURCE_SHA}"

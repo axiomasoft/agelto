@@ -305,7 +305,7 @@ services:
     ports:
       - "127.0.0.1:${PGSQL_PORT:-5432}:5432"
     volumes:
-      - pgsql_data:/var/lib/postgresql/data
+      - pgsql_data:/var/lib/postgresql
       # P7.7 (D33) — bind-mount под `make db:backup` (pg_dump + restore-check,
       # docker/postgres/backup-and-verify.sh): дамп виден на ХОСТЕ (`./storage/backups`),
       # переживает пересоздание контейнера. Off-host копирование/ротация/расписание cron —

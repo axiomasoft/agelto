@@ -32,7 +32,7 @@ retention=${BACKUP_LOCAL_RETENTION:-7}
 exec 9>>/srv/agelto/.release.lock
 flock -n 9 || { echo 'Agelto release/backup lock is held' >&2; exit 1; }
 [[ $(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$source_container") == agelto_prod ]]
-[[ $(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Name}}{{end}}{{end}}' "$source_container") == "$expected_volume" ]]
+[[ $(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql"}}{{.Name}}{{end}}{{end}}' "$source_container") == "$expected_volume" ]]
 [[ $(docker exec "$source_container" psql -U agelto -d agelto -Atc 'SELECT current_database(), current_user;' </dev/null) == 'agelto|agelto' ]]
 [[ ! -L "${backup_root%/*}" && ! -L $backup_root ]]
 "${restic_command[@]}" cat config </dev/null >/dev/null 2>&1 || fail 'cannot open the authenticated off-host repository'

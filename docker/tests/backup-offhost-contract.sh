@@ -31,7 +31,7 @@ cat > "$fixture/bin/docker" <<'EOF'
 set -euo pipefail
 case "$*" in
     'inspect --format '*com.docker.compose.project*) echo agelto_prod ;;
-    'inspect --format '*'/var/lib/postgresql/data'*) echo agelto_prod_pgsql_data ;;
+    'inspect --format '*'"/var/lib/postgresql"'*) echo agelto_prod_pgsql_data ;;
     'inspect --format '*io.agelto.backup.export*) cat "$FIXTURE_AGELTO/export-token" ;;
     'rm --force agelto_prod-backup-objects-'*) rm "$FIXTURE_AGELTO/export-token" ;;
     'cp agelto_prod-backup-objects-'*)
