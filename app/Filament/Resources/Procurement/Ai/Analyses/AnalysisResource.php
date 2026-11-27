@@ -64,10 +64,10 @@ class AnalysisResource extends Resource
         /** @var Builder<Analysis> $analyses */
         $analyses = $query;
 
-        /** @var Builder<Model> $result */
-        $result = $analyses->publicPlatform()->with(['documentVersion.document.fixture', 'estimates.platform', 'reviewedBy']);
+        // Eloquent builder calls mutate and return the same instance, so the scoped query is $query itself.
+        $analyses->publicPlatform()->with(['documentVersion.document.fixture', 'estimates.platform', 'reviewedBy']);
 
-        return $result;
+        return $query;
     }
 
     public static function getRelations(): array

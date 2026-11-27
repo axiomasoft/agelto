@@ -15,7 +15,7 @@ use Proxyma\Domain\Policy\TenantKey;
 use Proxyma\Infrastructure\Database\ConnectionScope;
 
 /**
- * @phpstan-type SourceRow object{id: string, platform_id: int|null, provider_key: string|null, capability: string, canonical_origin: string, policy_version: int, source_revision: int, target_id: string}
+ * @phpstan-type SourceRow object{id: string, platform_id: int|null, provider_key: string|null, capability: string, canonical_origin: string, policy_version: int, source_revision: int, target_id: string}&\stdClass
  */
 final readonly class TargetCatalogAdapter
 {

@@ -42,7 +42,7 @@ final readonly class TransferState
             foreach (['route_health', 'route_target_health', 'target_health'] as $kind) {
                 foreach ($i->rows('prc_'.$kind) as $health) {
                     if ($kind === 'route_health' && $health['reason_code'] === 'credential_hold') {
-                        /** @var object{credential_version: int, endpoint_id: string}|null $route */
+                        /** @var (object{credential_version: int, endpoint_id: string}&\stdClass)|null $route */
                         $route = $db->table('prc_network_routes as r')->join('prc_proxies as p', 'p.route_id', '=', 'r.id')
                             ->join('prc_proxyma_endpoint_links as l', 'l.proxy_id', '=', 'p.id')->where('r.id', $health['route_id'])
                             ->first(['r.credential_version', 'l.endpoint_id']);
@@ -60,7 +60,7 @@ final readonly class TransferState
             // Retain the full immutable projection window/dedup facts, including stale epochs.
             $windowSeconds = max(config()->integer('outbound.health.route_target_window_seconds'), config()->integer('outbound.health.corroboration_window_seconds'));
             $checkpoint = Inventory::checkpoint($db->table((new Journal)->getTable())->where('id', $cutover)->value('checkpoint'));
-            /** @var object{details: string|null, epochs: string, projection_key: string, observation_id: string, physical_id: string, stale: bool, occurred_at: string} $row */
+            /** @var object{details: string|null, epochs: string, projection_key: string, observation_id: string, physical_id: string, stale: bool, occurred_at: string}&\stdClass $row */
             foreach ($db->table('prc_observations as o')->join('prc_observation_applications as a', 'a.observation_id', '=', 'o.observation_id')
                 ->join('prc_request_attempts as r', 'r.request_id', '=', 'o.request_id')
                 ->whereRaw('o.occurred_at>=?::timestamptz-make_interval(secs=>?) AND o.occurred_at<=?::timestamptz', [$checkpoint['state_as_of'], $windowSeconds, $checkpoint['state_as_of']])
@@ -126,16 +126,16 @@ final readonly class TransferState
         /** @var string $value */
         foreach ($db->table('prc_source_targets')->distinct()->pluck('canonical_origin') as $value) {
             $origin = CanonicalOrigin::fromUrl($value);
-            /** @var object{id: string, emission_interval_us: int, burst: int, max_inflight: int, policy_version: int, tat: string|null, send_tat: string|null, not_before: string|null} $parent */
+            /** @var object{id: string, emission_interval_us: int, burst: int, max_inflight: int, policy_version: int, tat: string|null, send_tat: string|null, not_before: string|null}&\stdClass $parent */
             $parent = $db->table('prc_network_budgets')->where('scope_key', $origin->budgetScopeKey())->sole();
             $scope = TrafficSharePolicy::scope($origin, 'status_refresh');
             $hash = hash('sha256', 'agelto-traffic:'.$scope);
             $id = substr($hash, 0, 8).'-'.substr($hash, 8, 4).'-4'.substr($hash, 13, 3).'-a'.substr($hash, 17, 3).'-'.substr($hash, 20, 12);
             new Uuid($id);
             $limit = TrafficSharePolicy::hourlyLimit($parent->emission_interval_us, $percent);
-            /** @var object{start: string} $clock */
+            /** @var object{start: string}&\stdClass $clock */
             $clock = $db->selectOne("SELECT date_trunc('hour',?::timestamptz AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS start", [$asOf]);
-            /** @var object{spent: int, cooldown: string|null} $usage */
+            /** @var object{spent: int, cooldown: string|null}&\stdClass $usage */
             $usage = $db->selectOne("SELECT count(*) AS spent,max(coalesce(p.authorized_at,r.sent_at))+interval '1 hour' AS cooldown
                 FROM prc_network_permits p JOIN prc_network_demands d ON d.id=p.demand_id
                 LEFT JOIN prc_request_attempts r ON r.demand_id=d.id
@@ -144,9 +144,9 @@ final readonly class TransferState
             if ($usage->spent > $limit) {
                 throw new DomainException('Legacy status usage exceeds migrated capacity; keep drained for explicit reconciliation.');
             }
-            /** @var object{value: string|null} $cooldown */
+            /** @var object{value: string|null}&\stdClass $cooldown */
             $cooldown = $db->selectOne('SELECT greatest(?::timestamptz,?::timestamptz)::text AS value', [$usage->cooldown, $parent->not_before]);
-            /** @var object{value: string} $end */
+            /** @var object{value: string}&\stdClass $end */
             $end = $db->selectOne("SELECT ?::timestamptz+interval '1 hour' AS value", [$clock->start]);
             $this->journal->put($cutover, $t['budgets'], ['tenant_key' => TenantKey::SYSTEM, 'id' => $id], [
                 'scope_key' => $scope, 'emission_interval_us' => $parent->emission_interval_us, 'burst' => $parent->burst,

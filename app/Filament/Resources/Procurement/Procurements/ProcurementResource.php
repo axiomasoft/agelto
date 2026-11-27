@@ -83,14 +83,14 @@ class ProcurementResource extends Resource
             ->orderByDesc('created_at')
             ->limit(1);
 
-        /** @var Builder<Model> $result */
-        $result = $baseQuery->publicPlatform()->with('registry.platform')
+        // Eloquent builder calls mutate and return the same instance, so the scoped query is $query itself.
+        $baseQuery->publicPlatform()->with('registry.platform')
             ->addSelect(['prc_procurements.*', 'detail_work.*', 'published_snapshot.detail_fetched_at'])
             ->leftJoinLateral(query: $latestDetailWork, as: 'detail_work')
             ->leftJoinLateral(query: $latestPublishedSnapshot, as: 'published_snapshot')
             ->withCasts(['detail_fetched_at' => 'datetime']);
 
-        return $result;
+        return $query;
     }
 
     public static function getPages(): array

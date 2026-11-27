@@ -15,7 +15,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 
 /**
  * Таблица позиций сметы с пометками неопределённости и фильтром «только помеченные».
@@ -114,7 +113,6 @@ class ItemsRelationManager extends RelationManager
      */
     private static function qualityLines(Item $record): array
     {
-        /** @var Collection<string, mixed>|null $quality */
         $quality = $record->quality;
 
         if ($quality === null) {

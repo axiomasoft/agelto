@@ -138,7 +138,7 @@ final readonly class TransferCatalog
             }
             $subjects = [[$target['provider_key'] === null ? 'platform' : 'provider', (string) ($target['platform_id'] ?? $target['provider_key']), $default]];
             if ($target['platform_id'] !== null) {
-                /** @var object{id: int, route_profile_id: string|null} $crawler */
+                /** @var object{id: int, route_profile_id: string|null}&\stdClass $crawler */
                 foreach ($db->table('prc_crawlers as c')->join('prc_registries as r', 'r.id', '=', 'c.registry_id')->where('r.platform_id', $target['platform_id'])->get(['c.id', 'c.route_profile_id']) as $crawler) {
                     $subjects[] = ['crawler', (string) $crawler->id, $crawler->route_profile_id ?? $default];
                 }
@@ -182,7 +182,7 @@ final readonly class TransferCatalog
                 }
             }
         }
-        /** @var object{id: int, route_profile_id: string|null} $crawler */
+        /** @var object{id: int, route_profile_id: string|null}&\stdClass $crawler */
         foreach ($db->table('prc_crawlers')->orderBy('id')->get() as $crawler) {
             $profile = $crawler->route_profile_id ?? $db->table('prc_network_route_profiles')->where('profile_key', config('outbound.routing.default_profile'))->value('id');
             if ($profile === null) {

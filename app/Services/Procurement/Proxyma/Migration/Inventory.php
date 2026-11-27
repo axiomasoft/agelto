@@ -137,7 +137,7 @@ final readonly class Inventory
                 $hash = hash_init('sha256', HASH_HMAC, $this->checksumKey);
                 $count = 0;
                 $cursor = $this->db->table($table.' as s')->selectRaw('to_jsonb(s)::text AS payload')->orderByRaw('to_jsonb(s)::text COLLATE "C"')->cursor();
-                /** @var object{payload: string} $row */
+                /** @var object{payload: string}&\stdClass $row */
                 foreach ($cursor as $row) {
                     hash_update($hash, strlen($row->payload).':'.$row->payload);
                     $count++;
@@ -166,7 +166,7 @@ final readonly class Inventory
             }
             $unmapped['owners'] = [];
             foreach (['prc_process_attempts' => 'process_attempt', 'prc_outbound_operations' => 'outbound_operation'] as $source => $type) {
-                /** @var object{id: string, generation: int} $owner */
+                /** @var object{id: string, generation: int}&\stdClass $owner */
                 foreach ($this->db->table($source)->orderBy('id')->get(['id', 'generation']) as $owner) {
                     if (! $this->db->table('prc_proxyma_owner_links')->where('owner_type', $type)->where('owner_id', $owner->id)->where('generation', $owner->generation)->exists()) {
                         $unmapped['owners'][] = $type.':'.$owner->id.':'.$owner->generation;

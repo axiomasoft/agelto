@@ -18,8 +18,8 @@ use Proxyma\Infrastructure\Database\PackageSchema;
 /**
  * SQL-only transitions; bounded waiting and phase observers run outside transactions.
  *
- * @phpstan-type Selector object{authority: string, generation: int, cutover_id: string|null, paused: bool, legacy_frozen: bool}
- * @phpstan-type JournalRow object{phase: string, generation: int, checkpoint: string, first_authorized_at: string|null, source_revision: string, target_revision: string}
+ * @phpstan-type Selector object{authority: string, generation: int, cutover_id: string|null, paused: bool, legacy_frozen: bool}&\stdClass
+ * @phpstan-type JournalRow object{phase: string, generation: int, checkpoint: string, first_authorized_at: string|null, source_revision: string, target_revision: string}&\stdClass
  */
 final readonly class Cutover
 {
@@ -174,7 +174,7 @@ final readonly class Cutover
         if (isset($checkpoint['rollback_target_checksum']) && $checkpoint['rollback_target_checksum'] !== $this->targetChecksum()) {
             throw new DomainException('Exact target equality failed; keep paused for roll-forward.');
         }
-        /** @var object{target_table: string, identity: string, imported: string} $record */
+        /** @var object{target_table: string, identity: string, imported: string}&\stdClass $record */
         foreach ($i->db->table(new TransferRecord()->getTable())->where('cutover_id', $id)->get() as $record) {
             $this->journal->put($id, $record->target_table, Inventory::jsonObject($record->identity),
                 Inventory::jsonObject($record->imported));

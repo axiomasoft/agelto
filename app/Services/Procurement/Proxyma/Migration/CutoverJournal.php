@@ -27,7 +27,7 @@ final readonly class CutoverJournal
         $db->transaction(function () use ($db, $id, $step, $transfer): void {
             $db->statement("SET LOCAL lock_timeout = '1000ms'");
             $db->statement("SET LOCAL statement_timeout = '10000ms'");
-            /** @var object{authority: string, generation: int} $selector */
+            /** @var object{authority: string, generation: int}&\stdClass $selector */
             $selector = $db->table((new NetworkAuthority)->getTable())->where('id', 'network')->lockForUpdate()->sole();
             CutoverFence::install($db);
             if ($selector->authority !== 'legacy') {
@@ -39,13 +39,13 @@ final readonly class CutoverJournal
                 throw new DomainException('Unmapped source references block transfer.');
             }
             $table = (new Journal)->getTable();
-            /** @var object{source_revision: string, target_revision: string, generation: int, phase: string, checkpoint: string}|null $row */
+            /** @var (object{source_revision: string, target_revision: string, generation: int, phase: string, checkpoint: string}&\stdClass)|null $row */
             $row = $db->table($table)->where('id', $id)->lockForUpdate()->first();
             if ($row === null) {
                 $db->table($table)->insert(['id' => $id, 'source_revision' => $report['source_revision'],
                     'target_revision' => $report['target_revision'], 'phase' => 'prepared', 'generation' => $selector->generation + 1,
                     'checkpoint' => json_encode(['catalog' => null, 'state' => null], JSON_THROW_ON_ERROR)]);
-                /** @var object{source_revision: string, target_revision: string, generation: int, phase: string, checkpoint: string} $row */
+                /** @var object{source_revision: string, target_revision: string, generation: int, phase: string, checkpoint: string}&\stdClass $row */
                 $row = $db->table($table)->where('id', $id)->sole();
             }
             if ($row->source_revision !== $report['source_revision'] || $row->target_revision !== $report['target_revision']
@@ -60,13 +60,13 @@ final readonly class CutoverJournal
             if (($checkpoint[$step] ?? null) !== null && $checkpoint[$step] !== $digest) {
                 throw new DomainException('Source changed after partial transfer; reconcile without overwriting imported state.');
             }
-            /** @var object{target_table: string, identity: string, imported: string} $record */
+            /** @var object{target_table: string, identity: string, imported: string}&\stdClass $record */
             foreach ($db->table((new TransferRecord)->getTable())->where('cutover_id', $id)->get() as $record) {
                 $this->put($id, $record->target_table, Inventory::jsonObject($record->identity),
                     Inventory::jsonObject($record->imported));
             }
             if ($step === 'state' && ! isset($checkpoint['state_as_of'])) {
-                /** @var object{now: string} $clock */
+                /** @var object{now: string}&\stdClass $clock */
                 $clock = $db->selectOne('SELECT clock_timestamp()::text AS now');
                 $checkpoint['state_as_of'] = $clock->now;
                 $db->table($table)->where('id', $id)->update(['checkpoint' => json_encode($checkpoint, JSON_THROW_ON_ERROR)]);
@@ -119,7 +119,7 @@ final readonly class CutoverJournal
 
     private function columnType(string $table, string $column): string
     {
-        /** @var object{type: string}|null $row */
+        /** @var (object{type: string}&\stdClass)|null $row */
         $row = $this->inventory->db->selectOne('SELECT format_type(a.atttypid,a.atttypmod) AS type FROM pg_attribute a WHERE a.attrelid=?::regclass AND a.attname=? AND NOT a.attisdropped', [$table, $column]);
 
         if ($row === null) {

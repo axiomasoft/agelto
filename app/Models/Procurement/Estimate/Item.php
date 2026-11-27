@@ -33,7 +33,7 @@ use Illuminate\Support\Collection;
  * @property string|null $index_value
  * @property string|null $source_position_number
  * @property int|null $work_type_id
- * @property Collection<int, mixed>|null $quality провенанс-ключ верхнего уровня model/validator; null — чистая позиция
+ * @property Collection<string, mixed>|null $quality провенанс-ключ верхнего уровня model/validator; null — чистая позиция
  */
 #[UseFactory(ItemFactory::class)]
 #[Fillable([

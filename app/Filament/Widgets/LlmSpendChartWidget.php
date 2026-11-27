@@ -63,7 +63,6 @@ final class LlmSpendChartWidget extends ChartWidget
         /** @var Collection<int, UsageRow> $rows */
         $rows = collect($this->report()->rows);
 
-        /** @var list<string> $labels */
         $labels = array_values($rows
             ->pluck('day')
             ->filter()
@@ -71,7 +70,6 @@ final class LlmSpendChartWidget extends ChartWidget
             ->filter()
             ->unique()
             ->sort()
-            ->values()
             ->all());
 
         $series = $rows->groupBy(

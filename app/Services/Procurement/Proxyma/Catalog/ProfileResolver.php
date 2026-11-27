@@ -47,7 +47,7 @@ final readonly class ProfileResolver
             throw new OutboundUnavailable(new TransportBlocked(NetworkBlockedReason::ConfigurationHold));
         }
         $bindings = [];
-        /** @var object{id: string} $route */
+        /** @var object{id: string}&\stdClass $route */
         foreach (DB::table($tables['route_profile_members'].' as m')->join($tables['routes'].' as r', 'r.id', '=', 'm.route_id')
             ->where('m.profile_id', $profile->profile_id)->where('m.tenant_key', TenantKey::SYSTEM)
             ->where('r.tenant_key', TenantKey::SYSTEM)->whereNull('r.retired_at')->orderBy('r.id')

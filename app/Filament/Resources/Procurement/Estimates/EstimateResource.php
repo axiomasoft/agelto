@@ -65,8 +65,8 @@ class EstimateResource extends Resource
         /** @var Builder<Estimate> $baseQuery */
         $baseQuery = $query;
 
-        /** @var Builder<Model> $query */
-        $query = $baseQuery
+        // Eloquent builder calls mutate and return the same instance, so the scoped query is $query itself.
+        $baseQuery
             ->publicPlatform()
             ->with(['procurement.registry.platform', 'documentVersion.document', 'analysis'])
             ->withCount([
