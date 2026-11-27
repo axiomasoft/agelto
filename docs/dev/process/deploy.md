@@ -19,14 +19,16 @@ status: living
 через `up -d --no-build --wait`. Схема БД и оркестрация очереди имеют отдельные
 операторские процедуры.
 
-The release tag is produced beforehand as a same-SHA `agelto/app` + `agelto/doctor` pair. The build
-carrier verifies private vendor closure, both final filesystem contracts, and an isolated local
-registry push→clean-pull cycle; production receives only that immutable tag.
+Релизный тег выпускается заранее как пара `agelto/app` + `agelto/doctor` с одним SHA. Носитель
+сборки проверяет замкнутость приватных vendors, оба финальных контракта файловой системы и
+изолированный цикл push → чистый pull в локальном registry; production получает только этот
+неизменяемый тег.
 
-Documentation is part of that immutable application artifact. Before promoting a release that
-changes `docs/` or the private documentation boundary, run `make documentation:acceptance` on the
-committed candidate. The carrier creates isolated one-time E2E credentials and records the exact
-candidate SHA/application image digest; a source-only deployment cannot publish it.
+Документация — часть этого неизменяемого артефакта приложения. Перед продвижением релиза,
+меняющего `docs/` или границу приватной документации, выполните `make documentation:acceptance`
+на закоммиченном кандидате. Носитель создаёт изолированные одноразовые учётные данные E2E и
+записывает точный SHA кандидата и digest образа приложения; развёртывание только исходников
+опубликовать её не может.
 
 ## Разновидности
 

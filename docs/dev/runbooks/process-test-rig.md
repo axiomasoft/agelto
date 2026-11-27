@@ -28,7 +28,7 @@ CONNECT/TLS и полноценный Gemini protocol получают assertion
 
 | Команда | Текущий контракт harness |
 | --- | --- |
-| `make core-test-up` | Compose identity, connectivity, healthy app/Postgres/Redis/MinIO |
+| `make core-test-up` | Compose identity, connectivity, healthy app/Postgres/Redis/объектное хранилище Silo |
 | `make core-test-env` | Positive/negative target checks, fixture manifest/wire assertions, raw socket egress deny и fixture reachability |
 | `make core-test-reset` | Guard, остановка только test workers/scheduler, DROP/CREATE `agelto_test`, migrate, minimal seed, Redis/object/runtime cleanup, readiness, manifests, запуск test workers |
 | `make core-test-install` | Два полных reset; точное сравнение normalized schema/seed/extension/partman manifests |
@@ -332,28 +332,30 @@ test workers и сохраняет JUnit, список actual scenarios и finge
 
 ## Final evidence collection
 
-After the coordinator has run or verified the affected acceptance checks, run from repository
-root:
+После того как координатор запустил или проверил затронутые проверки приёмки, выполните из
+корня репозитория:
 
 ```bash
 make core-test-report
 ```
 
-This reads existing reports and writes `reports/<run-id>/summary.json` under the testing root.
-It performs no reset, queue delivery, provider call or load test. A nonzero result preserves a
-manifest with the missing/stale gate and scenario IDs. Correct the evidence or the owning
-implementation; do not rename an old result, drop a case or turn a paid/live gap into pass.
-The latest result is authoritative separately for each load WIDTH.
+Команда читает существующие отчёты и пишет `reports/<run-id>/summary.json` в тестовый корень.
+Она не выполняет reset, доставку в очередь, вызовы провайдера и нагрузочные тесты. Ненулевой
+результат сохраняет манифест с ID отсутствующих или устаревших gates и сценариев. Исправьте
+доказательства или владеющую реализацию; не переименовывайте старый результат, не выбрасывайте
+случай и не превращайте платный или живой пробел в pass. Последний результат авторитетен отдельно
+для каждого WIDTH нагрузки.
 
-The [acceptance contract](../process-core-acceptance.md) describes the exact reuse checks and
-T01–T48 traceability. Documentation and the enumerated report-only inputs can differ; the
-collector records them. Actual runtime/config/fixture/test changes require affected new proof.
-The final candidate identity includes both Git HEAD and working-input hash. After committing,
-the coordinator collects again to bind the packet to the resulting commit. Keep the original
-reports and `inputs.json` with the manifest; their referenced hashes make the handoff auditable.
+[Контракт приёмки](../process-core-acceptance.md) описывает точные проверки повторного
+использования и трассировку T01–T48. Документация и перечисленные входы, влияющие только на
+отчёты, могут отличаться — сборщик их фиксирует. Реальные изменения runtime, конфигурации,
+fixtures и тестов требуют нового доказательства для затронутого. Итоговая идентичность кандидата
+включает и Git HEAD, и хэш рабочих входов. После коммита координатор собирает отчёт повторно, чтобы
+привязать пакет к получившемуся коммиту. Храните исходные отчёты и `inputs.json` вместе с
+манифестом: хэши, на которые они ссылаются, делают передачу проверяемой.
 
-The report checker has deterministic negative examples in
-`docker/tests/process-core/test_acceptance_report.py`; run that one Python test file for a
-collector change. The harness wrapper is covered by `test_rig.py`. Neither test file is a real
-load/recovery result. [Quality limits](process-quality-limits.md) remain explicit even when all
-deterministic reliability gates are green.
+У проверки отчётов есть детерминированные негативные примеры в
+`docker/tests/process-core/test_acceptance_report.py`; при изменении сборщика запустите этот
+Python-файл тестов. Обёртку стенда покрывает `test_rig.py`. Ни один из них не является реальным
+результатом нагрузки или восстановления. [Ограничения качества](process-quality-limits.md)
+остаются явными, даже когда все детерминированные gates надёжности зелёные.

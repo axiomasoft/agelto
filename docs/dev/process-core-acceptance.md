@@ -193,9 +193,9 @@ D18: исторические scenario names и SHA provenance сохранен�
 а execution eligibility принадлежит durable controls. OCR helper tests используют текущие
 bounded tool policies и Process slice, без сохранения второй job/lease/queue matrix.
 
-Canonical raw evidence conservatively remains pinned; automatic reclamation of that namespace
-is not established by this slice. E2E browser/Horizon lifecycle, full fault/load and production
-throughput remain later acceptance boundaries.
+Канонические сырые доказательства консервативно остаются закреплёнными; автоматическое
+освобождение этого namespace здесь не реализовано. Браузерный E2E и жизненный цикл Horizon,
+полные faults и load и пропускная способность production — более поздние границы приёмки.
 
 ## P3.16 — platform UI и operational metrics
 

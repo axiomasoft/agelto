@@ -85,18 +85,19 @@ VitePress 1.6.4 build содержит inline bootstrap scripts и style attribu
 
 ## P4 acceptance carrier
 
-`make documentation:acceptance` runs the item-owned carrier: focused Pest access/traversal/MIME
-datasets, deterministic documentation build and image checks, then the isolated Chromium
-clean-install flow. The runner checks out exact `HEAD` into a detached worktree, materializes the
-pinned private vendor through `vendor-sync.sh` and generates candidate-local one-time administrator
-credentials when `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD_FILE` are not supplied. It never reuses an
-operator's Compose project, database, volumes, cookies or browser cache. Browser evidence covers
-root/nested loading, exact manifest body SHA-256/MIME/CSP/nosniff/referrer/CORP/cache headers for
-representative HTML/CSS/JS/JSON/font entries, no console/page/CSP failures and direct asset denial
-after both logout and SuperAdmin permission revocation. Output names the full candidate SHA and
-application image digest.
+`make documentation:acceptance` запускает собственный носитель: целевые наборы Pest на доступ,
+обход путей и MIME, детерминированную сборку документации и проверки образа, затем изолированный
+сценарий чистой установки в Chromium. Runner забирает точный `HEAD` в отдельный detached worktree,
+материализует закреплённый приватный vendor через `vendor-sync.sh` и генерирует одноразовые
+учётные данные администратора для кандидата, если `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD_FILE` не
+заданы. Он никогда не переиспользует проект Compose, базу, volumes, cookies и кэш браузера
+оператора. Браузерные доказательства покрывают загрузку корня и вложенных страниц, точные
+SHA-256 тела из манифеста, MIME, CSP, nosniff, referrer, CORP и заголовки кэша для
+представительных HTML, CSS, JS, JSON и шрифтов, отсутствие ошибок консоли, страницы и CSP, а также
+запрет прямого доступа к ассетам после выхода и после отзыва права SuperAdmin. Вывод называет
+полный SHA кандидата и digest образа приложения.
 
-The release contract is D7, D17, D18, D26, D27 and APP-07–APP-10 of
-`contracts/release-readiness-v1.md`. Any change to the
-generator, storage, authorization, MIME/cache or browser policy requires evidence and a superseding
-decision; it is not an implementation convenience.
+Релизный контракт — решения D7, D17, D18, D26, D27 и пункты APP-07–APP-10 из
+`contracts/release-readiness-v1.md`. Любое изменение генератора, хранения, авторизации, политики
+MIME, кэша или браузера требует доказательств и заменяющего решения; это не вопрос удобства
+реализации.

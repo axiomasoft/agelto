@@ -37,10 +37,10 @@ Release-проверка `bash docker/tests/clean-install-e2e.sh` использ
 точного `HEAD`, одноразовый Compose project, собственные БД, тома и учётные данные.
 `E2E_ADMIN_EMAIL` и `E2E_ADMIN_PASSWORD_FILE` позволяют явно задать тестовые данные входа.
 
-Private-documentation release acceptance is `make documentation:acceptance` without required
-external credential inputs. It composes active-SVG rejection, the focused Pest corpus, clean
-vendor/VitePress/image checks and the isolated Playwright hash/header/logout/revoke run; its
-candidate and image anchors are printed for the release evidence report.
+Релизная приёмка приватной документации — `make documentation:acceptance`, без обязательных
+внешних учётных данных. Она объединяет отклонение активных SVG, целевой корпус Pest, чистые
+проверки vendor, VitePress и образа и изолированный прогон Playwright на хэши, заголовки, выход и
+отзыв прав; якоря кандидата и образа печатаются для отчёта о доказательствах релиза.
 
 ## Правила
 
