@@ -8,10 +8,12 @@ use App\Services\Procurement\Network\SourceCatalogSync;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Postgres\ConcurrentTransactions;
 use Tests\Support\ProcessCore\NetworkFixtures;
+use Tests\Support\ProcessCore\ProxymaFixtures;
 
 pest()->group('source-catalog-lifecycle');
 
 test('два concurrent sync сохраняют один origin authority и override version fence', function (): void {
+    ProxymaFixtures::resetAuthority();
     $code = 'net_'.bin2hex(random_bytes(6));
     $platform = NetworkFixtures::platform($code);
     $sync = app(SourceCatalogSync::class);

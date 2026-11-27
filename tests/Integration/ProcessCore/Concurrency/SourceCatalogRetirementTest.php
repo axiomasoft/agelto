@@ -39,6 +39,7 @@ use Tests\Support\ProcessCore\Http\WireFixture;
 use Tests\Support\ProcessCore\LedgerFixtures;
 use Tests\Support\ProcessCore\NetworkFixtures;
 use Tests\Support\ProcessCore\ProxymaCallerFixtures;
+use Tests\Support\ProcessCore\ProxymaFixtures;
 
 pest()->group('source-catalog-lifecycle', 'catalog-retirement');
 
@@ -51,6 +52,10 @@ beforeEach(function (): void {
         NetworkFixtures::platform('json');
     }
     config()->set('platforms.definitions.json', JsonProcurementDefinition::class);
+});
+
+afterEach(function (): void {
+    ProxymaFixtures::resetAuthority();
 });
 
 function reserveRealDefinitionPermit(OutboundRequestPlan $plan, OutboundExecutionContext $context): array
