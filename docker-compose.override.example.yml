@@ -28,7 +28,7 @@
 #
 # services:
 #   glitchtip-postgres:
-#     image: postgres:17-alpine
+#     image: postgres:19-alpine
 #     restart: unless-stopped
 #     volumes:
 #       - glitchtip_postgres_data:/var/lib/postgresql/data
@@ -38,7 +38,7 @@
 #     networks: [agelto_network]
 #
 #   glitchtip-redis:
-#     image: redis:7-alpine
+#     image: redis:8.12-alpine
 #     restart: unless-stopped
 #     networks: [agelto_network]
 #
