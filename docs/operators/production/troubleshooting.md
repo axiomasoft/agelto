@@ -4,27 +4,29 @@ type: reference
 status: living
 ---
 
-# Production troubleshooting
+# Диагностика проблем production
 
-| Symptom | Check | Resume |
+| Симптом | Проверка | Продолжение |
 |:--|:--|:--|
-| Profile rejected | `production-profile-check.sh check` | Correct the closed profile, then rerun the same check. |
-| Deploy stage failed | `first-production-deploy.sh check` | Preserve identity/state; repair and resume the failed stage. |
-| Backup stale or failed | `backup-watchdog.sh check` | Verify copy/manifest before any retention action. |
-| Release/rotation failed | `release-recovery-contract.sh` | Keep old digest/credential active and reverse completed mutations. |
-| Restore concern | `restore-production.sh check` | Use only an isolated `*_rehearsal` target. |
+| Профиль отклонён | `production-profile-check.sh check` | Исправьте закрытый профиль и повторите ту же проверку. |
+| Стадия развёртывания упала | `first-production-deploy.sh check` | Сохраните идентичность и состояние; исправьте причину и продолжите упавшую стадию. |
+| Бэкап устарел или упал | `backup-watchdog.sh check` | Проверьте копию и manifest до любых действий по retention. |
+| Сбой релиза или ротации | `release-recovery-contract.sh` | Оставьте активными старый digest и старые учётные данные, откатите выполненные изменения. |
+| Сомнения при восстановлении | `restore-production.sh check` | Используйте только изолированную цель `*_rehearsal`. |
 
-For a first-deploy failure, preserve the candidate/profile hashes and state file, identify the last
-completed stage, repair the canonical prerequisite, and rerun the same command. The executable
-contract proves failure state and resume for every stage. Never edit `completed=` by hand, change the
-candidate under an existing state, recreate secrets/admin, retry an unsafe migration implicitly or
-mark a fixture result as runtime evidence.
+При сбое первого развёртывания сохраните хэши кандидата и профиля и файл состояния, определите
+последнюю завершённую стадию, исправьте каноническое предусловие и запустите ту же команду
+повторно. Исполняемый контракт доказывает состояние сбоя и продолжение для каждой стадии. Никогда
+не правьте `completed=` вручную, не меняйте кандидата при существующем состоянии, не создавайте
+заново секреты или администратора, не повторяйте неявно небезопасную миграцию и не выдавайте
+результат fixture за доказательство из рабочей среды.
 
-For backup/release/rotation/restore failures, keep the shared lock and evidence directory intact.
-Copy/checksum failure forbids pruning; unknown schema compatibility forbids rollback; partial
-credential cutover keeps the old credential active and triggers reverse-order rollback. The
-follow-up operator rehearsal owns all live commands and approvals.
+При сбоях бэкапа, релиза, ротации или восстановления не трогайте общую блокировку и каталог
+доказательств. Сбой копирования или контрольной суммы запрещает очистку; неизвестная
+совместимость схемы запрещает откат; частичное переключение учётных данных оставляет старое
+значение активным и запускает откат в обратном порядке. Все команды на живой системе и
+утверждения относятся к последующей репетиции оператора.
 
-The exact check and resume entrypoint for every symptom is the generated
-[текущий inventory команд](commands.md#current-command-inventory);
-do not substitute a copied prose command.
+Точная команда проверки и продолжения для каждого симптома находится в генерируемом
+[текущем inventory команд](commands.md#current-command-inventory);
+не подменяйте её командой, скопированной из текста.

@@ -100,7 +100,7 @@ pass 'установщик и служба бэкапа отклоняют не�
 grep -Fq 'Ubuntu 24.04 is required' "$PROVISIONER"
 grep -Fq 'unsupported architecture' "$PROVISIONER"
 grep -Fq 'sshd -t' "$ROOT_DIR/docs/operators/production/ubuntu-host.md"
-grep -Fq 'prove a new key-only login' "$ROOT_DIR/docs/operators/production/ubuntu-host.md"
+grep -Fq 'докажите новый вход только по ключу' "$ROOT_DIR/docs/operators/production/ubuntu-host.md"
 grep -Fq 'Docker TCP API listener detected' "$PROVISIONER"
 grep -Fq 'unexpected public TCP listener' "$PROVISIONER"
 grep -Fq 'CHECK completed without mutation' "$PROVISIONER"

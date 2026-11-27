@@ -4,22 +4,23 @@ type: howto
 status: living
 ---
 
-# Production host profile
+# Профиль production-хоста
 
-Copy `docker/host/production-profile.example` to `docker/host/production-profile`, fill every
-value, then set owner `root` and mode `0600`. The actual profile is Git-ignored and never appears
-in image builds or command output.
+Скопируйте `docker/host/production-profile.example` в `docker/host/production-profile`, заполните
+все значения, затем назначьте владельца `root` и режим `0600`. Настоящий профиль игнорируется Git и
+никогда не попадает в сборку образов или в вывод команд.
 
-It is deliberately a small, closed `KEY=value` file: it names the deploy public-key file, ports,
-capacity floor, Docker data path, and paths to separate root-only secret files. It is not shell code
-and is parsed without `source` or `eval`.
+Это намеренно маленький закрытый файл `KEY=value`. В нём указаны файл публичного ключа deploy,
+порты, минимальный запас ёмкости, путь к данным Docker и пути к отдельным секретным файлам,
+доступным только root. Это не shell-код, и он разбирается без `source` и `eval`.
 
 ```bash
 make -f docker/Makefile host:check PROFILE=docker/host/production-profile
 bash docker/scripts/production-profile-check.sh check --profile "$(pwd)/docker/host/production-profile"
 ```
 
-Both checks reject symlinks, group/world access, duplicate or unknown keys, placeholders, public
-application binds, non-full source SHAs and non-absolute secret-file paths. Do not `source` the
-profile. Repository, backup, release and rehearsal commands receive its path and keep all values
-redacted; evidence records hashes/identifiers only.
+Обе проверки отклоняют симлинки, доступ для группы или всех, повторяющиеся и неизвестные ключи,
+заглушки, публичные bind-адреса приложения, неполные SHA исходников и неабсолютные пути к
+секретным файлам. Не делайте `source` профиля. Команды репозиториев, бэкапа, релиза и репетиций
+получают путь к нему и скрывают все значения; в доказательствах остаются только хэши и
+идентификаторы.

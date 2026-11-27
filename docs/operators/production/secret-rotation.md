@@ -4,13 +4,17 @@ type: runbook
 status: living
 ---
 
-# Production secret rotation preparation
+# Подготовка ротации production-секретов
 
-The credential enum is closed: `APP`, `DB`, `REDIS`, `MINIO`. Each rotation receives current/next
-values through owner-only files, records only their SHA-256 fingerprints, stages the next value,
-checks every declared consumer, and retires the old value only after all consumers are green.
+Перечень учётных данных закрыт: `APP`, `DB`, `REDIS`, `MINIO` (объектное хранилище, сейчас
+Silo). Каждая ротация получает текущее и следующее значения через файлы, доступные только
+владельцу, записывает лишь их отпечатки SHA-256, подготавливает следующее значение, проверяет
+каждого объявленного потребителя и выводит старое значение из работы только после того, как все
+потребители зелёные.
 
-Consumer sets are executable in `rotate-production-secrets.sh check`. A partial failure keeps the old
-credential and rolls already switched consumers back in reverse consumer order. Secret bytes never
-enter argv, environment, logs, state or evidence. The local carrier uses fake consumers; the
-follow-up operator rehearsal owns real service/provider cutover and final retirement approval.
+Наборы потребителей исполняются в `rotate-production-secrets.sh check`. При частичном сбое
+старое значение сохраняется, а уже переключённые потребители откатываются
+в обратном порядке потребителей. Байты секрета никогда не попадают в argv, окружение, журналы, состояние или
+доказательства. Локальный носитель использует поддельных потребителей; реальное переключение
+сервисов и провайдеров и финальное утверждение вывода старого значения относятся к последующей
+репетиции оператора.

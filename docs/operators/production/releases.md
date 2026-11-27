@@ -4,27 +4,31 @@ type: runbook
 status: living
 ---
 
-# Release preparation
+# Подготовка релиза
 
-Эта страница описывает registry-oriented fixture contract. Текущий live путь без CI/registry —
-[manual build/deploy](manual-deployment.md). Не считайте fixture receipt реальным deploy или
-rollback. Host build разрешён только в выбранной manual ветке; runtime source bind mounts,
-floating tags и destructive shutdown остаются запрещены.
+Эта страница описывает fixture-контракт для развёртывания через registry. Текущий рабочий путь без
+CI и registry описан в [ручной сборке и развёртывании](manual-deployment.md). Не считайте receipt
+от fixture настоящим развёртыванием или откатом. Сборка на хосте разрешена только в выбранной
+ручной ветке; bind mount исходников в runtime, плавающие теги и разрушающая остановка остаются
+запрещены.
 
-The local release carrier fixes the order as preflight → verified backup → schema compatibility →
-bounded Horizon drain → immutable app/Doctor pair promotion → readiness → canary. It records only
-candidate/previous `sha256:` digests and stage IDs. Run:
+Локальный носитель релиза фиксирует порядок: preflight → проверенный бэкап → совместимость
+схемы → ограниченный по времени drain Horizon → продвижение неизменяемой пары образов app/Doctor
+→ readiness → canary. Он записывает только digest `sha256:` кандидата и предыдущего релиза и
+идентификаторы стадий. Запуск:
 
 ```bash
 bash docker/tests/release-recovery-contract.sh
 ```
 
-The fixture proves backup before the first mutation, lock contention, bounded failure, reverse-order
-rollback, resume and terminal idempotency. Unknown migration/schema compatibility stops before drain
-or promotion. A failed readiness/canary reverses promotion and drain while retaining the verified
-preflight/backup/compatibility prefix.
+Fixture доказывает резервную копию до первой мутации, конкуренцию за блокировку, ограниченный
+сбой, откат в обратном порядке, продолжение и идемпотентность финального состояния. Неизвестная
+совместимость миграций или схемы останавливает процесс до drain и продвижения. Неудачные
+readiness или canary откатывают продвижение и drain, сохраняя уже проверенные preflight, бэкап и
+совместимость.
 
-Current P12 never invokes live apply. The follow-up rehearsal owns registry authentication, queue
-measurements, image promotion, migrations, HTTPS readiness/canary and the release approval. Use only
-the canonical rows in текущий inventory команд; no host build, floating tag, implicit retry or blind
-Compose shutdown is permitted.
+Текущий контур никогда не вызывает применение на живой системе. Аутентификация в registry, замеры
+очередей, продвижение образов, миграции, HTTPS readiness и canary, а также утверждение релиза
+относятся к последующей репетиции. Используйте только канонические строки
+[текущего inventory команд](commands.md#current-command-inventory); сборка на хосте, плавающие
+теги, неявные повторы и слепая остановка Compose не допускаются.

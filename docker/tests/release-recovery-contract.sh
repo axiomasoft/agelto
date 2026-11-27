@@ -174,8 +174,8 @@ expect_fail 'live rollback apply' "$rollback" apply
 expect_fail 'live restore apply' "$restore" apply
 ! rg -n -- 'git pull|docker build|down --volumes|eval|\|\| true|pg_restore[[:space:]]+--clean|migrate:fresh|rm[[:space:]]+-rf' \
     "$release" "$rollback" "$restore" "$rotation" >/dev/null
-grep -F 'backup before the first mutation' "$root/docs/operators/production/releases.md" >/dev/null
-grep -F 'reverse consumer order' "$root/docs/operators/production/secret-rotation.md" >/dev/null
+grep -F 'резервную копию до первой мутации' "$root/docs/operators/production/releases.md" >/dev/null
+grep -F 'в обратном порядке потребителей' "$root/docs/operators/production/secret-rotation.md" >/dev/null
 grep -F 'isolated `*_rehearsal`' "$root/docs/operators/production/rollback-restore.md" >/dev/null
 
 printf 'Release and recovery contract passed\n'

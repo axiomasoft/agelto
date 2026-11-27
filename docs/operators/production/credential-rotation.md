@@ -4,19 +4,21 @@ type: runbook
 status: living
 ---
 
-# Deploy-key rotation and recovery
+# Ротация и восстановление deploy-ключей
 
-Rotate one repository key at a time; the Agelto and AzGuard aliases deliberately use independent
-Ed25519 private keys. First run `repositories:prepare` and retain the old key. Enrol the new public
-key as a **read-only** deploy key for that same repository, verify the new alias with
-`repositories:sync`, then revoke the old key in GitHub. Do not use a personal credential or turn on
-write access to bridge the transition.
+Меняйте ключи по одному репозиторию за раз: алиасы Agelto и AzGuard намеренно используют
+независимые приватные ключи Ed25519. Сначала выполните `repositories:prepare` и сохраните старый
+ключ. Зарегистрируйте новый публичный ключ как deploy key **только на чтение** для того же
+репозитория, проверьте новый алиас через `repositories:sync`, после чего отзовите старый ключ в
+GitHub. Не используйте личные учётные данные и не включайте права на запись, чтобы «перекинуть
+мост» на время перехода.
 
-If the verification fails, leave the other repository identity unchanged, restore the last known
-working key only from the host's root-protected recovery procedure, and remove the failed deploy key
-from GitHub. A lost or exposed private key is revoked in GitHub before replacement; neither private
-key is backed up in this repository, the production profile, or P12 evidence.
+Если проверка не прошла, не трогайте идентичность другого репозитория, восстановите последний
+рабочий ключ только через защищённую root-процедуру восстановления на хосте и удалите неудачный
+deploy key из GitHub. Потерянный или раскрытый приватный ключ сначала отзывается в GitHub и только
+потом заменяется. Ни один приватный ключ не хранится в резервной копии этого репозитория, в
+production-профиле или в доказательствах развёртывания.
 
-The operator record contains the repository, public-key fingerprint, enrollment/revocation time,
-canonical origin and pinned SHA. It never contains a private key, token, profile value, raw
-`known_hosts` entry or SSH diagnostic with secret material.
+Запись оператора содержит репозиторий, отпечаток публичного ключа, время регистрации и отзыва,
+канонический origin и закреплённый SHA. В ней никогда нет приватного ключа, токена, значений
+профиля, сырой записи `known_hosts` или SSH-диагностики с секретными данными.

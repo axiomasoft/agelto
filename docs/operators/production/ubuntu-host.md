@@ -4,27 +4,27 @@ type: howto
 status: living
 ---
 
-# Ubuntu 24.04 host bootstrap
+# Подготовка хоста Ubuntu 24.04
 
-This is a short, literal runbook for a fresh Ubuntu 24.04 `amd64` or `arm64` host. The helper
-performs only repeatable setup; SSH cutover and network policy stay visible here, where they can be
-reviewed before they affect access.
+Короткий пошаговый runbook для нового хоста Ubuntu 24.04 (`amd64` или `arm64`). Helper выполняет
+только повторяемую настройку. Переключение SSH и сетевая политика описаны здесь явно, чтобы их
+можно было проверить до того, как они повлияют на доступ.
 
-## 1. Create and check the profile
+## 1. Создать и проверить профиль
 
-Put the deploy public key and root-only secret files on the server, fill the ignored profile, then
-run the read-only check.
+Положите на сервер публичный ключ deploy и секретные файлы, доступные только root, заполните
+игнорируемый git профиль и запустите проверку только на чтение:
 
 ```bash
 sudo make -f docker/Makefile host:check PROFILE=docker/host/production-profile
 ```
 
-## 2. Install Docker and the deploy identity
+## 2. Установить Docker и учётную запись deploy
 
-The helper follows Docker's official Ubuntu apt-repository installation. It creates `deploy`, gives
-it the supplied public key, installs the Docker Engine/Buildx/Compose plugin, and installs the
-tracked daemon configuration. The `docker` group is root-equivalent privilege; only the `deploy`
-account receives it.
+Helper повторяет официальную установку Docker через apt-репозиторий Ubuntu. Он создаёт пользователя
+`deploy`, выдаёт ему переданный публичный ключ, ставит Docker Engine и плагины Buildx и Compose,
+а также раскладывает отслеживаемую конфигурацию демона. Группа `docker` по правам равна root,
+поэтому её получает только учётная запись `deploy`.
 
 ```bash
 sudo make -f docker/Makefile host:apply PROFILE=docker/host/production-profile CONFIRM=apply
@@ -32,10 +32,11 @@ docker version
 docker compose version
 ```
 
-## 3. Make SSH key-only safely
+## 3. Безопасно перевести SSH на вход только по ключу
 
-Keep the existing root session open. In a second terminal, prove a new key-only login as `deploy`.
-Only after it succeeds install the fragment, validate it, and reload SSH (never restart it):
+Не закрывайте текущую root-сессию. Во втором терминале докажите новый вход только по ключу под
+`deploy`. Только после успеха установите фрагмент конфигурации, проверьте его и перечитайте SSH
+(не перезапускайте службу):
 
 ```bash
 sudo install -m 0644 docker/host/sshd_config.d/90-agelto.conf /etc/ssh/sshd_config.d/90-agelto.conf
@@ -43,12 +44,14 @@ sudo sshd -t
 sudo systemctl reload ssh
 ```
 
-Confirm that root and password login now fail from a third session before closing the original one.
+Прежде чем закрыть исходную сессию, убедитесь из третьей сессии, что вход под root и по паролю
+теперь отклоняется.
 
-## 4. Firewall and Docker packets
+## 4. Firewall и пакеты Docker
 
-Docker-published ports can bypass UFW. Do not publish application or data ports publicly: bind them
-to `127.0.0.1`, keep public access to SSH/80/443 only, and add the filter before Docker rules.
+Порты, опубликованные Docker, могут обходить UFW. Не публикуйте наружу порты приложения и данных:
+привязывайте их к `127.0.0.1`, оставляйте публичными только SSH, 80 и 443 и добавляйте фильтр
+до правил Docker.
 
 ```bash
 sudo ufw allow 22/tcp
@@ -61,11 +64,11 @@ sudo iptables -I DOCKER-USER 2 -i "$(ip route show default | awk '{print $5; exi
 sudo iptables -A DOCKER-USER -j RETURN
 ```
 
-Persist those exact `DOCKER-USER` rules with the host's approved systemd/firewall mechanism, then
-reboot and prove they return. P12.1 preflight rejects absent effective rules; UFW status alone is
-not evidence.
+Сохраните ровно эти правила `DOCKER-USER` утверждённым на хосте механизмом (systemd или
+firewall), перезагрузите хост и убедитесь, что правила вернулись. Preflight отклоняет хост без
+действующих правил; один только статус UFW доказательством не считается.
 
-## 5. Verify after reboot
+## 5. Проверка после перезагрузки
 
 ```bash
 sudo make -f docker/Makefile host:preflight PROFILE=docker/host/production-profile
@@ -74,12 +77,14 @@ docker info --format '{{.LoggingDriver}}'
 systemctl status apt-daily-upgrade.timer docker --no-pager
 ```
 
-The daemon uses Docker's `local` logging driver with rotation. Unattended security upgrades are
-enabled, but automatic reboot remains an operator decision; inspect `/var/run/reboot-required`.
+Демон использует драйвер журналов Docker `local` с ротацией. Автоматические обновления
+безопасности включены, но решение об автоматической перезагрузке остаётся за оператором:
+проверяйте `/var/run/reboot-required`.
 
-## Evidence limitation
+## Ограничения доказательств
 
-P12.1 is exercised on the local Ubuntu/Docker machine because no disposable server is available.
-That validates scripts, Compose startup and local production topology, but does not claim a fresh
-VM, external SSH login, public firewall, or reboot-persistence proof. Those host facts remain a
-future server rehearsal, not a hidden retry requirement for this local evidence.
+Сценарий проверен на локальной машине с Ubuntu и Docker, потому что одноразового сервера нет.
+Это подтверждает скрипты, запуск Compose и локальную production-топологию, но не доказывает
+работу на свежей VM, внешний вход по SSH, публичный firewall и сохранение правил после
+перезагрузки. Эти факты о хосте остаются задачей будущей репетиции на сервере, а не скрытым
+требованием повторить локальную проверку.
