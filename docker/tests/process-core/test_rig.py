@@ -135,13 +135,19 @@ class RigGuardsTest(unittest.TestCase):
             with self.subTest(config=config["name"]), self.assertRaises(rig.GuardError):
                 rig.validate_config(config)
 
+    def test_postgres_major_matches_the_pinned_image(self):
+        dockerfile = (rig.ROOT / "docker/postgres/Dockerfile").read_text()
+        self.assertIn(f"FROM postgres:{rig.POSTGRES_MAJOR}@sha256:", dockerfile)
+        self.assertIn(f"postgresql-{rig.POSTGRES_MAJOR}-partman", dockerfile)
+
     def test_exact_database_parallel_token_and_connected_identity(self):
         proof = {"project": rig.PROJECT, "environment": "testing", "database": "agelto_test",
-                 "user": "core_test", "port": 5432, "server_version": "17.6"}
+                 "user": "core_test", "port": 5432, "server_version": "19.0"}
         rig.target_guard(proof)
         for key, value in [("project", "agelto_dev"), ("database", "agelto"),
                            ("database", "alien_test"), ("user", "postgres"),
-                           ("environment", "production"), ("port", 6432), ("server_version", "16.0")]:
+                           ("environment", "production"), ("port", 6432), ("server_version", "16.0"),
+                           ("server_version", "17.6")]:
             with self.subTest(key=key, value=value), self.assertRaises(rig.GuardError):
                 rig.target_guard({**proof, key: value})
         parallel = {**proof, "database": "agelto_test_test_2"}

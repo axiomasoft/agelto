@@ -18,6 +18,8 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[3]
 PROJECT = "agelto_core_test"
+# The rig accepts only the PostgreSQL major that docker/postgres/Dockerfile pins.
+POSTGRES_MAJOR = "19"
 COMPOSE_FILE = ROOT / "docker/compose.core-test.yml"
 ENV_FILE = ROOT / "docker/tests/process-core/rig.env"
 REPORTS = ROOT / "storage/app/testing/process-core/reports"
@@ -236,7 +238,7 @@ def target_guard(proof, database="agelto_test", token=None):
     require(token is None or re.fullmatch(r"[A-Za-z0-9_-]+", token), "reset: invalid parallel token")
     require(database == expected, "reset: wrong exact database/token")
     require(proof.get("database") == database and proof.get("user") == "core_test"
-            and proof.get("port") == 5432 and proof.get("server_version", "").startswith("17."),
+            and proof.get("port") == 5432 and proof.get("server_version", "").startswith(POSTGRES_MAJOR + "."),
             "reset: wrong connected database identity")
     require(proof.get("environment") == "testing", "reset: not testing")
 
@@ -582,7 +584,7 @@ def env_proof(folder):
         require(guard_tests.returncode == 0, "negative guard examples failed: " + pattern)
     # The negative proof never invokes reset; unit tests also assert no mutation on rejection.
     base = {"project": PROJECT, "database": "agelto_test", "user": "core_test", "port": 5432,
-            "server_version": "17.0", "environment": "testing"}
+            "server_version": POSTGRES_MAJOR + ".0", "environment": "testing"}
     target_guard(base)
     rejected = []
     for key, value in [("project", "agelto_dev"), ("database", "agelto"),
