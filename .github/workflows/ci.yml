@@ -84,6 +84,7 @@ jobs:
             browser:
               - 'e2e/**'
               - 'playwright.config.ts'
+              - 'docker/tests/clean-install-e2e.sh'
             image:
               - 'docker-compose*.yml'
               - 'docs/**'

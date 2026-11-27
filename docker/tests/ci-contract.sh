@@ -86,6 +86,8 @@ assert 'run: make bootstrap MODE=dev' not in ci + tia
 assert 'make core-test-tia' in tia and './.github/actions/setup-core-test' in tia
 # DAG: path routing -> cheap preflight -> rig jobs -> one required gate.
 assert 'dorny/paths-filter@' in jobs['changes']
+browser_filter = jobs['changes'].split('            browser:\n', 1)[1].split('            image:\n', 1)[0]
+assert "'docker/tests/clean-install-e2e.sh'" in browser_filter
 for name in ('quality', 'tests', 'faults', 'e2e'):
     assert re.search(r'^    needs: \[changes, preflight\]$', jobs[name], re.M), f'{name} must wait for preflight'
 for name in ('release-samples', 'load'):
@@ -128,6 +130,8 @@ grep -Fq 'clean-install-e2e.sh' "$ci_workflow"
 grep -Fq 'E2E_ARTIFACT_DIR: ci-artifacts' "$ci_workflow"
 ! grep -Fq '.ci-artifacts/' "$ci_workflow"
 grep -Fq 'E2E_ARTIFACT_DIR' docker/tests/clean-install-e2e.sh
+grep -Fq 'E2E_AUTH_FILE="$candidate/.e2e-auth/$run_id/admin.json"' docker/tests/clean-install-e2e.sh
+! grep -Fq 'E2E_AUTH_FILE="$output_dir/admin.json"' docker/tests/clean-install-e2e.sh
 grep -Fq 'export IMAGE_TAG="$image_tag"' docker/tests/clean-install-e2e.sh
 grep -Fq 'playwright-report/index.html' "$ci_workflow"
 grep -Fq 'playwright-report/**' "$ci_workflow"
