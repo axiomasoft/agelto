@@ -18,6 +18,7 @@
     <source>
         <include>
             <directory>app</directory>
+            <file>bootstrap/proxyma/ProxyResolver.php</file>
         </include>
     </source>
     <php>

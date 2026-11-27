@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Filament\Resources\Procurement\Procurements\Pages\ListProcurements;
 use App\Filament\Resources\Procurement\Procurements\Pages\ViewProcurement;
+use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
 use App\Guards\Admin\Roles\AnalystRole;
 use App\Models\Platforms\Eis\EisDetails;
 use App\Models\Procurement\Platform\Platform;
@@ -66,4 +67,16 @@ test('настоящий список закупок не получает N+1 �
     } finally {
         DB::disableQueryLog();
     }
+});
+
+test('ссылка на закупку ведёт к доступной записи и не обходит отзыв роли', function (): void {
+    $procurement = Procurement::factory()->create();
+    $url = ProcurementResource::getUrl('view', ['record' => $procurement]);
+
+    Livewire::test(ListProcurements::class)->assertCanSeeTableRecords([$procurement])->assertSee($url);
+    $this->get($url)->assertOk();
+
+    $user = auth()->user();
+    $user->removeRole(AnalystRole::class);
+    $this->get($url)->assertForbidden();
 });

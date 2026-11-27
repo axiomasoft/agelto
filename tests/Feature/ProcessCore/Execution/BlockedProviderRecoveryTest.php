@@ -11,6 +11,7 @@ use App\Enums\Procurement\Process\Governance\ControlMode;
 use App\Enums\Procurement\Process\Outcomes\CompletionStatus;
 use App\Enums\Procurement\Process\Outcomes\ProviderOperationPurpose;
 use App\Enums\Procurement\Process\Outcomes\ProviderRecoveryMode;
+use App\Services\Procurement\Process\Daemons\DaemonPolicy;
 use App\Services\Procurement\Process\Daemons\ReconcileDaemon;
 use App\Services\Procurement\Process\Daemons\RecoveryReconciler;
 use App\Services\Procurement\Process\Execution\NoProviderOperations;
@@ -103,7 +104,9 @@ test('late receipt: настоящий periodic scan возвращает ТОТ
     providerDue($work);
     $before = providerRow($work);
 
-    $daemon = app(ReconcileDaemon::class);
+    // RefreshDatabase holds a transaction; exercise the recovery categories under test
+    // without invoking unrelated categories that require external-I/O-safe transaction state.
+    $daemon = new ReconcileDaemon(app(DaemonPolicy::class));
     foreach (app(RecoveryReconciler::class)->categories() as $category) {
         $daemon->register($category);
     }

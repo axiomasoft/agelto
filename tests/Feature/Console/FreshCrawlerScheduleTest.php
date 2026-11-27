@@ -9,7 +9,6 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Tests\Support\ProcessCore\AcquisitionProfileFixtures as F;
 use Tests\Support\ProcessCore\ListingFixtures;
 
@@ -51,7 +50,6 @@ test('невалидный cron одного профиля пропускает
 
 test('недоступная БД не роняет загрузку console.php и оставляет задачи без таблиц', function (): void {
     Log::spy();
-    Schema::shouldReceive('hasTable')->andThrow(new RuntimeException('connection refused password=super-secret-dsn'));
     $schedule = app(Schedule::class);
     $before = count($schedule->events());
 
@@ -65,9 +63,19 @@ test('недоступная БД не роняет загрузку console.php
     expect($maintainEvent)->toBeInstanceOf(Event::class)
         ->and($maintainEvent->withoutOverlapping)->toBeTrue();
 
-    $runnableCommands = $events
-        ->filter(fn (Event $event): bool => $event->filtersPass(app()))
-        ->map(fn (Event $event): string => (string) $event->command);
+    // Schema::connection() is an explicit facade method and calls the DB manager directly.
+    $database = app('db');
+    $defaultConnection = $database->getDefaultConnection();
+    $databaseMock = DB::partialMock();
+    $databaseMock->shouldReceive('getDefaultConnection')->andReturn($defaultConnection);
+    $databaseMock->shouldReceive('connection')->andThrow(new RuntimeException('connection refused password=super-secret-dsn'));
+    try {
+        $runnableCommands = $events
+            ->filter(fn (Event $event): bool => $event->filtersPass(app()))
+            ->map(fn (Event $event): string => (string) $event->command);
+    } finally {
+        DB::swap($database);
+    }
 
     expect($runnableCommands->contains(fn (string $command): bool => str_contains($command, 'partitions:maintain')))->toBeTrue()
         ->and($runnableCommands->contains(fn (string $command): bool => str_contains($command, 'process:schedule-acquisition')))->toBeFalse()

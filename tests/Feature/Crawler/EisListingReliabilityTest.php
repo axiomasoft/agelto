@@ -13,6 +13,7 @@ use App\Models\Procurement\Crawler\RawArtifact;
 use App\Models\Procurement\Platform\Platform;
 use App\Models\Procurement\Platform\Registry;
 use Illuminate\Support\Facades\DB;
+use Proxyma\Infrastructure\Database\PackageSchema;
 use Tests\Support\Platforms\Eis\EisListingFactsFixtures as C;
 use Tests\Support\ProcessCore\ExecutionFixtures as E;
 use Tests\Support\ProcessCore\FinalizeFixtures;
@@ -28,19 +29,20 @@ beforeEach(function (): void {
     $this->platformBefore = Platform::query()->where('code', 'eis')->value('id');
     $this->registryBefore = Registry::query()->where('platform_id', $this->platformBefore)->where('code', 'fz44')->value('id');
     $this->wire = new WireFixture;
-    $this->fixture = new AcquisitionWireFixture($this->wire);
 });
 
 afterEach(function (): void {
     $this->wire->stop();
     PermitFixtures::clean();
     $this->rawEvidence->clean();
-    $platform = $this->fixture->registry->platform;
-    if ($this->registryBefore === null) {
-        $this->fixture->registry->delete();
-    }
-    if ($this->platformBefore === null) {
-        $platform->delete();
+    if (isset($this->fixture)) {
+        $platform = $this->fixture->registry->platform;
+        if ($this->registryBefore === null) {
+            $this->fixture->registry->delete();
+        }
+        if ($this->platformBefore === null) {
+            $platform->delete();
+        }
     }
 });
 
@@ -59,6 +61,7 @@ test('Process EIS semantic empty requires valid CSV content type as well as comp
 });
 
 test('actual acquisition checks current Process pause cancellation and ownership before sending any bytes', function (string $stop): void {
+    $this->fixture = new AcquisitionWireFixture($this->wire);
     $this->wire->respond('/csv', C::body([]), headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
     try {
         $outcome = $this->fixture->fetchWork($this->fixture->listingRequest(), function ($context) use ($stop): void {
@@ -82,20 +85,23 @@ test('actual acquisition checks current Process pause cancellation and ownership
 })->with(['pause' => ['pause'], 'cancel' => ['cancel'], 'stale owner' => ['stale']]);
 
 test('actual acquisition exhausted network retries cannot reuse a previous HTTP error as final input', function (): void {
-    $fixture = new AcquisitionWireFixture($this->wire, '/unavailable-then-drop');
-    $outcome = $fixture->fetchWork($fixture->listingRequest());
+    $this->fixture = new AcquisitionWireFixture($this->wire, '/unavailable-then-drop');
+    $outcome = $this->fixture->fetchWork($this->fixture->listingRequest());
+    $tables = PackageSchema::tables();
     expect($outcome)->toBeInstanceOf(StageDeferred::class)->and($this->wire->receipts())->toHaveCount(3)
-        ->and(DB::table('prc_request_attempts')->orderBy('request_seq')->pluck('request_seq')->all())->toBe([1, 2, 3])
-        ->and(DB::table('prc_request_attempts')->whereNotNull('finished_at')->count())->toBe(3)
-        ->and(DB::table('prc_network_permits')->where('state', 'released')->count())->toBe(3)
+        ->and(DB::table($tables['permits'])->whereNotNull('lease_released_at')->count())->toBe(3)
+        ->and(DB::table('prc_request_attempts')->count())->toBe(0)
         ->and(DB::table('prc_procurements')->count())->toBe(0)
         ->and(RawArtifact::query()->whereNotIn('id', $this->rawBefore)->count())->toBe(0)
         ->and(DB::table('prc_process_work')->value('item_failures'))->toBe(0);
-    $attempts = DB::table('prc_request_attempts')->orderBy('request_seq')->get();
-    $owners = DB::table('prc_request_attempts as a')->join('prc_network_demands as d', 'd.id', '=', 'a.demand_id')->pluck('d.attempt_id');
-    expect($attempts->pluck('request_id')->unique())->toHaveCount(3)
-        ->and($owners->filter())->toHaveCount(3)->and($owners->unique())->toHaveCount(1);
+    $attempts = DB::table($tables['attempts'])->orderBy('authorized_at')->get();
+    $owners = DB::table($tables['operations'])->whereIn('id', $attempts->pluck('operation_id'))->pluck('owner_id');
+    expect($attempts->pluck('physical_attempt_id')->unique())->toHaveCount(3)
+        ->and($owners->filter())->toHaveCount(3)->and($owners->unique())->toHaveCount(1)
+        ->and($attempts->pluck('status')->all())->toBe(['completed', 'unknown_after_authorization', 'unknown_after_authorization'])
+        ->and($attempts->map(fn (object $attempt): mixed => json_decode($attempt->result_summary, true, flags: JSON_THROW_ON_ERROR)['status'])->all())->toBe([503, null, null]);
     foreach ($attempts as $attempt) {
-        expect($attempt->duration_ms)->toBeGreaterThanOrEqual(0);
+        $released = DB::table($tables['permits'])->where('id', $attempt->permit_id)->value('lease_released_at');
+        expect(new DateTimeImmutable($released))->toBeGreaterThanOrEqual(new DateTimeImmutable($attempt->authorized_at));
     }
 });

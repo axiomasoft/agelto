@@ -1,5 +1,6 @@
 """Isolated loopback wire evidence. Never connects outside this fixture's listeners."""
 import base64
+import gzip
 import hashlib
 import json
 import os
@@ -145,8 +146,12 @@ class Handler(socketserver.BaseRequestHandler):
             while not os.path.isfile(root + '/release'):
                 time.sleep(0.01)
         payload = b'x' * 2048 if path == '/large' else b'fixture-response'
+        encoding = ''
+        if path == '/gzip-large':
+            payload = gzip.compress(b'x' * 8193, mtime=0)
+            encoding = 'Content-Encoding: gzip\r\n'
         code = path.strip('/') if path in ('/401', '/403', '/404', '/429', '/503') else '200'
-        sock.sendall(f'HTTP/1.1 {code} Fixture\r\nContent-Length: {len(payload)}\r\nContent-Type: application/octet-stream\r\nSet-Cookie: secret=fixture\r\nConnection: close\r\n\r\n'.encode() + payload)
+        sock.sendall(f'HTTP/1.1 {code} Fixture\r\nContent-Length: {len(payload)}\r\n{encoding}Content-Type: application/octet-stream\r\nSet-Cookie: secret=fixture\r\nConnection: close\r\n\r\n'.encode() + payload)
 
 
 def tls_context(name, kind):

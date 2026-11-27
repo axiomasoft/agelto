@@ -86,7 +86,7 @@ test('два reconcile daemon после потери Redis: потерянна�
 
     expect($ticks['one']['error'])->toBeNull()
         ->and($ticks['two']['error'])->toBeNull()
-        ->and($ticks['one']['categories'])->toBe(['document_storage_cleanup', 'outbound_expired_owners', 'outbound_probes', 'expired_running', 'admitted', 'blocked_release', 'blocked_provider', 'handler_fault_sweep', 'invariant'])
+        ->and($ticks['one']['categories'])->toBe(['document_storage_cleanup', 'outbound_expired_owners', 'outbound_probes', 'proxyma_reconcile', 'expired_running', 'admitted', 'blocked_release', 'blocked_provider', 'handler_fault_sweep', 'invariant'])
         // Каждая work восстановлена ровно одним из двух daemon: SKIP LOCKED + повтор locked predicates.
         ->and($ticks['one']['processed'] + $ticks['two']['processed'])->toBe(2);
 
@@ -159,7 +159,7 @@ test('два periodic reconcile daemon принимают один поздни�
     $binding = '\\Tests\\Support\\ProcessCore\\FinalizeFixtures::bind(\\App\Enums\Procurement\Process\Core\StageCode::Listing);'
         .'$resolver = \\Tests\\Support\\ProcessCore\\FixtureProviderRecoveryResolver::install();'
         .'$resolver->finding('.$literal.", unserialize(base64_decode('".base64_encode(serialize($verified))."')));";
-    $operation = '$daemon = app(\\App\Services\Procurement\Process\Daemons\ReconcileDaemon::class);'
+    $operation = '$daemon = new \\App\Services\Procurement\Process\Daemons\ReconcileDaemon(app(\\App\Services\Procurement\Process\Daemons\DaemonPolicy::class));'
         .'foreach (app(\\App\Services\Procurement\Process\Daemons\RecoveryReconciler::class)->categories() as $category) { $daemon->register($category); }'
         .'$tick = $daemon->tick(); return ["processed" => $tick->processed, "error" => $tick->errorCode, "settlements" => count($resolver->settlements)];';
     $ticks = ConcurrentTransactions::concurrently([

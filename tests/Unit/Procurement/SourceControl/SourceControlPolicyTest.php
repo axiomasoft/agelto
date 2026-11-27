@@ -34,6 +34,12 @@ test('ошибка конфига валит разбор с адресом ош
     'порог 0' => [function (array &$c): void {
         $c['health']['route_target_consecutive'] = 0;
     }, 'outbound.health.route_target_consecutive'],
+    'процент выше 100' => [function (array &$c): void {
+        $c['health']['route_target_failure_percent'] = 101;
+    }, 'outbound.health.route_target_failure_percent'],
+    'предел задержки меньше начального' => [function (array &$c): void {
+        $c['health']['global_cap_seconds'] = $c['health']['global_base_seconds'] - 1;
+    }, 'outbound.health.global_cap_seconds'],
     'статус-строка' => [function (array &$c): void {
         $c['scheduling']['status_capacity_percent'] = '30';
     }, 'outbound.scheduling.status_capacity_percent'],

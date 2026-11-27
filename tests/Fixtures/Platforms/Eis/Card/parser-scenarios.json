@@ -3,7 +3,7 @@
     "files": [
         {
             "path": "tests/Feature/Crawler/CardCollectDetailsTest.php",
-            "sha256": "3870e10dd2c0950860656579ad6dfe5f65f49287ee19b30cf05bf21046af405b",
+            "sha256": "d835bfb6f7c8527732f5c649892b82b276a3c80a3c1878e54de09da72d4edaab",
             "original_sha256": "9240eac6b1dd8468da157516f5aaaf4f68a7eb303c7ca1c71fa849f98434c22b",
             "accepted_change_item": "P2.18",
             "change_reason": "D18 acquisition cutover: all 133 original parser vector declarations remain in this inventory. Exact executed-case replacements and reasons are in scenario-transfers.json; T39 rejects missing dataset mappings or targets, and full regression enforces their actual execution.",
@@ -36,7 +36,7 @@
         },
         {
             "path": "tests/Feature/Crawler/CsvSourceMethodTest.php",
-            "sha256": "50922d58a2087f1df252ce76bf5b60104267a7d2d4fd8a28f2c9f8d79e38e172",
+            "sha256": "4a770d11dc66a3360cf446cbb25baf6bed4a4b6857a2f0cdd3fb4e45ede77f82",
             "original_sha256": "91cd9ffc8980a5e9fadb5d0c973dc5e689eab3f292418aad27203a2e03cb6098",
             "accepted_change_item": "P2.18",
             "change_reason": "D18 acquisition cutover: all 133 original parser vector declarations remain in this inventory. Exact executed-case replacements and reasons are in scenario-transfers.json; T39 rejects missing dataset mappings or targets, and full regression enforces their actual execution.",

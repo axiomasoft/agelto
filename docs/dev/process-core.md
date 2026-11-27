@@ -686,7 +686,9 @@ probe token retains a stale observation and leaves all current counters unchange
 state is published by health application; the existing legacy writers remain active only for their
 legacy consumers until P2.6. New construction fixtures do not activate those consumers.
 
-Defaults in `outbound.health` are boot-validated: global five proven consecutive failures,
+Historical defaults in `outbound.health` are boot-validated and retained for legacy-state transfer;
+active network health thresholds are owned by `proxyma.health`. The historical defaults were:
+global five proven consecutive failures,
 1800s ×2 capped at21600s; route-target five consecutive or >=60% of >=10 eligible outcomes in
 rolling600s, 300s ×2 capped at3600s. Success resets its own consecutive series; openings decay by
 one only after600s of stability, with a new stability interval before another decay. Ignored

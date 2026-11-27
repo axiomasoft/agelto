@@ -16,10 +16,12 @@ use App\Services\Procurement\Platform\PlatformRegistry;
 use App\Services\Procurement\Process\Infrastructure\ProcessTransaction;
 use Database\Factories\Platforms\Eis\EisCrawlerFactory;
 use Illuminate\Support\Facades\DB;
+use Proxyma\Infrastructure\Database\PackageSchema;
 use Tests\Support\ProcessCore\HistoricalNetworkFixtures;
 use Tests\Support\ProcessCore\HistoricalRouteCatalog as RouteRepository;
 use Tests\Support\ProcessCore\Http\PermitFixtures as F;
 use Tests\Support\ProcessCore\Http\WireFixture;
+use Tests\Support\ProcessCore\ProxymaCallerFixtures;
 use Tests\Support\ProcessCore\RawEvidenceFixtures;
 
 beforeEach(function (): void {
@@ -42,6 +44,7 @@ function runBoundaryDiagnostic(WireFixture $wire): CheckResult
     HistoricalNetworkFixtures::synchronize();
     app(ProcessTransaction::class)->run(fn () => app(RouteRepository::class)->ensureProfile(
         app(OutboundPolicy::class)->defaultRouteProfile, $fixture->route->routeId->value));
+    ProxymaCallerFixtures::install($wire);
     app()->instance(AcquisitionDiagnostic::class, app()->makeWith(AcquisitionDiagnostic::class, ['urls' => $wire->policy()]));
 
     return app(DiagnosticRunner::class)->run(new ListingFilterCheck, $definition, $profile->registry->platform_id,
@@ -56,7 +59,8 @@ test('Process boundary diagnostic uses two bounded reads and stores sanitized ev
         $wire->respond('/listing', str_replace('00042', '00043', $body), headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
         $result = runBoundaryDiagnostic($wire);
         expect($result->verdict)->toBe(PlatformCheckVerdict::Ok)->and($result->requestsUsed)->toBe(2)
-            ->and($wire->receipts())->toHaveCount(2)->and(DB::table('prc_request_attempts')->count())->toBe(2)
+            ->and($wire->receipts())->toHaveCount(2)->and(DB::table(PackageSchema::tables()['attempts'])->where('status', 'completed')->count())->toBe(2)
+            ->and(DB::table('prc_request_attempts')->count())->toBe(0)
             ->and(DB::table('prc_procurements')->count())->toBe(0)->and(DB::table('prc_process_work')->count())->toBe(0);
         foreach ($wire->receipts() as $receipt) {
             parse_str(parse_url($receipt['path'], PHP_URL_QUERY) ?? '', $query);
@@ -76,7 +80,8 @@ test('Process boundary diagnostic stops on invalid CSV without false empty pages
         $wire->respond('/listing', '<html>Access denied</html>', headers: ['Content-Type' => 'text/csv; charset=UTF-8']);
         $result = runBoundaryDiagnostic($wire);
         expect($result->verdict)->toBe(PlatformCheckVerdict::NotEnoughData)->and($result->requestsUsed)->toBe(1)
-            ->and($wire->receipts())->toHaveCount(1)->and(DB::table('prc_request_attempts')->count())->toBe(1)
+            ->and($wire->receipts())->toHaveCount(1)->and(DB::table(PackageSchema::tables()['attempts'])->where('status', 'completed')->count())->toBe(1)
+            ->and(DB::table('prc_request_attempts')->count())->toBe(0)
             ->and(DB::table('prc_process_work')->count())->toBe(0)->and(DB::table('prc_procurements')->count())->toBe(0);
         $facts = DB::table('prc_observations')->where('kind', 'adapter_validation')->pluck('details')->all();
         expect($facts)->toHaveCount(1)->and(json_decode($facts[0], true)['verdict'])->toBe('contract_failure')

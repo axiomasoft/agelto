@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Services\Procurement\Proxyma\Transport\AgeltoPhysicalHttpTransport;
 use Proxyma\Application\Admission\ClaimSend;
 use Proxyma\Application\Admission\TransactionCoordinator;
 use Proxyma\Application\Recovery\Reconciler;
@@ -56,6 +57,27 @@ test('latestStart после authorization запрещает activation или 
         ->and((int) $this->table('quota_windows')->sum('spent'))->toBe(2)
         ->and(fn () => $this->claims->claim(...$prepared))->toThrow(AdmissionRejected::class, 'already_claimed');
 })->with([true, false]);
+
+test('истекший срок запрещает отправку и освобождает ресурсы transport', function (): void {
+    $now = hrtime(true);
+    $this->transactions = new TransactionCoordinator($this->transactions->scope, function () use (&$now): int {
+        return $now;
+    });
+    $this->app->instance(TransactionCoordinator::class, $this->transactions);
+    $this->app->forgetInstance(ClaimSend::class);
+    $this->claims = $this->app->make(ClaimSend::class);
+    [$permit, $input, $wire] = $this->physicalPrepared();
+    $candidate = $this->claims->claim($permit, $input, $wire);
+    $capability = $this->claims->activate($candidate);
+    $now = $candidate->conservativeLatestStartNs($wire->request->timeouts->totalWithCleanupMarginNs()) + 1;
+    $transport = new AgeltoPhysicalHttpTransport($this->transactions->scope, $this->sealer);
+    $before = $this->openResponseSinks();
+
+    expect(fn () => $transport->sendOnce($capability))->toThrow(LogicException::class, 'expired');
+    $this->socket->assertNoConnections();
+    expect($this->openResponseSinks())->toBe($before)
+        ->and($this->table('attempts')->value('dispatch_outcome'))->toBe('not_dispatched');
+});
 
 test('active SQL transaction запрещает physical preparation и consume без socket bytes', function (): void {
     $prepared = $this->physicalPrepared();

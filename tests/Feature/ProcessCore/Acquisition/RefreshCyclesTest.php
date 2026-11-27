@@ -12,6 +12,8 @@ use App\Dto\Procurement\Process\Inputs\StatusRefreshInput;
 use App\Dto\Procurement\Process\Outcomes\StageSucceeded;
 use App\Enums\Procurement\Platform\SnapshotConsistency;
 use App\Filament\Resources\Procurement\Procurements\ProcurementResource;
+use App\Guards\Admin\Roles\SuperAdminRole;
+use App\Models\User;
 use App\Repositories\Procurement\Crawler\DetailSnapshotRepository;
 use App\Repositories\Procurement\Crawler\RefreshRepository;
 use App\Services\Procurement\Acquisition\Detail\SnapshotFinalizer;
@@ -29,6 +31,9 @@ use Tests\Support\Procurement\SnapshotFactory;
 pest()->group('acquisition-operations', 'document-storage-and-references');
 
 test('unchanged status allocates two distinct cycles and fetches twice with closed required runs', function (): void {
+    $admin = User::factory()->create();
+    $admin->assignRole(SuperAdminRole::class);
+    $this->actingAs($admin);
     F::bind();
     $f = F::work();
     $snapshot = F::snapshot($f['request'], 'attributes');

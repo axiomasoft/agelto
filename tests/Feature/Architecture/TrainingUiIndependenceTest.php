@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Filament\Resources\Procurement\Ai\Fixtures\Related\FixtureRunResource;
 use Symfony\Component\Finder\Finder;
 
 /*
@@ -72,9 +73,9 @@ function trainingUiViewFiles(): array
 }
 
 test('периметр витрины обучалки собран Finder\'ом, а не перечнем руками', function (): void {
-    // Счётчик — канарейка периметра: растёт при КАЖДОМ новом файле витрины. 10 = ресурс + 4
-    // страницы + форма + инфолист + две схемы + две таблицы + relation-менеджер.
-    expect(trainingUiClasses())->toHaveCount(12)
+    // Счётчик — канарейка периметра: растёт при КАЖДОМ новом файле витрины. 13 = ресурс, 5 страниц, 4 схемы, таблица, relation-менеджер и связанный ресурс.
+    expect(trainingUiClasses())->toHaveCount(13)
+        ->and(array_column(trainingUiClasses(), 'class'))->toContain(FixtureRunResource::class)
         ->and(trainingUiViewFiles())->toHaveCount(2);
 });
 
