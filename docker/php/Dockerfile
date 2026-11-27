@@ -75,8 +75,19 @@ CMD ["/init"]
 # Development keeps its source bind mount. Production copies only the filtered build context;
 # Composer/vendor closure and framework readiness remain explicit P2/P3 gates.
 FROM app-base AS development
+# pcov 1.0.12, the latest PECL release, does not compile against PHP 8.6 (INI_* macros were
+# removed). The fix is merged upstream but not tagged yet, so build the pinned commit; git
+# verifies the content by its SHA. Return to `pecl install pcov` once a release includes it.
+ARG PCOV_COMMIT=3795c08561d69ca7f55f693492de59a65a6a182d
 RUN apt-get update && apt-get install -y --no-install-recommends git \
-    && if ! php -m | grep -qi '^pcov$'; then pecl install pcov && docker-php-ext-enable pcov; fi \
+    && if ! php -m | grep -qi '^pcov$'; then \
+        git init -q /tmp/pcov \
+        && git -C /tmp/pcov fetch -q --depth 1 https://github.com/krakjoe/pcov.git "$PCOV_COMMIT" \
+        && git -C /tmp/pcov checkout -q FETCH_HEAD \
+        && (cd /tmp/pcov && phpize && ./configure --enable-pcov && make -j"$(nproc)" && make install) \
+        && rm -rf /tmp/pcov \
+        && docker-php-ext-enable pcov; \
+    fi \
     # ./:/var/www/html — bind-mount с хоста (uid 1000), процесс www-data — uid 33; git считает
     # это "dubious ownership" и блокирует любые операции, включая движок Tia (требует git).
     # system-level (не global www-data), чтобы пережить --force-recreate без volume на $HOME.
