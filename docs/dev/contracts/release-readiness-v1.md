@@ -4,151 +4,163 @@ type: reference
 status: living
 ---
 
-# Release Readiness Contract v1
+# Контракт готовности к релизу v1
 
-Status: frozen for P1–P12 implementation; D60 remains an explicit owner gate before P12.3/P12.7.
-Evidence basis: `research/02-P0-target-contracts.md`, accepted D4–D10/D14/D15/D56/D57–D59/D61,
-and proposed D60. A consumer may strengthen a clause, but may not weaken or silently replace it.
+Статус: заморожен для реализации этапов P1–P12; D60 остаётся явным gate владельца перед P12.3/P12.7.
+Основание: исследование целевых контрактов этапа P0, принятые решения D4–D10/D14/D15/D56/D57–D59/D61
+и предложенное D60. Идентификаторы этапов (P*) и решений (D*) здесь — исторические ссылки
+замороженного контракта. Потребитель может усилить пункт, но не может ослабить его или молча
+заменить.
 
-## Development and production topology
+## Топология разработки и production
 
-- **TOP-01:** Development source is bind-mounted; an ordinary application-code edit must become
-  visible without rebuilding the PHP image. Rebuild causes are a finite taxonomy: dependency or
-  frontend lock/manifests, Docker/build-context changes, base/package refresh, and explicit clean
-  or security rebuild. Evidence: INF-02; decision: D57.
-- **TOP-02:** Production application source, Composer dependencies and built frontend assets are
-  image-contained. Production source bind mounts are forbidden. Evidence: INF-01/INF-11;
-  decision: D57.
-- **TOP-03:** Build/promotion/deploy receipts bind source commit, manifest digest, platform digest
-  and configuration revision. Tag-only deploy/rollback evidence is invalid. Evidence: INF-10;
-  decisions: D57/D59.
-- **TOP-04:** Production runtime services consume the same promoted identity; rollback resolves
-  exact digest and verifies schema/config compatibility before mutation. Decision: D59.
-- **TOP-05:** Production asset build and Vite dev/HMR are separate carriers. Dev uses explicit
-  host/allowed-host/HMR settings; production runs built assets and HTTP-verifies emitted URLs.
-  Evidence: INF-11; decision: D57.
-- **TOP-06:** Root Make remains the single operator entrypoint with deterministic help/preflight
-  and agent-safe output. Ordinary build/deploy paths never execute volume destruction. Evidence:
-  INF-08/INF-12; decision: D10.
+- **TOP-01:** Исходники разработки монтируются bind mount; обычная правка кода приложения должна
+  становиться видимой без пересборки PHP-образа. Причины пересборки — закрытый список: lock-файлы
+  и манифесты зависимостей или фронтенда, изменения Docker и контекста сборки, обновление базы и
+  пакетов, явная чистая или security-пересборка. Основание: INF-02; решение: D57.
+- **TOP-02:** Исходники приложения, зависимости Composer и собранные ассеты фронтенда в production
+  находятся внутри образа. Bind mount исходников в production запрещён. Основание: INF-01/INF-11;
+  решение: D57.
+- **TOP-03:** Receipts сборки, продвижения и развёртывания связывают коммит исходников, digest
+  манифеста, digest платформы и ревизию конфигурации. Доказательства развёртывания и отката только
+  по тегу недействительны. Основание: INF-10; решения: D57/D59.
+- **TOP-04:** Сервисы production используют одну и ту же продвинутую идентичность; откат разрешает
+  точный digest и проверяет совместимость схемы и конфигурации до мутации. Решение: D59.
+- **TOP-05:** Сборка ассетов production и Vite dev/HMR — разные носители. Dev использует явные
+  настройки host, allowed-host и HMR; production работает на собранных ассетах и проверяет
+  выпущенные URL по HTTP. Основание: INF-11; решение: D57.
+- **TOP-06:** Корневой Make остаётся единой точкой входа оператора с детерминированными help и
+  preflight и безопасным для агентов выводом. Обычные пути сборки и развёртывания никогда не
+  уничтожают volumes. Основание: INF-08/INF-12; решение: D10.
 
-## Bootstrap, secrets and deploy
+## Первичная установка, секреты и развёртывание
 
-- **SEC-01:** The first-host order is clone main repository → clone exact private package identity
-  into `local/vendors/azguard` → generate file secrets → preflight → build/pull → migrate → required
-  seeds → initial admin → assets/docs → workers/readiness. Decisions: D6/D9/D58.
-- **SEC-02:** Single-server production secrets are explicit file-backed Compose secrets, generated
-  outside Git. There is no implicit env/Swarm fallback. Evidence: INF-05; decision: D58.
-- **SEC-03:** Each service receives only declared secrets. Preflight proves host ownership,
-  container-user readability and absence of secret values from rendered config, image history,
-  process args and logs. Decision: D58.
-- **SEC-04:** Private build credentials use BuildKit secret/SSH mounts only; secret rotation uses
-  an explicit non-secret cache invalidator where rebuild is required. Evidence: INF-04; D58.
-- **SEC-05:** Rotation atomically replaces secret material, performs controlled worker/container
-  reload and records a redacted health receipt. Decision: D58.
-- **SEC-06:** No deploy/build/cleanup carrier removes DB/object/volume data without separate owner
-  authorization, named backup receipt and successful isolated restore evidence. Evidence: INF-08.
+- **SEC-01:** Порядок на первом хосте: клон основного репозитория → клон точной идентичности
+  приватного пакета в `local/vendors/azguard` → генерация файловых секретов → preflight →
+  build/pull → миграции → обязательные seeds → первый администратор → ассеты и документация →
+  воркеры и готовность. Решения: D6/D9/D58.
+- **SEC-02:** Секреты production на одном сервере — явные файловые секреты Compose, создаваемые
+  вне Git. Неявного fallback на env или Swarm нет. Основание: INF-05; решение: D58.
+- **SEC-03:** Каждый сервис получает только объявленные секреты. Preflight доказывает владение на
+  хосте, читаемость пользователем контейнера и отсутствие значений секретов в отрендеренной
+  конфигурации, истории образа, аргументах процессов и журналах. Решение: D58.
+- **SEC-04:** Приватные учётные данные сборки используют только секретные и SSH-монтирования
+  BuildKit; ротация секретов использует явный несекретный инвалидатор кэша там, где нужна
+  пересборка. Основание: INF-04; D58.
+- **SEC-05:** Ротация атомарно заменяет секретный материал, выполняет контролируемую перезагрузку
+  воркеров и контейнеров и записывает обезличенный receipt здоровья. Решение: D58.
+- **SEC-06:** Никакой носитель развёртывания, сборки или очистки не удаляет данные БД, объектов и
+  volumes без отдельного разрешения владельца, именованного receipt резервной копии и успешного
+  доказательства изолированного восстановления. Основание: INF-08.
 
-## Application, assets and private docs
+## Приложение, ассеты и приватная документация
 
-- **APP-01:** Readiness is a capability matrix, not a package name or `/up` alone: config/package
-  discovery, schema, storage, queue/workers, required assets and named HTTP paths are independent
-  checks. Evidence: INF-06 and LAR-03/LAR-05.
-- **APP-02:** P2.6 may add a Doctor dependency only after a named package/version has official
-  Laravel 13 constraint evidence; otherwise it implements the required checks with verified
-  first-party carriers and records the package as rejected. Evidence: LAR-05.
-- **APP-03:** Long-lived workers are restarted or reloaded after config/secret/settings changes,
-  and readiness proves they observe the new revision.
-- **APP-04:** Livewire/Filament 404 remediation starts with recorded failing URL, route/cache state,
-  rendered directives and web-server forwarding. Asset publication is not accepted as root cause
-  evidence. Evidence: LAR-02/LAR-03.
-- **APP-05:** Livewire dynamic endpoints, Filament panel assets and production Vite outputs receive
-  separate HTTP acceptance checks on a fresh install. Evidence: LAR-01–LAR-03 and INF-11.
-- **APP-06:** Package discovery, optional publication and production build are distinct lifecycle
-  steps with independent receipts. Evidence: LAR-03.
-- **APP-07:** Private documentation source and generated output stay outside `public`; every HTML
-  and asset response traverses one authentication/authorization policy. Decision: D7.
-- **APP-08:** Document identifiers resolve under a fixed root with path containment; traversal,
-  symlink escapes and direct filesystem/public URLs fail closed. Evidence: LAR-04; D7.
-- **APP-09:** Private responses use explicit MIME/disposition and conservative authenticated cache
-  policy; shared-cache replay between users is tested. Evidence: LAR-04; D7.
-- **APP-10:** Exact generator and permission identity are frozen by P4.1 after its threat model;
-  no option may weaken APP-07–APP-09.
-- **APP-11:** Filament navigation, resources and values use the project Russian naming canon;
-  UUIDs are hidden by default, booleans use human labels, and tables are responsive without
-  weakening authorization/query behavior.
-- **APP-12:** Every Filament route and direct action is checked against the declared role/permission
-  matrix, including private docs and relation actions.
+- **APP-01:** Готовность — матрица возможностей, а не имя пакета или один `/up`: обнаружение
+  конфигурации и пакетов, схема, хранилище, очередь и воркеры, обязательные ассеты и именованные
+  HTTP-пути проверяются независимо. Основание: INF-06 и LAR-03/LAR-05.
+- **APP-02:** Зависимость Doctor может быть добавлена только при официальном подтверждении
+  ограничений Laravel 13 для конкретного пакета и версии; иначе обязательные проверки реализуются
+  проверенными first-party средствами, а пакет записывается как отклонённый. Основание: LAR-05.
+- **APP-03:** Долгоживущие воркеры перезапускаются или перезагружаются после изменения
+  конфигурации, секретов и настроек, а готовность доказывает, что они видят новую ревизию.
+- **APP-04:** Устранение 404 Livewire и Filament начинается с записанного падающего URL, состояния
+  маршрутов и кэша, отрендеренных директив и проксирования веб-сервера. Публикация ассетов не
+  принимается как доказательство первопричины. Основание: LAR-02/LAR-03.
+- **APP-05:** Динамические endpoints Livewire, ассеты панелей Filament и выходы Vite production
+  получают отдельные HTTP-проверки приёмки на свежей установке. Основание: LAR-01–LAR-03 и INF-11.
+- **APP-06:** Обнаружение пакетов, необязательная публикация и сборка production — разные шаги
+  жизненного цикла с независимыми receipts. Основание: LAR-03.
+- **APP-07:** Исходники и сгенерированный вывод приватной документации остаются вне `public`;
+  каждый HTML- и asset-ответ проходит одну политику аутентификации и авторизации. Решение: D7.
+- **APP-08:** Идентификаторы документов разрешаются под фиксированным корнем с проверкой
+  вложенности; обход путей, выход через symlink и прямые URL файловой системы или public
+  отклоняются. Основание: LAR-04; D7.
+- **APP-09:** Приватные ответы используют явные MIME и disposition и консервативную политику кэша
+  для аутентифицированных ответов; повтор из общего кэша между пользователями тестируется.
+  Основание: LAR-04; D7.
+- **APP-10:** Точные генератор и идентичность прав замораживаются после модели угроз; никакая
+  опция не может ослабить APP-07–APP-09.
+- **APP-11:** Навигация, ресурсы и значения Filament следуют русскому канону именования проекта;
+  UUID по умолчанию скрыты, булевы значения выводятся человекочитаемо, таблицы адаптивны без
+  ослабления авторизации и поведения запросов.
+- **APP-12:** Каждый маршрут и прямое действие Filament проверяются по объявленной матрице ролей и
+  прав, включая приватную документацию и действия связей.
 
-## Proxy, documents and extension seams
+## Прокси, документы и точки расширения
 
-- **EXT-01:** Only `ProxyResolver` obtains outbound proxies; precedence is profile proxy → optional
-  default proxy → direct. `ProxyScope` describes purpose. Decision: D8; evidence: DOM-01.
-- **EXT-02:** Global proxy health and per-target health remain separate; no call site passes a raw
-  proxy URL or invents fallback semantics. Decision: D8.
-- **EXT-03:** `PLAYWRIGHT_MCP_PROXY_SERVER` is tooling-only and never enters runtime resolution.
-  Decision: D8.
-- **EXT-04:** `SourceTlsTrust` is the only TLS-trust owner; `verify => false` is forbidden.
-  Evidence: DOM-01 and project architecture invariant.
-- **EXT-05:** Handler resolution uses typed extension, accepted MIME, magic/content and issuer/spec
-  evidence. Unknown/conflicting signals produce a typed unsupported reason. Decision: D61.
-- **EXT-06:** `.gsfx` remains literal vendor evidence. `JSRF`/`GSRF` are not aliases until an issuer
-  specification/sample corpus is accepted. Evidence: DOM-06; D61.
-- **EXT-07:** Archive admission enforces depth, entry-count, aggregate/per-entry expanded bytes,
-  normalized target uniqueness, containment, link/device rejection, timeout and disk budget before
-  child materialization. Evidence: DOM-04; D61.
-- **EXT-08:** Archive expansion and child creation are idempotent; each accepted child obtains a
-  stable file record and dispatch occurs after commit. Failure/retry cannot duplicate children.
-- **EXT-09:** Extractor/handler registry is typed and registry-resolved; a new handler declares
-  signals, limits, reasons and fixtures without switch sprawl.
-- **EXT-10:** Unsupported or rejected input is a terminal observable disposition, not an exception
-  swallowed into generic failure.
-- **EXT-11:** Procurement document taxonomy is independent of estimate format. Notice, protocol,
-  contract and attachment are not failed estimates. Evidence: DOM-05; D61.
-- **EXT-12:** Classification represents unknown/null explicitly and supports zero, one or multiple
-  estimates without lossy coercion.
-- **EXT-13:** Every analysis result has a summary, including non-estimate and unsupported outcomes;
-  tags and anchors round-trip through persistence/API/Filament.
-- **EXT-14:** Platform definitions and status mappings are typed extension seams; mapping is
-  configuration/domain data rather than a hard-coded procurement-law switch.
+- **EXT-01:** Исходящие прокси получает только `ProxyResolver`; приоритет: прокси профиля →
+  необязательный прокси по умолчанию → прямое соединение. `ProxyScope` описывает назначение.
+  Решение: D8; основание: DOM-01.
+- **EXT-02:** Глобальное здоровье прокси и здоровье по цели разделены; ни одно место вызова не
+  передаёт сырой URL прокси и не изобретает свою семантику fallback. Решение: D8.
+- **EXT-03:** `PLAYWRIGHT_MCP_PROXY_SERVER` используется только инструментами и никогда не
+  участвует в разрешении во время работы. Решение: D8.
+- **EXT-04:** `SourceTlsTrust` — единственный владелец доверия TLS; `verify => false` запрещён.
+  Основание: DOM-01 и архитектурный инвариант проекта.
+- **EXT-05:** Выбор обработчика использует типизированное расширение, допустимый MIME,
+  magic/содержимое и признаки издателя и спецификации. Неизвестные или конфликтующие сигналы дают
+  типизированную причину неподдержки. Решение: D61.
+- **EXT-06:** `.gsfx` остаётся буквальным признаком вендора. `JSRF` и `GSRF` не являются
+  алиасами, пока не принят корпус спецификаций и образцов издателя. Основание: DOM-06; D61.
+- **EXT-07:** Допуск архива до материализации потомков проверяет глубину, число записей,
+  суммарный и по-записный распакованный объём, уникальность нормализованных целей, вложенность,
+  отказ от ссылок и устройств, таймаут и бюджет диска. Основание: DOM-04; D61.
+- **EXT-08:** Распаковка архива и создание потомков идемпотентны; каждый принятый потомок получает
+  стабильную запись файла, а dispatch происходит после commit. Ошибка или повтор не дублируют
+  потомков.
+- **EXT-09:** Реестр экстракторов и обработчиков типизирован и разрешается через реестр; новый
+  обработчик объявляет сигналы, лимиты, причины и fixtures без разрастания switch.
+- **EXT-10:** Неподдерживаемый или отклонённый вход — терминальный наблюдаемый исход, а не
+  исключение, проглоченное как общая ошибка.
+- **EXT-11:** Таксономия документов закупки не зависит от формата сметы. Извещение, протокол,
+  договор и приложение — не неудавшиеся сметы. Основание: DOM-05; D61.
+- **EXT-12:** Классификация явно представляет неизвестное/null и поддерживает ноль, одну или
+  несколько смет без потери информации при приведении.
+- **EXT-13:** У каждого результата анализа есть резюме, включая исходы «не смета» и
+  «не поддерживается»; теги и якоря проходят roundtrip через хранение, API и Filament.
+- **EXT-14:** Определения платформ и сопоставления статусов — типизированные точки расширения;
+  сопоставление — данные конфигурации или домена, а не жёстко зашитый switch по закону о закупках.
 
-## Release acceptance
+## Приёмка релиза
 
-- **REL-01:** Final acceptance starts from a clean clone and empty persistent volumes/DB, then
-  exercises private package, secrets, migrations, required seeds, initial admin, assets, docs,
-  queues, storage, readiness and browser smoke. Decision: D9.
-- **REL-02:** Ubuntu provisioning uses official Docker packages and records Engine, Buildx,
-  Compose, architecture and daemon state. Evidence: INF-07.
-- **REL-03:** Effective published-port/firewall behavior is tested in Docker's packet-filter path;
-  ufw status alone is insufficient. Evidence: INF-07.
-- **REL-04:** Deploy is readiness-gated, non-destructive and emits an exact release receipt per
-  TOP-03. Destructive teardown is absent from the ordinary path. Evidence: INF-08; D59.
-- **REL-05:** Backup acceptance pairs artifact creation with successful isolated restore. Artifact
-  existence alone is insufficient. Evidence: INF-09.
-- **REL-06:** Before P12.3, D60 must become accepted or be superseded with explicit RPO, RTO,
-  retention, off-host destination and restore cadence. READY is fail-closed while it is proposed.
-- **REL-07:** Rollback proves exact-digest availability, database/schema compatibility, queue drain
-  or restart, asset/docs consistency and post-rollback readiness. Decision: D59.
-- **REL-08:** CI/release uses an uncached full suite with DB/media isolation; local Pest TIA is never
-  authoritative release evidence. Evidence: LAR-06.
-- **REL-09:** READY report names every receipt and residual risk; missing, unverified or stale
-  evidence yields NOT READY rather than a narrative waiver.
+- **REL-01:** Финальная приёмка начинается с чистого клона и пустых постоянных volumes и БД, затем
+  проверяет приватный пакет, секреты, миграции, обязательные seeds, первого администратора,
+  ассеты, документацию, очереди, хранилище, готовность и браузерный smoke. Решение: D9.
+- **REL-02:** Подготовка Ubuntu использует официальные пакеты Docker и записывает Engine, Buildx,
+  Compose, архитектуру и состояние демона. Основание: INF-07.
+- **REL-03:** Фактическое поведение опубликованных портов и firewall проверяется на пути
+  packet-filter Docker; одного статуса ufw недостаточно. Основание: INF-07.
+- **REL-04:** Развёртывание ограничено проверкой готовности, неразрушающее и выпускает точный
+  receipt релиза по TOP-03. Разрушающего teardown на обычном пути нет. Основание: INF-08; D59.
+- **REL-05:** Приёмка резервного копирования связывает создание артефакта с успешным изолированным
+  восстановлением. Одного существования артефакта недостаточно. Основание: INF-09.
+- **REL-06:** До P12.3 решение D60 должно быть принято или заменено с явными RPO, RTO, сроком
+  хранения, внешним назначением и периодичностью восстановления. Пока оно предложено, READY
+  закрыт по умолчанию.
+- **REL-07:** Откат доказывает доступность точного digest, совместимость БД и схемы, осушение или
+  перезапуск очереди, согласованность ассетов и документации и готовность после отката.
+  Решение: D59.
+- **REL-08:** CI и релиз используют полный набор тестов без кэша с изоляцией БД и медиа; локальный
+  Pest TIA никогда не является авторитетным доказательством релиза. Основание: LAR-06.
+- **REL-09:** Отчёт READY называет каждый receipt и остаточный риск; отсутствующие, непроверенные
+  или устаревшие доказательства дают NOT READY, а не словесное исключение.
 
-## Consumer and route matrix
+## Матрица потребителей и маршрутов
 
-| Consumer | Clauses | Required proof before terminal state |
+| Потребитель | Пункты | Обязательное доказательство до терминального состояния |
 |:--|:--|:--|
-| P1 | TOP-01–TOP-06, SEC-06 | Target harness, dev no-rebuild proof, immutable prod topology and destructive-path guard |
-| P2 | SEC-01–SEC-05, APP-01–APP-03 | Clean private install, redacted secret lifecycle, fail-closed preflight and readiness capability |
-| P3 | APP-01–APP-06 | Runtime 404 diagnosis, causal repair, fresh-install HTTP/browser evidence and recovery proof |
-| P4 | APP-07–APP-10/APP-12 | Threat model plus traversal/direct-URL/cache/authz adversarial suite |
-| P5 | EXT-01–EXT-04 | Precedence, health separation, secret safety, no bypass and no TLS-disable checks |
-| P6 | EXT-05–EXT-10 | Typed format contract and hostile archive/idempotency/retry/concurrency evidence |
-| P7 | EXT-11–EXT-13 | Schema/prompt/persistence fixtures for taxonomy, plurality, unknown/null, summaries and anchors |
-| P8 | EXT-09/EXT-14 | Typed platform/status extension contract, migration/rollback and race-safe persistence |
-| P9 | APP-05/APP-11/APP-12, EXT-13 | Russian UX/labels, responsive browser checks and direct-route authorization |
-| P10 | all security/data clauses | Risk inventory mapped to committed fixes; static analysis/full suite without weakened gates |
-| P11 | TOP-03/TOP-06, SEC-03/SEC-04, REL-08 | Isolated uncached CI, deterministic logs, credential/cache/action/image security evidence |
-| P12 | all clauses | Clean-host bootstrap/deploy/recovery rehearsal and final READY/NOT READY synthesis |
+| P1 | TOP-01–TOP-06, SEC-06 | Целевой harness, доказательство работы dev без пересборки, неизменяемая топология prod и защита разрушающих путей |
+| P2 | SEC-01–SEC-05, APP-01–APP-03 | Чистая приватная установка, обезличенный жизненный цикл секретов, закрытый по умолчанию preflight и матрица готовности |
+| P3 | APP-01–APP-06 | Диагностика 404 в runtime, причинное исправление, HTTP- и браузерные доказательства на свежей установке и доказательство восстановления |
+| P4 | APP-07–APP-10/APP-12 | Модель угроз и состязательный набор тестов на обход путей, прямые URL, кэш и авторизацию |
+| P5 | EXT-01–EXT-04 | Проверки приоритета, разделения здоровья, безопасности секретов, отсутствия обходов и отключения TLS |
+| P6 | EXT-05–EXT-10 | Типизированный контракт форматов и доказательства для враждебных архивов, идемпотентности, повторов и конкуренции |
+| P7 | EXT-11–EXT-13 | Fixtures схемы, промптов и хранения для таксономии, множественности, unknown/null, резюме и якорей |
+| P8 | EXT-09/EXT-14 | Типизированный контракт расширения платформ и статусов, миграция и откат, хранение без гонок |
+| P9 | APP-05/APP-11/APP-12, EXT-13 | Русские UX и подписи, адаптивные браузерные проверки и авторизация прямых маршрутов |
+| P10 | все пункты безопасности и данных | Inventory рисков, сопоставленный с закоммиченными исправлениями; статический анализ и полный набор без ослабленных gate |
+| P11 | TOP-03/TOP-06, SEC-03/SEC-04, REL-08 | Изолированный CI без кэша, детерминированные журналы, доказательства безопасности учётных данных, кэша, actions и образов |
+| P12 | все пункты | Репетиция первичной установки, развёртывания и восстановления на чистом хосте и итоговый вывод READY/NOT READY |
 
-Route/review: exact per-item routing remains `plan.md` §3. Security, migration, authz, extraction,
-secrets, deployment and public-contract work requires full review; P12.7 remains frontier/xhigh.
+Маршрутизация и ревью: работы по безопасности, миграциям, авторизации, извлечению, секретам,
+развёртыванию и публичным контрактам требуют полного ревью.

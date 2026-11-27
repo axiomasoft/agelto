@@ -4,11 +4,11 @@ type: reference
 status: living
 ---
 
-# Read-budget admission contract
+# Контракт допуска по бюджету чтения
 
-**Version:** 1.1.0
+**Версия:** 1.1.0
 
     pass_item(i) = estimated_required_read_tokens(i) <= 100000
 
-This frozen plan-owned D2(a) threshold is the Layout v2 admission contract. D2(b) remains the
-separate resolvability and single-read validation performed by task.plan_weight.
+Этот замороженный порог (часть «а» решения о допуске) — контракт допуска Layout v2. Часть «б» —
+отдельная проверка разрешимости и одиночного чтения, которую выполняет `task.plan_weight`.
