@@ -167,7 +167,7 @@ class AnalysesTable
             ])
             ->recordActions([
                 Action::make('view')
-                    ->label(__('filament-actions::view.single.label'))
+                    ->label('Просмотр')
                     ->icon(Heroicon::Eye)
                     ->color('gray')
                     ->url($viewUrl)

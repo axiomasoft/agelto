@@ -12,6 +12,7 @@ use App\Services\Procurement\Prepare\Tools\BoundedToolProcess;
 use App\Support\Config\TypedConfig;
 use App\Support\Streams\BoundedStreamException;
 use App\Support\Streams\BoundedStreamHasher;
+use App\Support\Time\Monotonic;
 use Closure;
 use RuntimeException;
 use Throwable;
@@ -108,7 +109,7 @@ final class ArchiveAdapterSupport
         ?Closure $consumeOutput = null,
         int $maxOutputBytes = 8388608,
     ): string {
-        $deadline = hrtime(true) / 1e9 + self::timeout($deadlineAt);
+        $deadline = Monotonic::seconds() + self::timeout($deadlineAt);
 
         try {
             $source = $tools->inputPath($archivePath);

@@ -7,6 +7,7 @@ namespace App\Services\Health;
 use App\Dto\Health\ReadinessCheckResult;
 use App\Enums\Health\ReadinessCheckCode;
 use App\Support\Config\TypedConfig;
+use App\Support\Time\Monotonic;
 
 final readonly class IsolatedReadinessProcess
 {
@@ -57,7 +58,7 @@ final readonly class IsolatedReadinessProcess
         $stdoutPipe = $pipes[1];
         stream_set_blocking($stdoutPipe, false);
 
-        $deadlineNs = hrtime(true) + max(1, (int) round($timeout * 1_000_000_000));
+        $deadlineNs = Monotonic::nanoseconds() + max(1, (int) round($timeout * 1_000_000_000));
         $pid = null;
         $stdout = '';
         $timedOut = false;
@@ -90,7 +91,7 @@ final readonly class IsolatedReadinessProcess
                     break;
                 }
 
-                if (hrtime(true) >= $deadlineNs) {
+                if (Monotonic::nanoseconds() >= $deadlineNs) {
                     $timedOut = true;
                     break;
                 }
@@ -111,7 +112,7 @@ final readonly class IsolatedReadinessProcess
             self::terminateAndReapProcessGroup($process, $pid, $trackedPids);
         }
 
-        if ($timedOut || hrtime(true) > $deadlineNs || ! in_array($exitCode, [0, 1], true)) {
+        if ($timedOut || Monotonic::nanoseconds() > $deadlineNs || ! in_array($exitCode, [0, 1], true)) {
             return self::unavailableResults($codes);
         }
 
@@ -175,8 +176,8 @@ final readonly class IsolatedReadinessProcess
                 foreach ($trackedPids as $targetPid) {
                     @posix_kill($targetPid, 15);
                 }
-                $graceUntilNs = hrtime(true) + 100_000_000;
-                while (hrtime(true) < $graceUntilNs && self::anyPidPresent($trackedPids)) {
+                $graceUntilNs = Monotonic::nanoseconds() + 100_000_000;
+                while (Monotonic::nanoseconds() < $graceUntilNs && self::anyPidPresent($trackedPids)) {
                     usleep(10_000);
                 }
 
@@ -196,8 +197,8 @@ final readonly class IsolatedReadinessProcess
         @proc_close($process);
 
         if ($trackedPids !== []) {
-            $reapUntilNs = hrtime(true) + 800_000_000;
-            while (hrtime(true) < $reapUntilNs && self::anyPidPresent($trackedPids)) {
+            $reapUntilNs = Monotonic::nanoseconds() + 800_000_000;
+            while (Monotonic::nanoseconds() < $reapUntilNs && self::anyPidPresent($trackedPids)) {
                 if (function_exists('posix_kill')) {
                     if ($pid !== null) {
                         @posix_kill(-$pid, 9);

@@ -9,6 +9,7 @@ use App\Exceptions\Procurement\Prepare\ToolCleanupUnconfirmed;
 use App\Exceptions\Procurement\Prepare\ToolFailed;
 use App\Exceptions\Procurement\Prepare\ToolUnavailable;
 use App\Support\Files\PipelineTemporaryFile;
+use App\Support\Time\Monotonic;
 use Closure;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -47,7 +48,7 @@ final readonly class BoundedToolProcess
         bool $reportStderr = false,
     ): string {
         $execution?->tick();
-        $seconds = $deadline - hrtime(true) / 1e9;
+        $seconds = $deadline - Monotonic::seconds();
         if ($seconds <= 0) {
             throw new ToolFailed('page_timeout', reason: 'page_timeout');
         }
@@ -75,8 +76,8 @@ final readonly class BoundedToolProcess
             // Signal supervisor only: it stops the entire tool group and reaps before acknowledging.
             if ($this->running($process)) {
                 $process->signal(SIGTERM);
-                $until = hrtime(true) + 4_000_000_000;
-                while (hrtime(true) < $until) {
+                $until = Monotonic::nanoseconds() + 4_000_000_000;
+                while (Monotonic::nanoseconds() < $until) {
                     if (! $this->running($process)) {
                         break;
                     }

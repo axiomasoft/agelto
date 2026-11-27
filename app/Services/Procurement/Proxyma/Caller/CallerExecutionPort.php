@@ -23,6 +23,7 @@ use App\Services\Procurement\Network\UrlPolicy;
 use App\Services\Procurement\Proxyma\Catalog\BindingAdapter;
 use App\Services\Procurement\Proxyma\Catalog\ProcessOwnerAuthority;
 use App\Services\Procurement\Proxyma\Catalog\TargetCatalogAdapter;
+use App\Support\Time\Monotonic;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Application\Admission\DemandQueue;
@@ -163,7 +164,7 @@ final readonly class CallerExecutionPort implements FiniteExecutionPort
             $plan->physicalRequestId->value, $purpose, $networkProbe ? new X\Uuid($plan->physicalRequestId->value) : null);
         $timeouts = $request->timeouts;
         $packageContext = new X\ExecutionContext($operation, $settings->subjects, new X\Duration($context->remainingSlice()->milliseconds),
-            hrtime(true) + $context->remainingSlice()->nanos());
+            Monotonic::nanoseconds() + $context->remainingSlice()->nanos());
         $parent = $lease instanceof ExecutionLease ? $lease->attemptId->value
             : DB::table('prc_outbound_operations')->where('id', $lease->id->value)->value('parent_attempt_id');
         app(OperationCommands::class)->create($operation, $profile, $targetId, $timeouts, is_string($parent) ? new X\Uuid($parent) : null);

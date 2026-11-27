@@ -26,6 +26,7 @@ use App\Services\Procurement\Prepare\Tools\PdfPreparationTools;
 use App\Services\Procurement\Prepare\Tools\TextGridRenderer;
 use App\Services\Procurement\Process\Contracts\LeaseKeeper;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
+use App\Support\Time\Monotonic;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use ZipArchive;
@@ -151,7 +152,7 @@ final readonly class LocalEstimateSourcePreparer
                 new WorkId(new ProcessUuid((string) Str::uuid())),
                 ContentHash::of($path),
             );
-            $deadline = hrtime(true) / 1e9 + 180.0;
+            $deadline = Monotonic::seconds() + 180.0;
             $pdfTools = app(PdfPreparationTools::class);
             $pageCount = $pdfTools->pageCount($path, $tmpDir, $context, $deadline);
             $batch = $pdfTools->batch($path, $tmpDir, new PrepareRange(0, $pageCount), $context, $deadline);
@@ -237,7 +238,7 @@ final readonly class LocalEstimateSourcePreparer
 
             public function monotonicNs(): int
             {
-                return hrtime(true);
+                return Monotonic::nanoseconds();
             }
 
             public function sleep(Duration $duration): void

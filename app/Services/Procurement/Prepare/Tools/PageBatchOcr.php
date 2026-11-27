@@ -12,6 +12,7 @@ use App\Enums\Procurement\Document\PageTextStatus;
 use App\Exceptions\Procurement\Prepare\PreparationRecipeMismatch;
 use App\Exceptions\Procurement\Prepare\ToolFailed;
 use App\Services\Procurement\Document\PreparePolicy;
+use App\Support\Time\Monotonic;
 
 /** Page-preserving output PDF extraction, never sidecar-only text. Original bytes stay immutable. */
 final readonly class PageBatchOcr implements PdfPreparationTools
@@ -39,7 +40,7 @@ final readonly class PageBatchOcr implements PdfPreparationTools
 
     public function batch(string $source, string $directory, PrepareRange $range, ExecutionContext $execution, float $deadline): PdfBatchText
     {
-        $started = hrtime(true);
+        $started = Monotonic::nanoseconds();
         $prefix = $directory.'/batch-'.bin2hex(random_bytes(6));
         $pdf = $prefix.'.pdf';
         $ocr = $prefix.'-ocr.pdf';
@@ -58,7 +59,7 @@ final readonly class PageBatchOcr implements PdfPreparationTools
             $text .= '[page:'.$page."]\n".($status === PageTextStatus::NativeText ? $native[$i] : $pageText)."\n";
         }
 
-        return new PdfBatchText($text, $pages, max(.001, (hrtime(true) - $started) / 1e9));
+        return new PdfBatchText($text, $pages, max(.001, (Monotonic::nanoseconds() - $started) / 1e9));
     }
 
     /** @return non-empty-list<string> */

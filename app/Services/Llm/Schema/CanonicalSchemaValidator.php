@@ -6,6 +6,7 @@ namespace App\Services\Llm\Schema;
 
 use App\Dto\Llm\Schema\CanonicalSchema;
 use App\Dto\Llm\Schema\SchemaValidationResult;
+use App\Support\Time\Monotonic;
 use Opis\JsonSchema\CompliantValidator;
 use stdClass;
 
@@ -23,12 +24,12 @@ final class CanonicalSchemaValidator
         } catch (\JsonException) {
             return new SchemaValidationResult(['invalid_json']);
         }
-        $started = hrtime(true);
+        $started = Monotonic::nanoseconds();
         // No URI handlers, directories or remote resolvers are registered.
         $validator = new CompliantValidator;
         $validator->setMaxErrors(16);
         $result = $validator->validate($data, $schema->object());
-        if (hrtime(true) - $started > 250_000_000) {
+        if (Monotonic::nanoseconds() - $started > 250_000_000) {
             return new SchemaValidationResult(['validation_time_limit']);
         }
 

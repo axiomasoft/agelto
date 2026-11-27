@@ -95,6 +95,7 @@ final class PlatformSourceRules
             ],
             'app/Console/Platforms/Eis/VerifyDocumentUid.php' => [
                 'App\\Models\\Procurement\\Platform\\Registry',
+                'App\\Support\\Time\\Monotonic',
                 'App\\Services\\Procurement\\Network\\Contracts\\LegacyOutbound',
                 'App\Services\Procurement\Proxyma\Catalog\ProfileResolver',
             ],

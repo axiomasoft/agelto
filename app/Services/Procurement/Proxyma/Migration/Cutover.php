@@ -8,6 +8,7 @@ use App\Models\Procurement\Proxyma\CutoverJournal as Journal;
 use App\Models\Procurement\Proxyma\NetworkAuthority;
 use App\Models\Procurement\Proxyma\TransferRecord;
 use App\Support\Database\TransactionGuard;
+use App\Support\Time\Monotonic;
 use Closure;
 use DomainException;
 use Illuminate\Database\Query\Builder;
@@ -189,7 +190,7 @@ final readonly class Cutover
 
     private function drain(int $waitMs, bool $package): bool
     {
-        $deadline = hrtime(true) + $waitMs * 1_000_000;
+        $deadline = Monotonic::nanoseconds() + $waitMs * 1_000_000;
         do {
             $db = $this->journal->inventory->db;
             $busy = $db->transaction(function () use ($db, $package): bool {
@@ -203,7 +204,7 @@ final readonly class Cutover
             if (! $busy) {
                 return true;
             }
-            if (hrtime(true) >= $deadline) {
+            if (Monotonic::nanoseconds() >= $deadline) {
                 return false;
             }
             usleep(10_000);

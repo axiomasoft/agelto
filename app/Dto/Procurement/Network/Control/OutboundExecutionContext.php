@@ -12,6 +12,7 @@ use App\Enums\Procurement\Network\AdapterValidationOwnerKind;
 use App\Exceptions\Procurement\Network\OutboundOwnershipLost;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
 use App\Services\Procurement\Process\Execution\SystemProcessClock;
+use App\Support\Time\Monotonic;
 use Closure;
 
 /** Bounded cooperative bridge context; the send gate remains the sole effect authority. */
@@ -68,7 +69,7 @@ final class OutboundExecutionContext
         private readonly int $renewIntervalSeconds,
         private readonly ProcessClock $clock = new SystemProcessClock,
     ) {
-        $this->lastRenewedNs = hrtime(true);
+        $this->lastRenewedNs = Monotonic::nanoseconds();
         $this->deadlineNs = $this->lastRenewedNs + $deadlineSeconds * 1_000_000_000;
     }
 
@@ -79,7 +80,7 @@ final class OutboundExecutionContext
 
     public function remainingSlice(): Duration
     {
-        return Duration::nanoseconds($this->deadlineNs - hrtime(true));
+        return Duration::nanoseconds($this->deadlineNs - Monotonic::nanoseconds());
     }
 
     public function dbNow(): DbInstant
@@ -89,14 +90,14 @@ final class OutboundExecutionContext
 
     public function canStart(Duration $needed): bool
     {
-        return ! $this->lost && hrtime(true) + $needed->nanos() + 15_000_000_000 <= $this->deadlineNs;
+        return ! $this->lost && Monotonic::nanoseconds() + $needed->nanos() + 15_000_000_000 <= $this->deadlineNs;
     }
 
     /** @throws OutboundOwnershipLost */
     public function tick(): void
     {
         $this->checkpoint?->__invoke();
-        $now = hrtime(true);
+        $now = Monotonic::nanoseconds();
         if ($this->lost || $now >= $this->deadlineNs) {
             throw new OutboundOwnershipLost('Outbound owner expired.');
         }

@@ -9,6 +9,7 @@ use App\Enums\Health\ReadinessCheckCode;
 use App\Services\PartitionCoverage;
 use App\Services\Procurement\Process\Daemons\DaemonReadiness;
 use App\Support\Config\TypedConfig;
+use App\Support\Time\Monotonic;
 use Carbon\CarbonImmutable;
 use Filament\Support\Assets\Asset;
 use Filament\Support\Facades\FilamentAsset;
@@ -43,12 +44,12 @@ final readonly class ApplicationReadiness
      */
     public function check(?array $only = null, ?int $deadlineNs = null): array
     {
-        $deadlineNs ??= hrtime(true) + (TypedConfig::positiveInt('readiness.timeout_seconds') * 1_000_000_000);
+        $deadlineNs ??= Monotonic::nanoseconds() + (TypedConfig::positiveInt('readiness.timeout_seconds') * 1_000_000_000);
         $codes = self::resolveCodes($only);
 
         $results = [];
         foreach ($codes as $code) {
-            if (hrtime(true) >= $deadlineNs) {
+            if (Monotonic::nanoseconds() >= $deadlineNs) {
                 $results[] = new ReadinessCheckResult(code: $code, passed: false, message: 'unavailable');
 
                 continue;
@@ -65,7 +66,7 @@ final readonly class ApplicationReadiness
                 ReadinessCheckCode::ProcessDaemons => $this->processDaemons($deadlineNs),
             };
 
-            if ($result->passed && hrtime(true) > $deadlineNs) {
+            if ($result->passed && Monotonic::nanoseconds() > $deadlineNs) {
                 $result = new ReadinessCheckResult(code: $code, passed: false, message: 'unavailable');
             }
 
@@ -152,7 +153,7 @@ final readonly class ApplicationReadiness
                 $store = $this->cache->store();
                 $store->put(key: $key, value: $value, ttl: TypedConfig::positiveInt('readiness.cache.ttl_seconds'));
                 $written = true;
-                if (hrtime(true) >= $deadlineNs) {
+                if (Monotonic::nanoseconds() >= $deadlineNs) {
                     throw new RuntimeException('cache readiness deadline exceeded');
                 }
                 $storedValue = $store->get(key: $key);
@@ -161,7 +162,7 @@ final readonly class ApplicationReadiness
                     throw new RuntimeException('cache round-trip mismatch');
                 }
             } finally {
-                if ($written && hrtime(true) < $deadlineNs) {
+                if ($written && Monotonic::nanoseconds() < $deadlineNs) {
                     try {
                         $this->cache->store()->forget(key: $key);
                     } catch (Throwable) {
@@ -182,18 +183,18 @@ final readonly class ApplicationReadiness
             $written = false;
 
             try {
-                if (hrtime(true) >= $deadlineNs) {
+                if (Monotonic::nanoseconds() >= $deadlineNs) {
                     throw new RuntimeException('storage readiness deadline exceeded');
                 }
                 if (! $filesystem->put(path: $path, contents: $value)) {
                     throw new RuntimeException('storage round-trip mismatch');
                 }
                 $written = true;
-                if (hrtime(true) >= $deadlineNs || ! hash_equals($value, (string) $filesystem->get(path: $path))) {
+                if (Monotonic::nanoseconds() >= $deadlineNs || ! hash_equals($value, (string) $filesystem->get(path: $path))) {
                     throw new RuntimeException('storage round-trip mismatch');
                 }
             } finally {
-                if ($written && hrtime(true) < $deadlineNs) {
+                if ($written && Monotonic::nanoseconds() < $deadlineNs) {
                     try {
                         $filesystem->delete(paths: $path);
                     } catch (Throwable) {
@@ -230,7 +231,7 @@ final readonly class ApplicationReadiness
     private function horizon(int $deadlineNs): ReadinessCheckResult
     {
         return $this->attempt(code: ReadinessCheckCode::Horizon, callback: function () use ($deadlineNs): void {
-            if (hrtime(true) >= $deadlineNs) {
+            if (Monotonic::nanoseconds() >= $deadlineNs) {
                 throw new RuntimeException('Horizon readiness deadline exceeded');
             }
             $masters = $this->masters->all();
@@ -244,7 +245,7 @@ final readonly class ApplicationReadiness
     private function scheduler(int $deadlineNs): ReadinessCheckResult
     {
         return $this->attempt(code: ReadinessCheckCode::Scheduler, callback: function () use ($deadlineNs): void {
-            if (hrtime(true) >= $deadlineNs) {
+            if (Monotonic::nanoseconds() >= $deadlineNs) {
                 throw new RuntimeException('scheduler readiness deadline exceeded');
             }
             $store = config(key: 'readiness.scheduler.store');
@@ -260,7 +261,7 @@ final readonly class ApplicationReadiness
     private function processDaemons(int $deadlineNs): ReadinessCheckResult
     {
         return $this->attempt(code: ReadinessCheckCode::ProcessDaemons, callback: function () use ($deadlineNs): void {
-            if (hrtime(true) >= $deadlineNs) {
+            if (Monotonic::nanoseconds() >= $deadlineNs) {
                 throw new RuntimeException('Process daemons readiness deadline exceeded');
             }
 

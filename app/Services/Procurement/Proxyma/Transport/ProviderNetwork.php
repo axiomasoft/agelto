@@ -11,6 +11,7 @@ use App\Services\Llm\Execution\ProviderWireRequest;
 use App\Services\Procurement\Proxyma\Caller\AdapterSendGuard;
 use App\Services\Procurement\Proxyma\Catalog\ProcessOwnerAuthority;
 use App\Services\Procurement\Proxyma\Catalog\TargetCatalogAdapter;
+use App\Support\Time\Monotonic;
 use Proxyma\Application\Admission\DemandQueue;
 use Proxyma\Application\Admission\OperationCommands;
 use Proxyma\Application\Admission\ReservationService;
@@ -92,7 +93,7 @@ final readonly class ProviderNetwork
             }
         };
         $packageContext = new PackageContext($operation, $subjects, new Duration($timeouts->totalTimeoutMs + $timeouts->cleanupMarginMs),
-            hrtime(true) + ($timeouts->totalTimeoutMs + $timeouts->cleanupMarginMs) * 1_000_000);
+            Monotonic::nanoseconds() + ($timeouts->totalTimeoutMs + $timeouts->cleanupMarginMs) * 1_000_000);
         $request = new WireRequest($operation->operationId, new Uuid($plan->physicalRequestId->value), $target->id,
             $policy->effectiveRevision, $provider->method, new SafeUrl($provider->endpoint), $timeouts, $operation->deadlineAt,
             new PreparedHeaders($provider->preparedHeaders($apiKey)),
@@ -132,7 +133,7 @@ final readonly class ProviderNetwork
         }
         $permit = $this->reservations->reserve($ticket, $input);
         try {
-            while ($permit instanceof DemandWait && hrtime(true) < $waitDeadlineNs) {
+            while ($permit instanceof DemandWait && Monotonic::nanoseconds() < $waitDeadlineNs) {
                 usleep(100_000);
                 $revalidate();
                 $permit = $this->reservations->reserve($ticket, $input);

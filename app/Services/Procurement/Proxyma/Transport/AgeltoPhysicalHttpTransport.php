@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxyma\Transport;
 
+use App\Support\Time\Monotonic;
 use Closure;
 use LogicException;
 use Proxyma\Application\Execution\ResponseDecoder;
@@ -101,7 +102,7 @@ final readonly class AgeltoPhysicalHttpTransport implements PhysicalTransport
                 break;
             }
             if ((float) curl_getinfo($curl, CURLINFO_CONNECT_TIME) > 0
-                && hrtime(true) - $state->lastActivity > $wire->request->timeouts->readTimeoutMs * 1_000_000) {
+                && Monotonic::nanoseconds() - $state->lastActivity > $wire->request->timeouts->readTimeoutMs * 1_000_000) {
                 $state->failure = TransportFailure::Timeout;
                 break;
             }

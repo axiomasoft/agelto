@@ -7,6 +7,7 @@ namespace App\Services\Procurement\Prepare\Tools;
 use App\Exceptions\Procurement\Prepare\OperationBudgetExceeded;
 use App\Exceptions\Procurement\Prepare\ToolFailed;
 use App\Exceptions\Procurement\Prepare\ToolUnavailable;
+use App\Support\Time\Monotonic;
 use RuntimeException;
 use Symfony\Component\Process\ExecutableFinder;
 
@@ -120,7 +121,7 @@ final readonly class LibreOfficeConverter
             throw OperationBudgetExceeded::forOperation(operation: 'LibreOffice', availableSeconds: $remaining, requiredSeconds: 1);
         }
 
-        return hrtime(true) / 1e9 + min($seconds, $remaining);
+        return Monotonic::seconds() + min($seconds, $remaining);
     }
 
     private function integerConfig(string $key): int

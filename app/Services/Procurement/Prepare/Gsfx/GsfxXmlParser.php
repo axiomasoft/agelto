@@ -32,7 +32,7 @@ final readonly class GsfxXmlParser
 
             $positions = [];
 
-            foreach ($chapterNode->children() as $child) {
+            foreach ($chapterNode->children() ?? [] as $child) {
                 $name = $child->getName();
 
                 if ($name === 'Position') {
@@ -117,7 +117,7 @@ final readonly class GsfxXmlParser
      */
     public function tallyUnreadAttributes(SimpleXMLElement $node, string $tag, array $read, array &$unmapped): void
     {
-        foreach ($node->attributes() as $name => $value) {
+        foreach ($node->attributes() ?? [] as $name => $value) {
             $name = (string) $name;
 
             if (! in_array($name, $read, true)) {
@@ -189,7 +189,7 @@ final readonly class GsfxXmlParser
         $priceCurr = null;
         $quantity = $this->attr($positionNode, 'Quantity');
 
-        foreach ($positionNode->children() as $child) {
+        foreach ($positionNode->children() ?? [] as $child) {
             $name = $child->getName();
 
             if ($name === 'Resources') {
@@ -259,7 +259,7 @@ final readonly class GsfxXmlParser
         $resources = [];
         $knownTypes = ['Mat', 'Mch', 'Work', 'Tzr', 'Tzm'];
 
-        foreach ($resourcesNode->children() as $child) {
+        foreach ($resourcesNode->children() ?? [] as $child) {
             $name = $child->getName();
 
             if (! in_array($name, $knownTypes, true)) {
@@ -278,7 +278,7 @@ final readonly class GsfxXmlParser
             $priceBase = null;
             $priceCurr = null;
             $tzm2022 = null;
-            foreach ($child->children() as $subNode) {
+            foreach ($child->children() ?? [] as $subNode) {
                 match ($subNode->getName()) {
                     'PriceBase' => $priceBase = $this->priceValue($subNode, $unmapped),
                     'PriceCurr' => $priceCurr = $this->priceValue($subNode, $unmapped),

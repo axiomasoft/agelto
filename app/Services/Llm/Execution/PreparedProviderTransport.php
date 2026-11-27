@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Llm\Execution;
 
 use App\Enums\Llm\ProviderTransportFailure;
+use App\Support\Time\Monotonic;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Contracts\PhysicalTransport;
 use Proxyma\Domain\Execution\AttemptResult;
@@ -47,7 +48,7 @@ final class PreparedProviderTransport
 
     private function sendPackage(): ProviderTransportOutcome
     {
-        if (hrtime(true) >= $this->latestStartNs || ! ($this->canStart)()) {
+        if (Monotonic::nanoseconds() >= $this->latestStartNs || ! ($this->canStart)()) {
             return new ProviderTransportOutcome($this->physicalCallId, null, null, ProviderTransportFailure::Deadline,
                 networkResult: AttemptResult::failed(TransportFailure::Cancelled));
         }

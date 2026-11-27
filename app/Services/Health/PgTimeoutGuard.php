@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Health;
 
+use App\Support\Time\Monotonic;
 use Illuminate\Database\Connection;
 use Illuminate\Database\ConnectionResolverInterface;
 use RuntimeException;
@@ -21,7 +22,7 @@ final readonly class PgTimeoutGuard
      */
     public function runWithPgTimeouts(int $deadlineNs, callable $callback): void
     {
-        if (hrtime(true) >= $deadlineNs) {
+        if (Monotonic::nanoseconds() >= $deadlineNs) {
             throw new RuntimeException('Database readiness deadline exceeded');
         }
 
@@ -80,6 +81,6 @@ final readonly class PgTimeoutGuard
 
     private function remainingBudgetMs(int $deadlineNs): int
     {
-        return max(1, (int) ceil(($deadlineNs - hrtime(true)) / 1_000_000));
+        return max(1, (int) ceil(($deadlineNs - Monotonic::nanoseconds()) / 1_000_000));
     }
 }

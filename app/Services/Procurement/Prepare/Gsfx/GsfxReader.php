@@ -251,7 +251,7 @@ final readonly class GsfxReader
     {
         $handled = ['Properties', 'Attachments', 'VidRab_Catalog', 'AddZatrats', 'Chapters', 'Indexes', 'Koefficients'];
 
-        foreach ($xml->children() as $child) {
+        foreach ($xml->children() ?? [] as $child) {
             $name = $child->getName();
 
             if (! in_array($name, $handled, true)) {

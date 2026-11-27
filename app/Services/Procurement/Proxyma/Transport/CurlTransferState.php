@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Procurement\Proxyma\Transport;
 
+use App\Support\Time\Monotonic;
 use Proxyma\Domain\Execution\ResponseProfile;
 use Proxyma\Domain\Execution\TransportFailure;
 use Proxyma\Infrastructure\Database\ConnectionScope;
@@ -37,12 +38,12 @@ final class CurlTransferState
         private readonly ConnectionScope $scope,
         private readonly int $maxResponseBytes,
     ) {
-        $this->lastActivity = hrtime(true);
+        $this->lastActivity = Monotonic::nanoseconds();
     }
 
     public function writeChunk(string $chunk): int
     {
-        $this->lastActivity = hrtime(true);
+        $this->lastActivity = Monotonic::nanoseconds();
         try {
             $this->reader ??= new ResponseReader($this->responseProfile, $this->scope, $this->headers['content-encoding'][0] ?? '');
             $this->reader->write($chunk);
@@ -61,7 +62,7 @@ final class CurlTransferState
 
     public function writeHeader(string $line): int
     {
-        $this->lastActivity = hrtime(true);
+        $this->lastActivity = Monotonic::nanoseconds();
         $this->headerBytes += strlen($line);
         if ($this->headerBytes > 65_536) {
             $this->limit = true;
@@ -86,7 +87,7 @@ final class CurlTransferState
     {
         if ($this->progress !== [$downloaded, $uploaded]) {
             $this->progress = [$downloaded, $uploaded];
-            $this->lastActivity = hrtime(true);
+            $this->lastActivity = Monotonic::nanoseconds();
         }
 
         return 0;

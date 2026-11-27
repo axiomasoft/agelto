@@ -37,6 +37,7 @@ use App\Services\Procurement\Proxyma\Caller\RuntimeCaller;
 use App\Services\Procurement\Proxyma\Catalog\ProcessOwnerAuthority;
 use App\Services\Procurement\Proxyma\Transport\ProviderNetwork;
 use App\Services\Procurement\Proxyma\Transport\RuntimePhysicalTransport;
+use App\Support\Time\Monotonic;
 use Illuminate\Support\Facades\DB;
 use Proxyma\Application\Admission\AuthorityLocker;
 use Proxyma\Application\Admission\ClaimSend;
@@ -100,7 +101,7 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
         if (DB::transactionLevel() !== 0) {
             throw new \LogicException('Provider gate cannot wait inside a transaction.');
         }
-        $waitDeadlineNs = hrtime(true) + $this->policy->maxInlineWaitSeconds * 1_000_000_000;
+        $waitDeadlineNs = Monotonic::nanoseconds() + $this->policy->maxInlineWaitSeconds * 1_000_000_000;
         $this->revalidate($operation, $wireRequest);
         $this->context->tick();
         if (! $this->context->canStart(Duration::seconds($this->profile->totalSeconds))) {
@@ -174,7 +175,7 @@ final readonly class AnalysisProviderSendGate implements ProviderSendGate
                     }));
                     break;
                 } catch (AdmissionRejected $denied) {
-                    if ($denied->reason !== 'send_budget_unavailable' || hrtime(true) >= $waitDeadlineNs) {
+                    if ($denied->reason !== 'send_budget_unavailable' || Monotonic::nanoseconds() >= $waitDeadlineNs) {
                         throw $denied;
                     }
                     // Financial mutation has rolled back. Wait outside SQL, bounded by the original monotonic deadline.

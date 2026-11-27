@@ -8,6 +8,7 @@ use App\Dto\Procurement\Process\Primitives\DbInstant;
 use App\Dto\Procurement\Process\Primitives\Duration;
 use App\Repositories\Procurement\Process\Support\LedgerRow;
 use App\Services\Procurement\Process\Contracts\ProcessClock;
+use App\Support\Time\Monotonic;
 
 /** Production clock: `clock_timestamp()` PostgreSQL, hrtime и usleep. */
 final readonly class SystemProcessClock implements ProcessClock
@@ -21,7 +22,7 @@ final readonly class SystemProcessClock implements ProcessClock
 
     public function monotonicNs(): int
     {
-        return hrtime(true);
+        return Monotonic::nanoseconds();
     }
 
     public function sleep(Duration $duration): void

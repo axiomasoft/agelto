@@ -14,6 +14,7 @@ use App\Services\Platforms\Eis\Card\EisCardUrlBuilder;
 use App\Services\Platforms\Eis\Diagnostics\DocumentUidHtmlParser;
 use App\Services\Procurement\Network\Contracts\LegacyOutbound;
 use App\Services\Procurement\Proxyma\Catalog\ProfileResolver;
+use App\Support\Time\Monotonic;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -161,7 +162,7 @@ final class VerifyDocumentUid extends Command
     private function request(Registry $registry, string $url, ProfileResolver $proxies, LegacyOutbound $outbound): array
     {
         $platform = $registry->platform()->firstOrFail();
-        $startedAt = hrtime(true);
+        $startedAt = Monotonic::nanoseconds();
         $platformCode = $platform->getAttribute('code');
         if (! is_string($platformCode)) {
             throw new \LogicException('Platform code is unavailable.');
@@ -174,7 +175,7 @@ final class VerifyDocumentUid extends Command
                 'user-agent' => config()->string('outbound.http.user_agent'), 'referer' => 'https://zakupki.gov.ru/',
             ]), sendLimit: 1);
 
-        return [$response, ['duration_ms' => (int) ((hrtime(true) - $startedAt) / 1_000_000),
+        return [$response, ['duration_ms' => (int) ((Monotonic::nanoseconds() - $startedAt) / 1_000_000),
             'wait_ms' => 0, 'proxy_source' => null]];
     }
 

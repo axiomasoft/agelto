@@ -9,6 +9,7 @@ use App\Exceptions\Procurement\Prepare\ToolFailed;
 use App\Exceptions\Procurement\Prepare\ToolUnavailable;
 use App\Services\Procurement\Prepare\Strategies\ScanStrategy;
 use App\Support\Config\TypedConfig;
+use App\Support\Time\Monotonic;
 use RuntimeException;
 
 /**
@@ -44,7 +45,7 @@ final readonly class OcrConverter
             remainingChainSeconds: $this->operationTimeoutSeconds('tesseract_version') + $this->operationTimeoutSeconds('pdf_page_count'),
             deadlineAt: $deadlineAt,
         );
-        $deadline = hrtime(true) / 1e9 + $timeout;
+        $deadline = Monotonic::seconds() + $timeout;
 
         try {
             $source = $this->tools->inputPath($inputPath);
@@ -162,7 +163,7 @@ final readonly class OcrConverter
      */
     private function probe(array $command, int $timeout, ?string $input = null, array $argsAfterInput = []): ?string
     {
-        $deadline = hrtime(true) / 1e9 + $timeout;
+        $deadline = Monotonic::seconds() + $timeout;
         try {
             $source = $input === null ? null : $this->tools->inputPath($input);
             if ($source !== null) {
