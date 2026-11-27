@@ -430,7 +430,7 @@
             "adapter_version": "acquisition/1",
             "provenance": "P2.18 deterministic Process cutover assertions; manually reviewed scenario obligations and synthetic source rows; no external I/O.",
             "captured_at": "2026-10-31",
-            "sha256": "efb032c15a3243e3f43a2fb08c33fb4bd76eff810711ed23f33530e6ec57f94b",
+            "sha256": "4f32dc48ba96729ec86ebaeeca1e59b4b467cfeae7e917f26edbd77832f309c2",
             "expected": {
                 "assessment": "exact_executed_replacements",
                 "schema_version": 1

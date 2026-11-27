@@ -11503,7 +11503,7 @@
       "replacements": [
         {
           "file": "tests/Feature/Filament/CrawlerFormTest.php",
-          "name": "fresh and archive profiles cannot reintroduce the legacy stop policy with data set \"(App\\Enums\\Procurement\\Process\\AcquisitionKind Enum (Fresh, 'fresh'))\""
+          "name": "fresh and archive profiles cannot reintroduce the legacy stop policy with data set \"(App\\Enums\\Procurement\\Process\\Core\\AcquisitionKind Enum (Fresh, 'fresh'))\""
         }
       ],
       "reason": "P2.18 removes acquisition execution options and URL preview from the profile form. Typed filter persistence and emitted mandatory CSV columns/classifier scope remain verified through the real form and the typed request planner. Process owns queue routing and retries; no profile field can restore the removed lane, source fallback or early-stop mechanism. D17 removes the stop policy for both fresh and archive; full-content stability and coverage replace first-known-row termination.",
@@ -11517,7 +11517,7 @@
       "replacements": [
         {
           "file": "tests/Feature/Filament/CrawlerFormTest.php",
-          "name": "fresh and archive profiles cannot reintroduce the legacy stop policy with data set \"(App\\Enums\\Procurement\\Process\\AcquisitionKind Enum (Archive, 'archive'))\""
+          "name": "fresh and archive profiles cannot reintroduce the legacy stop policy with data set \"(App\\Enums\\Procurement\\Process\\Core\\AcquisitionKind Enum (Archive, 'archive'))\""
         }
       ],
       "reason": "P2.18 removes acquisition execution options and URL preview from the profile form. Typed filter persistence and emitted mandatory CSV columns/classifier scope remain verified through the real form and the typed request planner. Process owns queue routing and retries; no profile field can restore the removed lane, source fallback or early-stop mechanism. D17 removes the stop policy for both fresh and archive; full-content stability and coverage replace first-known-row termination.",
