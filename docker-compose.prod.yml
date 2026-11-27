@@ -147,11 +147,11 @@ services:
     mem_limit: 6g
     cpus: 4.0
     pids_limit: 512
-    # Решение P7.4 (F-11 называет это дремлющим дефектом — Postgres нуждается в shm, не
+    # Решение ревизии БД (F-11 называет это дремлющим дефектом — Postgres нуждается в shm, не
     # PHP-воркер): блок ОСТАЁТСЯ здесь как есть, а не переносится. CLAUDE.md («Очереди: Laravel
     # Horizon») резервирует этот контейнер под будущую браузерную автоматизацию
-    # (`shm_size`/`CHROME_BIN`, Фаза 8 — Playwright/Chromium ещё не подключены, D14 запрещает
-    # рефакторинг вне ТЗ item'а); независимо обоснованный `shm_size` для `postgres` — ниже.
+    # (`shm_size`/`CHROME_BIN`, Фаза 8 — Playwright/Chromium ещё не подключены, а рефакторинг
+    # вне задачи запрещён); независимо обоснованный `shm_size` для `postgres` — ниже.
     shm_size: '2gb'
     security_opt:
       - no-new-privileges:true
@@ -289,8 +289,8 @@ services:
     mem_limit: 4g
     cpus: 2.0
     pids_limit: 256
-    # P7.4 (F-10/F-11/F-12) — те же параметры и то же обоснование, что `docker-compose.yml`
-    # (правило 7 item'а: расширения/параметры одинаковы в dev и prod).
+    # Ревизия БД (F-10/F-11/F-12) — те же параметры и то же обоснование, что `docker-compose.yml`
+    # (расширения и параметры одинаковы в dev и prod).
     command:
       - "postgres"
       - "-c"
@@ -306,10 +306,10 @@ services:
       - "127.0.0.1:${PGSQL_PORT:-5432}:5432"
     volumes:
       - pgsql_data:/var/lib/postgresql
-      # P7.7 (D33) — bind-mount под `make db:backup` (pg_dump + restore-check,
+      # Bind-mount под `make db:backup` (pg_dump + restore-check,
       # docker/postgres/backup-and-verify.sh): дамп виден на ХОСТЕ (`./storage/backups`),
       # переживает пересоздание контейнера. Off-host копирование/ротация/расписание cron —
-      # инфра-решение владельца, Scope Excluded этого item'а.
+      # инфра-решение владельца, вне этой настройки.
       - ./storage/backups:/backups
     environment:
       POSTGRES_DB: ${DB_DATABASE}
@@ -335,7 +335,7 @@ services:
     mem_limit: 1g
     cpus: 1.0
     pids_limit: 128
-    # Durability D34 (plans/EST-AI/plan.md; research/L finding 3): дефолтный redis-alpine
+    # Durability: дефолтный redis-alpine
     # без конфига живёт только на периодических RDB-снапшотах — crash/OOM Redis теряет
     # очередь Horizon (до часа работы пайплайна). AOF everysec — канон 2026 (durability/
     # производительность); noeviction — очередь задач, ключи нельзя вытеснять под

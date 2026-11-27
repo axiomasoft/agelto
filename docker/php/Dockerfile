@@ -73,7 +73,7 @@ ENTRYPOINT ["/bin/sh", "-c", "AGELTO_ENTRYPOINT_PRELOAD=1 exec /etc/entrypoint.d
 CMD ["/init"]
 
 # Development keeps its source bind mount. Production copies only the filtered build context;
-# Composer/vendor closure and framework readiness remain explicit P2/P3 gates.
+# Composer/vendor closure and framework readiness remain separate explicit gates.
 FROM app-base AS development
 # pcov 1.0.12, the latest PECL release, does not compile against PHP 8.6 (INI_* macros were
 # removed). The fix is merged upstream but not tagged yet, so build the pinned commit; git
@@ -92,7 +92,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
     # это "dubious ownership" и блокирует любые операции, включая движок Tia (требует git).
     # system-level (не global www-data), чтобы пережить --force-recreate без volume на $HOME.
     && git config --system --add safe.directory /var/www/html \
-    # Именованный том app_pest_tia:/var/www/.pest (D5) — Docker копирует содержимое этого пути
+    # Именованный том app_pest_tia:/var/www/.pest — Docker копирует содержимое этого пути
     # из образа при первом создании ПУСТОГО тома, включая владельца; entrypoint.d здесь не
     # годится — serversideup/php выполняет entrypoint.d уже как www-data, не root.
     && mkdir -p /var/www/.pest && chown www-data:www-data /var/www/.pest \

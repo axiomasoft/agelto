@@ -24,7 +24,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 
 #[Description('Performs the owner-authorized bounded B2 EIS attachment uid verification')]
 #[AsCommand(name: 'crawler:verify-document-uid')]
-#[Signature('crawler:verify-document-uid {--input= : Authorized P4 scope JSON} {--output= : Sanitized verification JSON}')]
+#[Signature('crawler:verify-document-uid {--input= : Authorized live-check scope JSON} {--output= : Sanitized verification JSON}')]
 final class VerifyDocumentUid extends Command
 {
     public function handle(

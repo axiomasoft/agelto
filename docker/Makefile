@@ -37,7 +37,7 @@ help:
 	@echo "  make release:check | rollback:check          Inspect release/recovery stage contracts"
 	@echo "  make restore:check TARGET=agelto_rehearsal   Validate an isolated restore target"
 	@echo "  make rotation:check | commands:check         Verify credential and command matrices"
-	@echo "  make preparation:check                       Run the aggregate local P12 gate"
+	@echo "  make preparation:check                       Run the aggregate local preparation gate"
 	@echo "  make db:create-test | test-preflight        Create/check the isolated PostgreSQL test database"
 	@echo "  make test:edit | test:full | test:junit | test:profile   Local TIA replay or full no-TIA PHP suite"
 	@echo "  make test:coverage | test:tia-refresh       Full no-TIA coverage or explicit local TIA refresh"

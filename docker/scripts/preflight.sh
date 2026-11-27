@@ -63,7 +63,7 @@ for tool in bash git python3 docker; do
 done
 docker compose version >/dev/null 2>&1 || fail COMPOSE_V2 'install Docker Compose v2' 10
 docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || fail DOCKER_DAEMON 'start the local Docker daemon' 10
-pass HOST_TOOLS 'host tools and the P1 Compose-v2 capability are available'
+pass HOST_TOOLS 'host tools and the Compose v2 capability are available'
 
 [[ -f "$root_dir/docker/private-vendors.lock.json" ]] || fail VENDOR_MANIFEST 'restore the tracked vendor lock manifest' 11
 bash "$root_dir/docker/scripts/vendor-sync.sh" --check >/dev/null 2>&1 || fail VENDOR_LOCK 'run make vendor:sync and resolve origin, SHA, or dirty package paths' 11
