@@ -15,10 +15,6 @@ use Illuminate\Support\Facades\Schema;
 
 const StatusMappingApplicabilityMigration = 'database/migrations/2026_08_09_100092_add_applicability_to_prc_status_mappings_table.php';
 
-beforeEach(function (): void {
-    expect(Artisan::call(command: 'migrate:fresh', parameters: ['--force' => true]))->toBe(0);
-});
-
 function rollbackStatusMappingApplicabilityMigration(): void
 {
     expect(Artisan::call(command: 'migrate:rollback', parameters: [
@@ -68,28 +64,28 @@ test('database enforces one applicability and independent partial unique keys', 
     $platform = Platform::factory()->create();
     $registry = Registry::factory()->for($platform)->create();
 
-    expect(fn (): bool => DB::table($table)->insert([
+    expect(fn (): bool => DB::transaction(fn (): bool => DB::table($table)->insert([
         'source_stage' => 'Neither',
         'canonical_status' => ProcurementStatus::Unknown->value,
         'created_at' => now(),
         'updated_at' => now(),
-    ]))->toThrow(QueryException::class, 'prc_status_mappings_exactly_one_applicability_check');
+    ])))->toThrow(QueryException::class, 'prc_status_mappings_exactly_one_applicability_check');
 
-    expect(fn (): bool => DB::table($table)->insert([
+    expect(fn (): bool => DB::transaction(fn (): bool => DB::table($table)->insert([
         'platform_id' => $platform->id,
         'registry_id' => $registry->id,
         'source_stage' => 'Both',
         'canonical_status' => ProcurementStatus::Unknown->value,
         'created_at' => now(),
         'updated_at' => now(),
-    ]))->toThrow(QueryException::class, 'prc_status_mappings_exactly_one_applicability_check');
+    ])))->toThrow(QueryException::class, 'prc_status_mappings_exactly_one_applicability_check');
 
     StatusMapping::factory()->forPlatform($platform)->create(['source_stage' => 'Shared']);
     StatusMapping::factory()->create(['registry_id' => $registry->id, 'source_stage' => 'Shared']);
 
-    expect(fn (): StatusMapping => StatusMapping::factory()->forPlatform($platform)->create(['source_stage' => 'Shared']))
+    expect(fn (): StatusMapping => DB::transaction(fn (): StatusMapping => StatusMapping::factory()->forPlatform($platform)->create(['source_stage' => 'Shared'])))
         ->toThrow(QueryException::class, 'prc_status_mappings_platform_source_stage_unique');
-    expect(fn (): StatusMapping => StatusMapping::factory()->create(['registry_id' => $registry->id, 'source_stage' => 'Shared']))
+    expect(fn (): StatusMapping => DB::transaction(fn (): StatusMapping => StatusMapping::factory()->create(['registry_id' => $registry->id, 'source_stage' => 'Shared'])))
         ->toThrow(QueryException::class, 'prc_status_mappings_registry_source_stage_unique');
 });
 
