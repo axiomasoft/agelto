@@ -44,7 +44,7 @@ use InvalidArgumentException;
  * @property AnalysisStatus $status
  * @property bool $is_shadow
  * @property string|null $document_type
- * @property Collection<string, mixed>|null $result
+ * @property Collection<array-key, mixed>|null $result
  * @property string|null $provider
  * @property string|null $model
  * @property ReviewStatus $review_status
