@@ -47,8 +47,23 @@ final class GoldBuildCommand extends Command
         // Книги реального корпуса (десятки листов, MERGE_HEAVY) исчерпывают дефолтный лимит
         // PHP-CLI на PhpSpreadsheet::load — тот же приём, что `SpreadsheetStrategy`
         // применяет к дочернему процессу конвертации.
+        $originalLimit = ini_get('memory_limit');
         ini_set('memory_limit', $this->configString('ai.prepare.xlsx_convert_memory_limit', default: '512M'));
 
+        try {
+            return $this->build($fixtureStore, $manifestReader, $manifestWriter, $corpusBuilder, $screeningBuilder);
+        } finally {
+            ini_set('memory_limit', $originalLimit);
+        }
+    }
+
+    private function build(
+        FixtureStoreRepository $fixtureStore,
+        FixtureManifestReader $manifestReader,
+        FixtureManifestWriter $manifestWriter,
+        GoldCorpusBuilder $corpusBuilder,
+        ScreeningGoldBuilder $screeningBuilder,
+    ): int {
         $goldDir = $this->optionOrConfigString(option: 'gold-dir', configKey: 'ai.fixtures.gold_dir');
         $dryRun = (bool) $this->option('dry-run');
         /** @var list<string> $onlyCodes */

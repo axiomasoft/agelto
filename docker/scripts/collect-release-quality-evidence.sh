@@ -37,7 +37,10 @@ run_test() {
 
     local php=(php -d memory_limit=1G)
     if [[ "$name" == coverage ]]; then
-        php+=(-d pcov.enabled=1)
+        # Coverage retains per-test execution data for the full corpus and also needs
+        # bootstrap/proxyma in scope. Exclude dependency and runtime trees explicitly.
+        php+=(-d memory_limit=2G -d pcov.enabled=1 -d "pcov.directory=$app_root" \
+              -d 'pcov.exclude=~(vendor|storage|node_modules)~')
     fi
     local started finished elapsed
     started=$(date +%s%3N)

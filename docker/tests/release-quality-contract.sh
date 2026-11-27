@@ -10,6 +10,8 @@ test -x docker/scripts/collect-release-quality-evidence.sh
 test -x docker/scripts/check-release-quality.py
 rg -q 'pest\(\)->tia\(\)->locally\(\)->baselined\(\)' tests/Pest.php
 rg -q -- '--ci --no-tia' docker/scripts/collect-release-quality-evidence.sh
+rg -q 'pcov\.directory=\$app_root' docker/scripts/collect-release-quality-evidence.sh
+rg -q 'pcov\.exclude=.*vendor\|storage\|node_modules' docker/scripts/collect-release-quality-evidence.sh
 ! rg -q -- '--tia|test:edit|cache hit|replay' docker/scripts/collect-release-quality-evidence.sh
 rg -q 'random_order_seeds' tests/performance-budget.json
 rg -q 'selected_mode' tests/performance-budget.json
