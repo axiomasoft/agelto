@@ -51,7 +51,6 @@ yarn-error.log
 # AI Tools
 # CLAUDE.md / AGENTS.md / GEMINI.md ведём вручную (Boost = только MCP, не композитор контекста)
 .claude/*
-!.claude/skills/
 # Логи инструментов внутри каталогов планов: `git add plans/<PLAN-ID>` шага 6 топологии
 # закрытия item'а не различает их и файлов плана и дважды затягивал в индекс (P3.1).
 plans/**/.claude/
