@@ -144,8 +144,26 @@ Proxyma: код изменился, тесты не обновили.
 | Готовность и консоль | `ApplicationReadinessTest` (20), `ReleaseReadinessDiagnosticsTest`, `CreateInitialAdminTest`, `FreshCrawlerScheduleTest`, `VerifyFreshBoundaryTest`, `RefreshCyclesTest` | проверки готовности учитывают Proxyma, `remainingBudgetMs` отсутствует и в `main` |
 | Прочее | `AcceptanceManifestTest`, `ProjectionRetentionTest`, `SourceControlPolicyTest` | манифест сценариев и политика источников не догнали код |
 
-Ветка исправила два таких теста, потому что они мешали прогону: зависание
-`StatusMappingApplicabilityMigrationTest` (шард не завершался) и `FilamentSchemaContractTest`.
+Ветка исправила такие тесты там, где они мешали прогону: зависание
+`StatusMappingApplicabilityMigrationTest` (шард не завершался), `FilamentSchemaContractTest`, а
+также проверки роли SuperAdmin в `admin:create-initial` и в readiness `release_state`. AzGuard
+запрещает проверки внутри открытой транзакции, поэтому обе проверки падали всегда.
+
+### Clean-install e2e (Playwright)
+
+В `main` clean-install не доходил до браузера: останавливался на создании администратора. В ветке
+установка, readiness и 8 из 12 сценариев Playwright проходят. Ещё 4 сценария ожидают то, чего в
+`main` уже нет:
+
+| Сценарий | Ожидание | Что в `main` |
+| --- | --- | --- |
+| `private-documentation.spec.ts` | `.mermaid svg` на странице deployment | Mermaid-бандл убран коммитом `bf732604`, схемы показываются как код |
+| `admin-navigation-responsive.spec.ts`, super-admin и operator | страница `/admin/procurement/crawler/proxies/create` и текст «Подключение прокси» | ресурс прокси удалён при интеграции Proxyma (`365a93cd`) |
+| `admin-navigation-responsive.spec.ts`, operator, прямой URL | `/admin/roles` отвечает 403 | маршрут отвечает 404 |
+
+Нужно решение владельца: вернуть детерминированный рендер Mermaid (например, SVG на этапе сборки)
+или убрать это ожидание; перевести сценарий оператора на страницы Proxyma; решить, должен ли
+запрещённый маршрут отвечать 403 или 404.
 Остальные исправления меняют ожидания сценариев, закреплённых в манифесте process-core. Решать,
 какое поведение правильное, должен владелец Proxyma-интеграции. Предлагается отдельная ветка на
 каждую группу таблицы, начиная с «Хранилище и источники»: там удалённые классы, а не спорное
