@@ -179,6 +179,13 @@ jobs:
           node-version: '24'
       - run: corepack enable
       - uses: ./.github/actions/setup-vendors
+      # image-pair.sh dry-runs `composer install` on the host before building; the runner's
+      # bundled PHP is older than composer.json's ^8.6.
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.6'
+          tools: composer:v2
+          coverage: none
       - name: Audit locked frontend dependencies
         run: pnpm audit --audit-level=high
       - name: Build immutable image pair

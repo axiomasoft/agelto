@@ -902,28 +902,28 @@ class ComposerRuntimeTest(unittest.TestCase):
         self.module = rig.vendor_module()
 
     def test_versioned_php_is_used_instead_of_incompatible_default_php(self):
-        paths = {"composer": "/tools/composer", "php8.4": "/tools/php8.4", "php": "/tools/php"}
+        paths = {"composer": "/tools/composer", "php8.6": "/tools/php8.6", "php": "/tools/php"}
         with patch.dict(os.environ, {"AGELTO_PHP_BINARY": ""}), \
                 patch.object(self.module.shutil, "which", side_effect=paths.get), \
-                patch.object(self.module.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="80427")) as run:
-            self.assertEqual(self.module.composer_command(), ["/tools/php8.4", "/tools/composer"])
-            run.assert_called_once_with(["/tools/php8.4", "-r", "echo PHP_VERSION_ID;"], capture_output=True, text=True)
+                patch.object(self.module.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="80600")) as run:
+            self.assertEqual(self.module.composer_command(), ["/tools/php8.6", "/tools/composer"])
+            run.assert_called_once_with(["/tools/php8.6", "-r", "echo PHP_VERSION_ID;"], capture_output=True, text=True)
 
     def test_explicit_incompatible_php_refuses_fallback(self):
-        with patch.dict(os.environ, {"AGELTO_PHP_BINARY": "php8.3"}), \
+        with patch.dict(os.environ, {"AGELTO_PHP_BINARY": "php8.5"}), \
                 patch.object(self.module.shutil, "which", side_effect=lambda name: "/tools/" + name), \
-                patch.object(self.module.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="80336")) as run:
-            with self.assertRaisesRegex(ValueError, "PHP >=8.4.1"):
+                patch.object(self.module.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="80504")) as run:
+            with self.assertRaisesRegex(ValueError, "PHP >=8.6"):
                 self.module.composer_command()
             self.assertEqual(run.call_count, 1)
 
     def test_generic_php_is_accepted_only_when_it_meets_the_lock_minimum(self):
         paths = {"composer": "/tools/composer", "php": "/tools/php"}
-        for version in ("80336", "80400", "80401", "80500", "90000"):
+        for version in ("80504", "80599", "80600", "80612", "90000"):
             with self.subTest(version=version), patch.dict(os.environ, {"AGELTO_PHP_BINARY": ""}), \
                     patch.object(self.module.shutil, "which", side_effect=paths.get), \
                     patch.object(self.module.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout=version)):
-                if version in {"80401", "80500"}:
+                if version in {"80600", "80612"}:
                     self.assertEqual(self.module.composer_command(), ["/tools/php", "/tools/composer"])
                 else:
                     with self.assertRaises(ValueError):
@@ -939,15 +939,18 @@ class ComposerRuntimeTest(unittest.TestCase):
                 run.assert_not_called()
 
     def test_both_composer_checks_keep_the_selected_php_and_platform_checks(self):
-        with patch.object(self.module, "composer_command", return_value=["/tools/php8.4", "/tools/composer"]), \
+        with patch.object(self.module, "composer_command", return_value=["/tools/php8.6", "/tools/composer"]), \
                 patch.object(self.module.subprocess, "run", return_value=SimpleNamespace(returncode=0)) as run:
             self.module.run_composer_checks(rig.ROOT)
             commands = [call.args[0] for call in run.call_args_list]
-            self.assertEqual([c[:3] for c in commands], [["/tools/php8.4", "/tools/composer", "validate"],
-                                                        ["/tools/php8.4", "/tools/composer", "install"]])
+            self.assertEqual([c[:3] for c in commands], [["/tools/php8.6", "/tools/composer", "validate"],
+                                                        ["/tools/php8.6", "/tools/composer", "install"]])
             self.assertIn("--strict", commands[0])
             self.assertIn("--dry-run", commands[1])
             self.assertFalse(any(flag.startswith("--ignore-platform") for c in commands for flag in c))
+            # Only the PHP upper bound is waived; extension and lower-bound checks stay on.
+            self.assertTrue(all(call.kwargs["env"]["COMPOSER_IGNORE_PLATFORM_REQ"] == "php+"
+                                for call in run.call_args_list))
 
     def test_real_composer_checks_run_offline_with_a_compatible_installed_php(self):
         with patch.dict(os.environ, {"AGELTO_PHP_BINARY": "", "COMPOSER_DISABLE_NETWORK": "1"}):

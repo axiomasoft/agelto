@@ -2,11 +2,15 @@
 
 FROM minio/minio:RELEASE.2025-04-22T22-12-26Z@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e AS mc
 
-FROM serversideup/php:8.5-fpm-nginx@sha256:185968e90401e65990a6f822225c46f1c79658e43bdf602f9cd13188f7af6295 AS app-base
+FROM serversideup/php:8.6-fpm-nginx@sha256:672d413df0ca56e163a35fa7a9a30b5d70e62ea70f5e03bdbd04318d955f3d40 AS app-base
 
 USER root
 
+# mpdf/mpdf 8.3.x still caps its php constraint at ~8.5.0 (upstream's development branch
+# already allows ~8.6.0). `php+` ignores only that upper bound; lower bounds and every
+# extension requirement stay enforced. Drop it once a tagged mpdf release allows PHP 8.6.
 ENV DEBIAN_FRONTEND=noninteractive \
+    COMPOSER_IGNORE_PLATFORM_REQ=php+ \
     PHP_UPLOAD_MAX_FILE_SIZE=200M \
     PHP_POST_MAX_SIZE=200M \
     PHP_MAX_EXECUTION_TIME=300

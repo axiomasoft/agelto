@@ -13,7 +13,7 @@ if [[ "$stage" != "app-base" && "$stage" != "application" && "$stage" != "worker
     exit 2
 fi
 
-grep -E '^FROM serversideup/php:8\.5-fpm-nginx@sha256:[0-9a-f]{64} AS app-base$' "$root_dir/docker/php/Dockerfile" >/dev/null
+grep -E '^FROM serversideup/php:8\.6-fpm-nginx@sha256:[0-9a-f]{64} AS app-base$' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM app-base AS application' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM application AS worker-prepare' "$root_dir/docker/php/Dockerfile" >/dev/null
 grep -F 'FROM app-base AS doctor' "$root_dir/docker/php/Dockerfile" >/dev/null

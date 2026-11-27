@@ -184,23 +184,26 @@ def composer_command():
     composer = shutil.which("composer")
     require(composer is not None, "Composer executable is required")
     requested = os.environ.get("AGELTO_PHP_BINARY")
-    for candidate in ([requested] if requested else ["php8.5", "php8.4", "php"]):
+    for candidate in ([requested] if requested else ["php8.6", "php"]):
         php = shutil.which(candidate)
         if php is None:
             continue
         result = subprocess.run([php, "-r", "echo PHP_VERSION_ID;"], capture_output=True, text=True)
         version = result.stdout.strip()
-        # The consumer lock includes Symfony 8.1, whose minimum is PHP 8.4.1.
-        if result.returncode == 0 and version.isdecimal() and 80401 <= int(version) < 90000:
+        # composer.json requires PHP ^8.6; the runtime images ship exactly that line.
+        if result.returncode == 0 and version.isdecimal() and 80600 <= int(version) < 90000:
             return [php, composer]
-    raise ValueError("Composer checks require PHP >=8.4.1 <9; install it or set AGELTO_PHP_BINARY")
+    raise ValueError("Composer checks require PHP >=8.6 <9; install it or set AGELTO_PHP_BINARY")
 
 
 def run_composer_checks(root):
     command = composer_command()
+    # Same narrow upper-bound waiver as docker/php/Dockerfile (mpdf caps php at ~8.5.0).
+    environment = {**os.environ, "COMPOSER_IGNORE_PLATFORM_REQ": "php+"}
     for arguments in (["validate", "--no-check-all", "--strict"],
                       ["install", "--dry-run", "--no-dev", "--no-scripts", "--no-interaction", "--no-progress", "--prefer-dist"]):
-        require(subprocess.run([*command, *arguments], cwd=root).returncode == 0, "Composer check failed")
+        require(subprocess.run([*command, *arguments], cwd=root, env=environment).returncode == 0,
+                "Composer check failed")
 
 
 def main():

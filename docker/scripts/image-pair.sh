@@ -39,7 +39,8 @@ git -C "$root" diff --quiet -- . ':(exclude)plans/**' ':(exclude)AGENTS.md' \
 bash "$root/docker/scripts/vendor-sync.sh" --check
 (
     cd "$root"
-    composer install --dry-run --no-dev --no-scripts --no-interaction --no-progress --prefer-dist
+    # Upper-bound-only waiver for mpdf/mpdf (see docker/php/Dockerfile).
+    COMPOSER_IGNORE_PLATFORM_REQ=php+ composer install --dry-run --no-dev --no-scripts --no-interaction --no-progress --prefer-dist
 )
 source_sha="$(git -C "$root" rev-parse HEAD)"
 vendor_lock_sha="$(sha256sum "$root/docker/private-vendors.lock.json" | awk '{print $1}')"
