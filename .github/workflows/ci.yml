@@ -271,6 +271,13 @@ jobs:
           # setup-node v5+ caches automatically when package.json declares packageManager;
           # caches are written only by the explicit trusted-push steps.
           package-manager-cache: false
+      # vendor-sync's Composer check needs the same PHP floor as composer.json; the runner
+      # image ships an older PHP.
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.6'
+          tools: composer:v2
+          coverage: none
       - uses: ./.github/actions/setup-vendors
       - name: Run the isolated production install and browser tests
         env:
