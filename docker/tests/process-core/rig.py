@@ -36,7 +36,7 @@ VOLUMES = {"core-postgres", "core-redis", "core-objects", "core-storage", "core-
            "core-prompts", "core-estimate-prompts"}
 RUNTIME_INPUTS = ROOT / "docker/tests/process-core/runtime-inputs"
 FUTURE = set()
-IMPLEMENTED = {"faults", "load", "file", "shard", "tia", "release", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
+IMPLEMENTED = {"faults", "load", "file", "shard", "tia", "release", "release-sample", "ai", "documents", "up", "env", "reset", "install", "unit", "execution", "concurrency", "observability", "network", "platforms", "acquisition", "e2e", "regression", "report", "down"}
 RESET_SUITES = {"faults", "load", "shard", "tia", "execution", "concurrency", "observability",
                 "network", "platforms", "acquisition", "documents", "ai", "e2e", "regression"}
 GSFX_FIXTURE = "tests/Fixtures/ProcessCore/synthetic-estimate.gsfx"
@@ -917,7 +917,15 @@ def quality(folder):
     return results
 
 
-def release_quality(folder):
+def release_group(sample):
+    group = os.environ.get("PROCESS_CORE_RELEASE_GROUP", "") if sample else "all"
+    require(group in ({"serial", "profile", "coverage", "random", "selected"} if sample else {"all"}),
+            "unknown release quality sample group")
+    return group
+
+
+def release_quality(folder, sample=False):
+    group = release_group(sample)
     readiness()
     stop_workers()
     verify_fixture_inputs()
@@ -925,7 +933,7 @@ def release_quality(folder):
     result = run(["env", "COMPOSE_PROJECT_NAME=" + PROJECT, "ENV_FILE=" + str(ENV_FILE),
                   "RELEASE_QUALITY_EVIDENCE_DIR=" + str(folder / "release-quality"),
                   "PROCESS_CORE_SUITE_TIMEOUT=" + str(suite_budget("regression")),
-                  "bash", ROOT / "docker/scripts/collect-release-quality-evidence.sh"], check=False)
+                  "bash", ROOT / "docker/scripts/collect-release-quality-evidence.sh", group], check=False)
     (folder / "release-quality.log").write_text(result.stdout + result.stderr)
     require(result.returncode == 0, "release quality failed; see release-quality.log")
 
@@ -961,7 +969,9 @@ def execute(command, name):
             result["runtime"] = acceptance_runtime()
         if name == "shard":
             shard_selection()
-        if name in RESET_SUITES | {"reset", "install", "release"}:
+        if name == "release-sample":
+            release_group(True)  # Reject invalid input before reset or any mutation.
+        if name in RESET_SUITES | {"reset", "install", "release", "release-sample"}:
             clock = install_clock()
             result["install_clock"] = clock
             write_json(folder / "install-clock.json", clock)
@@ -995,13 +1005,13 @@ def execute(command, name):
             write_json(folder / "install-comparison.json", {"first": before, "second": after})
             require(before == after, "two clean installs produced different manifests")
             result["manifests"] = after
-        elif name in RESET_SUITES | {"file", "unit", "release"}:
-            if name in RESET_SUITES | {"release"}:
+        elif name in RESET_SUITES | {"file", "unit", "release", "release-sample"}:
+            if name in RESET_SUITES | {"release", "release-sample"}:
                 reset_folder = folder / "clean-reset"
                 reset_folder.mkdir()
                 reset(reset_folder, clock=clock)
-            if name == "release":
-                release_quality(folder)
+            if name in {"release", "release-sample"}:
+                release_quality(folder, sample=name == "release-sample")
             else:
                 result["tests"] = suite(folder, name)
         elif command == "core-quality":

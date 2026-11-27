@@ -203,24 +203,79 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-  release-quality:
-    name: Release quality and coverage evidence
+  release-samples:
+    name: Release quality samples (${{ matrix.group }})
     needs: preflight
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
     runs-on: ubuntu-26.04
-    timeout-minutes: 180
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [serial, profile, coverage, random, selected]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-core-test
-      - name: Collect the 13 no-TIA runs and enforce the committed coverage floors
-        run: make core-test-release
+      - name: Collect full no-TIA samples for this group
+        env:
+          PROCESS_CORE_RELEASE_GROUP: ${{ matrix.group }}
+        run: make core-test-release-sample
+      - name: Stage this group's evidence
+        shell: bash
+        env:
+          RELEASE_GROUP: ${{ matrix.group }}
+        run: |
+          python3 - <<'PY'
+          import os, shutil
+          from pathlib import Path
+          group = os.environ['RELEASE_GROUP']
+          reports = Path('storage/app/testing/process-core/reports')
+          proofs = list(reports.glob('*/release-quality/provenance-' + group + '.json'))
+          if len(proofs) != 1:
+              raise SystemExit(f'Expected one {group} proof, found {len(proofs)}')
+          shutil.copytree(proofs[0].parent, Path('.ci-artifacts/release-quality-group'))
+          PY
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+        with:
+          name: release-quality-group-${{ github.sha }}-${{ matrix.group }}
+          path: .ci-artifacts/release-quality-group/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: release-quality-failure-${{ github.sha }}-${{ matrix.group }}
+          path: storage/app/testing/process-core/reports/
+          if-no-files-found: warn
+          retention-days: 14
+
+  release-quality:
+    name: Release quality and coverage evidence
+    needs: [preflight, release-samples]
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-quality-group-${{ github.sha }}-*
+          path: .ci-artifacts/release-quality-groups
+      - name: Verify all 13 samples and enforce coverage and time budgets
+        run: |
+          python3 docker/scripts/release-quality-groups.py verify .ci-artifacts/release-quality-groups .ci-artifacts/release-quality
+          python3 docker/scripts/check-release-quality.py \
+            --budget tests/performance-budget.json \
+            --evidence .ci-artifacts/release-quality \
+            --write-summary .ci-artifacts/release-quality/summary.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-quality-${{ github.sha }}
-          path: storage/app/testing/process-core/reports/
+          path: .ci-artifacts/release-quality/
           if-no-files-found: error
           retention-days: 14
 
@@ -413,7 +468,7 @@ jobs:
   ci-gate:
     name: CI gate
     if: always()
-    needs: [changes, preflight, quality, tests, release-quality, faults, load, e2e, build-security]
+    needs: [changes, preflight, quality, tests, release-samples, release-quality, faults, load, e2e, build-security]
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
@@ -428,7 +483,7 @@ jobs:
               print(f"{name}: {result}")
           required = {"changes"}
           if os.environ["GITHUB_EVENT_NAME"] in {"schedule", "workflow_dispatch", "release"}:
-              required.update({"preflight", "release-quality", "faults", "load", "e2e", "build-security"})
+              required.update({"preflight", "release-samples", "release-quality", "faults", "load", "e2e", "build-security"})
           bad = {name for name, result in results.items() if result not in ("success", "skipped")}
           bad.update(name for name in required if results.get(name) != "success")
           if bad:

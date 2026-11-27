@@ -27,6 +27,23 @@ def copy_synthetic_gsfx(root):
             "sha256": rig.hashlib.sha256(destination.read_bytes()).hexdigest()}
 
 
+class ReleaseGroupTest(unittest.TestCase):
+    def test_group_is_validated_and_explicitly_forwarded_to_collector(self):
+        with tempfile.TemporaryDirectory() as temp, \
+                patch.dict(os.environ, {"PROCESS_CORE_RELEASE_GROUP": "coverage"}), \
+                patch.object(rig, "readiness"), patch.object(rig, "stop_workers"), \
+                patch.object(rig, "verify_fixture_inputs"), patch.object(rig, "prepare_runtime"), \
+                patch.object(rig, "run", return_value=SimpleNamespace(returncode=0, stdout="", stderr="")) as run:
+            rig.release_quality(Path(temp), sample=True)
+            self.assertEqual(run.call_args.args[0][-1], "coverage")
+            rig.release_quality(Path(temp))
+            self.assertEqual(run.call_args.args[0][-1], "all")
+        with patch.dict(os.environ, {"PROCESS_CORE_RELEASE_GROUP": "--unsafe"}), \
+                patch.object(rig, "readiness") as readiness, self.assertRaises(rig.GuardError):
+            rig.release_quality(Path(temp), sample=True)
+        readiness.assert_not_called()
+
+
 class RigGuardsTest(unittest.TestCase):
     def test_аудит_composer_повторяет_только_ошибку_транспорта(self):
         scenarios = [
